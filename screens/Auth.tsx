@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../src/contexts/AuthContext';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();

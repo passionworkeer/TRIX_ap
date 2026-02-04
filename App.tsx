@@ -10,7 +10,7 @@ import Profile from './screens/Profile';
 import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import { AppRoutes } from './types';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 // Layout component to conditionally wrap content with BottomNav
 const Layout: React.FC = () => {
