@@ -52,37 +52,34 @@ TRIX 项目有 **3 个独立的部分**:
 
 ---
 
-### 方案 B: 测试前端功能 (使用 Mock Gateway)
+### 方案 B: 使用真实 Clawdbot Gateway
 
 ```
 需要启动:
   ✅ 前端 Vite (npm run dev) - 端口 3000
-  ✅ Mock Gateway (node mock-gateway.js) - 端口 18789
+  ✅ Clawdbot Gateway (openclaw-cn gateway) - 端口 18789
   ❌ server.py - 不需要
-  ❌ 真实 Gateway - 暂时不需要
 ```
 
 **启动顺序:**
-1. 启动 Mock Gateway (模拟 AI 回复)
+1. 启动真实 Clawdbot Gateway
 2. 启动 Vite 前端
 
 ---
 
-## 🚀 方案 B 快速启动 (推荐先测试这个)
+## 🚀 方案 B 快速启动 (使用真实 Gateway)
 
-### 窗口 1 - 启动 Mock Gateway
+### 窗口 1 - 启动 Clawdbot Gateway
 
 ```powershell
-cd E:\desktop\trix-3d-companion
-node mock-gateway.js
+openclaw-cn gateway
 ```
 
 **期望输出:**
 ```
-🚀 Starting TRIX Mock Gateway...
-✅ Mock Gateway listening on 0.0.0.0:18789
-   - Local:   ws://localhost:18789
-   - Network: ws://192.168.101.4:18789
+正在启动 Clawdbot Gateway...
+Gateway 已启动在 ws://0.0.0.0:18789
+使用模型: glm-4.7
 ```
 
 ### 窗口 2 - 启动前端
@@ -177,13 +174,13 @@ if (-not (Test-Path "node_modules")) {
     npm install
 }
 
-# 启动 Mock Gateway
+# 提示启动真实 Gateway
 Write-Host ""
-Write-Host "启动 Mock Gateway (端口 18789)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; node mock-gateway.js"
-
-# 等待 Gateway 启动
-Start-Sleep -Seconds 2
+Write-Host "请先启动 Clawdbot Gateway:" -ForegroundColor Yellow
+Write-Host "  openclaw-cn gateway" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "按任意键继续..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
 # 启动 Vite
 Write-Host "启动 Vite 前端 (端口 3000)..." -ForegroundColor Green

@@ -11,13 +11,12 @@ if (-not (Test-Path "node_modules")) {
     npm install
 }
 
-# 启动 Mock Gateway
+# 启动真实的 Clawdbot Gateway
 Write-Host ""
-Write-Host "启动 Mock Gateway (端口 18789)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD'; node mock-gateway.js"
-
-# 等待 Gateway 启动
-Start-Sleep -Seconds 2
+Write-Host "启动 Clawdbot Gateway (端口 18789)..." -ForegroundColor Green
+Write-Host "请确保已在另一个窗口运行: openclaw-cn gateway" -ForegroundColor Yellow
+Write-Host "按任意键继续..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
 # 启动 Vite
 Write-Host "启动 Vite 前端 (端口 3000)..." -ForegroundColor Green
