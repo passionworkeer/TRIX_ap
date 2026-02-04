@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Mic, Image as ImageIcon, MoreVertical, Bot } from 'lucide-react';
+import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { usePCConnection } from '../hooks/usePCConnection';
+import { usePCConnection } from '../src/hooks/usePCConnection';
+import { useSpeechToText } from '../src/hooks/useSpeechToText';
 
 interface Message {
   id: number;
@@ -22,6 +23,29 @@ const ChatDetail: React.FC = () => {
   
   // WebSocket connection using Clawdbot Gateway protocol
   const { status, sendMessage, lastMessage, isConnected } = usePCConnection();
+  
+  // Speech to text for voice input
+  const {
+    isListening,
+    transcript,
+    fullTranscript,
+    startListening,
+    stopListening,
+    reset: resetSpeech,
+    isSupported: isSpeechSupported,
+    error: speechError,
+  } = useSpeechToText({
+    lang: 'zh-CN',
+    continuous: false,
+    interimResults: true,
+    onResult: (text) => {
+      // 当语音识别完成时,自动填充到输入框
+      setInput(prev => prev + text);
+    },
+    onError: (err) => {
+      console.error('语音识别错误:', err);
+    }
+  });
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -221,16 +245,42 @@ const ChatDetail: React.FC = () => {
           <div className="flex-1 flex items-center bg-slate-100 rounded-full px-4 py-2">
             <input
               type="text"
-              value={input}
+              value={isListening ? fullTranscript : input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={isBot ? "发送消息给 Gateway..." : "输入消息..."}
+              placeholder={
+                isListening 
+                  ? "🎤 正在监听..." 
+                  : isBot 
+                    ? "发送消息给 Gateway..." 
+                    : "输入消息..."
+              }
               className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400"
               disabled={isBot && !isConnected}
             />
-            <button className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center hover:bg-slate-300 transition-colors ml-2">
-              <Mic size={18} className="text-slate-600" />
-            </button>
+            {isSpeechSupported && (
+              <button 
+                onClick={() => {
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    resetSpeech();
+                    startListening();
+                  }
+                }}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ml-2 ${
+                  isListening 
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                    : 'bg-slate-200 hover:bg-slate-300'
+                }`}
+              >
+                {isListening ? (
+                  <MicOff size={18} className="text-white" />
+                ) : (
+                  <Mic size={18} className="text-slate-600" />
+                )}
+              </button>
+            )}
           </div>
           <button
             onClick={handleSend}
