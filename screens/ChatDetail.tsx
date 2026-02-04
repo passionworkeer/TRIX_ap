@@ -6,7 +6,7 @@ import { useGlobalConnection } from '../src/contexts/WebSocketContext';
 import { useSpeechToText } from '../src/hooks/useSpeechToText';
 
 interface Message {
-  id: number;
+  id: number | string; // 🔥 改为支持 string (用于 streamId)
   sender: 'user' | 'bot';
   text: string;
   timestamp: string;
@@ -21,8 +21,8 @@ const ChatDetail: React.FC = () => {
     isBot: true 
   };
   
-  // 🌐 使用全局 WebSocket 连接
-  const { status, sendMessage, fullResponse, isConnected } = useGlobalConnection();
+  // 🌐 使用全局 WebSocket 连接 (包含 currentStreamId)
+  const { status, sendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
   
   // Speech to text for voice input
   const {
@@ -65,30 +65,29 @@ const ChatDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 🔥 Handle incoming messages from WebSocket (使用 fullResponse)
+  // 🔥 修复：使用 ID 绑定机制处理流式回复，避免重复气泡
   useEffect(() => {
-    if (!fullResponse || !isBot) return;
+    if (!fullResponse || !isBot || !currentStreamId) return;
 
-    // 检查是否已经有一条正在显示的 bot 消息，如果有则更新它
     setMessages(prev => {
-      const lastMsg = prev[prev.length - 1];
+      // 查找是否已存在该 streamId 的消息
+      const existingIndex = prev.findIndex(msg => msg.id === currentStreamId);
       
-      // 如果最后一条是 bot 消息且来自 Gateway，则更新它
-      if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text.startsWith('Gateway')) {
-        return [
-          ...prev.slice(0, -1),
-          {
-            ...lastMsg,
-            text: fullResponse,
-            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-          }
-        ];
+      if (existingIndex !== -1) {
+        // ✅ 找到了 → 更新该消息的文本内容
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          text: fullResponse,
+          timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        return updated;
       } else {
-        // 否则添加新消息
+        // ✅ 没找到 → 创建新消息，使用 streamId 作为 id
         return [
           ...prev,
           {
-            id: Date.now(),
+            id: currentStreamId, // 🔥 使用 streamId 作为唯一标识
             sender: 'bot',
             text: fullResponse,
             timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
@@ -96,7 +95,7 @@ const ChatDetail: React.FC = () => {
         ];
       }
     });
-  }, [fullResponse, isBot]);
+  }, [fullResponse, currentStreamId, isBot]);
 
   const handleSend = () => {
     if (!input.trim()) return;
