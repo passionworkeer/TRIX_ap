@@ -3,18 +3,17 @@ import { Plus, FileText, CheckCircle2, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
-import { usePCConnection } from '../src/hooks/usePCConnection';
+import { useGlobalConnection } from '../src/contexts/WebSocketContext';
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
-  const { status, isConnected } = usePCConnection();
+  const { status, isConnected } = useGlobalConnection();
 
   // Connection status display
   const getStatusColor = () => {
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
-      case 'CONNECTING':
-      case 'AUTHENTICATING': return 'bg-yellow-500 animate-pulse';
+      case 'CONNECTING': return 'bg-yellow-500 animate-pulse';
       case 'AUTH_FAILED':
       case 'ERROR': return 'bg-red-500';
       default: return 'bg-gray-400';
@@ -25,7 +24,6 @@ const Chat: React.FC = () => {
     switch (status) {
       case 'CONNECTED': return '已连接';
       case 'CONNECTING': return '连接中';
-      case 'AUTHENTICATING': return '认证中';
       case 'AUTH_FAILED': return '认证失败';
       case 'ERROR': return '错误';
       default: return '离线';
