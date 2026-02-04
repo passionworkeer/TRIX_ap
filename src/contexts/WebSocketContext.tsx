@@ -39,6 +39,7 @@ export type ConnectionStatus =
 interface WebSocketContextValue {
   status: ConnectionStatus;
   fullResponse: string; // 拼接后的完整 AI 回复
+  currentStreamId: string | null; // 🔥 新增：当前流式回复的唯一 ID
   sendMessage: (text: string) => void;
   isConnected: boolean;
   connect: () => void;
@@ -54,6 +55,7 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [fullResponse, setFullResponse] = useState<string>('');
+  const [currentStreamId, setCurrentStreamId] = useState<string | null>(null); // 🔥 新增：流 ID
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -155,16 +157,38 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
           if (!payload) return;
 
           let textContent: string | null = null;
+          let backendRunId: string | null = null;
+
+          // 尝试提取后端的 runId (如果有)
+          if (payload.runId) {
+            backendRunId = payload.runId;
+          } else if (payload.data?.runId) {
+            backendRunId = payload.data.runId;
+          }
 
           // 🎯 场景 1: assistant 流式增量 (Clawdbot v3 标准)
           if (payload.stream === 'assistant' && payload.data?.delta) {
             textContent = payload.data.delta;
             console.log('📝 收到增量:', textContent);
+            
+            // 🔥 如果是第一条增量，生成新的 streamId
+            if (!currentStreamId) {
+              const newStreamId = backendRunId || `stream-${Date.now()}-${generateId()}`;
+              setCurrentStreamId(newStreamId);
+              console.log('🆕 新建流 ID:', newStreamId);
+            }
           }
           // 🎯 场景 2: assistant 完整文本
           else if (payload.stream === 'assistant' && payload.data?.text) {
             textContent = payload.data.text;
             console.log('📄 收到完整文本:', textContent);
+            
+            // 🔥 如果是完整文本，也需要 streamId
+            if (!currentStreamId) {
+              const newStreamId = backendRunId || `stream-${Date.now()}-${generateId()}`;
+              setCurrentStreamId(newStreamId);
+              console.log('🆕 新建流 ID:', newStreamId);
+            }
           }
           // 🎯 场景 3: 文本流 (通用)
           else if (payload.stream === 'text' && payload.data) {
@@ -190,7 +214,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
           // 检测回复结束信号
           if (payload.data?.done === true || payload.stream === 'done') {
             console.log('✅ 回复完成，总长度:', responseBufferRef.current.length);
-            // 可选：这里可以触发一个 "回复完成" 的回调
+            // 🔥 回复结束时，不清空 streamId，让 UI 可以继续关联
+            // setCurrentStreamId(null); // 暂时保留，让 UI 完成最后的更新
           }
 
         } catch (e) {
@@ -241,7 +266,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       return;
     }
     
-    // 🔥 关键：必须包含 idempotencyKey，否则会被网关拒绝
+    // 🔥 关键 1: 生成新的 streamId，准备接收新的回复
+    const newStreamId = `stream-${Date.now()}-${generateId()}`;
+    setCurrentStreamId(newStreamId);
+    console.log('🆕 发送消息，预生成流 ID:', newStreamId);
+    
+    // 🔥 关键 2: 清空之前的回复缓冲区
+    responseBufferRef.current = '';
+    setFullResponse('');
+    
+    // 🔥 关键 3: 必须包含 idempotencyKey，否则会被网关拒绝
     const idempotencyKey = `${Date.now()}-${generateId()}`;
     
     const packet = {
@@ -257,10 +291,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     
     console.log('📤 发送消息:', text);
     wsRef.current.send(JSON.stringify(packet));
-    
-    // 清空之前的回复缓冲区，准备接收新回复
-    responseBufferRef.current = '';
-    setFullResponse('');
   }, []);
 
   const disconnect = useCallback(() => {
@@ -293,6 +323,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const value: WebSocketContextValue = {
     status,
     fullResponse,
+    currentStreamId, // 🔥 导出 streamId
     sendMessage,
     isConnected: status === 'CONNECTED',
     connect,
