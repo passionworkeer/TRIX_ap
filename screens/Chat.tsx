@@ -3,7 +3,7 @@ import { Plus, FileText, CheckCircle2, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
-import { usePCConnection } from '../hooks/usePCConnection';
+import { usePCConnection } from '../src/hooks/usePCConnection';
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
