@@ -22,29 +22,23 @@
 
 我已经创建了一个 Mock Gateway 用于测试前端功能!
 
-#### 1. 安装 ws 依赖
-```powershell
-cd E:\desktop\trix-3d-companion
-npm install ws
-```
-
-#### 2. 启动 Mock Gateway
+#### 1. 启动 Clawdbot Gateway
 ```powershell
 # 新开一个 PowerShell 窗口
-node mock-gateway.js
+openclaw-cn gateway
 ```
 
 应该看到:
 ```
-🚀 Starting TRIX Mock Gateway...
-✅ Mock Gateway listening on 0.0.0.0:18789
-   - Local:   ws://localhost:18789
-   - Network: ws://192.168.101.4:18789
+正在启动 Clawdbot Gateway...
+Gateway 已启动在 ws://0.0.0.0:18789
+使用模型: glm-4.7
 ```
 
-#### 3. 启动前端 (如果没运行)
+#### 2. 启动前端 (如果没运行)
 ```powershell
 # 另一个窗口
+cd E:\desktop\trix-3d-companion
 npm run dev
 ```
 
@@ -118,10 +112,12 @@ ws.onerror = (e) => console.error('❌', e);
 
 ```powershell
 # 启动 Mock Gateway
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd E:\desktop\trix-3d-companion; node mock-gateway.js"
-
-# 等待 2 秒
-Start-Sleep -Seconds 2
+# 提示启动真实 Gateway
+Write-Host "请先在另一个窗口启动 Clawdbot Gateway:" -ForegroundColor Yellow
+Write-Host "  openclaw-cn gateway" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "按任意键继续..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
 # 启动 Vite
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd E:\desktop\trix-3d-companion; npm run dev"
@@ -131,8 +127,8 @@ Start-Sleep -Seconds 3
 Start-Process "http://localhost:3000/"
 
 Write-Host "✅ TRIX 已启动!" -ForegroundColor Green
-Write-Host "   - Mock Gateway: ws://192.168.101.4:18789" -ForegroundColor Cyan
-Write-Host "   - Frontend:     http://192.168.101.4:3000/" -ForegroundColor Cyan
+Write-Host "   - Clawdbot Gateway: ws://192.168.101.4:18789" -ForegroundColor Cyan
+Write-Host "   - Frontend:         http://192.168.101.4:3000/" -ForegroundColor Cyan
 ```
 
 ---
@@ -141,27 +137,25 @@ Write-Host "   - Frontend:     http://192.168.101.4:3000/" -ForegroundColor Cyan
 
 1. **安装依赖**
    ```powershell
-   npm install ws
+1. **启动 Clawdbot Gateway** (窗口 1)
+   ```powershell
+   openclaw-cn gateway
    ```
 
-2. **启动 Mock Gateway** (窗口 1)
+2. **启动 Vite** (窗口 2)
    ```powershell
-   node mock-gateway.js
-   ```
-
-3. **启动 Vite** (窗口 2)
-   ```powershell
+   cd E:\desktop\trix-3d-companion
    npm run dev
    ```
 
-4. **打开浏览器**
+3. **打开浏览器**
    ```
    http://localhost:3000/
    或
    http://192.168.101.4:3000/ (手机)
    ```
 
-5. **测试连接**
+4. **测试连接**
    - 进入 Chat 界面
    - 看到 "Clawdbot Gateway" 卡片
    - 状态显示 🟢 已连接
