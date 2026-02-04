@@ -161,7 +161,7 @@ export const usePCConnection = (): UsePCConnectionReturn => {
           }
 
           // Handle normal message responses
-          if (data.error) {
+          if ('error' in data && data.error) {
             console.error('❌ Server error:', data.error);
             setLastMessage(`Error: ${data.error}`);
             return;
@@ -169,9 +169,9 @@ export const usePCConnection = (): UsePCConnectionReturn => {
 
           // Extract message content based on Clawdbot response format
           const content = 
-            data.result || 
-            data.text || 
-            data.message || 
+            ('result' in data ? data.result : null) || 
+            ('text' in data ? data.text : null) || 
+            ('message' in data ? data.message : null) || 
             (typeof data === 'string' ? data : JSON.stringify(data));
           
           setLastMessage(content);

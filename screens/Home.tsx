@@ -3,8 +3,8 @@ import { Mail, Bell, MessageCircle, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { usePCConnection } from '../hooks/usePCConnection';
+import { useAuth } from '../src/contexts/AuthContext';
+import { usePCConnection } from '../src/hooks/usePCConnection';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -26,9 +26,9 @@ const Home: React.FC = () => {
             <img src={IMAGES.FRIEND_1} className="w-full h-full rounded-full object-cover" alt="User" />
           </div>
           <div className="flex items-center gap-1.5 bg-white/40 dark:bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-            <div className={`w-2.5 h-2.5 rounded-full ${pcStatus === 'online' ? 'bg-green-500 animate-pulse' : pcStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`}></div>
+            <div className={`w-2.5 h-2.5 rounded-full ${pcStatus === 'CONNECTED' ? 'bg-green-500 animate-pulse' : pcStatus === 'CONNECTING' || pcStatus === 'AUTHENTICATING' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'}`}></div>
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-              {pcStatus === 'online' ? '在线' : pcStatus === 'connecting' ? '连接中' : '离线'}
+              {pcStatus === 'CONNECTED' ? '在线' : pcStatus === 'CONNECTING' || pcStatus === 'AUTHENTICATING' ? '连接中' : '离线'}
             </span>
           </div>
         </div>
