@@ -11,6 +11,7 @@ import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import { AppRoutes } from './types';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { WebSocketProvider } from './src/contexts/WebSocketContext';
 
 // Layout component to conditionally wrap content with BottomNav
 const Layout: React.FC = () => {
@@ -37,9 +38,11 @@ const Layout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <HashRouter>
-        <Layout />
-      </HashRouter>
+      <WebSocketProvider>
+        <HashRouter>
+          <Layout />
+        </HashRouter>
+      </WebSocketProvider>
     </AuthProvider>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { usePCConnection } from '../src/hooks/usePCConnection';
+import { useGlobalConnection } from '../src/contexts/WebSocketContext';
 import { useSpeechToText } from '../src/hooks/useSpeechToText';
 
 interface Message {
@@ -21,8 +21,8 @@ const ChatDetail: React.FC = () => {
     isBot: true 
   };
   
-  // WebSocket connection using Clawdbot Gateway protocol
-  const { status, sendMessage, lastMessage, isConnected } = usePCConnection();
+  // 🌐 使用全局 WebSocket 连接
+  const { status, sendMessage, fullResponse, isConnected } = useGlobalConnection();
   
   // Speech to text for voice input
   const {
@@ -65,20 +65,38 @@ const ChatDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle incoming messages from WebSocket
+  // 🔥 Handle incoming messages from WebSocket (使用 fullResponse)
   useEffect(() => {
-    if (!lastMessage || !isBot) return;
+    if (!fullResponse || !isBot) return;
 
-    // Add bot response to messages
-    const botMessage: Message = {
-      id: Date.now(),
-      sender: 'bot',
-      text: lastMessage,
-      timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages(prev => [...prev, botMessage]);
-  }, [lastMessage, isBot]);
+    // 检查是否已经有一条正在显示的 bot 消息，如果有则更新它
+    setMessages(prev => {
+      const lastMsg = prev[prev.length - 1];
+      
+      // 如果最后一条是 bot 消息且来自 Gateway，则更新它
+      if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text.startsWith('Gateway')) {
+        return [
+          ...prev.slice(0, -1),
+          {
+            ...lastMsg,
+            text: fullResponse,
+            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          }
+        ];
+      } else {
+        // 否则添加新消息
+        return [
+          ...prev,
+          {
+            id: Date.now(),
+            sender: 'bot',
+            text: fullResponse,
+            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          }
+        ];
+      }
+    });
+  }, [fullResponse, isBot]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -134,8 +152,7 @@ const ChatDetail: React.FC = () => {
   const getStatusColor = () => {
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
-      case 'CONNECTING':
-      case 'AUTHENTICATING': return 'bg-yellow-500 animate-pulse';
+      case 'CONNECTING': return 'bg-yellow-500 animate-pulse';
       case 'AUTH_FAILED':
       case 'ERROR': return 'bg-red-500';
       default: return 'bg-gray-400';
@@ -146,7 +163,6 @@ const ChatDetail: React.FC = () => {
     switch (status) {
       case 'CONNECTED': return '🟢 已连接';
       case 'CONNECTING': return '🟡 连接中';
-      case 'AUTHENTICATING': return '🟡 认证中';
       case 'AUTH_FAILED': return '🔴 认证失败';
       case 'ERROR': return '🔴 错误';
       default: return '⚪ 离线';
