@@ -8,7 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "organize:docs": "powershell -ExecutionPolicy Bypass -File ./scripts/organize_docs.ps1",
-    "collect:tests": "powershell -ExecutionPolicy Bypass -File ./scripts/collect_tests.ps1"
+    "collect:tests": "powershell -ExecutionPolicy Bypass -File ./scripts/collect_tests.ps1",
+    "setup": "powershell -ExecutionPolicy Bypass -File ./scripts/setup/setup.ps1",
+    "setup:firewall": "powershell -ExecutionPolicy Bypass -File ./scripts/setup/setup-firewall.ps1",
+    "setup:gateway": "powershell -ExecutionPolicy Bypass -File ./scripts/setup/setup-gateway-network.ps1",
+    "start:test": "powershell -ExecutionPolicy Bypass -File ./scripts/setup/start-trix-test.ps1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.94.0",
