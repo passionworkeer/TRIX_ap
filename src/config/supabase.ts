@@ -21,8 +21,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// 当前用户 ID（从数据库初始化脚本中）
-export const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
+// 当前用户 ID（从 localStorage 读取，默认为用户1）
+export const getCurrentUserId = (): string => {
+  return localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001';
+};
+
+export const CURRENT_USER_ID = getCurrentUserId();
 
 // 导出类型定义
 export interface Friend {
@@ -102,4 +106,20 @@ export interface FriendLatestMessage {
   unread_count: number;
   last_message: string | null;
   last_message_time: string | null;
+}
+
+export interface UserSession {
+  id: string;
+  user_id: string;
+  session_token: string;
+  device_info: {
+    ip?: string;
+    device?: string;
+    browser?: string;
+  } | null;
+  clawbot_endpoint: string | null; // 用户个人电脑上的 Clawbot Gateway 地址
+  is_active: boolean;
+  created_at: string;
+  expires_at: string;
+  last_active_at: string;
 }
