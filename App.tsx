@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
+import UserSwitcher from './components/UserSwitcher';
 import Home from './screens/Home';
 import Snapshot from './screens/Snapshot';
 import Study from './screens/Study';
@@ -15,6 +16,15 @@ import { WebSocketProvider } from './src/contexts/WebSocketContext';
 
 // Layout component to conditionally wrap content with BottomNav
 const Layout: React.FC = () => {
+  const [currentUserId, setCurrentUserId] = useState<string>(
+    localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001'
+  );
+
+  const handleUserChange = (userId: string, userName: string) => {
+    setCurrentUserId(userId);
+    console.log('切换用户:', userName, userId);
+  };
+
   return (
     <>
       <Routes>
@@ -31,6 +41,7 @@ const Layout: React.FC = () => {
         <Route path={AppRoutes.PAIRING} element={<Pairing />} />
       </Routes>
       <BottomNav />
+      <UserSwitcher onUserChange={handleUserChange} />
     </>
   );
 };

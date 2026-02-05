@@ -10,7 +10,8 @@ import type {
   Notification, 
   Mail, 
   StudySession,
-  FriendLatestMessage 
+  FriendLatestMessage,
+  UserSession
 } from '../config/supabase';
 
 // ============================================
@@ -101,13 +102,31 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
 }
 
 /**
- * 发送消息（使用数据库函数）
+ * 发送消息（支持用户间真实消息传递）
  */
 export async function sendMessage(
   friendId: string,
   sender: 'user' | 'friend' | 'bot',
   text: string
 ): Promise<string | null> {
+  // 如果是发送给真实用户（friend_id 以 user_ 开头），使用用户消息路由函数
+  if (friendId.startsWith('user_')) {
+    const { data, error } = await supabase
+      .rpc('send_user_message', {
+        p_sender_user_id: CURRENT_USER_ID,
+        p_recipient_friend_id: friendId,
+        p_text: text
+      });
+
+    if (error) {
+      console.error('发送用户消息失败:', error);
+      return null;
+    }
+
+    return data;
+  }
+
+  // 否则使用原有的消息发送函数（AI bot 等）
   const { data, error } = await supabase
     .rpc('send_message', {
       p_friend_id: friendId,
@@ -476,7 +495,7 @@ export function subscribeToNotifications(
     .on(
       'postgres_changes',
       {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${CURRENT_USER_ID}`
@@ -490,4 +509,109 @@ export function subscribeToNotifications(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ============================================
+// 会话管理（用于个性化 Clawbot 连接）
+// ============================================
+
+/**
+ * 创建或更新用户会话
+ */
+export async function createOrUpdateSession(
+  deviceInfo: { ip?: string; device?: string; browser?: string },
+  clawbotEndpoint: string
+): Promise<UserSession | null> {
+  const sessionToken = `session_${CURRENT_USER_ID}_${Date.now()}`;
+  
+  const { data, error } = await supabase
+    .from('user_sessions')
+    .insert({
+      user_id: CURRENT_USER_ID,
+      session_token: sessionToken,
+      device_info: deviceInfo,
+      clawbot_endpoint: clawbotEndpoint,
+      is_active: true
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('创建会话失败:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * 获取当前用户的活跃会话
+ */
+export async function getCurrentSession(): Promise<UserSession | null> {
+  const { data, error } = await supabase
+    .from('user_sessions')
+    .select('*')
+    .eq('user_id', CURRENT_USER_ID)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    console.error('获取会话失败:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * 获取用户的 Clawbot Gateway 端点
+ */
+export async function getUserClawbotEndpoint(userId?: string): Promise<string | null> {
+  const targetUserId = userId || CURRENT_USER_ID;
+  
+  const { data, error } = await supabase
+    .from('user_sessions')
+    .select('clawbot_endpoint')
+    .eq('user_id', targetUserId)
+    .eq('is_active', true)
+    .order('last_active_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    console.warn('未找到 Clawbot 端点，使用默认配置');
+    return null;
+  }
+
+  return data.clawbot_endpoint;
+}
+
+/**
+ * 更新会话最后活跃时间
+ */
+export async function updateSessionActivity(sessionToken: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_sessions')
+    .update({ last_active_at: new Date().toISOString() })
+    .eq('session_token', sessionToken);
+
+  if (error) {
+    console.error('更新会话活跃时间失败:', error);
+  }
+}
+
+/**
+ * 停用会话
+ */
+export async function deactivateSession(sessionToken: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_sessions')
+    .update({ is_active: false })
+    .eq('session_token', sessionToken);
+
+  if (error) {
+    console.error('停用会话失败:', error);
+  }
 }
