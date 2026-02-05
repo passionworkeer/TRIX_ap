@@ -1,13 +1,39 @@
-import React from 'react';
-import { Plus, FileText, CheckCircle2, Bot } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, FileText, CheckCircle2, Bot, Circle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
 import { useGlobalConnection } from '../src/contexts/WebSocketContext';
+import { getFriends, subscribeToUnreadCounts } from '../src/services/databaseService';
+import type { FriendLatestMessage } from '../src/config/supabase';
+import Avatar from '../components/Avatar';
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
   const { status, isConnected } = useGlobalConnection();
+  const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🔥 从数据库加载好友列表
+  useEffect(() => {
+    loadFriends();
+  }, []);
+
+  // 🔥 实时订阅未读计数更新
+  useEffect(() => {
+    const unsubscribe = subscribeToUnreadCounts(() => {
+      loadFriends(); // 未读计数变化时重新加载好友列表
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const loadFriends = async () => {
+    setLoading(true);
+    const data = await getFriends();
+    setFriends(data);
+    setLoading(false);
+  };
 
   // Connection status display
   const getStatusColor = () => {
@@ -29,6 +55,31 @@ const Chat: React.FC = () => {
       default: return '离线';
     }
   };
+
+  // 🔥 获取在线状态颜色
+  const getOnlineStatusColor = (status: FriendLatestMessage['status']) => {
+    switch (status) {
+      case 'online': return 'bg-green-500';
+      case 'busy': return 'bg-red-500';
+      case 'away': return 'bg-yellow-500';
+      default: return 'bg-gray-300';
+    }
+  };
+
+  // 🔥 格式化时间戳
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full bg-[#fdfdfd] flex items-center justify-center">
+        <p className="text-slate-500">加载中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-full bg-[#fdfdfd] relative overflow-hidden flex flex-col">
@@ -56,75 +107,93 @@ const Chat: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-4">
-             {/* File Card */}
-             <div 
-                onClick={() => navigate(AppRoutes.CHAT_DETAIL, { state: { name: '项目协作组', avatar: IMAGES.FRIEND_2, isBot: false } })}
-                className="bg-white/70 backdrop-blur-xl border border-white/80 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-                      <FileText className="text-red-500" size={24} />
-                   </div>
-                   <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center mb-1">
-                         <h3 className="font-bold text-slate-800 truncate">项目报告.pdf</h3>
-                         <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">80%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                         <div className="h-full w-[80%] bg-green-500 rounded-full"></div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-
-             {/* Friend Chat */}
-             <div 
-                onClick={() => navigate(AppRoutes.CHAT_DETAIL, { state: { name: '爱丽丝', avatar: IMAGES.AVATAR_GIRL, isBot: false } })}
-                className="bg-white/60 backdrop-blur-md border border-white/60 p-4 rounded-2xl shadow-sm flex items-center gap-4 hover:bg-white/80 transition-colors cursor-pointer">
-                <div className="relative shrink-0">
-                   <img src={IMAGES.AVATAR_GIRL} className="w-14 h-14 rounded-full border-2 border-white object-cover" alt="Alice" />
-                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-300 border-2 border-white rounded-full"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                   <div className="flex justify-between items-baseline">
-                      <h3 className="font-bold text-slate-800 text-lg">爱丽丝</h3>
-                      <span className="text-xs font-medium text-slate-400">2分钟前</span>
-                   </div>
-                   <div className="flex justify-between items-center mt-1">
-                      <p className="text-slate-500 text-sm truncate">嘿，视频渲染完成了</p>
-                      <div className="w-2.5 h-2.5 bg-cyan-500 rounded-full"></div>
-                   </div>
-                </div>
-             </div>
-
-             {/* Bot Chat - with real connection status */}
-             <div 
-                onClick={() => navigate(AppRoutes.CHAT_DETAIL, { state: { name: 'Clawdbot Gateway', isBot: true } })}
-                className="bg-gradient-to-r from-indigo-50/50 to-white/60 backdrop-blur-md border border-white/60 p-4 rounded-2xl shadow-sm flex items-center gap-4 relative overflow-hidden cursor-pointer group">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 opacity-50"></div>
-                <div className="relative shrink-0 w-14 h-14 rounded-full bg-indigo-50 border border-white flex items-center justify-center">
-                   <Bot className="text-indigo-500" size={28} />
-                   <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isConnected ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
-                      <span className={`relative inline-flex rounded-full h-3 w-3 ${getStatusColor()} border-2 border-white`}></span>
-                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                       <h3 className="font-bold text-slate-800 text-base">Clawdbot Gateway</h3>
-                       <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
-                         isConnected 
-                           ? 'bg-green-50 text-green-600 border-green-200' 
-                           : 'bg-slate-100 text-slate-500 border-slate-200'
-                       }`}>
-                         {getStatusText()}
-                       </span>
+             {/* 🔥 动态渲染好友列表 */}
+             {friends.map(friend => {
+               const isClawbot = friend.friend_id === 'clawbot';
+               
+               return (
+                 <div 
+                    key={friend.friend_id}
+                    onClick={() => navigate(AppRoutes.CHAT_DETAIL, { 
+                      state: { 
+                        name: friend.name, 
+                        avatar: friend.avatar_url, 
+                        isBot: isClawbot,
+                        friendId: friend.friend_id
+                      } 
+                    })}
+                    className={`${
+                      isClawbot 
+                        ? 'bg-gradient-to-r from-indigo-50/50 to-white/60' 
+                        : 'bg-white/60'
+                    } backdrop-blur-md border border-white/60 p-4 rounded-2xl shadow-sm flex items-center gap-4 hover:bg-white/80 transition-colors cursor-pointer relative overflow-hidden`}>
+                    
+                    {isClawbot && <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 opacity-50"></div>}
+                    
+                    <div className="relative shrink-0">
+                       {isClawbot ? (
+                         <div className="w-14 h-14 rounded-full bg-indigo-50 border border-white flex items-center justify-center">
+                           <Bot className="text-indigo-500" size={28} />
+                           <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isConnected ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
+                              <span className={`relative inline-flex rounded-full h-3 w-3 ${getStatusColor()} border-2 border-white`}></span>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="relative">
+                           <Avatar name={friend.name} avatar={friend.avatar_url || ''} size="lg" />
+                           <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${getOnlineStatusColor(friend.status)} border-2 border-white rounded-full`}></div>
+                         </div>
+                       )}
                     </div>
-                    <p className="text-slate-500 text-sm line-clamp-2">
-                      {isConnected ? 'Gateway 已就绪，可以发送消息' : '等待连接...'}
-                    </p>
-                </div>
-                <span className="text-xs font-medium text-slate-400 self-start mt-1">刚刚</span>
-             </div>
+                    
+                    <div className="flex-1 min-w-0">
+                       <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-slate-800 text-base">{friend.name}</h3>
+                          {isClawbot && (
+                            <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                              isConnected 
+                                ? 'bg-green-50 text-green-600 border-green-200' 
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                            }`}>
+                              {getStatusText()}
+                            </span>
+                          )}
+                          {friend.is_studying && !isClawbot && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+                              学习中
+                            </span>
+                          )}
+                       </div>
+                       <div className="flex justify-between items-center mt-1">
+                          <div className="flex-1 min-w-0 mr-2">
+                            <p className="text-slate-500 text-sm truncate">
+                              {isClawbot 
+                                ? (isConnected ? 'Gateway 已就绪，可以发送消息' : '等待连接...') 
+                                : friend.last_message}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!isClawbot && friend.status === 'offline' && (
+                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                已离线
+                              </span>
+                            )}
+                            {friend.unread_count && friend.unread_count > 0 && (
+                              <div className="w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{friend.unread_count}</span>
+                              </div>
+                            )}
+                          </div>
+                       </div>
+                    </div>
+                    
+                    <span className="text-xs font-medium text-slate-400 self-start mt-1">
+                      {isClawbot ? '刚刚' : formatTime(friend.last_message_time)}
+                    </span>
+                 </div>
+               );
+             })}
           </div>
        </div>
     </div>

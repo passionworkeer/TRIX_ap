@@ -4,10 +4,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../src/contexts/WebSocketContext';
 import { useSpeechToText } from '../src/hooks/useSpeechToText';
+import { getChatHistory, sendMessage as dbSendMessage, markMessagesAsRead, subscribeToChatMessages } from '../src/services/databaseService';
+import type { ChatMessage } from '../src/config/supabase';
+import Avatar from '../components/Avatar';
 
-interface Message {
-  id: number | string; // 🔥 改为支持 string (用于 streamId)
-  sender: 'user' | 'bot';
+// 将数据库消息格式转换为UI格式
+interface UIMessage {
+  id: string | number;
+  sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
 }
@@ -15,14 +19,15 @@ interface Message {
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { name, avatar, isBot } = location.state || { 
+  const { name, avatar, isBot, friendId } = location.state || { 
     name: 'Clawdbot Gateway', 
     avatar: IMAGES.WIZARD_BOY_LOGIN, 
-    isBot: true 
+    isBot: true,
+    friendId: 'clawbot'
   };
   
   // 🌐 使用全局 WebSocket 连接 (包含 currentStreamId)
-  const { status, sendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
+  const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
   
   // Speech to text for voice input
   const {
@@ -47,18 +52,61 @@ const ChatDetail: React.FC = () => {
     }
   });
   
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      sender: 'bot',
-      text: isBot 
-        ? '你好！我已连接到 Clawdbot Gateway。发送任何消息,我会通过 Gateway 转发给 AI 代理处理。' 
-        : '嘿，最近怎么样？',
-      timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+  // 🔥 从数据库加载聊天记录
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 🔥 格式化时间戳
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // 🔥 加载聊天记录
+  const loadMessages = async () => {
+    setLoading(true);
+    const history = await getChatHistory(friendId || 'clawbot');
+    const uiMessages: UIMessage[] = history.map(msg => ({
+      id: msg.id,
+      sender: msg.sender,
+      text: msg.text,
+      timestamp: formatTimestamp(msg.created_at)
+    }));
+    setMessages(uiMessages);
+    setLoading(false);
+  };
+
+  // 🔥 加载聊天记录
+  useEffect(() => {
+    loadMessages();
+  }, [friendId]);
+
+  // 🔥 实时订阅新消息
+  useEffect(() => {
+    if (!friendId) return;
+    
+    const unsubscribe = subscribeToChatMessages(friendId, (newMessage) => {
+      // 将数据库消息转换为UI格式
+      const uiMessage: UIMessage = {
+        id: newMessage.id,
+        sender: newMessage.sender,
+        text: newMessage.text,
+        timestamp: formatTimestamp(newMessage.created_at)
+      };
+      setMessages(prev => [...prev, uiMessage]);
+    });
+
+    return unsubscribe;
+  }, [friendId]);
+
+  // 🔥 进入聊天时标记消息为已读
+  useEffect(() => {
+    if (friendId && friendId !== 'clawbot') {
+      markMessagesAsRead(friendId);
+    }
+  }, [friendId]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -97,54 +145,41 @@ const ChatDetail: React.FC = () => {
     });
   }, [fullResponse, currentStreamId, isBot]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Add user message to UI
-    const userMessage: Message = {
+    const messageText = input;
+    setInput(''); // 立即清空输入框
+
+    // Add user message to UI immediately
+    const userMessage: UIMessage = {
       id: Date.now(),
       sender: 'user',
-      text: input,
+      text: messageText,
       timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages(prev => [...prev, userMessage]);
 
+    // 保存到数据库
+    await dbSendMessage(friendId || 'clawbot', 'user', messageText);
+
     // Send to Clawdbot Gateway if bot chat
     if (isBot) {
       if (!isConnected) {
         // Show error if not connected
-        setTimeout(() => {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: Date.now(),
-              sender: 'bot',
-              text: '⚠️ 未连接到 Gateway。请检查连接状态。',
-              timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-            },
-          ]);
-        }, 500);
+        const errorMessage: UIMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: '⚠️ 未连接到 Gateway。请检查连接状态。',
+          timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages(prev => [...prev, errorMessage]);
       } else {
         // Send message via WebSocket using RPC protocol
-        sendMessage(input);
+        wsSendMessage(messageText);
       }
-    } else {
-      // Mock response for non-bot chat
-      setTimeout(() => {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: 'bot',
-            text: '收到！稍后回复你～',
-            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]);
-      }, 1000);
     }
-
-    setInput('');
   };
 
   // Connection status display
@@ -186,11 +221,7 @@ const ChatDetail: React.FC = () => {
                   <Bot className="text-white" size={24} />
                 </div>
               ) : (
-                <img 
-                  src={avatar} 
-                  className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm" 
-                  alt={name} 
-                />
+                <Avatar name={name} avatar={avatar} size="lg" />
               )}
               {isBot && (
                 <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor()}`}></div>
@@ -216,9 +247,15 @@ const ChatDetail: React.FC = () => {
             key={msg.id} 
             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {msg.sender === 'bot' && isBot && (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 mr-3">
-                <Bot className="text-white" size={20} />
+            {msg.sender !== 'user' && (
+              <div className="shrink-0 mr-3">
+                {isBot ? (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <Bot className="text-white" size={20} />
+                  </div>
+                ) : (
+                  <Avatar name={name} avatar={avatar} size="md" />
+                )}
               </div>
             )}
             <div 
