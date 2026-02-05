@@ -47,8 +47,8 @@ TRIX 是一个创新的移动应用,通过混合架构实现云端数据存储�
    - 好友请求交互按钮
    - 实时未读数量徽章
 
-📖 **详细使用指南**: [QUICK_START_GUIDE.md](./QUICK_START_GUIDE.md)  
-📋 **功能实现文档**: [FEATURES_IMPLEMENTATION.md](./FEATURES_IMPLEMENTATION.md)
+📖 **详细使用指南**: [QUICK_START_GUIDE.md](./docs/QUICK_START_GUIDE.md)  
+📋 **功能实现文档**: [FEATURES_IMPLEMENTATION.md](./docs/FEATURES_IMPLEMENTATION.md)
 
 ---
 
@@ -126,12 +126,29 @@ npm run dev
 
 | 文档 | 描述 |
 |------|------|
-| [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | 📖 完整实施指南 |
-| [INTEGRATION_SUMMARY.md](INTEGRATION_SUMMARY.md) | 📝 集成总结与架构说明 |
-| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | ⚡ 快速参考卡片 |
-| [SERVER_SETUP.md](SERVER_SETUP.md) | 🐍 Python 服务器设置 |
+| [IMPLEMENTATION_GUIDE.md](./docs/IMPLEMENTATION_GUIDE.md) | 📖 完整实施指南 |
+| [INTEGRATION_SUMMARY.md](./docs/INTEGRATION_SUMMARY.md) | 📝 集成总结与架构说明 |
+| [QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md) | ⚡ 快速参考卡片 |
+| [SERVER_SETUP.md](./docs/SERVER_SETUP.md) | 🐍 Python 服务器设置 |
 
 ---
+
+## 🧹 项目整理（docs / tests）
+
+我为你准备了两段辅助脚本，帮助把零散的文档和测试资源集中到标准目录：
+
+- `scripts/organize_docs.ps1` — 将项目根目录下的顶层 `.md`（除 `README.md`）复制到 `docs/` 目录（安全复制，保留原文件）。
+- `scripts/collect_tests.ps1` — 在仓库中查找文件名包含 `test` 或 `spec` 的文件并复制到 `tests/` 目录。
+
+使用方法（Windows PowerShell）：
+
+```powershell
+npm run organize:docs
+npm run collect:tests
+```
+
+脚本采用复制而非移动策略以便你先审阅变动；确认无误后可手动替换为移动（或我也可以帮你把脚本改为移动并执行）。
+
 
 ## 🎯 核心功能
 
@@ -229,7 +246,7 @@ Get-Content .env
 npm run dev
 ```
 
-更多问题请查看 [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+更多问题请查看 [QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md)
 
 ---
 
