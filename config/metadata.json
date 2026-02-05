@@ -1,0 +1,7 @@
+{
+  "name": "TRIX 3D Companion",
+  "description": "A futuristic 3D companion app for study, focus, and productivity featuring glassmorphism design.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
