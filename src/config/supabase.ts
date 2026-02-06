@@ -21,12 +21,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// 当前用户 ID（从 localStorage 读取，默认为用户1）
-export const getCurrentUserId = (): string => {
-  return localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001';
-};
+// 当前用户 ID（固定为默认用户，多用户功能暂时注释）
+// 🔕 多用户功能暂时注释 - 专注于基础 Bot 连接
+// export const getCurrentUserId = (): string => {
+//   return localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001';
+// };
 
-export const CURRENT_USER_ID = getCurrentUserId();
+// export const CURRENT_USER_ID = getCurrentUserId();
+
+// 使用固定的用户 ID
+export const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // 导出类型定义
 export interface Friend {

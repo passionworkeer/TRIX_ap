@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>应用层 WebSocket 诊断</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            background: #007acc;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .log {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 3px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 3px 0;
+            padding: 3px 5px;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        .warning { color: #ff9800; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        button:hover { background: #005a9e; }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-left: 10px;
+        }
+        .status.idle { background: #666; }
+        .status.testing { background: #ff9800; }
+        .status.success { background: #4caf50; }
+        .status.failed { background: #f44336; }
+        h3 { color: #007acc; margin-top: 0; }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 应用层 WebSocket 诊断工具</h1>
+        <p>网络层正常,测试应用层的差异</p>
+    </div>
+
+    <!-- 测试 1: 从不同 Origin 连接 -->
+    <div class="test-section">
+        <h3>测试 1: Origin 影响测试</h3>
+        <p>测试 Gateway 是否检查 Origin header</p>
+        
+        <button onclick="testFromFileProtocol()">从 file:// 协议测试</button>
+        <button onclick="testFromHTTP()">从 HTTP 协议测试</button>
+        <span class="status" id="origin-status">待测试</span>
+        
+        <div class="log" id="origin-log"></div>
+    </div>
+
+    <!-- 测试 2: 模拟浏览器环境 -->
+    <div class="test-section">
+        <h3>测试 2: 浏览器环境模拟</h3>
+        <p>模拟从 React 应用发起的连接</p>
+        
+        <div>
+            <label>当前页面 Origin: <strong id="current-origin"></strong></label>
+        </div>
+        
+        <button onclick="testAsReactApp()">模拟 React 应用连接</button>
+        <span class="status" id="react-status">待测试</span>
+        
+        <div class="log" id="react-log"></div>
+    </div>
+
+    <!-- 测试 3: 对比测试 -->
+    <div class="test-section">
+        <h3>测试 3: 并行对比测试</h3>
+        <p>同时测试 localhost 和局域网 IP,查看差异</p>
+        
+        <button onclick="testComparison()">开始对比测试</button>
+        <button onclick="clearComparison()">清空</button>
+        
+        <div class="comparison">
+            <div>
+                <h4 style="color: #4caf50;">✅ localhost (应该成功)</h4>
+                <div class="log" id="localhost-log"></div>
+            </div>
+            <div>
+                <h4 style="color: #ff9800;">⚠️ 局域网 IP (可能失败)</h4>
+                <div class="log" id="ip-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测试 4: Headers 分析 -->
+    <div class="test-section">
+        <h3>测试 4: WebSocket Headers 分析</h3>
+        <p>查看浏览器发送的 WebSocket 握手请求</p>
+        
+        <button onclick="captureHeaders()">捕获 Headers</button>
+        <span class="status" id="headers-status">待捕获</span>
+        
+        <div class="log" id="headers-log"></div>
+    </div>
+
+    <script>
+        const wsUrl = 'ws://192.168.101.4:18789';
+        const authToken = 'REDACTED_CLAWBOT_GATEWAY_TOKEN';
+        
+        document.getElementById('current-origin').textContent = window.location.origin;
+
+        function log(logId, message, type = 'info') {
+            const logDiv = document.getElementById(logId);
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function setStatus(statusId, text, type = 'idle') {
+            const statusEl = document.getElementById(statusId);
+            statusEl.textContent = text;
+            statusEl.className = `status ${type}`;
+        }
+
+        // 测试 1: Origin 测试
+        function testFromFileProtocol() {
+            const logId = 'origin-log';
+            document.getElementById(logId).innerHTML = '';
+            setStatus('origin-status', '测试中...', 'testing');
+            
+            log(logId, `当前 Origin: ${window.location.origin}`, 'info');
+            log(logId, `协议: ${window.location.protocol}`, 'info');
+            
+            testWebSocket(logId, wsUrl, 'file:// 协议', () => {
+                setStatus('origin-status', '测试完成', 'success');
+            });
+        }
+
+        function testFromHTTP() {
+            alert('请将此 HTML 文件通过 HTTP 服务器打开 (例如: http://localhost:5173/test.html)');
+        }
+
+        // 测试 2: 模拟 React 应用
+        function testAsReactApp() {
+            const logId = 'react-log';
+            document.getElementById(logId).innerHTML = '';
+            setStatus('react-status', '测试中...', 'testing');
+            
+            log(logId, '🔧 模拟 React 应用环境', 'info');
+            log(logId, `Origin: ${window.location.origin}`, 'info');
+            log(logId, `User-Agent: ${navigator.userAgent}`, 'info');
+            log(logId, '', 'info');
+            
+            // 模拟 React 应用的连接方式
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+            
+            const targetUrl = isLocalhost 
+                ? 'ws://localhost:18789' 
+                : `ws://${window.location.hostname}:18789`;
+            
+            log(logId, `📍 检测到 hostname: ${window.location.hostname}`, 'info');
+            log(logId, `📍 选择的 WebSocket URL: ${targetUrl}`, 'info');
+            log(logId, '', 'info');
+            
+            testWebSocket(logId, targetUrl, 'React App 方式', () => {
+                setStatus('react-status', '测试完成', 'success');
+            });
+        }
+
+        // 测试 3: 对比测试
+        function testComparison() {
+            clearComparison();
+            
+            // 并行测试
+            testWebSocket('localhost-log', 'ws://localhost:18789', 'localhost');
+            testWebSocket('ip-log', wsUrl, '局域网 IP');
+        }
+
+        function clearComparison() {
+            document.getElementById('localhost-log').innerHTML = '';
+            document.getElementById('ip-log').innerHTML = '';
+        }
+
+        // 测试 4: Headers 捕获
+        function captureHeaders() {
+            const logId = 'headers-log';
+            document.getElementById(logId).innerHTML = '';
+            setStatus('headers-status', '捕获中...', 'testing');
+            
+            log(logId, '📋 WebSocket 握手 Headers:', 'info');
+            log(logId, '', 'info');
+            log(logId, `Host: ${new URL(wsUrl).host}`, 'info');
+            log(logId, `Origin: ${window.location.origin}`, 'info');
+            log(logId, `User-Agent: ${navigator.userAgent}`, 'info');
+            log(logId, `Connection: Upgrade`, 'info');
+            log(logId, `Upgrade: websocket`, 'info');
+            log(logId, `Sec-WebSocket-Version: 13`, 'info');
+            log(logId, '', 'info');
+            log(logId, '💡 打开浏览器开发者工具的 Network 标签', 'warning');
+            log(logId, '💡 筛选 WS (WebSocket),查看实际发送的 Headers', 'warning');
+            
+            setStatus('headers-status', '请查看开发者工具', 'success');
+        }
+
+        // 通用 WebSocket 测试函数
+        function testWebSocket(logId, url, label, callback) {
+            log(logId, `🔌 开始测试: ${label}`, 'info');
+            log(logId, `目标: ${url}`, 'info');
+            
+            try {
+                const ws = new WebSocket(url);
+                const startTime = Date.now();
+                
+                const timeout = setTimeout(() => {
+                    if (ws.readyState !== WebSocket.OPEN) {
+                        log(logId, `⏰ 连接超时 (10秒)`, 'error');
+                        ws.close();
+                        callback && callback();
+                    }
+                }, 10000);
+                
+                ws.onopen = () => {
+                    clearTimeout(timeout);
+                    const duration = Date.now() - startTime;
+                    log(logId, `✅ 连接成功 (${duration}ms)`, 'success');
+                    log(logId, `   readyState: ${ws.readyState} (OPEN)`, 'info');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(logId, `📥 收到: ${data.event || data.type}`, 'info');
+                        
+                        if (data.event === 'connect.challenge') {
+                            const nonce = data.payload.nonce;
+                            const response = {
+                                type: 'req',
+                                id: nonce,
+                                method: 'connect',
+                                params: {
+                                    minProtocol: 3,
+                                    maxProtocol: 3,
+                                    role: 'operator',
+                                    client: {
+                                        id: 'clawdbot-ios',
+                                        mode: 'webchat',
+                                        platform: 'web',
+                                        displayName: 'Diagnostic Tool',
+                                        version: '1.0.0',
+                                        instanceId: Math.random().toString(36).substring(2, 15)
+                                    },
+                                    caps: [],
+                                    auth: { token: authToken }
+                                }
+                            };
+                            
+                            log(logId, `📤 发送认证`, 'info');
+                            ws.send(JSON.stringify(response));
+                        }
+                        
+                        if (data.type === 'res' && data.payload?.type === 'hello-ok') {
+                            log(logId, `🎉 认证成功!`, 'success');
+                            setTimeout(() => {
+                                ws.close();
+                                callback && callback();
+                            }, 1000);
+                        }
+                        
+                        if (data.type === 'res' && data.error) {
+                            log(logId, `❌ 认证失败: ${data.error.code}`, 'error');
+                            log(logId, `   消息: ${data.error.message}`, 'error');
+                            callback && callback();
+                        }
+                    } catch (e) {
+                        log(logId, `⚠️ 消息解析失败: ${e.message}`, 'warning');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log(logId, `❌ WebSocket 错误`, 'error');
+                    log(logId, `   readyState: ${ws.readyState}`, 'error');
+                    log(logId, `   URL: ${ws.url}`, 'error');
+                    console.error(`[${label}] 详细错误:`, error);
+                    callback && callback();
+                };
+                
+                ws.onclose = (event) => {
+                    clearTimeout(timeout);
+                    if (event.code !== 1000) {
+                        log(logId, `🔌 连接关闭: code=${event.code}`, 'error');
+                        log(logId, `   reason: ${event.reason || '(空)'}`, 'error');
+                        log(logId, `   wasClean: ${event.wasClean}`, 'error');
+                    } else {
+                        log(logId, `🔌 正常关闭`, 'info');
+                    }
+                    callback && callback();
+                };
+                
+            } catch (e) {
+                log(logId, `❌ 创建 WebSocket 失败: ${e.message}`, 'error');
+                console.error(`[${label}] 异常:`, e);
+                callback && callback();
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = () => {
+            console.log('🔍 应用层诊断工具已就绪');
+            console.log('当前 Origin:', window.location.origin);
+            console.log('协议:', window.location.protocol);
+        };
+    </script>
+</body>
+</html>
