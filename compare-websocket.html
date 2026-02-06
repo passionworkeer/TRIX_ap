@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 连接对比测试</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .log {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 3px 0;
+            font-size: 12px;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        button:hover { background: #005a9e; }
+        h3 { margin-top: 0; color: #007acc; }
+    </style>
+</head>
+<body>
+    <h2>🔍 WebSocket 连接对比测试</h2>
+    <p>对比原生 WebSocket 和 React 应用中的连接差异</p>
+
+    <div class="container">
+        <!-- 左侧:原生 WebSocket -->
+        <div class="panel">
+            <h3>🟦 原生 WebSocket (像测试工具)</h3>
+            <button onclick="testNative()">开始测试</button>
+            <button onclick="clearLog('native')">清空</button>
+            <div class="log" id="native-log"></div>
+        </div>
+
+        <!-- 右侧:模拟 React Context -->
+        <div class="panel">
+            <h3>🟧 模拟 React Context</h3>
+            <button onclick="testReactStyle()">开始测试</button>
+            <button onclick="clearLog('react')">清空</button>
+            <div class="log" id="react-log"></div>
+        </div>
+    </div>
+
+    <script>
+        const wsUrl = 'ws://192.168.101.4:18789';
+        const authToken = '8743d26357758f202c9bb5a21db706185d66f9c98f9c3ff1';
+
+        function log(panel, message, type = 'info') {
+            const logDiv = document.getElementById(`${panel}-log`);
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog(panel) {
+            document.getElementById(`${panel}-log`).innerHTML = '';
+        }
+
+        // 原生 WebSocket (测试工具的方式)
+        function testNative() {
+            clearLog('native');
+            log('native', '开始连接...', 'info');
+            
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('native', '✅ 连接已打开', 'success');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log('native', `📥 ${data.event || data.type}`, 'info');
+                
+                if (data.event === 'connect.challenge') {
+                    const nonce = data.payload.nonce;
+                    const response = {
+                        type: 'req',
+                        id: nonce,
+                        method: 'connect',
+                        params: {
+                            minProtocol: 3,
+                            maxProtocol: 3,
+                            role: 'operator',
+                            client: {
+                                id: 'clawdbot-ios',
+                                mode: 'webchat',
+                                platform: 'web',
+                                displayName: 'TRIX Native Test',
+                                version: '1.0.0',
+                                instanceId: Math.random().toString(36).substring(2, 15)
+                            },
+                            caps: [],
+                            auth: { token: authToken }
+                        }
+                    };
+                    log('native', '📤 发送认证', 'info');
+                    ws.send(JSON.stringify(response));
+                }
+                
+                if (data.payload?.type === 'hello-ok') {
+                    log('native', '🎉 认证成功!', 'success');
+                }
+            };
+
+            ws.onerror = (error) => {
+                log('native', '❌ WebSocket 错误', 'error');
+                console.error('Native error:', error);
+            };
+
+            ws.onclose = (event) => {
+                log('native', `🔌 连接关闭: code=${event.code}`, 'error');
+            };
+        }
+
+        // 模拟 React Context 的方式
+        function testReactStyle() {
+            clearLog('react');
+            log('react', '开始连接 (React 风格)...', 'info');
+            
+            // 模拟 React 中的环境变量读取
+            const WS_URL = wsUrl; // import.meta.env.VITE_PC_WEBSOCKET_URL
+            const AUTH_TOKEN = authToken; // import.meta.env.VITE_PC_AUTH_TOKEN
+            
+            if (!WS_URL || !AUTH_TOKEN) {
+                log('react', '❌ 缺少环境变量', 'error');
+                return;
+            }
+            
+            log('react', `🔌 启动连接: ${WS_URL}`, 'info');
+            
+            try {
+                const socket = new WebSocket(WS_URL);
+                
+                socket.onopen = () => {
+                    log('react', '✅ WebSocket 连接已建立', 'success');
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log('react', `📨 收到消息: ${data.event || data.type}`, 'info');
+                        
+                        // 处理 challenge
+                        if (data.event === 'connect.challenge') {
+                            log('react', '🎯 收到 challenge', 'info');
+                            log('react', `   Nonce: ${data.payload?.nonce}`, 'info');
+                            
+                            const challengeId = data.payload?.nonce;
+                            const challengeResponse = {
+                                type: 'req',
+                                id: challengeId,
+                                method: 'connect',
+                                params: {
+                                    minProtocol: 3,
+                                    maxProtocol: 3,
+                                    role: 'operator',
+                                    client: {
+                                        id: 'clawdbot-ios',
+                                        mode: 'webchat',
+                                        platform: 'ios',
+                                        displayName: 'TRIX App',
+                                        version: '1.0.0',
+                                        instanceId: Math.random().toString(36).substring(7)
+                                    },
+                                    caps: [],
+                                    auth: { token: AUTH_TOKEN }
+                                }
+                            };
+                            
+                            log('react', '📤 发送 challenge 响应', 'info');
+                            socket.send(JSON.stringify(challengeResponse));
+                            return;
+                        }
+
+                        // 处理 hello-ok
+                        if (data.type === 'res' && data.payload?.type === 'hello-ok') {
+                            log('react', '🟢 握手成功，连接已建立', 'success');
+                            return;
+                        }
+
+                        // 处理认证失败
+                        if (data.type === 'res' && !data.ok && data.error) {
+                            log('react', `❌ 认证失败: ${data.error.code}`, 'error');
+                            return;
+                        }
+                    } catch (e) {
+                        log('react', `⚠️ 消息解析失败: ${e.message}`, 'error');
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    log('react', '❌ WebSocket 错误', 'error');
+                    console.error('React-style error:', error);
+                };
+
+                socket.onclose = (event) => {
+                    log('react', `🔌 连接关闭: code=${event.code}, reason=${event.reason || '(空)'}`, 'error');
+                };
+
+            } catch (e) {
+                log('react', `❌ 创建 WebSocket 失败: ${e.message}`, 'error');
+            }
+        }
+
+        window.onload = () => {
+            console.log('🔍 WebSocket 对比测试工具已就绪');
+            console.log('目标:', wsUrl);
+        };
+    </script>
+</body>
+</html>

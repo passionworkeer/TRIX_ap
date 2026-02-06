@@ -12,7 +12,9 @@ export enum AppRoutes {
   CHAT_DETAIL = '/chat/detail',
   PROFILE = '/profile',
   SETTINGS = '/profile/settings',
-  PAIRING = '/pairing'
+  PAIRING = '/pairing',
+  DIAGNOSTIC = '/diagnostic',  // 🔧 诊断页面
+  DIAGNOSTIC_ADV = '/diagnostic-advanced'  // 🔧 高级诊断
 }
 
 export interface NavItem {
