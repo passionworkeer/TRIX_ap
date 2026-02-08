@@ -3,7 +3,7 @@ import React from 'react';
 interface AvatarProps {
   name: string;
   avatar?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -16,12 +16,13 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
       return name.charAt(0);
     }
     
-    // 如果是英文名，取首字母大写
+    // 如果是英文名，取首字母大�?
     return name.charAt(0).toUpperCase();
   };
 
   const getSize = () => {
     switch (size) {
+      case 'xs': return 'w-6 h-6 text-[10px]';
       case 'sm': return 'w-8 h-8 text-xs';
       case 'md': return 'w-10 h-10 text-sm';
       case 'lg': return 'w-12 h-12 text-base';
@@ -42,12 +43,12 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
       'from-emerald-500 to-green-600',
     ];
     
-    // 根据名字生成一致的渐变色
+    // 根据名字生成一致的渐变�?
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % gradients.length;
     return gradients[index];
   };
 
-  // 如果有头像URL且不为空，尝试渲染图片
+  // 如果有头像URL且不为空，尝试渲染图�?
   if (avatar && avatar.trim()) {
     return (
       <div className={`${getSize()} rounded-full overflow-hidden ${className}`}>
@@ -56,7 +57,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
           alt={name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            // 图片加载失败时，隐藏图片并显示字母
+            // 图片加载失败时，隐藏图片并显示字�?
             e.currentTarget.style.display = 'none';
             if (e.currentTarget.nextSibling) {
               (e.currentTarget.nextSibling as HTMLElement).style.display = 'flex';

@@ -5,11 +5,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase 项目配置（从环境变量读取）
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bqzjumxfzikikgjtsckj.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxemp1bXhmemlraWtnanRzY2tqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NzE1OTIsImV4cCI6MjA1NDI0NzU5Mn0.4rZxl2QWpfZyPMpB7qJ7KHZj9WwWwzIYLQ5g4g4z1Yw';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// 添加调试日志
+console.log("Supabase Init:", { url: supabaseUrl, keyExists: !!supabaseKey });
 
 // 创建 Supabase 客户端
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -21,15 +24,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// 当前用户 ID（固定为默认用户，多用户功能暂时注释）
-// 🔕 多用户功能暂时注释 - 专注于基础 Bot 连接
+// 当前用户 ID（固定为默认用户，多用户功能暂时注释�?
+// 🔕 多用户功能暂时注�?- 专注于基础 Bot 连接
 // export const getCurrentUserId = (): string => {
 //   return localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001';
 // };
 
 // export const CURRENT_USER_ID = getCurrentUserId();
 
-// 使用固定的用户 ID
+// 使用固定的用�?ID
 export const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // 导出类型定义

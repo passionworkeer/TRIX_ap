@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+﻿import { useState, useRef, useCallback, useEffect } from 'react';
 
 /**
  * 相机状态
@@ -46,7 +46,7 @@ export interface CapturedPhoto {
  *   stopCamera
  * } = useCamera({
  *   facingMode: 'environment',
- *   onCapture: (url, blob) => console.log('照片已拍摄:', url)
+ *   onCapture: (url, blob) => console.log('照片已拍摄', url)
  * });
  * 
  * // JSX
@@ -180,7 +180,7 @@ export function useCamera(options: UseCameraOptions = {}) {
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // 转换为 Blob
+      // 转换成 Blob
       canvas.toBlob((blob) => {
         if (!blob) {
           const errMsg = '生成照片失败';
@@ -200,10 +200,9 @@ export function useCamera(options: UseCameraOptions = {}) {
         setCapturedPhoto(photo);
         setStatus('ready');
         onCapture?.(url, blob);
-      }, 'image/jpeg', 0.95);
+      }, 'image/jpeg', 0.9);
 
-      // 同时返回 Data URL (同步)
-      return canvas.toDataURL('image/jpeg', 0.95);
+      return canvas.toDataURL('image/jpeg', 0.9);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : '拍照失败';
       setError(errMsg);
@@ -213,60 +212,24 @@ export function useCamera(options: UseCameraOptions = {}) {
     }
   }, [status, onCapture, onError]);
 
-  // 切换摄像头
-  const switchCamera = useCallback(async () => {
-    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-    stopCamera();
-    
-    // 等待一下再启动新相机
-    setTimeout(() => {
-      startCamera();
-    }, 100);
-  }, [facingMode, stopCamera, startCamera]);
-
-  // 重试
-  const retry = useCallback(() => {
-    setError('');
-    setCapturedPhoto(null);
-    startCamera();
-  }, [startCamera]);
-
-  // 清除照片
   const clearPhoto = useCallback(() => {
     if (capturedPhoto) {
       URL.revokeObjectURL(capturedPhoto.url);
+      setCapturedPhoto(null);
     }
-    setCapturedPhoto(null);
   }, [capturedPhoto]);
 
-  // 清理
-  useEffect(() => {
-    return () => {
-      stopCamera();
-      if (capturedPhoto) {
-        URL.revokeObjectURL(capturedPhoto.url);
-      }
-    };
-  }, []);
-
   return {
-    // 状态
+    videoRef,
     status,
     isReady: status === 'ready',
-    isCapturing: status === 'capturing',
     isSupported,
     error,
-
-    // 数据
     capturedPhoto,
-    videoRef,
-
-    // 方法
     startCamera,
     stopCamera,
     capture,
-    switchCamera,
-    retry,
     clearPhoto,
+    switchCamera: startCamera, // 简单实现，重新启动即可
   };
 }

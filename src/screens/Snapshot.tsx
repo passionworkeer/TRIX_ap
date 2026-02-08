@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { ArrowLeft, FlipHorizontal2, MoreHorizontal, ShoppingCart, Edit3, Check, Sparkles, Home, History, User, ScanLine, Camera, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
-import { useCamera } from '../src/hooks/useCamera';
+import { useCamera } from '../hooks/useCamera';
 
 const Snapshot: React.FC = () => {
   const [isResult, setIsResult] = useState(false);
@@ -13,7 +13,7 @@ const Snapshot: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 真实相机功能
+  // 1. 真实相机功能
   const {
     videoRef,
     isReady,
@@ -28,12 +28,11 @@ const Snapshot: React.FC = () => {
   } = useCamera({
     facingMode: 'environment',
     onCapture: (url, blob) => {
-      console.log('✅ 照片已拍摄:', url);
-      console.log('📦 Blob 大小:', blob.size, 'bytes');
-      // 这里后续可以上传到服务器或进行 AI 分析
+      console.log(' 照片已拍摄', url);
+      console.log(' Blob 大小:', blob.size, 'bytes');
     },
     onError: (err) => {
-      console.error('❌ 相机错误:', err);
+      console.error(' 相机错误:', err);
       setUseMockCamera(true); // 相机失败时回退到模拟模式
     }
   });
@@ -54,7 +53,7 @@ const Snapshot: React.FC = () => {
     return () => {
       stopCamera(); // 组件卸载时停止相机
     };
-  }, [location]);
+  }, [location, isCameraSupported, useMockCamera]); // Added dependencies
 
   const handleScan = () => {
     if (!useMockCamera && isReady) {
@@ -120,18 +119,17 @@ const Snapshot: React.FC = () => {
               </button>
               <button className="flex w-full items-center justify-center gap-3 rounded-full bg-white/40 border border-white/50 py-4 font-medium active:scale-95 transition-all">
                 <Edit3 className="text-slate-600 dark:text-slate-300" />
-                <span className="text-slate-900 dark:text-white">保存至 Notion</span>
+                <span className="text-slate-900 dark:text-white">保存到 Notion</span>
               </button>
             </div>
           </div>
           
-          {/* Custom Floating Dock for this screen as per design */}
           <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
              <div className="bg-white/40 backdrop-blur-md border border-white/50 rounded-full px-6 py-4 flex items-center gap-8 shadow-xl">
                 <button onClick={() => navigate(AppRoutes.HOME)}><Home size={24} className="text-slate-500" /></button>
                 <button onClick={() => setIsResult(false)} className="relative">
                   <div className="absolute -top-2 -right-1 w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <div className="text-purple-600"><Check size={28} /></div> {/* Using Check as abstract icon for result */}
+                  <div className="text-purple-600"><Check size={28} /></div>
                 </button>
                 <button><History size={24} className="text-slate-500" /></button>
                 <button><User size={24} className="text-slate-500" /></button>
@@ -144,7 +142,6 @@ const Snapshot: React.FC = () => {
 
   return (
     <div className="relative h-screen w-full overflow-hidden flex flex-col bg-black">
-       {/* 真实相机视频流 或 模拟背景 */}
        {!useMockCamera && isReady ? (
          <video 
            ref={videoRef}
@@ -187,16 +184,14 @@ const Snapshot: React.FC = () => {
              </button>
           </header>
 
-          {/* 相机错误提示 */}
           {cameraError && (
             <div className="mx-4 mt-4 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl px-4 py-3">
-              <p className="text-red-100 text-sm text-center">📷 {cameraError}</p>
+              <p className="text-red-100 text-sm text-center"> {cameraError}</p>
               <p className="text-red-200 text-xs text-center mt-1">已切换到演示模式</p>
             </div>
           )}
 
           <div className="flex-1 flex flex-col items-center justify-center relative">
-             {/* 已拍摄照片预览 */}
              {capturedPhoto && !isResult && (
                <div className="absolute inset-4 z-20 bg-black/90 backdrop-blur-xl rounded-3xl flex flex-col items-center justify-center p-6 border border-white/20">
                  <img 
@@ -227,13 +222,11 @@ const Snapshot: React.FC = () => {
              )}
 
              <div className="relative w-64 h-64 border-2 border-white/0">
-                {/* Viewfinder Corners */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg"></div>
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg"></div>
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg"></div>
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg"></div>
                 
-                {/* Scanning Animation Overlay */}
                 {isScanning && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden">
                          <div className="w-full h-1 bg-cyan-400/80 shadow-[0_0_15px_#22d3ee] animate-scan absolute top-0"></div>
@@ -241,7 +234,6 @@ const Snapshot: React.FC = () => {
                     </div>
                 )}
 
-                {/* Center Point */}
                 {!isScanning && !capturedPhoto && (
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white]"></div>
                 )}

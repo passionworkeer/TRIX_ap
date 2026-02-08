@@ -43,8 +43,7 @@ const Pairing: React.FC = () => {
 
          <div className="flex flex-col items-center gap-2 mb-8">
             <p className="text-slate-800 text-base font-medium text-center max-w-[280px]">
-               扫描电脑桌面球体上的二维码进行连接
-            </p>
+               扫描电脑桌面球体上的二维码进行连�?            </p>
             <div className="w-12 h-1 bg-white/40 rounded-full mt-2"></div>
          </div>
 

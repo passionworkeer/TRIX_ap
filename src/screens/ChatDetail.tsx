@@ -2,19 +2,32 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { useGlobalConnection } from '../src/contexts/WebSocketContext';
-import { useSpeechToText } from '../src/hooks/useSpeechToText';
-import { getChatHistory, sendMessage as dbSendMessage, markMessagesAsRead, subscribeToChatMessages } from '../src/services/databaseService';
-import type { ChatMessage } from '../src/config/supabase';
+import { useGlobalConnection } from '../contexts/WebSocketContext';
+import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
 
-// 将数据库消息格式转换为UI格式
+// Mock messages for different friends
 interface UIMessage {
   id: string | number;
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
 }
+
+const MOCK_CONVERSATIONS: Record<string, UIMessage[]> = {
+  'elara': [
+    { id: 1, sender: 'friend', text: 'Hey! The new spatial algorithm is fascinating.', timestamp: '09:41' },
+    { id: 2, sender: 'user', text: 'I know right? I tried implementing it yesterday.', timestamp: '09:42' },
+    { id: 3, sender: 'friend', text: 'How did it go? Did you solve the latency?', timestamp: '09:42' }
+  ],
+  'kael': [
+    { id: 1, sender: 'friend', text: 'Are we still meeting for the study session?', timestamp: '14:20' },
+    { id: 2, sender: 'user', text: 'Yes, definitely. 3 PM roughly?', timestamp: '14:25' }
+  ],
+  'clawbot': [
+    { id: 1, sender: 'bot', text: 'Gateway connected. Ready for instructions.', timestamp: 'NOW' }
+  ]
+};
 
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -26,119 +39,77 @@ const ChatDetail: React.FC = () => {
     friendId: 'clawbot'
   };
   
-  // 🌐 使用全局 WebSocket 连接 (包含 currentStreamId)
+  // WebSocket connection for Bot
   const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
   
-  // Speech to text for voice input
+  // Speech to text
   const {
     isListening,
     transcript,
-    fullTranscript,
     startListening,
     stopListening,
     reset: resetSpeech,
     isSupported: isSpeechSupported,
-    error: speechError,
   } = useSpeechToText({
     lang: 'zh-CN',
     continuous: false,
     interimResults: true,
     onResult: (text) => {
-      // 当语音识别完成时,自动填充到输入框
       setInput(prev => prev + text);
     },
     onError: (err) => {
-      console.error('语音识别错误:', err);
+      console.error('Speech error:', err);
     }
   });
   
-  // 🔥 从数据库加载聊天记录
   const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 🔥 格式化时间戳
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // 🔥 加载聊天记录
-  const loadMessages = async () => {
-    setLoading(true);
-    const history = await getChatHistory(friendId || 'clawbot');
-    const uiMessages: UIMessage[] = history.map(msg => ({
-      id: msg.id,
-      sender: msg.sender,
-      text: msg.text,
-      timestamp: formatTimestamp(msg.created_at)
-    }));
-    setMessages(uiMessages);
-    setLoading(false);
-  };
-
-  // 🔥 加载聊天记录
+  // Initialize messages
   useEffect(() => {
-    loadMessages();
-  }, [friendId]);
-
-  // 🔥 实时订阅新消息
-  useEffect(() => {
-    if (!friendId) return;
-    
-    const unsubscribe = subscribeToChatMessages(friendId, (newMessage) => {
-      // 将数据库消息转换为UI格式
-      const uiMessage: UIMessage = {
-        id: newMessage.id,
-        sender: newMessage.sender,
-        text: newMessage.text,
-        timestamp: formatTimestamp(newMessage.created_at)
-      };
-      setMessages(prev => [...prev, uiMessage]);
+    // Load mock conversation or empty array
+    const initialMessages = MOCK_CONVERSATIONS[friendId] || [];
+    // Deep copy to avoid mutating the mock store directly during this session
+    const uniqueMessages = JSON.parse(JSON.stringify(initialMessages)).map((msg: UIMessage) => {
+       if (msg.timestamp === 'NOW') {
+         msg.timestamp = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+       }
+       return msg;
     });
-
-    return unsubscribe;
+    setMessages(uniqueMessages);
   }, [friendId]);
 
-  // 🔥 进入聊天时标记消息为已读
-  useEffect(() => {
-    if (friendId && friendId !== 'clawbot') {
-      markMessagesAsRead(friendId);
-    }
-  }, [friendId]);
-
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 🔥 修复：使用 ID 绑定机制处理流式回复，避免重复气泡
+  // Bot Streaming Response Handler
   useEffect(() => {
     if (!fullResponse || !isBot || !currentStreamId) return;
 
     setMessages(prev => {
-      // 查找是否已存在该 streamId 的消息
       const existingIndex = prev.findIndex(msg => msg.id === currentStreamId);
       
+      const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
       if (existingIndex !== -1) {
-        // ✅ 找到了 → 更新该消息的文本内容
         const updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
           text: fullResponse,
-          timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          timestamp: timeString,
         };
         return updated;
       } else {
-        // ✅ 没找到 → 创建新消息，使用 streamId 作为 id
         return [
           ...prev,
           {
-            id: currentStreamId, // 🔥 使用 streamId 作为唯一标识
+            id: currentStreamId,
             sender: 'bot',
             text: fullResponse,
-            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            timestamp: timeString,
           }
         ];
       }
@@ -149,41 +120,62 @@ const ChatDetail: React.FC = () => {
     if (!input.trim()) return;
 
     const messageText = input;
-    setInput(''); // 立即清空输入框
+    setInput(''); // Clear input
 
-    // Add user message to UI immediately
+    const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+    // User Message
     const userMessage: UIMessage = {
       id: Date.now(),
       sender: 'user',
       text: messageText,
-      timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: timeString,
     };
 
     setMessages(prev => [...prev, userMessage]);
 
-    // 保存到数据库
-    await dbSendMessage(friendId || 'clawbot', 'user', messageText);
-
-    // Send to Clawdbot Gateway if bot chat
+    // Handle Bot Logic
     if (isBot) {
-      if (!isConnected) {
-        // Show error if not connected
-        const errorMessage: UIMessage = {
+      if (isConnected) {
+        wsSendMessage(messageText);
+      } else {
+        // Fallback Mock Bot Response if offline
+        setTimeout(() => {
+          const botResponse: UIMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: '[Mock Mode] Gateway is offline. Echo: ' + messageText,
+            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages(prev => [...prev, botResponse]);
+        }, 1000);
+      }
+    } else {
+      // Handle Friend Logic (Mock Reply)
+      setTimeout(() => {
+        const replies = [
+          "That's interesting!",
+          "Tell me more about it.",
+          "I'm currently busy checking the nav logs.",
+          "Haha, totally agree.",
+          "Wait, are you sure?",
+          "See you later then."
+        ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        
+        const friendResponse: UIMessage = {
           id: Date.now() + 1,
-          sender: 'bot',
-          text: '⚠️ 未连接到 Gateway。请检查连接状态。',
+          sender: 'friend',
+          text: randomReply,
           timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
         };
-        setMessages(prev => [...prev, errorMessage]);
-      } else {
-        // Send message via WebSocket using RPC protocol
-        wsSendMessage(messageText);
-      }
+        setMessages(prev => [...prev, friendResponse]);
+      }, 1500 + Math.random() * 2000);
     }
   };
 
-  // Connection status display
   const getStatusColor = () => {
+    if (!isBot) return 'bg-green-500';
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
       case 'CONNECTING': return 'bg-yellow-500 animate-pulse';
@@ -195,80 +187,88 @@ const ChatDetail: React.FC = () => {
 
   const getStatusText = () => {
     switch (status) {
-      case 'CONNECTED': return '🟢 已连接';
-      case 'CONNECTING': return '🟡 连接中';
-      case 'AUTH_FAILED': return '🔴 认证失败';
-      case 'ERROR': return '🔴 错误';
-      default: return '⚪ 离线';
+      case 'CONNECTED': return 'Online';
+      case 'CONNECTING': return 'Connecting...';
+      case 'AUTH_FAILED': return 'Auth Failed';
+      case 'ERROR': return 'Error';
+      default: return 'Offline';
     }
   };
 
   return (
-    <div className="h-screen w-full bg-gradient-to-b from-slate-50 to-white flex flex-col">
+    <div className="h-screen w-full bg-slate-50 flex flex-col font-sans">
       {/* Header */}
-      <header className="px-5 pt-12 pb-4 flex items-center justify-between bg-white/80 backdrop-blur-lg border-b border-slate-100 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <header className="px-4 py-4 pt-12 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 shadow-sm transition-all duration-300">
+        <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)} 
-            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+            className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50 active:scale-95 duration-200"
           >
             <ArrowLeft size={20} className="text-slate-700" />
           </button>
+          
           <div className="flex items-center gap-3">
             <div className="relative">
               {isBot ? (
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-200/50">
                   <Bot className="text-white" size={24} />
                 </div>
               ) : (
-                <Avatar name={name} avatar={avatar} size="lg" />
+                <div className="relative">
+                   <Avatar name={name} avatar={avatar} size="md" />
+                </div>
               )}
-              {isBot && (
-                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor()}`}></div>
-              )}
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor()}`}></div>
             </div>
-            <div>
-              <h1 className="font-bold text-slate-800">{name}</h1>
-              <p className="text-xs text-slate-500">
-                {isBot ? getStatusText() : '在线'}
+            
+            <div className="flex flex-col">
+              <h1 className="font-bold text-slate-800 text-sm">{name}</h1>
+              <p className="text-[10px] text-slate-500 font-medium">
+                {isBot ? getStatusText() : 'Online'}
               </p>
             </div>
           </div>
         </div>
-        <button className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+        
+        <button className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50">
           <MoreVertical size={20} className="text-slate-700" />
         </button>
       </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4 pb-32">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-32 bg-slate-50/50">
+        <div className="text-center text-xs text-slate-400 my-4">Today</div>
+        
         {messages.map((msg) => (
           <div 
             key={msg.id} 
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
             {msg.sender !== 'user' && (
-              <div className="shrink-0 mr-3">
+              <div className="shrink-0 mr-2 mt-auto">
                 {isBot ? (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <Bot className="text-white" size={20} />
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-[10px]">
+                    <Bot size={14} />
                   </div>
                 ) : (
-                  <Avatar name={name} avatar={avatar} size="md" />
+                   <Avatar name={name} avatar={avatar} size="xs" />
                 )}
               </div>
             )}
-            <div 
-              className={`max-w-[75%] ${
-                msg.sender === 'user' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white text-slate-800 border border-slate-200'
-              } rounded-2xl px-4 py-3 shadow-sm`}
-            >
-              <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+            
+            <div className="flex flex-col gap-1 max-w-[75%]">
+               <div 
+                className={`px-4 py-3 shadow-sm text-sm leading-relaxed relative transition-all duration-200 ${
+                  msg.sender === 'user' 
+                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm' 
+                    : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm'
+                }`}
+              >
+                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+              </div>
               <span 
-                className={`text-[10px] mt-1 block ${
-                  msg.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'
+                className={`text-[10px] px-1 ${
+                  msg.sender === 'user' ? 'text-right text-slate-400' : 'text-left text-slate-400'
                 }`}
               >
                 {msg.timestamp}
@@ -276,72 +276,58 @@ const ChatDetail: React.FC = () => {
             </div>
           </div>
         ))}
+        
+        {isBot && status === 'CONNECTING' && (
+            <div className="flex justify-center my-4">
+                 <span className="text-xs text-slate-400 animate-pulse bg-slate-100 px-3 py-1 rounded-full border border-slate-200">Connecting to Secure Gateway...</span>
+            </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Connection Status Banner (if not connected and is bot) */}
-      {isBot && !isConnected && (
-        <div className="px-5 py-2 bg-yellow-50 border-t border-yellow-200">
-          <p className="text-xs text-yellow-800 text-center">
-            ⚠️ Gateway 未连接 - 请检查 WebSocket 配置
-          </p>
-        </div>
-      )}
-
-      {/* Input Bar */}
-      <div className="fixed bottom-20 left-0 right-0 px-5 py-4 bg-white/90 backdrop-blur-lg border-t border-slate-100">
-        <div className="flex items-center gap-3">
-          <button className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
-            <ImageIcon size={20} className="text-slate-600" />
-          </button>
-          <div className="flex-1 flex items-center bg-slate-100 rounded-full px-4 py-2">
+      {/* Input Area */}
+      <div className="fixed bottom-[88px] left-0 right-0 px-4 py-3 pointer-events-none z-40">
+          {/* Floating Input Container */}
+          <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-slate-200/50 rounded-3xl p-1.5 flex items-center gap-2 pointer-events-auto max-w-lg mx-auto w-full transition-all duration-200 hover:shadow-2xl hover:shadow-slate-200/60 ring-1 ring-slate-100">
+            
+            <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-400 hover:text-slate-600 active:scale-90 duration-200">
+               <ImageIcon size={20} />
+            </button>
+            
             <input
               type="text"
-              value={isListening ? fullTranscript : input}
+              value={isListening ? transcript : input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={
-                isListening 
-                  ? "🎤 正在监听..." 
-                  : isBot 
-                    ? "发送消息给 Gateway..." 
-                    : "输入消息..."
-              }
-              className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400"
+              placeholder={isListening ? "Listening..." : "Message..."}
+              className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 h-10 px-2 min-w-0"
               disabled={isBot && !isConnected}
             />
+            
             {isSpeechSupported && (
-              <button 
-                onClick={() => {
-                  if (isListening) {
-                    stopListening();
-                  } else {
-                    resetSpeech();
-                    startListening();
-                  }
-                }}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ml-2 ${
-                  isListening 
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                    : 'bg-slate-200 hover:bg-slate-300'
-                }`}
-              >
-                {isListening ? (
-                  <MicOff size={18} className="text-white" />
-                ) : (
-                  <Mic size={18} className="text-slate-600" />
-                )}
-              </button>
+               <button 
+                  onClick={() => isListening ? stopListening() : startListening()}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                     isListening ? 'bg-red-50 text-red-500 animate-pulse' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                  }`}
+               >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+               </button>
             )}
+
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || (isBot && !isConnected && false)} 
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                input.trim() 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-indigo-300/50 hover:scale-105 active:scale-95' 
+                  : 'bg-slate-100 text-slate-300'
+              }`}
+            >
+              <Send size={18} className={input.trim() ? 'ml-0.5' : ''} />
+            </button>
           </div>
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || (isBot && !isConnected)}
-            className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={18} className="text-white" />
-          </button>
-        </div>
       </div>
     </div>
   );

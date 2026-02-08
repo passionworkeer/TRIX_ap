@@ -14,7 +14,8 @@ export enum AppRoutes {
   SETTINGS = '/profile/settings',
   PAIRING = '/pairing',
   DIAGNOSTIC = '/diagnostic',  // 🔧 诊断页面
-  DIAGNOSTIC_ADV = '/diagnostic-advanced'  // 🔧 高级诊断
+  DIAGNOSTIC_ADV = '/diagnostic-advanced',  // 🔧 高级诊断
+  MAP = '/map'
 }
 
 export interface NavItem {

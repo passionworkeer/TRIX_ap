@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bell, MessageCircle, UserPlus, AlertCircle, Check } from 'lucide-react';
-import { getNotifications, markNotificationAsRead } from '../src/services/databaseService';
-import type { Notification } from '../src/config/supabase';
+import { getNotifications, markNotificationAsRead } from '../services/databaseService';
+import type { Notification } from '../config/supabase';
 import Avatar from './Avatar';
 
 interface NotificationPanelProps {
