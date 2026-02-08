@@ -13,8 +13,8 @@ import DiagnosticAdvanced from './screens/DiagnosticAdvanced'; // 🔧 高级诊
 import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import { AppRoutes } from './types';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { WebSocketProvider } from './src/contexts/WebSocketContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 // Layout component to conditionally wrap content with BottomNav
 const Layout: React.FC = () => {

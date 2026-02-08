@@ -127,3 +127,13 @@ export interface UserSession {
   expires_at: string;
   last_active_at: string;
 }
+
+export interface Profile {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  website?: string;
+  bio?: string;
+  updated_at?: string;
+}
