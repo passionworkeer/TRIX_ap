@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Web Speech API 类型定义
 interface SpeechRecognition extends EventTarget {
@@ -80,18 +80,6 @@ interface UseSpeechToTextOptions {
  * 语音转文字 Hook
  * 
  * 使用 Web Speech API 实现语音识别
- * 
- * @example
- * ```tsx
- * const { 
- *   isListening, 
- *   transcript, 
- *   startListening, 
- *   stopListening 
- * } = useSpeechToText({
- *   onResult: (text) => console.log('识别结果:', text)
- * });
- * ```
  */
 export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
   const {
@@ -248,32 +236,13 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
     setStatus('idle');
   }, []);
 
-  // 清理
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (err) {
-          // Ignore errors during cleanup
-        }
-      }
-    };
-  }, []);
-
   return {
-    // 状态
-    status,
-    isListening: status === 'listening',
     isSupported,
-    error,
-
-    // 文本
+    isListening: status === 'listening',
+    status,
     transcript,
     interimTranscript,
-    fullTranscript: transcript + interimTranscript,
-
-    // 方法
+    error,
     startListening,
     stopListening,
     reset,

@@ -1,4 +1,4 @@
-// 项目进度管理服务
+﻿// 项目进度管理服务
 
 export interface ProjectTask {
   id: string;
@@ -38,14 +38,7 @@ class ProjectService {
   }
 
   // 计算项目进度
-  getProjectProgress(projectId: string): {
-    completedTasks: number;
-    totalTasks: number;
-    percentage: number;
-    highPriorityLeft: number;
-    mediumPriorityLeft: number;
-    lowPriorityLeft: number;
-  } {
+  getProjectProgress(projectId: string) {
     const projects = this.getProjects();
     const project = projects.find(p => p.id === projectId);
     
@@ -128,13 +121,13 @@ class ProjectService {
       {
         id: 'project-1',
         name: '数据结构课程设计',
-        description: '实现一个基于图的社交网络分析系统',
+        description: '实现一个基于图的社交 network 分析系统',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
         updatedAt: new Date().toISOString(),
         tasks: [
           {
             id: 'task-1',
-            title: '完成需求分析文档',
+            title: '完成需求分析文件',
             completed: true,
             priority: 'high',
             dueDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),

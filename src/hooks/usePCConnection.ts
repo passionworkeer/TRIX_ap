@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 // ============================================
-// ✅ 最终完美版：智能消息解析 + 稳定连接
+// �?最终完美版：智能消息解�?+ 稳定连接
 // ============================================
 
 interface ConnectParams {
@@ -66,7 +66,7 @@ export const usePCConnection = () => {
 
       socket.onopen = () => {
         isConnectingRef.current = false;
-        console.log('✅ Socket 已打开，发送认证...');
+        console.log('�?Socket 已打开，发送认�?..');
         
         const handshakePacket: ConnectRequest = {
           type: 'req',
@@ -91,12 +91,12 @@ export const usePCConnection = () => {
         socket.send(JSON.stringify(handshakePacket));
       };
 
-      // 🔥🔥🔥 核心修改区域：智能消息解析 🔥🔥🔥
+      // 🔥🔥🔥 核心修改区域：智能消息解�?🔥🔥🔥
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           
-          // 1. 忽略握手和心跳包 (不显示在UI上)
+          // 1. 忽略握手和心跳包 (不显示在UI�?
           if (data.type === 'res' && data.payload?.type === 'hello-ok') {
             setStatus('CONNECTED');
             reconnectAttemptsRef.current = 0;
@@ -113,13 +113,13 @@ export const usePCConnection = () => {
           
           console.log('📩 收到有效数据:', data);
           
-          // 4. 提取真正的 AI 回复文本
+          // 4. 提取真正�?AI 回复文本
           let content = null;
           const p = data.payload;
 
           if (!p) return;
 
-          // 场景 A: 文本流 (OpenClaw 标准)
+          // 场景 A: 文本�?(OpenClaw 标准)
           if (p.stream === 'text' && p.data) {
              content = p.data;
           }
@@ -136,10 +136,10 @@ export const usePCConnection = () => {
              content = p.delta;
           }
 
-          // 只有当真正提取到文本时，才更新 UI
+          // 只有当真正提取到文本时，才更�?UI
           if (content && typeof content === 'string') {
-              // 这里做一个简单的处理：如果是流式输出，可能需要累加
-              // 但为了 MVP 简单，我们先直接显示最新的一段
+              // 这里做一个简单的处理：如果是流式输出，可能需要累�?
+              // 但为�?MVP 简单，我们先直接显示最新的一�?
               setLastMessage(content);
           }
 
@@ -171,7 +171,7 @@ export const usePCConnection = () => {
     }
   }, [WS_URL, AUTH_TOKEN]); 
 
-  // 发送消息保持不变 (记得保留 idempotencyKey)
+  // 发送消息保持不�?(记得保留 idempotencyKey)
   const sendMessage = useCallback((text: string) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return;
     
@@ -187,7 +187,7 @@ export const usePCConnection = () => {
         }
     };
     
-    console.log('📤 发送:', text);
+    console.log('📤 发�?', text);
     wsRef.current.send(JSON.stringify(pkt));
   }, []);
 

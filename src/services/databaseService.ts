@@ -1,5 +1,5 @@
 // ============================================
-// 🗄️ Supabase 数据库服务 - 替换 localStorage
+// 🗄�?Supabase 数据库服�?- 替换 localStorage
 // ============================================
 
 import { supabase, CURRENT_USER_ID } from '../config/supabase';
@@ -19,7 +19,7 @@ import type {
 // ============================================
 
 /**
- * 获取所有好友（包含未读消息信息）
+ * 获取所有好友（包含未读消息信息�?
  */
 export async function getFriends(): Promise<FriendLatestMessage[]> {
   const { data, error } = await supabase
@@ -36,7 +36,7 @@ export async function getFriends(): Promise<FriendLatestMessage[]> {
 }
 
 /**
- * 更新好友在线状态
+ * 更新好友在线状�?
  */
 export async function updateFriendStatus(
   friendId: string, 
@@ -48,12 +48,12 @@ export async function updateFriendStatus(
     .eq('friend_id', friendId);
 
   if (error) {
-    console.error('更新好友状态失败:', error);
+    console.error('更新好友状态失�?', error);
   }
 }
 
 /**
- * 更新好友学习状态
+ * 更新好友学习状�?
  */
 export async function updateFriendStudyStatus(
   friendId: string,
@@ -75,7 +75,7 @@ export async function updateFriendStudyStatus(
     .eq('friend_id', friendId);
 
   if (error) {
-    console.error('更新好友学习状态失败:', error);
+    console.error('更新好友学习状态失�?', error);
   }
 }
 
@@ -102,14 +102,14 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
 }
 
 /**
- * 发送消息
+ * 发送消�?
  */
 export async function sendMessage(
   friendId: string,
   sender: 'user' | 'friend' | 'bot',
   text: string
 ): Promise<string | null> {
-  // 🔕 多用户功能暂时注释 - 专注于 Bot 连接
+  // 🔕 多用户功能暂时注�?- 专注�?Bot 连接
   // if (friendId.startsWith('user_')) {
   //   const { data, error } = await supabase
   //     .rpc('send_user_message', {
@@ -119,14 +119,14 @@ export async function sendMessage(
   //     });
 
   //   if (error) {
-  //     console.error('发送用户消息失败:', error);
+  //     console.error('发送用户消息失�?', error);
   //     return null;
   //   }
 
   //   return data;
   // }
 
-  // 使用标准的消息发送函数（AI bot）
+  // 使用标准的消息发送函数（AI bot�?
   const { data, error } = await supabase
     .rpc('send_message', {
       p_friend_id: friendId,
@@ -135,7 +135,7 @@ export async function sendMessage(
     });
 
   if (error) {
-    console.error('发送消息失败:', error);
+    console.error('发送消息失�?', error);
     return null;
   }
 
@@ -143,7 +143,7 @@ export async function sendMessage(
 }
 
 /**
- * 标记消息为已读
+ * 标记消息为已�?
  */
 export async function markMessagesAsRead(friendId: string): Promise<void> {
   const { error } = await supabase
@@ -158,7 +158,7 @@ export async function markMessagesAsRead(friendId: string): Promise<void> {
 }
 
 /**
- * 清空某个好友的聊天记录
+ * 清空某个好友的聊天记�?
  */
 export async function clearChatHistory(friendId: string): Promise<void> {
   const { error } = await supabase
@@ -176,7 +176,7 @@ export async function clearChatHistory(friendId: string): Promise<void> {
 // ============================================
 
 /**
- * 获取所有未读消息计数
+ * 获取所有未读消息计�?
  */
 export async function getUnreadCounts(): Promise<UnreadCount[]> {
   const { data, error } = await supabase
@@ -232,7 +232,7 @@ export async function getNotifications(): Promise<Notification[]> {
 }
 
 /**
- * 标记通知为已读
+ * 标记通知为已�?
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
   const { error } = await supabase
@@ -270,7 +270,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
     .eq('is_read', false);
 
   if (error) {
-    console.error('获取未读通知数失败:', error);
+    console.error('获取未读通知数失�?', error);
     return 0;
   }
 
@@ -282,7 +282,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 // ============================================
 
 /**
- * 获取所有邮件
+ * 获取所有邮�?
  */
 export async function getMails(): Promise<Mail[]> {
   const { data, error } = await supabase
@@ -300,7 +300,7 @@ export async function getMails(): Promise<Mail[]> {
 }
 
 /**
- * 标记邮件为已读
+ * 标记邮件为已�?
  */
 export async function markMailAsRead(mailId: string): Promise<void> {
   const { error } = await supabase
@@ -338,7 +338,7 @@ export async function getUnreadMailCount(): Promise<number> {
     .eq('is_read', false);
 
   if (error) {
-    console.error('获取未读邮件数失败:', error);
+    console.error('获取未读邮件数失�?', error);
     return 0;
   }
 
@@ -512,11 +512,11 @@ export function subscribeToNotifications(
 }
 
 // ============================================
-// 🔕 多用户会话管理功能暂时注释 - 专注于基础 Bot 连接
+// 🔕 多用户会话管理功能暂时注�?- 专注于基础 Bot 连接
 // ============================================
 
 /**
- * 创建或更新用户会话
+ * 创建或更新用户会�?
  */
 // export async function createOrUpdateSession(
 //   deviceInfo: { ip?: string; device?: string; browser?: string },
@@ -545,7 +545,7 @@ export function subscribeToNotifications(
 // }
 
 /**
- * 获取当前用户的活跃会话
+ * 获取当前用户的活跃会�?
  */
 // export async function getCurrentSession(): Promise<UserSession | null> {
 //   const { data, error } = await supabase
@@ -566,7 +566,7 @@ export function subscribeToNotifications(
 // }
 
 /**
- * 获取用户的 Clawbot Gateway 端点
+ * 获取用户�?Clawbot Gateway 端点
  */
 // export async function getUserClawbotEndpoint(userId?: string): Promise<string | null> {
 //   const targetUserId = userId || CURRENT_USER_ID;
@@ -581,7 +581,7 @@ export function subscribeToNotifications(
 //     .single();
 
 //   if (error || !data) {
-//     console.warn('未找到 Clawbot 端点，使用默认配置');
+//     console.warn('未找�?Clawbot 端点，使用默认配�?);
 //     return null;
 //   }
 
@@ -589,7 +589,7 @@ export function subscribeToNotifications(
 // }
 
 /**
- * 更新会话最后活跃时间
+ * 更新会话最后活跃时�?
  */
 // export async function updateSessionActivity(sessionToken: string): Promise<void> {
 //   const { error } = await supabase

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, User, MessageCircle, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getFriends } from '../src/services/databaseService';
-import type { FriendLatestMessage } from '../src/config/supabase';
+import { getFriends } from '../services/databaseService';
+import type { FriendLatestMessage } from '../config/supabase';
 import { AppRoutes } from '../types';
 import Avatar from './Avatar';
 
@@ -76,13 +76,13 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-                  好友自习室
+                  好友自习�?
                   <span className="bg-green-500/20 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded-full border border-green-200/50 animate-pulse">
                     LIVE
                   </span>
                 </h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {studyingFriends.length} 位好友正在学习
+                  {studyingFriends.length} 位好友正在学�?
                 </p>
               </div>
             </div>
@@ -142,7 +142,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                       <Clock size={18} className="text-cyan-600 dark:text-cyan-400" />
                       <div className="flex-1">
                         <div className="text-xs text-slate-600 dark:text-slate-400 mb-0.5">
-                          已学习
+                          已学�?
                         </div>
                         <div className="text-lg font-black text-cyan-700 dark:text-cyan-300">
                           {formatStudyTime(friend.study_time || 0)}
@@ -167,7 +167,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                       className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 group-hover:shadow-xl"
                     >
                       <MessageCircle size={16} />
-                      发送消息
+                      发送消�?
                     </button>
                   </div>
                 );

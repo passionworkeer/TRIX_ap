@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Mail as MailIcon, Trash2 } from 'lucide-react';
-import { getMails, markMailAsRead, deleteMail } from '../src/services/databaseService';
-import type { Mail } from '../src/config/supabase';
+import { getMails, markMailAsRead, deleteMail } from '../services/databaseService';
+import type { Mail } from '../config/supabase';
 import Avatar from './Avatar';
 
 interface MailPanelProps {
@@ -56,9 +56,9 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 60) return `${diffMins}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffMins < 60) return `${diffMins} 分钟前`;
+    if (diffHours < 24) return `${diffHours} 小时前`;
+    if (diffDays < 7) return `${diffDays} 天前`;
     return date.toLocaleDateString('zh-CN');
   };
 
@@ -145,7 +145,7 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Avatar name={selectedMail.from_name} avatar={selectedMail.from_avatar || ''} size="sm" />
                       <span>{selectedMail.from_name}</span>
-                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-400">  </span>
                       <span className="text-slate-400">{formatTimestamp(selectedMail.created_at)}</span>
                     </div>
                   </div>

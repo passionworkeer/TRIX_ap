@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { User, Lock, Smartphone, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
-import { useAuth } from '../src/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ export const Login: React.FC = () => {
          </div>
          <div className="text-center mt-4 relative z-20">
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">欢迎回来</h1>
-            <p className="text-slate-500 text-sm font-medium tracking-wide mt-1">TRIX · 探索无限 3D 世界</p>
+            <p className="text-slate-500 text-sm font-medium tracking-wide mt-1">TRIX  探索无限 3D 世界</p>
          </div>
       </div>
 
@@ -207,7 +207,7 @@ export const Register: React.FC = () => {
                 <Lock className="text-gray-400 group-focus-within:text-cyan-500 transition-colors" size={22} />
                 <input 
                   type="password" 
-                  placeholder="设置密码 (至少6位)" 
+                  placeholder="设置密码 (至少 6 位)" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -221,11 +221,11 @@ export const Register: React.FC = () => {
             disabled={loading || success}
             className="w-full py-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white font-bold text-lg shadow-lg shadow-cyan-400/30 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
           >
-             {loading ? '注册中...' : success ? '注册成功！' : '立即注册'}
+             {loading ? '注册中...' : success ? '注册成功' : '立即注册'}
           </button>
           
           <div className="text-center text-sm text-slate-500">
-             已有账号？ <button onClick={() => navigate(AppRoutes.LOGIN)} className="text-cyan-600 font-bold hover:text-cyan-500">立即登录</button>
+             已有账号？<button onClick={() => navigate(AppRoutes.LOGIN)} className="text-cyan-600 font-bold hover:text-cyan-500">立即登录</button>
           </div>
        </div>
      </div>
