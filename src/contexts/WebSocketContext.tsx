@@ -64,19 +64,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const responseBufferRef = useRef<string>('');
   const challengePendingRef = useRef(false);
   
-  // 🎯 使用独立的 WebSocket 代理服务器
+  // 🎯 直接连接 localhost
   const getWebSocketURL = () => {
-    const hostname = window.location.hostname;
-    
-    // 连接到代理服务器 (端口 18790)
-    // 代理服务器会转发到 localhost:18789
-    const url = `ws://${hostname}:18790`;
-    
-    console.log('🔌 通过代理服务器连接');
-    console.log('   浏览器连接:', url);
-    console.log('   代理转发到: ws://localhost:18789');
+    const url = 'ws://localhost:18789';
+    console.log('🔌 连接到:', url);
     console.log('   当前页面:', window.location.href);
-    
     return url;
   };
   
