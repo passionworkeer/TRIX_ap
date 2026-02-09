@@ -1,4 +1,4 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
@@ -7,9 +7,72 @@ import { AppRoutes } from '../types';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(false);
+  const [language, setLanguage] = useState('简体中文');
+
+  const handleOutfitChange = (outfitName: string) => {
+    console.log('装备已更换:', outfitName);
+    // TODO: 实现装备更换逻辑
+    alert(`已装备: ${outfitName}`);
+  };
+
+  const handleDarkModeToggle = () => {
+    setDarkMode(!darkMode);
+    console.log('深色模式:', !darkMode ? '开启' : '关闭');
+    // TODO: 实现深色模式切换
+  };
+
+  const handleLanguageChange = () => {
+    const languages = ['简体中文', 'English', '日本語'];
+    const currentIndex = languages.indexOf(language);
+    const nextLanguage = languages[(currentIndex + 1) % languages.length];
+    setLanguage(nextLanguage);
+    console.log('语言已切换至:', nextLanguage);
+  };
+
+  const handlePrivacyClick = () => {
+    console.log('打开隐私与安全设置');
+    // TODO: 导航到隐私设置页面
+    alert('隐私与安全设置页面（开发中）');
+  };
+
+  const handleAboutClick = () => {
+    console.log('打开关于我们');
+    // TODO: 导航到关于页面
+    alert('TRIX v1.2.0\n开发团队: TRIX Studio\n© 2026 All Rights Reserved');
+  };
+
+  const handleLogout = () => {
+    if (confirm('确定要退出登录吗？')) {
+      console.log('用户已登出');
+      navigate(AppRoutes.LOGIN);
+    }
+  };
+
+  const handleStatClick = (statName: string, value: number) => {
+    console.log(`查看${statName}详情:`, value);
+    const messages: { [key: string]: string } = {
+      '陪伴天数': `🎉 你已经和 TRIX 相伴 ${value} 天啦！\n继续保持，一起成长！`,
+      '等级': `⭐ 当前等级: Lv.${value}\n距离下一级还需 230 经验值`,
+      '互动': `💬 总互动次数: ${value}\n本周互动: 86 次`
+    };
+    alert(messages[statName] || `${statName}: ${value}`);
+  };
+
+  const handleViewAllOutfits = () => {
+    console.log('查看所有装备');
+    // TODO: 导航到装备商店页面
+    alert('装备商店（开发中）\n即将推出更多精美装备！');
+  };
+
+  const handleGetMoreOutfits = () => {
+    console.log('获取更多装备');
+    // TODO: 导航到装备获取页面
+    alert('🎁 获取更多装备\n\n完成任务和活动即可解锁新装备！');
+  };
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] text-slate-800 relative pb-32">
+    <div className="h-screen w-full bg-[#FAFAFA] text-slate-800 relative flex flex-col overflow-hidden">
        {/* Aurora Background */}
        <div className="fixed inset-0 z-0">
           <div className="absolute top-[15%] left-[15%] w-64 h-64 bg-cyan-300/25 rounded-full blur-[80px]"></div>
@@ -17,7 +80,7 @@ const Profile: React.FC = () => {
           <div className="absolute bottom-[15%] left-[15%] w-64 h-64 bg-pink-300/25 rounded-full blur-[80px]"></div>
        </div>
 
-       <div className="relative z-10 flex flex-col items-center pt-8 px-6">
+       <div className="relative z-10 flex flex-col items-center pt-8 px-6 flex-1 overflow-y-auto no-scrollbar">
           <h1 className="text-base font-bold tracking-tight text-slate-700 uppercase opacity-90 mb-4">个人中心</h1>
           
           <div className="relative group mt-6">
@@ -43,17 +106,26 @@ const Profile: React.FC = () => {
 
              {/* Stats Row */}
              <div className="flex items-center justify-center gap-8 mt-6 w-full">
-                <div className="text-center cursor-pointer hover:scale-105 transition-transform">
+                <div 
+                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
+                   onClick={() => handleStatClick('陪伴天数', 128)}
+                >
                    <div className="text-lg font-black text-slate-700">128</div>
                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">陪伴天数</div>
                 </div>
                 <div className="w-[1px] h-8 bg-slate-200/80"></div>
-                <div className="text-center cursor-pointer hover:scale-105 transition-transform">
+                <div 
+                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
+                   onClick={() => handleStatClick('等级', 42)}
+                >
                    <div className="text-lg font-black text-slate-700">42</div>
                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">等级</div>
                 </div>
                 <div className="w-[1px] h-8 bg-slate-200/80"></div>
-                <div className="text-center cursor-pointer hover:scale-105 transition-transform">
+                <div 
+                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
+                   onClick={() => handleStatClick('互动', 1200)}
+                >
                    <div className="text-lg font-black text-slate-700">1.2k</div>
                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">互动</div>
                 </div>
@@ -64,7 +136,12 @@ const Profile: React.FC = () => {
              <div className="w-full">
                 <div className="flex items-center justify-between mb-4 pl-1">
                    <h3 className="text-lg font-bold text-slate-800">我的衣橱</h3>
-                   <button className="text-xs font-bold text-cyan-600">查看全部</button>
+                   <button 
+                      onClick={handleViewAllOutfits}
+                      className="text-xs font-bold text-cyan-600 hover:text-cyan-700 active:scale-95 transition-all"
+                   >
+                      查看全部
+                   </button>
                 </div>
                 
                 <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 no-scrollbar scroll-smooth">
@@ -75,7 +152,7 @@ const Profile: React.FC = () => {
                    ].map((item, i) => (
                       <GlassPanel 
                          key={i} 
-                         onClick={() => console.log('Outfit changed: ' + item.name)}
+                         onClick={() => handleOutfitChange(item.name)}
                          className="flex-shrink-0 w-32 h-44 !rounded-[28px] p-3 flex flex-col items-center gap-2 cursor-pointer group hover:bg-white/95 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-900/5 relative border border-white/60"
                        >
                          {item.hasDot && <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-sm z-10 ring-2 ring-white animate-pulse"></div>}
@@ -92,7 +169,10 @@ const Profile: React.FC = () => {
                       </GlassPanel>
                    ))}
                    
-                   <div className="flex-shrink-0 w-32 h-44 border-2 border-dashed border-slate-200 rounded-[28px] flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-cyan-300 hover:bg-cyan-50/20 transition-all group">
+                   <div 
+                      onClick={handleGetMoreOutfits}
+                      className="flex-shrink-0 w-32 h-44 border-2 border-dashed border-slate-200 rounded-[28px] flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-cyan-300 hover:bg-cyan-50/20 transition-all group active:scale-95"
+                   >
                       <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-cyan-100 group-hover:text-cyan-600 flex items-center justify-center text-slate-400 transition-colors duration-300 shadow-sm">
                          <Plus size={22} />
                       </div>
@@ -104,19 +184,25 @@ const Profile: React.FC = () => {
              <div className="w-full">
                 <h3 className="text-lg font-bold text-slate-800 mb-3 pl-1">外观与个性化</h3>
                 <div className="flex flex-col gap-3">
-                   <GlassPanel className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300">
+                   <GlassPanel 
+                      onClick={handleDarkModeToggle}
+                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
+                   >
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 transform group-hover:scale-105 transition-transform duration-300">
                             <Moon size={20} />
                          </div>
                          <span className="font-bold text-sm text-slate-700">深色模式</span>
                       </div>
-                      <div className="relative w-12 h-7 rounded-full bg-slate-200 p-1 transition-colors">
-                          <div className="w-5 h-5 bg-white rounded-full shadow-sm transform translate-x-0 transition-transform"></div>
+                      <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${darkMode ? 'bg-cyan-500' : 'bg-slate-200'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
                       </div>
                    </GlassPanel>
 
-                   <GlassPanel className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300">
+                   <GlassPanel 
+                      onClick={handleLanguageChange}
+                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
+                   >
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-200 transform group-hover:scale-105 transition-transform duration-300">
                             <Globe size={20} />
@@ -124,7 +210,7 @@ const Profile: React.FC = () => {
                          <span className="font-bold text-sm text-slate-700">语言</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-400">
-                         <span className="text-xs font-medium">简体中文</span>
+                         <span className="text-xs font-medium">{language}</span>
                          <ChevronRight size={16} />
                       </div>
                    </GlassPanel>
@@ -132,7 +218,10 @@ const Profile: React.FC = () => {
 
                 <h3 className="text-lg font-bold text-slate-800 mb-3 pl-1 mt-6">通用</h3>
                 <div className="flex flex-col gap-3">
-                   <GlassPanel className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300">
+                   <GlassPanel 
+                      onClick={handlePrivacyClick}
+                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
+                   >
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-200 transform group-hover:scale-105 transition-transform duration-300">
                             <Lock size={20} />
@@ -142,7 +231,10 @@ const Profile: React.FC = () => {
                       <ChevronRight size={16} className="text-slate-400" />
                    </GlassPanel>
                    
-                   <GlassPanel className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300">
+                   <GlassPanel 
+                      onClick={handleAboutClick}
+                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
+                   >
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-400 to-slate-600 text-white flex items-center justify-center shadow-lg shadow-slate-200 transform group-hover:scale-105 transition-transform duration-300">
                             <Verified size={20} />
@@ -156,7 +248,7 @@ const Profile: React.FC = () => {
                    </GlassPanel>
 
                    <button 
-                     onClick={() => navigate(AppRoutes.LOGIN)}
+                     onClick={handleLogout}
                      className="mt-4 w-full bg-white/60 border border-red-100 p-4 rounded-[24px] flex items-center justify-center gap-2 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors shadow-sm active:scale-95 duration-200"
                    >
                       <LogOut size={18} /> 

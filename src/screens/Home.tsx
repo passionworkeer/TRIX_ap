@@ -11,10 +11,13 @@ import NotificationPanel from "../components/NotificationPanel";
 import StudyRoom from "../components/StudyRoom";
 import ProjectProgress from "../components/ProjectProgress";
 import Avatar from "../components/Avatar";
-import HeroBackground from "../components/HeroBackground";
 import StatusHeader from "../components/StatusHeader";
 
-const Home: React.FC = () => {
+interface HomeProps {
+  onBackgroundClick?: () => void;
+}
+
+const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { status: pcStatus } = useGlobalConnection();
@@ -40,15 +43,15 @@ const Home: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative h-screen flex flex-col bg-transparent overflow-hidden">
-      {/* Background (Layer 0) - 全屏背景与呼吸动画 - 移出了 div 内部流，完全独立 */}
-      <HeroBackground />
-
+    <div 
+      className="relative h-screen flex flex-col bg-transparent overflow-hidden"
+      onClick={onBackgroundClick}
+    >
       {/* Header - 极其简约的状态栏 */}
       <StatusHeader />
       
       {/* Main Content Area - Empty (Zero UI) */}
-      {/* 可以在这里放点击触发对话的隐形区域 */}
+      {/* 整个区域都可点击切换导航栏 */}
 
       {/* Panels (Modals) */}
       <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />

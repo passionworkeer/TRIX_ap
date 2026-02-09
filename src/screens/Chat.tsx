@@ -1,156 +1,227 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Plus, Search, MoreHorizontal, Check, CheckCheck } from 'lucide-react';
+import React from 'react';
+import { Search, UserPlus, Camera, MessageSquare, Square, Send, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { AppRoutes } from '../types';
 import { motion } from 'framer-motion';
+import Avatar from '../components/Avatar';
+import { AppRoutes } from '../types';
 
-// Mock Data
-const MOCK_CHATS = [
-  { 
-    id: 'clawbot', 
-    name: 'Clawbot', 
-    avatar: IMAGES.WIZARD_BOY, 
-    lastMessage: 'Gateway connected and syncing.', 
-    time: 'Just now', 
-    unread: 1, 
-    isOnline: true, 
-    isBot: true,
-    status: 'online'
+// Mock Data for Quick Add
+const QUICK_ADD_USERS = [
+  { id: 'qa1', name: 'Sarah Miller', username: 'sarah_m', avatar: '' },
+  { id: 'qa2', name: 'Mike Chen', username: 'mike_c99', avatar: '' },
+  { id: 'qa3', name: 'Jenny Wilson', username: 'j_wilson', avatar: '' },
+  { id: 'qa4', name: 'Tom Hardy', username: 'tomh_official', avatar: '' },
+  { id: 'qa5', name: 'Lisa Wang', username: 'lisa_wang', avatar: '' },
+];
+
+// Mock Data for Chats
+const CHATS = [
+  {
+    id: 'clawbot',
+    name: 'TRIX Bot',
+    avatar: IMAGES.WIZARD_BOY,
+    status: { type: 'chat', text: 'Tap to chat', time: ' 1m', color: 'text-blue-500', fill: true },
+    showCamera: true
   },
-  { 
-    id: 'elara', 
-    name: 'Elara', 
-    avatar: IMAGES.FRIEND_1, 
-    lastMessage: 'How did the navigation test go?', 
-    time: '09:42', 
-    unread: 1, 
-    isOnline: true,
-    status: 'online'
+  {
+    id: 'elara',
+    name: 'Alice Cooper',
+    avatar: IMAGES.FRIEND_1,
+    status: { type: 'snap', text: 'New Snap', time: ' 2m', color: 'text-red-500', fill: true },
+    showCamera: false
   },
-  { 
-    id: 'kael', 
-    name: 'Kael', 
-    avatar: IMAGES.FRIEND_2, 
-    lastMessage: 'See you at 3 PM.', 
-    time: '14:25', 
-    unread: 0, 
-    isOnline: false,
-    status: 'offline'
+  {
+    id: 'kael',
+    name: 'Bob Smith',
+    avatar: IMAGES.FRIEND_2,
+    status: { type: 'received', text: 'Received', time: ' 2h', color: 'text-purple-500', fill: false },
+    showCamera: true
   },
-  { 
-    id: 'ghost', 
-    name: 'Ghost', 
-    avatar: IMAGES.FRIEND_3, 
-    lastMessage: '[Image] Snapshot sent', 
-    time: 'Mon', 
-    unread: 0, 
-    isOnline: false,
-    status: 'offline'
+  {
+    id: 'ghost',
+    name: 'Carol Danvers',
+    avatar: IMAGES.FRIEND_3,
+    status: { type: 'opened', text: 'Opened', time: ' 4h', color: 'text-gray-400', fill: false },
+    showCamera: true
   },
-  { 
-    id: '5', 
-    name: 'Team Alpha', 
-    avatar: '/assets/map.png', 
-    lastMessage: 'Alex: 周五之前必须提交报告', 
-    time: '周一', 
-    unread: 0, 
-    isOnline: true,
-    isGroup: true,
-    status: ''
+  {
+    id: 'david',
+    name: 'David Lee',
+    avatar: '',
+    status: { type: 'sent', text: 'Sent', time: ' 5h', color: 'text-gray-400', fill: false },
+    showCamera: true
+  },
+  {
+    id: 'emma',
+    name: 'Emma Watson',
+    avatar: '',
+    status: { type: 'screenshot', text: 'Screenshot!', time: ' 1d', color: 'text-red-500', fill: false },
+    showCamera: true
+  },
+  {
+    id: 'frank',
+    name: 'Frank Ocean',
+    avatar: '',
+    status: { type: 'chat', text: 'Tap to chat', time: ' 1d', color: 'text-blue-500', fill: true },
+    showCamera: true
+  },
+  {
+    id: 'grace',
+    name: 'Grace Hopper',
+    avatar: '',
+    status: { type: 'snap', text: 'New Snap', time: ' 2d', color: 'text-red-500', fill: true },
+    showCamera: true
+  },
+  {
+    id: 'harry',
+    name: 'Harry Potter',
+    avatar: '',
+    status: { type: 'received', text: 'Received', time: ' 3d', color: 'text-purple-500', fill: false },
+    showCamera: true
   }
 ];
 
+const StatusIcon = ({ type, color, fill }: { type: string, color: string, fill: boolean }) => {
+  const iconClass = `${color} ${fill ? 'fill-current' : ''}`;
+  
+  switch(type) {
+    case 'chat':
+      return <MessageSquare size={14} className={iconClass} strokeWidth={2.5} />;
+    case 'snap':
+      return <Square size={14} className={iconClass} strokeWidth={0} />;
+    case 'received':
+      return <Square size={14} className={`${color} fill-none border-2 border-current rounded-[2px]`} strokeWidth={2.5} />;
+    case 'opened':
+      return <Square size={14} className={`${color} border-2 border-current rounded-[2px]`} strokeWidth={2.5} />; // Hollow square
+    case 'sent':
+      return <Send size={14} className={iconClass} strokeWidth={2.5} />;
+    case 'screenshot':
+      return <RotateCcw size={14} className={iconClass} strokeWidth={2.5} />;
+    default:
+      return <Square size={14} className={iconClass} />;
+  }
+};
+
 const Chat: React.FC = () => {
   const navigate = useNavigate();
-  const [chats, setChats] = useState(MOCK_CHATS);
 
   return (
-    <div className="h-screen w-full bg-slate-900 relative overflow-hidden flex flex-col text-white">
-       {/* Aurora Background (Dark Mode) */}
-       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-
-       {/* Header */}
-       <header className="px-6 pt-12 pb-4 sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl border-b border-white/5">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-black tracking-tight text-white">消息</h1>
-            <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-               <Plus size={24} className="text-white" />
-            </button>
+    <div className='h-screen w-full bg-white flex flex-col relative'>
+       {/* 1. Header */}
+       <header className='px-4 py-3 bg-white flex justify-between items-center sticky top-0 z-10 w-full'>
+          {/* Left: Avatar (Small Profile) */}
+          <div className='w-10 h-10 rounded-full bg-gray-200 overflow-hidden shadow-sm' onClick={() => navigate('/profile')}>
+             <Avatar name='Me' size='md' className='w-full h-full object-cover' />
           </div>
-          
-          {/* Search Bar */}
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-             <input 
-               type="text" 
-               placeholder="搜索好友或消息..." 
-               className="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
-             />
+
+          {/* Center: Title */}
+          <h1 className='text-xl font-bold text-black tracking-wide font-sans'>Chat</h1>
+
+          {/* Right: Actions */}
+          <div className='flex items-center gap-4'>
+             <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
+                <UserPlus size={20} className='text-gray-800' strokeWidth={2.5} />
+             </div>
+             <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
+                <Search size={22} className='text-gray-800' strokeWidth={2.5} />
+             </div>
           </div>
        </header>
 
-       {/* Chat List */}
-       <div className="flex-1 overflow-y-auto pb-32">
-          {chats.map((chat, index) => (
-            <motion.div 
-              key={chat.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              onClick={() => navigate(AppRoutes.CHAT_DETAIL, { 
-                state: { 
-                  name: chat.name, 
-                  avatar: chat.avatar, 
-                  isBot: chat.isBot, 
-                  friendId: chat.id 
-                } 
-              })}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer border-b border-white/5 last:border-0"
-            >
-              {/* Avatar */}
-              <div className="relative">
-                 <div className={`w-14 h-14 rounded-full p-0.5 ${chat.isBot ? 'bg-gradient-to-tr from-cyan-400 to-blue-600' : 'bg-transparent'}`}>
-                    <img src={chat.avatar} className="w-full h-full rounded-full object-cover border-2 border-slate-900" alt={chat.name} />
-                 </div>
-                 {chat.isOnline && (
-                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full shadow-sm"></div>
-                 )}
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                 <div className="flex justify-between items-baseline mb-1">
-                    <h3 className={`font-bold text-base truncate ${chat.isBot ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400' : 'text-slate-100'}`}>
-                      {chat.name}
-                    </h3>
-                    <span className="text-xs text-white/40">{chat.time}</span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                    <p className={`text-sm truncate pr-4 ${chat.status === 'typing...' ? 'text-cyan-400 italic' : 'text-white/50'}`}>
-                      {chat.status === 'typing...' ? '正在输入...' : chat.lastMessage}
-                    </p>
-                    {chat.unread > 0 ? (
-                      <div className="min-w-[20px] h-[20px] bg-cyan-500 rounded-full flex items-center justify-center px-1.5">
-                         <span className="text-[10px] font-bold text-black">{chat.unread}</span>
-                      </div>
-                    ) : (
-                       <div className="text-white/20">
-                         <CheckCheck size={16} />
-                       </div>
-                    )}
-                 </div>
-              </div>
-            </motion.div>
-          ))}
+       {/* Scrollable Content */}
+       <div className='flex-1 overflow-y-auto w-full no-scrollbar'>
           
-          {/* End padding for dock */}
-          <div className="h-6"></div>
+          {/* 2. Quick Add Section */}
+          <div className='py-4 bg-white border-b border-gray-100'>
+             <div className='px-4 mb-2'>
+                <h3 className='text-[13px] font-bold text-gray-900 uppercase tracking-wide'>Quick Add</h3>
+             </div>
+             <div className='flex overflow-x-auto px-4 pb-2 gap-3 no-scrollbar snap-x'>
+                {QUICK_ADD_USERS.map((user) => (
+                  <div key={user.id} className='min-w-[130px] p-3 bg-white rounded-lg border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col items-center relative snap-start'>
+                     <button className='absolute top-1 right-1 text-gray-300 hover:text-gray-500 p-1'>
+                        <span className='sr-only'>Dismiss</span>
+                        <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>
+                     </button>
+                     <div className='mb-2'>
+                        <Avatar name={user.name} size='md' />
+                     </div>
+                     <span className='text-[13px] font-bold text-black truncate w-full text-center leading-tight'>{user.name}</span>
+                     <span className='text-[11px] text-gray-400 truncate w-full text-center mb-3 leading-tight'>{user.username}</span>
+                     <button className='w-full py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-[12px] font-bold text-black transition-colors'>
+                        + Add
+                     </button>
+                  </div>
+                ))}
+             </div>
+          </div>
+
+          {/* 3. Chat List */}
+          <div className='flex flex-col w-full'>
+            {CHATS.map((chat) => (
+               <motion.div 
+                 key={chat.id}
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 className='flex items-center px-4 py-3 w-full hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer'
+                 onClick={() => {
+                   if (chat.id === 'clawbot') {
+                     navigate(AppRoutes.CHAT_DETAIL, { 
+                        state: { 
+                          name: chat.name, 
+                          avatar: chat.avatar, 
+                          isBot: true, 
+                          friendId: chat.id 
+                        } 
+                     });
+                   } else {
+                     navigate(AppRoutes.CHAT_DETAIL, { 
+                        state: { 
+                          name: chat.name, 
+                          avatar: chat.avatar, 
+                          isBot: false, 
+                          friendId: chat.id 
+                        } 
+                     });
+                   }
+                 }}
+               >
+                  {/* Left: Huge Avatar */}
+                  <div className='relative mr-3 flex-shrink-0'>
+                     <Avatar name={chat.name} avatar={chat.avatar} size='lg' className='w-[52px] h-[52px]' />
+                  </div>
+
+                  {/* Middle: Name & Status */}
+                  <div className='flex-1 min-w-0 pr-2'>
+                     <h3 className='text-[16px] font-bold text-gray-900 leading-tight mb-0.5 truncate font-sans'>
+                        {chat.name}
+                     </h3>
+                     <div className='flex items-center gap-1.5'>
+                        <StatusIcon type={chat.status.type} color={chat.status.color} fill={chat.status.fill} />
+                        <span className={`text-[13px] font-medium truncate ${chat.status.type.includes('snap') || chat.status.type === 'chat' ? chat.status.color : 'text-gray-400'}`}>
+                           {chat.status.text} <span className='text-gray-300 mx-0.5'>•</span> <span className='text-gray-400'>{chat.status.time}</span>
+                        </span>
+                     </div>
+                  </div>
+
+                  {/* Right: Camera or Time */}
+                  <div className='flex-shrink-0 pl-2 border-l border-transparent'>
+                     {chat.showCamera ? (
+                        <div className='w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors'>
+                            <Camera size={20} className='text-gray-400' />
+                        </div>
+                     ) : (
+                        <div className='px-2'>
+                        </div>
+                     )}
+                  </div>
+               </motion.div>
+            ))}
+          </div>
        </div>
     </div>
   );
 };
 
 export default Chat;
-
