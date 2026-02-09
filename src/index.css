@@ -1,0 +1,120 @@
+/* Global Styles */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* 防止双层滚动 */
+  background-color: #f2f4f6; /* 统一背景色，防止黑边 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移动端视口固定，防止地址栏导致的高度抖动 */
+html {
+  position: fixed;
+  /* 防止过度滚动露出黑底 */
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  /* 固定视口高度 - 多重兼容 */
+  height: 100vh;
+  height: 100dvh; /* 动态视口高度 (CSS 新标准) */
+  height: -webkit-fill-available; /* iOS Safari */
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* 使用移动端真实视口高度 */
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  /* 防止触摸滑动导致的回弹 */
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+}
+
+#root {
+  height: 100vh;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+/* 隐藏滚动条但允许滚动 */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* 确保内容区域可以平滑滚动 */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* 防止选中文字时的高亮色影响视觉 */
+::selection {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: inherit;
+}
+
+/* 移动端防止橡皮筋效果露出黑底 */
+* {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 强制所有滚动容器使用统一背景 - 但不包括首页 */
+div:not([data-hero-background]):not([data-home-scroll]) {
+  background-color: inherit;
+}
+
+/* 确保页面内容区域不会露出黑边 - 但保留首页透明 */
+.overflow-y-auto:not([data-home-scroll]) {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  background-color: #f2f4f6;
+}
+
+.overflow-x-hidden:not([data-home-scroll]) {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 首页滚动层强制透明 - 最高优先级 */
+.home-transparent-scroll {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+
+/* 自定义角色 Marker 样式 */
+.user-marker-shadow {
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s ease;
+}
+
+.user-marker-shadow:hover {
+  transform: scale(1.05);
+}
+
+/* index.css */
+body {
+  /* 确保背景是淡灰，让玻璃能透出来 */
+  background-color: #f2f4f6 !important;
+  /* 防止某些插件导致的 padding 错乱 */
+  margin: 0; 
+  padding: 0;
+}

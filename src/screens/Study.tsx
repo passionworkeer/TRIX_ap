@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { IMAGES } from "../constants";
 import GlassPanel from "../components/GlassPanel";
 import { AppRoutes } from "../types";
+import studyRoomBg from "../assets/StudyRoomBG.png";
 
 export default function Study() {
   const navigate = useNavigate();
@@ -60,10 +61,24 @@ export default function Study() {
   if (isTimer) {
      return (
         <div className="relative h-screen w-full bg-[#0f172a] text-white overflow-hidden flex flex-col transition-colors duration-1000">
+           {/* Close Button for Timer */}
+           <button 
+             onClick={() => navigate(AppRoutes.STUDY)} 
+             className="absolute top-6 left-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center transition-all group border border-white/5"
+           >
+             <X size={20} className="text-white/60 group-hover:text-white" />
+           </button>
+
            <div className="absolute inset-0 bg-gradient-to-b from-[#1e1b4b] via-[#0f172a] to-[#020617] z-0"></div>
-           <div className="absolute inset-0 w-full h-full bg-contain bg-center bg-no-repeat z-0 opacity-60 mix-blend-screen transform scale-125 -translate-y-16" 
-                style={{ backgroundImage: `url(${IMAGES.STUDY_ROOM_DARK || "/assets/StudyRoomBG.png"})` }}></div>
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+           {/* 自习室背景图 */}
+           <div className="absolute inset-0 w-full h-full transform scale-125 -translate-y-16" style={{ zIndex: 1 }}>
+             <img 
+               src={studyRoomBg}
+               alt="Study Room Background"
+               className="w-full h-full object-contain object-center opacity-60"
+             />
+           </div>
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ zIndex: 2 }}></div>
            <div className="relative z-10 flex-1 flex flex-col items-center justify-center -mt-10">
               <div className="flex flex-col items-center relative">
                  <div className="flex items-baseline justify-center gap-2 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)]">
@@ -101,13 +116,32 @@ export default function Study() {
 
   return (
     <div className="h-screen w-full relative bg-[#f0f9ff] overflow-hidden text-[#101f22]">
-       <div className="absolute inset-0 bg-cover bg-center z-0 scale-105" style={{ backgroundImage: `url(${IMAGES.ROOM_BG || "/assets/StudyRoomBG.png"})` }}></div>
+       {/* 自习室背景图 */}
+       <div className="absolute inset-0 z-0 scale-105">
+         <img 
+           src={studyRoomBg}
+           alt="Study Room Background"
+           className="w-full h-full object-cover object-center"
+         />
+       </div>
        <div className="relative z-10 flex flex-col h-full">
-          <div className="p-6 flex justify-between items-center mt-6">
-             <h1 className="text-3xl font-black tracking-tight text-slate-800 drop-shadow-sm">自习室</h1>
-             <button className="w-12 h-12 rounded-full bg-white/80 text-slate-700 flex items-center justify-center shadow-sm backdrop-blur-sm hover:scale-105 active:scale-95 transition-all"><Plus size={28} /></button>
+          {/* Header */}
+          <div className="px-6 pt-12 pb-4 flex justify-between items-center z-20">
+             <div className="flex flex-col">
+                <span className="text-xs font-bold text-white uppercase tracking-widest mb-1 drop-shadow-md">Study Room</span>
+                <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md">自习室</h1>
+             </div>
+             <div className="flex items-center gap-3">
+               <button className="w-10 h-10 rounded-full bg-white text-slate-700 flex items-center justify-center border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.05)] active:scale-95 transition-all">
+                  <Zap size={20} className="fill-yellow-400 text-yellow-400" />
+               </button>
+               <button className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg hover:bg-slate-800 active:scale-95 transition-all">
+                  <Plus size={22} />
+               </button>
+             </div>
           </div>
-          <div className="absolute top-28 left-6 right-auto">
+          
+          <div className="absolute top-36 left-6 right-auto">
              <GlassPanel className="p-5 min-w-[180px] !bg-white/70 !border-white/80 !rounded-[2rem] backdrop-blur-xl shadow-xl animate-[float_4s_ease-in-out_infinite]">
                 <div className="flex items-center gap-2 text-slate-600 mb-4"><div className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><Timer size={18} /></div><span className="text-sm font-bold tracking-wide">专注设置</span></div>
                 <div className="flex gap-2 mb-6">
