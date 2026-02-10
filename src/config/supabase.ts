@@ -15,13 +15,37 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-// 固定用户 ID（单用户模式）
-export const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
+// ============================================
+// 辅助函数: 获取当前登录用户 ID
+// ============================================
+/**
+ * 获取当前登录用户的 ID
+ * @throws {Error} 如果用户未登录
+ * @returns {Promise<string>} 用户 ID
+ */
+export async function getCurrentUserId(): Promise<string> {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  if (error) {
+    console.error('获取用户会话失败:', error);
+    throw new Error('无法获取用户会话');
+  }
+  
+  if (!session?.user?.id) {
+    throw new Error('用户未登录，请先登录');
+  }
+  
+  return session.user.id;
+}
+
+// ============================================
+// TypeScript 接口定义
+// ============================================
 
 export interface Friend {
   id: string;
   user_id: string;
-  friend_id: string;
+  friend_id: string;  // 现在是 UUID
   name: string;
   avatar_url: string | null;
   status: 'online' | 'offline' | 'busy' | 'away';
@@ -34,9 +58,20 @@ export interface Friend {
 
 export interface ChatMessage {
   id: string;
-  friend_id: string;
+  friend_id: string;  // 保持兼容性
   sender: 'user' | 'friend' | 'bot';
   text: string;
+  created_at: string;
+}
+
+// 数据库实际存储的消息格式
+export interface ChatMessageDB {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  receiver_id: string;
+  text: string;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -85,6 +120,7 @@ export interface StudySession {
 }
 
 export interface FriendLatestMessage {
+  user_id: string;  // 添加 user_id 字段
   friend_id: string;
   name: string;
   avatar_url: string | null;

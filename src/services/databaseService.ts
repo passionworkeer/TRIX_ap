@@ -1,52 +1,135 @@
 /**
+ * 添加好友 (支持所有测试账号)
+ * @param account 对方账号（邮箱或用户名）
+ */
+export async function addFriend(account: string): Promise<void> {
+  try {
+    // 1. 获取当前登录用户信息
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) throw new Error('请先登录');
+    
+    const currentUserId = session.user.id;
+    const currentUserEmail = session.user.email;
+
+    // 2. 查找目标用户（支持邮箱或用户名）
+    const { data: targetUser, error: targetError } = await supabase
+      .from('users')
+      .select('id, email, username, display_name, bio')
+      .or(`email.eq.${account},username.eq.${account}`)
+      .single();
+
+    if (targetError || !targetUser) {
+      throw new Error('未找到该用户');
+    }
+
+    // 3. 不能添加自己
+    if (targetUser.id === currentUserId) {
+      throw new Error('不能添加自己为好友');
+    }
+
+    // 4. 获取当前用户信息（如果不存在则创建）
+    let currentUser = await supabase
+      .from('users')
+      .select('id, email, username, display_name, bio')
+      .eq('id', currentUserId)
+      .single()
+      .then(res => res.data);
+
+    // 如果当前用户不在 users 表中，自动创建
+    if (!currentUser) {
+      const username = currentUserEmail?.split('@')[0] || 'user';
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: currentUserId,
+          email: currentUserEmail,
+          username: username,
+          display_name: username,
+          bio: ''
+        })
+        .select('id, email, username, display_name, bio')
+        .single();
+
+      if (createError || !newUser) {
+        console.error('创建用户信息失败:', createError);
+        throw new Error('创建用户信息失败');
+      }
+      currentUser = newUser;
+    }
+
+    // 5. 检查是否已是好友
+    const { data: existing, error: existError } = await supabase
+      .from('friends')
+      .select('id')
+      .eq('user_id', currentUserId)
+      .eq('friend_id', targetUser.id)
+      .maybeSingle();
+    
+    if (existing) {
+      throw new Error('你们已经是好友了');
+    }
+
+    // 6. 插入双向好友关系
+    const { error: insertError } = await supabase.from('friends').insert([
+      {
+        user_id: currentUserId,
+        friend_id: targetUser.id,
+        name: targetUser.display_name || targetUser.username,
+        avatar_url: null,
+        status: 'online',
+        bio: targetUser.bio || '',
+        study_time: 0,
+        is_studying: false,
+      },
+      {
+        user_id: targetUser.id,
+        friend_id: currentUserId,
+        name: currentUser.display_name || currentUser.username,
+        avatar_url: null,
+        status: 'online',
+        bio: currentUser.bio || '',
+        study_time: 0,
+        is_studying: false,
+      }
+    ]);
+
+    if (insertError) {
+      console.error('添加好友失败:', insertError);
+      throw new Error('添加好友失败');
+    }
+
+    // 7. 初始化未读计数
+    await supabase.from('unread_counts').insert([
+      {
+        user_id: currentUserId,
+        friend_id: targetUser.id,
+        unread_count: 0,
+        last_message: null,
+        last_message_time: null,
+      },
+      {
+        user_id: targetUser.id,
+        friend_id: currentUserId,
+        unread_count: 0,
+        last_message: null,
+        last_message_time: null,
+      }
+    ]);
+
+  } catch (error: any) {
+    console.error('添加好友错误:', error);
+    throw error;
+  }
+}
+
+/**
  * 简单实现：直接让 123@trix.app 和 1234@trix.app 互为好友
  * 只要输入对方邮箱为这两个之一就直接插入互为好友
+ * @deprecated 使用 addFriend 代替
  */
 export async function simpleAddFriend(account: string): Promise<void> {
-  // 仅支持 123@trix.app 和 1234@trix.app
-  const emails = ['123@trix.app', '1234@trix.app'];
-  if (!emails.includes(account)) throw new Error('仅支持测试账号');
-
-  // 获取当前登录用户
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !session?.user) throw new Error('请先登录');
-  const currentUserEmail = session.user.email;
-  const currentUserId = session.user.id;
-
-  if (currentUserEmail === account) throw new Error('不能添加自己');
-
-  // 查找对方用户
-  const { data: users, error: userError } = await supabase
-    .from('users')
-    .select('id, email, username')
-    .in('email', emails);
-  if (userError || !users || users.length !== 2) throw new Error('测试账号不全');
-
-  const me = users.find(u => u.email === currentUserEmail);
-  const other = users.find(u => u.email === account);
-  if (!me || !other) throw new Error('找不到用户');
-
-  // 插入互为好友
-  await supabase.from('friends').upsert([
-    {
-      user_id: me.id,
-      friend_id: other.id,
-      name: other.username || account,
-      status: 'online',
-      bio: '',
-      study_time: 0,
-      is_studying: false,
-    },
-    {
-      user_id: other.id,
-      friend_id: me.id,
-      name: me.username || currentUserEmail,
-      status: 'online',
-      bio: '',
-      study_time: 0,
-      is_studying: false,
-    }
-  ], { onConflict: 'user_id,friend_id' });
+  // 直接调用新的通用函数
+  return addFriend(account);
 }
 /**
  * 发送好友请求
@@ -144,17 +227,25 @@ async function getCurrentUserId(): Promise<string> {
 
 /** 获取所有好友（包含未读消息信息） */
 export async function getFriends(): Promise<FriendLatestMessage[]> {
-  const { data, error } = await supabase
-    .from('friend_latest_messages')
-    .select('*')
-    .order('last_message_time', { ascending: false, nullsFirst: false });
+  try {
+    const userId = await getCurrentUserId();
+    
+    const { data, error } = await supabase
+      .from('friend_latest_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('last_message_time', { ascending: false, nullsFirst: false });
 
-  if (error) {
+    if (error) {
+      console.error('获取好友列表失败:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
     console.error('获取好友列表失败:', error);
     return [];
   }
-
-  return data || [];
 }
 
 /** 更新好友在线状态 */
@@ -162,12 +253,19 @@ export async function updateFriendStatus(
   friendId: string,
   status: 'online' | 'offline' | 'busy' | 'away'
 ): Promise<void> {
-  const { error } = await supabase
-    .from('friends')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('friend_id', friendId);
+  try {
+    const userId = await getCurrentUserId();
+    
+    const { error } = await supabase
+      .from('friends')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('friend_id', friendId);
 
-  if (error) {
+    if (error) {
+      console.error('更新好友状态失败:', error);
+    }
+  } catch (error) {
     console.error('更新好友状态失败:', error);
   }
 }
@@ -178,21 +276,28 @@ export async function updateFriendStudyStatus(
   isStudying: boolean,
   studyTime?: number
 ): Promise<void> {
-  const updateData: any = {
-    is_studying: isStudying,
-    updated_at: new Date().toISOString()
-  };
+  try {
+    const userId = await getCurrentUserId();
+    
+    const updateData: any = {
+      is_studying: isStudying,
+      updated_at: new Date().toISOString()
+    };
 
-  if (studyTime !== undefined) {
-    updateData.study_time = studyTime;
-  }
+    if (studyTime !== undefined) {
+      updateData.study_time = studyTime;
+    }
 
-  const { error } = await supabase
-    .from('friends')
-    .update(updateData)
-    .eq('friend_id', friendId);
+    const { error } = await supabase
+      .from('friends')
+      .update(updateData)
+      .eq('user_id', userId)
+      .eq('friend_id', friendId);
 
-  if (error) {
+    if (error) {
+      console.error('更新好友学习状态失败:', error);
+    }
+  } catch (error) {
     console.error('更新好友学习状态失败:', error);
   }
 }
@@ -201,18 +306,37 @@ export async function updateFriendStudyStatus(
 
 /** 获取与某个好友的聊天记录 */
 export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .select('*')
-    .eq('friend_id', friendId)
-    .order('created_at', { ascending: true });
+  try {
+    const userId = await getCurrentUserId();
+    
+    // 构建会话ID (较小的UUID在前)
+    const conversationId = userId < friendId 
+      ? `${userId}_${friendId}` 
+      : `${friendId}_${userId}`;
+    
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
 
-  if (error) {
+    if (error) {
+      console.error('获取聊天记录失败:', error);
+      return [];
+    }
+
+    // 转换为旧的数据格式以兼容现有代码
+    return (data || []).map(msg => ({
+      id: msg.id,
+      friend_id: friendId,
+      sender: msg.sender_id === userId ? 'user' : 'friend',
+      text: msg.text,
+      created_at: msg.created_at
+    } as ChatMessage));
+  } catch (error) {
     console.error('获取聊天记录失败:', error);
     return [];
   }
-
-  return data || [];
 }
 
 /** 发送消息 */
@@ -221,19 +345,67 @@ export async function sendMessage(
   sender: 'user' | 'friend' | 'bot',
   text: string
 ): Promise<string | null> {
-  const { data, error } = await supabase
-    .rpc('send_message', {
-      p_friend_id: friendId,
-      p_sender: sender,
-      p_text: text
-    });
+  try {
+    const userId = await getCurrentUserId();
+    
+    // 构建会话ID
+    const conversationId = userId < friendId 
+      ? `${userId}_${friendId}` 
+      : `${friendId}_${userId}`;
+    
+    // 确定发送者和接收者
+    const senderId = sender === 'user' ? userId : friendId;
+    const receiverId = sender === 'user' ? friendId : userId;
+    
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        receiver_id: receiverId,
+        text: text,
+        is_read: false
+      })
+      .select('id')
+      .single();
 
-  if (error) {
+    if (error) {
+      console.error('发送消息失败:', error);
+      return null;
+    }
+
+    // 更新未读计数
+    await updateUnreadCount(receiverId, senderId, text);
+
+    return data?.id || null;
+  } catch (error) {
     console.error('发送消息失败:', error);
     return null;
   }
+}
 
-  return data;
+/** 更新未读计数 (内部辅助函数) */
+async function updateUnreadCount(
+  userId: string,
+  friendId: string,
+  lastMessage: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('unread_counts')
+    .upsert({
+      user_id: userId,
+      friend_id: friendId,
+      unread_count: 1,
+      last_message: lastMessage,
+      last_message_time: new Date().toISOString()
+    }, {
+      onConflict: 'user_id,friend_id',
+      ignoreDuplicates: false
+    });
+
+  if (error) {
+    console.error('更新未读计数失败:', error);
+  }
 }
 
 /** 标记消息为已读 */
@@ -257,12 +429,23 @@ export async function markMessagesAsRead(friendId: string): Promise<void> {
 
 /** 清空某个好友的聊天记录 */
 export async function clearChatHistory(friendId: string): Promise<void> {
-  const { error } = await supabase
-    .from('chat_messages')
-    .delete()
-    .eq('friend_id', friendId);
+  try {
+    const userId = await getCurrentUserId();
+    
+    // 构建会话ID
+    const conversationId = userId < friendId 
+      ? `${userId}_${friendId}` 
+      : `${friendId}_${userId}`;
+    
+    const { error } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('conversation_id', conversationId);
 
-  if (error) {
+    if (error) {
+      console.error('清空聊天记录失败:', error);
+    }
+  } catch (error) {
     console.error('清空聊天记录失败:', error);
   }
 }
@@ -562,29 +745,49 @@ export async function getTodayStudyTime(): Promise<number> {
 // ============================================
 
 /** 订阅好友消息更新 */
-export function subscribeToChatMessages(
+export async function subscribeToChatMessages(
   friendId: string,
   callback: (message: ChatMessage) => void
 ) {
-  const channel = supabase
-    .channel(`chat:${friendId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `friend_id=eq.${friendId}`
-      },
-      (payload) => {
-        callback(payload.new as ChatMessage);
-      }
-    )
-    .subscribe();
+  try {
+    const userId = await getCurrentUserId();
+    
+    // 构建会话ID
+    const conversationId = userId < friendId 
+      ? `${userId}_${friendId}` 
+      : `${friendId}_${userId}`;
+    
+    const channel = supabase
+      .channel(`chat:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          const msg = payload.new as any;
+          // 转换为旧格式
+          callback({
+            id: msg.id,
+            friend_id: friendId,
+            sender: msg.sender_id === userId ? 'user' : 'friend',
+            text: msg.text,
+            created_at: msg.created_at
+          } as ChatMessage);
+        }
+      )
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (error) {
+    console.error('订阅聊天消息失败:', error);
+    return () => {}; // 返回空的清理函数
+  }
 }
 
 /** 订阅未读计数更新 */
