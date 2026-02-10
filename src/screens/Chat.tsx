@@ -107,9 +107,9 @@ const Chat: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className='h-screen w-full bg-white flex flex-col relative'>
-       {/* 1. Header */}
-       <header className='px-4 py-3 bg-white flex justify-between items-center sticky top-0 z-10 w-full'>
+    <div className='h-screen w-full bg-white flex flex-col'>
+       {/* 1. Header - 固定头部 */}
+       <header className='px-4 pt-14 pb-4 bg-white flex justify-between items-center flex-shrink-0 w-full border-b border-gray-100'>
           {/* Left: Avatar (Small Profile) */}
           <div className='w-10 h-10 rounded-full bg-gray-200 overflow-hidden shadow-sm' onClick={() => navigate('/profile')}>
              <Avatar name='Me' size='md' className='w-full h-full object-cover' />
@@ -129,15 +129,15 @@ const Chat: React.FC = () => {
           </div>
        </header>
 
-       {/* Scrollable Content */}
-       <div className='flex-1 overflow-y-auto w-full no-scrollbar'>
+       {/* 2. 滚动内容区域 - 占据剩余空间并可滚动 */}
+       <div className='flex-1 overflow-y-auto w-full pb-40'>
           
           {/* 2. Quick Add Section */}
           <div className='py-4 bg-white border-b border-gray-100'>
              <div className='px-4 mb-2'>
                 <h3 className='text-[13px] font-bold text-gray-900 uppercase tracking-wide'>Quick Add</h3>
              </div>
-             <div className='flex overflow-x-auto px-4 pb-2 gap-3 no-scrollbar snap-x'>
+             <div className='flex overflow-x-auto px-4 pb-2 gap-3 snap-x'>
                 {QUICK_ADD_USERS.map((user) => (
                   <div key={user.id} className='min-w-[130px] p-3 bg-white rounded-lg border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col items-center relative snap-start'>
                      <button className='absolute top-1 right-1 text-gray-300 hover:text-gray-500 p-1'>

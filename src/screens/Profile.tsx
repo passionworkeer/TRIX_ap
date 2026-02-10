@@ -63,29 +63,37 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-[#FAFAFA] text-slate-800 relative flex flex-col overflow-hidden">
-       {/* Aurora Background */}
-       <div className="fixed inset-0 z-0">
+    <div className="h-screen w-full bg-[#FAFAFA] text-slate-800 flex flex-col overflow-hidden">
+       {/* Aurora Background - 固定背景 */}
+       <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute top-[15%] left-[15%] w-64 h-64 bg-cyan-300/25 rounded-full blur-[80px]"></div>
           <div className="absolute top-[15%] right-[15%] w-64 h-64 bg-yellow-200/35 rounded-full blur-[80px]"></div>
           <div className="absolute bottom-[15%] left-[15%] w-64 h-64 bg-pink-300/25 rounded-full blur-[80px]"></div>
        </div>
 
-       <div className="relative z-10 flex flex-col items-center pt-8 px-6 flex-1 overflow-y-auto no-scrollbar">
-          <h1 className="text-base font-bold tracking-tight text-slate-700 uppercase opacity-90 mb-4">个人中心</h1>
-          
-          <div className="relative group mt-6">
-             <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
-             <div className="relative w-32 h-32 rounded-full border-[6px] border-white shadow-2xl shadow-cyan-900/10 overflow-hidden bg-white">
-                <div className="w-full h-full bg-cover bg-center transform transition-transform group-hover:scale-110 duration-700" 
-                     style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }}></div>
-             </div>
-             <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-amber-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white flex items-center gap-1">
-                <Verified size={12} fill="currentColor" className="text-amber-700" /> VIP
+       {/* 头部标题 - 固定不滚动 */}
+       <div className="relative z-10 pt-14 pb-4 px-6 flex-shrink-0">
+          <h1 className="text-base font-bold tracking-tight text-slate-700 uppercase opacity-90 text-center">个人中心</h1>
+       </div>
+
+       {/* 滚动内容区域 */}
+       <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-40">
+          {/* 头像区域 */}
+          <div className="flex flex-col items-center pt-6">
+             <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
+                <div className="relative w-32 h-32 rounded-full border-[6px] border-white shadow-2xl shadow-cyan-900/10 overflow-hidden bg-white">
+                   <div className="w-full h-full bg-cover bg-center transform transition-transform group-hover:scale-110 duration-700" 
+                        style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }}></div>
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-amber-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white flex items-center gap-1">
+                   <Verified size={12} fill="currentColor" className="text-amber-700" /> VIP
+                </div>
              </div>
           </div>
 
-          <div className="mt-4 text-center mb-8 w-full max-w-xs">
+          {/* 用户信息 */}
+          <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
              <h2 className="text-2xl font-black text-slate-800 tracking-tight">Trixie</h2>
              
              <div className="mt-3 flex justify-center">
@@ -123,7 +131,8 @@ const Profile: React.FC = () => {
              </div>
           </div>
 
-          <div className="w-full flex flex-col gap-6">
+          {/* 装备和设置区域 */}
+          <div className="w-full max-w-md mx-auto flex flex-col gap-6">
              <div className="w-full">
                 <div className="flex items-center justify-between mb-4 pl-1">
                    <h3 className="text-lg font-bold text-slate-800">我的衣橱</h3>
@@ -135,7 +144,7 @@ const Profile: React.FC = () => {
                    </button>
                 </div>
                 
-                <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 no-scrollbar scroll-smooth">
+                <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scroll-smooth">
                    {[
                       { name: '巫师帽', img: IMAGES.CLOTHES_HAT, hasDot: true },
                       { name: '披风', img: IMAGES.CLOTHES_CAPE, hasDot: false },
