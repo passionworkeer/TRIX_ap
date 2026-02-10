@@ -102,6 +102,7 @@ INSERT INTO chat_messages (friend_id, sender, text, created_at) VALUES
 ('jack', 'friend', '已发到你邮箱了,快去看看！', NOW() - INTERVAL '28 minutes');
 
 -- ============================================
+-- ============================================
 -- 更新未读计数
 -- ============================================
 INSERT INTO unread_counts (user_id, friend_id, unread_count, last_message, last_message_time) VALUES
@@ -109,7 +110,7 @@ INSERT INTO unread_counts (user_id, friend_id, unread_count, last_message, last_
 ('00000000-0000-0000-0000-000000000001', 'grace', 1, '下周一给老板汇报 🎯', NOW() - INTERVAL '45 minutes'),
 ('00000000-0000-0000-0000-000000000001', 'henry', 1, '好建议!我马上调整 ✨', NOW() - INTERVAL '40 minutes'),
 ('00000000-0000-0000-0000-000000000001', 'iris', 1, '今晚整理,明天分享给团队', NOW() - INTERVAL '1 hour 10 minutes'),
-('00000000-0000-0000-0000-0000000000001', 'jack', 2, '已发到你邮箱了,快去看看！', NOW() - INTERVAL '28 minutes')
+('00000000-0000-0000-0000-000000000001', 'jack', 2, '已发到你邮箱了,快去看看！', NOW() - INTERVAL '28 minutes')
 ON CONFLICT (user_id, friend_id) DO UPDATE SET
   unread_count = EXCLUDED.unread_count,
   last_message = EXCLUDED.last_message,
