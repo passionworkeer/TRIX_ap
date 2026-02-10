@@ -72,12 +72,12 @@ const Profile: React.FC = () => {
        </div>
 
        {/* 头部标题 - 固定不滚动 */}
-       <div className="relative z-10 pt-14 pb-4 px-6 flex-shrink-0">
+       <div className="relative z-10 pt-24 pb-4 px-6 flex-shrink-0">
           <h1 className="text-base font-bold tracking-tight text-slate-700 uppercase opacity-90 text-center">个人中心</h1>
        </div>
 
        {/* 滚动内容区域 */}
-       <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-40">
+       <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28">
           {/* 头像区域 */}
           <div className="flex flex-col items-center pt-6">
              <div className="relative group">
