@@ -44,41 +44,53 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
 
   return (
     <div 
-      className="relative h-screen flex flex-col bg-transparent overflow-hidden"
+      className="relative h-screen w-full flex flex-col overflow-hidden"
+      style={{ background: 'transparent' }}
       onClick={onBackgroundClick}
     >
-      {/* Header - 极其简约的状态栏 */}
+      {/* 📊 Layer 10: Header - 状态栏 */}
       <StatusHeader />
       
-      {/* 🎨 高级气泡提示 - Premium Glass Bubble */}
-      <div className="absolute top-24 left-6 right-6 z-50 pointer-events-none animate-float">
-        <div className="relative max-w-xs">
-          {/* 玻璃气泡容器 */}
-          <div className="relative bg-white/10 backdrop-blur-xl rounded-2xl rounded-bl-none border border-white/20 shadow-lg p-4 pr-6">
+      {/* 🎯 Layer 50: 人物对话气泡 - 悬浮交互层 (可点击，无飘动动画) */}
+      <div 
+        className="absolute top-[15%] right-[5%] z-50 cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(AppRoutes.CHAT_DETAIL, { 
+            state: { 
+              friendId: 'clawbot', 
+              name: 'TRIX Bot', 
+              avatar: IMAGES.WIZARD_BOY,
+              isBot: true 
+            } 
+          });
+        }}
+      >
+        <div className="relative max-w-[180px]">
+          {/* 玻璃气泡容器 - 磨砂效果 */}
+          <div className="relative bg-white/15 backdrop-blur-xl rounded-2xl rounded-br-none border border-white/25 shadow-lg p-3 transition-transform duration-200 hover:shadow-xl hover:scale-[1.02]">
             {/* 发光图标 */}
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 animate-glow-pulse">
-                <Sparkles className="w-5 h-5 text-yellow-400" />
+            <div className="flex items-start gap-2">
+              <div className="flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-yellow-400 animate-glow-pulse" />
               </div>
               
               {/* 消息内容 */}
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium leading-relaxed">
+                <p className="text-white text-xs font-medium leading-relaxed">
                   {profile?.full_name ? `嘿 ${profile.full_name},` : '嘿,'} 今天想学点什么?
-                </p>
-                <p className="text-white/70 text-xs mt-1">
-                  轻触屏幕显示导航
                 </p>
               </div>
             </div>
             
-            {/* 左下角装饰性光晕 */}
-            <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-yellow-400/20 rounded-full blur-xl" />
+            {/* 右下角装饰性光晕 */}
+            <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-yellow-400/20 rounded-full blur-lg pointer-events-none" />
           </div>
           
-          {/* 对话框尖角 (左下) */}
-          <div className="absolute -bottom-1 left-0 w-4 h-4 bg-white/10 backdrop-blur-xl border-l border-b border-white/20 transform rotate-45 origin-top-right" 
-               style={{ clipPath: 'polygon(0 0, 0 100%, 100% 100%)' }}
+          {/* 对话框尖角 (右下，指向人物) */}
+          <div 
+            className="absolute -bottom-1 right-0 w-3 h-3 bg-white/15 backdrop-blur-xl border-r border-b border-white/25 transform rotate-45 origin-top-left pointer-events-none" 
+            style={{ clipPath: 'polygon(100% 0, 0 100%, 100% 100%)' }}
           />
         </div>
       </div>

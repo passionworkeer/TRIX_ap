@@ -40,21 +40,23 @@ function AppContent() {
   }, [isHomePage]);
 
   return (
-    // 1. 最外层容器: 全屏, 禁止滚动, 浅灰背景
-    <div className="fixed inset-0 w-full h-full bg-[#f2f4f6] text-gray-900 overflow-hidden font-sans">
+    // 🚨 Layer 0: 最外层容器 - 必须透明！
+    <div 
+      className="fixed inset-0 w-full h-full text-gray-900 overflow-hidden font-sans"
+      style={{ background: 'transparent' }}
+    >
       
-      {/* 2. 背景层 (Layer 0) - 只在首页显示 */}
+      {/* 🎨 Layer 0: 背景层 - 只在首页显示 */}
       {isHomePage && <HeroBackground />}
 
-      {/* 3. 滚动内容层 (Layer 1) - 只有这里会动 */}
+      {/* 📜 Layer 10: 滚动内容层 */}
       <div 
         data-home-scroll="true"
-        // 只在首页点击空白处切换导航栏
         onClick={isHomePage ? toggleDock : undefined}
         className={`relative w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth touch-pan-y ${isHomePage ? 'home-transparent-scroll' : ''}`}
         style={{ 
           zIndex: 10,
-          // 首页透明(为了看人物)，其他页面浅灰(为了看内容)
+          // 首页完全透明，其他页面浅灰
           backgroundColor: isHomePage ? 'transparent' : '#f2f4f6'
         }}
       >
@@ -85,13 +87,13 @@ function AppContent() {
         <div 
           className="w-full flex-shrink-0 pointer-events-none" 
           style={{ 
-            // 🏝️ 适配悬浮岛样式：更大的底部空间
-            height: "calc(120px + env(safe-area-inset-bottom, 20px))" 
+            height: "calc(120px + env(safe-area-inset-bottom, 20px))",
+            background: 'transparent'
           }}
         />
       </div>
 
-      {/* 4. 悬浮 UI 层 (Layer 2) - 永远在最上面 */}
+      {/* 🎯 Layer 50: 悬浮交互层 - 永远在最上面 */}
       <AnimatePresence mode="wait">
         {(!isHomePage || showDockOnHome) && (
            <GlassDock key="dock" />
