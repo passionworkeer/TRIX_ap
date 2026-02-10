@@ -43,37 +43,36 @@ export default function GlassDock() {
       style={{
         position: "fixed",
         // 🏝️ 悬浮岛风格 - 左右留空
-        left: "1.5rem",  // 24px
-        right: "1.5rem", // 24px
+        left: "1.5rem",
+        right: "1.5rem",
         margin: "0 auto",
-        // 🔥 不再贴底，改为悬浮
-        bottom: "2rem", // 32px 距离底部
-        // 自适应宽度，最大宽度限制
+        // 🔥 悬浮位置
+        bottom: "2rem",
         maxWidth: "380px",
         height: "68px",
-        zIndex: 50, // 确保足够高
+        zIndex: 50, // Layer 50: 悬浮交互层
         isolation: "isolate",
       }}
     >
-      {/* ✨ 高级磨砂玻璃层 - 更强通透感 */}
+      {/* ✨ 平衡的磨砂玻璃层 - 既清晰又不遮挡背景 */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          // 🎨 深色半透明玻璃背景
-          backgroundColor: "rgba(0, 0, 0, 0.35)",
-          // 🌫️ 超强模糊效果
-          backdropFilter: "blur(24px) saturate(180%)",
-          WebkitBackdropFilter: "blur(24px) saturate(180%)",
-          // 🔮 完全圆角 - 胶囊岛形状
-          borderRadius: "2rem", // 32px
-          // 💎 极细白边增加精致感
-          border: "1px solid rgba(255, 255, 255, 0.18)",
-          // ☁️ 柔和悬浮阴影 - 拒绝黑脏影
+          // 🎨 适度不透明白色 - 保持通透感
+          backgroundColor: "rgba(255, 255, 255, 0.75)",
+          // 🌫️ 超强模糊保证可读性
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          // 🔮 完全圆角
+          borderRadius: "2rem",
+          // 💎 细边框
+          border: "0.5px solid rgba(255, 255, 255, 0.6)",
+          // ☁️ 适度阴影
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.12),
-            0 2px 8px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            0 12px 40px rgba(0, 0, 0, 0.15),
+            0 4px 12px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8)
           `,
           zIndex: -1,
         }}
@@ -118,7 +117,7 @@ export default function GlassDock() {
                   style={{
                     position: "absolute",
                     inset: "12px",
-                    backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    backgroundColor: "rgba(55, 65, 81, 0.06)",
                     borderRadius: "16px",
                     zIndex: 0,
                   }}
@@ -160,21 +159,20 @@ export default function GlassDock() {
                     <tab.icon size={24} color="white" strokeWidth={2.5} />
                   </motion.div>
                 ) : (
-                  // 普通图标：高级交互反馈
+                  // 普通图标：清晰可见
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                     <tab.icon
                       size={26}
                       strokeWidth={isActive ? 2.4 : 2}
-                      // 🎨 选中白色高亮，未选中半透明
-                      color={isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"}
+                      // 🎨 深色确保清晰，但不过分厚重
+                      color={isActive ? "#374151" : "#9CA3AF"}
                       style={{
                         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                        // 选中时轻微放大并添加发光
                         transform: isActive ? "scale(1.1)" : "scale(1)",
-                        filter: isActive ? "drop-shadow(0 2px 8px rgba(255, 255, 255, 0.4))" : "none",
+                        filter: isActive ? "drop-shadow(0 2px 4px rgba(55, 65, 81, 0.2))" : "none",
                       }}
                     />
-                    {/* 选中时底部出现发光指示器 */}
+                    {/* 选中指示器 */}
                     {isActive && (
                       <motion.div
                         layoutId="dot-indicator"
@@ -184,8 +182,8 @@ export default function GlassDock() {
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
-                          backgroundColor: '#FFFFFF',
-                          boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)',
+                          backgroundColor: '#374151',
+                          boxShadow: '0 0 6px rgba(55, 65, 81, 0.4)',
                         }}
                         transition={{
                           type: "spring",

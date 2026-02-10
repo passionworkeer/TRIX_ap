@@ -134,8 +134,8 @@ public/
 ```env
 VITE_SUPABASE_URL=<Supabase 项目 URL>
 VITE_SUPABASE_ANON_KEY=<Supabase 匿名密钥>
-VITE_PC_WEBSOCKET_URL=ws://localhost:5173/gateway
-VITE_PC_WEBSOCKET_URL_MOBILE=ws://<局域网IP>:5173/gateway
+VITE_PC_WEBSOCKET_URL=ws://localhost/gateway
+VITE_PC_WEBSOCKET_URL_MOBILE=ws://<局域网IP>/gateway
 VITE_PC_AUTH_TOKEN=<Clawbot Gateway 认证令牌>
 ```
 
@@ -143,7 +143,7 @@ VITE_PC_AUTH_TOKEN=<Clawbot Gateway 认证令牌>
 
 ```bash
 npm install
-npm run dev        # 启动开发服务器 (http://localhost:5173)
+npm run dev        # 启动开发服务器
 npm run build      # 生产构建
 ```
 
