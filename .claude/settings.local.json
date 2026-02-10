@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(npm run dev)",
+      "Bash(python:*)",
+      "Bash(where claude)",
+      "Bash(dir:*)",
+      "Bash(timeout 10 tail:*)",
+      "Bash(timeout 15 cat:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

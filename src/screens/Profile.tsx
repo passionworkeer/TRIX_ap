@@ -11,14 +11,12 @@ const Profile: React.FC = () => {
   const [language, setLanguage] = useState('简体中文');
 
   const handleOutfitChange = (outfitName: string) => {
-    console.log('装备已更换:', outfitName);
     // TODO: 实现装备更换逻辑
     alert(`已装备: ${outfitName}`);
   };
 
   const handleDarkModeToggle = () => {
     setDarkMode(!darkMode);
-    console.log('深色模式:', !darkMode ? '开启' : '关闭');
     // TODO: 实现深色模式切换
   };
 
@@ -27,30 +25,25 @@ const Profile: React.FC = () => {
     const currentIndex = languages.indexOf(language);
     const nextLanguage = languages[(currentIndex + 1) % languages.length];
     setLanguage(nextLanguage);
-    console.log('语言已切换至:', nextLanguage);
   };
 
   const handlePrivacyClick = () => {
-    console.log('打开隐私与安全设置');
     // TODO: 导航到隐私设置页面
     alert('隐私与安全设置页面（开发中）');
   };
 
   const handleAboutClick = () => {
-    console.log('打开关于我们');
     // TODO: 导航到关于页面
     alert('TRIX v1.2.0\n开发团队: TRIX Studio\n© 2026 All Rights Reserved');
   };
 
   const handleLogout = () => {
     if (confirm('确定要退出登录吗？')) {
-      console.log('用户已登出');
       navigate(AppRoutes.LOGIN);
     }
   };
 
   const handleStatClick = (statName: string, value: number) => {
-    console.log(`查看${statName}详情:`, value);
     const messages: { [key: string]: string } = {
       '陪伴天数': `🎉 你已经和 TRIX 相伴 ${value} 天啦！\n继续保持，一起成长！`,
       '等级': `⭐ 当前等级: Lv.${value}\n距离下一级还需 230 经验值`,
@@ -60,15 +53,13 @@ const Profile: React.FC = () => {
   };
 
   const handleViewAllOutfits = () => {
-    console.log('查看所有装备');
     // TODO: 导航到装备商店页面
     alert('装备商店（开发中）\n即将推出更多精美装备！');
   };
 
   const handleGetMoreOutfits = () => {
-    console.log('获取更多装备');
     // TODO: 导航到装备获取页面
-    alert('🎁 获取更多装备\n\n完成任务和活动即可解锁新装备！');
+    alert('获取更多装备\n\n完成任务和活动即可解锁新装备！');
   };
 
   return (

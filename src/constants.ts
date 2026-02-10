@@ -1,18 +1,23 @@
+import mainImg from './assets/main.jpg';
+import studyRoomBg from './assets/StudyRoomBG.png';
+import avatarHead from './assets/AvatarHead.png';
+import mapImg from './assets/map.png';
+
 export const IMAGES = {
-  WIZARD_BOY: "/assets/main.jpg",
-  WIZARD_BOY_LOGIN: "/assets/main.jpg",
+  WIZARD_BOY: mainImg,
+  WIZARD_BOY_LOGIN: mainImg,
   STUDY_ISLAND: "https://lh3.googleusercontent.com/aida-public/AB6AXuCBe9X7B__RSWfOIvuZAeMFwuYaOo--MqxbcQrE1us5AnGWp180M4PfNESBjE4njtFwc9G2MEhHke37bJfFTy4dz3It03sbl9fHFvQDIJmX29vEe4ggrDJf5D3qH9MQiuzYs7FnKU3MoZtxD-iJmAwBbSlUt9sDoIiF_oyjT5Fgh4wjCUUAlhgiqWeCrUe3mTy-bSSA42-Ern0i498bZboQrH4m0FDgOuIK2Ub7ZuH4FpHQx6VactyYK56BrYFq8MzQJwGZrx5Duok",
-  STUDY_ROOM_DARK: "/assets/StudyRoomBG.png",
-  SHIBA_AVATAR: "/assets/AvatarHead.png",
+  STUDY_ROOM_DARK: studyRoomBg,
+  SHIBA_AVATAR: avatarHead,
   MUG_SNAPSHOT: "https://lh3.googleusercontent.com/aida-public/AB6AXuDOFj2vIogSGPJW_4dJRTJ8FsJH1N7B14g_E8jrCQGjkRldYNC34vhzpoUByIFPwVXYXRtDGPlilOnhE-gpnIpOVtuuGeRTodSUOCW5FI2UvgbnjhB7kF-DDiuoibUVBTquL62M6S1Dbd6n4UExbuut-c_qxh9MxL6WGW_Eur-vwGSHgTENmKY7Uxfi4rwigyEX5jjRG8m9lM7IKOF_qyosLoXp_Bn4IJ8S2YoPwL9kKDkGe4e_ow5jaEwUt6r7kFUzaZZOUE4Hg-4",
   MUG_THUMB: "https://lh3.googleusercontent.com/aida-public/AB6AXuAZCwZXd_fnEeEJNqN3lkkjmB3GXft7bcf6Avjmoceps9MZSRRTYzf9NOXyIOPZybh66qgbwbNgwd1itXm0xLzluyXur82u3C-Wymm6lYt0Y0uiXq-Smi920u_S9IiKxsr5c67gy91hQPfrgZu_QQNYI1ustZGCFUUEZO6C9xsd2Xi3o0BxHHoAGykcl7QE8M-VcTOiIsUWxq0d9fpGk-_-3jFHf4IynBkMC_UTApOO5a-r1QlHIdPxIbdXVo7sYlHTP0qUdddES7M",
-  ROOM_BG: "/assets/StudyRoomBG.png",
-  AVATAR_GIRL: "/assets/AvatarHead.png",
-  FRIEND_1: "/assets/AvatarHead.png",
+  ROOM_BG: studyRoomBg,
+  AVATAR_GIRL: avatarHead,
+  FRIEND_1: avatarHead,
   FRIEND_2: "https://lh3.googleusercontent.com/aida-public/AB6AXuBjQWfq-XQ1m_oh87YAx7l2eJkhTIOXPgc4dXDdGASj02XhO4OAApFmxLz3PMeO_smBQjDFnh6v1zXKaDaoe1rhJ-pT9yzggZXmexhAWgDXuWAo2fXan7q6igFePtMOAR3c3B0DRoqtKOs-tZ6lbht8ocgNVN_e5yvJXJBK15v_L2qgT43Ty46cBuEHbJd4XdMDjzC-CvjYnl5VtoTDkz6GFkJcIE1GDq6q2ollFCW3GdYlrSiAL4GWY6eUq3ZZ1dtDN0ULxwFiZKA",
   FRIEND_3: "https://lh3.googleusercontent.com/aida-public/AB6AXuByldPIhrMY0LxT2t-mMS3dRsKCwWTKrfs_cZu9B5AvuJ3GDc3qSjsNO78Ai4faBuEEc40DDZOxnUKSWgTzyCoWFdw7d6qLrVsw_zCgS7yuChbT-GLX8zEWUF8Ia2e4GBaXoTuvf4iH9z-eIjQcHvmA5KeHhn2VzZSMhmRp3hjlymT5efLiXBjw-MgIaQBawRL8sVNtcbzmfKeKBuxGtLto9H98I_yKBzu206WKyd_Ha5Iq8kc4Z0e3O-LzhDB8VDLzcW2Fs76s8RA",
-  STUDY_ROOM_MINI: "/assets/StudyRoomBG.png",
-  MAP: "/assets/map.png",
+  STUDY_ROOM_MINI: studyRoomBg,
+  MAP: mapImg,
   CLOTHES_HAT: "https://lh3.googleusercontent.com/aida-public/AB6AXuAesLsqm_mFsyoSN-S3wApbBSrgEFLORiytmIQLHl5XSUlbQ6sR2le-o4CzaH-bATrvnTs8MmdLdvsSFUlg6hL9HzbZAAa56Gc3R23KK4sjzy24W403tMiYtynFbXFrw5dooFr4zHtB8piSc6bgKmsy0cGT-of-syYBtB4Z12UPNkO7meoLmax1HQ1d-351NhTcE3Ikk8OyMlWOBU2WjUPMSgCe4uBfDbr3i7Q_wisFa6iyoz_wzq_YwSxcJlfiveDl1w2ZvoyJ7is",
   CLOTHES_CAPE: "https://lh3.googleusercontent.com/aida-public/AB6AXuDpotOypD_Qc8rrKDlVl_fkURy0H9AWKsWyoieWhI1l4eC18jYmq4JLw6KbBXLnc3v1Eo6pvN2TRiTQh8BW_a-PuFp1-YRY1EvNepbn0zOggnJEYW-vI2TAYCdq6oyMMBMf3duo1Pi9r5yHwvQDiBGpG5CKGtjGHGKf9RXNhSe2b0pGdqD-P5_30dJWCP2XM4rfynRYsYNnx1vDtGKfuv4_na5ajHwKq9ze0IvdG54FYYb0p2gcAHzY2InQ6Fj6i_W3tuOWo507o60",
   CLOTHES_WAND: "https://lh3.googleusercontent.com/aida-public/AB6AXuD0nnS4nddm7QhWOxQnau2vMXeMSo7rqGT06K-DBZijAuO0t4DUkACwJuPlEtn07Sco16p4Q5qoyvxSXPVdHiwxfd8RO-z-w_NKchSep9UINT39XFWy9UvMysbE2NJQiHT0LefB05uzWKu49NnWIJxMsxC0k12KdDwVpFiMEkr-ZCMAXUpPNMAdditlgJoQZYAC5xSrLce6iO7T3ttb_ldQREuvjuu_mdQTP6vBuncvADr1N4oiHFh8UUU1XMWqi3K3NzQdnJu2n6A"
