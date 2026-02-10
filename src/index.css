@@ -1,3 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 后面是你其他的样式 */
+
 /* Global Styles */
 html, body, #root {
   margin: 0;

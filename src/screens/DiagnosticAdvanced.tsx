@@ -15,8 +15,8 @@ export default function DiagnosticAdvanced() {
     setTestResult("testing");
     log(" 开始直接 WebSocket 测试...");
     
-    const wsUrl = "ws://192.168.101.4:18789";
-    const authToken = "8743d26357758f202c9bb5a21db706185d66f9c98f9c3ff1";
+    const wsUrl = import.meta.env.VITE_PC_WEBSOCKET_URL || "ws://localhost:18789";
+    const authToken = import.meta.env.VITE_PC_AUTH_TOKEN || "";
     
     log(` 目标: ${wsUrl}`);
     log("");

@@ -1,17 +1,8 @@
-// ============================================
-// 🔧 Supabase 配置文件
-// ============================================
-
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 项目配置（从环境变量读取）
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// 添加调试日志
-console.log("Supabase Init:", { url: supabaseUrl, keyExists: !!supabaseKey });
-
-// 创建 Supabase 客户端
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
@@ -24,18 +15,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-// 当前用户 ID（固定为默认用户，多用户功能暂时注释�?
-// 🔕 多用户功能暂时注�?- 专注于基础 Bot 连接
-// export const getCurrentUserId = (): string => {
-//   return localStorage.getItem('current_user_id') || '00000000-0000-0000-0000-000000000001';
-// };
-
-// export const CURRENT_USER_ID = getCurrentUserId();
-
-// 使用固定的用�?ID
+// 固定用户 ID（单用户模式）
 export const CURRENT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-// 导出类型定义
 export interface Friend {
   id: string;
   user_id: string;
@@ -124,7 +106,7 @@ export interface UserSession {
     device?: string;
     browser?: string;
   } | null;
-  clawbot_endpoint: string | null; // 用户个人电脑上的 Clawbot Gateway 地址
+  clawbot_endpoint: string | null;
   is_active: boolean;
   created_at: string;
   expires_at: string;

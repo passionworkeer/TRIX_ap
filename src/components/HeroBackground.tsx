@@ -4,13 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 import { AppRoutes } from "../types";
 import { IMAGES } from "../constants";
-import roleImg from "../assets/role.jpg";
+
+// ✅ 1. 绝对路径 (经过验证好用)
+const HERO_BG = "/assets/role.jpg";
 
 export default function HeroBackground() {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState("");
 
-  // 语录库：模拟角色的语气
   const greetings = [
     "你来啦，我一直在等你。",
     "今天过得怎么样？",
@@ -27,63 +28,73 @@ export default function HeroBackground() {
 
   return (
     <div 
-      data-hero-background="true"
       className="fixed inset-0 w-full h-full overflow-hidden" 
       style={{ 
-        zIndex: 1,  // 低于滚动层(10)
-        backgroundColor: '#1a1a1a',
-        isolation: 'isolate',
-        transform: 'translateZ(0)',
-        willChange: 'transform'  // 优化渲染性能
-      }}
+        zIndex: 0, 
+        backgroundColor: '#1a1a1a', // 只有图片加载失败才会看到这个颜色
+      }} 
     >
       
-      {/* 背景底图 */}
+      {/* ✅ 2. 图片层：完全复刻“暴力版”的写法，不使用 Tailwind 类名控制尺寸 */}
       <img
-        src={roleImg}
+        src={HERO_BG}
         alt="Hero Character"
-        onError={(e) => console.error("Hero image failed to load", e)}
-        className="absolute inset-0 w-full h-full object-cover"
+        // 移除 className，防止 Tailwind 样式冲突
+        // className="absolute inset-0 w-full h-full object-cover" 
         style={{ 
-          objectPosition: 'center 20%', 
+          // 👇 这些是刚才“暴力版”验证过好用的样式
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',   // 保持比例铺满
+          objectPosition: 'center 20%', // 调整人物位置
+          display: 'block',     // 强制显示
+          opacity: 1,           // 强制不透明
           zIndex: 1,
-          pointerEvents: 'none',
-          display: 'block'
+        }}
+        onError={(e) => console.error("❌ 图片加载失败:", HERO_BG)}
+      />
+
+      {/* 3. 渐变遮罩 (美化) */}
+      <div 
+        className="absolute inset-0 pointer-events-none" 
+        style={{
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent, rgba(0,0,0,0.6))',
+          zIndex: 2 
         }}
       />
 
-      {/* 黑色渐变遮罩 */}
-      <div 
-        className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" 
-        style={{ zIndex: 2, pointerEvents: 'none' }} 
-      />
-
-      {/* 悬浮对话气泡 (Companion Bubble) */}
+      {/* 4. 气泡组件 (功能层) - 最高层级确保可点击 */}
       <AnimatePresence>
         {greeting && (
           <motion.button
-            onClick={() => navigate(AppRoutes.CHAT_DETAIL, { 
-              state: { 
-                name: 'TRIX Bot', 
-                avatar: IMAGES.WIZARD_BOY, 
-                isBot: true, 
-                friendId: 'clawbot' 
-              } 
-            })}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(AppRoutes.CHAT_DETAIL, {
+                state: {
+                  name: 'TRIX Bot',
+                  avatar: IMAGES.WIZARD_BOY,
+                  isBot: true,
+                  friendId: 'clawbot'
+                }
+              });
+            }}
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: 0.5, duration: 0.8, type: "spring" } }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             style={{
               position: "absolute",
-              top: "15%",
-              right: "10%",
-              maxWidth: 240,
-              zIndex: 30,
+              top: "10%",
+              right: "5%",
+              maxWidth: 260,
+              zIndex: 9999,
+              cursor: "pointer",
             }}
             className="group flex items-start gap-3 p-4 text-left"
           >
-            {/* 气泡本体：毛玻璃效果，带轻微呼吸动画 */}
             <motion.div
               className="relative bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl p-4 shadow-xl"
               animate={{ y: [0, -4, 0] }}
@@ -92,18 +103,12 @@ export default function HeroBackground() {
               <p className="text-white/95 text-sm font-medium leading-relaxed drop-shadow-md">
                 {greeting}
               </p>
-
-              {/* 装饰小三角 (指向人物) */}
               <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white/20 border-b border-l border-white/30 rotate-45 transform translate-x-full" />
-
-              {/* 点击提示 (Hover 时显示) */}
               <div className="absolute -bottom-6 right-0 text-[10px] text-white/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                 <span>点击回复</span>
                 <MessageCircle size={10} />
               </div>
             </motion.div>
-
-            {/* 装饰光点 */}
             <motion.div
               animate={{ opacity: [0.5, 1, 0.5] }}
               transition={{ duration: 2, repeat: Infinity }}

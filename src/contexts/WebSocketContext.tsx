@@ -81,7 +81,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             responseBufferRef.current += data.payload.data.delta;
             setFullResponse(responseBufferRef.current);
           }
-        } catch (e) { console.warn("MSGParsErr", e); }
+        } catch (e) {}
       };
       socket.onclose = () => {
         isConnectingRef.current = false;

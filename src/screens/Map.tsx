@@ -7,6 +7,7 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import heroRenderImg from '../assets/hero_render.png';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -17,7 +18,7 @@ L.Icon.Default.mergeOptions({
 
 // 自定义角色图标
 const UserIcon = L.icon({
-  iconUrl: '/assets/hero_render.png',
+  iconUrl: heroRenderImg,
   iconSize: [80, 120],      // 宽80px 高120px (缩小尺寸)
   iconAnchor: [40, 120],    // 锚点在底部中心,脚踩在坐标点上
   popupAnchor: [0, -120],   // 弹窗在角色头顶

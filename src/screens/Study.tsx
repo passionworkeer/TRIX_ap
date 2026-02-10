@@ -1,10 +1,9 @@
-﻿import React, { useState, useEffect } from "react";
-import { Timer, Plus, X, Play, Zap, Trophy } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { IMAGES } from "../constants";
-import GlassPanel from "../components/GlassPanel";
 import { AppRoutes } from "../types";
-import studyRoomBg from "../assets/StudyRoomBG.png";
+
+const BG_IMAGE = "/assets/StudyRoomBG.png";
 
 export default function Study() {
   const navigate = useNavigate();
@@ -58,110 +57,193 @@ export default function Study() {
 
   const timeObj = formatTime(timeLeft);
 
+  // 计时器视图 - 三明治分层法
   if (isTimer) {
-     return (
-        <div className="relative h-screen w-full bg-[#0f172a] text-white overflow-hidden flex flex-col transition-colors duration-1000">
-           {/* Close Button for Timer */}
-           <button 
-             onClick={() => navigate(AppRoutes.STUDY)} 
-             className="absolute top-6 left-6 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center transition-all group border border-white/5"
-           >
-             <X size={20} className="text-white/60 group-hover:text-white" />
-           </button>
-
-           <div className="absolute inset-0 bg-gradient-to-b from-[#1e1b4b] via-[#0f172a] to-[#020617] z-0"></div>
-           {/* 自习室背景图 */}
-           <div className="absolute inset-0 w-full h-full transform scale-125 -translate-y-16" style={{ zIndex: 1 }}>
-             <img 
-               src={studyRoomBg}
-               alt="Study Room Background"
-               className="w-full h-full object-contain object-center opacity-60"
-             />
-           </div>
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ zIndex: 2 }}></div>
-           <div className="relative z-10 flex-1 flex flex-col items-center justify-center -mt-10">
-              <div className="flex flex-col items-center relative">
-                 <div className="flex items-baseline justify-center gap-2 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)]">
-                    <span className="text-[7rem] leading-none font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-blue-200">{timeObj.m}</span>
-                    <span className="text-5xl font-bold text-blue-400/50 pb-8 animate-pulse">:</span>
-                    <span className="text-[7rem] leading-none font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-blue-200">{timeObj.s}</span>
-                 </div>
-                 <div className="mt-8 flex items-center gap-2 bg-white/5 px-5 py-2 rounded-full border border-white/10 backdrop-blur-md">
-                    {isCompleted ? (
-                       <><Trophy size={16} className="text-yellow-400" /><span className="text-base font-bold text-yellow-100">专注完成</span></>
-                    ) : (
-                       <><div className="w-2 h-2 rounded-full bg-green-400 animate-ping"></div><span className="text-sm font-medium text-blue-100/80 tracking-wide">深度专注模式</span></>
-                    )}
-                 </div>
-                 {isCompleted && (
-                    <div className="absolute top-full mt-8 bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-3xl flex flex-col items-center animate-[float_3s_ease-in-out_infinite]">
-                       <div className="text-4xl mb-2"></div>
-                       <h3 className="text-xl font-bold text-white mb-1">太棒了！</h3>
-                       <p className="text-blue-200 text-sm mb-4">获得 +50 积分</p>
-                       <button onClick={() => navigate(AppRoutes.STUDY)} className="bg-white text-blue-900 px-6 py-2 rounded-full font-bold text-sm hover:scale-105 transition-transform">返回自习室</button>
-                    </div>
-                 )}
-              </div>
-           </div>
-           {!isCompleted && (
-             <div className="relative z-10 w-full flex flex-col items-center pb-12 gap-6">
-                <button onClick={() => navigate(AppRoutes.STUDY)} className="group flex items-center gap-2 rounded-full bg-white/5 px-6 py-3 border border-white/10 backdrop-blur-sm hover:bg-white/10 hover:border-white/30 transition-all active:scale-95">
-                   <X size={18} className="text-white/60 group-hover:text-white" /><span className="font-medium text-white/60 group-hover:text-white text-sm">放弃专注</span>
-                </button>
-             </div>
-           )}
+    return (
+      <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
+        {/* 背景层：z-index: 0 */}
+        <div
+          className="fixed inset-0 w-full h-full"
+          style={{ zIndex: 0, pointerEvents: 'none' }}
+        >
+          <img
+            src={BG_IMAGE}
+            alt="Background"
+            className="w-full h-full object-cover"
+            style={{ filter: 'blur(8px) brightness(0.4)' }}
+          />
+          <div className="absolute inset-0 bg-black/40" />
         </div>
-     );
+
+        {/* 内容层：z-index: 10 */}
+        <div className="relative z-10 flex flex-col h-full">
+          {/* 关闭按钮 */}
+          <button
+            onClick={() => navigate(AppRoutes.STUDY)}
+            className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
+          >
+            <X size={20} className="text-white" />
+          </button>
+
+          {/* 计时器内容 */}
+          <div className="flex-1 flex flex-col items-center justify-center -mt-10">
+            <div className="flex flex-col items-center">
+              <div className="flex items-baseline justify-center gap-3 mb-8">
+                <span className="text-8xl font-bold text-white tracking-tight" style={{ textShadow: '0 0 60px rgba(59,130,246,0.5)' }}>
+                  {timeObj.m}
+                </span>
+                <span className="text-6xl font-bold text-blue-400 animate-pulse">:</span>
+                <span className="text-8xl font-bold text-white tracking-tight" style={{ textShadow: '0 0 60px rgba(59,130,246,0.5)' }}>
+                  {timeObj.s}
+                </span>
+              </div>
+
+              <div className="mb-6 px-6 py-2.5 rounded-full bg-blue-500/20 backdrop-blur-xl border border-blue-400/20 shadow-lg">
+                {isCompleted ? (
+                  <div className="flex items-center gap-2">
+                    <Trophy size={18} className="text-yellow-400" />
+                    <span className="text-base font-semibold text-white">专注完成</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-sm font-semibold text-blue-100">深度专注中...</span>
+                  </div>
+                )}
+              </div>
+
+              {isCompleted && (
+                <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-2xl flex flex-col items-center shadow-2xl">
+                  <h3 className="text-xl font-bold text-white mb-1">太棒了！</h3>
+                  <p className="text-blue-200 text-sm mb-4">获得 +50 积分</p>
+                  <button
+                    onClick={() => navigate(AppRoutes.STUDY)}
+                    className="bg-white text-slate-900 px-6 py-2.5 rounded-full font-semibold hover:scale-105 transition-transform shadow-lg"
+                  >
+                    返回自习室
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!isCompleted && (
+            <div className="pb-16 flex justify-center">
+              <button
+                onClick={() => navigate(AppRoutes.STUDY)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-red-500/15 backdrop-blur-md border border-red-500/20 hover:bg-red-500/25 transition-all active:scale-95"
+              >
+                <X size={16} className="text-red-300" />
+                <span className="text-sm font-medium text-red-300">放弃专注</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
+  // 主界面 - 分层布局重构
   return (
-    <div className="h-screen w-full relative bg-[#f0f9ff] overflow-hidden text-[#101f22]">
-       {/* 自习室背景图 */}
-       <div className="absolute inset-0 z-0 scale-105">
-         <img 
-           src={studyRoomBg}
-           alt="Study Room Background"
-           className="w-full h-full object-cover object-center"
-         />
-       </div>
-       <div className="relative z-10 flex flex-col h-full">
-          {/* Header */}
-          <div className="px-6 pt-12 pb-4 flex justify-between items-center z-20">
-             <div className="flex flex-col">
-                <span className="text-xs font-bold text-white uppercase tracking-widest mb-1 drop-shadow-md">Study Room</span>
-                <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md">自习室</h1>
-             </div>
-             <div className="flex items-center gap-3">
-               <button className="w-10 h-10 rounded-full bg-white text-slate-700 flex items-center justify-center border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.05)] active:scale-95 transition-all">
-                  <Zap size={20} className="fill-yellow-400 text-yellow-400" />
-               </button>
-               <button className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg hover:bg-slate-800 active:scale-95 transition-all">
-                  <Plus size={22} />
-               </button>
-             </div>
+    <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
+      {/* 背景层：z-index: 0 */}
+      <div
+        className="fixed inset-0 w-full h-full"
+        style={{ zIndex: 0, pointerEvents: 'none' }}
+      >
+        <img
+          src={BG_IMAGE}
+          alt="Background"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50" />
+      </div>
+
+      {/* 内容层：z-index: 10 */}
+      <div className="relative z-10 h-full">
+
+        {/* 顶部导航栏 - Header */}
+        <div className="px-6 pt-14 pb-4 flex justify-between items-center">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-semibold text-blue-200 uppercase tracking-[0.2em] mb-1 flex items-center gap-1">
+              <MapPin size={10} /> VIRTUAL SPACE
+            </span>
+            <h1 className="text-2xl font-bold text-white">自习室</h1>
           </div>
-          
-          <div className="absolute top-36 left-6 right-auto">
-             <GlassPanel className="p-5 min-w-[180px] !bg-white/70 !border-white/80 !rounded-[2rem] backdrop-blur-xl shadow-xl animate-[float_4s_ease-in-out_infinite]">
-                <div className="flex items-center gap-2 text-slate-600 mb-4"><div className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><Timer size={18} /></div><span className="text-sm font-bold tracking-wide">专注设置</span></div>
-                <div className="flex gap-2 mb-6">
-                   {timePresets.map((time) => (
-                      <button key={time} onClick={() => setSelectedDuration(time)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border ${selectedDuration === time ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30 scale-110" : "bg-white/50 text-slate-500 border-transparent hover:bg-white"}`}>{time}m</button>
-                   ))}
-                </div>
-                <div className="flex items-center justify-between">
-                    <div className="flex flex-col"><span className="text-4xl font-black text-slate-800 leading-none tracking-tight">{selectedDuration}</span><span className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">Minutes</span></div>
-                    <button onClick={handleStartFocus} className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-110 active:scale-90 transition-all duration-300 group"><Play fill="currentColor" size={24} className="ml-1 group-hover:text-white" /></button>
-                </div>
-             </GlassPanel>
+          <div className="flex items-center gap-2">
+            <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95">
+              <Zap size={18} className="text-yellow-400" />
+            </button>
+            <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95">
+              <Plus size={18} className="text-white" />
+            </button>
           </div>
-          <div className="absolute bottom-32 right-6">
-             <div className="bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-3 flex items-center gap-3 shadow-sm transform rotate-[-2deg] hover:rotate-0 transition-transform cursor-pointer">
-                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600"><Zap size={20} fill="currentColor" /></div>
-                <div><p className="text-xs font-bold text-slate-500">今日专注</p><p className="text-base font-black text-slate-800">1h 45m</p></div>
-             </div>
+        </div>
+
+        {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}
+        <div
+          className="absolute top-[20%] left-6 z-20"
+          style={{ maxWidth: '240px' }}
+        >
+          <div className="bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-3.5 shadow-2xl">
+            {/* 标题 */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
+                <Timer size={14} className="text-white" />
+              </div>
+              <span className="text-[10px] font-bold tracking-wider uppercase text-white/90">Focus Timer</span>
+            </div>
+
+            {/* 时间选择器 */}
+            <div className="flex gap-1.5 mb-4 p-1 bg-black/20 rounded-full">
+              {timePresets.map((time) => (
+                <button
+                  key={time}
+                  onClick={() => setSelectedDuration(time)}
+                  className={`flex-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                    selectedDuration === time
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  {time}m
+                </button>
+              ))}
+            </div>
+
+            {/* 时间显示和开始按钮 */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col">
+                <span className="text-4xl font-bold text-white leading-none">{selectedDuration}</span>
+                <span className="text-[9px] font-semibold text-white/60 uppercase tracking-wider mt-1">Minutes</span>
+              </div>
+              <button
+                onClick={handleStartFocus}
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all border border-white/20"
+              >
+                <Play fill="white" size={18} className="ml-0.5 text-white" />
+              </button>
+            </div>
           </div>
-       </div>
+        </div>
+
+        {/* 底部：Today's Focus 统计卡片 - 绝对定位，右下角 */}
+        <div
+          className="absolute bottom-32 right-6 z-10"
+          style={{ maxWidth: '200px' }}
+        >
+          <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-3 flex items-center gap-3 shadow-lg">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-md">
+              <Zap size={16} fill="white" className="text-white" />
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">Today's Focus</p>
+              <p className="text-lg font-bold text-white">1<span className="text-xs font-medium opacity-60">h</span> 45<span className="text-xs font-medium opacity-60">m</span></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
