@@ -1,17 +1,13 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Mail, Bell, MessageCircle, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IMAGES } from "../constants";
 import { AppRoutes } from "../types";
 import { useAuth } from "../contexts/AuthContext";
-import { useGlobalConnection } from "../contexts/WebSocketContext";
-import { getUnreadMailCount, getUnreadNotificationCount, getFriends } from "../services/databaseService";
+import { getUnreadMailCount, getUnreadNotificationCount } from "../services/databaseService";
 import MailPanel from "../components/MailPanel";
 import NotificationPanel from "../components/NotificationPanel";
 import StudyRoom from "../components/StudyRoom";
-import ProjectProgress from "../components/ProjectProgress";
-import Avatar from "../components/Avatar";
-import StatusHeader from "../components/StatusHeader";
 
 interface HomeProps {
   onBackgroundClick?: () => void;
@@ -20,7 +16,6 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { status: pcStatus } = useGlobalConnection();
   
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
@@ -48,12 +43,9 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
       style={{ background: 'transparent' }}
       onClick={onBackgroundClick}
     >
-      {/* 📊 Layer 10: Header - 状态栏 */}
-      <StatusHeader />
-      
-      {/* 🎯 Layer 50: 人物对话气泡 - 悬浮交互层 (可点击，无飘动动画) */}
+      {/* 🎯 Layer 50: 人物对话气泡 - 固定定位防止跳转飞走 */}
       <div 
-        className="absolute top-[15%] right-[5%] z-50 cursor-pointer"
+        className="fixed top-[15%] right-[5%] z-50 cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           navigate(AppRoutes.CHAT_DETAIL, { 
@@ -68,7 +60,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
       >
         <div className="relative max-w-[180px]">
           {/* 玻璃气泡容器 - 磨砂效果 */}
-          <div className="relative bg-white/15 backdrop-blur-xl rounded-2xl rounded-br-none border border-white/25 shadow-lg p-3 transition-transform duration-200 hover:shadow-xl hover:scale-[1.02]">
+          <div className="relative bg-white/15 backdrop-blur-xl rounded-2xl rounded-br-none border border-white/25 shadow-lg p-3 hover:shadow-xl hover:scale-[1.02] transition-transform duration-200">
             {/* 发光图标 */}
             <div className="flex items-start gap-2">
               <div className="flex-shrink-0">
