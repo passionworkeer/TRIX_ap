@@ -1,8 +1,8 @@
 import React from "react";
-import { IMAGES } from "../constants";
+import heroVideo from "../assets/role_video.mp4";
 
-// ✅ 绝对路径
-const HERO_BG = "/assets/role.jpg";
+// 视频路径 (通过 import 导入,Vite 会自动处理)
+const HERO_VIDEO = heroVideo;
 
 export default function HeroBackground() {
   return (
@@ -14,26 +14,29 @@ export default function HeroBackground() {
       }} 
     >
       
-      {/* ✅ 2. 图片层：完全复刻“暴力版”的写法，不使用 Tailwind 类名控制尺寸 */}
-      <img
-        src={HERO_BG}
-        alt="Hero Character"
+      {/* 视频层：循环播放背景视频 */}
+      <video
+        src={HERO_VIDEO}
+        autoPlay
+        loop
+        muted
+        playsInline
         // 移除 className，防止 Tailwind 样式冲突
         // className="absolute inset-0 w-full h-full object-cover" 
         style={{ 
-          // 👇 这些是刚才“暴力版”验证过好用的样式
+          // 视频全屏覆盖样式
           position: 'absolute',
           top: 0,
           left: 0,
           width: '100%',
           height: '100%',
           objectFit: 'cover',   // 保持比例铺满
-          objectPosition: 'center 20%', // 调整人物位置
+          objectPosition: 'center', // 视频居中显示
           display: 'block',     // 强制显示
           opacity: 1,           // 强制不透明
           zIndex: 1,
         }}
-        onError={(e) => console.error("❌ 图片加载失败:", HERO_BG)}
+        onError={(e) => console.error("❌ 视频加载失败:", HERO_VIDEO)}
       />
 
       {/* 3. 渐变遮罩 (美化) */}

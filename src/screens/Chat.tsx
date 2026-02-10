@@ -6,17 +6,18 @@ import { IMAGES } from '../constants';
 import { motion } from 'framer-motion';
 import Avatar from '../components/Avatar';
 import { AppRoutes } from '../types';
-import { getFriends, simpleAddFriend } from '../services/databaseService';
+import { getFriends, addFriend } from '../services/databaseService';
+import { supabase } from '../config/supabase';
 import type { FriendLatestMessage } from '../config/supabase';
 
-// Mock Data for Quick Add (保留,因为这个不在数据库中)
-const QUICK_ADD_USERS = [
-  { id: 'qa1', name: 'Sarah Miller', username: 'sarah_m', avatar: '' },
-  { id: 'qa2', name: 'Mike Chen', username: 'mike_c99', avatar: '' },
-  { id: 'qa3', name: 'Jenny Wilson', username: 'j_wilson', avatar: '' },
-  { id: 'qa4', name: 'Tom Hardy', username: 'tomh_official', avatar: '' },
-  { id: 'qa5', name: 'Lisa Wang', username: 'lisa_wang', avatar: '' },
-];
+// 推荐用户接口
+interface RecommendedUser {
+  id: string;
+  username: string;
+  display_name: string;
+  email: string;
+  bio: string | null;
+}
 
 // 格式化时间显示
 const formatTime = (timestamp: string | null): string => {
@@ -41,12 +42,14 @@ const formatTime = (timestamp: string | null): string => {
 const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
+  const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
 
   // 加载好友列表
   useEffect(() => {
     loadFriends();
+    loadRecommendedUsers();
   }, []);
 
   const loadFriends = async () => {
@@ -58,6 +61,78 @@ const Chat: React.FC = () => {
       console.error('加载好友列表失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 加载推荐用户（不是好友的其他用户）
+  const loadRecommendedUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        console.log('未登录，跳过加载推荐用户');
+        return;
+      }
+
+      const currentUserId = session.user.id;
+      const currentUserEmail = session.user.email;
+      
+      console.log('当前用户ID:', currentUserId);
+      console.log('当前用户邮箱:', currentUserEmail);
+
+      // 获取所有用户（排除自己）
+      const { data: allUsers, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, display_name, email, bio')
+        .neq('id', currentUserId) // 排除自己
+        .limit(10);
+
+      if (usersError) {
+        console.error('获取推荐用户失败:', usersError);
+        return;
+      }
+
+      console.log('获取到的所有用户:', allUsers);
+
+      // 获取已添加的好友ID列表
+      const { data: existingFriends, error: friendsError } = await supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('user_id', currentUserId);
+
+      if (friendsError) {
+        console.error('获取好友列表失败:', friendsError);
+        return;
+      }
+
+      console.log('已添加的好友:', existingFriends);
+
+      const friendIds = new Set(existingFriends?.map(f => f.friend_id) || []);
+
+      // 过滤出不是好友的用户，并且再次确保排除自己
+      const notFriends = (allUsers || []).filter(user => 
+        !friendIds.has(user.id) && 
+        user.id !== currentUserId && 
+        user.email !== currentUserEmail
+      );
+      
+      console.log('推荐的用户:', notFriends);
+      setRecommendedUsers(notFriends.slice(0, 5)); // 只显示前5个
+    } catch (error) {
+      console.error('加载推荐用户失败:', error);
+    }
+  };
+
+  // 快速添加好友
+  const handleQuickAdd = async (username: string) => {
+    try {
+      console.log('尝试添加好友:', username);
+      await addFriend(username);
+      console.log('添加成功，刷新列表');
+      await loadFriends();
+      await loadRecommendedUsers(); // 刷新推荐列表
+    } catch (error: any) {
+      console.error('添加好友失败:', error);
+      alert(error.message || '添加失败');
     }
   };
 
@@ -96,7 +171,7 @@ const Chat: React.FC = () => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSend={async (account) => {
-          await simpleAddFriend(account);
+          await addFriend(account);
           // 添加成功后刷新好友列表
           await loadFriends();
         }}
@@ -106,30 +181,31 @@ const Chat: React.FC = () => {
        {/* 2. 滚动内容区域 - 占据剩余空间并可滚动 */}
        <div className='flex-1 overflow-y-auto w-full pb-28'>
           
-          {/* 2. Quick Add Section */}
-          <div className='py-4 bg-white border-b border-gray-100'>
-             <div className='px-4 mb-2'>
-                <h3 className='text-[13px] font-bold text-gray-900 uppercase tracking-wide'>Quick Add</h3>
-             </div>
-             <div className='flex overflow-x-auto px-4 pb-2 gap-3 snap-x'>
-                {QUICK_ADD_USERS.map((user) => (
+          {/* 2. Quick Add Section - 推荐用户 */}
+          {recommendedUsers.length > 0 && (
+            <div className='py-4 bg-white border-b border-gray-100'>
+              <div className='px-4 mb-2'>
+                <h3 className='text-[13px] font-bold text-gray-900 uppercase tracking-wide'>推荐好友</h3>
+              </div>
+              <div className='flex overflow-x-auto px-4 pb-2 gap-3 snap-x'>
+                {recommendedUsers.map((user) => (
                   <div key={user.id} className='min-w-[130px] p-3 bg-white rounded-lg border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col items-center relative snap-start'>
-                     <button className='absolute top-1 right-1 text-gray-300 hover:text-gray-500 p-1'>
-                        <span className='sr-only'>Dismiss</span>
-                        <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>
-                     </button>
-                     <div className='mb-2'>
-                        <Avatar name={user.name} size='md' />
-                     </div>
-                     <span className='text-[13px] font-bold text-black truncate w-full text-center leading-tight'>{user.name}</span>
-                     <span className='text-[11px] text-gray-400 truncate w-full text-center mb-3 leading-tight'>{user.username}</span>
-                     <button className='w-full py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-[12px] font-bold text-black transition-colors'>
-                        + Add
-                     </button>
+                    <div className='mb-2'>
+                      <Avatar name={user.display_name} size='md' />
+                    </div>
+                    <span className='text-[13px] font-bold text-black truncate w-full text-center leading-tight'>{user.display_name}</span>
+                    <span className='text-[11px] text-gray-400 truncate w-full text-center mb-3 leading-tight'>@{user.username}</span>
+                    <button 
+                      className='w-full py-1 bg-blue-500 hover:bg-blue-600 rounded-full text-[12px] font-bold text-white transition-colors'
+                      onClick={() => handleQuickAdd(user.username)}
+                    >
+                      + 添加
+                    </button>
                   </div>
                 ))}
-             </div>
-          </div>
+              </div>
+            </div>
+          )}
 
           {/* 3. Chat List */}
           <div className='flex flex-col w-full'>
