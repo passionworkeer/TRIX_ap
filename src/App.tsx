@@ -85,7 +85,8 @@ function AppContent() {
         <div 
           className="w-full flex-shrink-0 pointer-events-none" 
           style={{ 
-            height: "calc(90px + env(safe-area-inset-bottom, 20px))" 
+            // 🏝️ 适配悬浮岛样式：更大的底部空间
+            height: "calc(120px + env(safe-area-inset-bottom, 20px))" 
           }}
         />
       </div>
@@ -93,8 +94,7 @@ function AppContent() {
       {/* 4. 悬浮 UI 层 (Layer 2) - 永远在最上面 */}
       <AnimatePresence mode="wait">
         {(!isHomePage || showDockOnHome) && (
-           // 传入 visible={true} 确保 GlassDock 内部如果有动画逻辑也能正常工作
-           <GlassDock visible={true} key="dock" />
+           <GlassDock key="dock" />
         )}
       </AnimatePresence>
       

@@ -42,34 +42,39 @@ export default function GlassDock() {
       }}
       style={{
         position: "fixed",
-        // 物理居中方案：避免 translateX 的亚像素偏移
-        left: 0,
-        right: 0,
+        // 🏝️ 悬浮岛风格 - 左右留空
+        left: "1.5rem",  // 24px
+        right: "1.5rem", // 24px
         margin: "0 auto",
-        // 适配 iPhone 底部安全区域 (Home Indicator)
-        bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
-        width: "88%",
-        maxWidth: "360px",
-        height: "64px",
-        zIndex: 9999,
+        // 🔥 不再贴底，改为悬浮
+        bottom: "2rem", // 32px 距离底部
+        // 自适应宽度，最大宽度限制
+        maxWidth: "380px",
+        height: "68px",
+        zIndex: 50, // 确保足够高
         isolation: "isolate",
       }}
     >
-      {/* ✨ 纯净磨砂玻璃层 */}
+      {/* ✨ 高级磨砂玻璃层 - 更强通透感 */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          // 回归高透白色，干净清爽
-          backgroundColor: "rgba(255, 255, 255, 0.75)",
-          // 适度模糊，保持通透感
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          borderRadius: "40px", // 极润的胶囊形
-          // 极细微的白边，增加精致感
-          border: "0.5px solid rgba(255, 255, 255, 0.5)",
-          // 极柔和的阴影，让它轻轻浮起来，拒绝黑脏影
-          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.05)",
+          // 🎨 深色半透明玻璃背景
+          backgroundColor: "rgba(0, 0, 0, 0.35)",
+          // 🌫️ 超强模糊效果
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          // 🔮 完全圆角 - 胶囊岛形状
+          borderRadius: "2rem", // 32px
+          // 💎 极细白边增加精致感
+          border: "1px solid rgba(255, 255, 255, 0.18)",
+          // ☁️ 柔和悬浮阴影 - 拒绝黑脏影
+          boxShadow: `
+            0 8px 32px rgba(0, 0, 0, 0.12),
+            0 2px 8px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1)
+          `,
           zIndex: -1,
         }}
       />
@@ -106,53 +111,86 @@ export default function GlassDock() {
                 WebkitTapHighlightColor: "transparent",
               }}
             >
+              {/* 🌟 选中状态背景光晕 */}
+              {isActive && !tab.isCore && (
+                <motion.div
+                  layoutId="active-glow"
+                  style={{
+                    position: "absolute",
+                    inset: "12px",
+                    backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    borderRadius: "16px",
+                    zIndex: 0,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30
+                  }}
+                />
+              )}
+              
               <div style={{ position: "relative", zIndex: 1 }}>
                 {tab.isCore ? (
-                  // 🌞 核心按钮：扁平化、高饱和度的活力橙色
+                  // 🌞 核心按钮：升级为发光宝石效果
                   <motion.div
                     whileTap={{ scale: 0.92 }}
                     style={{
                       width: "52px",
                       height: "52px",
                       borderRadius: "50%",
-                      // 放弃复杂的3D渐变，使用纯净、吸睛的暖橙色
-                      backgroundColor: "#FF9F1C",
-                      // 同色系的柔和发光，而不是黑色阴影
-                      boxShadow: "0 6px 16px rgba(255, 159, 28, 0.3)",
+                      // 🎨 高级渐变背景 - 蓝紫色宝石
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      // 💎 多层阴影 - 发光宝石效果
+                      boxShadow: `
+                        0 0 20px rgba(102, 126, 234, 0.6),
+                        0 0 40px rgba(118, 75, 162, 0.4),
+                        0 4px 16px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3)
+                      `,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      marginBottom: "24px", // 适度上浮
-                      border: "3px solid #FFFFFF", // 纯白描边，与背景隔绝
+                      marginBottom: "24px",
+                      border: "2px solid rgba(255, 255, 255, 0.4)",
+                      // 添加微妙的脉冲动画
+                      animation: "glow-pulse 3s ease-in-out infinite",
                     }}
                   >
-                    <tab.icon size={24} color="white" strokeWidth={2} />
+                    <tab.icon size={24} color="white" strokeWidth={2.5} />
                   </motion.div>
                 ) : (
-                  // 普通图标：极简风格，无文字
+                  // 普通图标：高级交互反馈
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                     <tab.icon
-                      size={24}
-                      strokeWidth={isActive ? 2.2 : 1.8}
-                      // 选中纯黑，未选中中灰色
-                      color={isActive ? "#1A1A1A" : "#A0A0A5"}
+                      size={26}
+                      strokeWidth={isActive ? 2.4 : 2}
+                      // 🎨 选中白色高亮，未选中半透明
+                      color={isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"}
                       style={{
-                        transition: "all 0.2s ease",
-                        // 选中时轻微放大
-                        transform: isActive ? "scale(1.08)" : "scale(1)",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        // 选中时轻微放大并添加发光
+                        transform: isActive ? "scale(1.1)" : "scale(1)",
+                        filter: isActive ? "drop-shadow(0 2px 8px rgba(255, 255, 255, 0.4))" : "none",
                       }}
                     />
-                    {/* 选中时底部出现一个小黑点指示器，替代文字 */}
+                    {/* 选中时底部出现发光指示器 */}
                     {isActive && (
                       <motion.div
                         layoutId="dot-indicator"
                         style={{
                           position: 'absolute',
-                          bottom: '-8px',
-                          width: '4px',
-                          height: '4px',
+                          bottom: '10px',
+                          width: '6px',
+                          height: '6px',
                           borderRadius: '50%',
-                          backgroundColor: '#1A1A1A'
+                          backgroundColor: '#FFFFFF',
+                          boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)',
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 35
                         }}
                       />
                     )}

@@ -50,6 +50,39 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
       {/* Header - 极其简约的状态栏 */}
       <StatusHeader />
       
+      {/* 🎨 高级气泡提示 - Premium Glass Bubble */}
+      <div className="absolute top-24 left-6 right-6 z-50 pointer-events-none animate-float">
+        <div className="relative max-w-xs">
+          {/* 玻璃气泡容器 */}
+          <div className="relative bg-white/10 backdrop-blur-xl rounded-2xl rounded-bl-none border border-white/20 shadow-lg p-4 pr-6">
+            {/* 发光图标 */}
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 animate-glow-pulse">
+                <Sparkles className="w-5 h-5 text-yellow-400" />
+              </div>
+              
+              {/* 消息内容 */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium leading-relaxed">
+                  {profile?.full_name ? `嘿 ${profile.full_name},` : '嘿,'} 今天想学点什么?
+                </p>
+                <p className="text-white/70 text-xs mt-1">
+                  轻触屏幕显示导航
+                </p>
+              </div>
+            </div>
+            
+            {/* 左下角装饰性光晕 */}
+            <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-yellow-400/20 rounded-full blur-xl" />
+          </div>
+          
+          {/* 对话框尖角 (左下) */}
+          <div className="absolute -bottom-1 left-0 w-4 h-4 bg-white/10 backdrop-blur-xl border-l border-b border-white/20 transform rotate-45 origin-top-right" 
+               style={{ clipPath: 'polygon(0 0, 0 100%, 100% 100%)' }}
+          />
+        </div>
+      </div>
+      
       {/* Main Content Area - Empty (Zero UI) */}
       {/* 整个区域都可点击切换导航栏 */}
 
