@@ -5,8 +5,10 @@ import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
+import { getChatHistory, sendMessage as dbSendMessage, markMessagesAsRead } from '../services/databaseService';
+import type { ChatMessage } from '../config/supabase';
 
-// Mock messages for different friends
+// UI Message interface
 interface UIMessage {
   id: string | number;
   sender: 'user' | 'bot' | 'friend';
@@ -14,20 +16,7 @@ interface UIMessage {
   timestamp: string;
 }
 
-const MOCK_CONVERSATIONS: Record<string, UIMessage[]> = {
-  'elara': [
-    { id: 1, sender: 'friend', text: 'Hey! The new spatial algorithm is fascinating.', timestamp: '09:41' },
-    { id: 2, sender: 'user', text: 'I know right? I tried implementing it yesterday.', timestamp: '09:42' },
-    { id: 3, sender: 'friend', text: 'How did it go? Did you solve the latency?', timestamp: '09:42' }
-  ],
-  'kael': [
-    { id: 1, sender: 'friend', text: 'Are we still meeting for the study session?', timestamp: '14:20' },
-    { id: 2, sender: 'user', text: 'Yes, definitely. 3 PM roughly?', timestamp: '14:25' }
-  ],
-  'clawbot': [
-    { id: 1, sender: 'bot', text: 'Gateway connected. Ready for instructions.', timestamp: 'NOW' }
-  ]
-};
+// Mock conversations - 已删除,使用数据库数据替代
 
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -64,20 +53,46 @@ const ChatDetail: React.FC = () => {
   
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize messages
-  useEffect(() => {
-    // Load mock conversation or empty array
-    const initialMessages = MOCK_CONVERSATIONS[friendId] || [];
-    // Deep copy to avoid mutating the mock store directly during this session
-    const uniqueMessages = JSON.parse(JSON.stringify(initialMessages)).map((msg: UIMessage) => {
-       if (msg.timestamp === 'NOW') {
-         msg.timestamp = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-       }
-       return msg;
+  // 格式化时间戳为 HH:MM 格式
+  const formatTimestamp = (isoString: string): string => {
+    return new Date(isoString).toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
     });
-    setMessages(uniqueMessages);
+  };
+
+  // 转换数据库消息为 UI 消息
+  const convertDbMessageToUI = (dbMsg: ChatMessage): UIMessage => {
+    return {
+      id: dbMsg.id,
+      sender: dbMsg.sender,
+      text: dbMsg.text,
+      timestamp: formatTimestamp(dbMsg.created_at)
+    };
+  };
+
+  // 加载聊天历史
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        setLoading(true);
+        const history = await getChatHistory(friendId);
+        const uiMessages = history.map(convertDbMessageToUI);
+        setMessages(uiMessages);
+        
+        // 标记消息为已读
+        await markMessagesAsRead(friendId);
+      } catch (error) {
+        console.error('加载聊天记录失败:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadChatHistory();
   }, [friendId]);
 
   // Scroll to bottom
@@ -134,13 +149,20 @@ const ChatDetail: React.FC = () => {
 
     setMessages(prev => [...prev, userMessage]);
 
+    // 保存用户消息到数据库
+    try {
+      await dbSendMessage(friendId, 'user', messageText);
+    } catch (error) {
+      console.error('保存用户消息失败:', error);
+    }
+
     // Handle Bot Logic
     if (isBot) {
       if (isConnected) {
         wsSendMessage(messageText);
       } else {
         // Fallback Mock Bot Response if offline
-        setTimeout(() => {
+        setTimeout(async () => {
           const botResponse: UIMessage = {
             id: Date.now() + 1,
             sender: 'bot',
@@ -148,29 +170,18 @@ const ChatDetail: React.FC = () => {
             timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages(prev => [...prev, botResponse]);
+          
+          // 保存 Bot 消息到数据库
+          try {
+            await dbSendMessage(friendId, 'bot', botResponse.text);
+          } catch (error) {
+            console.error('保存 Bot 消息失败:', error);
+          }
         }, 1000);
       }
     } else {
-      // Handle Friend Logic (Mock Reply)
-      setTimeout(() => {
-        const replies = [
-          "That's interesting!",
-          "Tell me more about it.",
-          "I'm currently busy checking the nav logs.",
-          "Haha, totally agree.",
-          "Wait, are you sure?",
-          "See you later then."
-        ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
-        
-        const friendResponse: UIMessage = {
-          id: Date.now() + 1,
-          sender: 'friend',
-          text: randomReply,
-          timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages(prev => [...prev, friendResponse]);
-      }, 1500 + Math.random() * 2000);
+      // Handle Friend Logic - 移除 Mock 回复,只保存用户消息
+      // 真实场景下,好友的消息会由后端推送
     }
   };
 
@@ -237,7 +248,15 @@ const ChatDetail: React.FC = () => {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-6 bg-slate-50/50">
-        <div className="text-center text-xs text-slate-400 my-4">Today</div>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <span className="text-xs text-slate-400 animate-pulse bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+              加载聊天记录中...
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="text-center text-xs text-slate-400 my-4">Today</div>
         
         {messages.map((msg) => (
           <div 
@@ -284,6 +303,8 @@ const ChatDetail: React.FC = () => {
         )}
         
         <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       {/* Input Area */}
