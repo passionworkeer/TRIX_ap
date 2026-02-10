@@ -70,7 +70,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
               {/* 消息内容 */}
               <div className="flex-1 min-w-0">
                 <p className="text-white text-xs font-medium leading-relaxed">
-                  {profile?.full_name ? `嘿 ${profile.full_name},` : '嘿,'} 今天想学点什么?
+                  {profile?.username ? `嘿 ${profile.username},` : '嘿,'} 今天想学点什么?
                 </p>
               </div>
             </div>

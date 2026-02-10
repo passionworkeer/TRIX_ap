@@ -4,11 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const { signOut, user, profile } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState('简体中文');
+  
+  // 从认证信息中获取用户名
+  const username = profile?.username || user?.email?.split('@')[0] || 'User';
+  const email = user?.email || '';
+  const points = profile?.points || 0;
 
   const handleOutfitChange = (outfitName: string) => {
     // TODO: 实现装备更换逻辑
@@ -37,9 +44,10 @@ const Profile: React.FC = () => {
     alert('TRIX v1.2.0\n开发团队: TRIX Studio\n© 2026 All Rights Reserved');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('确定要退出登录吗？')) {
-      navigate(AppRoutes.LOGIN);
+      await signOut();
+      navigate(AppRoutes.LOGIN, { replace: true });
     }
   };
 
@@ -94,12 +102,13 @@ const Profile: React.FC = () => {
 
           {/* 用户信息 */}
           <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
-             <h2 className="text-2xl font-black text-slate-800 tracking-tight">Trixie</h2>
+             <h2 className="text-2xl font-black text-slate-800 tracking-tight capitalize">{username}</h2>
+             <p className="text-xs text-slate-400 mt-1">{email}</p>
              
              <div className="mt-3 flex justify-center">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-100/50 shadow-sm">
                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
-                   <span className="text-cyan-700 font-bold text-xs tracking-wide">Level 42 探索者</span>
+                   <span className="text-cyan-700 font-bold text-xs tracking-wide">积分: {points}</span>
                 </div>
              </div>
 
@@ -107,25 +116,25 @@ const Profile: React.FC = () => {
              <div className="flex items-center justify-center gap-8 mt-6 w-full">
                 <div 
                    className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('陪伴天数', 128)}
+                   onClick={() => handleStatClick('陪伴天数', 0)}
                 >
-                   <div className="text-lg font-black text-slate-700">128</div>
+                   <div className="text-lg font-black text-slate-700">0</div>
                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">陪伴天数</div>
                 </div>
                 <div className="w-[1px] h-8 bg-slate-200/80"></div>
                 <div 
                    className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('等级', 42)}
+                   onClick={() => handleStatClick('积分', points)}
                 >
-                   <div className="text-lg font-black text-slate-700">42</div>
-                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">等级</div>
+                   <div className="text-lg font-black text-slate-700">{points}</div>
+                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">积分</div>
                 </div>
                 <div className="w-[1px] h-8 bg-slate-200/80"></div>
                 <div 
                    className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('互动', 1200)}
+                   onClick={() => handleStatClick('互动', 0)}
                 >
-                   <div className="text-lg font-black text-slate-700">1.2k</div>
+                   <div className="text-lg font-black text-slate-700">0</div>
                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">互动</div>
                 </div>
              </div>
