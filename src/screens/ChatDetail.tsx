@@ -198,7 +198,7 @@ const ChatDetail: React.FC = () => {
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col font-sans">
       {/* Header */}
-      <header className="px-4 py-4 pt-12 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 shadow-sm transition-all duration-300">
+      <header className="px-4 py-4 pt-16 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-50 shadow-sm transition-all duration-300">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)} 
@@ -236,7 +236,7 @@ const ChatDetail: React.FC = () => {
       </header>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-32 bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-6 bg-slate-50/50">
         <div className="text-center text-xs text-slate-400 my-4">Today</div>
         
         {messages.map((msg) => (
@@ -287,7 +287,7 @@ const ChatDetail: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-[88px] left-0 right-0 px-4 py-3 pointer-events-none z-40">
+      <div className="flex-shrink-0 px-4 py-3 pb-6 bg-transparent pointer-events-none z-40">
           {/* Floating Input Container */}
           <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-slate-200/50 rounded-3xl p-1.5 flex items-center gap-2 pointer-events-auto max-w-lg mx-auto w-full transition-all duration-200 hover:shadow-2xl hover:shadow-slate-200/60 ring-1 ring-slate-100">
             

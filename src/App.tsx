@@ -25,6 +25,9 @@ function AppContent() {
   // 判断是否在首页
   const isHomePage = location.pathname === '/' || location.pathname === '';
   
+  // 判断是否在聊天详情页 (不显示底部导航)
+  const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
+  
   // 切换导航栏显示状态
   const toggleDock = () => {
     if (isHomePage) {
@@ -84,18 +87,21 @@ function AppContent() {
         </div>
         
         {/* 物理占位符：给底部 Dock 撑开空间，防止内容被遮挡 */}
-        <div 
-          className="w-full flex-shrink-0 pointer-events-none" 
-          style={{ 
-            height: "calc(120px + env(safe-area-inset-bottom, 20px))",
-            background: 'transparent'
-          }}
-        />
+        {/* 聊天详情页不需要占位符,因为没有底部导航 */}
+        {!isChatDetailPage && (
+          <div 
+            className="w-full flex-shrink-0 pointer-events-none" 
+            style={{ 
+              height: "calc(120px + env(safe-area-inset-bottom, 20px))",
+              background: 'transparent'
+            }}
+          />
+        )}
       </div>
 
       {/* 🎯 Layer 50: 悬浮交互层 - 永远在最上面 */}
       <AnimatePresence mode="wait">
-        {(!isHomePage || showDockOnHome) && (
+        {(!isHomePage || showDockOnHome) && !isChatDetailPage && (
            <GlassDock key="dock" />
         )}
       </AnimatePresence>

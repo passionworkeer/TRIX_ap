@@ -109,7 +109,7 @@ const Chat: React.FC = () => {
   return (
     <div className='h-screen w-full bg-white flex flex-col'>
        {/* 1. Header - 固定头部 */}
-       <header className='px-4 pt-14 pb-4 bg-white flex justify-between items-center flex-shrink-0 w-full border-b border-gray-100'>
+       <header className='px-4 pt-24 pb-4 bg-white flex justify-between items-center flex-shrink-0 w-full border-b border-gray-100'>
           {/* Left: Avatar (Small Profile) */}
           <div className='w-10 h-10 rounded-full bg-gray-200 overflow-hidden shadow-sm' onClick={() => navigate('/profile')}>
              <Avatar name='Me' size='md' className='w-full h-full object-cover' />
@@ -130,7 +130,7 @@ const Chat: React.FC = () => {
        </header>
 
        {/* 2. 滚动内容区域 - 占据剩余空间并可滚动 */}
-       <div className='flex-1 overflow-y-auto w-full pb-40'>
+       <div className='flex-1 overflow-y-auto w-full pb-28'>
           
           {/* 2. Quick Add Section */}
           <div className='py-4 bg-white border-b border-gray-100'>
