@@ -42,13 +42,9 @@ export const Login: React.FC = () => {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative -mt-10">
-         <div className="relative w-[85%] max-w-[340px] aspect-square">
-            <div className="absolute inset-x-8 bottom-8 top-12 bg-gradient-to-t from-indigo-400/30 to-transparent blur-3xl rounded-full"></div>
-            <img src={IMAGES.WIZARD_BOY_LOGIN} className="w-full h-full object-contain drop-shadow-2xl relative z-10 animate-float" alt="Wizard" />
-         </div>
-         <div className="text-center mt-4 relative z-20">
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">欢迎回来</h1>
-            <p className="text-slate-500 text-sm font-medium tracking-wide mt-1">TRIX  探索无限 3D 世界</p>
+         <div className="text-center relative z-20">
+            <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight mb-3">欢迎回来</h1>
+            <p className="text-slate-500 text-base font-medium tracking-wide">TRIX  探索无限 3D 世界</p>
          </div>
       </div>
 
@@ -160,13 +156,9 @@ export const Register: React.FC = () => {
        </div>
  
        <div className="flex-1 flex flex-col items-center justify-center relative -mt-4">
-          <div className="relative w-72 h-72">
-             <div className="absolute inset-x-4 bottom-4 top-10 bg-gradient-to-t from-cyan-400/20 to-transparent blur-2xl rounded-full"></div>
-             <img src={IMAGES.WIZARD_BOY_LOGIN} className="w-full h-full object-contain drop-shadow-2xl relative z-10" alt="Wizard" />
-          </div>
-          <div className="text-center mt-6 space-y-1">
-             <h1 className="text-2xl font-bold text-slate-800">欢迎加入</h1>
-             <p className="text-slate-500 text-sm font-medium">开启你的 3D 探索之旅</p>
+          <div className="text-center space-y-1">
+             <h1 className="text-3xl font-bold text-slate-800">欢迎加入</h1>
+             <p className="text-slate-500 text-base font-medium">开启你的 3D 探索之旅</p>
           </div>
        </div>
  

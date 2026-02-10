@@ -88,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             username,
           },
+          emailRedirectTo: undefined, // 禁用邮箱确认重定向
         },
       });
       return { error };

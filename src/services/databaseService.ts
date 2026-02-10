@@ -1,3 +1,108 @@
+/**
+ * 简单实现：直接让 123@trix.app 和 1234@trix.app 互为好友
+ * 只要输入对方邮箱为这两个之一就直接插入互为好友
+ */
+export async function simpleAddFriend(account: string): Promise<void> {
+  // 仅支持 123@trix.app 和 1234@trix.app
+  const emails = ['123@trix.app', '1234@trix.app'];
+  if (!emails.includes(account)) throw new Error('仅支持测试账号');
+
+  // 获取当前登录用户
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user) throw new Error('请先登录');
+  const currentUserEmail = session.user.email;
+  const currentUserId = session.user.id;
+
+  if (currentUserEmail === account) throw new Error('不能添加自己');
+
+  // 查找对方用户
+  const { data: users, error: userError } = await supabase
+    .from('users')
+    .select('id, email, username')
+    .in('email', emails);
+  if (userError || !users || users.length !== 2) throw new Error('测试账号不全');
+
+  const me = users.find(u => u.email === currentUserEmail);
+  const other = users.find(u => u.email === account);
+  if (!me || !other) throw new Error('找不到用户');
+
+  // 插入互为好友
+  await supabase.from('friends').upsert([
+    {
+      user_id: me.id,
+      friend_id: other.id,
+      name: other.username || account,
+      status: 'online',
+      bio: '',
+      study_time: 0,
+      is_studying: false,
+    },
+    {
+      user_id: other.id,
+      friend_id: me.id,
+      name: me.username || currentUserEmail,
+      status: 'online',
+      bio: '',
+      study_time: 0,
+      is_studying: false,
+    }
+  ], { onConflict: 'user_id,friend_id' });
+}
+/**
+ * 发送好友请求
+ * @param account 对方账号（邮箱或用户名）
+ */
+export async function sendFriendRequest(account: string): Promise<void> {
+  // 1. 查找目标用户
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id, email, username')
+    .or(`email.eq.${account},username.eq.${account}`)
+    .single();
+
+  if (userError || !user) {
+    throw new Error('未找到该用户');
+  }
+
+  // 2. 获取当前用户信息
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user) {
+    throw new Error('请先登录');
+  }
+  const currentUserId = session.user.id;
+  const currentUserEmail = session.user.email;
+
+  if (user.id === currentUserId) {
+    throw new Error('不能添加自己为好友');
+  }
+
+  // 3. 检查是否已是好友
+  const { data: existing, error: existError } = await supabase
+    .from('friends')
+    .select('id')
+    .eq('user_id', currentUserId)
+    .eq('friend_id', user.id)
+    .maybeSingle();
+  if (existing) {
+    throw new Error('你们已经是好友了');
+  }
+
+  // 4. 插入通知（type: friend_request）
+  const { error: notifyError } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: user.id,
+      type: 'friend_request',
+      title: '好友请求',
+      content: `${currentUserEmail || '某用户'} 想添加你为好友`,
+      avatar_url: '',
+      is_read: false,
+      created_at: new Date().toISOString(),
+    });
+  if (notifyError) {
+    throw new Error('发送好友请求失败');
+  }
+}
 import { supabase } from '../config/supabase';
 import type {
   Friend,

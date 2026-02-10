@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Camera, MessageSquare } from 'lucide-react';
+import AddFriendModal from '../components/AddFriendModal';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { motion } from 'framer-motion';
 import Avatar from '../components/Avatar';
 import { AppRoutes } from '../types';
-import { getFriends } from '../services/databaseService';
+import { getFriends, simpleAddFriend } from '../services/databaseService';
 import type { FriendLatestMessage } from '../config/supabase';
 
 // Mock Data for Quick Add (保留,因为这个不在数据库中)
@@ -41,6 +42,7 @@ const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // 加载好友列表
   useEffect(() => {
@@ -78,14 +80,27 @@ const Chat: React.FC = () => {
           <h1 className='text-xl font-bold text-black tracking-wide font-sans'>Chat</h1>
 
           {/* Right: Actions */}
-          <div className='flex items-center gap-4'>
-             <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
-                <UserPlus size={20} className='text-gray-800' strokeWidth={2.5} />
-             </div>
-             <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
-                <Search size={22} className='text-gray-800' strokeWidth={2.5} />
-             </div>
-          </div>
+       <div className='flex items-center gap-4'>
+         <div
+          className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'
+          onClick={() => setShowAddModal(true)}
+         >
+           <UserPlus size={20} className='text-gray-800' strokeWidth={2.5} />
+         </div>
+         <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
+           <Search size={22} className='text-gray-800' strokeWidth={2.5} />
+         </div>
+       </div>
+      {/* 添加好友弹窗 */}
+      <AddFriendModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSend={async (account) => {
+          await simpleAddFriend(account);
+          // 添加成功后刷新好友列表
+          await loadFriends();
+        }}
+      />
        </header>
 
        {/* 2. 滚动内容区域 - 占据剩余空间并可滚动 */}

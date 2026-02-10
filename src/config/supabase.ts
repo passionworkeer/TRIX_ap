@@ -116,9 +116,12 @@ export interface UserSession {
 export interface Profile {
   id: string;
   username: string;
+  points?: number;
+  avatar_config?: any;
   full_name?: string;
   avatar_url?: string;
   website?: string;
   bio?: string;
+  created_at?: string;
   updated_at?: string;
 }
