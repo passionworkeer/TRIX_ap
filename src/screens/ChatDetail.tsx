@@ -6,6 +6,7 @@ import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
 import { getChatHistory, sendMessage as dbSendMessage, markMessagesAsRead } from '../services/databaseService';
+import { supabase } from '../config/supabase';
 import type { ChatMessage } from '../config/supabase';
 
 // UI Message interface
@@ -95,6 +96,43 @@ const ChatDetail: React.FC = () => {
     loadChatHistory();
   }, [friendId]);
 
+  // 实时订阅新消息
+  useEffect(() => {
+    // 创建实时订阅频道
+    const channel = supabase
+      .channel(`chat:${friendId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `friend_id=eq.${friendId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          
+          // 只有当消息不是当前用户发送的,才添加到消息列表
+          // (避免重复显示自己的消息,因为发送时已经添加到UI了)
+          if (newMessage.sender !== 'user') {
+            const uiMessage = convertDbMessageToUI(newMessage);
+            setMessages(prev => {
+              // 检查消息是否已存在(避免重复)
+              const exists = prev.some(msg => msg.id === uiMessage.id);
+              if (exists) return prev;
+              return [...prev, uiMessage];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // 清理函数:组件卸载时取消订阅
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [friendId]);
+
   // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -139,24 +177,38 @@ const ChatDetail: React.FC = () => {
 
     const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
-    // User Message
-    const userMessage: UIMessage = {
-      id: Date.now(),
+    // 临时显示用户消息(乐观更新UI)
+    const tempUserMessage: UIMessage = {
+      id: `temp-${Date.now()}`, // 临时 ID
       sender: 'user',
       text: messageText,
       timestamp: timeString,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, tempUserMessage]);
 
     // 保存用户消息到数据库
     try {
-      await dbSendMessage(friendId, 'user', messageText);
+      const messageId = await dbSendMessage(friendId, 'user', messageText);
+      
+      // 用真实的数据库 ID 替换临时 ID
+      if (messageId) {
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === tempUserMessage.id 
+              ? { ...msg, id: messageId } 
+              : msg
+          )
+        );
+      }
     } catch (error) {
       console.error('保存用户消息失败:', error);
+      // 发送失败,移除临时消息
+      setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
+      alert('发送消息失败,请检查网络连接');
     }
 
-    // Handle Bot Logic
+    // Handle Bot Logic (仅用于 Bot 聊天)
     if (isBot) {
       if (isConnected) {
         wsSendMessage(messageText);
@@ -164,7 +216,7 @@ const ChatDetail: React.FC = () => {
         // Fallback Mock Bot Response if offline
         setTimeout(async () => {
           const botResponse: UIMessage = {
-            id: Date.now() + 1,
+            id: `temp-bot-${Date.now()}`,
             sender: 'bot',
             text: '[Mock Mode] Gateway is offline. Echo: ' + messageText,
             timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
@@ -173,16 +225,23 @@ const ChatDetail: React.FC = () => {
           
           // 保存 Bot 消息到数据库
           try {
-            await dbSendMessage(friendId, 'bot', botResponse.text);
+            const botMessageId = await dbSendMessage(friendId, 'bot', botResponse.text);
+            if (botMessageId) {
+              setMessages(prev => 
+                prev.map(msg => 
+                  msg.id === botResponse.id 
+                    ? { ...msg, id: botMessageId } 
+                    : msg
+                )
+              );
+            }
           } catch (error) {
             console.error('保存 Bot 消息失败:', error);
           }
         }, 1000);
       }
-    } else {
-      // Handle Friend Logic - 移除 Mock 回复,只保存用户消息
-      // 真实场景下,好友的消息会由后端推送
     }
+    // 对于好友聊天,好友的回复会通过实时订阅自动显示
   };
 
   const getStatusColor = () => {
