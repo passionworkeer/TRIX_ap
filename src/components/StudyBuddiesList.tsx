@@ -238,15 +238,22 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       // 关闭弹窗
       onClose();
 
+      // 🔍 准备传递的数据
+      const companionData = {
+        id: buddy.id,
+        username: buddy.username,
+        avatar: buddy.avatar
+      };
+      console.log('🚀 [StudyBuddies] 传递给计时器页面的数据:', {
+        duration: 25,
+        companion: companionData
+      });
+
       // 跳转到计时器页面，传递好友信息
       navigate(AppRoutes.TIMER, {
         state: {
           duration: 25, // 默认25分钟
-          companion: {
-            id: buddy.id,
-            username: buddy.username,
-            avatar: buddy.avatar
-          }
+          companion: companionData
         }
       });
       

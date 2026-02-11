@@ -51,6 +51,9 @@ function AppContent() {
   // 判断是否在聊天详情页 (不显示底部导航)
   const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
   
+  // 判断是否在计时器页面 (不显示底部导航，保持专注)
+  const isTimerPage = location.pathname === AppRoutes.TIMER;
+  
   // 判断是否在认证页面 (登录/注册)
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
   
@@ -114,8 +117,8 @@ function AppContent() {
         </div>
         
         {/* 物理占位符：给底部 Dock 撑开空间，防止内容被遮挡 */}
-        {/* 聊天详情页和认证页面不需要占位符,因为没有底部导航 */}
-        {!isChatDetailPage && !isAuthPage && user && (
+        {/* 聊天详情页、计时器页面和认证页面不需要占位符,因为没有底部导航 */}
+        {!isChatDetailPage && !isTimerPage && !isAuthPage && user && (
           <div 
             className="w-full flex-shrink-0 pointer-events-none" 
             style={{ 
@@ -127,9 +130,9 @@ function AppContent() {
       </div>
 
       {/* 🎯 Layer 50: 悬浮交互层 - 永远在最上面 */}
-      {/* 只在登录状态下且不在认证页面时显示底部导航 */}
+      {/* 只在登录状态下且不在认证页面、聊天详情页、计时器页面时显示底部导航 */}
       <AnimatePresence mode="wait">
-        {user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isAuthPage && (
+        {user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isTimerPage && !isAuthPage && (
            <GlassDock key="dock" />
         )}
       </AnimatePresence>

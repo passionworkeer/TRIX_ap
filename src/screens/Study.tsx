@@ -24,6 +24,13 @@ export default function Study() {
   // 获取陪同好友信息
   const companion = (location.state as any)?.companion as CompanionInfo | undefined;
 
+  // 🔍 调试：打印 companion 数据
+  useEffect(() => {
+    console.log('🎯 [Study] Location state:', location.state);
+    console.log('🎯 [Study] Companion data:', companion);
+    console.log('🎯 [Study] Is timer page:', isTimer);
+  }, [location.state, companion, isTimer]);
+
   const [selectedDuration, setSelectedDuration] = useState(25);
   const timePresets = [25, 45, 60];
 
