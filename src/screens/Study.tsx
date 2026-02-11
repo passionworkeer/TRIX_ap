@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
@@ -83,64 +83,90 @@ export default function Study() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // 🎯 从数据库查询 companion 信息（如果 location.state 没有提供）
-  useEffect(() => {
-    const fetchCompanionInfo = async () => {
-      // 只在计时器页面且没有 companion 数据时查询
-      if (!isTimer || !user?.id || companion) return;
-      
-      console.log('🔍 [Study] location.state 没有 companion，从数据库查询...');
-      
-      try {
-        // 1. 查询自己的 companion_id
-        const { data: myProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('companion_id')
-          .eq('id', user.id)
-          .single();
+  // 🎯 查询 companion 信息的函数（使用 useCallback 避免重复创建）
+  const fetchCompanionInfo = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      // 1. 查询自己的 companion_id
+      const { data: myProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('companion_id')
+        .eq('id', user.id)
+        .single();
 
-        if (profileError) {
-          console.error('❌ [Study] 查询 companion_id 失败:', profileError);
-          return;
-        }
-
-        console.log('📊 [Study] 我的 companion_id:', myProfile?.companion_id);
-
-        if (!myProfile?.companion_id) {
-          console.log('⚠️ [Study] 没有 companion_id，单人自习模式');
-          return;
-        }
-
-        // 2. 查询好友的信息
-        const { data: companionProfile, error: companionError } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .eq('id', myProfile.companion_id)
-          .single();
-
-        if (companionError) {
-          console.error('❌ [Study] 查询好友信息失败:', companionError);
-          return;
-        }
-
-        console.log('✅ [Study] 成功查询到好友信息:', companionProfile);
-
-        // 3. 设置 companion 状态
-        setCompanion({
-          id: companionProfile.id,
-          username: companionProfile.username || 'Unknown',
-          avatar: companionProfile.avatar_url || ''
-        });
-
-      } catch (err) {
-        console.error('❌ [Study] 查询 companion 异常:', err);
+      if (profileError) {
+        console.error('❌ [Study] 查询 companion_id 失败:', profileError);
+        return;
       }
+
+      console.log('📊 [Study] 我的 companion_id:', myProfile?.companion_id);
+
+      if (!myProfile?.companion_id) {
+        console.log('⚠️ [Study] 没有 companion_id，单人自习模式');
+        setCompanion(undefined); // 清除 companion
+        return;
+      }
+
+      // 2. 查询好友的信息
+      const { data: companionProfile, error: companionError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('id', myProfile.companion_id)
+        .single();
+
+      if (companionError) {
+        console.error('❌ [Study] 查询好友信息失败:', companionError);
+        return;
+      }
+
+      console.log('✅ [Study] 成功查询到好友信息:', companionProfile);
+
+      // 3. 设置 companion 状态
+      setCompanion({
+        id: companionProfile.id,
+        username: companionProfile.username || 'Unknown',
+        avatar: companionProfile.avatar_url || ''
+      });
+
+    } catch (err) {
+      console.error('❌ [Study] 查询 companion 异常:', err);
+    }
+  }, [user?.id]); // useCallback 的依赖数组
+
+  // 🎯 初始加载：从 location.state 或数据库获取 companion
+  useEffect(() => {
+    if (!isTimer) return;
+    
+    // 如果 location.state 有数据，直接使用
+    if ((location.state as any)?.companion) {
+      console.log('📦 [Study] 使用 location.state 的 companion 数据');
+      setCompanion((location.state as any).companion);
+    } else {
+      // 否则从数据库查询
+      console.log('🔍 [Study] location.state 没有 companion，从数据库查询...');
+      fetchCompanionInfo();
+    }
+  }, [isTimer, fetchCompanionInfo]); // 添加 fetchCompanionInfo 依赖
+
+  // 🔄 定时轮询：每 3 秒检查一次 companion_id（Realtime 的兜底方案）
+  useEffect(() => {
+    if (!isTimer || !user?.id) return;
+
+    console.log('⏰ [Study] 启动定时轮询（3秒间隔）');
+
+    const pollInterval = setInterval(() => {
+      console.log('🔄 [Study] 轮询检查 companion_id...');
+      fetchCompanionInfo();
+    }, 3000); // 3 秒轮询一次
+
+    return () => {
+      console.log('🧹 [Study] 清理定时轮询');
+      clearInterval(pollInterval);
     };
+  }, [isTimer, fetchCompanionInfo]); // 添加 fetchCompanionInfo 依赖
 
-    fetchCompanionInfo();
-  }, [isTimer, user?.id, companion]); // companion 作为依赖，已有时不再查询
-
-  // 🔔 实时监听 companion_id 变化（被加入者也能看到双头像）
+  // 🔔 实时监听 companion_id 变化（作为快速响应）
   useEffect(() => {
     if (!isTimer || !user?.id) return;
 
