@@ -271,8 +271,10 @@ export default function Study() {
     console.log('📍 Is Timer Page:', isTimer);
     console.log('👤 User ID:', user?.id);
     console.log('🤝 Companion Data:', companion);
+    console.log('⏱️ Focus Start Time:', focusStartTime ? new Date(focusStartTime).toLocaleTimeString() : 'null');
+    console.log('⏱️ Initial Duration:', initialDuration);
     console.log('================================');
-  }, [isTimer, user?.id, companion]);
+  }, [isTimer, user?.id, companion, focusStartTime, initialDuration]);
 
   useEffect(() => {
     if (isTimer) {
@@ -280,6 +282,12 @@ export default function Study() {
       setTimeLeft(duration * 60);
       setIsActive(true);
       setIsCompleted(false);
+      
+      // 🎯 每次进入计时器页面时都重新初始化开始时间
+      const startTime = Date.now();
+      console.log('⏱️ [Study] 初始化专注计时:', { duration, startTime });
+      setFocusStartTime(startTime);
+      setInitialDuration(duration);
     } else {
       setIsActive(false);
     }
@@ -346,12 +354,32 @@ export default function Study() {
   const handleStopFocus = async () => {
     // 🏅 计算本次专注时长并保存
     let studiedMinutes = 0;
+    
+    console.log('🔍 [Study] 计算专注时长 - 当前状态:', {
+      focusStartTime,
+      initialDuration,
+      currentTime: Date.now(),
+      hasStartTime: !!focusStartTime
+    });
+    
     if (focusStartTime && initialDuration) {
       const elapsedMs = Date.now() - focusStartTime;
       const elapsedMinutes = Math.floor(elapsedMs / 60000); // 转换为分钟
       // 至少完成1分钟才算有效专注
       studiedMinutes = Math.min(elapsedMinutes, initialDuration);
-      console.log(`📊 [Study] 本次专注时长: ${studiedMinutes} 分钟`);
+      console.log(`📊 [Study] 本次专注时长计算:`, {
+        开始时间: new Date(focusStartTime).toLocaleTimeString(),
+        当前时间: new Date().toLocaleTimeString(),
+        经过毫秒: elapsedMs,
+        经过分钟: elapsedMinutes,
+        设定时长: initialDuration,
+        最终时长: studiedMinutes
+      });
+    } else {
+      console.warn('⚠️ [Study] 无法计算时长 - 缺少必要数据:', {
+        focusStartTime,
+        initialDuration
+      });
     }
 
     // 更新数据库：标记用户停止自习，并清除双向关联
