@@ -34,46 +34,55 @@ const StudyBuddiesList: React.FC = () => {
         .eq('id', userId)
         .single();
 
-      // 2. 获取所有正在自习的好友
+      console.log('👤 [StudyBuddies] 我的状态:', myProfile);
+
+      // 2. 第一步: 查询所有好友关系
       const { data: friendsData, error: friendsError } = await supabase
         .from('friends')
-        .select(`
-          friend_id,
-          profiles:friend_id (
-            id,
-            username,
-            avatar,
-            is_studying
-          )
-        `)
+        .select('friend_id')
         .eq('user_id', userId)
         .eq('status', 'accepted');
 
       if (friendsError) {
-        console.error('❌ [StudyBuddies] 获取好友失败:', friendsError);
+        console.error('❌ [StudyBuddies] 获取好友关系失败:', friendsError);
         return;
       }
 
-      console.log('📊 [StudyBuddies] 好友数据:', friendsData);
+      console.log('📊 [StudyBuddies] 好友关系数据:', friendsData);
 
-      // 3. 筛选正在自习的好友
+      // 3. 第二步: 如果有好友,批量查询他们的 profiles
       const studyingFriends: StudyBuddy[] = [];
-      
-      if (friendsData) {
-        friendsData.forEach((friend: any) => {
-          const profile = friend.profiles;
-          if (profile && profile.is_studying) {
+
+      if (friendsData && friendsData.length > 0) {
+        const friendIds = friendsData.map(f => f.friend_id);
+        
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar, is_studying')
+          .in('id', friendIds)
+          .eq('is_studying', true); // 只要正在自习的
+
+        if (profilesError) {
+          console.error('❌ [StudyBuddies] 获取好友 profiles 失败:', profilesError);
+          return;
+        }
+
+        console.log('📊 [StudyBuddies] 正在自习的好友:', profiles);
+
+        // 4. 转换为 StudyBuddy 格式
+        if (profiles) {
+          profiles.forEach((profile) => {
             studyingFriends.push({
               id: profile.id,
               username: profile.username || 'Unknown',
               avatar: profile.avatar || IMAGES.WIZARD_BOY_LOGIN,
               isMe: false
             });
-          }
-        });
+          });
+        }
       }
 
-      // 4. 如果我也在自习,把自己放在第一位
+      // 5. 如果我也在自习,把自己放在第一位
       const allBuddies: StudyBuddy[] = [];
       
       if (myProfile?.is_studying) {
