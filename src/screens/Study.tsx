@@ -26,17 +26,23 @@ export default function Study() {
 
   // 🎯 使用 ref 追踪是否需要清理（只有在计时器页面才清理）
   const shouldCleanupRef = useRef(false);
+  const userIdRef = useRef(user?.id);
+
+  // 更新 userIdRef
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
 
   // 🧹 组件卸载时清理自习状态
   useEffect(() => {
     return () => {
       // 只有标记为需要清理时才执行（即在计时器页面时）
-      if (shouldCleanupRef.current && user?.id) {
+      if (shouldCleanupRef.current && userIdRef.current) {
         console.log('🧹 [Study] 组件卸载，清理自习状态...');
         supabase
           .from('profiles')
           .update({ is_studying: false })
-          .eq('id', user.id)
+          .eq('id', userIdRef.current)
           .then(({ error }) => {
             if (!error) {
               console.log('✅ [Study] 已清理 is_studying = false');
@@ -44,7 +50,7 @@ export default function Study() {
           });
       }
     };
-  }, [user?.id]);
+  }, []); // 空依赖数组，只在组件卸载时执行
 
   useEffect(() => {
     if (isTimer) {
