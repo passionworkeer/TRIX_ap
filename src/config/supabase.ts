@@ -158,6 +158,7 @@ export interface Profile {
   avatar_url?: string;
   website?: string;
   bio?: string;
+  is_studying?: boolean; // 用户是否正在自习
   created_at?: string;
   updated_at?: string;
 }

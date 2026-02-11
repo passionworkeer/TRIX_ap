@@ -55,7 +55,22 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
       if (friendsData && friendsData.length > 0) {
         const friendIds = friendsData.map(f => f.friend_id);
+        console.log('🔍 [StudyBuddies] 好友 ID 列表:', friendIds);
         
+        // 先查询所有好友的 profiles（包含 is_studying 状态）
+        const { data: allProfiles, error: allProfilesError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, is_studying')
+          .in('id', friendIds);
+
+        if (allProfilesError) {
+          console.error('❌ [StudyBuddies] 获取好友 profiles 失败:', allProfilesError);
+          return;
+        }
+
+        console.log('📊 [StudyBuddies] 所有好友的 profiles:', allProfiles);
+        
+        // 再查询正在自习的好友
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, username, avatar_url, is_studying')
@@ -63,7 +78,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
           .eq('is_studying', true); // ✅ 直接筛选正在自习的好友
 
         if (profilesError) {
-          console.error('❌ [StudyBuddies] 获取好友 profiles 失败:', profilesError);
+          console.error('❌ [StudyBuddies] 获取自习中好友失败:', profilesError);
           return;
         }
 
