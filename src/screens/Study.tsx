@@ -3,12 +3,15 @@ import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
+import { supabase } from "../config/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 const BG_IMAGE = "/assets/StudyRoomBG.png";
 
 export default function Study() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth(); // 获取当前用户
   const isTimer = location.pathname.includes("/timer");
 
   const [selectedDuration, setSelectedDuration] = useState(25);
@@ -55,8 +58,52 @@ export default function Study() {
     };
   };
 
-  const handleStartFocus = () => {
+  const handleStartFocus = async () => {
+    // 更新数据库：标记用户开始自习
+    if (user?.id) {
+      try {
+        console.log('🚀 [Study] 开始自习，更新数据库状态...');
+        const { error } = await supabase
+          .from('profiles')
+          .update({ is_studying: true })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('❌ [Study] 更新 is_studying 失败:', error);
+        } else {
+          console.log('✅ [Study] 已更新 is_studying = true');
+        }
+      } catch (err) {
+        console.error('❌ [Study] 数据库更新异常:', err);
+      }
+    }
+    
+    // 跳转到计时器页面
     navigate(AppRoutes.TIMER, { state: { duration: selectedDuration } });
+  };
+
+  const handleStopFocus = async () => {
+    // 更新数据库：标记用户停止自习
+    if (user?.id) {
+      try {
+        console.log('🛑 [Study] 停止自习，更新数据库状态...');
+        const { error } = await supabase
+          .from('profiles')
+          .update({ is_studying: false })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error('❌ [Study] 更新 is_studying 失败:', error);
+        } else {
+          console.log('✅ [Study] 已更新 is_studying = false');
+        }
+      } catch (err) {
+        console.error('❌ [Study] 数据库更新异常:', err);
+      }
+    }
+    
+    // 返回自习室主页
+    navigate(AppRoutes.STUDY);
   };
 
   const timeObj = formatTime(timeLeft);
@@ -83,7 +130,7 @@ export default function Study() {
         <div className="relative z-10 flex flex-col h-full">
           {/* 关闭按钮 */}
           <button
-            onClick={() => navigate(AppRoutes.STUDY)}
+            onClick={handleStopFocus}
             className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
           >
             <X size={20} className="text-white" />
@@ -121,7 +168,7 @@ export default function Study() {
                   <h3 className="text-xl font-bold text-white mb-1">太棒了！</h3>
                   <p className="text-blue-200 text-sm mb-4">获得 +50 积分</p>
                   <button
-                    onClick={() => navigate(AppRoutes.STUDY)}
+                    onClick={handleStopFocus}
                     className="bg-white text-slate-900 px-6 py-2.5 rounded-full font-semibold hover:scale-105 transition-transform shadow-lg"
                   >
                     返回自习室
@@ -134,7 +181,7 @@ export default function Study() {
           {!isCompleted && (
             <div className="pb-16 flex justify-center">
               <button
-                onClick={() => navigate(AppRoutes.STUDY)}
+                onClick={handleStopFocus}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-red-500/15 backdrop-blur-md border border-red-500/20 hover:bg-red-500/25 transition-all active:scale-95"
               >
                 <X size={16} className="text-red-300" />
