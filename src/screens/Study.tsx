@@ -24,6 +24,28 @@ export default function Study() {
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
 
+  // 🧹 清理函数：组件卸载时自动停止自习状态
+  useEffect(() => {
+    // 当进入计时器页面时，状态已经在 handleStartFocus 中设置为 true
+    // 这里只需要在组件卸载时清理
+    return () => {
+      if (isTimer && user?.id) {
+        console.log('🧹 [Study] 组件卸载，清理自习状态...');
+        supabase
+          .from('profiles')
+          .update({ is_studying: false })
+          .eq('id', user.id)
+          .then(({ error }) => {
+            if (error) {
+              console.error('❌ [Study] 清理状态失败:', error);
+            } else {
+              console.log('✅ [Study] 已清理 is_studying = false');
+            }
+          });
+      }
+    };
+  }, [isTimer, user?.id]);
+
   useEffect(() => {
     if (isTimer) {
       const duration = location.state?.duration || 25;

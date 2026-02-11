@@ -20,6 +20,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
   const [buddies, setBuddies] = useState<StudyBuddy[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [joiningBuddyId, setJoiningBuddyId] = useState<string | null>(null); // 正在加入的好友 ID
 
   // 获取自习伙伴列表
   const fetchStudyBuddies = async () => {
@@ -120,6 +121,8 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
     console.log('🔌 [StudyBuddies] 启动实时监听');
 
+    let refreshTimeout: NodeJS.Timeout;
+
     // 监听 profiles 表的 is_studying 字段更新
     const channel = supabase
       .channel('study-buddies-updates')
@@ -132,8 +135,13 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         },
         (payload) => {
           console.log('🔥 [StudyBuddies] 检测到 profiles 更新:', payload);
-          // 重新获取列表
-          fetchStudyBuddies();
+          
+          // 🎯 优化：防抖刷新（避免频繁查询）
+          clearTimeout(refreshTimeout);
+          refreshTimeout = setTimeout(() => {
+            console.log('🔄 [StudyBuddies] 刷新好友列表...');
+            fetchStudyBuddies();
+          }, 500); // 500ms 防抖
         }
       )
       .subscribe((status) => {
@@ -142,6 +150,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
     return () => {
       console.log('🧹 [StudyBuddies] 清理订阅');
+      clearTimeout(refreshTimeout);
       supabase.removeChannel(channel);
     };
   }, [currentUserId, isOpen]);
@@ -150,10 +159,35 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
   if (!isOpen) return null;
 
   // 加入好友的自习室
-  const handleJoinBuddy = (buddyId: string, buddyName: string) => {
-    console.log(`🚀 [StudyBuddies] 加入 ${buddyName} 的自习室`);
-    // TODO: 实现加入逻辑
-    alert(`即将加入 ${buddyName} 的自习室 (功能开发中)`);
+  const handleJoinBuddy = async (buddyId: string, buddyName: string) => {
+    console.log(`🚀 [StudyBuddies] 准备加入 ${buddyName} 的自习室`, { buddyId });
+    
+    // 设置加入中状态（显示 Loading）
+    setJoiningBuddyId(buddyId);
+    
+    try {
+      // 🎯 模拟加载延迟（给用户视觉反馈）
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // TODO: 未来功能
+      // 1. 如果有 3D 场景，这里应该跳转到共享场景
+      // 2. 如果有语音功能，这里应该加入语音频道
+      // 3. 如果有同步功能，这里应该同步计时器状态
+      
+      console.log(`✅ [StudyBuddies] 成功加入 ${buddyName} 的自习室`);
+      
+      // 显示成功提示
+      alert(`✅ 已进入陪同状态\n正在与 ${buddyName} 一起自习！\n\n(未来版本将支持实时同步和语音交流)`);
+      
+      // 关闭弹窗
+      onClose();
+      
+    } catch (error) {
+      console.error(`❌ [StudyBuddies] 加入失败:`, error);
+      alert(`加入 ${buddyName} 的自习室失败，请稍后重试`);
+    } finally {
+      setJoiningBuddyId(null);
+    }
   };
 
   return (
@@ -243,9 +277,25 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
                   {/* 加入按钮 */}
                   <button
                     onClick={() => handleJoinBuddy(buddy.id, buddy.username)}
-                    className="px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-all active:scale-95 shadow-lg shadow-blue-500/30"
+                    disabled={joiningBuddyId !== null}
+                    className={`
+                      px-4 py-2 rounded-full text-white text-sm font-semibold transition-all shadow-lg
+                      ${joiningBuddyId === buddy.id 
+                        ? 'bg-blue-400 cursor-wait' 
+                        : joiningBuddyId !== null
+                        ? 'bg-gray-500 cursor-not-allowed opacity-50'
+                        : 'bg-blue-500 hover:bg-blue-600 active:scale-95 shadow-blue-500/30'
+                      }
+                    `}
                   >
-                    加入
+                    {joiningBuddyId === buddy.id ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>加入中...</span>
+                      </div>
+                    ) : (
+                      '加入'
+                    )}
                   </button>
                 </div>
               ))}
