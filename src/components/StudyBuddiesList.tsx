@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
@@ -17,6 +18,7 @@ interface StudyBuddiesListProps {
 }
 
 const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [buddies, setBuddies] = useState<StudyBuddy[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -178,21 +180,37 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
     setJoiningBuddyId(buddyId);
     
     try {
-      // 🎯 模拟加载延迟（给用户视觉反馈）
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // TODO: 未来功能
-      // 1. 如果有 3D 场景，这里应该跳转到共享场景
-      // 2. 如果有语音功能，这里应该加入语音频道
-      // 3. 如果有同步功能，这里应该同步计时器状态
+      // 获取好友信息
+      const buddy = buddies.find(b => b.id === buddyId);
+      if (!buddy) {
+        throw new Error('好友信息不存在');
+      }
+
+      // 更新自己的自习状态
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        await supabase
+          .from('profiles')
+          .update({ is_studying: true })
+          .eq('id', session.user.id);
+      }
       
       console.log(`✅ [StudyBuddies] 成功加入 ${buddyName} 的自习室`);
       
-      // 显示成功提示
-      alert(`✅ 已进入陪同状态\n正在与 ${buddyName} 一起自习！\n\n(未来版本将支持实时同步和语音交流)`);
-      
       // 关闭弹窗
       onClose();
+
+      // 跳转到计时器页面，传递好友信息
+      navigate('/timer', {
+        state: {
+          duration: 25, // 默认25分钟
+          companion: {
+            id: buddy.id,
+            username: buddy.username,
+            avatar: buddy.avatar
+          }
+        }
+      });
       
     } catch (error) {
       console.error(`❌ [StudyBuddies] 加入失败:`, error);
