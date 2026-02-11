@@ -126,7 +126,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
     let refreshTimeout: NodeJS.Timeout;
 
-    // 监听 profiles 表的 is_studying 字段更新
+    // 监听 profiles 表的 is_studying 和 companion_id 字段更新
     const channel = supabase
       .channel(`study-buddies-realtime-${currentUserId}`) // 唯一 channel 名称
       .on(
@@ -141,9 +141,12 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
           console.log('🔥 [StudyBuddies] 检测到 profiles 更新:', payload);
           console.log('🔍 [StudyBuddies] 更新的字段:', payload.new);
           
-          // 检查是否是 is_studying 字段变化
-          if ('is_studying' in payload.new) {
-            console.log(`📊 [StudyBuddies] is_studying 变化: ${payload.old?.is_studying} → ${payload.new.is_studying}`);
+          // 检查是否是 is_studying 或 companion_id 字段变化
+          if ('is_studying' in payload.new || 'companion_id' in payload.new) {
+            console.log(`📊 [StudyBuddies] 状态变化:`, {
+              is_studying: `${payload.old?.is_studying} → ${payload.new.is_studying}`,
+              companion_id: `${payload.old?.companion_id} → ${payload.new.companion_id}`
+            });
             
             // 🎯 优化：防抖刷新（避免频繁查询）
             clearTimeout(refreshTimeout);
@@ -187,16 +190,50 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         throw new Error('好友信息不存在');
       }
 
-      // 更新自己的自习状态
+      // 获取当前用户 session
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
+      if (!session?.user?.id) {
+        throw new Error('用户未登录');
+      }
+
+      const myId = session.user.id;
+
+      console.log(`🔗 [StudyBuddies] 建立双向连接: ${myId} ↔️ ${buddyId}`);
+
+      // 🎯 双向更新：使用事务确保数据一致性
+      // 1. 更新自己的状态：设置为正在自习 + 关联到好友
+      const { error: myError } = await supabase
+        .from('profiles')
+        .update({ 
+          is_studying: true,
+          companion_id: buddyId  // 关联到好友
+        })
+        .eq('id', myId);
+
+      if (myError) {
+        console.error('❌ [StudyBuddies] 更新自己的状态失败:', myError);
+        throw myError;
+      }
+
+      // 2. 更新好友的状态：关联到我
+      const { error: buddyError } = await supabase
+        .from('profiles')
+        .update({ 
+          companion_id: myId  // 好友关联到我
+        })
+        .eq('id', buddyId);
+
+      if (buddyError) {
+        console.error('❌ [StudyBuddies] 更新好友的状态失败:', buddyError);
+        // 回滚自己的状态
         await supabase
           .from('profiles')
-          .update({ is_studying: true })
-          .eq('id', session.user.id);
+          .update({ is_studying: false, companion_id: null })
+          .eq('id', myId);
+        throw buddyError;
       }
       
-      console.log(`✅ [StudyBuddies] 成功加入 ${buddyName} 的自习室`);
+      console.log(`✅ [StudyBuddies] 双向连接建立成功！`);
       
       // 关闭弹窗
       onClose();

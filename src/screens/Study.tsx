@@ -48,11 +48,32 @@ export default function Study() {
     const handleBeforeUnload = async () => {
       if (isStudyingRef.current && userIdRef.current) {
         console.log('🌐 [Study] 浏览器关闭，清理自习状态...');
-        // 同步请求，确保在页面关闭前执行
+        
+        // 🎯 获取当前用户的 companion_id
+        const { data: myProfile } = await supabase
+          .from('profiles')
+          .select('companion_id')
+          .eq('id', userIdRef.current)
+          .single();
+
+        const companionId = myProfile?.companion_id;
+
+        // 清理自己的状态
         await supabase
           .from('profiles')
-          .update({ is_studying: false })
+          .update({ 
+            is_studying: false,
+            companion_id: null 
+          })
           .eq('id', userIdRef.current);
+
+        // 如果有好友，也清除好友的关联
+        if (companionId) {
+          await supabase
+            .from('profiles')
+            .update({ companion_id: null })
+            .eq('id', companionId);
+        }
       }
     };
 
@@ -121,21 +142,51 @@ export default function Study() {
   };
 
   const handleStopFocus = async () => {
-    // 更新数据库：标记用户停止自习
+    // 更新数据库：标记用户停止自习，并清除双向关联
     if (user?.id) {
       try {
         console.log('🛑 [Study] 停止自习，更新数据库状态...');
+        
+        // 🎯 获取当前用户的 companion_id
+        const { data: myProfile } = await supabase
+          .from('profiles')
+          .select('companion_id')
+          .eq('id', user.id)
+          .single();
+
+        const companionId = myProfile?.companion_id;
+
         // 🎯 取消自习标记
         isStudyingRef.current = false;
+        
+        // 1. 更新自己的状态：清除 is_studying 和 companion_id
         const { error } = await supabase
           .from('profiles')
-          .update({ is_studying: false })
+          .update({ 
+            is_studying: false,
+            companion_id: null 
+          })
           .eq('id', user.id);
         
         if (error) {
-          console.error('❌ [Study] 更新 is_studying 失败:', error);
+          console.error('❌ [Study] 更新自己的状态失败:', error);
         } else {
-          console.log('✅ [Study] 已更新 is_studying = false');
+          console.log('✅ [Study] 已更新 is_studying = false, companion_id = null');
+        }
+
+        // 2. 如果有好友在一起自习，也清除好友的 companion_id
+        if (companionId) {
+          console.log(`🔗 [Study] 清除好友 ${companionId} 的关联`);
+          const { error: companionError } = await supabase
+            .from('profiles')
+            .update({ companion_id: null })
+            .eq('id', companionId);
+          
+          if (companionError) {
+            console.error('❌ [Study] 清除好友关联失败:', companionError);
+          } else {
+            console.log('✅ [Study] 已清除好友的 companion_id');
+          }
         }
       } catch (err) {
         console.error('❌ [Study] 数据库更新异常:', err);
@@ -181,36 +232,36 @@ export default function Study() {
             <div className="flex flex-col items-center">
               {/* 好友头像显示 */}
               {companion && (
-                <div className="mb-8 flex items-center gap-4">
+                <div className="mb-8 flex items-center gap-6">
                   {/* 我的头像 */}
                   <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-full overflow-hidden ring-4 ring-blue-500/50 shadow-lg">
+                    <div className="rounded-full ring-4 ring-blue-500/50 shadow-lg shadow-blue-500/30">
                       <Avatar
                         name={profile?.username || user?.email?.split('@')[0] || 'Me'}
                         avatar={profile?.avatar_url}
-                        size="lg"
+                        size="xl"
                       />
                     </div>
-                    <span className="text-xs text-white/70 mt-2">{profile?.username || '我'}</span>
+                    <span className="text-sm text-white/80 mt-2 font-medium">{profile?.username || '我'}</span>
                   </div>
 
                   {/* 连接线 */}
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
-                    <div className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500"></div>
+                    <div className="w-10 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-lg shadow-purple-400/50"></div>
+                    <div className="w-10 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 animate-pulse"></div>
                   </div>
 
                   {/* 好友头像 */}
                   <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-full overflow-hidden ring-4 ring-purple-500/50 shadow-lg">
+                    <div className="rounded-full ring-4 ring-purple-500/50 shadow-lg shadow-purple-500/30">
                       <Avatar
                         name={companion.username}
                         avatar={companion.avatar}
-                        size="lg"
+                        size="xl"
                       />
                     </div>
-                    <span className="text-xs text-white/70 mt-2">{companion.username}</span>
+                    <span className="text-sm text-white/80 mt-2 font-medium">{companion.username}</span>
                   </div>
                 </div>
               )}
