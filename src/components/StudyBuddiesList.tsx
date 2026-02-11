@@ -202,13 +202,16 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
       // 🎯 双向更新：使用事务确保数据一致性
       // 1. 更新自己的状态：设置为正在自习 + 关联到好友
-      const { error: myError } = await supabase
+      const { data: myData, error: myError } = await supabase
         .from('profiles')
         .update({ 
           is_studying: true,
           companion_id: buddyId  // 关联到好友
         })
-        .eq('id', myId);
+        .eq('id', myId)
+        .select();
+
+      console.log('📊 [StudyBuddies] 更新自己的结果:', { data: myData, error: myError });
 
       if (myError) {
         console.error('❌ [StudyBuddies] 更新自己的状态失败:', myError);
@@ -216,24 +219,37 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       }
 
       // 2. 更新好友的状态：关联到我
-      const { error: buddyError } = await supabase
+      const { data: buddyData, error: buddyError } = await supabase
         .from('profiles')
         .update({ 
           companion_id: myId  // 好友关联到我
         })
-        .eq('id', buddyId);
+        .eq('id', buddyId)
+        .select();
+
+      console.log('📊 [StudyBuddies] 更新好友的结果:', { data: buddyData, error: buddyError });
 
       if (buddyError) {
         console.error('❌ [StudyBuddies] 更新好友的状态失败:', buddyError);
+        console.error('❌ [StudyBuddies] 错误详情:', JSON.stringify(buddyError, null, 2));
+        
         // 回滚自己的状态
         await supabase
           .from('profiles')
           .update({ is_studying: false, companion_id: null })
           .eq('id', myId);
-        throw buddyError;
+        
+        throw new Error(`无法更新好友状态: ${buddyError.message}. 可能是权限问题，请检查 RLS 策略。`);
+      }
+
+      if (!buddyData || buddyData.length === 0) {
+        console.warn('⚠️ [StudyBuddies] 好友状态更新返回空数据，可能被 RLS 策略阻止');
+        throw new Error('无法更新好友状态，可能是权限问题。请联系管理员检查数据库 RLS 策略。');
       }
       
       console.log(`✅ [StudyBuddies] 双向连接建立成功！`);
+      console.log('✅ [StudyBuddies] 我的数据:', myData);
+      console.log('✅ [StudyBuddies] 好友数据:', buddyData);
       
       // 关闭弹窗
       onClose();
