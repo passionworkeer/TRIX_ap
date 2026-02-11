@@ -32,6 +32,13 @@ export default function Study() {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  
+  // 🎯 追踪本次专注开始时间和初始时长
+  const [focusStartTime, setFocusStartTime] = useState<number | null>(null);
+  const [initialDuration, setInitialDuration] = useState(25);
+
+  // 🏅 累计专注时长状态
+  const [totalStudyTime, setTotalStudyTime] = useState(0); // 单位: 分钟
 
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
@@ -43,6 +50,32 @@ export default function Study() {
   // 更新 userIdRef
   useEffect(() => {
     userIdRef.current = user?.id;
+  }, [user?.id]);
+
+  // 🏅 查询累计专注时长
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchTotalStudyTime = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('total_study_time')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('❌ [Study] 查询 total_study_time 失败:', error);
+        } else {
+          setTotalStudyTime(data?.total_study_time || 0);
+          console.log('📊 [Study] 累计专注时长:', data?.total_study_time, '分钟');
+        }
+      } catch (err) {
+        console.error('❌ [Study] 查询时长异常:', err);
+      }
+    };
+
+    fetchTotalStudyTime();
   }, [user?.id]);
 
   // 🧹 浏览器关闭/刷新时清理自习状态
@@ -297,41 +330,66 @@ export default function Study() {
       }
     }
     
+    // 🎯 记录开始时间和初始时长
+    setFocusStartTime(Date.now());
+    setInitialDuration(selectedDuration);
+    
     // 跳转到计时器页面
-    navigate(AppRoutes.TIMER, { state: { duration: selectedDuration } });
+    navigate(AppRoutes.TIMER, { 
+      state: { 
+        duration: selectedDuration,
+        companion: companion // 携带 companion 信息
+      } 
+    });
   };
 
   const handleStopFocus = async () => {
+    // 🏅 计算本次专注时长并保存
+    let studiedMinutes = 0;
+    if (focusStartTime && initialDuration) {
+      const elapsedMs = Date.now() - focusStartTime;
+      const elapsedMinutes = Math.floor(elapsedMs / 60000); // 转换为分钟
+      // 至少完成1分钟才算有效专注
+      studiedMinutes = Math.min(elapsedMinutes, initialDuration);
+      console.log(`📊 [Study] 本次专注时长: ${studiedMinutes} 分钟`);
+    }
+
     // 更新数据库：标记用户停止自习，并清除双向关联
     if (user?.id) {
       try {
         console.log('🛑 [Study] 停止自习，更新数据库状态...');
         
-        // 🎯 获取当前用户的 companion_id
+        // 🎯 获取当前用户的 companion_id 和 total_study_time
         const { data: myProfile } = await supabase
           .from('profiles')
-          .select('companion_id')
+          .select('companion_id, total_study_time')
           .eq('id', user.id)
           .single();
 
         const companionId = myProfile?.companion_id;
+        const currentTotal = myProfile?.total_study_time || 0;
 
         // 🎯 取消自习标记
         isStudyingRef.current = false;
         
-        // 1. 更新自己的状态：清除 is_studying 和 companion_id
+        // 🏅 累加专注时长
+        const newTotal = currentTotal + studiedMinutes;
+        console.log(`🏅 [Study] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
+        
+        // 1. 更新自己的状态：清除 is_studying 和 companion_id，累加时长
         const { error } = await supabase
           .from('profiles')
           .update({ 
             is_studying: false,
-            companion_id: null 
+            companion_id: null,
+            total_study_time: newTotal
           })
           .eq('id', user.id);
         
         if (error) {
           console.error('❌ [Study] 更新自己的状态失败:', error);
         } else {
-          console.log('✅ [Study] 已更新 is_studying = false, companion_id = null');
+          console.log('✅ [Study] 已更新 is_studying = false, companion_id = null, total_study_time =', newTotal);
         }
 
         // 2. 如果有好友在一起自习，也清除好友的 companion_id
@@ -352,6 +410,10 @@ export default function Study() {
         console.error('❌ [Study] 数据库更新异常:', err);
       }
     }
+    
+    // 🧹 重置计时器状态
+    setFocusStartTime(null);
+    setInitialDuration(25);
     
     // 返回自习室主页
     navigate(AppRoutes.STUDY);
@@ -392,36 +454,47 @@ export default function Study() {
             <div className="flex flex-col items-center">
               {/* 好友头像显示 */}
               {companion && (
-                <div className="mb-8 flex items-center gap-6">
-                  {/* 我的头像 */}
-                  <div className="flex flex-col items-center">
-                    <div className="rounded-full ring-4 ring-blue-500/50 shadow-lg shadow-blue-500/30">
-                      <Avatar
-                        name={profile?.username || user?.email?.split('@')[0] || 'Me'}
-                        avatar={profile?.avatar_url}
-                        size="xl"
-                      />
+                <div className="mb-8 flex flex-col items-center gap-4">
+                  {/* 头像和连接线 */}
+                  <div className="flex items-center gap-6">
+                    {/* 我的头像 */}
+                    <div className="flex flex-col items-center">
+                      <div className="rounded-full ring-4 ring-blue-500/50 shadow-lg shadow-blue-500/30">
+                        <Avatar
+                          name={profile?.username || user?.email?.split('@')[0] || 'Me'}
+                          avatar={profile?.avatar_url}
+                          size="xl"
+                        />
+                      </div>
+                      <span className="text-sm text-white/80 mt-2 font-medium">{profile?.username || '我'}</span>
                     </div>
-                    <span className="text-sm text-white/80 mt-2 font-medium">{profile?.username || '我'}</span>
-                  </div>
 
-                  {/* 连接线 */}
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-lg shadow-purple-400/50"></div>
-                    <div className="w-10 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 animate-pulse"></div>
-                  </div>
-
-                  {/* 好友头像 */}
-                  <div className="flex flex-col items-center">
-                    <div className="rounded-full ring-4 ring-purple-500/50 shadow-lg shadow-purple-500/30">
-                      <Avatar
-                        name={companion.username}
-                        avatar={companion.avatar}
-                        size="xl"
-                      />
+                    {/* 连接线 */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-lg shadow-purple-400/50"></div>
+                      <div className="w-10 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 animate-pulse"></div>
                     </div>
-                    <span className="text-sm text-white/80 mt-2 font-medium">{companion.username}</span>
+
+                    {/* 好友头像 */}
+                    <div className="flex flex-col items-center">
+                      <div className="rounded-full ring-4 ring-purple-500/50 shadow-lg shadow-purple-500/30">
+                        <Avatar
+                          name={companion.username}
+                          avatar={companion.avatar}
+                          size="xl"
+                        />
+                      </div>
+                      <span className="text-sm text-white/80 mt-2 font-medium">{companion.username}</span>
+                    </div>
+                  </div>
+                  
+                  {/* 共同专注提示 */}
+                  <div className="px-4 py-2 rounded-full bg-purple-500/20 backdrop-blur-xl border border-purple-400/30 shadow-lg">
+                    <p className="text-sm font-medium text-purple-100 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                      正在与 <span className="font-bold">{companion.username}</span> 共同专注中
+                    </p>
                   </div>
                 </div>
               )}
@@ -584,8 +657,12 @@ export default function Study() {
               <Zap size={16} fill="white" className="text-white" />
             </div>
             <div>
-              <p className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">Today's Focus</p>
-              <p className="text-lg font-bold text-white">1<span className="text-xs font-medium opacity-60">h</span> 45<span className="text-xs font-medium opacity-60">m</span></p>
+              <p className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">Total Focus</p>
+              <p className="text-lg font-bold text-white">
+                {Math.floor(totalStudyTime / 60)}
+                <span className="text-xs font-medium opacity-60">h</span> {totalStudyTime % 60}
+                <span className="text-xs font-medium opacity-60">m</span>
+              </p>
             </div>
           </div>
         </div>
