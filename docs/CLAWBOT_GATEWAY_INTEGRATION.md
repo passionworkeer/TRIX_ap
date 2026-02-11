@@ -19,6 +19,15 @@
 
 ---
 
+## 快速开始
+
+> 📚 **新手推荐**: 如果您是第一次集成，建议先查看：
+>
+> - **[快速开始指南](./CLAWBOT_QUICK_START.md)** - 5分钟上手
+> - **[简化版实现](./CLAWBOT_SIMPLE_IMPLEMENTATION.md)** - 最小化代码示例
+
+---
+
 ## 项目概述
 
 ### 什么是 TRIX 3D Companion？
@@ -823,7 +832,13 @@ export default defineConfig({
 - **Supabase 文档**: [supabase.com/docs](https://supabase.com/docs)
 - **WebSocket 协议**: [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)
 
-### D. 联系方式
+### D. 文档导航
+
+- 返回[快速开始](#快速开始)
+- 查看[简化版实现](./CLAWBOT_SIMPLE_IMPLEMENTATION.md)
+- 查看[完整实现方案](./CLAWBOT_INTEGRATION_GUIDE.md)
+
+### E. 联系方式
 
 如有集成问题，请通过以下方式联系：
 

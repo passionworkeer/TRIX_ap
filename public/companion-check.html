@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Companion ID 数据库检查工具</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .result {
+      background: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .error {
+      border-left-color: #f44336;
+      background: #ffebee;
+      color: #c62828;
+    }
+    .success {
+      border-left-color: #4CAF50;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .warning {
+      border-left-color: #ff9800;
+      background: #fff3e0;
+      color: #e65100;
+    }
+    .step {
+      background: #e3f2fd;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border-left: 4px solid #2196F3;
+    }
+    .step h3 {
+      margin-top: 0;
+      color: #1976D2;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Companion ID 数据库检查工具</h1>
+    
+    <div class="step">
+      <h3>步骤 1: 检查字段是否存在</h3>
+      <button onclick="checkFieldExists()">检查 companion_id 字段</button>
+      <div id="field-check-result"></div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 2: 查看当前用户状态</h3>
+      <button onclick="checkCurrentUsers()">查看所有用户的 companion_id</button>
+      <div id="users-result"></div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 3: 测试手动更新</h3>
+      <p>用户 ID: <input type="text" id="user-id" placeholder="输入你的用户 ID" style="width: 300px; padding: 8px;"></p>
+      <p>好友 ID: <input type="text" id="friend-id" placeholder="输入好友的用户 ID" style="width: 300px; padding: 8px;"></p>
+      <button onclick="testUpdate()">测试更新 companion_id</button>
+      <div id="update-result"></div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 4: 执行迁移脚本</h3>
+      <p><strong>如果字段不存在，复制下面的 SQL 到 Supabase Dashboard 执行：</strong></p>
+      <pre id="migration-sql" style="background: #263238; color: #aed581; padding: 15px; border-radius: 8px; overflow-x: auto;">-- 添加 companion_id 字段
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS companion_id UUID 
+REFERENCES profiles(id) ON DELETE SET NULL;
+
+-- 添加索引
+CREATE INDEX IF NOT EXISTS idx_profiles_companion_id 
+ON profiles(companion_id);
+
+-- 添加注释
+COMMENT ON COLUMN profiles.companion_id 
+IS '正在一起自习的好友 ID（双向关联）';</pre>
+      <button onclick="copySQL()">复制 SQL</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // 从环境变量获取 Supabase 配置
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || prompt('请输入 Supabase URL:');
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || prompt('请输入 Supabase Anon Key:');
+
+    if (!supabaseUrl || !supabaseKey) {
+      document.body.innerHTML = '<div class="container"><h1>❌ 错误</h1><p>未配置 Supabase 连接信息</p></div>';
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    window.supabase = supabase;
+
+    // 检查字段是否存在
+    window.checkFieldExists = async function() {
+      const resultDiv = document.getElementById('field-check-result');
+      resultDiv.innerHTML = '<p>检查中...</p>';
+
+      try {
+        // 尝试查询 companion_id 字段
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, companion_id')
+          .limit(1);
+
+        if (error) {
+          if (error.message.includes('column') && error.message.includes('does not exist')) {
+            resultDiv.innerHTML = `
+              <div class="result error">
+                <strong>❌ 字段不存在！</strong><br>
+                companion_id 字段未在 profiles 表中找到<br>
+                <strong>解决方案:</strong> 执行下方的迁移 SQL
+              </div>
+            `;
+          } else {
+            resultDiv.innerHTML = `<div class="result error">错误: ${error.message}</div>`;
+          }
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result success">
+              <strong>✅ 字段存在！</strong><br>
+              companion_id 字段正常
+            </div>
+          `;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result error">异常: ${err.message}</div>`;
+      }
+    };
+
+    // 查看当前用户状态
+    window.checkCurrentUsers = async function() {
+      const resultDiv = document.getElementById('users-result');
+      resultDiv.innerHTML = '<p>查询中...</p>';
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, email, is_studying, companion_id')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          resultDiv.innerHTML = `<div class="result error">错误: ${error.message}</div>`;
+          return;
+        }
+
+        let html = '<div class="result success">';
+        html += `<strong>找到 ${data.length} 个用户：</strong><br><br>`;
+        
+        data.forEach(user => {
+          const studyStatus = user.is_studying ? '🟢 自习中' : '⚪ 空闲';
+          const companionStatus = user.companion_id ? `👥 与 ${user.companion_id.substring(0, 8)}... 一起` : '👤 单独';
+          
+          html += `<strong>${user.username || user.email}</strong><br>`;
+          html += `  ID: ${user.id}<br>`;
+          html += `  状态: ${studyStatus}<br>`;
+          html += `  伙伴: ${companionStatus}<br>`;
+          html += `  companion_id: ${user.companion_id || 'null'}<br><br>`;
+        });
+        
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result error">异常: ${err.message}</div>`;
+      }
+    };
+
+    // 测试更新
+    window.testUpdate = async function() {
+      const userId = document.getElementById('user-id').value.trim();
+      const friendId = document.getElementById('friend-id').value.trim();
+      const resultDiv = document.getElementById('update-result');
+
+      if (!userId || !friendId) {
+        resultDiv.innerHTML = '<div class="result warning">请输入用户 ID 和好友 ID</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = '<p>更新中...</p>';
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ companion_id: friendId })
+          .eq('id', userId)
+          .select();
+
+        if (error) {
+          resultDiv.innerHTML = `<div class="result error"><strong>更新失败：</strong><br>${error.message}</div>`;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="result success">
+              <strong>✅ 更新成功！</strong><br>
+              已将用户 ${userId.substring(0, 8)}... 的 companion_id 设置为 ${friendId.substring(0, 8)}...<br><br>
+              <strong>返回数据：</strong><br>
+              ${JSON.stringify(data, null, 2)}
+            </div>
+          `;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result error">异常: ${err.message}</div>`;
+      }
+    };
+
+    // 复制 SQL
+    window.copySQL = function() {
+      const sql = document.getElementById('migration-sql').textContent;
+      navigator.clipboard.writeText(sql).then(() => {
+        alert('✅ SQL 已复制到剪贴板！\n\n请到 Supabase Dashboard -> SQL Editor 粘贴执行。');
+      });
+    };
+  </script>
+</body>
+</html>
