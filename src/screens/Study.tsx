@@ -21,15 +21,10 @@ export default function Study() {
   const { user, profile } = useAuth(); // 获取当前用户
   const isTimer = location.pathname.includes("/timer");
 
-  // 获取陪同好友信息
-  const companion = (location.state as any)?.companion as CompanionInfo | undefined;
-
-  // 🔍 调试：打印 companion 数据
-  useEffect(() => {
-    console.log('🎯 [Study] Location state:', location.state);
-    console.log('🎯 [Study] Companion data:', companion);
-    console.log('🎯 [Study] Is timer page:', isTimer);
-  }, [location.state, companion, isTimer]);
+  // 🎯 使用 state 管理 companion 信息（支持从数据库查询）
+  const [companion, setCompanion] = useState<CompanionInfo | undefined>(
+    (location.state as any)?.companion as CompanionInfo | undefined
+  );
 
   const [selectedDuration, setSelectedDuration] = useState(25);
   const timePresets = [25, 45, 60];
@@ -87,6 +82,138 @@ export default function Study() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
+
+  // 🎯 从数据库查询 companion 信息（如果 location.state 没有提供）
+  useEffect(() => {
+    const fetchCompanionInfo = async () => {
+      // 只在计时器页面且没有 companion 数据时查询
+      if (!isTimer || !user?.id || companion) return;
+      
+      console.log('🔍 [Study] location.state 没有 companion，从数据库查询...');
+      
+      try {
+        // 1. 查询自己的 companion_id
+        const { data: myProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('companion_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('❌ [Study] 查询 companion_id 失败:', profileError);
+          return;
+        }
+
+        console.log('📊 [Study] 我的 companion_id:', myProfile?.companion_id);
+
+        if (!myProfile?.companion_id) {
+          console.log('⚠️ [Study] 没有 companion_id，单人自习模式');
+          return;
+        }
+
+        // 2. 查询好友的信息
+        const { data: companionProfile, error: companionError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', myProfile.companion_id)
+          .single();
+
+        if (companionError) {
+          console.error('❌ [Study] 查询好友信息失败:', companionError);
+          return;
+        }
+
+        console.log('✅ [Study] 成功查询到好友信息:', companionProfile);
+
+        // 3. 设置 companion 状态
+        setCompanion({
+          id: companionProfile.id,
+          username: companionProfile.username || 'Unknown',
+          avatar: companionProfile.avatar_url || ''
+        });
+
+      } catch (err) {
+        console.error('❌ [Study] 查询 companion 异常:', err);
+      }
+    };
+
+    fetchCompanionInfo();
+  }, [isTimer, user?.id, companion]); // companion 作为依赖，已有时不再查询
+
+  // 🔔 实时监听 companion_id 变化（被加入者也能看到双头像）
+  useEffect(() => {
+    if (!isTimer || !user?.id) return;
+
+    console.log('🔌 [Study] 启动 Realtime 监听 companion_id 变化');
+
+    const channel = supabase
+      .channel(`study-companion-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}` // 只监听自己的记录
+        },
+        (payload) => {
+          console.log('🔥 [Study] 检测到自己的 profile 更新:', payload);
+          
+          // 检查是否是 companion_id 变化
+          if ('companion_id' in payload.new) {
+            const newCompanionId = payload.new.companion_id;
+            console.log(`📊 [Study] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
+            
+            if (newCompanionId) {
+              // 有人加入了我的自习室，查询好友信息
+              console.log('🎉 [Study] 有好友加入了自习室，查询信息...');
+              
+              supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .eq('id', newCompanionId)
+                .single()
+                .then(({ data, error }) => {
+                  if (error) {
+                    console.error('❌ [Study] 查询加入者信息失败:', error);
+                    return;
+                  }
+                  
+                  if (data) {
+                    console.log('✅ [Study] 成功获取加入者信息，更新显示');
+                    setCompanion({
+                      id: data.id,
+                      username: data.username || 'Unknown',
+                      avatar: data.avatar_url || ''
+                    });
+                  }
+                });
+            } else {
+              // 好友离开了自习室
+              console.log('👋 [Study] 好友离开了自习室');
+              setCompanion(undefined);
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 [Study] Realtime 订阅状态: ${status}`);
+      });
+
+    return () => {
+      console.log('🧹 [Study] 清理 Realtime 订阅');
+      supabase.removeChannel(channel);
+    };
+  }, [isTimer, user?.id]);
+
+  // 🔍 调试：打印 companion 最终状态
+  useEffect(() => {
+    console.log('=== [Study] Companion 状态调试 ===');
+    console.log('📍 Is Timer Page:', isTimer);
+    console.log('👤 User ID:', user?.id);
+    console.log('🤝 Companion Data:', companion);
+    console.log('================================');
+  }, [isTimer, user?.id, companion]);
 
   useEffect(() => {
     if (isTimer) {
