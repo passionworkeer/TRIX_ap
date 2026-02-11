@@ -35,22 +35,22 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
       console.log('👤 [StudyBuddies] 当前用户 ID:', userId);
 
-      // 1. 第一步: 查询 friends 表,获取正在自习的好友 ID 列表
+      // 🎯 新逻辑: is_studying 在 profiles 表中,查询更简单
+      // 1. 第一步: 查询 friends 表,获取好友 ID 列表
       const { data: friendsData, error: friendsError } = await supabase
         .from('friends')
-        .select('friend_id, is_studying')
+        .select('friend_id')
         .eq('user_id', userId)
-        .eq('status', 'accepted')
-        .eq('is_studying', true); // ✅ is_studying 在 friends 表中
+        .eq('status', 'accepted');
 
       if (friendsError) {
         console.error('❌ [StudyBuddies] 获取好友关系失败:', friendsError);
         return;
       }
 
-      console.log('📊 [StudyBuddies] 正在自习的好友关系:', friendsData);
+      console.log('📊 [StudyBuddies] 好友关系数据:', friendsData);
 
-      // 2. 第二步: 如果有好友,批量查询他们的 profiles (只查基本信息)
+      // 2. 第二步: 如果有好友,查询 profiles 表筛选正在自习的
       const studyingFriends: StudyBuddy[] = [];
 
       if (friendsData && friendsData.length > 0) {
@@ -58,17 +58,18 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username, avatar_url') // ❌ 移除 is_studying
-          .in('id', friendIds);
+          .select('id, username, avatar_url, is_studying')
+          .in('id', friendIds)
+          .eq('is_studying', true); // ✅ 直接筛选正在自习的好友
 
         if (profilesError) {
           console.error('❌ [StudyBuddies] 获取好友 profiles 失败:', profilesError);
           return;
         }
 
-        console.log('📊 [StudyBuddies] 好友 profiles:', profiles);
+        console.log('📊 [StudyBuddies] 正在自习的好友:', profiles);
 
-        // 3. 第三步: 手动合并数据
+        // 3. 第三步: 转换数据格式
         if (profiles) {
           profiles.forEach((profile) => {
             studyingFriends.push({
@@ -104,7 +105,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
     console.log('🔌 [StudyBuddies] 启动实时监听');
 
-    // 监听 friends 表的更新 (is_studying 状态变化)
+    // 监听 profiles 表的 is_studying 字段更新
     const channel = supabase
       .channel('study-buddies-updates')
       .on(
@@ -112,10 +113,10 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'friends'
+          table: 'profiles'
         },
         (payload) => {
-          console.log('🔥 [StudyBuddies] 检测到 friends 更新:', payload);
+          console.log('🔥 [StudyBuddies] 检测到 profiles 更新:', payload);
           // 重新获取列表
           fetchStudyBuddies();
         }
