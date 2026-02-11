@@ -119,33 +119,45 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
   useEffect(() => {
     if (!currentUserId || !isOpen) return;
 
-    console.log('🔌 [StudyBuddies] 启动实时监听');
+    console.log('🔌 [StudyBuddies] 启动实时监听 profiles 表');
 
     let refreshTimeout: NodeJS.Timeout;
 
     // 监听 profiles 表的 is_studying 字段更新
     const channel = supabase
-      .channel('study-buddies-updates')
+      .channel(`study-buddies-realtime-${currentUserId}`) // 唯一 channel 名称
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles'
+          table: 'profiles',
+          // filter: `id=neq.${currentUserId}` // 可选：只监听其他用户的更新
         },
         (payload) => {
           console.log('🔥 [StudyBuddies] 检测到 profiles 更新:', payload);
+          console.log('🔍 [StudyBuddies] 更新的字段:', payload.new);
           
-          // 🎯 优化：防抖刷新（避免频繁查询）
-          clearTimeout(refreshTimeout);
-          refreshTimeout = setTimeout(() => {
-            console.log('🔄 [StudyBuddies] 刷新好友列表...');
-            fetchStudyBuddies();
-          }, 500); // 500ms 防抖
+          // 检查是否是 is_studying 字段变化
+          if ('is_studying' in payload.new) {
+            console.log(`📊 [StudyBuddies] is_studying 变化: ${payload.old?.is_studying} → ${payload.new.is_studying}`);
+            
+            // 🎯 优化：防抖刷新（避免频繁查询）
+            clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(() => {
+              console.log('🔄 [StudyBuddies] 刷新好友列表...');
+              fetchStudyBuddies();
+            }, 500); // 500ms 防抖
+          }
         }
       )
       .subscribe((status) => {
         console.log(`📡 [StudyBuddies] 订阅状态: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [StudyBuddies] Realtime 订阅成功！');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [StudyBuddies] Realtime 订阅失败！');
+        }
       });
 
     return () => {
@@ -153,7 +165,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       clearTimeout(refreshTimeout);
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, isOpen]);
+  }, [currentUserId, isOpen]); // fetchStudyBuddies 通过闭包访问，不需要加入依赖
 
   // 如果未打开,不渲染
   if (!isOpen) return null;

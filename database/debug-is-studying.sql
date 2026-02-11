@@ -54,7 +54,7 @@ ORDER BY p1.username, p2.username;
 -- 方法 1: 按用户名更新
 UPDATE profiles
 SET is_studying = true
-WHERE username = 'test2'; -- 替换为实际的用户名
+WHERE username = 'admin'; -- 替换为实际的用户名
 
 -- 方法 2: 按邮箱更新（需要 join auth.users）
 UPDATE profiles
@@ -153,7 +153,7 @@ END $$;
 
 -- 设置 test2 为自习状态
 UPDATE profiles SET is_studying = true 
-WHERE username = 'test2' OR id IN (
+WHERE username = 'admin' OR id IN (
   SELECT id FROM auth.users WHERE email = 'test2@test.com'
 );
 
@@ -162,4 +162,4 @@ SELECT username, is_studying FROM profiles WHERE username IN ('test1', 'test2');
 
 -- 预期输出:
 -- test1 | false
--- test2 | true
+-- admin | true

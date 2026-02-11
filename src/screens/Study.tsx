@@ -24,17 +24,18 @@ export default function Study() {
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
 
-  // 🧹 清理函数：组件卸载时自动停止自习状态
+  // 🧹 清理函数：仅在组件彻底卸载时清理自习状态
+  // ⚠️ 重要：依赖数组必须为空，避免频繁触发清理
   useEffect(() => {
-    // 当进入计时器页面时，状态已经在 handleStartFocus 中设置为 true
-    // 这里只需要在组件卸载时清理
     return () => {
-      if (isTimer && user?.id) {
+      // 组件销毁时，无论什么情况都清理状态
+      const userId = user?.id;
+      if (userId) {
         console.log('🧹 [Study] 组件卸载，清理自习状态...');
         supabase
           .from('profiles')
           .update({ is_studying: false })
-          .eq('id', user.id)
+          .eq('id', userId)
           .then(({ error }) => {
             if (error) {
               console.error('❌ [Study] 清理状态失败:', error);
@@ -44,7 +45,8 @@ export default function Study() {
           });
       }
     };
-  }, [isTimer, user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 🎯 空依赖数组：只在组件卸载时执行一次
 
   useEffect(() => {
     if (isTimer) {
