@@ -30,7 +30,7 @@ const StudyBuddiesList: React.FC = () => {
       // 1. 获取我的自习状态
       const { data: myProfile } = await supabase
         .from('profiles')
-        .select('is_studying, username, avatar')
+        .select('is_studying, username, avatar_url')
         .eq('id', userId)
         .single();
 
@@ -58,7 +58,7 @@ const StudyBuddiesList: React.FC = () => {
         
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username, avatar, is_studying')
+          .select('id, username, avatar_url, is_studying')
           .in('id', friendIds)
           .eq('is_studying', true); // 只要正在自习的
 
@@ -75,7 +75,7 @@ const StudyBuddiesList: React.FC = () => {
             studyingFriends.push({
               id: profile.id,
               username: profile.username || 'Unknown',
-              avatar: profile.avatar || IMAGES.WIZARD_BOY_LOGIN,
+              avatar: profile.avatar_url || IMAGES.WIZARD_BOY_LOGIN,
               isMe: false
             });
           });
@@ -89,7 +89,7 @@ const StudyBuddiesList: React.FC = () => {
         allBuddies.push({
           id: userId,
           username: myProfile.username || 'Me',
-          avatar: myProfile.avatar || IMAGES.WIZARD_BOY_LOGIN,
+          avatar: myProfile.avatar_url || IMAGES.WIZARD_BOY_LOGIN,
           isMe: true
         });
       }
@@ -144,99 +144,73 @@ const StudyBuddiesList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="w-full px-6 mb-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/40 text-sm">
-            <div className="w-4 h-4 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div>
-            <span>加载自习伙伴...</span>
-          </div>
+      <div className="absolute top-16 right-4 z-30">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+          <div className="w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-white/60 text-xs">加载中...</span>
         </div>
       </div>
     );
   }
 
   if (buddies.length === 0) {
-    return (
-      <div className="w-full px-6 mb-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/60 text-sm">
-            <span className="text-lg">😴</span>
-            <span>暂无好友在线自习</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null; // 没有好友在自习时不显示组件
   }
 
   return (
-    <div className="w-full px-6 mb-6">
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-xl">
-        {/* 标题 */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white/90 text-sm font-semibold flex items-center gap-2">
-            <span className="text-xl">📚</span>
-            <span>自习伙伴 ({buddies.length}人正在专注)</span>
-          </h3>
-        </div>
+    <div className="absolute top-16 right-4 z-30 flex flex-col items-end gap-2">
+      {/* 标题栏 - 半透明悬浮 */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/10 shadow-lg">
+        <span className="text-xs font-medium text-white/90">📚</span>
+        <span className="text-xs font-semibold text-white/90">{buddies.length}人专注中</span>
+      </div>
 
-        {/* 横向滚动列表 */}
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-          <div className="flex gap-4 pb-2">
-            {buddies.map((buddy) => (
+      {/* 头像列表 - 从右往左排列 */}
+      <div className="flex flex-row-reverse gap-2">
+        {buddies.map((buddy) => (
+          <div
+            key={buddy.id}
+            className="flex flex-col items-center gap-1 group"
+            title={buddy.isMe ? '我' : buddy.username}
+          >
+            {/* 头像 */}
+            <div className="relative">
               <div
-                key={buddy.id}
-                className="flex flex-col items-center gap-2 min-w-[64px] group"
+                className={`rounded-full p-0.5 transition-all duration-300 ${
+                  buddy.isMe
+                    ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 shadow-lg shadow-yellow-500/50 ring-2 ring-yellow-400/50'
+                    : 'bg-gradient-to-br from-white/30 to-white/20 group-hover:from-white/40 group-hover:to-white/30'
+                }`}
               >
-                {/* 头像 */}
-                <div className="relative">
-                  <div
-                    className={`rounded-full p-0.5 transition-all duration-300 ${
-                      buddy.isMe
-                        ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 shadow-lg shadow-yellow-500/50 ring-2 ring-yellow-400/50'
-                        : 'bg-gradient-to-br from-white/20 to-white/10 group-hover:from-white/30 group-hover:to-white/20'
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10">
-                      <Avatar
-                        name={buddy.username}
-                        avatar={buddy.avatar}
-                        size="md"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 自习状态指示器 */}
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900 shadow-lg">
-                    <div className="w-full h-full bg-green-400 rounded-full animate-ping opacity-75"></div>
-                  </div>
-                </div>
-
-                {/* 用户名 */}
-                <div className="text-center">
-                  <p
-                    className={`text-xs font-medium truncate max-w-[64px] ${
-                      buddy.isMe
-                        ? 'text-yellow-300 font-bold'
-                        : 'text-white/70 group-hover:text-white/90'
-                    }`}
-                  >
-                    {buddy.isMe ? '我' : buddy.username}
-                  </p>
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-black/20 backdrop-blur-sm">
+                  <Avatar
+                    name={buddy.username}
+                    avatar={buddy.avatar}
+                    size="sm"
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* 提示文字 */}
-        {buddies.some(b => b.isMe) && (
-          <div className="mt-3 pt-3 border-t border-white/10">
-            <p className="text-white/40 text-xs text-center flex items-center justify-center gap-1">
-              <span>🔥</span>
-              <span>保持专注,一起加油!</span>
-            </p>
+              {/* 在线状态指示器 */}
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-black/50 shadow-lg">
+                <div className="w-full h-full bg-green-400 rounded-full animate-ping opacity-75"></div>
+              </div>
+            </div>
+
+            {/* 用户名标签 - hover 显示 */}
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <span
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full backdrop-blur-md ${
+                  buddy.isMe
+                    ? 'bg-yellow-500/30 text-yellow-200'
+                    : 'bg-black/30 text-white/80'
+                }`}
+              >
+                {buddy.isMe ? '我' : buddy.username}
+              </span>
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
