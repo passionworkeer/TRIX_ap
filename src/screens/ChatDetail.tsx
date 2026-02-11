@@ -56,6 +56,11 @@ const ChatDetail: React.FC = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // 🧪 测试模式状态
+  const [testMode, setTestMode] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [conversationId, setConversationId] = useState<string>('');
 
   // 格式化时间戳为 HH:MM 格式
   const formatTimestamp = (isoString: string): string => {
@@ -80,6 +85,19 @@ const ChatDetail: React.FC = () => {
     const loadChatHistory = async () => {
       try {
         setLoading(true);
+        
+        // 获取当前用户ID（用于测试模式显示）
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setCurrentUserId(session.user.id);
+          
+          // 计算会话ID
+          const convId = session.user.id < friendId 
+            ? `${session.user.id}_${friendId}` 
+            : `${friendId}_${session.user.id}`;
+          setConversationId(convId);
+        }
+        
         const history = await getChatHistory(friendId);
         const uiMessages = history.map(convertDbMessageToUI);
         setMessages(uiMessages);
@@ -98,38 +116,99 @@ const ChatDetail: React.FC = () => {
 
   // 实时订阅新消息
   useEffect(() => {
-    // 创建实时订阅频道
-    const channel = supabase
-      .channel(`chat:${friendId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `friend_id=eq.${friendId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          
-          // 只有当消息不是当前用户发送的,才添加到消息列表
-          // (避免重复显示自己的消息,因为发送时已经添加到UI了)
-          if (newMessage.sender !== 'user') {
-            const uiMessage = convertDbMessageToUI(newMessage);
-            setMessages(prev => {
-              // 检查消息是否已存在(避免重复)
-              const exists = prev.some(msg => msg.id === uiMessage.id);
-              if (exists) return prev;
-              return [...prev, uiMessage];
-            });
-          }
+    // 获取当前用户ID以构建正确的会话ID
+    const setupRealtimeSubscription = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          console.error('⚠️ [Realtime] 未登录，无法订阅');
+          return;
         }
-      )
-      .subscribe();
+        
+        const userId = session.user.id;
+        
+        // 构建会话ID (与 sendMessage 中的逻辑一致)
+        const conversationId = userId < friendId 
+          ? `${userId}_${friendId}` 
+          : `${friendId}_${userId}`;
+        
+        console.log('📡 [Realtime] 开始订阅:', {
+          userId: userId.substring(0, 8) + '...',
+          friendId: friendId.substring(0, 8) + '...',
+          conversationId
+        });
+        
+        // 创建实时订阅频道
+        const channel = supabase
+          .channel(`chat:${conversationId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `conversation_id=eq.${conversationId}` // ✅ 修复：使用 conversation_id 而不是 friend_id
+            },
+            (payload) => {
+              console.log('📨 [Realtime] 收到新消息:', payload.new);
+              
+              const newMessage = payload.new as any;
+              
+              // 只有当消息不是当前用户发送的,才添加到消息列表
+              // (避免重复显示自己的消息,因为发送时已经添加到UI了)
+              if (newMessage.sender_id !== userId) {
+                console.log('✅ [Realtime] 消息来自好友，添加到UI');
+                
+                const uiMessage: UIMessage = {
+                  id: newMessage.id,
+                  sender: 'friend',
+                  text: newMessage.text,
+                  timestamp: formatTimestamp(newMessage.created_at)
+                };
+                
+                setMessages(prev => {
+                  // 检查消息是否已存在(避免重复)
+                  const exists = prev.some(msg => msg.id === uiMessage.id);
+                  if (exists) {
+                    console.log('⚠️ [Realtime] 消息已存在，跳过');
+                    return prev;
+                  }
+                  console.log('✅ [Realtime] 添加新消息到列表');
+                  return [...prev, uiMessage];
+                });
+              } else {
+                console.log('⚠️ [Realtime] 消息来自自己，跳过');
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('📡 [Realtime] 订阅状态:', status);
+            
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ [Realtime] 订阅成功');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('❌ [Realtime] 订阅失败 - 频道错误');
+            } else if (status === 'TIMED_OUT') {
+              console.error('❌ [Realtime] 订阅超时');
+            } else if (status === 'CLOSED') {
+              console.log('🔌 [Realtime] 连接已关闭');
+            }
+          });
 
-    // 清理函数:组件卸载时取消订阅
+        // 清理函数:组件卸载时取消订阅
+        return () => {
+          console.log('🔌 [Realtime] 取消订阅');
+          supabase.removeChannel(channel);
+        };
+      } catch (error) {
+        console.error('❌ [Realtime] 订阅设置失败:', error);
+      }
+    };
+
+    const cleanup = setupRealtimeSubscription();
+    
     return () => {
-      supabase.removeChannel(channel);
+      cleanup.then(fn => fn && fn());
     };
   }, [friendId]);
 
@@ -267,8 +346,49 @@ const ChatDetail: React.FC = () => {
 
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col font-sans">
+      {/* 🧪 测试模式信息面板 */}
+      {testMode && (
+        <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-yellow-50 to-orange-50 border-b-2 border-yellow-400 p-3 z-50 shadow-lg">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-yellow-900 flex items-center gap-2">
+                🧪 测试模式 - 聊天诊断信息
+              </h3>
+              <button
+                onClick={() => setTestMode(false)}
+                className="text-xs px-2 py-1 bg-yellow-200 hover:bg-yellow-300 rounded text-yellow-900 font-medium"
+              >
+                关闭
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-xs font-mono">
+              <div className="bg-white/60 rounded p-2 border border-yellow-200">
+                <span className="text-yellow-800 font-semibold">当前用户 ID:</span>
+                <div className="text-yellow-900 mt-1 break-all select-all">{currentUserId || '加载中...'}</div>
+              </div>
+              <div className="bg-white/60 rounded p-2 border border-yellow-200">
+                <span className="text-yellow-800 font-semibold">好友 ID:</span>
+                <div className="text-yellow-900 mt-1 break-all select-all">{friendId}</div>
+              </div>
+              <div className="bg-white/60 rounded p-2 border border-orange-200">
+                <span className="text-orange-800 font-semibold">会话 ID:</span>
+                <div className="text-orange-900 mt-1 break-all select-all">{conversationId || '加载中...'}</div>
+              </div>
+              <div className="bg-blue-50 rounded p-2 border border-blue-200">
+                <span className="text-blue-800 font-semibold">💡 使用方法:</span>
+                <div className="text-blue-700 mt-1 space-y-1">
+                  <p>1. 复制上面的 UUID 到另一个账号的聊天界面</p>
+                  <p>2. 打开浏览器控制台 (F12) 查看详细日志</p>
+                  <p>3. 发送消息时检查控制台的发送和接收日志</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
-      <header className="px-4 py-4 pt-16 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-50 shadow-sm transition-all duration-300">
+      <header className={`px-4 py-4 ${testMode ? 'pt-20' : 'pt-16'} flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300`}>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)} 
@@ -300,9 +420,23 @@ const ChatDetail: React.FC = () => {
           </div>
         </div>
         
-        <button className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50">
-          <MoreVertical size={20} className="text-slate-700" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 🧪 测试模式切换按钮 */}
+          <button 
+            onClick={() => setTestMode(!testMode)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              testMode 
+                ? 'bg-yellow-500 text-white' 
+                : 'bg-white/50 text-slate-600 hover:bg-white border border-white/50'
+            }`}
+          >
+            {testMode ? '🧪 测试中' : '🧪'}
+          </button>
+          
+          <button className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50">
+            <MoreVertical size={20} className="text-slate-700" />
+          </button>
+        </div>
       </header>
 
       {/* Messages Area */}

@@ -1,120 +1,63 @@
 /**
- * 添加好友 (支持所有测试账号)
+ * 添加好友 (支持邮箱或用户名)
  * @param account 对方账号（邮箱或用户名）
  */
 export async function addFriend(account: string): Promise<void> {
   try {
-    // 1. 获取当前登录用户信息
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.user) throw new Error('请先登录');
+    // 1. 获取当前登录用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('请先登录');
     
-    const currentUserId = session.user.id;
-    const currentUserEmail = session.user.email;
+    const currentUserId = user.id;
 
-    // 2. 查找目标用户（支持邮箱或用户名）
-    const { data: targetUser, error: targetError } = await supabase
-      .from('users')
-      .select('id, email, username, display_name, bio')
+    // 2. 从 profiles 表查找目标用户（支持邮箱或用户名）
+    const { data: targetProfile, error: targetError } = await supabase
+      .from('profiles')
+      .select('id')
       .or(`email.eq.${account},username.eq.${account}`)
       .single();
 
-    if (targetError || !targetUser) {
-      throw new Error('未找到该用户');
+    if (targetError || !targetProfile) {
+      throw new Error('用户不存在');
     }
 
+    const targetUserId = targetProfile.id;
+
     // 3. 不能添加自己
-    if (targetUser.id === currentUserId) {
+    if (targetUserId === currentUserId) {
       throw new Error('不能添加自己为好友');
     }
 
-    // 4. 获取当前用户信息（如果不存在则创建）
-    let currentUser = await supabase
-      .from('users')
-      .select('id, email, username, display_name, bio')
-      .eq('id', currentUserId)
-      .single()
-      .then(res => res.data);
-
-    // 如果当前用户不在 users 表中，自动创建
-    if (!currentUser) {
-      const username = currentUserEmail?.split('@')[0] || 'user';
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          id: currentUserId,
-          email: currentUserEmail,
-          username: username,
-          display_name: username,
-          bio: ''
-        })
-        .select('id, email, username, display_name, bio')
-        .single();
-
-      if (createError || !newUser) {
-        console.error('创建用户信息失败:', createError);
-        throw new Error('创建用户信息失败');
-      }
-      currentUser = newUser;
-    }
-
-    // 5. 检查是否已是好友
-    const { data: existing, error: existError } = await supabase
+    // 4. 检查是否已是好友
+    const { data: existing } = await supabase
       .from('friends')
       .select('id')
       .eq('user_id', currentUserId)
-      .eq('friend_id', targetUser.id)
+      .eq('friend_id', targetUserId)
       .maybeSingle();
     
     if (existing) {
       throw new Error('你们已经是好友了');
     }
 
-    // 6. 插入双向好友关系
+    // 5. 插入双向好友关系（只写必要字段）
     const { error: insertError } = await supabase.from('friends').insert([
       {
         user_id: currentUserId,
-        friend_id: targetUser.id,
-        name: targetUser.display_name || targetUser.username,
-        avatar_url: null,
-        status: 'online',
-        bio: targetUser.bio || '',
-        study_time: 0,
-        is_studying: false,
+        friend_id: targetUserId,
+        status: 'accepted'
       },
       {
-        user_id: targetUser.id,
+        user_id: targetUserId,
         friend_id: currentUserId,
-        name: currentUser.display_name || currentUser.username,
-        avatar_url: null,
-        status: 'online',
-        bio: currentUser.bio || '',
-        study_time: 0,
-        is_studying: false,
+        status: 'accepted'
       }
     ]);
 
     if (insertError) {
       console.error('添加好友失败:', insertError);
-      throw new Error('添加好友失败');
+      throw new Error('添加好友失败: ' + insertError.message);
     }
-
-    // 7. 初始化未读计数
-    await supabase.from('unread_counts').insert([
-      {
-        user_id: currentUserId,
-        friend_id: targetUser.id,
-        unread_count: 0,
-        last_message: null,
-        last_message_time: null,
-      },
-      {
-        user_id: targetUser.id,
-        friend_id: currentUserId,
-        unread_count: 0,
-        last_message: null,
-        last_message_time: null,
-      }
-    ]);
 
   } catch (error: any) {
     console.error('添加好友错误:', error);
@@ -136,16 +79,18 @@ export async function simpleAddFriend(account: string): Promise<void> {
  * @param account 对方账号（邮箱或用户名）
  */
 export async function sendFriendRequest(account: string): Promise<void> {
-  // 1. 查找目标用户
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id, email, username')
+  // 1. 查找目标用户 (从 profiles 表)
+  const { data: targetProfile, error: userError } = await supabase
+    .from('profiles')
+    .select('id')
     .or(`email.eq.${account},username.eq.${account}`)
     .single();
 
-  if (userError || !user) {
-    throw new Error('未找到该用户');
+  if (userError || !targetProfile) {
+    throw new Error('用户不存在');
   }
+
+  const targetUserId = targetProfile.id;
 
   // 2. 获取当前用户信息
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -155,7 +100,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
   const currentUserId = session.user.id;
   const currentUserEmail = session.user.email;
 
-  if (user.id === currentUserId) {
+  if (targetUserId === currentUserId) {
     throw new Error('不能添加自己为好友');
   }
 
@@ -164,7 +109,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
     .from('friends')
     .select('id')
     .eq('user_id', currentUserId)
-    .eq('friend_id', user.id)
+    .eq('friend_id', targetUserId)
     .maybeSingle();
   if (existing) {
     throw new Error('你们已经是好友了');
@@ -174,7 +119,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
   const { error: notifyError } = await supabase
     .from('notifications')
     .insert({
-      user_id: user.id,
+      user_id: targetUserId,
       type: 'friend_request',
       title: '好友请求',
       content: `${currentUserEmail || '某用户'} 想添加你为好友`,
@@ -348,38 +293,80 @@ export async function sendMessage(
   try {
     const userId = await getCurrentUserId();
     
+    console.log('🚀 [发送消息] 开始:', {
+      userId: userId.substring(0, 8) + '...',
+      friendId: friendId.substring(0, 8) + '...',
+      sender,
+      textLength: text.length
+    });
+    
     // 构建会话ID
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;
     
+    console.log('📦 [会话ID]:', conversationId);
+    
     // 确定发送者和接收者
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
     
+    const messageData = {
+      conversation_id: conversationId,
+      sender_id: senderId,
+      receiver_id: receiverId,
+      text: text,
+      is_read: false
+    };
+    
+    console.log('📨 [消息数据]:', {
+      ...messageData,
+      sender_id: messageData.sender_id.substring(0, 8) + '...',
+      receiver_id: messageData.receiver_id.substring(0, 8) + '...',
+      text: messageData.text.substring(0, 30) + '...'
+    });
+    
     const { data, error } = await supabase
       .from('chat_messages')
-      .insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        receiver_id: receiverId,
-        text: text,
-        is_read: false
-      })
+      .insert(messageData)
       .select('id')
       .single();
 
     if (error) {
-      console.error('发送消息失败:', error);
+      console.error('❌ [发送失败] Supabase 错误:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      // 检查是否是 RLS 权限问题
+      if (error.code === '42501' || error.message.includes('policy')) {
+        console.error('🔒 [RLS 策略错误] 数据库权限被拒绝！');
+        console.error('💡 解决方案: 检查 chat_messages 表的 RLS 策略配置');
+      }
+      
+      // 检查是否是表不存在或字段不匹配
+      if (error.code === '42P01') {
+        console.error('📋 [表不存在] chat_messages 表未找到！');
+      } else if (error.code === '42703') {
+        console.error('📋 [字段错误] 表结构不匹配！可能需要运行 complete-init.sql');
+      }
+      
       return null;
     }
 
+    console.log('✅ [发送成功] 消息ID:', data?.id);
+    
     // 更新未读计数
     await updateUnreadCount(receiverId, senderId, text);
 
     return data?.id || null;
-  } catch (error) {
-    console.error('发送消息失败:', error);
+  } catch (error: any) {
+    console.error('❌ [发送失败] 捕获异常:', {
+      message: error.message,
+      stack: error.stack?.split('\n')[0]
+    });
     return null;
   }
 }
