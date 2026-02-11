@@ -57,6 +57,9 @@ const ChatDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // 🔌 Realtime Channel 引用 (防止重复连接)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  
   // 🧪 测试模式状态
   const [testMode, setTestMode] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -114,103 +117,96 @@ const ChatDetail: React.FC = () => {
     loadChatHistory();
   }, [friendId]);
 
-  // 实时订阅新消息
+  // 实时订阅新消息 - 防抖动标准写法
   useEffect(() => {
-    // 获取当前用户ID以构建正确的会话ID
-    const setupRealtimeSubscription = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          console.error('⚠️ [Realtime] 未登录，无法订阅');
-          return;
-        }
-        
-        const userId = session.user.id;
-        
-        // 构建会话ID (与 sendMessage 中的逻辑一致)
-        const conversationId = userId < friendId 
-          ? `${userId}_${friendId}` 
-          : `${friendId}_${userId}`;
-        
-        console.log('📡 [Realtime] 开始订阅:', {
-          userId: userId.substring(0, 8) + '...',
-          friendId: friendId.substring(0, 8) + '...',
-          conversationId
-        });
-        
-        // 创建实时订阅频道
-        const channel = supabase
-          .channel(`chat:${conversationId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'chat_messages',
-              filter: `conversation_id=eq.${conversationId}` // ✅ 修复：使用 conversation_id 而不是 friend_id
-            },
-            (payload) => {
-              console.log('📨 [Realtime] 收到新消息:', payload.new);
-              
-              const newMessage = payload.new as any;
-              
-              // 只有当消息不是当前用户发送的,才添加到消息列表
-              // (避免重复显示自己的消息,因为发送时已经添加到UI了)
-              if (newMessage.sender_id !== userId) {
-                console.log('✅ [Realtime] 消息来自好友，添加到UI');
-                
-                const uiMessage: UIMessage = {
-                  id: newMessage.id,
-                  sender: 'friend',
-                  text: newMessage.text,
-                  timestamp: formatTimestamp(newMessage.created_at)
-                };
-                
-                setMessages(prev => {
-                  // 检查消息是否已存在(避免重复)
-                  const exists = prev.some(msg => msg.id === uiMessage.id);
-                  if (exists) {
-                    console.log('⚠️ [Realtime] 消息已存在，跳过');
-                    return prev;
-                  }
-                  console.log('✅ [Realtime] 添加新消息到列表');
-                  return [...prev, uiMessage];
-                });
-              } else {
-                console.log('⚠️ [Realtime] 消息来自自己，跳过');
-              }
-            }
-          )
-          .subscribe((status) => {
-            console.log('📡 [Realtime] 订阅状态:', status);
-            
-            if (status === 'SUBSCRIBED') {
-              console.log('✅ [Realtime] 订阅成功');
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error('❌ [Realtime] 订阅失败 - 频道错误');
-            } else if (status === 'TIMED_OUT') {
-              console.error('❌ [Realtime] 订阅超时');
-            } else if (status === 'CLOSED') {
-              console.log('🔌 [Realtime] 连接已关闭');
-            }
-          });
-
-        // 清理函数:组件卸载时取消订阅
-        return () => {
-          console.log('🔌 [Realtime] 取消订阅');
-          supabase.removeChannel(channel);
-        };
-      } catch (error) {
-        console.error('❌ [Realtime] 订阅设置失败:', error);
-      }
-    };
-
-    const cleanup = setupRealtimeSubscription();
+    // 🚫 如果没有会话ID,则跳过
+    if (!conversationId) {
+      console.log('⚠️ [Realtime] 会话ID未就绪,跳过订阅');
+      return;
+    }
     
+    console.log('🔌 [Realtime] 启动监听:', conversationId);
+    
+    // 1️⃣ 创建频道
+    const channel = supabase.channel(`chat:${conversationId}`, {
+      config: {
+        broadcast: { self: false }
+      }
+    });
+    channelRef.current = channel;
+    
+    // 2️⃣ 绑定事件 (无 filter,手动过滤)
+    channel
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages'
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          
+          //  手动过滤逻辑
+          if (newMessage.conversation_id !== conversationId) {
+            console.log('⚠️ [Realtime] 消息不属于当前会话:', {
+              received: newMessage.conversation_id,
+              expected: conversationId
+            });
+            return;
+          }
+          
+          console.log('🔥 [Realtime] 收到新消息:', newMessage.text);
+          
+          // 只有当消息不是当前用户发送的,才添加到消息列表
+          if (newMessage.sender_id !== currentUserId) {
+            console.log('✅ [Realtime] 消息来自好友，添加到UI');
+            
+            // ✅ 关键：使用函数式更新,不需要将 messages 加入依赖数组
+            setMessages((prev) => {
+              // 防止重复添加
+              if (prev.some(msg => msg.id === newMessage.id)) {
+                console.log('⚠️ [Realtime] 消息已存在，跳过');
+                return prev;
+              }
+              
+              const uiMessage: UIMessage = {
+                id: newMessage.id,
+                sender: 'friend',
+                text: newMessage.text,
+                timestamp: formatTimestamp(newMessage.created_at)
+              };
+              
+              console.log('✅ [Realtime] 添加新消息到列表');
+              return [...prev, uiMessage];
+            });
+          } else {
+            console.log('⚠️ [Realtime] 消息来自自己，跳过');
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 [Realtime] 连接状态: ${status}`);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [Realtime] 订阅成功,长连接已建立');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [Realtime] 频道错误');
+        } else if (status === 'TIMED_OUT') {
+          console.error('❌ [Realtime] 连接超时');
+        } else if (status === 'CLOSED') {
+          console.log('🔌 [Realtime] 连接已关闭');
+        }
+      });
+    
+    // 3️⃣ 仅在 conversationId 真正改变时才清理
     return () => {
-      cleanup.then(fn => fn && fn());
+      console.log('🧹 [Realtime] 清理连接:', conversationId);
+      supabase.removeChannel(channel);
+      channelRef.current = null;
     };
-  }, [friendId]);
+  // ⚠️ 致命关键：依赖数组里只有 conversationId！绝对不能有 messages！
+  }, [conversationId]);
 
   // Scroll to bottom
   useEffect(() => {
