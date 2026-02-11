@@ -159,6 +159,7 @@ export interface Profile {
   website?: string;
   bio?: string;
   is_studying?: boolean; // 用户是否正在自习
+  companion_id?: string | null; // 正在一起自习的好友 ID（双向关联）
   created_at?: string;
   updated_at?: string;
 }
