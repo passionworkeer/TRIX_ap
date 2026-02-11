@@ -3,16 +3,26 @@ import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
+import Avatar from "../components/Avatar";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../contexts/AuthContext";
 
 const BG_IMAGE = "/assets/StudyRoomBG.png";
 
+interface CompanionInfo {
+  id: string;
+  username: string;
+  avatar: string;
+}
+
 export default function Study() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth(); // 获取当前用户
+  const { user, profile } = useAuth(); // 获取当前用户
   const isTimer = location.pathname.includes("/timer");
+
+  // 获取陪同好友信息
+  const companion = (location.state as any)?.companion as CompanionInfo | undefined;
 
   const [selectedDuration, setSelectedDuration] = useState(25);
   const timePresets = [25, 45, 60];
@@ -169,6 +179,42 @@ export default function Study() {
           {/* 计时器内容 */}
           <div className="flex-1 flex flex-col items-center justify-center -mt-10">
             <div className="flex flex-col items-center">
+              {/* 好友头像显示 */}
+              {companion && (
+                <div className="mb-8 flex items-center gap-4">
+                  {/* 我的头像 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-full overflow-hidden ring-4 ring-blue-500/50 shadow-lg">
+                      <Avatar
+                        name={profile?.username || user?.email?.split('@')[0] || 'Me'}
+                        avatar={profile?.avatar_url}
+                        size="lg"
+                      />
+                    </div>
+                    <span className="text-xs text-white/70 mt-2">{profile?.username || '我'}</span>
+                  </div>
+
+                  {/* 连接线 */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500"></div>
+                  </div>
+
+                  {/* 好友头像 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-full overflow-hidden ring-4 ring-purple-500/50 shadow-lg">
+                      <Avatar
+                        name={companion.username}
+                        avatar={companion.avatar}
+                        size="lg"
+                      />
+                    </div>
+                    <span className="text-xs text-white/70 mt-2">{companion.username}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-baseline justify-center gap-3 mb-8">
                 <span className="text-8xl font-bold text-white tracking-tight" style={{ textShadow: '0 0 60px rgba(59,130,246,0.5)' }}>
                   {timeObj.m}
