@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
+import { AppRoutes } from '../types';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
 import { X, Users } from 'lucide-react';
@@ -201,7 +202,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       onClose();
 
       // 跳转到计时器页面，传递好友信息
-      navigate('/timer', {
+      navigate(AppRoutes.TIMER, {
         state: {
           duration: 25, // 默认25分钟
           companion: {
