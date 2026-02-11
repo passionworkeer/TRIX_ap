@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
@@ -24,29 +24,27 @@ export default function Study() {
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
 
-  // 🧹 清理函数：仅在组件彻底卸载时清理自习状态
-  // ⚠️ 重要：依赖数组必须为空，避免频繁触发清理
+  // 🎯 使用 ref 追踪是否需要清理（只有在计时器页面才清理）
+  const shouldCleanupRef = useRef(false);
+
+  // 🧹 组件卸载时清理自习状态
   useEffect(() => {
     return () => {
-      // 组件销毁时，无论什么情况都清理状态
-      const userId = user?.id;
-      if (userId) {
+      // 只有标记为需要清理时才执行（即在计时器页面时）
+      if (shouldCleanupRef.current && user?.id) {
         console.log('🧹 [Study] 组件卸载，清理自习状态...');
         supabase
           .from('profiles')
           .update({ is_studying: false })
-          .eq('id', userId)
+          .eq('id', user.id)
           .then(({ error }) => {
-            if (error) {
-              console.error('❌ [Study] 清理状态失败:', error);
-            } else {
+            if (!error) {
               console.log('✅ [Study] 已清理 is_studying = false');
             }
           });
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 🎯 空依赖数组：只在组件卸载时执行一次
+  }, [user?.id]);
 
   useEffect(() => {
     if (isTimer) {
@@ -96,6 +94,8 @@ export default function Study() {
           console.error('❌ [Study] 更新 is_studying 失败:', error);
         } else {
           console.log('✅ [Study] 已更新 is_studying = true');
+          // 🎯 标记需要清理（进入计时器页面）
+          shouldCleanupRef.current = true;
         }
       } catch (err) {
         console.error('❌ [Study] 数据库更新异常:', err);
@@ -111,6 +111,8 @@ export default function Study() {
     if (user?.id) {
       try {
         console.log('🛑 [Study] 停止自习，更新数据库状态...');
+        // 🎯 取消清理标记（已手动停止）
+        shouldCleanupRef.current = false;
         const { error } = await supabase
           .from('profiles')
           .update({ is_studying: false })
