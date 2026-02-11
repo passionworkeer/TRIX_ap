@@ -18,6 +18,9 @@ export default function Study() {
   const [isActive, setIsActive] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
+  // 好友列表弹窗状态
+  const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
+
   useEffect(() => {
     if (isTimer) {
       const duration = location.state?.duration || 25;
@@ -175,14 +178,20 @@ export default function Study() {
             <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95">
               <Zap size={18} className="text-yellow-400" />
             </button>
-            <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95">
+            <button 
+              onClick={() => setIsBuddyListOpen(true)}
+              className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
+            >
               <Plus size={18} className="text-white" />
             </button>
           </div>
         </div>
 
-        {/* 自习伙伴列表 - 右上角悬浮挂件 */}
-        <StudyBuddiesList />
+        {/* 自习伙伴列表 - Modal 弹窗 */}
+        <StudyBuddiesList 
+          isOpen={isBuddyListOpen} 
+          onClose={() => setIsBuddyListOpen(false)} 
+        />
 
         {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}
         <div
