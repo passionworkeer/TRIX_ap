@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
+import StudyBuddiesList from "../components/StudyBuddiesList";
 
 const BG_IMAGE = "/assets/StudyRoomBG.png";
 
@@ -179,6 +180,9 @@ export default function Study() {
             </button>
           </div>
         </div>
+
+        {/* 自习伙伴列表 - 新增组件 */}
+        <StudyBuddiesList />
 
         {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}
         <div
