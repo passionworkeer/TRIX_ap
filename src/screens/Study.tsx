@@ -186,7 +186,7 @@ export default function Study() {
 
         {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}
         <div
-          className="absolute top-[20%] left-6 z-20"
+          className="absolute top-32 left-6 z-20"
           style={{ maxWidth: '240px' }}
         >
           <div className="bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-3.5 shadow-2xl">
