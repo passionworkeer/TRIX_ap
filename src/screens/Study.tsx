@@ -24,33 +24,31 @@ export default function Study() {
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
 
-  // 🎯 使用 ref 追踪是否需要清理（只有在计时器页面才清理）
-  const shouldCleanupRef = useRef(false);
+  // 🎯 使用 ref 追踪用户 ID 和自习状态
   const userIdRef = useRef(user?.id);
+  const isStudyingRef = useRef(false);
 
   // 更新 userIdRef
   useEffect(() => {
     userIdRef.current = user?.id;
   }, [user?.id]);
 
-  // 🧹 组件卸载时清理自习状态
+  // 🧹 浏览器关闭/刷新时清理自习状态
   useEffect(() => {
-    return () => {
-      // 只有标记为需要清理时才执行（即在计时器页面时）
-      if (shouldCleanupRef.current && userIdRef.current) {
-        console.log('🧹 [Study] 组件卸载，清理自习状态...');
-        supabase
+    const handleBeforeUnload = async () => {
+      if (isStudyingRef.current && userIdRef.current) {
+        console.log('🌐 [Study] 浏览器关闭，清理自习状态...');
+        // 同步请求，确保在页面关闭前执行
+        await supabase
           .from('profiles')
           .update({ is_studying: false })
-          .eq('id', userIdRef.current)
-          .then(({ error }) => {
-            if (!error) {
-              console.log('✅ [Study] 已清理 is_studying = false');
-            }
-          });
+          .eq('id', userIdRef.current);
       }
     };
-  }, []); // 空依赖数组，只在组件卸载时执行
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     if (isTimer) {
@@ -100,8 +98,8 @@ export default function Study() {
           console.error('❌ [Study] 更新 is_studying 失败:', error);
         } else {
           console.log('✅ [Study] 已更新 is_studying = true');
-          // 🎯 标记需要清理（进入计时器页面）
-          shouldCleanupRef.current = true;
+          // 🎯 标记正在自习
+          isStudyingRef.current = true;
         }
       } catch (err) {
         console.error('❌ [Study] 数据库更新异常:', err);
@@ -117,8 +115,8 @@ export default function Study() {
     if (user?.id) {
       try {
         console.log('🛑 [Study] 停止自习，更新数据库状态...');
-        // 🎯 取消清理标记（已手动停止）
-        shouldCleanupRef.current = false;
+        // 🎯 取消自习标记
+        isStudyingRef.current = false;
         const { error } = await supabase
           .from('profiles')
           .update({ is_studying: false })
