@@ -9,7 +9,8 @@
       "Bash(dir:*)",
       "Bash(timeout 10 tail:*)",
       "Bash(timeout 15 cat:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)"
     ]
   }
 }
