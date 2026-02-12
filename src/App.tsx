@@ -13,10 +13,12 @@ import Diagnostic from './screens/Diagnostic';
 import DiagnosticAdvanced from './screens/DiagnosticAdvanced';
 import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
+import QRCodePairing from './screens/QRCodePairing';
 import MapScreen from './screens/Map';
 import { AppRoutes } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
+import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -110,6 +112,7 @@ function AppContent() {
              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
              <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
+             <Route path={AppRoutes.QR_PAIRING} element={<ProtectedRoute><QRCodePairing /></ProtectedRoute>} />
              <Route path={AppRoutes.MAP} element={<ProtectedRoute><MapScreen /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
@@ -145,9 +148,11 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <WebSocketProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
+        <QRCodePairingProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </QRCodePairingProvider>
       </WebSocketProvider>
     </AuthProvider>
   );
