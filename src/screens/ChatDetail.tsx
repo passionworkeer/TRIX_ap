@@ -101,6 +101,12 @@ const ChatDetail: React.FC = () => {
       uiMessage.mediaUri = dbMsg.media_uri;
       uiMessage.mediaType = dbMsg.media_type;
       uiMessage.mediaMetadata = dbMsg.media_metadata;
+      
+      console.log('🖼️ [ChatDetail] Loading media message:', {
+        messageType: dbMsg.message_type,
+        mediaUri: dbMsg.media_uri,
+        mediaType: dbMsg.media_type
+      });
     }
 
     return uiMessage;
