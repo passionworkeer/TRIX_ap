@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Timer, Plus, X, Play, Zap, Trophy, MapPin } from "lucide-react";
+import { Timer, Plus, X, Play, Zap, Trophy, MapPin, Sparkles, Heart } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
@@ -43,9 +43,15 @@ export default function Study() {
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
 
+  // 🎉 结算弹窗状态
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [studyDuration, setStudyDuration] = useState(0); // 本次实际专注时长(分钟)
+
   // 🎯 使用 ref 追踪用户 ID 和自习状态
   const userIdRef = useRef(user?.id);
   const isStudyingRef = useRef(false);
+  const hasTriggeredSummaryRef = useRef(false); // 🎯 防止重复弹出结算Modal
+  const hasCompletedRef = useRef(false); // 🔒 一次性锁：确保完成逻辑只执行一次
 
   // 更新 userIdRef
   useEffect(() => {
@@ -119,7 +125,7 @@ export default function Study() {
   // 🎯 查询 companion 信息的函数（使用 useCallback 避免重复创建）
   const fetchCompanionInfo = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       // 1. 查询自己的 companion_id
       const { data: myProfile, error: profileError } = await supabase
@@ -137,7 +143,11 @@ export default function Study() {
 
       if (!myProfile?.companion_id) {
         console.log('⚠️ [Study] 没有 companion_id，单人自习模式');
-        setCompanion(undefined); // 清除 companion
+        // 🎯 使用函数式更新，避免依赖 companion 状态
+        setCompanion(prev => {
+          // 只有当前有 companion 时才清除，避免不必要的重渲染
+          return prev ? undefined : prev;
+        });
         return;
       }
 
@@ -155,17 +165,28 @@ export default function Study() {
 
       console.log('✅ [Study] 成功查询到好友信息:', companionProfile);
 
-      // 3. 设置 companion 状态
-      setCompanion({
+      // 3. 设置 companion 状态（使用函数式更新）
+      const newCompanion = {
         id: companionProfile.id,
         username: companionProfile.username || 'Unknown',
         avatar: companionProfile.avatar_url || ''
+      };
+
+      setCompanion(prev => {
+        // 🎯 只有 companion 信息变化时才更新
+        if (!prev ||
+            prev.id !== newCompanion.id ||
+            prev.username !== newCompanion.username ||
+            prev.avatar !== newCompanion.avatar) {
+          return newCompanion;
+        }
+        return prev; // 返回旧值，避免重渲染
       });
 
     } catch (err) {
       console.error('❌ [Study] 查询 companion 异常:', err);
     }
-  }, [user?.id]); // useCallback 的依赖数组
+  }, [user?.id]); // 依赖数组保持简单
 
   // 🎯 初始加载：从 location.state 或数据库获取 companion
   useEffect(() => {
@@ -217,9 +238,9 @@ export default function Study() {
         },
         (payload) => {
           console.log('🔥 [Study] 检测到自己的 profile 更新:', payload);
-          
-          // 检查是否是 companion_id 变化
-          if ('companion_id' in payload.new) {
+
+          // 🎯 检查 companion_id 是否真的变化了
+          if ('companion_id' in payload.new && payload.old?.companion_id !== payload.new.companion_id) {
             const newCompanionId = payload.new.companion_id;
             console.log(`📊 [Study] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
             
@@ -282,30 +303,52 @@ export default function Study() {
       setTimeLeft(duration * 60);
       setIsActive(true);
       setIsCompleted(false);
-      
+
       // 🎯 每次进入计时器页面时都重新初始化开始时间
       const startTime = Date.now();
       console.log('⏱️ [Study] 初始化专注计时:', { duration, startTime });
       setFocusStartTime(startTime);
       setInitialDuration(duration);
+
+      // ❌ 不在这里重置标记！这会导致弹窗反复触发
+      // 标记重置应该在 handleStartFocus 中进行
     } else {
       setIsActive(false);
     }
-  }, [isTimer, location.state]);
+  }, [isTimer, location.state?.duration]);
 
   useEffect(() => {
     let interval: any = null;
+    
     if (isTimer && isActive && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((prevTime) => prevTime - 1);
       }, 1000);
-    } else if (timeLeft === 0 && isActive) {
+    } else if (timeLeft === 0 && isActive && !hasCompletedRef.current) {
+      // ⚡ 倒计时结束，触发完成逻辑（只执行一次）
+      console.log('🛑 [Study] 倒计时结束，触发结算');
+      
+      hasCompletedRef.current = true; // 🔒 立即上锁
       setIsActive(false);
       setIsCompleted(true);
-      if (interval) clearInterval(interval);
+      
+      // 🎯 不调用 handleStopFocus，避免闭包和重渲染问题
+      // 只设置一个标记，让另一个 useEffect 处理
     }
-    return () => clearInterval(interval);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isTimer, isActive, timeLeft]);
+
+  // 🎉 监听完成状态，触发结算（使用独立的 useEffect）
+  useEffect(() => {
+    if (isCompleted && isTimer && !hasTriggeredSummaryRef.current) {
+      console.log('🎊 [Study] 专注完成，触发结算Modal');
+      hasTriggeredSummaryRef.current = true;
+      handleStopFocus();
+    }
+  }, [isCompleted, isTimer]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -317,6 +360,10 @@ export default function Study() {
   };
 
   const handleStartFocus = async () => {
+    // 🔓 重置所有触发标记（重新开始专注时解锁）
+    hasTriggeredSummaryRef.current = false;
+    hasCompletedRef.current = false;
+
     // 更新数据库：标记用户开始自习
     if (user?.id) {
       try {
@@ -351,7 +398,18 @@ export default function Study() {
     });
   };
 
+  // 🎉 停止专注并显示结算（统一入口）
   const handleStopFocus = async () => {
+    // 🛡️ 防止重复调用（更强的检查：检查标记和弹窗状态）
+    if (hasTriggeredSummaryRef.current || showSummaryModal) {
+      console.log('⚠️ [Study] 结算已触发或弹窗已显示，跳过重复调用');
+      return;
+    }
+
+    hasTriggeredSummaryRef.current = true; // 🎯 立即标记，防止并发调用
+    setIsActive(false); // ⚡ 停止计时器
+    setShowSummaryModal(true); // ⚡ 立即显示弹窗，防止异步操作期间重复触发
+
     // 🏅 计算本次专注时长并保存
     let studiedMinutes = 0;
     
@@ -382,10 +440,13 @@ export default function Study() {
       });
     }
 
-    // 更新数据库：标记用户停止自习，并清除双向关联
+    // 🎉 保存专注时长用于结算显示
+    setStudyDuration(studiedMinutes);
+
+    // 更新数据库：标记用户停止自习,并清除双向关联
     if (user?.id) {
       try {
-        console.log('🛑 [Study] 停止自习，更新数据库状态...');
+        console.log('🛑 [Study] 停止自习,更新数据库状态...');
         
         // 🎯 获取当前用户的 companion_id 和 total_study_time
         const { data: myProfile } = await supabase
@@ -404,7 +465,7 @@ export default function Study() {
         const newTotal = currentTotal + studiedMinutes;
         console.log(`🏅 [Study] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
         
-        // 1. 更新自己的状态：清除 is_studying 和 companion_id，累加时长
+        // 1. 更新自己的状态：清除 is_studying 和 companion_id,累加时长
         const { error } = await supabase
           .from('profiles')
           .update({ 
@@ -418,9 +479,11 @@ export default function Study() {
           console.error('❌ [Study] 更新自己的状态失败:', error);
         } else {
           console.log('✅ [Study] 已更新 is_studying = false, companion_id = null, total_study_time =', newTotal);
+          // 🎉 更新前端显示的总时长
+          setTotalStudyTime(newTotal);
         }
 
-        // 2. 如果有好友在一起自习，也清除好友的 companion_id
+        // 2. 如果有好友在一起自习,也清除好友的 companion_id
         if (companionId) {
           console.log(`🔗 [Study] 清除好友 ${companionId} 的关联`);
           const { error: companionError } = await supabase
@@ -438,16 +501,185 @@ export default function Study() {
         console.error('❌ [Study] 数据库更新异常:', err);
       }
     }
-    
+    // ⚠️ 不需要在这里再次调用 setShowSummaryModal(true)
+    // 因为已经在函数开头设置过了
+  };
+
+  // 🎯 顶部关闭按钮的处理函数
+  const handleCloseButtonClick = () => {
+    if (showSummaryModal) {
+      // 如果弹窗已显示，关闭弹窗
+      handleCloseSummary();
+    } else {
+      // 否则，停止专注并显示结算
+      handleStopFocus();
+    }
+  };
+
+  // 🎉 关闭结算弹窗并返回主页
+  const handleCloseSummary = () => {
+    setShowSummaryModal(false);
+
     // 🧹 重置计时器状态
     setFocusStartTime(null);
     setInitialDuration(25);
-    
+    setStudyDuration(0);
+
     // 返回自习室主页
     navigate(AppRoutes.STUDY);
   };
 
   const timeObj = formatTime(timeLeft);
+
+  // 🎉 撒花特效组件
+  const ConfettiEffect = () => {
+    const confettiCount = 50;
+    const confettiElements = [];
+    
+    for (let i = 0; i < confettiCount; i++) {
+      const style = {
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 3}s`,
+        animationDuration: `${2 + Math.random() * 3}s`,
+        backgroundColor: ['#FF69B4', '#FFD700', '#87CEEB', '#FF1493', '#9370DB'][Math.floor(Math.random() * 5)],
+        width: `${5 + Math.random() * 5}px`,
+        height: `${5 + Math.random() * 5}px`,
+        opacity: 0.7 + Math.random() * 0.3,
+      };
+      
+      confettiElements.push(
+        <div
+          key={i}
+          className="absolute top-0 animate-confetti-fall"
+          style={style}
+        />
+      );
+    }
+    
+    return <div className="absolute inset-0 overflow-hidden pointer-events-none">{confettiElements}</div>;
+  };
+
+  // 🎉 结算Modal组件
+  const SummaryModal = () => {
+    if (!showSummaryModal) return null;
+
+    const hasCompanion = !!companion;
+    const completionRate = Math.round((studyDuration / initialDuration) * 100);
+    const earnedPoints = Math.floor(studyDuration * 2); // 每分钟2积分
+
+    return (
+      <>
+        {/* 背景遮罩 */}
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fade-in"
+          onClick={handleCloseSummary}
+        />
+        
+        {/* Modal内容 */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
+          <div 
+            className="bg-gradient-to-br from-purple-900/95 to-pink-900/95 backdrop-blur-xl border-2 border-white/30 rounded-3xl p-8 max-w-md w-full shadow-2xl pointer-events-auto animate-scale-in"
+            style={{ 
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(219,39,119,0.3)',
+            }}
+          >
+            {/* 撒花特效 */}
+            <ConfettiEffect />
+            
+            {/* 顶部图标 */}
+            <div className="flex justify-center mb-6 relative">
+              <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-bounce-gentle">
+                <Trophy size={40} className="text-white" fill="white" />
+              </div>
+              <Sparkles className="absolute top-0 right-1/3 text-yellow-300 animate-sparkle" size={20} />
+              <Sparkles className="absolute bottom-0 left-1/3 text-pink-300 animate-sparkle delay-300" size={16} />
+            </div>
+
+            {/* 标题 */}
+            <h2 className="text-3xl font-bold text-white text-center mb-2">
+              {completionRate >= 100 ? '专注完成!' : '结束专注'}
+            </h2>
+            <p className="text-pink-200 text-center mb-6 text-sm">
+              {completionRate >= 100 ? '太棒了! 你完成了全部专注时间 🎉' : '每一次专注都是进步 💪'}
+            </p>
+
+            {/* 核心数据卡片 */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 border border-white/20">
+              {/* 专注时长 */}
+              <div className="text-center mb-4">
+                <p className="text-white/60 text-xs uppercase tracking-wider mb-2">本次专注时长</p>
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-5xl font-bold text-white">{studyDuration}</span>
+                  <span className="text-2xl text-white/80">分钟</span>
+                </div>
+                {studyDuration < initialDuration && (
+                  <p className="text-white/50 text-xs mt-2">
+                    目标: {initialDuration} 分钟 ({completionRate}%)
+                  </p>
+                )}
+              </div>
+
+              {/* 分隔线 */}
+              <div className="h-px bg-white/20 my-4" />
+
+              {/* 好友信息 */}
+              {hasCompanion && (
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <Avatar 
+                    name={profile?.username || 'Me'} 
+                    avatar={profile?.avatar_url} 
+                    size="md" 
+                  />
+                  <Heart className="text-pink-400 animate-heartbeat" size={20} fill="currentColor" />
+                  <Avatar 
+                    name={companion.username} 
+                    avatar={companion.avatar} 
+                    size="md" 
+                  />
+                </div>
+              )}
+              
+              <p className="text-center text-white/90 text-sm leading-relaxed">
+                {hasCompanion ? (
+                  <>
+                    你和 <span className="font-bold text-pink-300">{companion.username}</span> 共度了一段高效时光
+                  </>
+                ) : (
+                  '独自专注也很棒! 继续保持 ✨'
+                )}
+              </p>
+
+              {/* 获得积分 */}
+              {earnedPoints > 0 && (
+                <>
+                  <div className="h-px bg-white/20 my-4" />
+                  <div className="flex items-center justify-center gap-2">
+                    <Zap className="text-yellow-400" size={18} fill="currentColor" />
+                    <span className="text-white font-semibold">+{earnedPoints} 积分</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Kuromi风格贴纸 */}
+            <div className="text-center mb-6">
+              <div className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-full text-lg font-bold shadow-lg transform -rotate-2">
+                Great Job! 🎀
+              </div>
+            </div>
+
+            {/* 按钮 */}
+            <button
+              onClick={handleCloseSummary}
+              className="w-full bg-white text-purple-900 py-4 rounded-full font-bold text-lg hover:scale-105 active:scale-95 transition-transform shadow-lg"
+            >
+              返回自习室
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
 
   // 计时器视图 - 三明治分层法
   if (isTimer) {
@@ -467,11 +699,14 @@ export default function Study() {
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
+        {/* 🎉 结算Modal */}
+        <SummaryModal />
+
         {/* 内容层：z-index: 10 */}
         <div className="relative z-10 flex flex-col h-full">
           {/* 关闭按钮 */}
           <button
-            onClick={handleStopFocus}
+            onClick={handleCloseButtonClick}
             className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
           >
             <X size={20} className="text-white" />
@@ -550,19 +785,6 @@ export default function Study() {
                   </div>
                 )}
               </div>
-
-              {isCompleted && (
-                <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-2xl flex flex-col items-center shadow-2xl">
-                  <h3 className="text-xl font-bold text-white mb-1">太棒了！</h3>
-                  <p className="text-blue-200 text-sm mb-4">获得 +50 积分</p>
-                  <button
-                    onClick={handleStopFocus}
-                    className="bg-white text-slate-900 px-6 py-2.5 rounded-full font-semibold hover:scale-105 transition-transform shadow-lg"
-                  >
-                    返回自习室
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
