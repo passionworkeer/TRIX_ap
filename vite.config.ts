@@ -36,6 +36,8 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       strictPort: false,
+      // 注意: 相机功能需要 HTTPS 或 localhost
+      // 如需在手机上使用相机，需配置 HTTPS 或使用 ngrok
       proxy: {
         // WebSocket 反向代理
         '/gateway': {

@@ -33,6 +33,11 @@ const QRScanner: React.FC<QRScannerProps> = ({
     
     const startScanner = async () => {
       try {
+        // 检查浏览器是否支持 getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('您的浏览器不支持相机访问。请使用 HTTPS 访问或升级浏览器。');
+        }
+
         // 检查相机权限
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         stream.getTracks().forEach(track => track.stop()); // 立即停止，只是检查权限
@@ -47,6 +52,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
           {
             fps: 10, // 每秒扫描帧数
             qrbox: { width: 250, height: 250 }, // 扫描框大小
+            aspectRatio: 1.0, // 宽高比
           },
           (decodedText) => {
             // 扫描成功
@@ -71,6 +77,8 @@ const QRScanner: React.FC<QRScannerProps> = ({
           setError('相机权限被拒绝，请在设置中允许访问相机');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           setError('未检测到相机设备');
+        } else if (err.message && err.message.includes('getUserMedia')) {
+          setError('需要使用 HTTPS 访问才能使用相机功能');
         } else {
           setError('启动相机失败：' + err.message);
         }
@@ -146,9 +154,20 @@ const QRScanner: React.FC<QRScannerProps> = ({
               <div className="p-8 flex flex-col items-center justify-center text-center">
                 <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {cameraPermission === 'denied' ? '需要相机权限' : '启动失败'}
+                  {cameraPermission === 'denied' ? '需要相机权限' : error.includes('HTTPS') ? '需要 HTTPS 访问' : '启动失败'}
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">{error}</p>
+                
+                {error.includes('HTTPS') && (
+                  <div className="text-xs text-gray-500 bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
+                    <p className="font-medium mb-2 text-blue-900">💡 解决方法：</p>
+                    <ol className="list-decimal list-inside space-y-1 text-left text-blue-800">
+                      <li>使用 <code className="bg-blue-100 px-1 rounded">localhost</code> 访问（仅限电脑）</li>
+                      <li>使用 ngrok 创建 HTTPS 隧道</li>
+                      <li>或使用"手动输入配对码"功能</li>
+                    </ol>
+                  </div>
+                )}
                 
                 {cameraPermission === 'denied' && (
                   <div className="text-xs text-gray-500 bg-gray-100 rounded-lg p-4 mb-4">
