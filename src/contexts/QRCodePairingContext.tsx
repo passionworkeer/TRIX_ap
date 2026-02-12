@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import clawbotPairingService, { PairingRequest, PairingResponse } from '../services/clawbotPairingService';
+import clawbotPairingService from '../services/clawbotPairingService';
+import { PairingRequest, PairingResponse } from '../types/clawbot';
 
 /**
  * 二维码配对 Context

@@ -1,50 +1,93 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import heroVideo from "../assets/role_video.mp4";
+import sayingVideo from "../assets/Saying.mp4";
+import { useGlobalConnection } from "../contexts/WebSocketContext";
 
 // 视频路径 (通过 import 导入,Vite 会自动处理)
-const HERO_VIDEO = heroVideo;
+const IDLE_VIDEO = heroVideo;
+const SAYING_VIDEO = sayingVideo;
 
 export default function HeroBackground() {
+  const { fullResponse } = useGlobalConnection();
+  const idleVideoRef = useRef<HTMLVideoElement>(null);
+  const sayingVideoRef = useRef<HTMLVideoElement>(null);
+
+  // 判断机器人是否正在说话
+  const isSpeaking = fullResponse && fullResponse.length > 0;
+
+  useEffect(() => {
+    if (isSpeaking) {
+      // 开始说话：播放 saying video
+      sayingVideoRef.current?.play();
+      idleVideoRef.current?.pause();
+    } else {
+      // 停止说话：恢复播放 idle video
+      idleVideoRef.current?.play();
+      sayingVideoRef.current?.pause();
+      sayingVideoRef.current && (sayingVideoRef.current.currentTime = 0);
+    }
+  }, [isSpeaking]);
+
   return (
-    <div 
-      className="fixed inset-0 w-full h-full overflow-hidden" 
-      style={{ 
-        zIndex: 0, 
+    <div
+      className="fixed inset-0 w-full h-full overflow-hidden"
+      style={{
+        zIndex: 0,
         backgroundColor: '#1a1a1a',
-      }} 
+      }}
     >
-      
-      {/* 视频层：循环播放背景视频 */}
+      {/* 待机视频层：循环播放 */}
       <video
-        src={HERO_VIDEO}
+        ref={idleVideoRef}
+        src={IDLE_VIDEO}
         autoPlay
         loop
         muted
         playsInline
-        // 移除 className，防止 Tailwind 样式冲突
-        // className="absolute inset-0 w-full h-full object-cover" 
-        style={{ 
-          // 视频全屏覆盖样式
+        style={{
           position: 'absolute',
           top: 0,
           left: 0,
           width: '100%',
           height: '100%',
-          objectFit: 'cover',   // 保持比例铺满
-          objectPosition: 'center', // 视频居中显示
-          display: 'block',     // 强制显示
-          opacity: 1,           // 强制不透明
+          objectFit: 'cover',
+          objectPosition: 'center',
+          display: 'block',
+          opacity: isSpeaking ? 0 : 1,
+          transition: 'opacity 0.3s ease-in-out',
           zIndex: 1,
         }}
-        onError={(e) => console.error("❌ 视频加载失败:", HERO_VIDEO)}
+        onError={(e) => console.error("❌ 待机视频加载失败:", IDLE_VIDEO)}
       />
 
-      {/* 3. 渐变遮罩 (美化) */}
-      <div 
-        className="absolute inset-0 pointer-events-none" 
+      {/* 说话视频层：机器人说话时播放 */}
+      <video
+        ref={sayingVideoRef}
+        src={SAYING_VIDEO}
+        muted
+        playsInline
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center',
+          display: 'block',
+          opacity: isSpeaking ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out',
+          zIndex: 1,
+        }}
+        onError={(e) => console.error("❌ 说话视频加载失败:", SAYING_VIDEO)}
+      />
+
+      {/* 渐变遮罩 (美化) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
         style={{
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), transparent, rgba(0,0,0,0.6))',
-          zIndex: 2 
+          zIndex: 2
         }}
       />
     </div>

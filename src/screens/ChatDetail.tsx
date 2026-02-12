@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
@@ -7,7 +8,7 @@ import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
 import FilePicker from '../components/FilePicker';
 import MediaMessage from '../components/MediaMessage';
-import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia } from '../services/databaseService';
+import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
 import type { ChatMessage } from '../config/supabase';
@@ -33,12 +34,16 @@ interface UIMessage {
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { name, avatar, isBot, friendId } = location.state || { 
-    name: 'Clawdbot Gateway', 
-    avatar: IMAGES.WIZARD_BOY_LOGIN, 
+  const { name, avatar, isBot, friendId, photoUri } = location.state || {
+    name: 'Clawdbot Gateway',
+    avatar: IMAGES.WIZARD_BOY_LOGIN,
     isBot: true,
-    friendId: 'clawbot'
+    friendId: 'clawbot',
+    photoUri: null
   };
+
+  // 从路由参数接收到的图片预览状态
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(photoUri || null);
   
   // WebSocket connection for Bot
   const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
@@ -274,17 +279,33 @@ const ChatDetail: React.FC = () => {
   }, [fullResponse, currentStreamId, isBot]);
 
   const handleSend = async () => {
-    // Check if we have media or text
-    const hasMedia = pendingMedia !== null;
+    // 检查是否有媒体或文字 - 包括从快拍传入的 attachmentPreview
+    const hasPendingMedia = pendingMedia !== null;
+    const hasAttachmentPreview = attachmentPreview !== null;
+    const hasMedia = hasPendingMedia || hasAttachmentPreview;
     const hasText = input.trim();
 
     if (!hasMedia && !hasText) return;
 
     const messageText = input;
-    const mediaData = pendingMedia;
+
+    // 构建媒体数据 - 优先使用 pendingMedia，否则使用 attachmentPreview
+    let mediaData: any = null;
+    if (hasPendingMedia) {
+      mediaData = pendingMedia;
+    } else if (hasAttachmentPreview) {
+      // 从 attachmentPreview 构建媒体数据
+      mediaData = {
+        uri: attachmentPreview,
+        type: 'image/jpeg',
+        category: 'image',
+        metadata: {}
+      };
+    }
 
     setInput(''); // Clear input
     setPendingMedia(null); // Clear pending media
+    setAttachmentPreview(null); // Clear attachment preview
 
     const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
@@ -312,7 +333,7 @@ const ChatDetail: React.FC = () => {
       let messageId: string | null = null;
 
       if (hasMedia) {
-        // Send message with media
+        // Send message with media - 使用类型断言，因为 hasMedia 为 true 时 messageType 不会是 'text'
         messageId = await sendMessageWithMedia(
           friendId,
           'user',
@@ -324,7 +345,7 @@ const ChatDetail: React.FC = () => {
             category: mediaData.category,
             metadata: mediaData.metadata
           },
-          messageType
+          messageType as 'image' | 'video' | 'mixed'
         );
       } else {
         // Send text-only message
@@ -603,6 +624,42 @@ const ChatDetail: React.FC = () => {
 
       {/* Input Area */}
       <div className="flex-shrink-0 px-4 py-3 pb-6 bg-transparent pointer-events-none z-40">
+          {/* 图片附件预览 - 在输入框上方 */}
+          {attachmentPreview && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="max-w-lg mx-auto mb-2 pointer-events-auto"
+            >
+              <div className="relative inline-block">
+                {/* 图片缩略图 */}
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-white/60 shadow-lg">
+                  <img
+                    src={attachmentPreview}
+                    alt="附件预览"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* 渐变遮罩 */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </div>
+
+                {/* 删除按钮 */}
+                <button
+                  onClick={() => setAttachmentPreview(null)}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center shadow-lg hover:bg-slate-800 transition-colors"
+                >
+                  <X size={12} strokeWidth={2.5} />
+                </button>
+
+                {/* 文件类型标签 */}
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-blue-500 text-white text-[10px] font-medium rounded-full shadow-md">
+                  图片
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Floating Input Container */}
           <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-slate-200/50 rounded-3xl p-1.5 flex items-center gap-2 pointer-events-auto max-w-lg mx-auto w-full transition-all duration-200 hover:shadow-2xl hover:shadow-slate-200/60 ring-1 ring-slate-100">
 
@@ -634,10 +691,10 @@ const ChatDetail: React.FC = () => {
 
             <button
               onClick={handleSend}
-              disabled={!input.trim() || (isBot && !isConnected && false)} 
+              disabled={(!input.trim() && !attachmentPreview && !pendingMedia) || (isBot && !isConnected && false)} 
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                input.trim() 
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-indigo-300/50 hover:scale-105 active:scale-95' 
+                input.trim() || attachmentPreview || pendingMedia
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-indigo-300/50 hover:scale-105 active:scale-95'
                   : 'bg-slate-100 text-slate-300'
               }`}
             >
