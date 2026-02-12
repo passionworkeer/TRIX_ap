@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Camera, MessageSquare, X } from 'lucide-react';
+import { Search, UserPlus, Camera, MessageSquare, X, Scan } from 'lucide-react';
 import AddFriendModal from '../components/AddFriendModal';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
@@ -46,6 +46,13 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isClawbotConnected, setIsClawbotConnected] = useState(false);
+
+  // 检查 Clawbot 连接状态
+  useEffect(() => {
+    const token = localStorage.getItem('clawbot_device_token');
+    setIsClawbotConnected(!!token);
+  }, []);
 
   // 加载好友列表
   useEffect(() => {
@@ -237,13 +244,89 @@ const Chat: React.FC = () => {
                       <div className="flex items-center justify-center py-10">
                         <div className="text-sm text-gray-400">加载中...</div>
                       </div>
-                   ) : friends.length === 0 ? (
-                      <div className="flex items-center justify-center py-10">
-                        <div className="text-sm text-gray-400">暂无好友</div>
-                      </div>
                    ) : (
                       <AnimatePresence>
-                        {filteredFriends.map((friend, index) => {
+                        {/* Clawbot 机器人 - 始终显示在最顶部 */}
+                        <motion.div
+                          key="clawbot"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="flex items-center py-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors mb-2"
+                          onClick={() => {
+                            if (isClawbotConnected) {
+                              // 已连接，进入聊天
+                              navigate(AppRoutes.CHAT_DETAIL, {
+                                state: {
+                                  name: 'Clawbot',
+                                  avatar: IMAGES.WIZARD_BOY,
+                                  isBot: true,
+                                  friendId: 'clawbot'
+                                }
+                              });
+                            } else {
+                              // 未连接，跳转到配对页面
+                              navigate(AppRoutes.QR_PAIRING);
+                            }
+                          }}
+                        >
+                          {/* 头像 */}
+                          <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
+                             <Avatar name="Clawbot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                             {/* 连接状态指示器 */}
+                             {isClawbotConnected ? (
+                                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
+                             ) : (
+                                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-black/30"></div>
+                             )}
+                          </div>
+
+                          {/* 文本区域 */}
+                          <div className="flex-1 min-w-0">
+                             <h3 className="text-white font-bold text-base leading-tight mb-0.5 flex items-center gap-2">
+                               Clawbot
+                               {!isClawbotConnected && (
+                                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">未连接</span>
+                               )}
+                             </h3>
+                             <div className="flex items-center gap-1.5">
+                                <MessageSquare size={14} className={isClawbotConnected ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
+                                <span className="text-sm text-gray-400 truncate">
+                                  {isClawbotConnected ? 'AI 助手已就绪' : '点击扫码配对'}
+                                </span>
+                             </div>
+                          </div>
+
+                          {/* 右侧图标 */}
+                          <div className="flex-shrink-0 pl-2">
+                             {isClawbotConnected ? (
+                                <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-400/30 flex items-center justify-center">
+                                   <Camera size={18} className="text-green-400" />
+                                </div>
+                             ) : (
+                                <div className="w-10 h-10 rounded-full bg-orange-500/20 border border-orange-400/30 flex items-center justify-center">
+                                   <Scan size={18} className="text-orange-400" />
+                                </div>
+                             )}
+                          </div>
+                        </motion.div>
+
+                        {/* 分隔线 */}
+                        {friends.length > 0 && (
+                          <div className="my-2 flex items-center gap-3">
+                            <div className="flex-1 h-px bg-white/5"></div>
+                            <span className="text-xs text-white/40 uppercase tracking-wide">Friends</span>
+                            <div className="flex-1 h-px bg-white/5"></div>
+                          </div>
+                        )}
+
+                        {/* 好友列表 */}
+                        {friends.length === 0 && !loading ? (
+                          <div className="flex items-center justify-center py-10">
+                            <div className="text-sm text-gray-400">暂无好友</div>
+                          </div>
+                        ) : (
+                        filteredFriends.map((friend, index) => {
                           const hasUnread = (friend.unread_count || 0) > 0;
                           const avatar = getFriendAvatar(friend.friend_id, friend.avatar_url);
                           const isBot = friend.friend_id === 'clawbot';
@@ -313,7 +396,8 @@ const Chat: React.FC = () => {
                               </div>
                             </motion.div>
                           );
-                        })}
+                        })
+                        )}
                       </AnimatePresence>
                    )}
              </div>

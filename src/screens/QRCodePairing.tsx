@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Scan, Wifi, WifiOff, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
 import { useQRCodePairing } from '../contexts/QRCodePairingContext';
 import { AppRoutes } from '../types';
+import QRScanner from '../components/QRScanner';
 
 /**
  * 二维码配对页面
@@ -31,6 +32,7 @@ const QRCodePairing: React.FC = () => {
   const [manualCode, setManualCode] = useState('');
   const [deviceName, setDeviceName] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   // 配对成功后自动跳转
   useEffect(() => {
@@ -47,6 +49,36 @@ const QRCodePairing: React.FC = () => {
   const handleStartPairing = async () => {
     const name = deviceName.trim() || `TRIX-${navigator.platform}`;
     await startPairing(name);
+  };
+
+  /**
+   * 处理扫描成功
+   */
+  const handleScanSuccess = async (decodedText: string) => {
+    try {
+      console.log('[QRCodePairing] 扫描到二维码:', decodedText);
+      
+      // 解析二维码内容
+      const qrData = JSON.parse(decodedText);
+      console.log('[QRCodePairing] 解析后的数据:', qrData);
+      
+      // 保存配对信息到环境变量或 localStorage
+      if (qrData.gatewayUrl) {
+        localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      }
+      if (qrData.pairingToken) {
+        localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
+      }
+      
+      // 开始配对流程
+      const name = deviceName.trim() || `TRIX-${navigator.platform}`;
+      await startPairing(name);
+      
+      setShowScanner(false);
+    } catch (error) {
+      console.error('[QRCodePairing] 处理扫描结果失败:', error);
+      alert('二维码格式错误，请重新扫描');
+    }
   };
 
   /**
@@ -242,11 +274,11 @@ const QRCodePairing: React.FC = () => {
 
             {/* 扫描二维码按钮 */}
             <button
-              onClick={handleStartPairing}
+              onClick={() => setShowScanner(true)}
               className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg flex items-center justify-center gap-2"
             >
               <Scan className="w-5 h-5" />
-              开始配对
+              扫描二维码配对
             </button>
 
             {/* 切换手动输入 */}
@@ -326,6 +358,16 @@ const QRCodePairing: React.FC = () => {
           </motion.div>
         )}
       </div>
+
+      {/* 二维码扫描器 */}
+      <QRScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
+        onScanError={(error) => {
+          console.error('[QRCodePairing] 扫描错误:', error);
+        }}
+      />
     </div>
   );
 };
