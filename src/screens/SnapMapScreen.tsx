@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import { ArrowLeft, Navigation, Ghost } from 'lucide-react';
+import { ArrowLeft, Navigation, Map as MapIcon } from 'lucide-react';
 import L from 'leaflet';
 import { getFriends } from '../services/databaseService';
 import type { FriendLatestMessage } from '../config/supabase';
@@ -14,61 +14,62 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// 模拟状态数据（实际应用中可能来自数据库）
+// 本地 3D PNG 图片路径
+const HERO_3D_IMAGE = '/assets/hero_render.png';
+
+// 好友状态模拟数据
 interface FriendStatus {
   emoji: string;
   text: string;
 }
 
 const friendStatuses: Record<string, FriendStatus> = {
-  'clawbot': { emoji: '🤖', text: '在线中' },
+  'clawbot': { emoji: '🤖', text: 'Coding...' },
 };
 
-// 上海陆家嘴附近的坐标偏移（为好友生成 slightly 不同的位置）
+// 上海陆家嘴附近的坐标偏移
 const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
   const offsets = [
-    { lat: 0, lng: 0 },
-    { lat: 0.002, lng: 0.003 },
-    { lat: -0.001, lng: 0.002 },
-    { lat: 0.001, lng: -0.002 },
-    { lat: -0.002, lng: -0.001 },
+    { lat: 0.001, lng: 0.002 },
+    { lat: -0.001, lng: 0.003 },
+    { lat: 0.002, lng: -0.002 },
   ];
   const offset = offsets[index % offsets.length];
   return { lat: baseLat + offset.lat, lng: baseLng + offset.lng };
 };
 
-// 创建 3D 贴纸风格的好友标记
-const createFriendMarkerIcon = (friend: FriendLatestMessage, status: FriendStatus, index: number) => {
-  const avatarUrl = friend.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.name}`;
-
+// 创建 3D PNG Avatar 标记
+const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) => {
   return L.divIcon({
-    className: 'friend-marker',
+    className: 'avatar-3d-marker',
     html: `
       <div style="
         position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        transform: translateY(-50%);
+        transform: translateY(-100%);
       ">
-        <!-- 状态气泡 - 胶囊形状 -->
+        <!-- 状态标签 -->
         <div style="
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(8px);
           padding: 6px 14px;
-          border-radius: 9999px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          margin-bottom: 8px;
+          border-radius: 20px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+          margin-bottom: 4px;
           white-space: nowrap;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          position: relative;
+          border: 1px solid rgba(0, 0, 0, 0.05);
+          font-size: 13px;
+          font-weight: 600;
+          color: #333;
+          display: flex;
+          align-items: center;
+          gap: 4px;
         ">
-          <span style="font-size: 13px; color: white; font-weight: 500; display: flex; align-items: center; gap: 4px;">
-            <span>${status.emoji}</span>
-            <span>${status.text}</span>
-          </span>
-          <!-- 小三角形尖角 -->
+          <span>${status.emoji}</span>
+          <span>${status.text}</span>
+          <!-- 小三角 -->
           <div style="
             position: absolute;
             bottom: -5px;
@@ -78,96 +79,110 @@ const createFriendMarkerIcon = (friend: FriendLatestMessage, status: FriendStatu
             height: 0;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
-            border-top: 5px solid rgba(0, 0, 0, 0.6);
+            border-top: 5px solid rgba(255, 255, 255, 0.95);
           "></div>
         </div>
 
-        <!-- 头像容器 - 3D 贴纸感 -->
+        <!-- 3D 角色图片 -->
         <div style="
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow:
-            0 4px 8px rgba(0, 0, 0, 0.5),
-            0 8px 24px rgba(0, 0, 0, 0.3),
-            0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-          overflow: hidden;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          width: 70px;
+          height: 90px;
           position: relative;
-          transform: translateZ(0);
+          filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.3));
         ">
           <img
-            src="${avatarUrl}"
+            src="${HERO_3D_IMAGE}"
             alt="${friend.name}"
             style="
               width: 100%;
               height: 100%;
-              object-fit: cover;
+              object-fit: contain;
+              object-position: bottom;
             "
-            onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.name}'"
           />
         </div>
+
+        <!-- 底座投影 -->
+        <div style="
+          width: 40px;
+          height: 8px;
+          background: radial-gradient(ellipse, rgba(0,0,0,0.2) 0%, transparent 70%);
+          border-radius: 50%;
+          margin-top: -5px;
+        "></div>
       </div>
     `,
-    iconSize: [48, 100],
-    iconAnchor: [24, 50],
-    popupAnchor: [0, -50],
+    iconSize: [70, 120],
+    iconAnchor: [35, 0],
+    popupAnchor: [0, -60],
   });
 };
 
-// 创建发光热力圈（使用 blur 效果）
+// 创建发光热力圈（柔和风格）
 const createHeatIcon = () => {
   return L.divIcon({
     className: 'heat-marker',
     html: `
       <div style="
         position: relative;
-        width: 256px;
-        height: 256px;
+        width: 200px;
+        height: 200px;
         transform: translate(-50%, -50%);
         pointer-events: none;
       ">
-        <!-- 外层光晕 -->
+        <!-- 外层柔和光晕 -->
         <div style="
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0.1) 40%, transparent 70%);
+          background: radial-gradient(circle, rgba(255, 107, 107, 0.25) 0%, rgba(255, 107, 107, 0.08) 50%, transparent 70%);
           border-radius: 50%;
-          filter: blur(20px);
-          animation: pulse-heat 3s ease-in-out infinite;
+          filter: blur(15px);
+          animation: pulse-heat 4s ease-in-out infinite;
         "></div>
-        <!-- 内层核心 -->
+        <!-- 中层光晕 -->
         <div style="
           position: absolute;
-          inset: 20%;
-          background: radial-gradient(circle, rgba(239, 68, 68, 0.5) 0%, rgba(239, 68, 68, 0.2) 50%, transparent 70%);
+          inset: 15%;
+          background: radial-gradient(circle, rgba(255, 142, 83, 0.3) 0%, rgba(255, 142, 83, 0.1) 50%, transparent 70%);
           border-radius: 50%;
           filter: blur(10px);
-          animation: pulse-heat 3s ease-in-out infinite 0.5s;
+          animation: pulse-heat 4s ease-in-out infinite 0.5s;
+        "></div>
+        <!-- 中心亮点 -->
+        <div style="
+          position: absolute;
+          inset: 35%;
+          background: radial-gradient(circle, rgba(255, 200, 100, 0.5) 0%, transparent 70%);
+          border-radius: 50%;
+          filter: blur(5px);
+          animation: pulse-core 3s ease-in-out infinite;
         "></div>
         <!-- 脉冲环 -->
         <div style="
           position: absolute;
-          inset: 10%;
-          border: 2px solid rgba(239, 68, 68, 0.3);
+          inset: 20%;
+          border: 2px solid rgba(255, 107, 107, 0.2);
           border-radius: 50%;
-          animation: ripple 2s ease-out infinite;
+          animation: ripple 3s ease-out infinite;
         "></div>
       </div>
       <style>
         @keyframes pulse-heat {
           0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.1); }
+          50% { opacity: 1; transform: scale(1.15); }
+        }
+        @keyframes pulse-core {
+          0%, 100% { opacity: 0.5; transform: scale(0.9); }
+          50% { opacity: 0.9; transform: scale(1.1); }
         }
         @keyframes ripple {
-          0% { transform: scale(0.8); opacity: 1; }
-          100% { transform: scale(1.5); opacity: 0; }
+          0% { transform: scale(0.8); opacity: 0.6; }
+          100% { transform: scale(1.6); opacity: 0; }
         }
       </style>
     `,
-    iconSize: [256, 256],
-    iconAnchor: [128, 128],
+    iconSize: [200, 200],
+    iconAnchor: [100, 100],
   });
 };
 
@@ -190,19 +205,19 @@ const LocationButton: React.FC = () => {
         bottom: '120px',
         right: '16px',
         zIndex: 1000,
-        width: '50px',
-        height: '50px',
+        width: '48px',
+        height: '48px',
         borderRadius: '50%',
-        background: 'rgba(0, 0, 0, 0.8)',
-        border: '2px solid rgba(255, 255, 255, 0.2)',
+        background: 'white',
+        border: 'none',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
       }}
     >
-      <Navigation size={24} color="white" />
+      <Navigation size={22} color="#333" />
     </button>
   );
 };
@@ -237,15 +252,15 @@ const SnapMapScreen: React.FC = () => {
     return friends.map((friend, index) => {
       const pos = getOffsetPosition(center[0], center[1], index);
       const status = friendStatuses[friend.friend_id] || {
-        emoji: ['☕', '👻', '🚗'][index % 3],
-        text: ['喝咖啡中', '摸鱼', '开车'][index % 3],
+        emoji: ['🧑‍💻', '🎮', '🎵'][index % 3],
+        text: ['Coding...', 'Gaming...', 'Listening...'][index % 3],
       };
 
       return (
         <Marker
           key={friend.friend_id}
           position={[pos.lat, pos.lng]}
-          icon={createFriendMarkerIcon(friend, status, index)}
+          icon={create3DAvatarIcon(friend, status)}
         />
       );
     });
@@ -256,11 +271,11 @@ const SnapMapScreen: React.FC = () => {
       style={{
         position: 'fixed',
         inset: 0,
-        background: '#0a0a0a',
+        background: '#f5f5f5',
         overflow: 'hidden',
       }}
     >
-      {/* 顶部导航栏 */}
+      {/* 顶部导航栏 - 浅色风格 */}
       <div
         style={
           {
@@ -271,7 +286,7 @@ const SnapMapScreen: React.FC = () => {
             zIndex: 1000,
             padding: '16px',
             paddingTop: '48px',
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)',
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, transparent 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -284,16 +299,16 @@ const SnapMapScreen: React.FC = () => {
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            background: 'rgba(0, 0, 0, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            background: 'white',
+            border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            backdropFilter: 'blur(10px)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
           }}
         >
-          <ArrowLeft size={20} color="white" />
+          <ArrowLeft size={20} color="#333" />
         </button>
 
         <div
@@ -301,16 +316,15 @@ const SnapMapScreen: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'rgba(0, 0, 0, 0.6)',
+            background: 'white',
             padding: '8px 16px',
             borderRadius: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
           }}
         >
-          <Ghost size={18} color="#FFFC00" />
-          <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>
-            Snap Map
+          <MapIcon size={18} color="#6366f1" />
+          <span style={{ color: '#333', fontSize: '14px', fontWeight: 600 }}>
+            Virtual World
           </span>
         </div>
 
@@ -326,30 +340,30 @@ const SnapMapScreen: React.FC = () => {
         style={{
           width: '100%',
           height: '100%',
-          background: '#0a0a0a',
+          background: '#f5f5f5',
         }}
       >
-        {/* CartoDB Dark Matter 深色底图 */}
+        {/* 标准 OpenStreetMap - 明亮色调 */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         />
 
-        {/* 热力圈 - 发光模糊光斑 */}
+        {/* 热力圈 - 柔和发光效果 */}
         <Marker
           position={[31.232, 121.475]}
           icon={createHeatIcon()}
           interactive={false}
         />
 
-        {/* 好友标记 */}
+        {/* 好友 3D Avatar 标记 */}
         {!loading && friendMarkers}
 
         {/* 定位按钮 */}
         <LocationButton />
       </MapContainer>
 
-      {/* 底部提示 */}
+      {/* 底部提示 - 浅色风格 */}
       <div
         style={{
           position: 'absolute',
@@ -357,11 +371,10 @@ const SnapMapScreen: React.FC = () => {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(10px)',
+          background: 'white',
           padding: '12px 24px',
           borderRadius: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -372,12 +385,12 @@ const SnapMapScreen: React.FC = () => {
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: '#00ff88',
-            boxShadow: '0 0 10px #00ff88',
+            background: '#22c55e',
+            boxShadow: '0 0 8px #22c55e',
           }}
         />
-        <span style={{ color: 'white', fontSize: '13px', fontWeight: 500 }}>
-          {friends.length} 位好友 nearby
+        <span style={{ color: '#333', fontSize: '13px', fontWeight: 500 }}>
+          {friends.length} friends nearby
         </span>
       </div>
     </div>
