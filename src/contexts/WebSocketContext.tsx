@@ -95,14 +95,31 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (e) { setStatus("ERROR"); isConnectingRef.current = false; }
   }, [WS_URL, AUTH_TOKEN]);
 
-  const sendMessage = useCallback((text: string) => {
+  const sendMessage = useCallback((text: string, media?: any) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return;
     responseBufferRef.current = "";
     setFullResponse("");
-    wsRef.current.send(JSON.stringify({
-      type: "req", id: Date.now().toString(), method: "agent",
-      params: { message: text, to: "self", idempotencyKey: Date.now().toString() }
-    }));
+
+    const messagePayload: any = {
+      type: "req",
+      id: Date.now().toString(),
+      method: "agent",
+      params: {
+        message: text,
+        to: "self",
+        idempotencyKey: Date.now().toString()
+      }
+    };
+
+    // Add media if present
+    if (media) {
+      messagePayload.params.media = {
+        uri: media.uri,
+        type: media.type
+      };
+    }
+
+    wsRef.current.send(JSON.stringify(messagePayload));
   }, []);
 
   const disconnect = useCallback(() => {

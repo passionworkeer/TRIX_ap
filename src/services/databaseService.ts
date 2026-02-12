@@ -271,13 +271,26 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
     }
 
     // 转换为旧的数据格式以兼容现有代码
-    return (data || []).map(msg => ({
-      id: msg.id,
-      friend_id: friendId,
-      sender: msg.sender_id === userId ? 'user' : 'friend',
-      text: msg.text,
-      created_at: msg.created_at
-    } as ChatMessage));
+    return (data || []).map(msg => {
+      const uiMessage: ChatMessage = {
+        id: msg.id,
+        friend_id: friendId,
+        sender: msg.sender_id === userId ? 'user' : 'friend',
+        text: msg.text,
+        created_at: msg.created_at
+      };
+
+      // Add media fields if present
+      if (msg.message_type && msg.message_type !== 'text') {
+        uiMessage.message_type = msg.message_type;
+        uiMessage.media_uri = msg.media_uri;
+        uiMessage.media_type = msg.media_type;
+        uiMessage.media_size = msg.media_size;
+        uiMessage.media_metadata = msg.media_metadata;
+      }
+
+      return uiMessage;
+    });
   } catch (error) {
     console.error('获取聊天记录失败:', error);
     return [];
@@ -364,6 +377,120 @@ export async function sendMessage(
     return data?.id || null;
   } catch (error: any) {
     console.error('❌ [发送失败] 捕获异常:', {
+      message: error.message,
+      stack: error.stack?.split('\n')[0]
+    });
+    return null;
+  }
+}
+
+/**
+ * 📎 发送带媒体附件的消息
+ * @param friendId - 好友ID
+ * @param sender - 发送者类型
+ * @param text - 消息文本（可以为空）
+ * @param mediaData - 媒体数据
+ * @param messageType - 消息类型 ('image' | 'video' | 'mixed')
+ * @returns 消息ID或null
+ */
+export async function sendMessageWithMedia(
+  friendId: string,
+  sender: 'user' | 'friend' | 'bot',
+  text: string,
+  mediaData: {
+    uri: string;
+    type: string;
+    size: number;
+    category: 'image' | 'video';
+    metadata?: {
+      width?: number;
+      height?: number;
+      duration?: number;
+    };
+  },
+  messageType: 'image' | 'video' | 'mixed'
+): Promise<string | null> {
+  try {
+    const userId = await getCurrentUserId();
+
+    console.log('🚀 [发送媒体消息] 开始:', {
+      userId: userId.substring(0, 8) + '...',
+      friendId: friendId.substring(0, 8) + '...',
+      sender,
+      messageType,
+      mediaSize: (mediaData.size / 1024).toFixed(2) + 'KB'
+    });
+
+    // 构建会话ID
+    const conversationId = userId < friendId
+      ? `${userId}_${friendId}`
+      : `${friendId}_${userId}`;
+
+    console.log('📦 [会话ID]:', conversationId);
+
+    // 确定发送者和接收者
+    const senderId = sender === 'user' ? userId : friendId;
+    const receiverId = sender === 'user' ? friendId : userId;
+
+    const messageData = {
+      conversation_id: conversationId,
+      sender_id: senderId,
+      receiver_id: receiverId,
+      text: text || '', // 允许空文本用于纯媒体消息
+      is_read: false,
+      message_type: messageType,
+      media_uri: mediaData.uri,
+      media_type: mediaData.type,
+      media_size: mediaData.size,
+      media_metadata: mediaData.metadata || null
+    };
+
+    console.log('📨 [媒体消息数据]:', {
+      ...messageData,
+      sender_id: messageData.sender_id.substring(0, 8) + '...',
+      receiver_id: messageData.receiver_id.substring(0, 8) + '...',
+      text: messageData.text.substring(0, 30) + (messageData.text.length > 30 ? '...' : ''),
+      media_uri: messageData.media_uri.substring(0, 50) + '...'
+    });
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert(messageData)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('❌ [发送媒体消息失败] Supabase 错误:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+
+      // 检查是否是 RLS 权限问题
+      if (error.code === '42501' || error.message.includes('policy')) {
+        console.error('🔒 [RLS 策略错误] 数据库权限被拒绝！');
+        console.error('💡 解决方案: 检查 chat_messages 表的 RLS 策略配置');
+      }
+
+      // 检查新字段是否存在
+      if (error.code === '42703') {
+        console.error('📋 [字段错误] chat_messages 表缺少媒体字段！');
+        console.error('💡 解决方案: 运行 database/add-media-support-to-chat-messages.sql');
+      }
+
+      return null;
+    }
+
+    console.log('✅ [发送媒体消息成功] 消息ID:', data?.id);
+
+    // 更新未读计数（使用预览文本）
+    const previewText = text || `[${messageType === 'image' ? '图片' : '视频'}]`;
+    await updateUnreadCount(receiverId, senderId, previewText);
+
+    return data?.id || null;
+  } catch (error: any) {
+    console.error('❌ [发送媒体消息失败] 捕获异常:', {
       message: error.message,
       stack: error.stack?.split('\n')[0]
     });

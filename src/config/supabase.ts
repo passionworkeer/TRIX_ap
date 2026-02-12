@@ -62,6 +62,17 @@ export interface ChatMessage {
   sender: 'user' | 'friend' | 'bot';
   text: string;
   created_at: string;
+  // Media fields (optional)
+  message_type?: 'text' | 'image' | 'video' | 'mixed';
+  media_uri?: string;
+  media_type?: string;
+  media_size?: number;
+  media_metadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    thumbnail?: string;
+  };
 }
 
 // 数据库实际存储的消息格式
@@ -73,6 +84,17 @@ export interface ChatMessageDB {
   text: string;
   is_read: boolean;
   created_at: string;
+  // Media fields
+  message_type?: 'text' | 'image' | 'video' | 'mixed';
+  media_uri?: string;
+  media_type?: string;
+  media_size?: number;
+  media_metadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    thumbnail?: string;
+  };
 }
 
 export interface UnreadCount {
