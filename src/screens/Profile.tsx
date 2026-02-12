@@ -70,199 +70,231 @@ const Profile: React.FC = () => {
     alert('获取更多装备\n\n完成任务和活动即可解锁新装备！');
   };
 
+  const BG_IMAGE = "/assets/background.jpg";
+
   return (
-    <div className="h-screen w-full bg-[#FAFAFA] text-slate-800 flex flex-col overflow-hidden">
-       {/* Aurora Background - 固定背景 */}
-       <div className="fixed inset-0 z-0 pointer-events-none">
-          <div className="absolute top-[15%] left-[15%] w-64 h-64 bg-cyan-300/25 rounded-full blur-[80px]"></div>
-          <div className="absolute top-[15%] right-[15%] w-64 h-64 bg-yellow-200/35 rounded-full blur-[80px]"></div>
-          <div className="absolute bottom-[15%] left-[15%] w-64 h-64 bg-pink-300/25 rounded-full blur-[80px]"></div>
+    <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
+       {/* 背景层：z-index: 0 - 固定背景，不阻挡交互 */}
+       <div
+          className="fixed inset-0 w-full h-full"
+          style={{ zIndex: 0, pointerEvents: 'none' }}
+       >
+          <img
+             src={BG_IMAGE}
+             alt="Background"
+             className="w-full h-full object-cover"
+             style={{ filter: 'brightness(0.3)' }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/50" />
        </div>
 
-       {/* 头部标题 - 固定不滚动 */}
-       <div className="relative z-10 pt-24 pb-4 px-6 flex-shrink-0">
-          <h1 className="text-base font-bold tracking-tight text-slate-700 uppercase opacity-90 text-center">个人中心</h1>
-       </div>
-
-       {/* 滚动内容区域 */}
-       <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-28">
-          {/* 头像区域 */}
-          <div className="flex flex-col items-center pt-6">
-             <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full blur-xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
-                <div className="relative w-32 h-32 rounded-full border-[6px] border-white shadow-2xl shadow-cyan-900/10 overflow-hidden bg-white">
-                   <div className="w-full h-full bg-cover bg-center transform transition-transform group-hover:scale-110 duration-700" 
-                        style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }}></div>
-                </div>
-                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-amber-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white flex items-center gap-1">
-                   <Verified size={12} fill="currentColor" className="text-amber-700" /> VIP
-                </div>
-             </div>
+       {/* 内容层：z-index: 10 - 所有可交互内容 */}
+       <div className="relative z-10 h-full flex flex-col overflow-hidden">
+          {/* 头部标题 - 固定不滚动 */}
+          <div className="pt-24 pb-4 px-6 flex-shrink-0">
+             <h1 className="text-base font-bold tracking-tight text-white/90 uppercase text-center">个人中心</h1>
           </div>
 
-          {/* 用户信息 */}
-          <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
-             <h2 className="text-2xl font-black text-slate-800 tracking-tight capitalize">{username}</h2>
-             <p className="text-xs text-slate-400 mt-1">{email}</p>
-             
-             <div className="mt-3 flex justify-center">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-100/50 shadow-sm">
-                   <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
-                   <span className="text-cyan-700 font-bold text-xs tracking-wide">积分: {points}</span>
+          {/* 滚动内容区域 */}
+          <div className="flex-1 overflow-y-auto px-6 pb-28">
+             {/* 头像区域 */}
+             <div className="flex flex-col items-center pt-6">
+                <div className="relative group">
+                   {/* 🌟 外层：旋转装饰环 */}
+                   <div className="absolute -inset-4 rounded-full border border-amber-500/20 animate-[spin_10s_linear_infinite]">
+                      <div className="absolute inset-0 rounded-full border border-dashed border-amber-400/30 animate-[spin_15s_linear_infinite_reverse]"></div>
+                   </div>
+
+                   {/* 🌟 中层：发光神环 */}
+                   <div className="absolute -inset-2 rounded-full">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-400/20 via-yellow-500/30 to-amber-400/20 blur-md animate-pulse"></div>
+                      <div className="absolute inset-0 rounded-full border-2 border-amber-400/40 shadow-[0_0_40px_rgba(251,191,36,0.4)]"></div>
+                   </div>
+
+                   {/* 🌟 内层：核心头像 */}
+                   <div className="relative w-32 h-32 rounded-full overflow-hidden bg-black/30 backdrop-blur-sm shadow-[0_0_30px_rgba(251,191,36,0.3)] border-2 border-amber-300/50">
+                      <div className="w-full h-full bg-cover bg-center transform transition-transform group-hover:scale-110 duration-700"
+                           style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }}></div>
+                      {/* 头像内发光 */}
+                      <div className="absolute inset-0 rounded-full shadow-[inset_0_0_20px_rgba(251,191,36,0.2)]"></div>
+                   </div>
+
+                   {/* 💫 VIP 徽章 */}
+                   <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-amber-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white/20 flex items-center gap-1 shadow-[0_0_20px_rgba(251,191,36,0.5)]">
+                      <Verified size={12} fill="currentColor" className="text-amber-700" /> VIP
+                   </div>
+
+                   {/* ✨ 光点装饰 */}
+                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
+                   <div className="absolute bottom-4 left-0 w-1 h-1 bg-amber-300 rounded-full animate-ping delay-300"></div>
+                   <div className="absolute bottom-4 right-0 w-1 h-1 bg-amber-300 rounded-full animate-ping delay-700"></div>
                 </div>
              </div>
 
-             {/* Stats Row */}
-             <div className="flex items-center justify-center gap-8 mt-6 w-full">
-                <div 
-                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('陪伴天数', 0)}
-                >
-                   <div className="text-lg font-black text-slate-700">0</div>
-                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">陪伴天数</div>
-                </div>
-                <div className="w-[1px] h-8 bg-slate-200/80"></div>
-                <div 
-                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('积分', points)}
-                >
-                   <div className="text-lg font-black text-slate-700">{points}</div>
-                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">积分</div>
-                </div>
-                <div className="w-[1px] h-8 bg-slate-200/80"></div>
-                <div 
-                   className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-                   onClick={() => handleStatClick('互动', 0)}
-                >
-                   <div className="text-lg font-black text-slate-700">0</div>
-                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">互动</div>
-                </div>
-             </div>
-          </div>
+             {/* 用户信息 */}
+             <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
+                <h2 className="text-2xl font-black text-white tracking-tight capitalize drop-shadow-md">{username}</h2>
+                <p className="text-xs text-gray-400 mt-1">{email}</p>
 
-          {/* 装备和设置区域 */}
-          <div className="w-full max-w-md mx-auto flex flex-col gap-6">
-             <div className="w-full">
-                <div className="flex items-center justify-between mb-4 pl-1">
-                   <h3 className="text-lg font-bold text-slate-800">我的衣橱</h3>
-                   <button 
-                      onClick={handleViewAllOutfits}
-                      className="text-xs font-bold text-cyan-600 hover:text-cyan-700 active:scale-95 transition-all"
-                   >
-                      查看全部
-                   </button>
+                <div className="mt-3 flex justify-center">
+                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+                      <span className="text-amber-300 font-bold text-xs tracking-wide">积分: {points}</span>
+                   </div>
                 </div>
-                
-                <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scroll-smooth">
-                   {[
-                      { name: '巫师帽', img: IMAGES.CLOTHES_HAT, hasDot: true },
-                      { name: '披风', img: IMAGES.CLOTHES_CAPE, hasDot: false },
-                      { name: '魔杖', img: IMAGES.CLOTHES_WAND, hasDot: false }
-                   ].map((item, i) => (
-                      <GlassPanel 
-                         key={i} 
-                         onClick={() => handleOutfitChange(item.name)}
-                         className="flex-shrink-0 w-32 h-44 !rounded-[28px] p-3 flex flex-col items-center gap-2 cursor-pointer group hover:bg-white/95 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-900/5 relative border border-white/60"
-                       >
-                         {item.hasDot && <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-sm z-10 ring-2 ring-white animate-pulse"></div>}
-                         
-                         <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 overflow-hidden relative">
-                            <div className="absolute inset-0 bg-radial-gradient from-white to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <img src={item.img} className="w-20 h-20 object-contain drop-shadow-lg transform group-hover:rotate-3 transition-transform duration-500" alt={item.name} />
-                         </div>
-                         
-                         <div className="flex-1 flex flex-col items-center justify-center">
-                            <p className="font-bold text-xs text-slate-700">{item.name}</p>
-                            <p className="text-[10px] text-cyan-500 font-bold opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all duration-300">点击装备</p>
-                         </div>
-                      </GlassPanel>
-                   ))}
-                   
-                   <div 
-                      onClick={handleGetMoreOutfits}
-                      className="flex-shrink-0 w-32 h-44 border-2 border-dashed border-slate-200 rounded-[28px] flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-cyan-300 hover:bg-cyan-50/20 transition-all group active:scale-95"
+
+                {/* Stats Row - 数据统计栏 */}
+                <div className="flex items-center justify-center gap-0 mt-6 w-full divide-x divide-white/10">
+                   <div
+                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
+                      onClick={() => handleStatClick('陪伴天数', 0)}
                    >
-                      <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-cyan-100 group-hover:text-cyan-600 flex items-center justify-center text-slate-400 transition-colors duration-300 shadow-sm">
-                         <Plus size={22} />
-                      </div>
-                      <span className="text-xs font-bold text-slate-400 group-hover:text-cyan-600 transition-colors">获取更多</span>
+                      <div className="text-xl font-black text-white">0</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">陪伴天数</div>
+                   </div>
+                   <div
+                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
+                      onClick={() => handleStatClick('积分', points)}
+                   >
+                      <div className="text-xl font-black text-white">{points}</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">积分</div>
+                   </div>
+                   <div
+                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
+                      onClick={() => handleStatClick('互动', 0)}
+                   >
+                      <div className="text-xl font-black text-white">0</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">互动</div>
                    </div>
                 </div>
              </div>
 
-             <div className="w-full">
-                <h3 className="text-lg font-bold text-slate-800 mb-3 pl-1">外观与个性化</h3>
-                <div className="flex flex-col gap-3">
-                   <GlassPanel 
-                      onClick={handleDarkModeToggle}
-                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
-                   >
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 transform group-hover:scale-105 transition-transform duration-300">
-                            <Moon size={20} />
-                         </div>
-                         <span className="font-bold text-sm text-slate-700">深色模式</span>
-                      </div>
-                      <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${darkMode ? 'bg-cyan-500' : 'bg-slate-200'}`}>
-                          <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                      </div>
-                   </GlassPanel>
+             {/* 装备和设置区域 */}
+             <div className="w-full max-w-md mx-auto flex flex-col gap-6">
+                {/* 我的衣橱 */}
+                <div className="w-full">
+                   <div className="flex items-center justify-between mb-4 pl-1">
+                      <h3 className="text-lg font-bold text-white">我的衣橱</h3>
+                      <button
+                         onClick={handleViewAllOutfits}
+                         className="text-xs font-bold text-amber-400 hover:text-amber-300 active:scale-95 transition-all"
+                      >
+                         查看全部
+                      </button>
+                   </div>
 
-                   <GlassPanel 
-                      onClick={handleLanguageChange}
-                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
-                   >
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-200 transform group-hover:scale-105 transition-transform duration-300">
-                            <Globe size={20} />
+                   <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scroll-smooth">
+                      {[
+                         { name: '巫师帽', img: IMAGES.CLOTHES_HAT, hasDot: true },
+                         { name: '披风', img: IMAGES.CLOTHES_CAPE, hasDot: false },
+                         { name: '魔杖', img: IMAGES.CLOTHES_WAND, hasDot: false }
+                      ].map((item, i) => (
+                          <GlassPanel
+                             key={i}
+                             onClick={() => handleOutfitChange(item.name)}
+                             className="flex-shrink-0 w-32 h-44 !rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group hover:bg-white/15 transition-all duration-300 hover:-translate-y-1 relative border border-white/20"
+                           >
+                             {item.hasDot && <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-sm z-10 ring-2 ring-white/20 animate-pulse"></div>}
+
+                             <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 overflow-hidden relative">
+                                <img src={item.img} className="w-20 h-20 object-contain drop-shadow-lg transform group-hover:rotate-3 hover:scale-105 transition-all duration-500" alt={item.name} />
+                             </div>
+
+                             <div className="flex-1 flex flex-col items-center justify-center">
+                                <p className="font-bold text-xs text-gray-300">{item.name}</p>
+                                <p className="text-[10px] text-amber-400 font-bold opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all duration-300">点击装备</p>
+                             </div>
+                          </GlassPanel>
+                       ))}
+
+                      <div
+                         onClick={handleGetMoreOutfits}
+                         className="flex-shrink-0 w-32 h-44 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-amber-500/50 hover:bg-white/10 transition-all group active:scale-95"
+                      >
+                         <div className="w-12 h-12 rounded-full bg-white/10 group-hover:bg-white/20 group-hover:text-amber-400 flex items-center justify-center text-gray-500 transition-colors duration-300">
+                            <Plus size={22} />
                          </div>
-                         <span className="font-bold text-sm text-slate-700">语言</span>
+                         <span className="text-xs font-bold text-gray-500 group-hover:text-amber-400 transition-colors">获取更多</span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-400">
-                         <span className="text-xs font-medium">{language}</span>
-                         <ChevronRight size={16} />
-                      </div>
-                   </GlassPanel>
+                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mb-3 pl-1 mt-6">通用</h3>
-                <div className="flex flex-col gap-3">
-                   <GlassPanel 
-                      onClick={handlePrivacyClick}
-                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
-                   >
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-200 transform group-hover:scale-105 transition-transform duration-300">
-                            <Lock size={20} />
+                {/* 外观与个性化 */}
+                <div className="w-full">
+                   <h3 className="text-lg font-bold text-white mb-3 pl-1">外观与个性化</h3>
+                   <div className="flex flex-col gap-3">
+                      <GlassPanel
+                         onClick={handleDarkModeToggle}
+                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Moon size={20} />
+                            </div>
+                            <span className="font-bold text-sm text-gray-200">深色模式</span>
                          </div>
-                         <span className="font-bold text-sm text-slate-700">隐私与安全</span>
-                      </div>
-                      <ChevronRight size={16} className="text-slate-400" />
-                   </GlassPanel>
-                   
-                   <GlassPanel 
-                      onClick={handleAboutClick}
-                      className="p-4 !rounded-[24px] flex items-center justify-between cursor-pointer group hover:bg-white/80 transition-all duration-300 active:scale-95"
-                   >
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-400 to-slate-600 text-white flex items-center justify-center shadow-lg shadow-slate-200 transform group-hover:scale-105 transition-transform duration-300">
-                            <Verified size={20} />
+                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${darkMode ? 'bg-amber-500' : 'bg-white/10'}`}>
+                             <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
                          </div>
-                         <span className="font-bold text-sm text-slate-700">关于我们</span>
-                      </div>
-                       <div className="flex items-center gap-2 text-slate-400">
-                         <span className="text-xs font-medium">v1.2.0</span>
-                         <ChevronRight size={16} />
-                      </div>
-                   </GlassPanel>
+                      </GlassPanel>
 
-                   <button 
-                     onClick={handleLogout}
-                     className="mt-4 w-full bg-white/60 border border-red-100 p-4 rounded-[24px] flex items-center justify-center gap-2 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors shadow-sm active:scale-95 duration-200"
-                   >
-                      <LogOut size={18} /> 
-                      退出登录
-                   </button>
+                      <GlassPanel
+                         onClick={handleLanguageChange}
+                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Globe size={20} />
+                            </div>
+                            <span className="font-bold text-sm text-gray-200">语言</span>
+                         </div>
+                         <div className="flex items-center gap-2 text-gray-500">
+                            <span className="text-xs font-medium">{language}</span>
+                            <ChevronRight size={16} />
+                         </div>
+                      </GlassPanel>
+                   </div>
+
+                   {/* 通用设置 */}
+                   <h3 className="text-lg font-bold text-white mb-3 pl-1 mt-6">通用</h3>
+                   <div className="flex flex-col gap-3">
+                      <GlassPanel
+                         onClick={handlePrivacyClick}
+                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Lock size={20} />
+                            </div>
+                            <span className="font-bold text-sm text-gray-200">隐私与安全</span>
+                         </div>
+                         <ChevronRight size={16} className="text-gray-500" />
+                      </GlassPanel>
+
+                      <GlassPanel
+                         onClick={handleAboutClick}
+                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Verified size={20} />
+                            </div>
+                            <span className="font-bold text-sm text-gray-200">关于我们</span>
+                         </div>
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <span className="text-xs font-medium">v1.2.0</span>
+                            <ChevronRight size={16} />
+                          </div>
+                      </GlassPanel>
+
+                      <button
+                        onClick={handleLogout}
+                        className="mt-4 w-full bg-white/10 backdrop-blur-md border border-red-500/20 p-4 rounded-xl flex items-center justify-center gap-2 text-red-400 font-bold text-sm hover:bg-red-500/10 transition-colors active:scale-95 duration-200"
+                      >
+                         <LogOut size={18} />
+                         退出登录
+                      </button>
+                   </div>
                 </div>
              </div>
           </div>

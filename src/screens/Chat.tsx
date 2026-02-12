@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Camera, MessageSquare } from 'lucide-react';
+import { Search, UserPlus, Camera, MessageSquare, X } from 'lucide-react';
 import AddFriendModal from '../components/AddFriendModal';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
 import { AppRoutes } from '../types';
 import { getFriends, addFriend } from '../services/databaseService';
 import { supabase } from '../config/supabase';
 import type { FriendLatestMessage } from '../config/supabase';
+
+const BG_IMAGE = "/assets/background.jpg";
 
 // 推荐用户接口
 interface RecommendedUser {
@@ -22,14 +24,14 @@ interface RecommendedUser {
 // 格式化时间显示
 const formatTime = (timestamp: string | null): string => {
   if (!timestamp) return '';
-  
+
   const now = new Date();
   const messageTime = new Date(timestamp);
   const diffMs = now.getTime() - messageTime.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'now';
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
@@ -37,14 +39,13 @@ const formatTime = (timestamp: string | null): string => {
   return `${Math.floor(diffDays / 7)}w`;
 };
 
-// Mock Data for Chats - 已删除,使用数据库数据替代
-
 const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // 加载好友列表
   useEffect(() => {
@@ -75,23 +76,18 @@ const Chat: React.FC = () => {
 
       const currentUserId = session.user.id;
       const currentUserEmail = session.user.email;
-      
-      console.log('当前用户ID:', currentUserId);
-      console.log('当前用户邮箱:', currentUserEmail);
 
       // 获取所有用户（排除自己）
       const { data: allUsers, error: usersError } = await supabase
         .from('users')
         .select('id, username, display_name, email, bio')
-        .neq('id', currentUserId) // 排除自己
+        .neq('id', currentUserId)
         .limit(10);
 
       if (usersError) {
         console.error('获取推荐用户失败:', usersError);
         return;
       }
-
-      console.log('获取到的所有用户:', allUsers);
 
       // 获取已添加的好友ID列表
       const { data: existingFriends, error: friendsError } = await supabase
@@ -104,19 +100,16 @@ const Chat: React.FC = () => {
         return;
       }
 
-      console.log('已添加的好友:', existingFriends);
-
       const friendIds = new Set(existingFriends?.map(f => f.friend_id) || []);
 
-      // 过滤出不是好友的用户，并且再次确保排除自己
-      const notFriends = (allUsers || []).filter(user => 
-        !friendIds.has(user.id) && 
-        user.id !== currentUserId && 
+      // 过滤出不是好友的用户
+      const notFriends = (allUsers || []).filter(user =>
+        !friendIds.has(user.id) &&
+        user.id !== currentUserId &&
         user.email !== currentUserEmail
       );
-      
-      console.log('推荐的用户:', notFriends);
-      setRecommendedUsers(notFriends.slice(0, 5)); // 只显示前5个
+
+      setRecommendedUsers(notFriends.slice(0, 5));
     } catch (error) {
       console.error('加载推荐用户失败:', error);
     }
@@ -125,172 +118,224 @@ const Chat: React.FC = () => {
   // 快速添加好友
   const handleQuickAdd = async (username: string) => {
     try {
-      console.log('尝试添加好友:', username);
       await addFriend(username);
-      console.log('添加成功，刷新列表');
       await loadFriends();
-      await loadRecommendedUsers(); // 刷新推荐列表
+      await loadRecommendedUsers();
     } catch (error: any) {
-      console.error('添加好友失败:', error);
       alert(error.message || '添加失败');
     }
   };
 
-  // 获取好友头像 (TRIX Bot 使用固定图片)
+  // 获取好友头像
   const getFriendAvatar = (friendId: string, avatarUrl: string | null): string => {
     if (friendId === 'clawbot') return IMAGES.WIZARD_BOY;
     return avatarUrl || '';
   };
 
+  // 过滤好友列表
+  const filteredFriends = friends.filter(friend =>
+    friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className='h-screen w-full bg-white flex flex-col'>
-       {/* 1. Header - 固定头部 */}
-       <header className='px-4 pt-24 pb-4 bg-white flex justify-between items-center flex-shrink-0 w-full border-b border-gray-100'>
-          {/* Left: Avatar (Small Profile) */}
-          <div className='w-10 h-10 rounded-full bg-gray-200 overflow-hidden shadow-sm' onClick={() => navigate('/profile')}>
-             <Avatar name='Me' size='md' className='w-full h-full object-cover' />
-          </div>
-
-          {/* Center: Title */}
-          <h1 className='text-xl font-bold text-black tracking-wide font-sans'>Chat</h1>
-
-          {/* Right: Actions */}
-       <div className='flex items-center gap-4'>
-         <div
-          className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'
-          onClick={() => setShowAddModal(true)}
-         >
-           <UserPlus size={20} className='text-gray-800' strokeWidth={2.5} />
-         </div>
-         <div className='w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors cursor-pointer'>
-           <Search size={22} className='text-gray-800' strokeWidth={2.5} />
-         </div>
+    <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
+       {/* 背景层：z-index: 0 */}
+       <div
+          className="fixed inset-0 w-full h-full"
+          style={{ zIndex: 0, pointerEvents: 'none' }}
+       >
+          <img
+             src={BG_IMAGE}
+             alt="Background"
+             className="w-full h-full object-cover"
+             style={{ filter: 'brightness(0.2)' }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/40" />
        </div>
-      {/* 添加好友弹窗 */}
-      <AddFriendModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSend={async (account) => {
-          await addFriend(account);
-          // 添加成功后刷新好友列表
-          await loadFriends();
-        }}
-      />
-       </header>
 
-       {/* 2. 滚动内容区域 - 占据剩余空间并可滚动 */}
-       <div className='flex-1 overflow-y-auto w-full pb-28'>
-          
-          {/* 2. Quick Add Section - 推荐用户 */}
-          {recommendedUsers.length > 0 && (
-            <div className='py-4 bg-white border-b border-gray-100'>
-              <div className='px-4 mb-2'>
-                <h3 className='text-[13px] font-bold text-gray-900 uppercase tracking-wide'>推荐好友</h3>
-              </div>
-              <div className='flex overflow-x-auto px-4 pb-2 gap-3 snap-x'>
-                {recommendedUsers.map((user) => (
-                  <div key={user.id} className='min-w-[130px] p-3 bg-white rounded-lg border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col items-center relative snap-start'>
-                    <div className='mb-2'>
-                      <Avatar name={user.display_name} size='md' />
-                    </div>
-                    <span className='text-[13px] font-bold text-black truncate w-full text-center leading-tight'>{user.display_name}</span>
-                    <span className='text-[11px] text-gray-400 truncate w-full text-center mb-3 leading-tight'>@{user.username}</span>
-                    <button 
-                      className='w-full py-1 bg-blue-500 hover:bg-blue-600 rounded-full text-[12px] font-bold text-white transition-colors'
-                      onClick={() => handleQuickAdd(user.username)}
-                    >
-                      + 添加
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+       {/* 内容层：z-index: 10 */}
+       <div className="relative z-10 h-full flex flex-col overflow-hidden">
+          {/* 顶部导航与搜索 */}
+          <div className="pt-24 pb-4 px-4 flex-shrink-0">
+             {/* 标题 */}
+             <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">Chat</h1>
 
-          {/* 3. Chat List */}
-          <div className='flex flex-col w-full'>
-            {loading ? (
-              <div className='flex items-center justify-center py-10'>
-                <div className='text-sm text-gray-400'>加载中...</div>
-              </div>
-            ) : friends.length === 0 ? (
-              <div className='flex items-center justify-center py-10'>
-                <div className='text-sm text-gray-400'>暂无好友</div>
-              </div>
-            ) : (
-              friends.map((friend) => {
-                const hasUnread = (friend.unread_count || 0) > 0;
-                const avatar = getFriendAvatar(friend.friend_id, friend.avatar_url);
-                const isBot = friend.friend_id === 'clawbot';
-                
-                return (
-                  <motion.div 
-                    key={friend.friend_id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className='flex items-center px-4 py-3 w-full hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer'
-                    onClick={() => {
-                      navigate(AppRoutes.CHAT_DETAIL, { 
-                        state: { 
-                          name: friend.name, 
-                          avatar: avatar, 
-                          isBot: isBot, 
-                          friendId: friend.friend_id 
-                        } 
-                      });
-                    }}
+             {/* Snapchat 风格搜索栏 */}
+             <div className="bg-white/5 border border-white/10 backdrop-blur-sm h-11 rounded-full flex items-center px-4 mx-auto max-w-md transition-all hover:bg-white/10">
+                <Search size={18} className="text-white/60 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="搜索"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/50 ml-3 text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-white/60 hover:text-white flex-shrink-0"
                   >
-                    {/* Left: Huge Avatar */}
-                    <div className='relative mr-3 flex-shrink-0'>
-                      <Avatar name={friend.name} avatar={avatar} size='lg' className='w-[52px] h-[52px]' />
-                      {/* 在线状态指示器 */}
-                      {friend.status === 'online' && (
-                        <div className='absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white' />
-                      )}
-                    </div>
-
-                    {/* Middle: Name & Status */}
-                    <div className='flex-1 min-w-0 pr-2'>
-                      <h3 className='text-[16px] font-bold text-gray-900 leading-tight mb-0.5 truncate font-sans'>
-                        {friend.name}
-                      </h3>
-                      <div className='flex items-center gap-1.5'>
-                        {hasUnread ? (
-                          <MessageSquare size={14} className='text-blue-500 fill-current' strokeWidth={2.5} />
-                        ) : (
-                          <MessageSquare size={14} className='text-gray-400' strokeWidth={2.5} />
-                        )}
-                        <span className={`text-[13px] font-medium truncate ${hasUnread ? 'text-blue-500' : 'text-gray-400'}`}>
-                          {friend.last_message || (isBot ? 'Tap to chat' : '暂无消息')}
-                          {friend.last_message_time && (
-                            <>
-                              <span className='text-gray-300 mx-0.5'>•</span>
-                              <span className='text-gray-400'>{formatTime(friend.last_message_time)}</span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Right: Unread Badge or Camera */}
-                    <div className='flex-shrink-0 pl-2 border-l border-transparent'>
-                      {hasUnread ? (
-                        <div className='w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center'>
-                          <span className='text-[11px] font-bold text-white'>
-                            {friend.unread_count! > 9 ? '9+' : friend.unread_count}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className='w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors'>
-                          <Camera size={20} className='text-gray-400' />
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
+                    <X size={16} />
+                  </button>
+                )}
+             </div>
           </div>
+
+          {/* 滚动内容区域 */}
+          <div className="flex-1 overflow-y-auto pb-28">
+             {/* 推荐好友区域 - Snapchat Quick Add 风格 */}
+             {recommendedUsers.length > 0 && (
+                <div className="mb-2">
+                   <div className="px-4 mb-3">
+                      <h3 className="text-white/80 font-bold text-sm uppercase tracking-wide">Quick Add</h3>
+                   </div>
+
+                   <div className="flex overflow-x-auto gap-3 px-4 pb-4">
+                     {recommendedUsers.map((user, index) => (
+                        <motion.div
+                          key={user.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 min-w-[130px] flex flex-col items-center relative flex-shrink-0"
+                        >
+                          {/* 关闭按钮 */}
+                          <button
+                            className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors"
+                            onClick={() => {
+                              const filtered = recommendedUsers.filter(u => u.id !== user.id);
+                              setRecommendedUsers(filtered);
+                            }}
+                          >
+                            <X size={14} />
+                          </button>
+
+                          {/* 头像 */}
+                          <div className="mb-2 flex items-center justify-center">
+                             <Avatar name={user.display_name} size="lg" className="w-16 h-16 rounded-full border-2 border-white/5" />
+                          </div>
+
+                          {/* 名字 */}
+                          <span className="font-bold text-white text-sm truncate w-full text-center">{user.display_name}</span>
+
+                          {/* Snapchat 风格明黄色按钮 */}
+                          <button
+                            onClick={() => handleQuickAdd(user.username)}
+                            className="bg-amber-400 hover:bg-amber-500 text-black font-bold text-xs px-6 py-1.5 rounded-full mt-2 transition-all shadow-[0_0_10px_rgba(250,204,21,0.3)] hover:shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+                          >
+                            + 添加
+                          </button>
+                        </motion.div>
+                     ))}
+                   </div>
+                </div>
+             )}
+
+             {/* 聊天列表 - 轻盈透明风格 */}
+             <div className="px-4 pt-4 pb-20">
+                   {loading ? (
+                      <div className="flex items-center justify-center py-10">
+                        <div className="text-sm text-gray-400">加载中...</div>
+                      </div>
+                   ) : friends.length === 0 ? (
+                      <div className="flex items-center justify-center py-10">
+                        <div className="text-sm text-gray-400">暂无好友</div>
+                      </div>
+                   ) : (
+                      <AnimatePresence>
+                        {filteredFriends.map((friend, index) => {
+                          const hasUnread = (friend.unread_count || 0) > 0;
+                          const avatar = getFriendAvatar(friend.friend_id, friend.avatar_url);
+                          const isBot = friend.friend_id === 'clawbot';
+
+                          return (
+                            <motion.div
+                              key={friend.friend_id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ delay: index * 0.03 }}
+                              className="flex items-center py-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors"
+                              onClick={() => {
+                                navigate(AppRoutes.CHAT_DETAIL, {
+                                  state: {
+                                    name: friend.name,
+                                    avatar: avatar,
+                                    isBot: isBot,
+                                    friendId: friend.friend_id
+                                  }
+                                });
+                              }}
+                            >
+                              {/* 头像 */}
+                              <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
+                                 <Avatar name={friend.name} avatar={avatar} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                                 {/* 在线状态指示器 */}
+                                 {friend.status === 'online' && (
+                                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
+                                 )}
+                              </div>
+
+                              {/* 文本区域 */}
+                              <div className="flex-1 min-w-0">
+                                 <h3 className="text-white font-bold text-base leading-tight mb-0.5">{friend.name}</h3>
+                                 <div className="flex items-center gap-1.5">
+                                    {hasUnread ? (
+                                      <MessageSquare size={14} className="text-amber-400 fill-current" strokeWidth={2.5} />
+                                    ) : (
+                                      <MessageSquare size={14} className="text-gray-500" strokeWidth={2.5} />
+                                    )}
+                                    <span className={`text-sm truncate ${hasUnread ? 'text-white font-medium' : 'text-gray-400'}`}>
+                                      {friend.last_message || (isBot ? 'Tap to chat' : '新快照')}
+                                      {friend.last_message_time && (
+                                         <>
+                                           <span className="text-gray-600 mx-0.5">•</span>
+                                           <span className="text-gray-500">{formatTime(friend.last_message_time)}</span>
+                                         </>
+                                      )}
+                                    </span>
+                                 </div>
+                              </div>
+
+                              {/* 右侧图标 */}
+                              <div className="flex-shrink-0 pl-2">
+                                 {hasUnread ? (
+                                    <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center shadow-[0_0_10px_rgba(250,204,21,0.3)]">
+                                      <span className="text-xs font-bold text-black">
+                                         {friend.unread_count! > 9 ? '9+' : friend.unread_count}
+                                      </span>
+                                    </div>
+                                 ) : (
+                                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors">
+                                       <Camera size={18} className="text-gray-400" />
+                                    </div>
+                                 )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                   )}
+             </div>
+          </div>
+
+          {/* 右上角添加好友按钮 */}
+          <div
+             className="absolute top-[5.5rem] right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all cursor-pointer z-20"
+             onClick={() => setShowAddModal(true)}
+          >
+             <UserPlus size={18} className="text-white/80" />
+          </div>
+
+          {/* 添加好友弹窗 */}
+          <AddFriendModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onSend={async (account) => {
+              await addFriend(account);
+              await loadFriends();
+            }}
+          />
        </div>
     </div>
   );
