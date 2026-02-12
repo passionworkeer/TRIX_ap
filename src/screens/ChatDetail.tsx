@@ -5,7 +5,10 @@ import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
-import { getChatHistory, sendMessage as dbSendMessage, markMessagesAsRead } from '../services/databaseService';
+import FilePicker from '../components/FilePicker';
+import MediaMessage from '../components/MediaMessage';
+import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia } from '../services/databaseService';
+import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
 import type { ChatMessage } from '../config/supabase';
 
@@ -15,6 +18,14 @@ interface UIMessage {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
+  messageType?: 'text' | 'image' | 'video' | 'mixed';
+  mediaUri?: string;
+  mediaType?: string;
+  mediaMetadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+  };
 }
 
 // Mock conversations - 已删除,使用数据库数据替代
@@ -55,6 +66,8 @@ const ChatDetail: React.FC = () => {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [pendingMedia, setPendingMedia] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // 🔌 Realtime Channel 引用 (防止重复连接)
@@ -75,12 +88,22 @@ const ChatDetail: React.FC = () => {
 
   // 转换数据库消息为 UI 消息
   const convertDbMessageToUI = (dbMsg: ChatMessage): UIMessage => {
-    return {
+    const uiMessage: UIMessage = {
       id: dbMsg.id,
       sender: dbMsg.sender,
       text: dbMsg.text,
       timestamp: formatTimestamp(dbMsg.created_at)
     };
+
+    // Add media fields if present
+    if (dbMsg.message_type && dbMsg.message_type !== 'text') {
+      uiMessage.messageType = dbMsg.message_type;
+      uiMessage.mediaUri = dbMsg.media_uri;
+      uiMessage.mediaType = dbMsg.media_type;
+      uiMessage.mediaMetadata = dbMsg.media_metadata;
+    }
+
+    return uiMessage;
   };
 
   // 加载聊天历史
@@ -245,12 +268,24 @@ const ChatDetail: React.FC = () => {
   }, [fullResponse, currentStreamId, isBot]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    // Check if we have media or text
+    const hasMedia = pendingMedia !== null;
+    const hasText = input.trim();
+
+    if (!hasMedia && !hasText) return;
 
     const messageText = input;
+    const mediaData = pendingMedia;
+
     setInput(''); // Clear input
+    setPendingMedia(null); // Clear pending media
 
     const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+    // Determine message type
+    const messageType = hasMedia && hasText ? 'mixed'
+      : hasMedia ? (mediaData.category === 'image' ? 'image' : 'video')
+      : 'text';
 
     // 临时显示用户消息(乐观更新UI)
     const tempUserMessage: UIMessage = {
@@ -258,20 +293,44 @@ const ChatDetail: React.FC = () => {
       sender: 'user',
       text: messageText,
       timestamp: timeString,
+      messageType,
+      mediaUri: mediaData?.uri,
+      mediaType: mediaData?.type,
+      mediaMetadata: mediaData?.metadata
     };
 
     setMessages(prev => [...prev, tempUserMessage]);
 
     // 保存用户消息到数据库
     try {
-      const messageId = await dbSendMessage(friendId, 'user', messageText);
-      
+      let messageId: string | null = null;
+
+      if (hasMedia) {
+        // Send message with media
+        messageId = await sendMessageWithMedia(
+          friendId,
+          'user',
+          messageText,
+          {
+            uri: mediaData.uri,
+            type: mediaData.type,
+            size: mediaData.size,
+            category: mediaData.category,
+            metadata: mediaData.metadata
+          },
+          messageType
+        );
+      } else {
+        // Send text-only message
+        messageId = await dbSendMessage(friendId, 'user', messageText);
+      }
+
       // 用真实的数据库 ID 替换临时 ID
       if (messageId) {
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === tempUserMessage.id 
-              ? { ...msg, id: messageId } 
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempUserMessage.id
+              ? { ...msg, id: messageId }
               : msg
           )
         );
@@ -283,8 +342,8 @@ const ChatDetail: React.FC = () => {
       alert('发送消息失败,请检查网络连接');
     }
 
-    // Handle Bot Logic (仅用于 Bot 聊天)
-    if (isBot) {
+    // Handle Bot Logic (仅用于 Bot 聊天，暂不支持媒体)
+    if (isBot && !hasMedia) {
       if (isConnected) {
         wsSendMessage(messageText);
       } else {
@@ -297,15 +356,15 @@ const ChatDetail: React.FC = () => {
             timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages(prev => [...prev, botResponse]);
-          
+
           // 保存 Bot 消息到数据库
           try {
             const botMessageId = await dbSendMessage(friendId, 'bot', botResponse.text);
             if (botMessageId) {
-              setMessages(prev => 
-                prev.map(msg => 
-                  msg.id === botResponse.id 
-                    ? { ...msg, id: botMessageId } 
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === botResponse.id
+                    ? { ...msg, id: botMessageId }
                     : msg
                 )
               );
@@ -317,6 +376,30 @@ const ChatDetail: React.FC = () => {
       }
     }
     // 对于好友聊天,好友的回复会通过实时订阅自动显示
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const category = file.type.startsWith('image/') ? 'image' : 'video';
+      const result = await uploadFile(file, category);
+
+      setPendingMedia({
+        uri: result.uri,
+        type: result.type,
+        size: result.size,
+        metadata: result.metadata,
+        category
+      });
+
+      console.log('Upload successful:', result);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      alert(error.message || '上传失败');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const getStatusColor = () => {
@@ -465,14 +548,30 @@ const ChatDetail: React.FC = () => {
             )}
             
             <div className="flex flex-col gap-1 max-w-[75%]">
-               <div 
+               <div
                 className={`px-4 py-3 shadow-sm text-sm leading-relaxed relative transition-all duration-200 ${
-                  msg.sender === 'user' 
-                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm' 
+                  msg.sender === 'user'
+                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm'
                     : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm'
                 }`}
               >
-                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                {/* Render media if present */}
+                {msg.mediaUri && (
+                  <div className="mb-2 -mx-2 -mt-2">
+                    <MediaMessage
+                      uri={msg.mediaUri}
+                      type={msg.messageType === 'video' ? 'video' : 'image'}
+                      alt="Attachment"
+                      maxSize="lg"
+                      className="rounded-t-lg"
+                    />
+                  </div>
+                )}
+
+                {/* Render text if present */}
+                {msg.text && (
+                  <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                )}
               </div>
               <span 
                 className={`text-[10px] px-1 ${
@@ -500,10 +599,11 @@ const ChatDetail: React.FC = () => {
       <div className="flex-shrink-0 px-4 py-3 pb-6 bg-transparent pointer-events-none z-40">
           {/* Floating Input Container */}
           <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-slate-200/50 rounded-3xl p-1.5 flex items-center gap-2 pointer-events-auto max-w-lg mx-auto w-full transition-all duration-200 hover:shadow-2xl hover:shadow-slate-200/60 ring-1 ring-slate-100">
-            
-            <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-400 hover:text-slate-600 active:scale-90 duration-200">
-               <ImageIcon size={20} />
-            </button>
+
+            <FilePicker
+              onFileSelect={handleFileUpload}
+              isUploading={isUploading}
+            />
             
             <input
               type="text"
