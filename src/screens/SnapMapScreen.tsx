@@ -83,21 +83,23 @@ const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) =
           "></div>
         </div>
 
-        <!-- 3D 角色图片 -->
+        <!-- 3D 角色图片 - mix-blend-multiply 去除白底 -->
         <div style="
-          width: 70px;
-          height: 90px;
+          width: 80px;
+          height: 80px;
           position: relative;
           filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.3));
         ">
           <img
             src="${HERO_3D_IMAGE}"
             alt="${friend.name}"
+            class="mix-blend-multiply"
             style="
               width: 100%;
               height: 100%;
               object-fit: contain;
               object-position: bottom;
+              mix-blend-mode: multiply;
             "
           />
         </div>
@@ -112,8 +114,8 @@ const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) =
         "></div>
       </div>
     `,
-    iconSize: [70, 120],
-    iconAnchor: [35, 0],
+    iconSize: [80, 120],
+    iconAnchor: [40, 0],
     popupAnchor: [0, -60],
   });
 };
@@ -335,18 +337,20 @@ const SnapMapScreen: React.FC = () => {
       <MapContainer
         center={center}
         zoom={15}
+        minZoom={3}
+        maxZoom={18}
         zoomControl={false}
         attributionControl={false}
         style={{
           width: '100%',
-          height: '100%',
+          height: 'calc(100vh - 80px)',
           background: '#f5f5f5',
         }}
       >
-        {/* 标准 OpenStreetMap - 明亮色调 */}
+        {/* CartoDB Positron (Light) - 极速加载 */}
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
 
         {/* 热力圈 - 柔和发光效果 */}
