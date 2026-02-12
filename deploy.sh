@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # 配置变量
 SERVER_USER="root"  # 修改为你的服务器用户
-SERVER_HOST="your-server-ip"  # 修改为你的服务器IP
+SERVER_HOST="TRIX_SERVER_HOST"  # 修改为你的服务器IP
 DEPLOY_PATH="/var/www/trix-3d-companion"
 NGINX_CONF_PATH="/etc/nginx/sites-available/trix-3d-companion"
 
