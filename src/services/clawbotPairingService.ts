@@ -1,5 +1,4 @@
 import { supabase } from '../config/supabase';
-import { DeviceInfo } from 'react-native-device-info';
 
 /**
  * Clawbot 扫码配对服务
@@ -11,25 +10,27 @@ import { DeviceInfo } from 'react-native-device-info';
  * 4. 审批通过后使用 device_token 连接
  */
 
-interface PairingRequest {
+export interface PairingRequest {
   requestId: string;
   deviceName: string;
   deviceType: 'mobile' | 'desktop';
   timestamp: number;
   status: 'pending' | 'approved' | 'expired' | 'denied' | 'cancelled';
+  device_token?: string;
+  message?: string;
 }
 
-interface PairingResponse {
+export interface PairingResponse {
   requestId: string;
-  status: 'pending' | 'approved' | 'expired' | 'denied';
+  status: 'pending' | 'approved' | 'expired' | 'denied' | 'cancelled';
   deviceToken?: string;
   message?: string;
 }
 
-interface QRCodeData {
+export interface QRCodeData {
   gatewayUrl: string;
   pairingToken: string;
-  gatewayId: string;
+  requestId: string;
   expiresAt: string;
 }
 
@@ -41,10 +42,7 @@ class ClawbotPairingService {
 
   constructor() {
     // 从环境变量读取 Gateway 配置
-    this.gatewayUrl = __DEV__
-      ? 'ws://localhost:18789'
-      : (import.meta.env.VITE_CLAWBOT_GATEWAY_URL || 'ws://192.168.1.100:18789');
-
+    this.gatewayUrl = import.meta.env.VITE_CLAWBOT_GATEWAY_URL || 'ws://192.168.1.100:18789';
     this.authToken = import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN || '';
 
     console.log('[ClawbotPairing] 初始化', {
@@ -60,9 +58,9 @@ class ClawbotPairingService {
     // 生成唯一请求 ID
     const requestId = `trix-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
-    // 获取设备信息
-    const deviceId = DeviceInfo.getUniqueId() || 'unknown-device';
-    const defaultDeviceName = deviceName || `TRIX-${DeviceInfo.getSystemName()}`;
+    // 获取设备信息 - Web 环境
+    const deviceId = this.generateDeviceId();
+    const defaultDeviceName = deviceName || `TRIX-Web-${navigator.platform}`;
 
     const request: PairingRequest = {
       requestId,
@@ -102,13 +100,25 @@ class ClawbotPairingService {
   }
 
   /**
+   * 生成设备唯一 ID - Web 环境
+   */
+  private generateDeviceId(): string {
+    let deviceId = localStorage.getItem('trix_device_id');
+    if (!deviceId) {
+      deviceId = `web-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      localStorage.setItem('trix_device_id', deviceId);
+    }
+    return deviceId;
+  }
+
+  /**
    * 获取二维码内容（供 Gateway 生成二维码使用）
    */
-  getQRCodeContent(): string {
+  getQRCodeContent(requestId: string): string {
     const qrData: QRCodeData = {
-      gatewayUrl: this.gatewayUrl.replace('ws://', 'wss://'), // HTTPS 需要 wss
+      gatewayUrl: this.gatewayUrl,
       pairingToken: this.authToken,
-      gatewayId: 'trix-gateway-001',
+      requestId: requestId,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 分钟后过期
     };
 
