@@ -11,7 +11,14 @@
       "Bash(timeout 15 cat:*)",
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 添加轻量级服务器部署方案\n\n针对2GB内存服务器优化的完整部署方案：\n- 优化 Vite 构建配置（代码分割、Gzip压缩、移除console）\n- 添加 Nginx 配置（超轻量级、内存占用约10-20MB）\n- 创建自动化部署脚本（Linux/Mac: deploy.sh, Windows: deploy.ps1）\n- 添加服务器初始化脚本（server-setup.sh）\n- 完整部署文档（DEPLOY.md）\n\n部署特点：\n- 前端构建优化，减小文件体积\n- Nginx 作为静态服务器，资源占用极低\n- 支持一键自动化部署\n- 包含 SSL 证书配置指南\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(npm run build)",
+      "Bash(npm install)",
+      "Bash(npm vite:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

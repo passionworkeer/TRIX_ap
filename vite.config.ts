@@ -48,14 +48,14 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      // 生产环境启用Gzip压缩
-      ...(isProduction ? [
-        viteCompression({
-          algorithm: 'gzip',
-          ext: '.gz',
-          threshold: 10240, // 只压缩大于10KB的文件
-        }),
-      ] : []),
+      // 暂时禁用压缩插件（兼容性问题）
+      // ...(isProduction ? [
+      //   viteCompression({
+      //     algorithm: 'gzip',
+      //     ext: '.gz',
+      //     threshold: 10240,
+      //   }),
+      // ] : []),
     ],
     resolve: {
       alias: {

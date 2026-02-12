@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 # 配置变量 - 请修改这些值
 $SERVER_USER = "root"           # 服务器用户名
-$SERVER_HOST = "your-server-ip"  # 服务器 IP 地址
+$SERVER_HOST = "47.243.55.130"  # 服务器 IP 地址
 $DEPLOY_PATH = "/var/www/trix-3d-companion"
 
 Write-Host "============================================" -ForegroundColor Green
