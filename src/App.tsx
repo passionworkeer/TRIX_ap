@@ -16,6 +16,7 @@ import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import QRCodePairing from './screens/QRCodePairing';
 import MapScreen from './screens/Map';
+import SnapMapScreen from './screens/SnapMapScreen';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -131,6 +132,7 @@ function AppContent() {
              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
              <Route path={AppRoutes.QR_PAIRING} element={<ProtectedRoute><QRCodePairing /></ProtectedRoute>} />
              <Route path={AppRoutes.MAP} element={<ProtectedRoute><MapScreen /></ProtectedRoute>} />
+             <Route path="/snapmap" element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
            </Routes>
