@@ -190,8 +190,16 @@ const QRScanner: React.FC<QRScannerProps> = ({
               </div>
             ) : (
               // 扫描器容器
-              <div className="relative">
-                <div id="qr-reader" className="w-full"></div>
+              <div className="relative bg-black min-h-[400px]">
+                {/* 相机画面容器 - 确保有高度和样式 */}
+                <div 
+                  id="qr-reader" 
+                  className="w-full min-h-[400px]"
+                  style={{
+                    border: 'none',
+                    borderRadius: '0 0 1rem 1rem',
+                  }}
+                ></div>
                 
                 {/* 扫描提示 */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-center">

@@ -31,7 +31,7 @@ const QRCodePairing: React.FC = () => {
 
   const [manualCode, setManualCode] = useState('');
   const [deviceName, setDeviceName] = useState('');
-  const [showManualInput, setShowManualInput] = useState(false);
+  const [showManualInput, setShowManualInput] = useState(true); // 默认展开手动输入
   const [showScanner, setShowScanner] = useState(false);
 
   // 配对成功后自动跳转
@@ -42,6 +42,42 @@ const QRCodePairing: React.FC = () => {
       }, 2000);
     }
   }, [pairingStatus, deviceToken, navigate]);
+
+  /**
+   * 处理手动输入配对码
+   */
+  const handleManualPairing = async () => {
+    try {
+      console.log('[QRCodePairing] 使用手动配对码');
+      
+      // 解析配对码
+      const qrData = JSON.parse(manualCode.trim());
+      console.log('[QRCodePairing] 解析后的数据:', qrData);
+      
+      // 验证必要字段
+      if (!qrData.gatewayUrl || !qrData.pairingToken) {
+        throw new Error('配对码格式错误，缺少必要字段');
+      }
+      
+      // 保存配对信息到 localStorage
+      if (qrData.gatewayUrl) {
+        localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      }
+      if (qrData.pairingToken) {
+        localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
+      }
+      
+      // 开始配对流程
+      const name = deviceName.trim() || `TRIX-${navigator.platform}`;
+      await startPairing(name);
+      
+      setManualCode('');
+      setShowManualInput(false);
+    } catch (error) {
+      console.error('[QRCodePairing] 处理配对码失败:', error);
+      alert(error instanceof Error ? error.message : '配对码格式错误，请检查后重试');
+    }
+  };
 
   /**
    * 处理开始配对
@@ -281,12 +317,24 @@ const QRCodePairing: React.FC = () => {
               扫描二维码配对
             </button>
 
-            {/* 切换手动输入 */}
+            {/* 分隔线 */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span className="text-sm text-gray-500 font-medium">或</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
+
+            {/* 手动输入按钮 - 改为直接展开 */}
             <button
               onClick={() => setShowManualInput(!showManualInput)}
-              className="w-full py-3 text-indigo-600 font-medium hover:bg-indigo-50 rounded-lg transition-colors"
+              className={`w-full py-3 font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                showManualInput 
+                  ? 'bg-indigo-100 text-indigo-700 border-2 border-indigo-300' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
+              }`}
             >
-              {showManualInput ? '隐藏' : '手动输入配对码'}
+              <Wifi className="w-4 h-4" />
+              {showManualInput ? '收起手动输入' : '手动输入配对码（推荐）'}
             </button>
 
             {/* 手动输入配对码 */}
@@ -298,22 +346,68 @@ const QRCodePairing: React.FC = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="pt-4 border-t border-gray-200">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="pt-4 border-t border-gray-200 space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">
                       配对码（从电脑端复制）
                     </label>
+                    
+                    {/* 示例说明 */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                      <p className="font-medium text-blue-900 mb-1">📋 示例格式：</p>
+                      <code className="text-blue-800 block bg-blue-100 p-2 rounded overflow-x-auto">
+                        {`{"gatewayUrl":"ws://192.168.1.100:18789","pairingToken":"abc123..."}`}
+                      </code>
+                    </div>
+                    
+                    {/* 输入框 */}
                     <textarea
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value)}
-                      placeholder='粘贴 JSON 格式的配对码，例如：{"gatewayUrl":"...","pairingToken":"..."}'
+                      placeholder='粘贴配对码...'
                       rows={4}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
                     />
+                    
+                    {/* 验证提示 */}
+                    {manualCode.trim() && (
+                      <div className="text-xs">
+                        {(() => {
+                          try {
+                            const data = JSON.parse(manualCode.trim());
+                            if (data.gatewayUrl && data.pairingToken) {
+                              return (
+                                <div className="flex items-center gap-1 text-green-600">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>配对码格式正确 ✓</span>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="flex items-center gap-1 text-orange-600">
+                                  <AlertCircle className="w-4 h-4" />
+                                  <span>缺少必要字段（gatewayUrl 或 pairingToken）</span>
+                                </div>
+                              );
+                            }
+                          } catch {
+                            return (
+                              <div className="flex items-center gap-1 text-red-600">
+                                <XCircle className="w-4 h-4" />
+                                <span>JSON 格式错误</span>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
+                    
+                    {/* 连接按钮 */}
                     <button
-                      onClick={handleStartPairing}
+                      onClick={handleManualPairing}
                       disabled={!manualCode.trim()}
-                      className="w-full mt-3 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
+                      <Wifi className="w-4 h-4" />
                       使用配对码连接
                     </button>
                   </div>
