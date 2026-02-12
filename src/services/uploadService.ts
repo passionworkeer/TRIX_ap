@@ -11,6 +11,9 @@ import { supabase } from '../config/supabase';
 // 🔧 Configuration
 // ============================================
 
+// Supabase Storage Bucket Name - DO NOT CHANGE
+const BUCKET_NAME = 'TRIX';
+
 export const ACCEPTED_IMAGE_TYPES = [
   'image/jpeg',
   'image/jpg',
@@ -190,7 +193,7 @@ export async function uploadFile(
 
     // 5. Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('chat_attachments')
+      .from(BUCKET_NAME)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false,
@@ -211,8 +214,14 @@ export async function uploadFile(
 
     // 6. Get public URL
     const { data: urlData } = supabase.storage
-      .from('chat_attachments')
+      .from(BUCKET_NAME)
       .getPublicUrl(filePath);
+
+    console.log('🔗 [Upload] Generated public URL:', {
+      bucket: BUCKET_NAME,
+      path: filePath,
+      fullUrl: urlData.publicUrl
+    });
 
     const result: UploadResult = {
       uri: urlData.publicUrl,
@@ -249,7 +258,7 @@ export async function deleteFile(path: string): Promise<void> {
     console.log('🗑️ [Delete] Deleting file:', path);
 
     const { error } = await supabase.storage
-      .from('chat_attachments')
+      .from(BUCKET_NAME)
       .remove([path]);
 
     if (error) {

@@ -30,6 +30,14 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Debug log
+  console.log('🖼️ [MediaMessage] Rendering:', {
+    type,
+    uri,
+    uriLength: uri?.length,
+    uriPreview: uri?.substring(0, 100)
+  });
+
   // Size classes
   const sizeClasses = {
     sm: 'max-w-[120px]',
@@ -72,6 +80,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }`}
           onLoad={() => setIsLoading(false)}
           onError={() => {
+            console.error('❌ [MediaMessage] Image load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}
@@ -102,6 +111,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }`}
           onLoadedData={() => setIsLoading(false)}
           onError={() => {
+            console.error('❌ [MediaMessage] Video load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}

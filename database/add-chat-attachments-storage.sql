@@ -7,7 +7,7 @@
 -- 1. Go to Supabase Dashboard > Storage
 -- 2. Click "Create a new bucket"
 -- 3. Configure:
---    - Name: chat_attachments
+--    - Name: TRIX
 --    - Public bucket: true (for demo ease, change to false for production)
 --    - File size limit: 50MB
 --    - Allowed MIME types: image/*,video/*
@@ -19,21 +19,21 @@
 -- Policy 1: "Allow authenticated users to upload"
 --    - Allowed operation: INSERT
 --    - Target roles: authenticated
---    - USING check: bucket_id = 'chat_attachments'
+--    - USING check: bucket_id = 'TRIX'
 --    - WITH CHECK: (storage.foldername(name))[1] = auth.uid()::text
 --
 -- Policy 2: "Allow authenticated users to read"
 --    - Allowed operation: SELECT
 --    - Target roles: authenticated
---    - USING check: bucket_id = 'chat_attachments'
+--    - USING check: bucket_id = 'TRIX'
 --
 -- Policy 3: "Allow users to delete their own files"
 --    - Allowed operation: DELETE
 --    - Target roles: authenticated
---    - USING check: bucket_id = 'chat_attachments'
+--    - USING check: bucket_id = 'TRIX'
 --    - WITH CHECK: (storage.foldername(name))[1] = auth.uid()::text
 --
 -- ============================================
 
 -- Verification: Check if bucket exists
-SELECT * FROM storage.buckets WHERE name = 'chat_attachments';
+SELECT * FROM storage.buckets WHERE name = 'TRIX';
