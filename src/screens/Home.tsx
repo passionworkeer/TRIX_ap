@@ -20,7 +20,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
-  
+
   // Data for background logic only (red dots)
   const [unreadMailCount, setUnreadMailCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);

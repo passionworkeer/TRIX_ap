@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
+import SnapshotModal from './components/SnapshotModal';
 import Home from './screens/Home';
 import Snapshot from './screens/Snapshot';
 import Study from './screens/Study';
@@ -16,6 +17,7 @@ import Pairing from './screens/Pairing';
 import QRCodePairing from './screens/QRCodePairing';
 import MapScreen from './screens/Map';
 import { AppRoutes } from './types';
+import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
@@ -44,28 +46,43 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [showDockOnHome, setShowDockOnHome] = useState(false);
-  
+
   // 判断是否在首页
   const isHomePage = location.pathname === '/' || location.pathname === '';
-  
+
   // 判断是否在聊天详情页 (不显示底部导航)
   const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
-  
+
   // 判断是否在计时器页面 (不显示底部导航，保持专注)
   const isTimerPage = location.pathname === AppRoutes.TIMER;
-  
+
   // 判断是否在认证页面 (登录/注册)
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
-  
-  // 切换导航栏显示状态
+
+  // 切换导航栏和快拍卡片显示状态
   const toggleDock = () => {
     if (isHomePage) {
       setShowDockOnHome(prev => !prev);
     }
   };
-  
+
+  // 处理图片选择 - 导航到聊天详情页
+  const handleImageSelect = (imageUri: string) => {
+    setShowDockOnHome(false);
+    navigate(AppRoutes.CHAT_DETAIL, {
+      state: {
+        friendId: 'clawbot',
+        name: 'TRIX Bot',
+        avatar: IMAGES.WIZARD_BOY,
+        isBot: true,
+        photoUri: imageUri
+      }
+    });
+  };
+
   // 离开首页时重置状态
   useEffect(() => {
     if (!isHomePage) {
@@ -139,6 +156,12 @@ function AppContent() {
            <GlassDock key="dock" />
         )}
       </AnimatePresence>
+
+      {/* 快拍功能卡片 - 与导航栏联动显示 */}
+      <SnapshotModal
+        isOpen={isHomePage && showDockOnHome}
+        onImageSelect={handleImageSelect}
+      />
       
     </div>
   );
