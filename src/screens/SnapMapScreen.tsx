@@ -95,6 +95,19 @@ const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
   return { lat: baseLat + offset.lat, lng: baseLng + offset.lng };
 };
 
+// 热力图数据
+interface HeatZone {
+  position: [number, number];
+  color: string;
+  size: number;
+}
+
+const heatZones: HeatZone[] = [
+  { position: [31.231, 121.474], color: 'rgba(239, 68, 68, 0.15)', size: 300 },
+  { position: [31.229, 121.472], color: 'rgba(59, 130, 246, 0.12)', size: 250 },
+  { position: [31.232, 121.476], color: 'rgba(168, 85, 247, 0.1)', size: 280 },
+];
+
 // 创建标准 L.Icon 小人图标
 const createAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus): L.Icon => {
   // 使用好友头像，如果没有则使用默认 3D 图片
@@ -333,6 +346,29 @@ const SnapMapScreen: React.FC = () => {
     });
   }, []);
 
+  // 生成热力圈标记
+  const heatMarkers = useMemo(() => {
+    return heatZones.map((zone, index) => (
+      <Marker
+        key={`heat-${index}`}
+        position={zone.position}
+        interactive={false}
+        icon={L.divIcon({
+          className: 'heat-zone-marker',
+          html: `<div style="
+            width: ${zone.size}px;
+            height: ${zone.size}px;
+            background: radial-gradient(circle, ${zone.color} 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+          "></div>`,
+          iconSize: [zone.size, zone.size],
+          iconAnchor: [zone.size / 2, zone.size / 2],
+        })}
+      />
+    ));
+  }, []);
+
   return (
     <div
       style={{
@@ -443,6 +479,9 @@ const SnapMapScreen: React.FC = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {/* 热力圈 - 平面渐变效果 */}
+        {heatMarkers}
 
         {/* 虚拟地点标记 */}
         {placeMarkers}
