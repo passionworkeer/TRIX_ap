@@ -4,7 +4,6 @@
  */
 
 import { io, Socket } from 'socket.io-client';
-import { EventEmitter } from 'events';
 import ossService from './OSSService';
 
 export interface NanobotMessage {
@@ -21,17 +20,64 @@ export interface UserInfo {
   bound_at: string;
 }
 
-class NanobotBridge extends EventEmitter {
+type EventCallback = (data: any) => void;
+
+class NanobotBridge {
   private socket: Socket | null = null;
   private pairingCode: string | null = null;
   public connected: boolean = false;
   private serverUrl: string;
   private deviceId: string;
 
+  // 浏览器兼容的事件监听器
+  private eventListeners: Map<string, Set<EventCallback>> = new Map();
+
   constructor(serverUrl?: string) {
-    super();
     this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'http://localhost:5001';
     this.deviceId = this.getOrCreateDeviceId();
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  on(event: string, callback: EventCallback): void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    this.eventListeners.get(event)!.add(callback);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  off(event: string, callback: EventCallback): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(callback);
+    }
+  }
+
+  /**
+   * 触发事件
+   */
+  private emit(event: string, data?: any): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`[NanobotBridge] 事件回调错误 (${event}):`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * 移除所有事件监听器
+   */
+  removeAllListeners(): void {
+    this.eventListeners.clear();
   }
 
   /**
