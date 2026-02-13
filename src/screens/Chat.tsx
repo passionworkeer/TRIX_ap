@@ -10,8 +10,9 @@ import { getFriends, addFriend } from '../services/databaseService';
 import { supabase } from '../config/supabase';
 import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
+import { formatRelative } from '../utils/dateFormat';
 
-const BG_IMAGE = "/assets/background.jpg";
+const BG_IMAGE = IMAGES.BACKGROUND;
 
 // 推荐用户接口
 interface RecommendedUser {
@@ -21,24 +22,6 @@ interface RecommendedUser {
   email: string;
   bio: string | null;
 }
-
-// 格式化时间显示
-const formatTime = (timestamp: string | null): string => {
-  if (!timestamp) return '';
-
-  const now = new Date();
-  const messageTime = new Date(timestamp);
-  const diffMs = now.getTime() - messageTime.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return `${Math.floor(diffDays / 7)}w`;
-};
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
@@ -375,7 +358,7 @@ const Chat: React.FC = () => {
                                       {friend.last_message_time && (
                                          <>
                                            <span className="text-gray-600 mx-0.5">•</span>
-                                           <span className="text-gray-500">{formatTime(friend.last_message_time)}</span>
+                                           <span className="text-gray-500">{formatRelative(friend.last_message_time)}</span>
                                          </>
                                       )}
                                     </span>

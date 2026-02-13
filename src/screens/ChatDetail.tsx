@@ -6,6 +6,7 @@ import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
+import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
@@ -89,21 +90,13 @@ const ChatDetail: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [conversationId, setConversationId] = useState<string>('');
 
-  // 格式化时间戳为 HH:MM 格式
-  const formatTimestamp = (isoString: string): string => {
-    return new Date(isoString).toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
   // 转换数据库消息为 UI 消息
   const convertDbMessageToUI = (dbMsg: ChatMessage): UIMessage => {
     const uiMessage: UIMessage = {
       id: dbMsg.id,
       sender: dbMsg.sender,
       text: dbMsg.text,
-      timestamp: formatTimestamp(dbMsg.created_at)
+      timestamp: formatTime(dbMsg.created_at)
     };
 
     // Add media fields if present
@@ -214,7 +207,7 @@ const ChatDetail: React.FC = () => {
                 id: newMessage.id,
                 sender: 'friend',
                 text: newMessage.text,
-                timestamp: formatTimestamp(newMessage.created_at)
+                timestamp: formatTime(newMessage.created_at)
               };
               
               console.log('✅ [Realtime] 添加新消息到列表');
@@ -260,7 +253,7 @@ const ChatDetail: React.FC = () => {
     setMessages(prev => {
       const existingIndex = prev.findIndex(msg => msg.id === currentStreamId);
       
-      const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      const timeString = formatTime(new Date());
 
       if (existingIndex !== -1) {
         const updated = [...prev];
@@ -314,7 +307,7 @@ const ChatDetail: React.FC = () => {
     setPendingMedia(null); // Clear pending media
     setAttachmentPreviews([]); // Clear all attachment previews
 
-    const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const timeString = formatTime(new Date());
 
     // Determine message type
     const messageType = hasMedia && hasText ? 'mixed'
@@ -387,7 +380,7 @@ const ChatDetail: React.FC = () => {
             id: `temp-bot-${Date.now()}`,
             sender: 'bot',
             text: '[Mock Mode] Gateway is offline. Echo: ' + messageText,
-            timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            timestamp: formatTime(new Date()),
           };
           setMessages(prev => [...prev, botResponse]);
 
