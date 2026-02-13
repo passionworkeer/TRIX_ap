@@ -83,7 +83,7 @@ const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) =
           "></div>
         </div>
 
-        <!-- 3D 角色图片 - mix-blend-multiply 去除白底 -->
+        <!-- 3D 角色图片 -->
         <div style="
           width: 80px;
           height: 80px;
@@ -93,13 +93,11 @@ const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) =
           <img
             src="${HERO_3D_IMAGE}"
             alt="${friend.name}"
-            class="mix-blend-multiply"
             style="
               width: 100%;
               height: 100%;
               object-fit: contain;
               object-position: bottom;
-              mix-blend-mode: multiply;
             "
           />
         </div>
@@ -115,7 +113,7 @@ const create3DAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus) =
       </div>
     `,
     iconSize: [80, 120],
-    iconAnchor: [40, 0],
+    iconAnchor: [40, 80],
     popupAnchor: [0, -60],
   });
 };
@@ -336,7 +334,7 @@ const SnapMapScreen: React.FC = () => {
       {/* 地图容器 */}
       <MapContainer
         center={center}
-        zoom={15}
+        zoom={16}
         minZoom={3}
         maxZoom={18}
         zoomControl={false}
@@ -347,10 +345,10 @@ const SnapMapScreen: React.FC = () => {
           background: '#f5f5f5',
         }}
       >
-        {/* CartoDB Positron (Light) - 极速加载 */}
+        {/* GeoQ ChinaOnlineCommunity - 国内极速 OSM 风格 */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineCommunity/MapServer/tile/{z}/{y}/{x}"
+          attribution='&copy; <a href="http://map.geoq.cn">GeoQ</a>'
         />
 
         {/* 热力圈 - 柔和发光效果 */}
