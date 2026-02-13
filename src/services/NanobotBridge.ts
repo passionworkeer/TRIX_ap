@@ -1,17 +1,19 @@
 /**
- * Nanobot Bridge Service
+ * Nanobot Bridge Service (原生 WebSocket 版本)
  * 连接到云端 Nanobot 配对服务
+ *
+ * 协议文档: docs/CLOUD_SERVER_AND_APP_IMPLEMENTATION.md
  */
 
-import { io, Socket } from 'socket.io-client';
 import ossService from './OSSService';
 
 export interface NanobotMessage {
-  code: string;
+  msg_id?: string;
   message: string;
   message_type: 'text' | 'image' | 'video' | 'file';
   media_url?: string;
   timestamp: string;
+  from_device_id?: string;
 }
 
 export interface UserInfo {
@@ -23,18 +25,31 @@ export interface UserInfo {
 type EventCallback = (data: any) => void;
 
 class NanobotBridge {
-  private socket: Socket | null = null;
+  private ws: WebSocket | null = null;
   private pairingCode: string | null = null;
   public connected: boolean = false;
   private serverUrl: string;
   private deviceId: string;
 
+  // 重连相关
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private reconnectDelay: number = 5000;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // 心跳
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatInterval: number = 30000; // 30 秒
+
   // 浏览器兼容的事件监听器
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
   constructor(serverUrl?: string) {
-    this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'http://localhost:5001';
+    // 使用环境变量或默认值
+    this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'ws://TRIX_SERVER_HOST:8765';
     this.deviceId = this.getOrCreateDeviceId();
+    console.log('[NanobotBridge] 服务器地址:', this.serverUrl);
+    console.log('[NanobotBridge] 设备 ID:', this.deviceId);
   }
 
   /**
@@ -86,67 +101,68 @@ class NanobotBridge {
   private getOrCreateDeviceId(): string {
     let deviceId = localStorage.getItem('nanobot_device_id');
     if (!deviceId) {
-      deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      deviceId = 'app_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
       localStorage.setItem('nanobot_device_id', deviceId);
     }
     return deviceId;
   }
 
   /**
-   * 生成配对码（需要先调用服务端 API）
-   */
-  async generatePairingCode(): Promise<string> {
-    try {
-      const response = await fetch(`${this.serverUrl}/api/pairing/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        console.log('[NanobotBridge] 生成配对码:', data.code);
-        return data.code;
-      } else {
-        throw new Error(data.error || '生成配对码失败');
-      }
-    } catch (error) {
-      console.error('[NanobotBridge] 生成配对码失败:', error);
-      throw error;
-    }
-  }
-
-  /**
    * 绑定配对码
    */
   async bindPairingCode(code: string, userName?: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch(`${this.serverUrl}/api/pairing/${code}/bind`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          device_id: this.deviceId,
-          user_name: userName || 'TRIX User',
-        }),
-      });
+    // 先保存配对码
+    this.pairingCode = code.toUpperCase();
+    localStorage.setItem('nanobot_pairing_code', this.pairingCode);
 
-      const data = await response.json();
-
-      if (data.success) {
-        console.log('[NanobotBridge] 配对码绑定成功');
-        this.pairingCode = code;
-        localStorage.setItem('nanobot_pairing_code', code);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[NanobotBridge] 绑定配对码失败:', error);
-      throw error;
+    // 如果已连接，直接发送配对请求
+    if (this.connected && this.ws) {
+      this.sendAppPairing();
+      return { success: true, message: '正在配对...' };
     }
+
+    // 否则先连接
+    return new Promise((resolve) => {
+      const onConnected = () => {
+        this.off('connected', onConnected);
+        this.off('error', onError);
+        this.sendAppPairing();
+        resolve({ success: true, message: '正在配对...' });
+      };
+
+      const onError = (error: any) => {
+        this.off('connected', onConnected);
+        this.off('error', onError);
+        resolve({ success: false, message: error.message || '连接失败' });
+      };
+
+      this.on('connected', onConnected);
+      this.on('error', onError);
+
+      this.connect(code);
+    });
+  }
+
+  /**
+   * 发送配对请求
+   */
+  private sendAppPairing(): void {
+    if (!this.ws || !this.pairingCode) return;
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    this.ws.send(JSON.stringify({
+      type: 'app_pairing',
+      code: this.pairingCode,
+      device_id: this.deviceId,
+      client_info: {
+        device_name: isMobile ? 'Mobile' : 'Desktop',
+        platform: isMobile ? 'mobile' : 'web',
+        user_agent: navigator.userAgent
+      }
+    }));
+
+    console.log('[NanobotBridge] 发送配对请求:', this.pairingCode);
   }
 
   /**
@@ -154,11 +170,11 @@ class NanobotBridge {
    */
   connect(code?: string): void {
     if (code) {
-      this.pairingCode = code;
+      this.pairingCode = code.toUpperCase();
+      localStorage.setItem('nanobot_pairing_code', this.pairingCode);
     }
 
     if (!this.pairingCode) {
-      // 尝试从 localStorage 恢复
       this.pairingCode = localStorage.getItem('nanobot_pairing_code');
     }
 
@@ -168,78 +184,120 @@ class NanobotBridge {
       return;
     }
 
+    // 如果已经连接，直接返回
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('[NanobotBridge] 已经连接');
+      return;
+    }
+
+    // 清理旧连接
+    this.cleanup();
+
     console.log('[NanobotBridge] 正在连接到服务器:', this.serverUrl);
+    this.emit('connecting');
 
-    // 创建 Socket.IO 连接
-    this.socket = io(this.serverUrl, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 5000,
-      reconnectionDelayMax: 30000,
-    });
+    try {
+      this.ws = new WebSocket(this.serverUrl);
 
-    // 连接成功
-    this.socket.on('connect', () => {
-      console.log('[NanobotBridge] WebSocket 已连接');
-      this.connected = true;
+      this.ws.onopen = () => {
+        console.log('[NanobotBridge] WebSocket 已连接');
+        this.reconnectAttempts = 0;
 
-      // 注册为 App 客户端
-      this.socket!.emit('register_app', {
-        code: this.pairingCode,
-        client_type: 'app',
-        device_id: this.deviceId,
-      });
-    });
+        // 注册设备
+        this.ws!.send(JSON.stringify({
+          type: 'register',
+          device_id: this.deviceId,
+          device_type: 'mobile_app'
+        }));
+      };
 
-    // 注册成功
-    this.socket.on('registered', (data: any) => {
-      if (data.success) {
-        console.log('[NanobotBridge] 注册成功:', data);
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleMessage(data);
+        } catch (error) {
+          console.error('[NanobotBridge] 消息解析错误:', error);
+        }
+      };
+
+      this.ws.onclose = (event) => {
+        console.log('[NanobotBridge] WebSocket 断开:', event.code, event.reason);
+        this.connected = false;
+        this.stopHeartbeat();
+        this.emit('disconnected');
+
+        // 自动重连
+        this.scheduleReconnect();
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('[NanobotBridge] WebSocket 错误:', error);
+        this.emit('error', { message: '连接错误' });
+      };
+
+    } catch (error) {
+      console.error('[NanobotBridge] 创建连接失败:', error);
+      this.emit('error', { message: '创建连接失败' });
+    }
+  }
+
+  /**
+   * 处理服务器消息
+   */
+  private handleMessage(data: any): void {
+    const msgType = data.type;
+
+    switch (msgType) {
+      case 'register_success':
+        console.log('[NanobotBridge] 设备注册成功:', data.device_id);
+        // 注册成功后发送配对请求
+        if (this.pairingCode) {
+          this.sendAppPairing();
+        }
+        break;
+
+      case 'pairing_success':
+        console.log('[NanobotBridge] 配对成功:', data);
+        this.connected = true;
+        this.startHeartbeat();
         this.emit('connected', data);
-      } else {
-        console.error('[NanobotBridge] 注册失败:', data);
-        this.emit('error', data);
-      }
-    });
+        break;
 
-    // 收到 Nanobot 消息
-    this.socket.on('message_to_app', (data: NanobotMessage) => {
-      console.log('[NanobotBridge] 收到 Nanobot 消息:', data);
-      this.emit('message', data);
-    });
+      case 'pairing_failed':
+        console.error('[NanobotBridge] 配对失败:', data.message);
+        this.emit('error', { message: data.message });
+        break;
 
-    // 断开连接
-    this.socket.on('disconnect', () => {
-      console.log('[NanobotBridge] WebSocket 断开');
-      this.connected = false;
-      this.emit('disconnected');
-    });
+      case 'chat_response':
+        // 收到 Nanobot 的回复
+        console.log('[NanobotBridge] 收到回复:', data);
+        this.emit('message', {
+          msg_id: data.msg_id,
+          message: data.response,
+          message_type: 'text',
+          timestamp: data.timestamp
+        });
+        break;
 
-    // 错误处理
-    this.socket.on('error', (error: any) => {
-      console.error('[NanobotBridge] WebSocket 错误:', error);
-      this.emit('error', error);
-    });
+      case 'error':
+        console.error('[NanobotBridge] 服务器错误:', data.message);
+        this.emit('error', { message: data.message });
+        break;
 
-    // 重连中
-    this.socket.io.on('reconnect_attempt', (attempt: number) => {
-      console.log(`[NanobotBridge] 重连尝试 ${attempt}`);
-      this.emit('reconnecting', { attempt });
-    });
+      case 'pong':
+        // 心跳响应
+        break;
 
-    // 重连成功
-    this.socket.io.on('reconnect', (attempt: number) => {
-      console.log(`[NanobotBridge] 重连成功 (第${attempt}次)`);
-      this.emit('reconnected', { attempt });
-    });
+      default:
+        console.log('[NanobotBridge] 未知消息类型:', msgType, data);
+    }
   }
 
   /**
    * 发送消息到 Nanobot
    */
   sendMessage(message: string, messageType: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string): void {
-    if (!this.connected || !this.socket) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('[NanobotBridge] 未连接，无法发送消息');
     }
 
@@ -247,16 +305,22 @@ class NanobotBridge {
       throw new Error('[NanobotBridge] 没有配对码');
     }
 
-    const data: NanobotMessage = {
-      code: this.pairingCode,
-      message,
+    const msgId = Date.now().toString();
+
+    const data: any = {
+      type: 'chat_message',
+      device_id: this.deviceId,
+      msg_id: msgId,
+      message: message,
       message_type: messageType,
-      media_url: mediaUrl,
-      timestamp: new Date().toISOString(),
     };
 
-    this.socket.emit('message_from_app', data);
-    console.log('[NanobotBridge] 消息已发送:', data);
+    if (mediaUrl) {
+      data.media_url = mediaUrl;
+    }
+
+    this.ws.send(JSON.stringify(data));
+    console.log('[NanobotBridge] 消息已发送:', msgId);
   }
 
   /**
@@ -264,7 +328,6 @@ class NanobotBridge {
    */
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
-      // 使用阿里云 OSS 上传
       const url = await ossService.uploadFile(file);
       console.log('[NanobotBridge] 文件上传成功:', url);
       return url;
@@ -275,15 +338,80 @@ class NanobotBridge {
   }
 
   /**
+   * 启动心跳
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, this.heartbeatInterval);
+  }
+
+  /**
+   * 停止心跳
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  /**
+   * 调度重连
+   */
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('[NanobotBridge] 重连次数已达上限');
+      this.emit('error', { message: '重连次数已达上限' });
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectDelay * this.reconnectAttempts, 30000);
+
+    console.log(`[NanobotBridge] ${delay / 1000} 秒后重连 (第 ${this.reconnectAttempts} 次)`);
+    this.emit('reconnecting', { attempt: this.reconnectAttempts });
+
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  /**
+   * 清理连接
+   */
+  private cleanup(): void {
+    this.stopHeartbeat();
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close();
+      }
+      this.ws = null;
+    }
+  }
+
+  /**
    * 断开连接
    */
   disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-      this.connected = false;
-      console.log('[NanobotBridge] 已断开连接');
-    }
+    console.log('[NanobotBridge] 主动断开连接');
+    this.reconnectAttempts = this.maxReconnectAttempts; // 阻止自动重连
+    this.cleanup();
+    this.connected = false;
+    this.emit('disconnected');
   }
 
   /**
@@ -304,7 +432,7 @@ class NanobotBridge {
   }
 
   /**
-   * 获取设备ID
+   * 获取设备 ID
    */
   getDeviceId(): string {
     return this.deviceId;
@@ -314,7 +442,7 @@ class NanobotBridge {
    * 检查连接状态
    */
   isConnected(): boolean {
-    return this.connected;
+    return this.connected && this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 }
 
