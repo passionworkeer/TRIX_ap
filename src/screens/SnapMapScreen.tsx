@@ -23,9 +23,63 @@ interface FriendStatus {
   text: string;
 }
 
+interface PlaceInfo {
+  name: string;
+  type: 'dining' | 'entertainment' | 'study' | 'shopping' | 'park';
+  emoji: string;
+  description: string;
+  openHours?: string;
+}
+
 const friendStatuses: Record<string, FriendStatus> = {
   'clawbot': { emoji: '🤖', text: 'Coding...' },
 };
+
+// 虚拟地点数据 - 上海热门地标
+const mockPlaces: PlaceInfo[] = [
+  {
+    name: '星巴克咖啡',
+    type: 'dining',
+    emoji: '☕',
+    description: '和朋友聚会喝咖啡',
+    openHours: '07:30 - 22:00',
+  },
+  {
+    name: '海底捞火锅',
+    type: 'dining',
+    emoji: '🍲',
+    description: '热闹的火锅聚餐',
+    openHours: '11:00 - 22:00',
+  },
+  {
+    name: '万达影城',
+    type: 'entertainment',
+    emoji: '🎬',
+    description: '最新电影上映中',
+    openHours: '10:00 - 23:00',
+  },
+  {
+    name: '静安雕塑公园',
+    type: 'park',
+    emoji: '🌳',
+    description: '适合散步和聊天',
+    openHours: '全天开放',
+  },
+  {
+    name: '24小时自习室',
+    type: 'study',
+    emoji: '📚',
+    description: '安静的学习环境',
+    openHours: '24小时',
+  },
+  {
+    name: 'KTV 唱歌',
+    type: 'entertainment',
+    emoji: '🎤',
+    description: '聚会唱K放松',
+    openHours: '12:00 - 02:00',
+  },
+];
 
 // 上海陆家嘴附近的坐标偏移
 const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
@@ -33,6 +87,9 @@ const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
     { lat: 0.001, lng: 0.002 },
     { lat: -0.001, lng: 0.003 },
     { lat: 0.002, lng: -0.002 },
+    { lat: -0.002, lng: -0.003 },
+    { lat: 0.003, lng: 0.001 },
+    { lat: -0.003, lng: 0.001 },
   ];
   const offset = offsets[index % offsets.length];
   return { lat: baseLat + offset.lat, lng: baseLng + offset.lng };
@@ -128,16 +185,153 @@ const SnapMapScreen: React.FC = () => {
           icon={createAvatarIcon(friend, status)}
         >
           <Popup>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', marginBottom: '4px' }}>{status.emoji}</div>
-              <div style={{ fontWeight: 600 }}>{friend.name}</div>
-              <div style={{ fontSize: '12px', color: '#666' }}>{status.text}</div>
+            <div style={{
+              textAlign: 'center',
+              padding: '8px',
+              minWidth: '120px',
+            }}>
+              <div style={{ fontSize: '24px', marginBottom: '6px' }}>{status.emoji}</div>
+              <div style={{
+                fontWeight: 700,
+                fontSize: '15px',
+                color: '#1f2937',
+                marginBottom: '4px'
+              }}>
+                {friend.name}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: '#22c55e',
+                fontWeight: 500,
+                padding: '4px 8px',
+                background: '#dcfce7',
+                borderRadius: '12px',
+                display: 'inline-block'
+              }}>
+                {status.text}
+              </div>
             </div>
           </Popup>
         </Marker>
       );
     });
   }, [friends]);
+
+  // 生成虚拟地点标记
+  const placeMarkers = useMemo(() => {
+    return mockPlaces.map((place, index) => {
+      const pos = getOffsetPosition(center[0], center[1], index + 10); // 偏移10位避免重叠
+
+      return (
+        <Marker
+          key={place.name}
+          position={[pos.lat, pos.lng]}
+        >
+          <Popup>
+            <div style={{
+              textAlign: 'left',
+              padding: '12px',
+              minWidth: '160px',
+            }}>
+              {/* 标题行 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '8px'
+              }}>
+                <span style={{ fontSize: '28px' }}>{place.emoji}</span>
+                <div style={{
+                  fontWeight: 700,
+                  fontSize: '16px',
+                  color: '#1f2937',
+                  flex: 1
+                }}>
+                  {place.name}
+                </div>
+              </div>
+
+              {/* 描述 */}
+              <div style={{
+                fontSize: '13px',
+                color: '#6b7280',
+                marginBottom: '8px',
+                lineHeight: '1.5'
+              }}>
+                {place.description}
+              </div>
+
+              {/* 营业时间 */}
+              {place.openHours && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#64748b',
+                  padding: '6px 10px',
+                  background: '#f3f4f6',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>🕐</span>
+                  <span>{place.openHours}</span>
+                </div>
+              )}
+
+              {/* 类型标签 */}
+              <div style={{
+                marginTop: '8px',
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap'
+              }}>
+                {place.type === 'dining' && (
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#fef3c7',
+                    color: '#d97706',
+                    borderRadius: '12px',
+                    fontWeight: 600
+                  }}>🍽️ 美食</span>
+                )}
+                {place.type === 'entertainment' && (
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#e0e7ff',
+                    color: '#4338ca',
+                    borderRadius: '12px',
+                    fontWeight: 600
+                  }}>🎪 娱乐</span>
+                )}
+                {place.type === 'study' && (
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#dbeafe',
+                    color: '#15803d',
+                    borderRadius: '12px',
+                    fontWeight: 600
+                  }}>📖 学习</span>
+                )}
+                {place.type === 'park' && (
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    background: '#d1fae5',
+                    color: '#166534',
+                    borderRadius: '12px',
+                    fontWeight: 600
+                  }}>🌿️ 公园</span>
+                )}
+              </div>
+            </div>
+          </Popup>
+        </Marker>
+      );
+    });
+  }, []);
 
   return (
     <div
@@ -250,8 +444,11 @@ const SnapMapScreen: React.FC = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* 好友标记 - 暂时注释掉测试白色背景问题 */}
-        {/* {!loading && friendMarkers} */}
+        {/* 虚拟地点标记 */}
+        {placeMarkers}
+
+        {/* 好友标记 */}
+        {!loading && friendMarkers}
 
         {/* 定位按钮 */}
         <LocationButton />
@@ -271,21 +468,51 @@ const SnapMapScreen: React.FC = () => {
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
+          gap: '20px',
         }}
       >
-        <div
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: '#22c55e',
-            boxShadow: '0 0 8px #22c55e',
-          }}
-        />
-        <span style={{ color: '#333', fontSize: '13px', fontWeight: 500 }}>
-          {friends.length} friends nearby
-        </span>
+        {/* 地点数量 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#3b82f6',
+              boxShadow: '0 0 8px #3b82f6',
+            }}
+          />
+          <span style={{ color: '#333', fontSize: '13px', fontWeight: 500 }}>
+            {mockPlaces.length} 热门地点
+          </span>
+        </div>
+
+        {/* 分隔线 */}
+        <div style={{ width: '1px', height: '16px', background: '#e5e7eb' }} />
+
+        {/* 好友数量 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#22c55e',
+              boxShadow: '0 0 8px #22c55e',
+            }}
+          />
+          <span style={{ color: '#333', fontSize: '13px', fontWeight: 500 }}>
+            {friends.length} 位好友
+          </span>
+        </div>
       </div>
     </div>
   );
