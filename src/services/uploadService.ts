@@ -2,10 +2,11 @@
  * 📎 Upload Service - Multi-Modal File Uploads
  * ============================================
  * Handles image and video uploads to Supabase Storage
- * with validation, metadata extraction, and error handling
+ * with validation, compression, thumbnail generation, metadata extraction, and error handling
  */
 
 import { supabase } from '../config/supabase';
+import imageCompression from 'browser-image-compression';
 
 // ============================================
 // 🔧 Configuration
@@ -13,6 +14,22 @@ import { supabase } from '../config/supabase';
 
 // Supabase Storage Bucket Name - DO NOT CHANGE
 const BUCKET_NAME = 'TRIX';
+
+// Image compression settings
+export const IMAGE_COMPRESSION_OPTIONS = {
+  maxSizeMB: 1,              // Maximum file size: 1MB
+  maxWidthOrHeight: 1920,    // Maximum dimension
+  useWebWorker: true,        // Use web worker for better performance
+  initialQuality: 0.85,      // Quality: 85%
+  alwaysKeepResolution: false // Allow resolution reduction
+};
+
+// Thumbnail generation settings
+export const THUMBNAIL_OPTIONS = {
+  maxWidthOrHeight: 300,     // Thumbnail dimension
+  quality: 0.7,              // Thumbnail quality: 70%
+  format: 'image/jpeg'       // Thumbnail format
+};
 
 export const ACCEPTED_IMAGE_TYPES = [
   'image/jpeg',
@@ -92,6 +109,78 @@ function validateFile(file: File, category: 'image' | 'video'): UploadError | nu
 // 📊 Metadata Extraction
 // ============================================
 
+/**
+ * Generate a thumbnail for an image
+ */
+async function generateThumbnail(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          resolve(null);
+          return;
+        }
+
+        // Calculate thumbnail dimensions
+        const maxDimension = THUMBNAIL_OPTIONS.maxWidthOrHeight;
+        let width = img.naturalWidth;
+        let height = img.naturalHeight;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = Math.round(width);
+        canvas.height = Math.round(height);
+
+        // Draw thumbnail
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Convert to blob
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (blob) {
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve(null);
+            }
+          },
+          THUMBNAIL_OPTIONS.format as'image/jpeg',
+          THUMBNAIL_OPTIONS.quality
+        );
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        console.warn('Failed to generate thumbnail');
+        resolve(null);
+      };
+
+      img.src = url;
+    } catch (error) {
+      console.warn('Error generating thumbnail:', error);
+      resolve(null);
+    }
+  });
+}
+
 async function extractMetadata(file: File, category: 'image' | 'video'): Promise<UploadMetadata> {
   const metadata: UploadMetadata = {};
 
@@ -160,6 +249,9 @@ export async function uploadFile(
   file: File,
   category: 'image' | 'video'
 ): Promise<UploadResult> {
+  const perfStart = performance.now();
+  let compressedFile = file;
+
   try {
     console.log('📤 [Upload] Starting upload:', {
       fileName: file.name,
@@ -180,39 +272,84 @@ export async function uploadFile(
       throw new Error(validationError.message);
     }
 
-    // 3. Generate unique filename
-    const fileExt = file.name.split('.').pop() || 'bin';
+    // 3. Compress image if needed
+    if (category === 'image') {
+      console.log('🗜️ [Upload] Compressing image...');
+      const compressStart = performance.now();
+
+      try {
+        compressedFile = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+        const compressTime = (performance.now() - compressStart).toFixed(0);
+
+        const savings = ((1 - compressedFile.size / file.size) * 100).toFixed(0);
+        console.log('✅ [Upload] Image compressed:', {
+          original: (file.size / 1024).toFixed(0) + 'KB',
+          compressed: (compressedFile.size / 1024).toFixed(0) + 'KB',
+          savings: savings + '%',
+          time: compressTime + 'ms'
+        });
+      } catch (compressError) {
+        console.warn('⚠️ [Upload] Compression failed, using original:', compressError);
+        compressedFile = file;
+      }
+    }
+
+    // 4. Generate unique filename
+    const fileExt = compressedFile.name.split('.').pop() || 'bin';
     const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = `${user.id}/${category}s/${fileName}`;
 
     console.log('📤 [Upload] Upload path:', filePath);
 
-    // 4. Extract metadata
-    const metadata = await extractMetadata(file, category);
+    // 5. Extract metadata
+    const metadata = await extractMetadata(compressedFile, category);
     console.log('📊 [Upload] Extracted metadata:', metadata);
 
-    // 5. Upload to Supabase Storage
+    // 6. Generate thumbnail for images
+    if (category === 'image' && !metadata.thumbnail) {
+      console.log('🖼️ [Upload] Generating thumbnail...');
+      const thumbStart = performance.now();
+
+      try {
+        const thumbnailUrl = await generateThumbnail(compressedFile);
+        if (thumbnailUrl) {
+          metadata.thumbnail = thumbnailUrl;
+          const thumbTime = (performance.now() - thumbStart).toFixed(0);
+          console.log('✅ [Upload] Thumbnail generated:', { time: thumbTime + 'ms' });
+        }
+      } catch (thumbError) {
+        console.warn('⚠️ [Upload] Thumbnail generation failed:', thumbError);
+      }
+    }
+
+    // 7. Upload to Supabase Storage
+    const uploadStart = performance.now();
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
+      .upload(filePath, compressedFile, {
+        cacheControl: '31536000', // 1 year cache for better performance
         upsert: false,
-        contentType: file.type,
+        contentType: compressedFile.type,
         metadata: {
-          originalName: file.name,
-          size: file.size,
+          originalName: compressedFile.name,
+          size: compressedFile.size,
           uploadedAt: new Date().toISOString()
         }
       });
+    const uploadTime = (performance.now() - uploadStart).toFixed(0);
 
     if (uploadError) {
       console.error('❌ [Upload] Upload error:', uploadError);
       throw new Error(`上传失败: ${uploadError.message}`);
     }
 
-    console.log('✅ [Upload] Upload successful:', uploadData);
+    console.log('✅ [Upload] Upload successful:', {
+      path: uploadData.path,
+      time: uploadTime + 'ms',
+      speed: ((compressedFile.size / 1024) / (parseFloat(uploadTime) / 1000)).toFixed(0) + ' KB/s'
+    });
 
-    // 6. Get public URL
+    // 8. Get public URL
     const { data: urlData } = supabase.storage
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);
@@ -226,15 +363,17 @@ export async function uploadFile(
     const result: UploadResult = {
       uri: urlData.publicUrl,
       path: filePath,
-      type: file.type,
-      size: file.size,
+      type: compressedFile.type,
+      size: compressedFile.size,
       category,
       metadata
     };
 
+    const totalTime = (performance.now() - perfStart).toFixed(0);
     console.log('✅ [Upload] Complete:', {
       uri: result.uri,
-      size: (result.size / 1024).toFixed(2) + 'KB'
+      size: (result.size / 1024).toFixed(2) + 'KB',
+      totalTime: totalTime + 'ms'
     });
 
     return result;

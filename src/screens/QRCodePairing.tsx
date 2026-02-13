@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Scan, Wifi, WifiOff, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
+import { Scan, Wifi, WifiOff, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, Zap } from 'lucide-react';
 import { useQRCodePairing } from '../contexts/QRCodePairingContext';
 import { AppRoutes } from '../types';
 import QRScanner from '../components/QRScanner';
+import clawbotPairingService from '../services/clawbotPairingService';
 
 /**
  * 二维码配对页面
@@ -57,10 +58,11 @@ const QRCodePairing: React.FC = () => {
 
       // 字段映射：支持两种命名风格
       const qrData = {
-        gatewayUrl: rawData.gatewayUrl || rawData.gateway_url,
-        pairingToken: rawData.pairingToken || rawData.pairing_token,
+        gatewayUrl: rawData.gatewayUrl || rawData.gateway_url || rawData.g,
+        pairingToken: rawData.pairingToken || rawData.pairing_token || rawData.t,
         deviceId: rawData.deviceId || rawData.device_id,
         expiresAt: rawData.expiresAt || rawData.expires_at,
+        mode: rawData.mode || rawData.m || rawData.clientMode,
         version: rawData.version,
       };
 
@@ -88,6 +90,16 @@ const QRCodePairing: React.FC = () => {
         hasToken: !!qrData.pairingToken,
         deviceId: qrData.deviceId,
       });
+
+      // 检查是否是 webchat 模式（无需 HTTP API 配对）
+      if (qrData.mode === 'webchat') {
+        console.log('[QRCodePairing] webchat 模式，直接连接');
+        // 直接保存 token 并连接
+        clawbotPairingService.directConnect(qrData.gatewayUrl, qrData.pairingToken);
+        // 跳转到首页，WebSocketContext 会自动连接
+        navigate(AppRoutes.HOME);
+        return;
+      }
 
       // 开始配对流程
       const name = deviceName.trim() || `TRIX-${navigator.platform}`;
