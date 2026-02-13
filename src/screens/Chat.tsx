@@ -9,6 +9,7 @@ import { AppRoutes } from '../types';
 import { getFriends, addFriend } from '../services/databaseService';
 import { supabase } from '../config/supabase';
 import type { FriendLatestMessage } from '../config/supabase';
+import { useNotification } from '../hooks/useNotification';
 
 const BG_IMAGE = "/assets/background.jpg";
 
@@ -41,6 +42,7 @@ const formatTime = (timestamp: string | null): string => {
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
+  const { showError } = useNotification();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +131,7 @@ const Chat: React.FC = () => {
       await loadFriends();
       await loadRecommendedUsers();
     } catch (error: any) {
-      alert(error.message || '添加失败');
+      showError(error.message || '添加失败');
     }
   };
 
