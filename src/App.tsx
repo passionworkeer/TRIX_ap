@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import SnapshotModal from './components/SnapshotModal';
@@ -164,7 +165,25 @@ function AppContent() {
         isOpen={isHomePage && showDockOnHome}
         onImageSelect={handleImageSelect}
       />
-      
+
+      {/* Toast 通知组件 */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: '12px',
+            fontSize: '14px',
+          },
+        }}
+        containerStyle={{
+          position: 'fixed',
+          zIndex: 9999,
+          pointerEvents: 'none',
+        }}
+        gutter={8}
+      />
+
     </div>
   );
 }

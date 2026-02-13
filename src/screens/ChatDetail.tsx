@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
+import { useNotification } from '../hooks/useNotification';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
@@ -34,6 +35,7 @@ interface UIMessage {
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showError } = useNotification();
   const { name, avatar, isBot, friendId, photoUri } = location.state || {
     name: 'Clawdbot Gateway',
     avatar: IMAGES.WIZARD_BOY_LOGIN,
@@ -371,7 +373,7 @@ const ChatDetail: React.FC = () => {
       console.error('保存用户消息失败:', error);
       // 发送失败,移除临时消息
       setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
-      alert('发送消息失败,请检查网络连接');
+      showError('发送消息失败,请检查网络连接');
     }
 
     // Handle Bot Logic (仅用于 Bot 聊天，暂不支持媒体)
@@ -430,7 +432,7 @@ const ChatDetail: React.FC = () => {
       console.log('Upload successful:', result);
     } catch (error: any) {
       console.error('Upload error:', error);
-      alert(error.message || '上传失败');
+      showError(error.message || '上传失败');
     }
   };
 
