@@ -6,8 +6,9 @@ import StudyBuddiesList from "../components/StudyBuddiesList";
 import Avatar from "../components/Avatar";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { IMAGES } from "../constants";
 
-const BG_IMAGE = "/assets/StudyRoomBG.png";
+const BG_IMAGE = IMAGES.ROOM_BG;
 
 interface CompanionInfo {
   id: string;

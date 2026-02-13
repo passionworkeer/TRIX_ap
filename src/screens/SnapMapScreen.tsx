@@ -5,6 +5,7 @@ import { ArrowLeft, Navigation, Map as MapIcon } from 'lucide-react';
 import L from 'leaflet';
 import { getFriends } from '../services/databaseService';
 import type { FriendLatestMessage } from '../config/supabase';
+import { IMAGES } from '../constants';
 
 // 修复 Leaflet 默认图标丢失问题
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -15,7 +16,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // 本地 3D PNG 图片路径
-const HERO_3D_IMAGE = '/assets/hero_render.png';
+const HERO_3D_IMAGE = IMAGES.HERO_RENDER;
 
 // 好友状态模拟数据
 interface FriendStatus {

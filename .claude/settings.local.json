@@ -27,7 +27,8 @@
       "Bash(test:*)",
       "Bash(timeout 5 bash:*)",
       "Bash(taskkill:*)",
-      "Bash(set PORT=5173)"
+      "Bash(set PORT=5173)",
+      "Bash(powershell:*)"
     ]
   }
 }

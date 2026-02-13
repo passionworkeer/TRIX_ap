@@ -86,7 +86,7 @@ const Profile: React.FC = () => {
     alert('获取更多装备\n\n完成任务和活动即可解锁新装备！');
   };
 
-  const BG_IMAGE = "/assets/background.jpg";
+  const BG_IMAGE = IMAGES.BACKGROUND;
 
   return (
     <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
