@@ -334,7 +334,7 @@ const SnapMapScreen: React.FC = () => {
       {/* 地图容器 */}
       <MapContainer
         center={center}
-        zoom={16}
+        zoom={15}
         minZoom={3}
         maxZoom={18}
         zoomControl={false}
@@ -345,10 +345,10 @@ const SnapMapScreen: React.FC = () => {
           background: '#f5f5f5',
         }}
       >
-        {/* GeoQ ChinaOnlineCommunity - 国内极速 OSM 风格 */}
+        {/* CartoDB Voyager - 彩色导航版，细节丰富 */}
         <TileLayer
-          url="https://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineCommunity/MapServer/tile/{z}/{y}/{x}"
-          attribution='&copy; <a href="http://map.geoq.cn">GeoQ</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
 
         {/* 热力圈 - 柔和发光效果 */}
