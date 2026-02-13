@@ -5,6 +5,7 @@
 
 import { io, Socket } from 'socket.io-client';
 import { EventEmitter } from 'events';
+import ossService from './OSSService';
 
 export interface NanobotMessage {
   code: string;
@@ -216,18 +217,15 @@ class NanobotBridge extends EventEmitter {
    * 上传图片/视频到 OSS
    */
   async uploadMedia(file: File | Blob): Promise<string> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const ossEndpoint = import.meta.env.VITE_OSS_ENDPOINT || 'https://your-oss-endpoint.com/upload';
-
-    const response = await fetch(ossEndpoint, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-    return data.url; // 返回文件URL
+    try {
+      // 使用阿里云 OSS 上传
+      const url = await ossService.uploadFile(file);
+      console.log('[NanobotBridge] 文件上传成功:', url);
+      return url;
+    } catch (error) {
+      console.error('[NanobotBridge] 文件上传失败:', error);
+      throw error;
+    }
   }
 
   /**
