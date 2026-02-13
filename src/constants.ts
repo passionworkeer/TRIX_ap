@@ -1,9 +1,12 @@
-import mainImg from './assets/main.jpg';
+// Role1 资源
+import mainImg from './assets/roles/role1/main.jpg';
+import avatarHead from './assets/roles/role1/AvatarHead.png';
+import mapImg from './assets/roles/role1/map.png';
+import heroRenderImg from './assets/roles/role1/hero_render.png';
+
+// 公用资源
 import studyRoomBg from './assets/StudyRoomBG.png';
-import avatarHead from './assets/AvatarHead.png';
-import mapImg from './assets/map.png';
 import backgroundImg from './assets/background.jpg';
-import heroRenderImg from './assets/hero_render.png';
 
 export const IMAGES = {
   WIZARD_BOY: avatarHead,

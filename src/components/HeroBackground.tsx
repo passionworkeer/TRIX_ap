@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
-import heroVideo from "../assets/role_video.mp4";
-import sayingVideo from "../assets/Saying.mp4";
+import heroVideo from "../assets/roles/role1/role_video.mp4";
+import sayingVideo from "../assets/roles/role1/Saying.mp4";
 import { useGlobalConnection } from "../contexts/WebSocketContext";
 
 // 视频路径 (通过 import 导入,Vite 会自动处理)
