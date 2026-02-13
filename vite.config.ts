@@ -36,28 +36,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       strictPort: false,
-      proxy: {
-        // 代理 Gateway API 请求以解决 CORS 问题
-        '/gateway': {
-          target: 'https://devyn-physicochemical-halina.ngrok-free.dev',
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/gateway/, ''),
-          ws: true, // 支持 WebSocket
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq, req) => {
-              console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
-            });
-            proxy.on('proxyRes', (proxyRes, req) => {
-              console.log(`[Proxy] ${req.method} ${req.url} <- ${proxyRes.statusCode} ${proxyRes.statusMessage}`);
-              console.log(`[Proxy] Content-Type: ${proxyRes.headers['content-type']}`);
-            });
-            proxy.on('error', (err, req) => {
-              console.error(`[Proxy Error] ${req.method} ${req.url}:`, err.message);
-            });
-          }
-        }
-      }
+      // Tailscale 模式不需要代理，直接 WebSocket 连接
       // 注意: 相机功能需要 HTTPS 或 localhost
       // 如需在手机上使用相机，需配置 HTTPS 或使用 ngrok
     },
