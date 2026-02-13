@@ -9,13 +9,23 @@ import { useAuth } from '../contexts/AuthContext';
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { signOut, user, profile } = useAuth();
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('简体中文');
-  
+
+  // 从 localStorage 读取初始值，实现状态持久化
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true';
+  });
+  const [language, setLanguage] = useState(() => {
+    return localStorage.getItem('language') || '简体中文';
+  });
+
   // 从认证信息中获取用户名
-  const username = profile?.username || user?.email?.split('@')[0] || 'User';
+  const username = profile?.username || (user?.email ? user.email.split('@')[0] : 'User');
   const email = user?.email || '';
   const points = profile?.points || 0;
+
+  // 从 profile 获取统计值
+  const daysActive = profile?.days_active || 0;
+  const interactionCount = profile?.interaction_count || 0;
 
   const handleOutfitChange = (outfitName: string) => {
     // TODO: 实现装备更换逻辑
@@ -23,8 +33,11 @@ const Profile: React.FC = () => {
   };
 
   const handleDarkModeToggle = () => {
-    setDarkMode(!darkMode);
-    // TODO: 实现深色模式切换
+    const newValue = !darkMode;
+    setDarkMode(newValue);
+    localStorage.setItem('darkMode', String(newValue));
+    // TODO: 实现深色模式切换（应用 CSS 类到 document.documentElement）
+    alert(newValue ? '深色模式已开启' : '深色模式已关闭');
   };
 
   const handleLanguageChange = () => {
@@ -32,6 +45,9 @@ const Profile: React.FC = () => {
     const currentIndex = languages.indexOf(language);
     const nextLanguage = languages[(currentIndex + 1) % languages.length];
     setLanguage(nextLanguage);
+    localStorage.setItem('language', nextLanguage);
+    // TODO: 应用语言切换到 i18n 系统
+    alert(`语言已切换为: ${nextLanguage}`);
   };
 
   const handlePrivacyClick = () => {
@@ -147,9 +163,9 @@ const Profile: React.FC = () => {
                 <div className="flex items-center justify-center gap-0 mt-6 w-full divide-x divide-white/10">
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
-                      onClick={() => handleStatClick('陪伴天数', 0)}
+                      onClick={() => handleStatClick('陪伴天数', daysActive)}
                    >
-                      <div className="text-xl font-black text-white">0</div>
+                      <div className="text-xl font-black text-white">{daysActive}</div>
                       <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">陪伴天数</div>
                    </div>
                    <div
@@ -161,9 +177,9 @@ const Profile: React.FC = () => {
                    </div>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
-                      onClick={() => handleStatClick('互动', 0)}
+                      onClick={() => handleStatClick('互动', interactionCount)}
                    >
-                      <div className="text-xl font-black text-white">0</div>
+                      <div className="text-xl font-black text-white">{interactionCount}</div>
                       <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">互动</div>
                    </div>
                 </div>
