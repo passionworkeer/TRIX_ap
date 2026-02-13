@@ -182,6 +182,8 @@ export interface Profile {
   bio?: string;
   is_studying?: boolean; // 用户是否正在自习
   companion_id?: string | null; // 正在一起自习的好友 ID（双向关联）
+  days_active?: number; // 活跃天数
+  interaction_count?: number; // 互动次数
   created_at?: string;
   updated_at?: string;
 }

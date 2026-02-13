@@ -199,12 +199,12 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
           const data = JSON.parse(event.data) as WebSocketMessage;
 
-          // 处理连接挑战
-          if (data.event === "connect.challenge") {
+          // 处理连接挑战 - 使用类型守卫检查
+          if ('event' in data && data.event === "connect.challenge") {
             handleConnectChallenge(socket, data as ConnectChallenge);
           }
           // 处理连接成功
-          else if (data.type === "res" && data.payload?.type === "hello-ok") {
+          else if ('type' in data && data.type === "res" && 'payload' in data && data.payload?.type === "hello-ok") {
             setStatus("CONNECTED");
             reconnectAttemptsRef.current = 0;
             setReconnectCount(0);
@@ -212,16 +212,16 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
             console.log("[WebSocket] ✅ 连接成功");
           }
           // 处理流式响应
-          else if (data.type === "res" && data.payload?.stream) {
+          else if ('type' in data && data.type === "res" && 'payload' in data && data.payload?.stream) {
             handleStreamResponse(data as WebSocketResponse);
           }
           // 处理心跳响应
-          else if (data.type === "pong") {
+          else if ('type' in data && data.type === "pong") {
             // 心跳正常，无需处理
           }
           // 处理错误
-          else if (data.type === "error") {
-            setLastError(data.message || "未知错误");
+          else if ('type' in data && data.type === "error") {
+            setLastError('message' in data ? data.message || "未知错误" : "未知错误");
             setStatus("ERROR");
           }
         } catch (e) {
