@@ -1,19 +1,18 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect } from "react";
 import heroVideo from "../assets/roles/role1/role_video.mp4";
 import sayingVideo from "../assets/roles/role1/Saying.mp4";
-import { useGlobalConnection } from "../contexts/WebSocketContext";
 
 // 视频路径 (通过 import 导入,Vite 会自动处理)
 const IDLE_VIDEO = heroVideo;
 const SAYING_VIDEO = sayingVideo;
 
 export default function HeroBackground() {
-  const { fullResponse } = useGlobalConnection();
+  // TODO: 集成 Nanobot 后恢复说话动画
+  // const fullResponse = "";
+  const isSpeaking = false;
+
   const idleVideoRef = useRef<HTMLVideoElement>(null);
   const sayingVideoRef = useRef<HTMLVideoElement>(null);
-
-  // 判断机器人是否正在说话
-  const isSpeaking = fullResponse && fullResponse.length > 0;
 
   useEffect(() => {
     if (isSpeaking) {
