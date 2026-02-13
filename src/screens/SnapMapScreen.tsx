@@ -150,13 +150,29 @@ const SnapMapScreen: React.FC = () => {
     >
       {/* 强制透明背景的 CSS 补丁 */}
       <style>{`
-        .avatar-icon-transparent {
+        /* 移除 Leaflet 可能的白色背景 */
+        .leaflet-pane,
+        .leaflet-tile-pane,
+        .leaflet-overlay-pane {
+          background: transparent !important;
+        }
+        .leaflet-marker-icon.avatar-icon-transparent {
           background: transparent !important;
           border: none !important;
           box-shadow: none !important;
         }
         .leaflet-marker-icon.avatar-icon-transparent img {
           filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        /* 移除 Popup 白色背景 */
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
+          background: transparent !important;
+        }
+        .leaflet-popup-content {
+          background: rgba(255, 255, 255, 0.95) !important;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         }
       `}</style>
 

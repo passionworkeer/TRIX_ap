@@ -18,6 +18,7 @@
 - 📍 **实时位置** - 基于 Leaflet 的地图共享
 - 🗣️ **语音交互** - 集成 Web Speech API 语音识别
 - 📧 **通知系统** - 系统通知和邮件中心
+- 📱 **扫码配对** - 手机端与电脑端 Gateway 通过二维码配对
 
 ---
 
@@ -59,21 +60,63 @@ npm run dev
 
 ## 📚 文档
 
-### 项目文档
+### 快速导航
 
-- **[项目概览](./docs/PROJECT.md)** - 项目结构、技术栈、核心模块说明
-- **[开发迭代日志](./docs/CHANGELOG.md)** - 项目演进历程和架构决策
-- **[数据库需求](./docs/DATABASE-REQUIREMENTS.md)** - 完整的数据访问清单
+| 文档 | 说明 |
+|------|------|
+| **[docs/PROJECT.md](./docs/PROJECT.md)** | 项目结构、技术栈、核心模块 |
+| **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** | 开发迭代日志和架构决策 |
+| **[docs/INDEX.md](./docs/INDEX.md)** | 完整文档索引 |
 
-### Clawbot 集成
+### 用户指南
 
-> 📖 **新手推荐**: 从[快速开始指南](./docs/CLAWBOT_QUICK_START.md)入手
+位于 `docs/guides/` 目录：
 
-- **[快速开始](./docs/CLAWBOT_QUICK_START.md)** - 5分钟上手
-- **[简化版实现](./docs/CLAWBOT_SIMPLE_IMPLEMENTATION.md)** - 最小化代码示例（~150行）
-- **[完整实现方案](./docs/CLAWBOT_INTEGRATION_GUIDE.md)** - 生产级实现（~500行）
-- **[协议规范](./docs/CLAWBOT_GATEWAY_INTEGRATION.md)** - WebSocket 协议详细说明
-- **[文档索引](./docs/CLAWBOT_README.md)** - 所有 Clawbot 文档导航
+| 文档 | 说明 |
+|------|------|
+| [Clawbot 快速开始](./docs/guides/CLAWBOT_QUICK_START.md) | 5 分钟上手 Clawbot 集成 |
+| [扫码配对指南](./docs/guides/QR_PAIRING_USER_GUIDE.md) | 手机与电脑配对完整指南 |
+| [专注模式快速开始](./docs/guides/QUICK-START-FOCUS-MODE.md) | 学习计时功能使用指南 |
+| [简化版实现](./docs/guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md) | ~150 行代码的最小实现 |
+| [完整版实现](./docs/guides/CLAWBOT_INTEGRATION_GUIDE.md) | ~500 行的生产级实现 |
+
+### API 文档
+
+位于 `docs/api/` 目录：
+
+| 文档 | 说明 |
+|------|------|
+| [WebSocket 协议规范](./docs/api/CLAWBOT_GATEWAY_INTEGRATION.md) | Clawbot Gateway 通信协议 |
+| [配对字段规范](./docs/api/CLAWBOT_PAIRING_FIELDS_SPEC.md) | 配对系统数据字段定义 |
+| [Clawbot API 文档](./docs/api/new_clawbot_api.md) | Clawbot API 使用指南 |
+
+### 部署文档
+
+位于 `docs/deployment/` 目录：
+
+| 文档 | 说明 |
+|------|------|
+| [服务器部署指南](./docs/deployment/DEPLOY.md) | 2GB 内存服务器部署方案 |
+| [自动部署](./docs/deployment/AUTO_DEPLOY.md) | 自动化部署脚本 |
+| [HTTPS 设置](./docs/deployment/HTTPS_SETUP_GUIDE.md) | HTTPS 证书配置指南 |
+
+### 功能文档
+
+位于 `docs/features/` 目录：
+
+| 文档 | 说明 |
+|------|------|
+| [学习伙伴功能](./docs/features/FEATURES-STUDY-BUDDIES.md) | 双向自习室功能说明 |
+| [专注与陪伴模式](./docs/features/FOCUS-TIME-AND-COMPANION-MODE.md) | 专注时间和陪伴模式 |
+| [学习总结弹窗](./docs/features/STUDY_SUMMARY_MODAL.md) | 学习总结功能 |
+
+### 数据库文档
+
+| 文档 | 说明 |
+|------|------|
+| [src/database/SCHEMA.md](./src/database/SCHEMA.md) | 数据库架构详细文档 |
+| [src/database/README.md](./src/database/README.md) | 数据库配置指南 |
+| [docs/DATABASE-REQUIREMENTS.md](./docs/DATABASE-REQUIREMENTS.md) | 数据访问清单 |
 
 ---
 
@@ -93,10 +136,14 @@ src/
 │   └── ...
 ├── contexts/            # React Context
 │   ├── AuthContext.tsx  # 认证状态
-│   └── WebSocketContext.tsx # Bot 连接管理
+│   ├── WebSocketContext.tsx # Bot 连接管理
+│   └── QRCodePairingContext.tsx # 配对管理
 ├── services/            # 业务服务
+│   ├── clawbotPairingService.ts # 配对服务
 │   ├── databaseService.ts # 数据库操作
 │   └── projectService.ts  # 项目管理
+├── types/
+│   └── clawbot.ts       # Clawbot 类型定义
 └── database/            # 数据库脚本
     ├── init.sql         # 初始化脚本
     └── SCHEMA.md        # 架构文档
@@ -153,14 +200,6 @@ src/
 
 ---
 
-## 🧪 测试
-
-```bash
-npm run test
-```
-
----
-
 ## 📦 构建
 
 ```bash
@@ -189,13 +228,4 @@ TRIX 3D Companion 开发团队
 
 ---
 
-## 🙏 致谢
-
-- [Clawbot](https://molt.bot) - AI Agent 框架
-- [Supabase](https://supabase.com) - 开源 Firebase 替代
-- [Framer Motion](https://www.framer.com/motion/) - React 动画库
-- [Leaflet](https://leafletjs.com/) - 开源地图库
-
----
-
-**最后更新**: 2026-02-11
+**最后更新**: 2026-02-13

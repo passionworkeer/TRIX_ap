@@ -151,12 +151,22 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   /**
    * 建立 WebSocket 连接
+   * 使用 localStorage 中保存的配对信息（用户输入的或之前配对成功的）
    */
   const connect = useCallback(() => {
-    if (!WS_URL || !AUTH_TOKEN || isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) {
+    // 从 localStorage 获取配对信息（优先于环境变量）
+    const savedGatewayUrl = localStorage.getItem('clawbot_gateway_url');
+    const savedDeviceToken = localStorage.getItem('clawbot_device_token');
+
+    // 使用保存的 URL 或回退到环境变量
+    let wsUrl = savedGatewayUrl || WS_URL;
+    // 使用保存的 deviceToken 或回退到环境变量的 auth token
+    const authToken = savedDeviceToken || AUTH_TOKEN;
+
+    if (!wsUrl || !authToken || isConnectingRef.current || wsRef.current?.readyState === WebSocket.OPEN) {
       console.log("[WebSocket] 连接条件不满足，跳过", {
-        hasUrl: !!WS_URL,
-        hasToken: !!AUTH_TOKEN,
+        hasUrl: !!wsUrl,
+        hasToken: !!authToken,
         isConnecting: isConnectingRef.current,
         wsState: wsRef.current?.readyState,
       });
@@ -168,8 +178,8 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     setLastError(null);
 
     try {
-      console.log("[WebSocket] 正在连接...", WS_URL);
-      const socket = new WebSocket(WS_URL);
+      console.log("[WebSocket] 正在连接...", wsUrl);
+      const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
       socket.onopen = () => {
@@ -217,7 +227,16 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         stopHeartbeat();
         setStatus("DISCONNECTED");
 
-        // 自动重连
+        // 检查是否有保存的配对凭证，只有已配对设备才自动重连
+        const savedDeviceToken = localStorage.getItem('clawbot_device_token');
+        const savedGatewayUrl = localStorage.getItem('clawbot_gateway_url');
+
+        if (!savedDeviceToken || !savedGatewayUrl) {
+          console.log("[WebSocket] 未找到配对凭证，停止重连");
+          return;
+        }
+
+        // 自动重连（仅对已配对设备）
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttemptsRef.current++;
           setReconnectCount(reconnectAttemptsRef.current);
@@ -317,12 +336,26 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, []);
 
   /**
-   * 组件挂载时自动连接
+   * 尝试自动恢复连接
+   * 如果之前已成功配对，退出后重新打开 App 会自动连接
    */
   useEffect(() => {
-    connect();
+    const deviceToken = localStorage.getItem('clawbot_device_token');
+    const gatewayUrl = localStorage.getItem('clawbot_gateway_url');
+
+    if (deviceToken && gatewayUrl) {
+      console.log('[WebSocket] 发现已保存的配对信息，自动恢复连接...');
+      // 延迟 1 秒再连接，避免页面加载时立即连接
+      const timer = setTimeout(() => {
+        connect();
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      console.log('[WebSocket] 未找到配对信息，等待用户手动配对');
+    }
+
     return () => disconnect();
-  }, [connect, disconnect]);
+  }, []);
 
   const value: WebSocketContextValue = {
     status,

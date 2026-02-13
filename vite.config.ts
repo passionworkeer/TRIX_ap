@@ -38,15 +38,7 @@ export default defineConfig(({ mode }) => {
       strictPort: false,
       // 注意: 相机功能需要 HTTPS 或 localhost
       // 如需在手机上使用相机，需配置 HTTPS 或使用 ngrok
-      proxy: {
-        // WebSocket 反向代理
-        '/gateway': {
-          target: 'ws://127.0.0.1:18789',
-          ws: true,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/gateway/, ''),
-        },
-      },
+      // 注意：ngrok 支持 CORS，直接访问即可，不需要代理配置
     },
     plugins: [
       react(),

@@ -44,15 +44,19 @@ class ClawbotPairingService {
   private pollingTimer: NodeJS.Timeout | null = null;
   private currentRequestId: string | null = null;
 
+  // ngrok 默认 Token（从文档获取）
+  private static readonly DEFAULT_NGROK_TOKEN = 'f5a90456ca2531d1d227c95bba997726c5f139bcb5b798d6';
+
   constructor(options?: PairingServiceOptions) {
     // 从环境变量或选项读取 Gateway 配置
     this.gatewayUrl = options?.gatewayUrl
       || import.meta.env.VITE_CLAWBOT_GATEWAY_URL
       || 'ws://localhost:18789';
 
+    // 优先使用传入的 token，其次环境变量，最后默认 ngrok token
     this.authToken = options?.authToken
       || import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN
-      || '';
+      || ClawbotPairingService.DEFAULT_NGROK_TOKEN;
 
     this.pollInterval = options?.pollInterval || 2000;
     this.maxPollAttempts = options?.maxPollAttempts || 180;
@@ -60,6 +64,7 @@ class ClawbotPairingService {
     console.log('[ClawbotPairingService] 初始化', {
       gatewayUrl: this.gatewayUrl,
       hasToken: !!this.authToken,
+      isNgrok: this.gatewayUrl.includes('ngrok'),
       pollInterval: this.pollInterval,
     });
   }
@@ -75,7 +80,167 @@ class ClawbotPairingService {
    * @param deviceName - 设备名称（可选）
    * @returns 配对请求对象
    */
-  async generatePairingRequest(deviceName?: string): Promise<PairingRequest> {
+  /**
+   * 获取 API 基础 URL
+   * 直接返回完整的 Gateway URL，不使用代理
+   */
+  private getApiBaseUrl(): string {
+    // 直接使用 Gateway URL，不经过 Vite 代理
+    // ngrok 支持 CORS，可以直接访问
+    const baseUrl = this.gatewayUrl
+      .replace('wss://', 'https://')
+      .replace('ws://', 'http://')
+      .replace('/ws', '');
+    console.log('[ClawbotPairingService] API Base URL:', baseUrl);
+    return baseUrl;
+  }
+
+  /**
+   * 发送配对请求到 Clawbot Gateway HTTP API
+   * 用于支持直接 HTTP API 模式的 Gateway
+   *
+   * API 文档: POST /pairing/request
+   */
+  private async sendPairingRequestToGateway(
+    requestId: string,
+    deviceId: string,
+    deviceName: string,
+    pairingToken: string
+  ): Promise<{ success: boolean; deviceToken?: string; requestId?: string; message?: string; status?: string }> {
+    try {
+      // 获取 API URL（自动处理代理）
+      const httpUrl = this.getApiBaseUrl();
+
+      // 注意：API 路径是 /pairing/request，不是 /api/pairing/request
+      const apiUrl = `${httpUrl}/pairing/request`;
+      console.log('[ClawbotPairingService] 发送配对请求到 Gateway:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${this.authToken}`,
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({
+          device_id: deviceId,
+          device_name: deviceName,
+          device_type: 'mobile',
+          auto_approve: true,  // 启用自动确认模式
+          metadata: {
+            platform: navigator.platform,
+            userAgent: navigator.userAgent,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('[ClawbotPairingService] Gateway API 返回错误:', response.status, errorText);
+        return { success: false, message: `HTTP ${response.status}: ${errorText}` };
+      }
+
+      const data = await response.json();
+      console.log('[ClawbotPairingService] Gateway API 响应:', data);
+
+      return {
+        success: data.success,
+        deviceToken: data.deviceToken || data.device_token,
+        requestId: data.requestId || data.request_id,
+        status: data.status,
+        message: data.message,
+      };
+    } catch (error) {
+      console.warn('[ClawbotPairingService] 调用 Gateway API 失败:', error);
+      return { success: false, message: error instanceof Error ? error.message : '网络错误' };
+    }
+  }
+
+  /**
+   * 轮询 Clawbot Gateway HTTP API 获取配对状态
+   * 用于替代 Supabase 轮询
+   */
+  async pollPairingStatusViaGateway(
+    requestId: string,
+    onStatusChange: (response: PairingResponse) => void,
+    intervalMs: number = 2000,
+    maxAttempts: number = 180
+  ): Promise<void> {
+    const httpUrl = this.getApiBaseUrl();
+
+    let attempts = 0;
+    console.log(`[ClawbotPairingService] 开始轮询 Gateway API (requestId: ${requestId})`);
+
+    return new Promise((resolve) => {
+      this.pollingTimer = setInterval(async () => {
+        attempts++;
+
+        try {
+          const apiUrl = `${httpUrl}/pairing/status/${requestId}`;
+          const response = await fetch(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${this.authToken}`,
+              'ngrok-skip-browser-warning': 'true',
+            },
+          });
+
+          if (!response.ok) {
+            console.warn('[ClawbotPairingService] 轮询 API 错误:', response.status);
+            return;
+          }
+
+          const data = await response.json();
+          console.log(`[ClawbotPairingService] 轮询第 ${attempts} 次，状态: ${data.status}`);
+
+          switch (data.status) {
+            case 'approved':
+              this.stopPolling();
+              onStatusChange({
+                requestId,
+                status: 'approved',
+                deviceToken: data.deviceToken || data.device_token,
+                message: data.message || '配对成功',
+              });
+              resolve();
+              break;
+
+            case 'denied':
+            case 'cancelled':
+            case 'expired':
+              this.stopPolling();
+              onStatusChange({
+                requestId,
+                status: data.status,
+                message: data.message || '配对失败',
+              });
+              resolve();
+              break;
+
+            case 'pending':
+              if (attempts >= maxAttempts) {
+                this.stopPolling();
+                onStatusChange({
+                  requestId,
+                  status: 'expired',
+                  message: '配对超时，请重试',
+                });
+                resolve();
+              }
+              break;
+
+            default:
+              console.warn('[ClawbotPairingService] 未知状态:', data.status);
+          }
+        } catch (error) {
+          console.error('[ClawbotPairingService] 轮询过程出错:', error);
+        }
+      }, intervalMs);
+    });
+  }
+
+  async generatePairingRequest(deviceName?: string, pairingToken?: string): Promise<PairingRequest> {
     // 生成唯一请求 ID
     const requestId = this.generateRequestId();
 
@@ -99,6 +264,48 @@ class ClawbotPairingService {
     };
 
     try {
+      // 尝试通过 HTTP API 发送配对请求（用于直接 API 模式的 Gateway）
+      const token = pairingToken || this.authToken;
+      if (token) {
+        const apiResult = await this.sendPairingRequestToGateway(
+          requestId,
+          deviceId,
+          defaultDeviceName,
+          token
+        );
+
+        if (apiResult.success && apiResult.deviceToken) {
+          // Gateway 立即返回了 deviceToken（自动确认模式）
+          console.log('[ClawbotPairingService] ✅ Gateway 自动确认，立即获得 deviceToken');
+          request.device_token = apiResult.deviceToken;
+          request.status = 'approved';
+
+          // 保存到 Supabase 用于记录（不阻塞主流程）
+          try {
+            await supabase.from('pairing_requests').insert([{
+              id: requestId,
+              device_id: deviceId,
+              device_name: defaultDeviceName,
+              device_type: 'mobile',
+              status: 'approved' as PairingStatus,
+              device_token: apiResult.deviceToken,
+              platform: navigator.platform,
+              user_agent: navigator.userAgent,
+              created_at: new Date().toISOString(),
+              expires_at: new Date(Date.now() + PAIRING_TIMEOUT_MS).toISOString(),
+            }]);
+          } catch (err) {
+            console.warn('[ClawbotPairingService] Supabase 记录失败:', err);
+          }
+
+          this.currentRequestId = requestId;
+          return request;
+        }
+      }
+
+      // 回退到 Supabase 模式（Gateway 轮询）
+      console.log('[ClawbotPairingService] 使用 Supabase 模式，等待 Gateway 轮询...');
+
       // 存储到 Supabase 用于跨设备同步和 Gateway 读取
       const { error } = await supabase
         .from('pairing_requests')
@@ -153,17 +360,33 @@ class ClawbotPairingService {
    * 解析二维码内容
    *
    * 手机端扫描二维码后调用此方法解析
+   * 支持 camelCase 和 snake_case 两种字段命名风格
    *
    * @param qrContent - 二维码内容
    * @returns 解析后的二维码数据
    */
   parseQRCodeContent(qrContent: string): QRCodeData {
     try {
-      const data = JSON.parse(qrContent) as QRCodeData;
+      const rawData = JSON.parse(qrContent) as Record<string, any>;
+
+      // 字段映射：支持 camelCase 和 snake_case
+      const data: QRCodeData = {
+        // gatewayUrl: 优先取 camelCase，其次 snake_case
+        gatewayUrl: rawData.gatewayUrl || rawData.gateway_url || '',
+        // pairingToken: 优先取 camelCase，其次 snake_case
+        pairingToken: rawData.pairingToken || rawData.pairing_token || '',
+        // requestId: 优先取 camelCase，其次 snake_case，最后 device_id/deviceId
+        requestId: rawData.requestId || rawData.request_id || rawData.deviceId || rawData.device_id || '',
+        // expiresAt: 优先取 camelCase，其次 snake_case
+        expiresAt: rawData.expiresAt || rawData.expires_at || new Date(Date.now() + PAIRING_TIMEOUT_MS).toISOString(),
+      };
 
       // 验证必要字段
-      if (!data.gatewayUrl || !data.pairingToken) {
-        throw new Error('二维码数据缺少必要字段 (gatewayUrl 或 pairingToken)');
+      if (!data.gatewayUrl) {
+        throw new Error('二维码数据缺少必要字段: gatewayUrl/gateway_url');
+      }
+      if (!data.pairingToken) {
+        throw new Error('二维码数据缺少必要字段: pairingToken/pairing_token');
       }
 
       // 检查是否过期
@@ -171,11 +394,38 @@ class ClawbotPairingService {
         throw new Error('二维码已过期');
       }
 
+      console.log('[ClawbotPairingService] 解析二维码成功:', {
+        gatewayUrl: data.gatewayUrl,
+        hasToken: !!data.pairingToken,
+        requestId: data.requestId,
+        expiresAt: data.expiresAt,
+      });
+
       return data;
     } catch (error) {
       console.error('[ClawbotPairingService] 解析二维码失败:', error);
       throw new Error('无效的二维码格式');
     }
+  }
+
+  /**
+   * 从原始 JSON 数据中提取配对信息
+   * 用于手动输入时单独提取各个字段
+   */
+  extractPairingInfo(rawData: Record<string, any>): {
+    gatewayUrl: string;
+    pairingToken: string;
+    deviceId: string;
+    expiresAt: string;
+    version?: string;
+  } {
+    return {
+      gatewayUrl: rawData.gatewayUrl || rawData.gateway_url || '',
+      pairingToken: rawData.pairingToken || rawData.pairing_token || '',
+      deviceId: rawData.deviceId || rawData.device_id || '',
+      expiresAt: rawData.expiresAt || rawData.expires_at || '',
+      version: rawData.version,
+    };
   }
 
   /**
@@ -324,7 +574,7 @@ class ClawbotPairingService {
   }
 
   /**
-   * 取消配对请求
+   * 通过 Gateway HTTP API 取消配对请求
    *
    * @param requestId - 请求 ID
    */
@@ -332,6 +582,31 @@ class ClawbotPairingService {
     try {
       console.log('[ClawbotPairingService] 取消配对请求:', requestId);
 
+      // 尝试通过 Gateway API 取消
+      const httpUrl = this.getApiBaseUrl();
+
+      const apiUrl = `${httpUrl}/pairing/deny/${requestId}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.authToken}`,
+            'ngrok-skip-browser-warning': 'true',
+          },
+        });
+
+        if (response.ok) {
+          console.log('[ClawbotPairingService] ✅ Gateway 取消成功');
+        } else {
+          console.warn('[ClawbotPairingService] Gateway 取消失败:', response.status);
+        }
+      } catch (apiError) {
+        console.warn('[ClawbotPairingService] Gateway API 调用失败:', apiError);
+      }
+
+      // 同时更新 Supabase（用于记录）
       const { error } = await supabase
         .from('pairing_requests')
         .update({
@@ -341,8 +616,7 @@ class ClawbotPairingService {
         .eq('id', requestId);
 
       if (error) {
-        console.error('[ClawbotPairingService] 取消配对失败:', error);
-        throw new Error('取消配对失败');
+        console.error('[ClawbotPairingService] Supabase 更新失败:', error);
       }
 
       this.stopPolling();
@@ -471,6 +745,7 @@ class ClawbotPairingService {
    * 设置 Gateway URL
    */
   setGatewayUrl(url: string): void {
+    console.log('[ClawbotPairingService] 更新 Gateway URL:', url);
     this.gatewayUrl = url;
   }
 
