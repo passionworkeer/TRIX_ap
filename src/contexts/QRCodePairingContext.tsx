@@ -42,19 +42,39 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
       setErrorMessage(null);
       setPairingStatus('pending');
 
-      // 1. 生成配对请求
+      // 从 localStorage 获取用户输入的 Gateway 配置
+      const savedGatewayUrl = localStorage.getItem('clawbot_gateway_url');
+      const pairingToken = localStorage.getItem('clawbot_pairing_token');
+
+      // 更新 service 的 gatewayUrl（用户可能输入了新的配对码）
+      if (savedGatewayUrl) {
+        clawbotPairingService.setGatewayUrl(savedGatewayUrl);
+        console.log('[QRCodePairing] 使用用户输入的 Gateway:', savedGatewayUrl);
+      }
+
+      // 1. 生成配对请求（传入 pairingToken 用于自动确认模式）
       console.log('[QRCodePairing] 生成配对请求...');
-      const request = await clawbotPairingService.generatePairingRequest(deviceName);
+      const request = await clawbotPairingService.generatePairingRequest(deviceName, pairingToken || undefined);
       setPairingRequest(request);
 
-      // 2. 生成二维码内容
+      // 如果请求已经被自动确认（Gateway 直接返回了 device_token）
+      if (request.status === 'approved' && request.device_token) {
+        console.log('[QRCodePairing] ✅ Gateway 自动确认，配对成功！');
+        setPairingStatus('approved');
+        setDeviceToken(request.device_token);
+        setIsPairing(false);
+        localStorage.setItem('clawbot_device_token', request.device_token);
+        return;
+      }
+
+      // 2. 生成二维码内容（用于手动扫码场景）
       const qrContent = clawbotPairingService.getQRCodeContent(request.requestId);
       setQRCodeContent(qrContent);
       console.log('[QRCodePairing] 二维码内容已生成');
 
-      // 3. 开始轮询配对状态
+      // 3. 开始轮询配对状态（使用 Gateway HTTP API 替代 Supabase）
       console.log('[QRCodePairing] 开始轮询配对状态...');
-      await clawbotPairingService.pollPairingStatus(
+      await clawbotPairingService.pollPairingStatusViaGateway(
         request.requestId,
         (response: PairingResponse) => {
           console.log('[QRCodePairing] 状态更新:', response);
@@ -64,7 +84,7 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
             // 配对成功
             setDeviceToken(response.deviceToken || null);
             setIsPairing(false);
-            
+
             // 保存 token 到 localStorage
             if (response.deviceToken) {
               localStorage.setItem('clawbot_device_token', response.deviceToken);

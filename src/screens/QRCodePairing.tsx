@@ -45,32 +45,54 @@ const QRCodePairing: React.FC = () => {
 
   /**
    * 处理手动输入配对码
+   * 支持 camelCase 和 snake_case 两种字段命名风格
    */
   const handleManualPairing = async () => {
     try {
       console.log('[QRCodePairing] 使用手动配对码');
-      
+
       // 解析配对码
-      const qrData = JSON.parse(manualCode.trim());
-      console.log('[QRCodePairing] 解析后的数据:', qrData);
-      
+      const rawData = JSON.parse(manualCode.trim());
+      console.log('[QRCodePairing] 原始数据:', rawData);
+
+      // 字段映射：支持两种命名风格
+      const qrData = {
+        gatewayUrl: rawData.gatewayUrl || rawData.gateway_url,
+        pairingToken: rawData.pairingToken || rawData.pairing_token,
+        deviceId: rawData.deviceId || rawData.device_id,
+        expiresAt: rawData.expiresAt || rawData.expires_at,
+        version: rawData.version,
+      };
+
+      console.log('[QRCodePairing] 映射后的数据:', qrData);
+
       // 验证必要字段
-      if (!qrData.gatewayUrl || !qrData.pairingToken) {
-        throw new Error('配对码格式错误，缺少必要字段');
+      if (!qrData.gatewayUrl) {
+        throw new Error('配对码缺少必要字段: gatewayUrl 或 gateway_url');
       }
-      
+      if (!qrData.pairingToken) {
+        throw new Error('配对码缺少必要字段: pairingToken 或 pairing_token');
+      }
+
       // 保存配对信息到 localStorage
-      if (qrData.gatewayUrl) {
-        localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
+
+      // 如果有 deviceId，保存它
+      if (qrData.deviceId) {
+        localStorage.setItem('clawbot_device_id', qrData.deviceId);
       }
-      if (qrData.pairingToken) {
-        localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
-      }
-      
+
+      console.log('[QRCodePairing] 配对信息已保存:', {
+        gatewayUrl: qrData.gatewayUrl,
+        hasToken: !!qrData.pairingToken,
+        deviceId: qrData.deviceId,
+      });
+
       // 开始配对流程
       const name = deviceName.trim() || `TRIX-${navigator.platform}`;
       await startPairing(name);
-      
+
       setManualCode('');
       setShowManualInput(false);
     } catch (error) {
@@ -89,31 +111,50 @@ const QRCodePairing: React.FC = () => {
 
   /**
    * 处理扫描成功
+   * 支持 camelCase 和 snake_case 两种字段命名风格
    */
   const handleScanSuccess = async (decodedText: string) => {
     try {
       console.log('[QRCodePairing] 扫描到二维码:', decodedText);
-      
+
       // 解析二维码内容
-      const qrData = JSON.parse(decodedText);
-      console.log('[QRCodePairing] 解析后的数据:', qrData);
-      
-      // 保存配对信息到环境变量或 localStorage
-      if (qrData.gatewayUrl) {
-        localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      const rawData = JSON.parse(decodedText);
+      console.log('[QRCodePairing] 原始数据:', rawData);
+
+      // 字段映射：支持两种命名风格
+      const qrData = {
+        gatewayUrl: rawData.gatewayUrl || rawData.gateway_url,
+        pairingToken: rawData.pairingToken || rawData.pairing_token,
+        deviceId: rawData.deviceId || rawData.device_id,
+        expiresAt: rawData.expiresAt || rawData.expires_at,
+      };
+
+      console.log('[QRCodePairing] 映射后的数据:', qrData);
+
+      // 验证必要字段
+      if (!qrData.gatewayUrl) {
+        throw new Error('二维码缺少必要字段: gatewayUrl 或 gateway_url');
       }
-      if (qrData.pairingToken) {
-        localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
+      if (!qrData.pairingToken) {
+        throw new Error('二维码缺少必要字段: pairingToken 或 pairing_token');
       }
-      
+
+      // 保存配对信息到 localStorage
+      localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
+      localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
+
+      if (qrData.deviceId) {
+        localStorage.setItem('clawbot_device_id', qrData.deviceId);
+      }
+
       // 开始配对流程
       const name = deviceName.trim() || `TRIX-${navigator.platform}`;
       await startPairing(name);
-      
+
       setShowScanner(false);
     } catch (error) {
       console.error('[QRCodePairing] 处理扫描结果失败:', error);
-      alert('二维码格式错误，请重新扫描');
+      alert(error instanceof Error ? error.message : '二维码格式错误，请重新扫描');
     }
   };
 
@@ -353,9 +394,12 @@ const QRCodePairing: React.FC = () => {
                     
                     {/* 示例说明 */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                      <p className="font-medium text-blue-900 mb-1">📋 示例格式：</p>
-                      <code className="text-blue-800 block bg-blue-100 p-2 rounded overflow-x-auto">
+                      <p className="font-medium text-blue-900 mb-1">📋 示例格式（支持两种风格）：</p>
+                      <code className="text-blue-800 block bg-blue-100 p-2 rounded overflow-x-auto mb-1">
                         {`{"gatewayUrl":"ws://192.168.1.100:18789","pairingToken":"abc123..."}`}
+                      </code>
+                      <code className="text-blue-800 block bg-blue-100 p-2 rounded overflow-x-auto">
+                        {`{"gateway_url":"ws://192.168.1.100:18789","pairing_token":"abc123..."}`}
                       </code>
                     </div>
                     
@@ -373,8 +417,12 @@ const QRCodePairing: React.FC = () => {
                       <div className="text-xs">
                         {(() => {
                           try {
-                            const data = JSON.parse(manualCode.trim());
-                            if (data.gatewayUrl && data.pairingToken) {
+                            const rawData = JSON.parse(manualCode.trim());
+                            // 支持两种命名风格
+                            const gatewayUrl = rawData.gatewayUrl || rawData.gateway_url;
+                            const pairingToken = rawData.pairingToken || rawData.pairing_token;
+
+                            if (gatewayUrl && pairingToken) {
                               return (
                                 <div className="flex items-center gap-1 text-green-600">
                                   <CheckCircle className="w-4 h-4" />
@@ -382,10 +430,13 @@ const QRCodePairing: React.FC = () => {
                                 </div>
                               );
                             } else {
+                              const missingFields = [];
+                              if (!gatewayUrl) missingFields.push('gatewayUrl/gateway_url');
+                              if (!pairingToken) missingFields.push('pairingToken/pairing_token');
                               return (
                                 <div className="flex items-center gap-1 text-orange-600">
                                   <AlertCircle className="w-4 h-4" />
-                                  <span>缺少必要字段（gatewayUrl 或 pairingToken）</span>
+                                  <span>缺少: {missingFields.join(', ')}</span>
                                 </div>
                               );
                             }

@@ -21,8 +21,13 @@ CREATE TABLE IF NOT EXISTS pairing_requests (
   device_token TEXT,  -- 审批通过后由 Gateway 填写
   approved_at TIMESTAMP,
   approved_by TEXT,  -- Gateway ID 或用户 ID
-  
+
+  -- 取消信息
+  cancelled_at TIMESTAMP,  -- 取消时间
+
   -- 元数据
+  platform TEXT,  -- 设备平台 (iOS/Android/Web)
+  user_agent TEXT,  -- 用户代理字符串
   message TEXT,  -- 拒绝/错误信息
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),

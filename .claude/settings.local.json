@@ -22,7 +22,8 @@
       "Bash(scp:*)",
       "Bash(gh:*)",
       "Bash(curl:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:www.anthropic.com)"
     ]
   }
 }
