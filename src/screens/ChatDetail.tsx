@@ -83,9 +83,7 @@ const ChatDetail: React.FC = () => {
 
   // 🔌 Realtime Channel 引用 (防止重复连接)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  
-  // 🧪 测试模式状态
-  const [testMode, setTestMode] = useState(false);
+
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [conversationId, setConversationId] = useState<string>('');
 
@@ -469,49 +467,8 @@ const ChatDetail: React.FC = () => {
 
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col font-sans">
-      {/* 🧪 测试模式信息面板 */}
-      {testMode && (
-        <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-yellow-50 to-orange-50 border-b-2 border-yellow-400 p-3 z-50 shadow-lg">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-yellow-900 flex items-center gap-2">
-                🧪 测试模式 - 聊天诊断信息
-              </h3>
-              <button
-                onClick={() => setTestMode(false)}
-                className="text-xs px-2 py-1 bg-yellow-200 hover:bg-yellow-300 rounded text-yellow-900 font-medium"
-              >
-                关闭
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-2 text-xs font-mono">
-              <div className="bg-white/60 rounded p-2 border border-yellow-200">
-                <span className="text-yellow-800 font-semibold">当前用户 ID:</span>
-                <div className="text-yellow-900 mt-1 break-all select-all">{currentUserId || '加载中...'}</div>
-              </div>
-              <div className="bg-white/60 rounded p-2 border border-yellow-200">
-                <span className="text-yellow-800 font-semibold">好友 ID:</span>
-                <div className="text-yellow-900 mt-1 break-all select-all">{friendId}</div>
-              </div>
-              <div className="bg-white/60 rounded p-2 border border-orange-200">
-                <span className="text-orange-800 font-semibold">会话 ID:</span>
-                <div className="text-orange-900 mt-1 break-all select-all">{conversationId || '加载中...'}</div>
-              </div>
-              <div className="bg-blue-50 rounded p-2 border border-blue-200">
-                <span className="text-blue-800 font-semibold">💡 使用方法:</span>
-                <div className="text-blue-700 mt-1 space-y-1">
-                  <p>1. 复制上面的 UUID 到另一个账号的聊天界面</p>
-                  <p>2. 打开浏览器控制台 (F12) 查看详细日志</p>
-                  <p>3. 发送消息时检查控制台的发送和接收日志</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
-      <header className={`px-4 py-4 ${testMode ? 'pt-20' : 'pt-16'} flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300`}>
+      <header className="px-4 py-4 pt-16 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)} 
@@ -544,18 +501,6 @@ const ChatDetail: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* 🧪 测试模式切换按钮 */}
-          <button 
-            onClick={() => setTestMode(!testMode)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              testMode 
-                ? 'bg-yellow-500 text-white' 
-                : 'bg-white/50 text-slate-600 hover:bg-white border border-white/50'
-            }`}
-          >
-            {testMode ? '🧪 测试中' : '🧪'}
-          </button>
-          
           <button className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50">
             <MoreVertical size={20} className="text-slate-700" />
           </button>
