@@ -43,8 +43,7 @@ const ChatDetail: React.FC = () => {
   };
 
   // 从路由参数接收到的图片预览状态
-  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(photoUri || null);
-  const [showAIActionModal, setShowAIActionModal] = useState(false);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
 
   // WebSocket connection for Bot
   const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
@@ -75,21 +74,13 @@ const ChatDetail: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
 
-  // 当 photoUri 改变时，自动弹出 AI 功能选择
+  // 当 photoUri 改变时，添加到图片列表
   useEffect(() => {
-    if (photoUri) {
-      setAttachmentPreview(photoUri);
-      setShowAIActionModal(true);
+    if (photoUri && !attachmentPreviews.includes(photoUri)) {
+      setAttachmentPreviews(prev => [...prev, photoUri]);
     }
   }, [photoUri]);
 
-  // 当图片被清除时，关闭 AI 功能选择模态框
-  useEffect(() => {
-    if (!attachmentPreview && !pendingMedia) {
-      setShowAIActionModal(false);
-    }
-  }, [attachmentPreview, pendingMedia, showAIActionModal]);
-  
   // 🔌 Realtime Channel 引用 (防止重复连接)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
@@ -296,22 +287,23 @@ const ChatDetail: React.FC = () => {
   const handleSend = async () => {
     // 检查是否有媒体或文字 - 包括从快拍传入的 attachmentPreview
     const hasPendingMedia = pendingMedia !== null;
-    const hasAttachmentPreview = attachmentPreview !== null;
-    const hasMedia = hasPendingMedia || hasAttachmentPreview;
+    const hasAttachmentPreviews = attachmentPreviews.length > 0;
+    const hasMedia = hasPendingMedia || hasAttachmentPreviews;
     const hasText = input.trim();
 
     if (!hasMedia && !hasText) return;
 
     const messageText = input;
 
-    // 构建媒体数据 - 优先使用 pendingMedia，否则使用 attachmentPreview
+    // 构建媒体数据 - 优先使用 pendingMedia，否则使用 attachmentPreviews
     let mediaData: any = null;
     if (hasPendingMedia) {
       mediaData = pendingMedia;
-    } else if (hasAttachmentPreview) {
-      // 从 attachmentPreview 构建媒体数据
+    } else if (attachmentPreviews.length > 0) {
+      // 从 attachmentPreviews 构建媒体数据（使用最后一张）
+      const lastPreview = attachmentPreviews[attachmentPreviews.length - 1];
       mediaData = {
-        uri: attachmentPreview,
+        uri: lastPreview,
         type: 'image/jpeg',
         category: 'image',
         metadata: {}
@@ -320,7 +312,7 @@ const ChatDetail: React.FC = () => {
 
     setInput(''); // Clear input
     setPendingMedia(null); // Clear pending media
-    setAttachmentPreview(null); // Clear attachment preview
+    setAttachmentPreviews([]); // Clear all attachment previews
 
     const timeString = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
@@ -434,11 +426,8 @@ const ChatDetail: React.FC = () => {
         category
       });
 
-      // 设置预览并弹出 AI 功能菜单
-      setAttachmentPreview(result.uri);
-      setTimeout(() => {
-        setShowAIActionModal(true);
-      }, 300);
+      // 添加到预览列表
+      setAttachmentPreviews(prev => [...prev, result.uri]);
 
       console.log('Upload successful:', result);
     } catch (error: any) {
@@ -672,131 +661,143 @@ const ChatDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area - 优化样式 */}
+      {/* Input Area - 优化样式，图片和输入框融为一体 */}
       <div className="flex-shrink-0 px-4 py-3 pb-6 bg-white border-t border-gray-100">
-          {/* 图片附件预览和 AI 功能选择 - 在输入框上方 */}
-          <AnimatePresence>
-            {(attachmentPreview || showAIActionModal) && (
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="max-w-lg mx-auto mb-3"
-              >
-                <div className="flex items-start gap-3">
-                  {/* 图片缩略图 - 黑色外框样式 */}
-                  {attachmentPreview && (
-                    <div className="relative flex-shrink-0">
-                      <div className="w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
-                        <img
-                          src={attachmentPreview}
-                          alt="附件预览"
-                          className="w-full h-full object-cover"
-                        />
+          {/* 主容器 */}
+          <div className="max-w-lg mx-auto">
+            {/* 图片附件预览 - 在输入框内部上方 */}
+            <AnimatePresence>
+              {attachmentPreviews.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-2"
+                >
+                  <div className="flex gap-2 flex-wrap">
+                    {attachmentPreviews.map((preview, index) => (
+                      <div key={index} className="relative flex-shrink-0">
+                        <div className="w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
+                          <img
+                            src={preview}
+                            alt={`附件预览 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {/* 删除按钮 */}
+                        <button
+                          onClick={() => {
+                            const newPreviews = attachmentPreviews.filter((_, i) => i !== index);
+                            setAttachmentPreviews(newPreviews);
+                            if (newPreviews.length === 0) {
+                              setPendingMedia(null);
+                            }
+                          }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+                        >
+                          <X size={10} strokeWidth={2.5} />
+                        </button>
                       </div>
-                      {/* 删除按钮 - 右上角 */}
-                      <button
-                        onClick={() => {
-                          setAttachmentPreview(null);
-                          setShowAIActionModal(false);
-                          setPendingMedia(null);
-                        }}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                      >
-                        <X size={12} strokeWidth={2.5} />
-                      </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                  {/* AI 功能选择 - 和图片同级 */}
-                  {showAIActionModal && (
-                    <div className="flex-1 min-w-0">
-                      <AIActionSelector
-                        onSelect={(action: string) => {
-                          console.log('选择的 AI 功能:', action);
-                          const prefixes: Record<string, string> = {
-                            chat: '',
-                            doc: '[创建文档] ',
-                            slide: '[创建幻灯片] ',
-                            table: '[创建表格] ',
-                            image: '[生成图片] ',
-                            video: '[生成视频] '
-                          };
-                          setInput(prefixes[action] || '');
-                          setShowAIActionModal(false);
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* 输入框容器 */}
+            <div className="bg-[#F5F5F5] rounded-2xl p-2">
+              {/* 实际输入区域 */}
+              <div className="flex items-end gap-2">
+                {/* 隐藏的文件输入 */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
 
-          {/* Input Container - 仿照参考图片 */}
-          <div className="max-w-lg mx-auto flex items-end gap-3">
-            {/* 隐藏的文件输入 */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            {/* 返回和添加按钮 */}
-            <div className="flex items-center gap-2 pb-2">
-              <button
-                onClick={() => navigate(-1)}
-                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
-              >
-                <ArrowLeft size={20} className="text-gray-600" />
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
-              >
-                <span className="text-xl text-gray-600">+</span>
-              </button>
-            </div>
-
-            {/* 输入框 */}
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={isListening ? transcript : input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={isListening ? "Listening..." : "问我任何事，创造任何东西"}
-                className="w-full px-4 py-3 bg-[#F5F5F5] rounded-2xl text-sm text-[#333333] placeholder:text-gray-400 border-0 outline-none focus:ring-2 focus:ring-gray-200 transition-all"
-                disabled={isBot && !isConnected}
-              />
-            </div>
-
-            {/* 麦克风和发送按钮 */}
-            <div className="flex items-center gap-2 pb-2">
-              {isSpeechSupported && (
+                {/* 返回按钮 */}
                 <button
-                  onClick={() => isListening ? stopListening() : startListening()}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    isListening ? 'bg-gray-100 text-gray-600' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  onClick={() => navigate(-1)}
+                  className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0"
+                >
+                  <ArrowLeft size={16} className="text-gray-600" />
+                </button>
+
+                {/* 添加按钮 */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0"
+                >
+                  <span className="text-sm text-gray-600">+</span>
+                </button>
+
+                {/* 输入框 */}
+                <input
+                  type="text"
+                  value={isListening ? transcript : input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder={isListening ? "Listening..." : "问我任何事，创造任何东西"}
+                  className="flex-1 px-3 py-2 bg-white rounded-xl text-sm text-[#333333] placeholder:text-gray-400 border-0 outline-none"
+                />
+
+                {/* 麦克风按钮 */}
+                {isSpeechSupported && (
+                  <button
+                    onClick={() => isListening ? stopListening() : startListening()}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                      isListening ? 'bg-gray-200 text-gray-600' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                  </button>
+                )}
+
+                {/* 发送按钮 */}
+                <button
+                  onClick={handleSend}
+                  disabled={(!input.trim() && attachmentPreviews.length === 0 && !pendingMedia) || (isBot && !isConnected && false)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                    input.trim() || attachmentPreviews.length > 0 || pendingMedia
+                      ? 'bg-black text-white hover:bg-gray-800 shadow-md'
+                      : 'bg-gray-300 text-gray-400'
                   }`}
                 >
-                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                  <Send size={14} className={input.trim() ? '-rotate-45' : ''} />
                 </button>
-              )}
-              <button
-                onClick={handleSend}
-                disabled={(!input.trim() && !attachmentPreview && !pendingMedia) || (isBot && !isConnected && false)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  input.trim() || attachmentPreview || pendingMedia
-                    ? 'bg-black text-white hover:bg-gray-800 shadow-lg'
-                    : 'bg-gray-100 text-gray-400'
-                }`}
-              >
-                <Send size={18} className={input.trim() ? '-rotate-45' : ''} />
-              </button>
+              </div>
             </div>
+
+            {/* AI 功能选择 - 在输入框下方，只要有图片就显示 */}
+            <AnimatePresence>
+              {attachmentPreviews.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-2"
+                >
+                  <AIActionSelector
+                    onSelect={(action: string) => {
+                      console.log('选择的 AI 功能:', action);
+                      const prefixes: Record<string, string> = {
+                        chat: '',
+                        doc: '[创建文档] ',
+                        slide: '[创建幻灯片] ',
+                        table: '[创建表格] ',
+                        image: '[生成图片] ',
+                        video: '[生成视频] '
+                      };
+                      setInput(prev => prefixes[action] + prev);
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
       </div>
     </div>
