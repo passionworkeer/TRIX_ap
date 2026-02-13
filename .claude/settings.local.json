@@ -28,7 +28,8 @@
       "Bash(timeout 5 bash:*)",
       "Bash(taskkill:*)",
       "Bash(set PORT=5173)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
