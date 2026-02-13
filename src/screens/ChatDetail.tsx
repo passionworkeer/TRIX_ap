@@ -73,6 +73,7 @@ const ChatDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [pendingMedia, setPendingMedia] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
 
   // 当 photoUri 改变时，自动弹出 AI 功能选择
   useEffect(() => {
@@ -435,11 +436,27 @@ const ChatDetail: React.FC = () => {
         category
       });
 
+      // 设置预览并弹出 AI 功能菜单
+      setAttachmentPreview(result.uri);
+      setTimeout(() => {
+        setShowAIActionModal(true);
+      }, 300);
+
       console.log('Upload successful:', result);
     } catch (error: any) {
       console.error('Upload error:', error);
       alert(error.message || '上传失败');
     }
+  };
+
+  // 处理文件选择
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // 重置 input，允许重复选择同一文件
+    e.target.value = '';
   };
 
   const getStatusColor = () => {
@@ -740,6 +757,15 @@ const ChatDetail: React.FC = () => {
 
           {/* Input Container - 仿照参考图片 */}
           <div className="max-w-lg mx-auto flex items-end gap-3">
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
             {/* 返回和添加按钮 */}
             <div className="flex items-center gap-2 pb-2">
               <button
@@ -748,7 +774,10 @@ const ChatDetail: React.FC = () => {
               >
                 <ArrowLeft size={20} className="text-gray-600" />
               </button>
-              <button className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              >
                 <span className="text-xl text-gray-600">+</span>
               </button>
             </div>
