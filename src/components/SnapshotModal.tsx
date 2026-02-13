@@ -5,6 +5,7 @@ import { Camera } from "lucide-react";
 interface SnapshotModalProps {
   isOpen: boolean;
   onImageSelect: (imageUri: string) => void;
+  onImageCaptured?: (imageUri: string) => void; // 新增：图片选择后的回调
 }
 
 // 模拟最近相册的缩略图数据

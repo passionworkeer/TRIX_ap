@@ -519,11 +519,17 @@ export const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 小时
 /** 心跳间隔（毫秒） */
 export const HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 秒
 
-/** 重连延迟（毫秒） */
-export const RECONNECT_DELAY_MS = 3 * 1000; // 3 秒
+/** 重连初始延迟（毫秒） */
+export const RECONNECT_INITIAL_DELAY_MS = 2 * 1000; // 2 秒
 
-/** 最大重连次数 */
-export const MAX_RECONNECT_ATTEMPTS = 5;
+/** 重连最大延迟（毫秒） */
+export const RECONNECT_MAX_DELAY_MS = 60 * 1000; // 60 秒
+
+/** 重连退避因子 */
+export const RECONNECT_BACKOFF_FACTOR = 1.5; // 指数退避因子
+
+/** 最大重连次数（设置为较大值以支持长期重连） */
+export const MAX_RECONNECT_ATTEMPTS = 100; // 100 次（实际相当于无限重连）
 
 /** 二维码默认大小 */
 export const DEFAULT_QR_SIZE = 10;

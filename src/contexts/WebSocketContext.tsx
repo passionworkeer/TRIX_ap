@@ -8,7 +8,9 @@ import {
   ConnectChallenge,
   MediaInfo,
   MAX_RECONNECT_ATTEMPTS,
-  RECONNECT_DELAY_MS,
+  RECONNECT_INITIAL_DELAY_MS,
+  RECONNECT_MAX_DELAY_MS,
+  RECONNECT_BACKOFF_FACTOR,
   HEARTBEAT_INTERVAL_MS,
 } from "../types/clawbot";
 
@@ -179,7 +181,13 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     try {
       console.log("[WebSocket] 正在连接...", wsUrl);
-      const socket = new WebSocket(wsUrl);
+
+      // 构建带认证的 WebSocket URL
+      const urlWithToken = authToken
+        ? `${wsUrl}${wsUrl.includes('?') ? '&' : '?'}auth_token=${authToken}`
+        : wsUrl;
+
+      const socket = new WebSocket(urlWithToken);
       wsRef.current = socket;
 
       socket.onopen = () => {
@@ -236,16 +244,23 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
           return;
         }
 
-        // 自动重连（仅对已配对设备）
+        // 自动重连（仅对已配对设备）- 使用指数退避
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttemptsRef.current++;
+
+          // 计算指数退避延迟
+          const delay = Math.min(
+            RECONNECT_INITIAL_DELAY_MS * Math.pow(RECONNECT_BACKOFF_FACTOR, reconnectAttemptsRef.current - 1),
+            RECONNECT_MAX_DELAY_MS
+          );
+
           setReconnectCount(reconnectAttemptsRef.current);
-          console.log(`[WebSocket] ${RECONNECT_DELAY_MS / 1000}秒后重连 (第${reconnectAttemptsRef.current}次)`);
+          console.log(`[WebSocket] ${delay / 1000}秒后重连 (第${reconnectAttemptsRef.current}次)`);
           setStatus("RECONNECTING");
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
-          }, RECONNECT_DELAY_MS);
+          }, delay);
         } else {
           console.error("[WebSocket] 重连次数已达上限");
           setLastError("连接失败，请检查网络后重试");

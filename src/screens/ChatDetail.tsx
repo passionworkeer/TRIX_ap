@@ -7,7 +7,7 @@ import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
-import AIActionModal from '../components/AIActionModal';
+import AIActionSelector from '../components/AIActionSelector';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
@@ -77,11 +77,9 @@ const ChatDetail: React.FC = () => {
 
   // 当 photoUri 改变时，自动弹出 AI 功能选择
   useEffect(() => {
-    if (photoUri && !attachmentPreview) {
+    if (photoUri) {
       setAttachmentPreview(photoUri);
-      setTimeout(() => {
-        setShowAIActionModal(true);
-      }, 300); // 延迟弹出，让用户先看到图片
+      setShowAIActionModal(true);
     }
   }, [photoUri]);
 
@@ -522,54 +520,6 @@ const ChatDetail: React.FC = () => {
           </div>
         </div>
       )}
-      
-      {/* 功能导航栏 - 仿照参考图片 */}
-      {isBot && (
-        <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
-          {[
-            { id: 'chat', label: 'AI聊天', color: 'blue' },
-            { id: 'doc', label: 'AI文档', color: 'blue' },
-            { id: 'slide', label: 'AI幻灯片', color: 'purple' },
-            { id: 'table', label: 'AI表格', color: 'green' },
-            { id: 'image', label: 'AI图片', color: 'purple' },
-            { id: 'video', label: 'AI视频', color: 'orange' },
-          ].map((tab) => {
-            const isSelected = tab.id === 'chat';
-            const colorStyles = {
-              blue: {
-                bg: isSelected ? '#E6F0FF' : 'transparent',
-                text: isSelected ? '#0066CC' : '#666666'
-              },
-              purple: {
-                bg: isSelected ? '#F3E6FF' : 'transparent',
-                text: isSelected ? '#9333EA' : '#666666'
-              },
-              green: {
-                bg: isSelected ? '#E6F7EE' : 'transparent',
-                text: isSelected ? '#00A854' : '#666666'
-              },
-              orange: {
-                bg: isSelected ? '#FFF5E6' : 'transparent',
-                text: isSelected ? '#FF8C00' : '#666666'
-              }
-            };
-            const style = colorStyles[tab.color as keyof typeof colorStyles];
-
-            return (
-              <button
-                key={tab.id}
-                className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all"
-                style={{
-                  backgroundColor: style.bg,
-                  color: style.text
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* Header */}
       <header className={`px-4 py-4 ${testMode ? 'pt-20' : 'pt-16'} flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300`}>
@@ -724,32 +674,60 @@ const ChatDetail: React.FC = () => {
 
       {/* Input Area - 优化样式 */}
       <div className="flex-shrink-0 px-4 py-3 pb-6 bg-white border-t border-gray-100">
-          {/* 图片附件预览 - 在输入框上方 */}
+          {/* 图片附件预览和 AI 功能选择 - 在输入框上方 */}
           <AnimatePresence>
-            {attachmentPreview && (
+            {(attachmentPreview || showAIActionModal) && (
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 className="max-w-lg mx-auto mb-3"
               >
-                <div className="relative inline-block">
+                <div className="flex items-start gap-3">
                   {/* 图片缩略图 - 黑色外框样式 */}
-                  <div className="relative w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
-                    <img
-                      src={attachmentPreview}
-                      alt="附件预览"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  {attachmentPreview && (
+                    <div className="relative flex-shrink-0">
+                      <div className="w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
+                        <img
+                          src={attachmentPreview}
+                          alt="附件预览"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      {/* 删除按钮 - 右上角 */}
+                      <button
+                        onClick={() => {
+                          setAttachmentPreview(null);
+                          setShowAIActionModal(false);
+                          setPendingMedia(null);
+                        }}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  )}
 
-                  {/* 删除按钮 - 右上角 */}
-                  <button
-                    onClick={() => setAttachmentPreview(null)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                  >
-                    <X size={12} strokeWidth={2.5} />
-                  </button>
+                  {/* AI 功能选择 - 和图片同级 */}
+                  {showAIActionModal && (
+                    <div className="flex-1 min-w-0">
+                      <AIActionSelector
+                        onSelect={(action: string) => {
+                          console.log('选择的 AI 功能:', action);
+                          const prefixes: Record<string, string> = {
+                            chat: '',
+                            doc: '[创建文档] ',
+                            slide: '[创建幻灯片] ',
+                            table: '[创建表格] ',
+                            image: '[生成图片] ',
+                            video: '[生成视频] '
+                          };
+                          setInput(prefixes[action] || '');
+                          setShowAIActionModal(false);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -821,26 +799,6 @@ const ChatDetail: React.FC = () => {
             </div>
           </div>
       </div>
-
-      {/* AI 功能选择模态框 */}
-      <AIActionModal
-        isOpen={showAIActionModal}
-        onClose={() => setShowAIActionModal(false)}
-        onSelect={(action) => {
-          console.log('选择的 AI 功能:', action);
-          // 这里可以根据选择的功能执行不同的操作
-          // 例如：添加特殊前缀到消息，或调用不同的 API
-          const prefixes = {
-            chat: '',
-            doc: '[创建文档] ',
-            slide: '[创建幻灯片] ',
-            table: '[创建表格] ',
-            image: '[生成图片] ',
-            video: '[生成视频] '
-          };
-          setInput(prefixes[action as keyof typeof prefixes] || '');
-        }}
-      />
     </div>
   );
 };

@@ -82,17 +82,49 @@ class ClawbotPairingService {
    */
   /**
    * 获取 API 基础 URL
-   * 直接返回完整的 Gateway URL，不使用代理
+   * 开发环境使用 Vite 代理，生产环境直接访问
    */
   private getApiBaseUrl(): string {
-    // 直接使用 Gateway URL，不经过 Vite 代理
-    // ngrok 支持 CORS，可以直接访问
+    // 开发环境使用代理路径
+    if (import.meta.env.DEV) {
+      const baseUrl = '/gateway';
+      console.log('[ClawbotPairingService] 使用开发代理:', baseUrl);
+      return baseUrl;
+    }
+
+    // 生产环境直接使用 Gateway URL
     const baseUrl = this.gatewayUrl
       .replace('wss://', 'https://')
       .replace('ws://', 'http://')
       .replace('/ws', '');
     console.log('[ClawbotPairingService] API Base URL:', baseUrl);
     return baseUrl;
+  }
+
+  /**
+   * 直接连接模式 - 跳过 HTTP API 配对，直接使用 WebSocket
+   * 适用于 webchat 模式（无需配对）
+   *
+   * @param gatewayUrl - Gateway WebSocket URL
+   * @param authToken - Auth Token
+   * @returns 是否成功保存配置
+   */
+  directConnect(gatewayUrl: string, authToken: string): boolean {
+    try {
+      console.log('[ClawbotPairingService] 直接连接模式');
+      console.log('[Debug] Gateway URL:', gatewayUrl);
+      console.log('[Debug] Auth Token:', authToken ? `${authToken.substring(0, 10)}...` : 'undefined');
+
+      // 保存到 localStorage
+      localStorage.setItem('clawbot_gateway_url', gatewayUrl);
+      localStorage.setItem('clawbot_device_token', authToken); // 使用 token 作为 device_token
+
+      console.log('[ClawbotPairingService] ✅ 直接连接配置已保存');
+      return true;
+    } catch (error) {
+      console.error('[ClawbotPairingService] 保存配置失败:', error);
+      return false;
+    }
   }
 
   /**
@@ -113,7 +145,24 @@ class ClawbotPairingService {
 
       // 注意：API 路径是 /pairing/request，不是 /api/pairing/request
       const apiUrl = `${httpUrl}/pairing/request`;
-      console.log('[ClawbotPairingService] 发送配对请求到 Gateway:', apiUrl);
+
+      const requestBody = {
+        device_id: deviceId,
+        device_name: deviceName,
+        device_type: 'mobile',
+        auto_approve: true,  // 启用自动确认模式
+        metadata: {
+          platform: navigator.platform,
+          userAgent: navigator.userAgent,
+        },
+      };
+
+      // 详细日志
+      console.log('========== 配对请求调试 ==========');
+      console.log('[Debug] API URL:', apiUrl);
+      console.log('[Debug] Auth Token:', this.authToken ? `${this.authToken.substring(0, 10)}...` : 'undefined');
+      console.log('[Debug] Request Body:', JSON.stringify(requestBody, null, 2));
+      console.log('==================================');
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -121,23 +170,20 @@ class ClawbotPairingService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': `Bearer ${this.authToken}`,
-          'ngrok-skip-browser-warning': 'true',
         },
-        body: JSON.stringify({
-          device_id: deviceId,
-          device_name: deviceName,
-          device_type: 'mobile',
-          auto_approve: true,  // 启用自动确认模式
-          metadata: {
-            platform: navigator.platform,
-            userAgent: navigator.userAgent,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      // 详细响应日志
+      console.log('========== 配对响应调试 ==========');
+      console.log('[Debug] Status:', response.status, response.statusText);
+      console.log('[Debug] Content-Type:', response.headers.get('content-type'));
+      console.log('==================================');
 
       if (!response.ok) {
         const errorText = await response.text();
         console.warn('[ClawbotPairingService] Gateway API 返回错误:', response.status, errorText);
+        console.warn('[Debug] 错误响应内容 (前500字符):', errorText.substring(0, 500));
         return { success: false, message: `HTTP ${response.status}: ${errorText}` };
       }
 
@@ -152,6 +198,7 @@ class ClawbotPairingService {
         message: data.message,
       };
     } catch (error) {
+      console.error('[Debug] 捕获异常:', error);
       console.warn('[ClawbotPairingService] 调用 Gateway API 失败:', error);
       return { success: false, message: error instanceof Error ? error.message : '网络错误' };
     }
@@ -171,6 +218,7 @@ class ClawbotPairingService {
 
     let attempts = 0;
     console.log(`[ClawbotPairingService] 开始轮询 Gateway API (requestId: ${requestId})`);
+    console.log('[Debug] 轮询 URL 基础:', httpUrl);
 
     return new Promise((resolve) => {
       this.pollingTimer = setInterval(async () => {
@@ -178,16 +226,30 @@ class ClawbotPairingService {
 
         try {
           const apiUrl = `${httpUrl}/pairing/status/${requestId}`;
+
+          // 详细日志（每10次输出一次）
+          if (attempts % 10 === 1) {
+            console.log(`[Debug] 轮询第 ${attempts} 次, URL: ${apiUrl}`);
+          }
+
           const response = await fetch(apiUrl, {
             headers: {
               'Accept': 'application/json',
               'Authorization': `Bearer ${this.authToken}`,
-              'ngrok-skip-browser-warning': 'true',
             },
           });
 
           if (!response.ok) {
-            console.warn('[ClawbotPairingService] 轮询 API 错误:', response.status);
+            const contentType = response.headers.get('content-type');
+            console.warn(`[Debug] 轮询失败: Status=${response.status}, Content-Type=${contentType}`);
+
+            // 如果返回 HTML，说明 API 不存在，回退到 Supabase
+            if (contentType && contentType.includes('text/html')) {
+              console.warn('[ClawbotPairingService] Gateway 不支持轮询 API (返回 HTML)，停止轮询');
+              this.stopPolling();
+              resolve();
+              return;
+            }
             return;
           }
 
@@ -203,6 +265,11 @@ class ClawbotPairingService {
                 deviceToken: data.deviceToken || data.device_token,
                 message: data.message || '配对成功',
               });
+              // 保存 token 和 gateway_url 到 localStorage
+              if (data.deviceToken || data.device_token) {
+                localStorage.setItem('clawbot_device_token', data.deviceToken || data.device_token);
+                localStorage.setItem('clawbot_gateway_url', this.gatewayUrl);
+              }
               resolve();
               break;
 
@@ -492,10 +559,11 @@ class ClawbotPairingService {
               this.stopPolling();
               console.log('[ClawbotPairingService] ✅ 配对成功！');
 
-              // 保存设备 token
+              // 保存设备 token 和 gateway_url
               if (data.device_token) {
                 localStorage.setItem('clawbot_device_token', data.device_token);
                 localStorage.setItem('clawbot_node_id', data.node_id || '');
+                localStorage.setItem('clawbot_gateway_url', this.gatewayUrl);
               }
 
               onStatusChange({
@@ -582,31 +650,33 @@ class ClawbotPairingService {
     try {
       console.log('[ClawbotPairingService] 取消配对请求:', requestId);
 
-      // 尝试通过 Gateway API 取消
+      // 尝试通过 Gateway API 取消（可选，Gateway 可能不支持）
       const httpUrl = this.getApiBaseUrl();
 
-      const apiUrl = `${httpUrl}/pairing/deny/${requestId}`;
-
       try {
+        const apiUrl = `${httpUrl}/pairing/deny/${requestId}`;
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.authToken}`,
-            'ngrok-skip-browser-warning': 'true',
           },
         });
 
         if (response.ok) {
           console.log('[ClawbotPairingService] ✅ Gateway 取消成功');
+        } else if (response.status === 405 || response.status === 404) {
+          // Gateway 不支持此 API 或不存在，忽略错误
+          console.log('[ClawbotPairingService] Gateway 不支持 deny API，使用本地取消');
         } else {
           console.warn('[ClawbotPairingService] Gateway 取消失败:', response.status);
         }
       } catch (apiError) {
-        console.warn('[ClawbotPairingService] Gateway API 调用失败:', apiError);
+        // 忽略网络错误，继续更新本地状态
+        console.log('[ClawbotPairingService] Gateway API 调用失败，使用本地取消');
       }
 
-      // 同时更新 Supabase（用于记录）
+      // 更新 Supabase（用于记录和状态同步）
       const { error } = await supabase
         .from('pairing_requests')
         .update({
