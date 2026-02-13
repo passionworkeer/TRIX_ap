@@ -2,10 +2,14 @@ import mainImg from './assets/main.jpg';
 import studyRoomBg from './assets/StudyRoomBG.png';
 import avatarHead from './assets/AvatarHead.png';
 import mapImg from './assets/map.png';
+import backgroundImg from './assets/background.jpg';
+import heroRenderImg from './assets/hero_render.png';
 
 export const IMAGES = {
   WIZARD_BOY: avatarHead,
   WIZARD_BOY_LOGIN: avatarHead,
+  BACKGROUND: backgroundImg,
+  HERO_RENDER: heroRenderImg,
   STUDY_ISLAND: "https://lh3.googleusercontent.com/aida-public/AB6AXuCBe9X7B__RSWfOIvuZAeMFwuYaOo--MqxbcQrE1us5AnGWp180M4PfNESBjE4njtFwc9G2MEhHke37bJfFTy4dz3It03sbl9fHFvQDIJmX29vEe4ggrDJf5D3qH9MQiuzYs7FnKU3MoZtxD-iJmAwBbSlUt9sDoIiF_oyjT5Fgh4wjCUUAlhgiqWeCrUe3mTy-bSSA42-Ern0i498bZboQrH4m0FDgOuIK2Ub7ZuH4FpHQx6VactyYK56BrYFq8MzQJwGZrx5Duok",
   STUDY_ROOM_DARK: studyRoomBg,
   SHIBA_AVATAR: avatarHead,
