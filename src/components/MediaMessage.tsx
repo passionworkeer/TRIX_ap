@@ -18,6 +18,7 @@ interface MediaMessageProps {
   alt?: string;
   className?: string;
   maxSize?: 'sm' | 'md' | 'lg' | 'full';
+  thumbnail?: string;  // Optional thumbnail URI
 }
 
 export const MediaMessage: React.FC<MediaMessageProps> = ({
@@ -25,15 +26,20 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
   type,
   alt = 'Media',
   className = '',
-  maxSize = 'lg'
+  maxSize = 'lg',
+  thumbnail
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Performance monitoring
+  const loadStart = React.useRef<number>(0);
 
   // Debug log
   console.log('🖼️ [MediaMessage] Rendering:', {
     type,
     uri,
+    thumbnail,
     uriLength: uri?.length,
     uriPreview: uri?.substring(0, 100)
   });
@@ -71,20 +77,27 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           </div>
         )}
 
-        {/* Image */}
+        {/* Image with performance monitoring */}
         <img
           src={uri}
           alt={alt}
           className={`w-full h-auto rounded-lg shadow-sm transition-opacity duration-300 ${
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
-          onLoad={() => setIsLoading(false)}
+          onLoad={() => {
+            const loadTime = performance.now() - loadStart.current;
+            console.log(`✅ [MediaMessage] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+            setIsLoading(false);
+          }}
           onError={() => {
             console.error('❌ [MediaMessage] Image load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}
           loading="lazy"
+          onLoadStart={() => {
+            loadStart.current = performance.now();
+          }}
           style={{ display: isLoading ? 'none' : 'block' }}
         />
       </div>
@@ -135,22 +148,25 @@ interface MediaMessageInlineProps {
   uri: string;
   type: 'image' | 'video';
   onClick?: () => void;
+  onClose?: () => void; // 添加关闭回调
 }
 
 export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
   uri,
   type,
-  onClick
+  onClick,
+  onClose
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const loadStart = React.useRef<number>(0);
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 w-full max-w-[200px]">
+      <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 w-full max-w-[80px]">
         <div className="flex items-center gap-1 text-red-600 dark:text-red-400 text-[10px]">
           <X size={12} />
-          <span>加载失败</span>
+          <span>失败</span>
         </div>
       </div>
     );
@@ -158,50 +174,85 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
 
   if (type === 'image') {
     return (
-      <div className="relative w-full max-w-[200px]">
+      <div className="relative w-[80px] h-[80px] flex-shrink-0">
         {isLoading && (
-          <div className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
         )}
-        <img
-          src={uri}
-          alt="Image"
-          className={`w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${
-            isLoading ? 'opacity-0' : 'opacity-100'
-          }`}
-          onLoad={() => setIsLoading(false)}
-          onError={() => {
-            setIsLoading(false);
-            setError(true);
-          }}
-          loading="lazy"
-          onClick={onClick}
-          style={{ display: isLoading ? 'none' : 'block' }}
-        />
+        {/* 黑色外框 */}
+        <div className="absolute inset-0 rounded-lg border-2 border-black overflow-hidden shadow-sm">
+          <img
+            src={uri}
+            alt="Image"
+            className={`w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity ${
+              isLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoad={() => {
+              const loadTime = performance.now() - loadStart.current;
+              console.log(`✅ [MediaMessageInline] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+              setIsLoading(false);
+            }}
+            onError={() => {
+              console.error('❌ [MediaMessageInline] Image load failed:', uri);
+              setIsLoading(false);
+              setError(true);
+            }}
+            loading="lazy"
+            onLoadStart={() => {
+              loadStart.current = performance.now();
+            }}
+            onClick={onClick}
+            style={{ display: isLoading ? 'none' : 'block' }}
+          />
+        </div>
+        {/* 右上角关闭按钮 */}
+        {onClose && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+          >
+            <X size={10} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
     );
   }
 
   if (type === 'video') {
     return (
-      <div className="relative w-full max-w-[200px]">
+      <div className="relative w-[80px] h-[80px] flex-shrink-0">
         {isLoading && (
           <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
         )}
-        <video
-          src={uri}
-          className={`w-full h-auto rounded-lg cursor-pointer ${
-            isLoading ? 'opacity-0' : 'opacity-100'
-          }`}
-          onLoadedData={() => setIsLoading(false)}
-          onError={() => {
-            setIsLoading(false);
-            setError(true);
-          }}
-          preload="metadata"
-          controls
-          onClick={onClick}
-          style={{ display: isLoading ? 'none' : 'block' }}
-        />
+        <div className="absolute inset-0 rounded-lg border-2 border-black overflow-hidden shadow-sm">
+          <video
+            src={uri}
+            className={`w-full h-full object-cover cursor-pointer ${
+              isLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoadedData={() => setIsLoading(false)}
+            onError={() => {
+              setIsLoading(false);
+              setError(true);
+            }}
+            preload="metadata"
+            onClick={onClick}
+            style={{ display: isLoading ? 'none' : 'block' }}
+          />
+        </div>
+        {onClose && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+          >
+            <X size={10} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
     );
   }

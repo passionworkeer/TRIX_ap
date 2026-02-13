@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Mic, MicOff, Image as ImageIcon, MoreVertical, Bot, X } from 'lucide-react';
+import { ArrowLeft, Send, Mic, MicOff, MoreVertical, Bot, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import Avatar from '../components/Avatar';
-import FilePicker from '../components/FilePicker';
 import MediaMessage from '../components/MediaMessage';
+import AIActionModal from '../components/AIActionModal';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
@@ -44,17 +44,17 @@ const ChatDetail: React.FC = () => {
 
   // 从路由参数接收到的图片预览状态
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(photoUri || null);
-  
+  const [showAIActionModal, setShowAIActionModal] = useState(false);
+
   // WebSocket connection for Bot
   const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
-  
+
   // Speech to text
   const {
     isListening,
     transcript,
     startListening,
     stopListening,
-    reset: resetSpeech,
     isSupported: isSpeechSupported,
   } = useSpeechToText({
     lang: 'zh-CN',
@@ -67,13 +67,29 @@ const ChatDetail: React.FC = () => {
       console.error('Speech error:', err);
     }
   });
-  
+
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [pendingMedia, setPendingMedia] = useState<any>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 当 photoUri 改变时，自动弹出 AI 功能选择
+  useEffect(() => {
+    if (photoUri && !attachmentPreview) {
+      setAttachmentPreview(photoUri);
+      setTimeout(() => {
+        setShowAIActionModal(true);
+      }, 300); // 延迟弹出，让用户先看到图片
+    }
+  }, [photoUri]);
+
+  // 当图片被清除时，关闭 AI 功能选择模态框
+  useEffect(() => {
+    if (!attachmentPreview && !pendingMedia) {
+      setShowAIActionModal(false);
+    }
+  }, [attachmentPreview, pendingMedia, showAIActionModal]);
   
   // 🔌 Realtime Channel 引用 (防止重复连接)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -407,7 +423,6 @@ const ChatDetail: React.FC = () => {
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
-    setIsUploading(true);
     try {
       const category = file.type.startsWith('image/') ? 'image' : 'video';
       const result = await uploadFile(file, category);
@@ -424,8 +439,6 @@ const ChatDetail: React.FC = () => {
     } catch (error: any) {
       console.error('Upload error:', error);
       alert(error.message || '上传失败');
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -493,6 +506,54 @@ const ChatDetail: React.FC = () => {
         </div>
       )}
       
+      {/* 功能导航栏 - 仿照参考图片 */}
+      {isBot && (
+        <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'chat', label: 'AI聊天', color: 'blue' },
+            { id: 'doc', label: 'AI文档', color: 'blue' },
+            { id: 'slide', label: 'AI幻灯片', color: 'purple' },
+            { id: 'table', label: 'AI表格', color: 'green' },
+            { id: 'image', label: 'AI图片', color: 'purple' },
+            { id: 'video', label: 'AI视频', color: 'orange' },
+          ].map((tab) => {
+            const isSelected = tab.id === 'chat';
+            const colorStyles = {
+              blue: {
+                bg: isSelected ? '#E6F0FF' : 'transparent',
+                text: isSelected ? '#0066CC' : '#666666'
+              },
+              purple: {
+                bg: isSelected ? '#F3E6FF' : 'transparent',
+                text: isSelected ? '#9333EA' : '#666666'
+              },
+              green: {
+                bg: isSelected ? '#E6F7EE' : 'transparent',
+                text: isSelected ? '#00A854' : '#666666'
+              },
+              orange: {
+                bg: isSelected ? '#FFF5E6' : 'transparent',
+                text: isSelected ? '#FF8C00' : '#666666'
+              }
+            };
+            const style = colorStyles[tab.color as keyof typeof colorStyles];
+
+            return (
+              <button
+                key={tab.id}
+                className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all"
+                style={{
+                  backgroundColor: style.bg,
+                  color: style.text
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Header */}
       <header className={`px-4 py-4 ${testMode ? 'pt-20' : 'pt-16'} flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300`}>
         <div className="flex items-center gap-3">
@@ -579,19 +640,41 @@ const ChatDetail: React.FC = () => {
                 className={`px-4 py-3 shadow-sm text-sm leading-relaxed relative transition-all duration-200 ${
                   msg.sender === 'user'
                     ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm'
-                    : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm'
+                    : 'bg-[#F5F5F5] text-[#333333] border-0 rounded-2xl rounded-tl-sm'
                 }`}
               >
-                {/* Render media if present */}
-                {msg.mediaUri && (
-                  <div className="mb-2 -mx-2 -mt-2">
+                {/* Render media if present - 使用优化的缩略图样式 */}
+                {msg.mediaUri && msg.sender !== 'user' && (
+                  <div className="mb-2 -ml-2 -mt-2">
                     <MediaMessage
                       uri={msg.mediaUri}
                       type={msg.messageType === 'video' ? 'video' : 'image'}
                       alt="Attachment"
-                      maxSize="lg"
-                      className="rounded-t-lg"
+                      maxSize="sm"
+                      className="rounded-lg"
                     />
+                  </div>
+                )}
+                {/* 用户消息的媒体 - 使用 inline 样式带黑色外框 */}
+                {msg.mediaUri && msg.sender === 'user' && (
+                  <div className="mb-2 -mr-2 -mt-2">
+                    <div className="relative w-[80px] h-[80px]">
+                      <div className="absolute inset-0 rounded-lg border-2 border-white/30 overflow-hidden shadow-sm">
+                        {msg.messageType === 'video' ? (
+                          <video
+                            src={msg.mediaUri}
+                            className="w-full h-full object-cover"
+                            controls
+                          />
+                        ) : (
+                          <img
+                            src={msg.mediaUri}
+                            alt="Attachment"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -622,86 +705,113 @@ const ChatDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="flex-shrink-0 px-4 py-3 pb-6 bg-transparent pointer-events-none z-40">
+      {/* Input Area - 优化样式 */}
+      <div className="flex-shrink-0 px-4 py-3 pb-6 bg-white border-t border-gray-100">
           {/* 图片附件预览 - 在输入框上方 */}
-          {attachmentPreview && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="max-w-lg mx-auto mb-2 pointer-events-auto"
-            >
-              <div className="relative inline-block">
-                {/* 图片缩略图 */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-white/60 shadow-lg">
-                  <img
-                    src={attachmentPreview}
-                    alt="附件预览"
-                    className="w-full h-full object-cover"
-                  />
-                  {/* 渐变遮罩 */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+          <AnimatePresence>
+            {attachmentPreview && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="max-w-lg mx-auto mb-3"
+              >
+                <div className="relative inline-block">
+                  {/* 图片缩略图 - 黑色外框样式 */}
+                  <div className="relative w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
+                    <img
+                      src={attachmentPreview}
+                      alt="附件预览"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* 删除按钮 - 右上角 */}
+                  <button
+                    onClick={() => setAttachmentPreview(null)}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                  >
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
                 </div>
-
-                {/* 删除按钮 */}
-                <button
-                  onClick={() => setAttachmentPreview(null)}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center shadow-lg hover:bg-slate-800 transition-colors"
-                >
-                  <X size={12} strokeWidth={2.5} />
-                </button>
-
-                {/* 文件类型标签 */}
-                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-blue-500 text-white text-[10px] font-medium rounded-full shadow-md">
-                  图片
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Floating Input Container */}
-          <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl shadow-slate-200/50 rounded-3xl p-1.5 flex items-center gap-2 pointer-events-auto max-w-lg mx-auto w-full transition-all duration-200 hover:shadow-2xl hover:shadow-slate-200/60 ring-1 ring-slate-100">
-
-            <FilePicker
-              onFileSelect={handleFileUpload}
-              isUploading={isUploading}
-            />
-            
-            <input
-              type="text"
-              value={isListening ? transcript : input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={isListening ? "Listening..." : "Message..."}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 h-10 px-2 min-w-0"
-              disabled={isBot && !isConnected}
-            />
-            
-            {isSpeechSupported && (
-               <button 
-                  onClick={() => isListening ? stopListening() : startListening()}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                     isListening ? 'bg-red-50 text-red-500 animate-pulse' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                  }`}
-               >
-                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-               </button>
+              </motion.div>
             )}
+          </AnimatePresence>
 
-            <button
-              onClick={handleSend}
-              disabled={(!input.trim() && !attachmentPreview && !pendingMedia) || (isBot && !isConnected && false)} 
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                input.trim() || attachmentPreview || pendingMedia
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:shadow-indigo-300/50 hover:scale-105 active:scale-95'
-                  : 'bg-slate-100 text-slate-300'
-              }`}
-            >
-              <Send size={18} className={input.trim() ? 'ml-0.5' : ''} />
-            </button>
+          {/* Input Container - 仿照参考图片 */}
+          <div className="max-w-lg mx-auto flex items-end gap-3">
+            {/* 返回和添加按钮 */}
+            <div className="flex items-center gap-2 pb-2">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              >
+                <ArrowLeft size={20} className="text-gray-600" />
+              </button>
+              <button className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                <span className="text-xl text-gray-600">+</span>
+              </button>
+            </div>
+
+            {/* 输入框 */}
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={isListening ? transcript : input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder={isListening ? "Listening..." : "问我任何事，创造任何东西"}
+                className="w-full px-4 py-3 bg-[#F5F5F5] rounded-2xl text-sm text-[#333333] placeholder:text-gray-400 border-0 outline-none focus:ring-2 focus:ring-gray-200 transition-all"
+                disabled={isBot && !isConnected}
+              />
+            </div>
+
+            {/* 麦克风和发送按钮 */}
+            <div className="flex items-center gap-2 pb-2">
+              {isSpeechSupported && (
+                <button
+                  onClick={() => isListening ? stopListening() : startListening()}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    isListening ? 'bg-gray-100 text-gray-600' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              )}
+              <button
+                onClick={handleSend}
+                disabled={(!input.trim() && !attachmentPreview && !pendingMedia) || (isBot && !isConnected && false)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  input.trim() || attachmentPreview || pendingMedia
+                    ? 'bg-black text-white hover:bg-gray-800 shadow-lg'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                <Send size={18} className={input.trim() ? '-rotate-45' : ''} />
+              </button>
+            </div>
           </div>
       </div>
+
+      {/* AI 功能选择模态框 */}
+      <AIActionModal
+        isOpen={showAIActionModal}
+        onClose={() => setShowAIActionModal(false)}
+        onSelect={(action) => {
+          console.log('选择的 AI 功能:', action);
+          // 这里可以根据选择的功能执行不同的操作
+          // 例如：添加特殊前缀到消息，或调用不同的 API
+          const prefixes = {
+            chat: '',
+            doc: '[创建文档] ',
+            slide: '[创建幻灯片] ',
+            table: '[创建表格] ',
+            image: '[生成图片] ',
+            video: '[生成视频] '
+          };
+          setInput(prefixes[action as keyof typeof prefixes] || '');
+        }}
+      />
     </div>
   );
 };
