@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-02-13
+> **最后更新**: 2026-02-14
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -13,7 +13,11 @@ docs/
 ├── PROJECT.md                        # 项目概览
 ├── CHANGELOG.md                      # 开发迭代日志
 ├── DATABASE-REQUIREMENTS.md          # 数据库需求
-├── CLAWBOT_README.md                 # Clawbot 文档索引
+├── PROJECT_AUDIT_REPORT.md           # 项目审核报告 ⭐ 新增
+├── TECH_STACK_AND_HIGHLIGHTS.md      # 技术栈与核心亮点 ⭐ 新增
+│
+├── NANOBOT_INTEGRATION_GUIDE.md     # Nanobot 集成完整指南 ⭐ 整合
+├── DEPLOYMENT_GUIDE.md               # 部署完整指南 ⭐ 整合
 │
 ├── guides/                           # 用户指南和快速开始
 │   ├── CLAWBOT_QUICK_START.md        # 快速开始（5 分钟上手）
@@ -28,7 +32,7 @@ docs/
 │   ├── CLAWBOT_PAIRING_FIELDS_SPEC.md    # 配对字段规范
 │   └── new_clawbot_api.md            # Clawbot API 文档
 │
-├── deployment/                       # 部署相关文档
+├── deployment/                       # 部署相关文档（已整合到 DEPLOYMENT_GUIDE.md）
 │   ├── DEPLOY.md                     # 服务器部署指南
 │   ├── AUTO_DEPLOY.md                # 自动部署脚本
 │   └── HTTPS_SETUP_GUIDE.md          # HTTPS 设置指南
@@ -52,22 +56,53 @@ src/database/
 
 ## 📚 文档导航
 
+### 🆕 新增文档
+
+| 文档 | 描述 |
+|------|------|
+| [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) | **项目审核报告** - 核心文件、目录结构、潜在问题 |
+| [TECH_STACK_AND_HIGHLIGHTS.md](./TECH_STACK_AND_HIGHLIGHTS.md) | **技术栈与核心亮点** - 技术选型、架构设计、关键技术实现 |
+| [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | **Nanobot 集成指南** - 云端服务器 + App + 本地 Nanobot 三端连通 |
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | **部署完整指南** - GitHub Actions 自动部署 + 手动部署 + HTTPS |
+
 ### 新手入门
 
 1. **[../README.md](../README.md)** - 项目介绍和快速开始
 2. **[PROJECT.md](./PROJECT.md)** - 项目结构和技术栈
-3. **[guides/CLAWBOT_QUICK_START.md](./guides/CLAWBOT_QUICK_START.md)** - Clawbot 集成快速指南
+3. **[PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md)** - 了解项目核心文件和潜在问题 ⭐ 推荐
 
 ### Clawbot 集成
 
 | 文档 | 描述 | 适用场景 |
 |------|------|----------|
 | [CLAWBOT_README.md](./CLAWBOT_README.md) | 文档索引和导航 | 快速查找 |
-| [guides/CLAWBOT_QUICK_START.md](./guides/CLAWBOT_QUICK_START.md) | 5 分钟上手 | 初次集成 |
-| [guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md](./guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md) | 简化版实现（~150 行） | 开发测试 |
-| [guides/CLAWBOT_INTEGRATION_GUIDE.md](./guides/CLAWBOT_INTEGRATION_GUIDE.md) | 完整版实现（~500 行） | 生产环境 |
+| [guides/CLAWBOT_QUICK_START.md](./guides/CLAWBOT_QUICK_START.md) | 5分钟上手 | 初次集成 |
+| [guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md](./guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md) | 简化版实现（~150行） | 开发测试 |
+| [guides/CLAWBOT_INTEGRATION_GUIDE.md](./guides/CLAWBOT_INTEGRATION_GUIDE.md) | 完整版实现（~500行） | 生产环境 |
 | [api/CLAWBOT_GATEWAY_INTEGRATION.md](./api/CLAWBOT_GATEWAY_INTEGRATION.md) | 协议规范 | 深度定制 |
 | [api/CLAWBOT_PAIRING_FIELDS_SPEC.md](./api/CLAWBOT_PAIRING_FIELDS_SPEC.md) | 配对字段规范 | 数据对接 |
+
+### Nanobot 三端连通 ⭐
+
+| 文档 | 描述 | 适用人群 |
+|------|------|----------|
+| [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | **完整集成指南** | 所有用户 |
+| - 架构概览 | 三端通信架构图 | 了解系统 |
+| - 快速启动 | 三端启动命令 | 快速开始 |
+| - 云端配置 | 服务器安装和启动 | 运维人员 |
+| - 本地配置 | Nanobot 和 App 配置 | 开发者 |
+| - 消息协议 | WebSocket 消息格式 | 集成开发 |
+
+### 部署上线 ⭐
+
+| 文档 | 描述 |
+|------|------|
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | **完整部署指南** |
+| - GitHub Actions | 自动部署配置 |
+| - 服务器配置 | Nginx、目录、权限 |
+| - HTTPS 证书 | Let's Encrypt SSL |
+| - 手动部署 | 本地构建、上传、解压 |
+| - 故障排查 | 常见问题解决 |
 
 ### 用户指南
 
@@ -84,14 +119,6 @@ src/database/
 | [features/FEATURES-STUDY-BUDDIES.md](./features/FEATURES-STUDY-BUDDIES.md) | 双向自习功能 |
 | [features/FOCUS-TIME-AND-COMPANION-MODE.md](./features/FOCUS-TIME-AND-COMPANION-MODE.md) | 专注与陪伴模式 |
 | [features/STUDY_SUMMARY_MODAL.md](./features/STUDY_SUMMARY_MODAL.md) | 学习总结弹窗 |
-
-### 部署运维
-
-| 文档 | 描述 |
-|------|------|
-| [deployment/DEPLOY.md](./deployment/DEPLOY.md) | 服务器部署指南 |
-| [deployment/AUTO_DEPLOY.md](./deployment/AUTO_DEPLOY.md) | 自动部署脚本 |
-| [deployment/HTTPS_SETUP_GUIDE.md](./deployment/HTTPS_SETUP_GUIDE.md) | HTTPS 证书配置 |
 
 ### 数据库
 
@@ -115,24 +142,37 @@ src/database/
 
 1. [../README.md](../README.md) - 了解项目
 2. [PROJECT.md](./PROJECT.md) - 技术栈和结构
+3. [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) - 核心文件和问题 ⭐
 
-### 路径 2: Clawbot 集成（15 分钟）
+### 路径 2: Nanobot 集成（20 分钟）⭐
+
+1. [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) - 三端连通指南
+2. 快速启动三端
+3. 测试配对和消息
+
+### 路径 3: Clawbot 集成（15 分钟）
 
 1. [guides/CLAWBOT_QUICK_START.md](./guides/CLAWBOT_QUICK_START.md) - 快速上手
 2. [guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md](./guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md) - 代码示例
 3. [api/CLAWBOT_GATEWAY_INTEGRATION.md](./api/CLAWBOT_GATEWAY_INTEGRATION.md) - 协议详情
 
-### 路径 3: 功能开发（30 分钟）
+### 路径 4: 功能开发（30 分钟）
 
 1. [DATABASE-REQUIREMENTS.md](./DATABASE-REQUIREMENTS.md) - 数据库设计
 2. [features/FEATURES-STUDY-BUDDIES.md](./features/FEATURES-STUDY-BUDDIES.md) - 功能实现参考
 3. [CHANGELOG.md](./CHANGELOG.md) - 架构决策
 
-### 路径 4: 部署上线（20 分钟）
+### 路径 5: 部署上线（20 分钟）⭐
 
-1. [deployment/DEPLOY.md](./deployment/DEPLOY.md) - 基础部署
-2. [deployment/HTTPS_SETUP_GUIDE.md](./deployment/HTTPS_SETUP_GUIDE.md) - 安全配置
-3. [deployment/AUTO_DEPLOY.md](./deployment/AUTO_DEPLOY.md) - 自动化
+1. [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - 完整部署指南
+2. 配置 GitHub Actions
+3. 配置 HTTPS 证书
+
+### 路径 6: 深入学习技术（1 小时）⭐
+
+1. [TECH_STACK_AND_HIGHLIGHTS.md](./TECH_STACK_AND_HIGHLIGHTS.md) - 技术栈详解
+2. [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) - 架构分析
+3. [CHANGELOG.md](./CHANGELOG.md) - 技术决策
 
 ---
 
@@ -142,12 +182,15 @@ src/database/
 
 | 主题 | 文档 |
 |------|------|
+| **项目架构** | [PROJECT.md](./PROJECT.md), [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) |
 | **WebSocket / Clawbot** | [CLAWBOT_README.md](./CLAWBOT_README.md) |
+| **Nanobot 三端** | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) ⭐ |
 | **扫码配对** | [guides/QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) |
 | **数据库设计** | [DATABASE-REQUIREMENTS.md](./DATABASE-REQUIREMENTS.md) |
 | **学习伙伴功能** | [features/FEATURES-STUDY-BUDDIES.md](./features/FEATURES-STUDY-BUDDIES.md) |
 | **项目演进** | [CHANGELOG.md](./CHANGELOG.md) |
-| **部署** | [deployment/DEPLOY.md](./deployment/DEPLOY.md) |
+| **部署** | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) ⭐ |
+| **技术栈** | [TECH_STACK_AND_HIGHLIGHTS.md](./TECH_STACK_AND_HIGHLIGHTS.md) ⭐ |
 
 ### 按文档类型查找
 
@@ -157,18 +200,28 @@ src/database/
 | **代码示例** | [guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md](./guides/CLAWBOT_SIMPLE_IMPLEMENTATION.md) |
 | **用户指南** | [guides/QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) |
 | **问题排查** | [api/CLAWBOT_GATEWAY_INTEGRATION.md#故障排查](./api/CLAWBOT_GATEWAY_INTEGRATION.md) |
+| **审核报告** | [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) ⭐ |
 
 ---
 
 ## 🗂️ 归档文档说明
 
-以下文档已归档到 `archive/` 目录：
+以下文档已整合到新的文档中，仅供参考：
 
-| 文档 | 说明 | 状态 |
-|------|------|------|
-| [archive/QR_PAIRING_IMPLEMENTATION.md](./archive/QR_PAIRING_IMPLEMENTATION.md) | 配对功能实现细节 | 已整合到 guides/QR_PAIRING_USER_GUIDE.md |
-| [archive/MEDIA_URL_DEBUG.md](./archive/MEDIA_URL_DEBUG.md) | 媒体 URL 调试记录 | 已过时 |
-| [archive/TRIX_INTEGRATION_GUIDE.md](./archive/TRIX_INTEGRATION_GUIDE.md) | 外部集成指南 | 内容与 Clawbot 文档重复 |
+| 原文档 | 整合到 | 说明 |
+|--------|--------|------|
+| [archive/QR_PAIRING_IMPLEMENTATION.md](./archive/QR_PAIRING_IMPLEMENTATION.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 配对功能实现 |
+| [archive/MEDIA_URL_DEBUG.md](./archive/MEDIA_URL_DEBUG.md) | - | 媒体 URL 调试记录（已过时） |
+| [archive/TRIX_INTEGRATION_GUIDE.md](./archive/TRIX_INTEGRATION_GUIDE.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 外部集成指南 |
+| [NANOBOT_CONFIG_STATUS.md](./NANOBOT_CONFIG_STATUS.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 配置状态总结 |
+| [NANOBOT_THREE_WAY_CONNECTION_GUIDE.md](./NANOBOT_THREE_WAY_CONNECTION_GUIDE.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 三端连接指南 |
+| [CLOUD_SERVER_AND_APP_IMPLEMENTATION.md](./CLOUD_SERVER_AND_APP_IMPLEMENTATION.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 云端服务器实现 |
+| [MYAPP_INTEGRATION_GUIDE.md](./MYAPP_INTEGRATION_GUIDE.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | MyApp 接入指南 |
+| [AUTO_DEPLOY_COMPLETE_GUIDE.md](./AUTO_DEPLOY_COMPLETE_GUIDE.md) | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 自动部署指南 |
+| [IMPLEMENTATION_COMPARISON.md](./IMPLEMENTATION_COMPARISON.md) | [NANOBOT_INTEGRATION_GUIDE.md](./NANOBOT_INTEGRATION_GUIDE.md) | 实现对比分析 |
+| [deployment/AUTO_DEPLOY.md](./deployment/AUTO_DEPLOY.md) | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 自动部署 |
+| [deployment/DEPLOY.md](./deployment/DEPLOY.md) | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 部署指南 |
+| [deployment/HTTPS_SETUP_GUIDE.md](./deployment/HTTPS_SETUP_GUIDE.md) | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | HTTPS 配置 |
 
 > 💡 **提示**: 归档文档仅供参考，不建议在新开发中使用。
 
@@ -200,15 +253,15 @@ src/database/
 
 | 目录 | 文档数量 | 说明 |
 |------|----------|------|
-| `docs/` (根) | 5 | 核心索引文档 |
+| `docs/` (根) | 7 | 核心索引文档 |
 | `docs/guides/` | 6 | 用户指南 |
 | `docs/api/` | 3 | API 规范 |
-| `docs/deployment/` | 3 | 部署文档 |
+| `docs/deployment/` | 3 | 部署文档（已整合） |
 | `docs/features/` | 3 | 功能说明 |
 | `docs/archive/` | 3 | 归档文档 |
 | `src/database/` | 2 | 数据库文档 |
-| **总计** | **25** | - |
+| **总计** | **27** | - |
 
 ---
 
-**最后更新**: 2026-02-13
+**最后更新**: 2026-02-14
