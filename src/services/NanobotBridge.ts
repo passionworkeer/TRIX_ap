@@ -6,6 +6,7 @@
  */
 
 import ossService from './OSSService';
+import { supabase } from '../config/supabase';
 
 export interface NanobotMessage {
   msg_id?: string;
@@ -108,6 +109,30 @@ class NanobotBridge {
   }
 
   /**
+   * 获取 Supabase User ID
+   */
+  private async getSupabaseUserId(): Promise<string | null> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('[NanobotBridge] 获取 session 错误:', error);
+        return null;
+      }
+
+      if (!session || !session.user) {
+        console.warn('[NanobotBridge] 用户未登录');
+        return null;
+      }
+
+      return session.user.id;
+    } catch (error) {
+      console.error('[NanobotBridge] getSupabaseUserId 错误:', error);
+      return null;
+    }
+  }
+
+  /**
    * 绑定配对码
    */
   async bindPairingCode(code: string, userName?: string): Promise<{ success: boolean; message: string }> {
@@ -115,9 +140,15 @@ class NanobotBridge {
     this.pairingCode = code.toUpperCase();
     localStorage.setItem('nanobot_pairing_code', this.pairingCode);
 
+    // 获取 Supabase User ID
+    const userId = await this.getSupabaseUserId();
+    if (!userId) {
+      console.warn('[NanobotBridge] 未登录，将使用匿名模式');
+    }
+
     // 如果已连接，直接发送配对请求
     if (this.connected && this.ws) {
-      this.sendAppPairing();
+      this.sendAppPairing(userId || undefined);
       return { success: true, message: '正在配对...' };
     }
 
@@ -126,7 +157,7 @@ class NanobotBridge {
       const onConnected = () => {
         this.off('connected', onConnected);
         this.off('error', onError);
-        this.sendAppPairing();
+        this.sendAppPairing(userId || undefined);
         resolve({ success: true, message: '正在配对...' });
       };
 
@@ -146,12 +177,12 @@ class NanobotBridge {
   /**
    * 发送配对请求
    */
-  private sendAppPairing(): void {
+  private sendAppPairing(userId?: string): void {
     if (!this.ws || !this.pairingCode) return;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    this.ws.send(JSON.stringify({
+    const pairingData: any = {
       type: 'app_pairing',
       code: this.pairingCode,
       device_id: this.deviceId,
@@ -160,9 +191,16 @@ class NanobotBridge {
         platform: isMobile ? 'mobile' : 'web',
         user_agent: navigator.userAgent
       }
-    }));
+    };
 
-    console.log('[NanobotBridge] 发送配对请求:', this.pairingCode);
+    // 如果有 User ID，添加到请求中
+    if (userId) {
+      pairingData.user_id = userId;
+    }
+
+    this.ws.send(JSON.stringify(pairingData));
+
+    console.log('[NanobotBridge] 发送配对请求:', this.pairingCode, userId ? `(User: ${userId})` : '(匿名)');
   }
 
   /**
@@ -244,7 +282,7 @@ class NanobotBridge {
   /**
    * 处理服务器消息
    */
-  private handleMessage(data: any): void {
+  private async handleMessage(data: any): Promise<void> {
     const msgType = data.type;
 
     switch (msgType) {
@@ -252,7 +290,8 @@ class NanobotBridge {
         console.log('[NanobotBridge] 设备注册成功:', data.device_id);
         // 注册成功后发送配对请求
         if (this.pairingCode) {
-          this.sendAppPairing();
+          const userId = await this.getSupabaseUserId();
+          this.sendAppPairing(userId || undefined);
         }
         break;
 
