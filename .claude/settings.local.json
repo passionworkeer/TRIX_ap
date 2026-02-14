@@ -29,7 +29,18 @@
       "Bash(taskkill:*)",
       "Bash(set PORT=5173)",
       "Bash(powershell:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm create:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(pip install:*)",
+      "Bash(tasklist:*)",
+      "Bash(netstat:*)",
+      "Bash(start //B python web_interface_final.py)",
+      "Bash(findstr:*)",
+      "Bash(start //B cmd /c \"python web_interface_final.py && pause\")"
+    ],
+    "additionalDirectories": [
+      "e:\\desktop\\trix-3d-companion"
     ]
   }
 }
