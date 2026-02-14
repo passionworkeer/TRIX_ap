@@ -13,6 +13,7 @@ import AIActionSelector from '../components/AIActionSelector';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
+import nanobotBridge, { NanobotMessage } from '../services/NanobotBridge';
 import type { ChatMessage } from '../config/supabase';
 
 // UI Message interface
@@ -119,25 +120,33 @@ const ChatDetail: React.FC = () => {
   // 加载聊天历史
   useEffect(() => {
     const loadChatHistory = async () => {
+      // ✨ 特殊处理：Nanobot 不从数据库加载历史，直接监听 WebSocket
+      if (friendId === 'nanobot') {
+        console.log('[ChatDetail] Nanobot 模式：跳过数据库加载');
+        setLoading(false);
+        return;
+      }
+
+      // 📝 普通好友：从数据库加载历史（现有逻辑）
       try {
         setLoading(true);
-        
+
         // 获取当前用户ID（用于测试模式显示）
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setCurrentUserId(session.user.id);
-          
+
           // 计算会话ID
-          const convId = session.user.id < friendId 
-            ? `${session.user.id}_${friendId}` 
+          const convId = session.user.id < friendId
+            ? `${session.user.id}_${friendId}`
             : `${friendId}_${session.user.id}`;
           setConversationId(convId);
         }
-        
+
         const history = await getChatHistory(friendId);
         const uiMessages = history.map(convertDbMessageToUI);
         setMessages(uiMessages);
-        
+
         // 标记消息为已读
         await markMessagesAsRead(friendId);
       } catch (error) {
@@ -148,6 +157,37 @@ const ChatDetail: React.FC = () => {
     };
 
     loadChatHistory();
+  }, [friendId]);
+
+  // ✨ 监听 Nanobot 消息
+  useEffect(() => {
+    if (friendId !== 'nanobot') return;
+
+    console.log('[ChatDetail] 开始监听 Nanobot 消息');
+
+    const handleNanobotMessage = (message: NanobotMessage) => {
+      console.log('[ChatDetail] 收到 Nanobot 回复:', message);
+
+      const timeString = formatTime(new Date());
+
+      const botMessage: UIMessage = {
+        id: message.msg_id || `bot-${Date.now()}`,
+        sender: 'bot',
+        text: message.message,
+        timestamp: message.timestamp || timeString,
+        messageType: message.message_type || 'text',
+        mediaUri: message.media_url
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    };
+
+    nanobotBridge.on('message', handleNanobotMessage);
+
+    return () => {
+      console.log('[ChatDetail] 清理 Nanobot 消息监听');
+      nanobotBridge.off('message', handleNanobotMessage);
+    };
   }, [friendId]);
 
   // 实时订阅新消息 - 防抖动标准写法
@@ -288,7 +328,7 @@ const ChatDetail: React.FC = () => {
 
     const messageText = input;
 
-    // 构建媒体数据 - 优先使用 pendingMedia，否则使用 attachmentPreviews
+    // 构建媒体数据 - 必须在使用前定义！
     let mediaData: any = null;
     if (hasPendingMedia) {
       mediaData = pendingMedia;
@@ -303,6 +343,47 @@ const ChatDetail: React.FC = () => {
       };
     }
 
+    // ✨ 特殊处理：Nanobot 使用 NanobotBridge，不保存到 Supabase
+    if (friendId === 'nanobot') {
+      try {
+        // 清空输入
+        setInput('');
+        setPendingMedia(null);
+        setAttachmentPreviews([]);
+
+        const timeString = formatTime(new Date());
+
+        // 临时显示用户消息(乐观更新UI)
+        const tempUserMessage: UIMessage = {
+          id: `temp-${Date.now()}`,
+          sender: 'user',
+          text: messageText,
+          timestamp: timeString,
+          messageType: hasMedia ? 'mixed' : 'text',
+          mediaUri: mediaData?.uri,
+          mediaType: mediaData?.type
+        };
+        setMessages(prev => [...prev, tempUserMessage]);
+
+        // 使用 NanobotBridge 发送消息
+        await nanobotBridge.sendMessage(
+          messageText,
+          hasMedia && mediaData?.type ? mediaData.type : 'text',
+          mediaData?.uri
+        );
+
+        console.log('✅ Nanobot 消息已发送');
+      } catch (error) {
+        console.error('❌ Nanobot 发送消息失败:', error);
+        showError('发送失败，请重试');
+
+        // 发送失败，移除临时消息
+        setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
+      }
+      return;
+    }
+
+    // 📝 普通好友：保存到 Supabase（现有逻辑）
     setInput(''); // Clear input
     setPendingMedia(null); // Clear pending media
     setAttachmentPreviews([]); // Clear all attachment previews
