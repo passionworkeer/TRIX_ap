@@ -23,8 +23,7 @@ import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NanobotProvider } from './contexts/NanobotContext';
-// import { WebSocketProvider } from './contexts/WebSocketContext';
-// import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
+import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -133,7 +132,13 @@ function AppContent() {
              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
              <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
-             <Route path={AppRoutes.QR_PAIRING} element={<ProtectedRoute><QRCodePairing /></ProtectedRoute>} />
+             <Route path={AppRoutes.QR_PAIRING} element={
+               <ProtectedRoute>
+                 <QRCodePairingProvider>
+                   <QRCodePairing />
+                 </QRCodePairingProvider>
+               </ProtectedRoute>
+             } />
              <Route path="/nanobot-pairing" element={<ProtectedRoute><NanobotPairing /></ProtectedRoute>} />
              <Route path={AppRoutes.MAP} element={<ProtectedRoute><MapScreen /></ProtectedRoute>} />
              <Route path="/snapmap" element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
