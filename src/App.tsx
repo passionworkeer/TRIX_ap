@@ -24,6 +24,7 @@ import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NanobotProvider } from './contexts/NanobotContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -199,11 +200,13 @@ function AppContent() {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <NanobotProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
-      </NanobotProvider>
+      <WebSocketProvider>
+        <NanobotProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </NanobotProvider>
+      </WebSocketProvider>
     </AuthProvider>
   );
 };
