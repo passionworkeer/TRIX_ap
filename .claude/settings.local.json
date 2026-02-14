@@ -37,7 +37,25 @@
       "Bash(netstat:*)",
       "Bash(start //B python web_interface_final.py)",
       "Bash(findstr:*)",
-      "Bash(start //B cmd /c \"python web_interface_final.py && pause\")"
+      "Bash(start //B cmd /c \"python web_interface_final.py && pause\")",
+      "Bash(wmic:*)",
+      "Bash(pip cache:*)",
+      "Bash(du:*)",
+      "Bash(node nanobot-simple.js)",
+      "Bash(nanobot --help)",
+      "Bash(start //B cmd /c \"python web_interface_final.py &amp; pause\")",
+      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test.html\")",
+      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test-realtime.html\")",
+      "Bash(npm cache clean:*)",
+      "Bash(node scripts/test-connection.js)",
+      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test-simple.html\")",
+      "Bash(start test-simple.html)",
+      "Bash(node:*)",
+      "Bash(timeout:*)",
+      "Bash(pnpm store prune:*)",
+      "Bash(where python)",
+      "Bash(python3:*)",
+      "Bash(/c/Users/王健俊/AppData/Local/Programs/Python/Python313/python.exe -m:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
