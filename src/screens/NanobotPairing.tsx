@@ -22,40 +22,27 @@ const NanobotPairing: React.FC = () => {
   const [pairingCode, setPairingCode] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnect = async () => {
-    const code = pairingCode.trim().toUpperCase();
+  // 监听连接状态变化
+  useEffect(() => {
+    if (status === 'CONNECTED' && isConnecting) {
+      console.log('[NanobotPairing] 配对成功，准备跳转到聊天界面');
 
-    if (!code) {
-      alert('请输入配对码');
-      return;
+      // 保存连接状态标记
+      localStorage.setItem('clawbot_device_token', 'nanobot_connected');
+
+      // 跳转到聊天详情页
+      setTimeout(() => {
+        navigate(AppRoutes.CHAT_DETAIL, {
+          state: {
+            name: 'Nanobot',
+            avatar: undefined, // 使用默认头像
+            isBot: true,
+            friendId: 'nanobot'
+          }
+        });
+      }, 500);
     }
-
-    setIsConnecting(true);
-
-    try {
-      // 先绑定配对码
-      const result = await nanobotBridge.bindPairingCode(code, 'TRIX User');
-
-      if (result.success) {
-        console.log('[NanobotPairing] 配对码绑定成功，开始连接...');
-
-        // 连接到服务器
-        connect(code);
-
-        // 跳转到首页
-        setTimeout(() => {
-          navigate(AppRoutes.HOME);
-        }, 1000);
-      } else {
-        alert(result.message || '配对失败');
-        setIsConnecting(false);
-      }
-    } catch (error) {
-      console.error('[NanobotPairing] 连接失败:', error);
-      alert(error instanceof Error ? error.message : '连接失败，请重试');
-      setIsConnecting(false);
-    }
-  };
+  }, [status, isConnecting, navigate]);
 
   const handleBack = () => {
     navigate(-1);
@@ -100,6 +87,36 @@ const NanobotPairing: React.FC = () => {
         return 'text-blue-600';
       default:
         return 'text-gray-600';
+    }
+  };
+
+  const handleConnect = async () => {
+    const code = pairingCode.trim().toUpperCase();
+
+    if (!code) {
+      alert('请输入配对码');
+      return;
+    }
+
+    setIsConnecting(true);
+
+    try {
+      // 先绑定配对码
+      const result = await nanobotBridge.bindPairingCode(code, 'TRIX User');
+
+      if (result.success) {
+        console.log('[NanobotPairing] 配对码绑定成功，开始连接...');
+
+        // 连接到服务器
+        connect(code);
+      } else {
+        alert(result.message || '配对失败');
+        setIsConnecting(false);
+      }
+    } catch (error) {
+      console.error('[NanobotPairing] 连接失败:', error);
+      alert(error instanceof Error ? error.message : '连接失败，请重试');
+      setIsConnecting(false);
     }
   };
 
