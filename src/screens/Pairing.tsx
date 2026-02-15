@@ -15,6 +15,7 @@ const Pairing: React.FC = () => {
     isPaired,
     pairWithCode,
     pairWithQR,
+    unpair,
     lastError
   } = useClawbotChannel();
 
@@ -35,6 +36,15 @@ const Pairing: React.FC = () => {
       toast.success('配对成功！');
     }
   }, [isPaired]);
+
+  // 取消配对
+  const handleUnpair = () => {
+    stopScanner();
+    unpair();
+    setMode('scan');
+    setCodeInput('');
+    toast.success('已取消配对');
+  };
 
   // 停止扫码器
   const stopScanner = async () => {
@@ -239,7 +249,7 @@ const Pairing: React.FC = () => {
             <button
               onClick={handlePairWithCode}
               disabled={codeInput.length !== 6 || loading}
-              className="w-full max-w-[300px] py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full max-w-[300px] py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2 mb-3"
             >
               {loading ? (
                 <>
@@ -249,6 +259,14 @@ const Pairing: React.FC = () => {
               ) : (
                 '验证配对码'
               )}
+            </button>
+
+            {/* 取消配对按钮 */}
+            <button
+              onClick={handleUnpair}
+              className="w-full max-w-[300px] py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full font-medium transition-colors"
+            >
+              取消配对
             </button>
 
             {/* 返回扫码 */}

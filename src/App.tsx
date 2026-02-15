@@ -23,7 +23,6 @@ import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
-import { WebSocketProvider } from './contexts/WebSocketContext';
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -201,13 +200,11 @@ function AppContent() {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <WebSocketProvider>
-        <ClawbotChannelProvider>
-          <HashRouter>
-            <AppContent />
-          </HashRouter>
-        </ClawbotChannelProvider>
-      </WebSocketProvider>
+      <ClawbotChannelProvider>
+        <HashRouter>
+          <AppContent />
+        </HashRouter>
+      </ClawbotChannelProvider>
     </AuthProvider>
   );
 };

@@ -289,7 +289,12 @@ class ClawbotChannelBridge {
         return;
       }
 
-      this.socket.emit('pair_with_code', { code: code.toUpperCase() }, (response: any) => {
+      if (!this.userId) {
+        reject(new Error('用户未登录'));
+        return;
+      }
+
+      this.socket.emit('pair_with_code', { code: code.toUpperCase(), userId: this.userId }, (response: any) => {
         if (response.success) {
           console.log('[ClawbotChannel] 配对码验证成功，等待 Bot 连接');
           resolve({
@@ -314,7 +319,12 @@ class ClawbotChannelBridge {
         return;
       }
 
-      this.socket.emit('pair_with_token', { token }, (response: any) => {
+      if (!this.userId) {
+        reject(new Error('用户未登录'));
+        return;
+      }
+
+      this.socket.emit('pair_with_token', { token, userId: this.userId }, (response: any) => {
         if (response.success) {
           console.log('[ClawbotChannel] Token 验证成功，等待 Bot 连接');
           resolve({
