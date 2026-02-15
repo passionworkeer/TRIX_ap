@@ -16,6 +16,8 @@ export default function GlassDock() {
 
   return (
     <motion.div
+      role="navigation"
+      aria-label="主导航"
       // iOS 风格的弹性进出动画
       initial={{ y: 150, opacity: 0, scale: 0.9 }}
       animate={{ 
@@ -94,6 +96,8 @@ export default function GlassDock() {
             <button
               key={tab.id}
               onClick={() => navigate(tab.path)}
+              aria-label={tab.isCore ? "首页" : `${tab.id}`}
+              aria-current={isActive ? "page" : undefined}
               style={{
                 position: "relative",
                 flex: 1,
