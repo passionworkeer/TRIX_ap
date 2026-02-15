@@ -84,19 +84,31 @@ class PairingService {
   }
 
   // Clawbot 确认配对（当 App 验证配对码后）
+  // ✅ P0-#1: 同时使配对码和 Token 失效
   async completeBotPairing(pairingId, deviceId, socketId) {
-    await this.safeDbRun(`
-      UPDATE pairings
-      SET status = 'paired', socket_id = ?, paired_at = datetime('now')
-      WHERE id = ? AND device_id = ?
-    `, [socketId, pairingId, deviceId]);
+    try {
+      console.log(`[PairingService] 🔐 完成配对: pairingId=${pairingId}, deviceId=${deviceId}`);
 
-    // 使 Token 失效（一次性）
-    await this.safeDbRun(`
-      UPDATE pairings SET pairing_token = NULL WHERE id = ?
-    `, [pairingId]);
+      // ✅ 在一个 SQL 中同时更新状态和失效配对码/Token
+      await this.safeDbRun(`
+        UPDATE pairings
+        SET status = 'paired',
+            socket_id = ?,
+            paired_at = datetime('now'),
+            pairing_code = NULL,
+            pairing_token = NULL
+        WHERE id = ? AND device_id = ?
+      `, [socketId, pairingId, deviceId]);
 
-    return await this.safeDbGet('SELECT * FROM pairings WHERE id = ?', [pairingId]);
+      const pairing = await this.safeDbGet('SELECT * FROM pairings WHERE id = ?', [pairingId]);
+
+      console.log(`[PairingService] ✅ 配对完成，配对码已失效: pairingId=${pairingId}`);
+
+      return pairing;
+    } catch (err) {
+      console.error(`[PairingService] ❌ completeBotPairing 错误:`, err);
+      throw new Error(`完成配对失败: ${err.message}`);
+    }
   }
 
   // ========== 原有方法 ==========

@@ -488,7 +488,7 @@ io.on('connection', (socket) => {
 
   // ========== 消息收发逻辑 ==========
 
-  // App 发送消息
+  // ✅ P0-#2: App 发送消息（带确认机制）
   socket.on('app_message', async (data) => {
     try {
       const { content, contentType, mediaUrl } = data;
@@ -500,6 +500,12 @@ io.on('connection', (socket) => {
       if (!pairing || !pairing.device_id) {
         console.log(`[App] ❌ 用户未配对: userId=${userId}`);
         socket.emit('error', { message: 'Not paired with any bot' });
+
+        // ✅ 发送失败确认
+        socket.emit('message_sent', {
+          success: false,
+          error: 'Not paired with any bot'
+        });
         return;
       }
 
@@ -516,6 +522,12 @@ io.on('connection', (socket) => {
           mediaUrl
         });
         console.log(`[App] ✅ 消息已转发给 Bot: deviceId=${pairing.device_id}`);
+
+        // ✅ 发送成功确认
+        socket.emit('message_sent', {
+          success: true,
+          messageId: Date.now().toString()
+        });
       } else {
         console.log(`[App] ❌ Bot 离线: deviceId=${pairing.device_id}, 总 bots=${botSockets.size}`);
         socket.emit('error', {
@@ -523,10 +535,23 @@ io.on('connection', (socket) => {
           deviceId: pairing.device_id,
           hint: '请确保 Clawbot 保持连接状态。如果 Clawbot 已关闭，请重新启动并连接。'
         });
+
+        // ✅ Bot 离线也发送确认
+        socket.emit('message_sent', {
+          success: false,
+          error: 'Bot is offline',
+          deviceId: pairing.device_id
+        });
       }
     } catch (err) {
       console.error('[App] ❌ 处理消息错误:', err);
       socket.emit('error', { message: err.message });
+
+      // ✅ 异常时发送错误确认
+      socket.emit('message_sent', {
+        success: false,
+        error: err.message
+      });
     }
   });
 
