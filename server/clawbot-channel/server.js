@@ -808,6 +808,7 @@ setInterval(() => {
 }, 5 * 60 * 1000); // 每5分钟
 
 const PORT = process.env.PORT || 8765;
-server.listen(PORT, () => {
-  console.log(`Clawbot Channel Server running on port ${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';  // ✅ 监听所有网络接口，允许外部访问
+server.listen(PORT, HOST, () => {
+  console.log(`Clawbot Channel Server running on http://${HOST}:${PORT}`);
 });
