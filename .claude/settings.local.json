@@ -75,7 +75,8 @@
       "Bash(pm2 list:*)",
       "Bash(npx pm2 list)",
       "Bash(npx pm2 start:*)",
-      "Bash(npx pm2 logs:*)"
+      "Bash(npx pm2 logs:*)",
+      "Bash(npx pm2 restart:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
