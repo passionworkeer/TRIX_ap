@@ -46,8 +46,8 @@ class NanobotBridge {
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
   constructor(serverUrl?: string) {
-    // 使用环境变量或默认值
-    this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'ws://47.243.55.130:8765';
+    // 服务器地址：默认 8766 端口（避免与 clawbot-channel 8765 冲突）
+    this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'ws://47.243.55.130:8766';
     this.deviceId = this.getOrCreateDeviceId();
     console.log('[NanobotBridge] 服务器地址:', this.serverUrl);
     console.log('[NanobotBridge] 设备 ID:', this.deviceId);
