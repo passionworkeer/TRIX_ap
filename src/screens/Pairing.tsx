@@ -307,7 +307,14 @@ const Pairing: React.FC = () => {
               您的设备已成功连接
             </p>
             <button
-              onClick={() => navigate(AppRoutes.CHAT)}
+              onClick={() => navigate(AppRoutes.CHAT_DETAIL, {
+                state: {
+                  friendId: 'clawbot',
+                  name: 'TRIX Bot',
+                  avatar: IMAGES.WIZARD_BOY_LOGIN,
+                  isBot: true
+                }
+              })}
               className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
             >
               开始聊天

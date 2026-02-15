@@ -241,7 +241,7 @@ const Chat: React.FC = () => {
                                   name: 'TRIX Bot',
                                   avatar: IMAGES.WIZARD_BOY,
                                   isBot: true,
-                                  friendId: 'clawbot_channel'
+                                  friendId: 'clawbot'
                                 }
                               });
                             } else {
