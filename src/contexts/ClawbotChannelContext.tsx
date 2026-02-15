@@ -130,6 +130,15 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         });
       });
 
+      // ✅ P1-问题5: Bot 上线通知
+      clawbotChannelBridge.on('bot_online', (data: any) => {
+        console.log('[ClawbotChannel] Bot 上线:', data);
+        toast.success(data.message || 'Clawbot 已重新连接', {
+          duration: 3000,
+          id: `bot_online_${data.timestamp}`
+        });
+      });
+
       clawbotChannelBridge.on('message', (message: ClawbotChannelMessage) => {
         console.log('[ClawbotChannel] 收到 Bot 消息:', message);
         setMessages(prev => [...prev, message]);
@@ -181,7 +190,27 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     try {
       const result = await clawbotChannelBridge.pairWithCode(code);
       if (result.success) {
-        setPairingStatus('waiting_for_bot');
+        // ✅ P0-问题2: 智能状态转换和超时机制
+        if (result.status === 'paired') {
+          // 服务器已经完成配对，直接设置为 paired
+          setPairingStatus('paired');
+          return true;
+        } else {
+          // 否则设置为 waiting_for_bot，并添加超时机制
+          setPairingStatus('waiting_for_bot');
+
+          // ✅ 添加 30 秒超时机制
+          setTimeout(() => {
+            setPairingStatus(prev => {
+              if (prev === 'waiting_for_bot') {
+                setLastError('配对超时，请重试');
+                toast.error('配对超时，请重试');
+                return 'idle';
+              }
+              return prev;
+            });
+          }, 30000); // 30 秒超时
+        }
         return true;
       }
       return false;
@@ -190,7 +219,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setPairingStatus('idle');
       return false;
     }
-  }, []);
+  }, [pairingStatus]); // ✅ 依赖 pairingStatus 状态
 
   // 二维码配对
   const pairWithQR = useCallback(async (token: string): Promise<boolean> => {
