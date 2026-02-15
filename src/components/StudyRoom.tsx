@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, MessageCircle, Flame, Play, Square } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { X, Clock, User, Flame, Play, Square } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
 
@@ -26,7 +25,6 @@ interface StudyRoomProps {
 }
 
 const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
-  const navigate = useNavigate();
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFocusing, setIsFocusing] = useState(false);
@@ -137,15 +135,6 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         setStudyTime(prev => prev + 1);
       }, 1000);
       setTimerInterval(interval);
-
-      // 每 2 分钟更新一次心跳
-      const heartbeatInterval = setInterval(async () => {
-        await supabase
-          .from('study_room_members')
-          .update({ last_seen: new Date().toISOString() })
-          .eq('room_id', DEFAULT_ROOM_ID)
-          .eq('user_id', currentUserId);
-      }, 120000); // 2分钟
 
     } catch (error) {
       console.error('开始专注失败:', error);

@@ -14,7 +14,7 @@ const Profile: React.FC = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
-  const [language, setLanguage] = useState(() => {
+  const [language, setLanguage] = useState<string>(() => {
     return localStorage.getItem('language') || '简体中文';
   });
 
@@ -43,7 +43,7 @@ const Profile: React.FC = () => {
   const handleLanguageChange = () => {
     const languages = ['简体中文', 'English', '日本語'];
     const currentIndex = languages.indexOf(language);
-    const nextLanguage = languages[(currentIndex + 1) % languages.length];
+    const nextLanguage = languages[(currentIndex + 1) % languages.length] ?? '简体中文';
     setLanguage(nextLanguage);
     localStorage.setItem('language', nextLanguage);
     // TODO: 应用语言切换到 i18n 系统

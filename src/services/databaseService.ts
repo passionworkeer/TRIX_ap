@@ -105,7 +105,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
   }
 
   // 3. 检查是否已是好友
-  const { data: existing, error: existError } = await supabase
+  const { data: existing } = await supabase
     .from('friends')
     .select('id')
     .eq('user_id', currentUserId)
@@ -133,7 +133,6 @@ export async function sendFriendRequest(account: string): Promise<void> {
 }
 import { supabase } from '../config/supabase';
 import type {
-  Friend,
   ChatMessage,
   UnreadCount,
   Notification,

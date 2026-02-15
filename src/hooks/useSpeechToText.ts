@@ -134,7 +134,12 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        const text = result[0].transcript;
+        if (!result) continue;
+
+        const alternative = result[0];
+        if (!alternative) continue;
+
+        const text = alternative.transcript;
 
         if (result.isFinal) {
           finalText += text;

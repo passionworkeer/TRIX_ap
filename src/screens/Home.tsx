@@ -21,16 +21,10 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
 
-  // Data for background logic only (red dots)
-  const [unreadMailCount, setUnreadMailCount] = useState(0);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-
   useEffect(() => {
     const updateCounts = async () => {
-      const mailCount = await getUnreadMailCount();
-      const notifCount = await getUnreadNotificationCount();
-      setUnreadMailCount(mailCount);
-      setUnreadNotifCount(notifCount);
+      await getUnreadMailCount();
+      await getUnreadNotificationCount();
     };
     updateCounts();
     const interval = setInterval(updateCounts, 5000);

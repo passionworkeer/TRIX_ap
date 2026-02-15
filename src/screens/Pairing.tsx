@@ -91,7 +91,7 @@ const Pairing: React.FC = () => {
         (decodedText: string) => {
           handleScanSuccess(decodedText);
         },
-        (errorMessage: string) => {
+        () => {
           // 扫描过程中的正常错误，忽略
         }
       );

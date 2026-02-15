@@ -70,10 +70,10 @@ export const useChatMessages = ({
     const uiMessage: Message = {
       id: dbMsg.id,
       sender: dbMsg.sender,
-      text: dbMsg.content,
+      text: dbMsg.text,
       timestamp: formatTime(new Date(dbMsg.created_at)),
       messageType: dbMsg.message_type,
-      mediaUri: dbMsg.media_url || undefined,
+      mediaUri: dbMsg.media_uri || undefined,
       mediaType: dbMsg.message_type,
       mediaMetadata: dbMsg.media_metadata || undefined
     };
@@ -162,7 +162,7 @@ export const useChatMessages = ({
         sender: 'user',
         text,
         timestamp: formatTime(new Date()),
-        messageType: mediaData?.type || 'text',
+        messageType: mediaData?.type === 'image/' ? 'image' : mediaData?.type === 'video/' ? 'video' : 'text',
         mediaUri: mediaData?.uri,
         mediaType: mediaData?.type
       };
@@ -173,17 +173,20 @@ export const useChatMessages = ({
       if (mediaData) {
         // 上传媒体文件
         const category = mediaData.type.startsWith('image/') ? 'image' : 'video';
-        const uploadResult = await uploadFile(
-          await fetch(mediaData.uri).then(r => r.blob()) as File,
-          category
-        );
+        const file = await fetch(mediaData.uri).then(r => r.blob()) as File;
+        const uploadResult = await uploadFile(file, category);
 
         await sendMessageWithMedia(
           friendId,
           'user',
           text,
-          uploadResult.uri,
-          mediaData.type
+          {
+            uri: uploadResult.uri,
+            type: mediaData.type,
+            size: file.size,
+            category
+          },
+          category
         );
       } else {
         await dbSendMessage(friendId, 'user', text);

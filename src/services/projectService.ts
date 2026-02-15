@@ -34,7 +34,7 @@ class ProjectService {
   // 获取当前项目（第一个项目）
   getCurrentProject(): ProjectReport | null {
     const projects = this.getProjects();
-    return projects.length > 0 ? projects[0] : null;
+    return projects.length > 0 ? (projects[0] ?? null) : null;
   }
 
   // 计算项目进度

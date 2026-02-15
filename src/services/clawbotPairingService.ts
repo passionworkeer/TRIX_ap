@@ -6,7 +6,6 @@ import {
   PairingStatus,
   PairingStatusResponse,
   PAIRING_TIMEOUT_MS,
-  DEFAULT_QR_SIZE,
 } from '../types/clawbot';
 
 /**
@@ -134,10 +133,10 @@ class ClawbotPairingService {
    * API 文档: POST /pairing/request
    */
   private async sendPairingRequestToGateway(
-    requestId: string,
+    _requestId: string,
     deviceId: string,
     deviceName: string,
-    pairingToken: string
+    _pairingToken: string
   ): Promise<{ success: boolean; deviceToken?: string; requestId?: string; message?: string; status?: string }> {
     try {
       // 获取 API URL（自动处理代理）
@@ -520,7 +519,7 @@ class ClawbotPairingService {
 
     console.log(`[ClawbotPairingService] 开始轮询配对状态 (requestId: ${requestId})`);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.pollingTimer = setInterval(async () => {
         attempts++;
 
@@ -705,7 +704,7 @@ class ClawbotPairingService {
    * @param nodeId - 节点 ID（可选）
    * @returns 配对状态
    */
-  async checkPairingStatus(nodeId?: string): Promise<PairingStatusResponse> {
+  async checkPairingStatus(_nodeId?: string): Promise<PairingStatusResponse> {
     try {
       const deviceToken = localStorage.getItem('clawbot_device_token');
 

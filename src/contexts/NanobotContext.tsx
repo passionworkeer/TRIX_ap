@@ -152,7 +152,6 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
 
       // 添加到消息列表（用户发送的消息）
       const userMessage: NanobotMessage = {
-        code: pairingCodeRef.current || '',
         message,
         message_type: messageType,
         media_url: mediaUrl,

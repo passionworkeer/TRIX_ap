@@ -61,7 +61,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
             stopScanner();
             onClose();
           },
-          (errorMessage) => {
+          () => {
             // 扫描失败（正常情况，没扫到二维码）
             // 不需要处理，继续扫描
           }

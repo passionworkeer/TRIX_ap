@@ -73,7 +73,7 @@ export function useCamera(options: UseCameraOptions = {}) {
 
   // 检查浏览器支持
   useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    if (navigator.mediaDevices) {
       setIsSupported(true);
     } else {
       setIsSupported(false);

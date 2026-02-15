@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { LatLng, LatLngExpression } from 'leaflet';
+import { LatLng } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -58,7 +58,7 @@ const MapScreen: React.FC = () => {
           setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
           setIsLocating(false);
         },
-        (error) => {
+        () => {
           // 默认上海
           const pos = new L.LatLng(31.2304, 121.4737);
           setUserPos(pos);
