@@ -444,7 +444,15 @@ const ChatDetail: React.FC = () => {
     // Handle Bot Logic (仅用于 Bot 聊天，暂不支持媒体)
     if (isBot && !hasMedia) {
       if (isPaired) {
-        clawbotSendMessage(messageText);
+        try {
+          await clawbotSendMessage(messageText);
+          console.log('✅ Clawbot Channel 消息已发送');
+        } catch (error) {
+          console.error('❌ Clawbot Channel 发送消息失败:', error);
+          showError('发送失败，请重试');
+          // 发送失败，移除临时消息
+          setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
+        }
       } else {
         // Fallback Mock Bot Response if offline
         setTimeout(async () => {

@@ -49,50 +49,74 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
 
   // 初始化：恢复配对码并自动连接
   useEffect(() => {
+    let isMounted = true; // 防止组件卸载后更新状态
+
     const savedCode = localStorage.getItem('nanobot_pairing_code');
     if (savedCode) {
       pairingCodeRef.current = savedCode;
       console.log('[NanobotContext] 恢复配对码:', savedCode);
       // 自动连接
       setTimeout(() => {
-        connect(savedCode);
+        if (isMounted) {
+          connect(savedCode);
+        }
       }, 1000);
     }
 
     // 监听 Nanobot Bridge 事件
-    nanobotBridge.on('connected', (data: any) => {
-      console.log('[NanobotContext] 已连接:', data);
-      setStatus('CONNECTED');
-      setLastError(null);
-    });
+    const handleConnected = (data: any) => {
+      if (isMounted) {
+        console.log('[NanobotContext] 已连接:', data);
+        setStatus('CONNECTED');
+        setLastError(null);
+      }
+    };
 
-    nanobotBridge.on('disconnected', () => {
-      console.log('[NanobotContext] 已断开');
-      setStatus('DISCONNECTED');
-    });
+    const handleDisconnected = () => {
+      if (isMounted) {
+        console.log('[NanobotContext] 已断开');
+        setStatus('DISCONNECTED');
+      }
+    };
 
-    nanobotBridge.on('reconnecting', (data: any) => {
-      console.log('[NanobotContext] 重连中:', data);
-      setStatus('RECONNECTING');
-    });
+    const handleReconnecting = (data: any) => {
+      if (isMounted) {
+        console.log('[NanobotContext] 重连中:', data);
+        setStatus('RECONNECTING');
+      }
+    };
 
-    nanobotBridge.on('reconnected', (data: any) => {
-      console.log('[NanobotContext] 重连成功:', data);
-      setStatus('CONNECTED');
-    });
+    const handleReconnected = (data: any) => {
+      if (isMounted) {
+        console.log('[NanobotContext] 重连成功:', data);
+        setStatus('CONNECTED');
+      }
+    };
 
-    nanobotBridge.on('message', (message: NanobotMessage) => {
-      console.log('[NanobotContext] 收到消息:', message);
-      setMessages(prev => [...prev, message]);
-    });
+    const handleMessage = (message: NanobotMessage) => {
+      if (isMounted) {
+        console.log('[NanobotContext] 收到消息:', message);
+        setMessages(prev => [...prev, message]);
+      }
+    };
 
-    nanobotBridge.on('error', (error: any) => {
-      console.error('[NanobotContext] 错误:', error);
-      setStatus('ERROR');
-      setLastError(error.message || '连接错误');
-    });
+    const handleError = (error: any) => {
+      if (isMounted) {
+        console.error('[NanobotContext] 错误:', error);
+        setStatus('ERROR');
+        setLastError(error.message || '连接错误');
+      }
+    };
+
+    nanobotBridge.on('connected', handleConnected);
+    nanobotBridge.on('disconnected', handleDisconnected);
+    nanobotBridge.on('reconnecting', handleReconnecting);
+    nanobotBridge.on('reconnected', handleReconnected);
+    nanobotBridge.on('message', handleMessage);
+    nanobotBridge.on('error', handleError);
 
     return () => {
+      isMounted = false;
       nanobotBridge.removeAllListeners();
     };
   }, []);
