@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Timer, Plus, X, Play, Zap, Trophy, MapPin, Sparkles, Heart } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";

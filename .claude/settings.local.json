@@ -76,7 +76,8 @@
       "Bash(npx pm2 list)",
       "Bash(npx pm2 start:*)",
       "Bash(npx pm2 logs:*)",
-      "Bash(npx pm2 restart:*)"
+      "Bash(npx pm2 restart:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\find_old_files.ps1\")"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"

@@ -7,7 +7,6 @@
 import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot } from 'lucide-react';
-import { formatTime } from '../../../utils/dateFormat';
 import Avatar from '../../../components/Avatar';
 import MediaMessage from '../../../components/MediaMessage';
 
@@ -28,14 +27,12 @@ export interface Message {
 
 interface MessageListProps {
   messages: Message[];
-  currentUserId?: string;
   isBot?: boolean;
   isLoading?: boolean;
 }
 
 const MessageList: React.FC<MessageListProps> = ({
   messages,
-  currentUserId = '',
   isBot = false,
   isLoading = false
 }) => {

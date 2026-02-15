@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import heroVideo from "../assets/roles/role1/role_video.mp4";
 import sayingVideo from "../assets/roles/role1/Saying.mp4";
 

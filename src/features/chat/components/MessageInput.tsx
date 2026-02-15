@@ -6,7 +6,7 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, MicOff, X, Image } from 'lucide-react';
+import { Send, Mic, MicOff, Image } from 'lucide-react';
 import { useSpeechToText } from '../../../hooks/useSpeechToText';
 import MediaPreview from './MediaPreview';
 
@@ -34,16 +34,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
   placeholder = '输入消息...'
 }) => {
   const [pendingMedia, setPendingMedia] = useState<MediaData | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 语音识别
   const {
     isListening,
-    transcript,
     startListening,
-    stopListening,
-    isSupported
+    stopListening
   } = useSpeechToText({
     lang: 'zh-CN',
     continuous: false,
