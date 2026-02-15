@@ -4,6 +4,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const { initDatabase } = require('./config/database');
 const pairingService = require('./services/pairingService');
@@ -17,7 +19,12 @@ const io = new Server(server, {
     origin: '*',
     methods: ['GET', 'POST']
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  pingInterval: 30000,  // ✅ 统一为 30 秒发送一次心跳
+  pingTimeout: 60000,   // 60 秒超时（增加容错）
+  upgradeTimeout: 30000, // 升级超时 30 秒
+  allowUpgrades: true,
+  cookie: false
 });
 
 // 存储 Clawbot socket 连接 (deviceId -> socket)
@@ -26,16 +33,66 @@ const botSockets = new Map();
 const pairingToDevice = new Map();
 
 // Multer 配置（内存存储）
+// ✅ #6: 文件上传类型验证
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    // 允许的文件类型
+    const allowedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/mpeg',
+      'video/webm',
+      'application/pdf'
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      console.log(`[Upload] ❌ 拒绝文件类型: ${file.mimetype}`);
+      cb(new Error(`不支持的文件类型: ${file.mimetype}`));
+    }
   }
 });
 
 // 中间件
 app.use(cors());
 app.use(express.json());
+
+// ✅ #7: 速率限制（防止滥用）
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 100, // 最多 100 个请求
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
+// 配对接口速率限制（更严格）
+const pairingLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 分钟
+  max: 10, // 最多 10 次配对请求
+  message: 'Too many pairing attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 文件上传速率限制
+const uploadLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 分钟
+  max: 20, // 最多 20 次上传
+  message: 'Too many upload attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // 初始化数据库
 initDatabase();
@@ -44,36 +101,51 @@ initDatabase();
 
 // 健康检查
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  console.log(`[Health] ✅ 健康检查 ${new Date().toISOString()}`);
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Clawbot Webhook回调（接收AI回复）
 app.post('/webhook/clawbot', async (req, res) => {
   const { deviceId, content, contentType, mediaUrl } = req.body;
 
-  // 验证密钥
-  const authHeader = req.headers['x-webhook-secret'];
-  if (authHeader !== process.env.CLAWBOT_WEBHOOK_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  console.log(`[Webhook] 📩 收到 Webhook, deviceId: ${deviceId}, content: ${content?.substring(0, 50)}...`);
+
+  try {
+    // 验证密钥
+    const authHeader = req.headers['x-webhook-secret'];
+    if (authHeader !== process.env.CLAWBOT_WEBHOOK_SECRET) {
+      console.log(`[Webhook] ❌ Webhook 密钥验证失败`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const pairing = await pairingService.getPairingByDeviceId(deviceId);
+    if (!pairing) {
+      console.log(`[Webhook] ❌ 配对记录不存在: ${deviceId}`);
+      return res.status(404).json({ error: 'Pairing not found' });
+    }
+
+    // 保存消息
+    await messageService.saveMessage(pairing.id, 'bot_to_app', content, contentType, mediaUrl);
+
+    // 转发到 App（通过 Socket.io Room）
+    io.to(`user_${pairing.user_id}`).emit('bot_message', {
+      content,
+      contentType,
+      mediaUrl,
+      timestamp: Date.now()
+    });
+
+    console.log(`[Webhook] ✅ 消息已转发给用户 ${pairing.user_id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[Webhook] ❌ 错误:`, err);
+    res.status(500).json({ error: err.message });
   }
-
-  const pairing = await pairingService.getPairingByDeviceId(deviceId);
-  if (!pairing) {
-    return res.status(404).json({ error: 'Pairing not found' });
-  }
-
-  // 保存消息
-  await messageService.saveMessage(pairing.id, 'bot_to_app', content, contentType, mediaUrl);
-
-  // 转发到 App（通过 Socket.io Room）
-  io.to(`user_${pairing.user_id}`).emit('bot_message', {
-    content,
-    contentType,
-    mediaUrl,
-    timestamp: Date.now()
-  });
-
-  res.json({ success: true });
 });
 
 // 获取预签名URL（供Clawbot下载文件）
@@ -95,32 +167,37 @@ app.get('/oss/signed-url', async (req, res) => {
 });
 
 // 文件上传接口（App 上传图片/视频）
-app.post('/upload', upload.single('file'), async (req, res) => {
+app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
+    console.log(`[Upload] 📤 收到上传请求`);
+
     if (!req.file) {
+      console.log(`[Upload] ❌ 没有文件`);
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
     const { buffer, originalname, mimetype } = req.file;
     const { userId } = req.body;
 
+    console.log(`[Upload] 📁 文件: ${originalname}, 类型: ${mimetype}, 大小: ${buffer.length} bytes`);
+
     // 上传到 OSS
     const result = await ossService.uploadFile(buffer, originalname, mimetype);
     if (!result) {
+      console.log(`[Upload] ❌ OSS 上传失败`);
       return res.status(500).json({ error: 'Upload failed' });
     }
 
     // 返回文件URL和objectKey
+    console.log(`[Upload] ✅ 上传成功: ${result.objectKey}`);
     res.json({
       success: true,
       url: result.url,
       objectKey: result.objectKey,
       contentType: mimetype
     });
-
-    console.log(`[Upload] File uploaded by user ${userId}: ${result.objectKey}`);
   } catch (err) {
-    console.error('[Upload] Error:', err);
+    console.error('[Upload] ❌ 错误:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,7 +235,7 @@ app.post('/upload/base64', async (req, res) => {
 // ===== Socket.io =====
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log(`[Socket.io] ✅ 客户端已连接: ${socket.id}, 当前总连接数: ${io.sockets.sockets.size}`);
 
   // ========== Clawbot 连接逻辑 ==========
 
@@ -167,12 +244,14 @@ io.on('connection', (socket) => {
     try {
       const { deviceId } = data;
 
+      console.log(`[Bot] 🤖 Clawbot 请求配对: deviceId=${deviceId}, socket=${socket.id}`);
+
       // 检查是否已有配对记录
       const existingPairing = await pairingService.getPairingByDeviceId(deviceId);
 
       if (existingPairing && existingPairing.status === 'paired') {
         // Clawbot 已配对，恢复连接
-        console.log(`[Bot] Clawbot ${deviceId} reconnecting, restoring pairing`);
+        console.log(`[Bot] ♻️ Clawbot ${deviceId} 重连，恢复配对, userId=${existingPairing.user_id}`);
 
         // 更新 socket
         botSockets.set(deviceId, socket);
@@ -186,7 +265,7 @@ io.on('connection', (socket) => {
           userId: existingPairing.user_id
         });
 
-        console.log(`[Bot] Pairing restored for ${deviceId}, total bots: ${botSockets.size}`);
+        console.log(`[Bot] ✅ 配对已恢复: ${deviceId}, 总 bots: ${botSockets.size}`);
         if (typeof callback === 'function') {
           callback({ success: true, restored: true });
         }
@@ -194,6 +273,7 @@ io.on('connection', (socket) => {
       }
 
       // 创建新的配对记录（没有 userId，等待 App 连接）
+      console.log(`[Bot] 🔐 生成新配对: deviceId=${deviceId}`);
       const pairing = await pairingService.createBotPairing(deviceId);
       const { qrData, qrImage } = await pairingService.generateQRCodeData(pairing.pairingToken);
 
@@ -214,14 +294,13 @@ io.on('connection', (socket) => {
         expiresIn: parseInt(process.env.PAIRING_TOKEN_EXPIRY) / 1000
       });
 
-      console.log(`[Bot] Pairing generated: ${pairing.pairingCode} for device ${deviceId}`);
-      console.log(`[Bot] Socket stored for device ${deviceId}, total bots: ${botSockets.size}`);
+      console.log(`[Bot] ✅ 配对码已生成: ${pairing.pairingCode}, device=${deviceId}, 总 bots: ${botSockets.size}`);
 
       if (typeof callback === 'function') {
         callback({ success: true, restored: false });
       }
     } catch (err) {
-      console.error('[Bot] Error generating pairing:', err);
+      console.error('[Bot] ❌ 生成配对失败:', err);
       if (typeof callback === 'function') {
         callback({ success: false, error: err.message });
       }
@@ -278,28 +357,44 @@ io.on('connection', (socket) => {
     const { userId } = data;
     socket.userId = userId;
     socket.join(`user_${userId}`);
-    console.log(`App registered: user_${userId}`);
+    console.log(`[App] 📱 App 注册: userId=${userId}, socket=${socket.id}`);
   });
 
   // App 通过配对码配对
   socket.on('pair_with_code', async (data, callback) => {
     try {
       const { code, userId } = data;
-      console.log(`[App] Pair with code: ${code}, userId: ${userId}`);
+      console.log(`[App] 🔑 配对码验证请求: code=${code}, userId=${userId}, socket=${socket.id}`);
 
       const result = await pairingService.verifyPairingCode(code);
 
       if (!result.success) {
-        console.log(`[App] Pairing code invalid: ${code}`);
+        console.log(`[App] ❌ 配对码无效或已过期: ${code}`);
         if (typeof callback === 'function') {
           return callback(result);
         }
         return;
       }
 
+      console.log(`[App] ✅ 配对码验证成功: code=${code}, pairingId=${result.pairing.id}, deviceId=${result.pairing.device_id}`);
+
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
-      console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
+      console.log(`[App] 🔗 用户已绑定: userId=${userId}, pairingId=${result.pairing.id}`);
+
+      // ✅ 检查 Bot 是否在线
+      if (!botSockets.has(result.pairing.device_id)) {
+        console.log(`[App] ❌ Bot 离线，无法完成配对: deviceId=${result.pairing.device_id}, 总 bots=${botSockets.size}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Clawbot is offline. Please ensure Clawbot is connected and try pairing again.'
+          });
+        }
+        return;
+      }
+
+      console.log(`[App] ✅ Bot 在线 (${result.pairing.device_id})，正在完成配对...`);
 
       // ✅ 直接完成配对（不再等待 Clawbot 额外确认）
       await pairingService.completeBotPairing(result.pairing.id, result.pairing.device_id, socket.id);
@@ -311,7 +406,7 @@ io.on('connection', (socket) => {
         pairingId: result.pairing.id
       });
 
-      console.log(`[App] Pairing success: ${result.pairing.pairing_code}, user: ${userId}`);
+      console.log(`[App] 🎉 配对成功: code=${code}, userId=${userId}, deviceId=${result.pairing.device_id}`);
 
       if (typeof callback === 'function') {
         callback({
@@ -321,7 +416,7 @@ io.on('connection', (socket) => {
         });
       }
     } catch (err) {
-      console.error('[App] Pair with code error:', err);
+      console.error('[App] ❌ 配对码验证错误:', err);
       if (typeof callback === 'function') {
         callback({ success: false, error: err.message });
       }
@@ -332,21 +427,37 @@ io.on('connection', (socket) => {
   socket.on('pair_with_token', async (data, callback) => {
     try {
       const { token, userId } = data;
-      console.log(`[App] Pair with token, userId: ${userId}`);
+      console.log(`[App] 📱 二维码 Token 验证请求: userId=${userId}, socket=${socket.id}`);
 
       const result = await pairingService.verifyPairingToken(token);
 
       if (!result.success) {
-        console.log(`[App] Pairing token invalid`);
+        console.log(`[App] ❌ Token 无效或已过期`);
         if (typeof callback === 'function') {
           return callback(result);
         }
         return;
       }
 
+      console.log(`[App] ✅ Token 验证成功: pairingId=${result.pairing.id}, deviceId=${result.pairing.device_id}`);
+
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
-      console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
+      console.log(`[App] 🔗 用户已绑定: userId=${userId}, pairingId=${result.pairing.id}`);
+
+      // ✅ 检查 Bot 是否在线
+      if (!botSockets.has(result.pairing.device_id)) {
+        console.log(`[App] ❌ Bot 离线，无法完成配对: deviceId=${result.pairing.device_id}, 总 bots=${botSockets.size}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Clawbot is offline. Please ensure Clawbot is connected and try pairing again.'
+          });
+        }
+        return;
+      }
+
+      console.log(`[App] ✅ Bot 在线 (${result.pairing.device_id})，正在完成配对...`);
 
       // ✅ 直接完成配对（不再等待 Clawbot 额外确认）
       await pairingService.completeBotPairing(result.pairing.id, result.pairing.device_id, socket.id);
@@ -358,7 +469,7 @@ io.on('connection', (socket) => {
         pairingId: result.pairing.id
       });
 
-      console.log(`[App] Pairing success: ${result.pairing.id}, user: ${userId}`);
+      console.log(`[App] 🎉 二维码配对成功: userId=${userId}, deviceId=${result.pairing.device_id}`);
 
       if (typeof callback === 'function') {
         callback({
@@ -368,7 +479,7 @@ io.on('connection', (socket) => {
         });
       }
     } catch (err) {
-      console.error('[App] Pair with token error:', err);
+      console.error('[App] ❌ Token 验证错误:', err);
       if (typeof callback === 'function') {
         callback({ success: false, error: err.message });
       }
@@ -383,8 +494,11 @@ io.on('connection', (socket) => {
       const { content, contentType, mediaUrl } = data;
       const userId = socket.userId;
 
+      console.log(`[App] 📤 收到消息: userId=${userId}, type=${contentType}, content=${content?.substring(0, 50)}...`);
+
       const pairing = await pairingService.getPairingByUserId(userId);
       if (!pairing || !pairing.device_id) {
+        console.log(`[App] ❌ 用户未配对: userId=${userId}`);
         socket.emit('error', { message: 'Not paired with any bot' });
         return;
       }
@@ -401,9 +515,9 @@ io.on('connection', (socket) => {
           contentType,
           mediaUrl
         });
-        console.log(`[App] Message forwarded to bot ${pairing.device_id}`);
+        console.log(`[App] ✅ 消息已转发给 Bot: deviceId=${pairing.device_id}`);
       } else {
-        console.log(`[App] Bot offline: ${pairing.device_id}, total bots: ${botSockets.size}`);
+        console.log(`[App] ❌ Bot 离线: deviceId=${pairing.device_id}, 总 bots=${botSockets.size}`);
         socket.emit('error', {
           message: 'Bot is offline',
           deviceId: pairing.device_id,
@@ -411,6 +525,7 @@ io.on('connection', (socket) => {
         });
       }
     } catch (err) {
+      console.error('[App] ❌ 处理消息错误:', err);
       socket.emit('error', { message: err.message });
     }
   });
@@ -420,17 +535,18 @@ io.on('connection', (socket) => {
     try {
       const { deviceId, content, contentType, mediaUrl } = data;
 
+      console.log(`[Bot] 📤 收到消息: deviceId=${deviceId}, type=${contentType}, content=${content?.substring(0, 50)}...`);
+
       // 验证 Clawbot 已配对
       const pairing = await pairingService.getPairingByDeviceId(deviceId);
       if (!pairing || pairing.status !== 'paired') {
+        console.log(`[Bot] ❌ Bot 未配对或状态无效: deviceId=${deviceId}, status=${pairing?.status}`);
         socket.emit('error', {
           message: 'Not paired or invalid pairing status',
           deviceId
         });
         return;
       }
-
-      console.log(`[Bot] Message from ${deviceId}: ${content}`);
 
       // 保存消息到数据库
       await messageService.saveMessage(pairing.id, 'bot_to_app', content, contentType, mediaUrl);
@@ -443,12 +559,14 @@ io.on('connection', (socket) => {
         timestamp: Date.now()
       });
 
+      console.log(`[Bot] ✅ 消息已转发给用户: userId=${pairing.user_id}`);
+
       socket.emit('message_sent', {
         success: true,
         messageId: Date.now().toString()
       });
     } catch (err) {
-      console.error('[Bot] Error sending message:', err);
+      console.error('[Bot] ❌ 发送消息错误:', err);
       socket.emit('message_sent', {
         success: false,
         error: err.message
@@ -479,16 +597,16 @@ io.on('connection', (socket) => {
 
   // 断开连接
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log(`[Socket.io] ❌ 客户端已断开: ${socket.id}, 剩余连接数: ${io.sockets.sockets.size - 1}`);
 
     if (socket.deviceId) {
-      console.log(`[Bot] Clawbot disconnected: ${socket.deviceId}`);
+      console.log(`[Bot] ❌ Clawbot 已断开: ${socket.deviceId}`);
       botSockets.delete(socket.deviceId);
-      console.log(`[Bot] Total bots remaining: ${botSockets.size}`);
+      console.log(`[Bot] 🔢 剩余 Bots: ${botSockets.size}`);
     }
 
     if (socket.userId) {
-      console.log(`[App] App disconnected: user_${socket.userId}`);
+      console.log(`[App] ❌ App 已断开: userId=${socket.userId}`);
     }
   });
 });
