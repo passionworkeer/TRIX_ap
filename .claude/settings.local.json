@@ -67,7 +67,9 @@
       "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' -Force\")",
       "Bash(powershell.exe -Command \"scp -o StrictHostKeyChecking=no ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' root@TRIX_SERVER_HOST:/opt/clawbot-channel/\")",
       "Bash(powershell.exe -Command \"ssh root@TRIX_SERVER_HOST ''head -5 /opt/clawbot-channel/services/ossService.js''\")",
-      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel-update.zip'' -Force\")"
+      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel-update.zip'' -Force\")",
+      "Bash(where ssh)",
+      "Bash(rsync:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
