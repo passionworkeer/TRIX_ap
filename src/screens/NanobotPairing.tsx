@@ -7,7 +7,7 @@
  * 3. 配对成功后跳转到首页
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { KeyRound, Loader2, CheckCircle, XCircle, ArrowLeft, Link as LinkIcon } from 'lucide-react';
