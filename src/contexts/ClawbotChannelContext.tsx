@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import clawbotChannelBridge, { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
 import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 
 export type ConnectionStatus =
   | 'DISCONNECTED'
@@ -118,6 +119,15 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         console.log('[ClawbotChannel] 已解绑');
         setPairingStatus('idle');
         setDeviceId('');
+      });
+
+      // ✅ P1-#5: Bot 离线通知
+      clawbotChannelBridge.on('bot_offline', (data: any) => {
+        console.log('[ClawbotChannel] Bot 离线:', data);
+        toast.error(data.message || 'Clawbot 已离线', {
+          duration: 5000,
+          id: `bot_offline_${data.timestamp}`
+        });
       });
 
       clawbotChannelBridge.on('message', (message: ClawbotChannelMessage) => {

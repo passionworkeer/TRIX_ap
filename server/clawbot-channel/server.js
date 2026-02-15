@@ -358,6 +358,66 @@ io.on('connection', (socket) => {
     socket.userId = userId;
     socket.join(`user_${userId}`);
     console.log(`[App] 📱 App 注册: userId=${userId}, socket=${socket.id}`);
+
+    // ✅ P0-#4: 检查用户是否已有配对状态
+    try {
+      const pairing = await pairingService.getPairingByUserId(userId);
+      if (pairing && pairing.status === 'paired' && pairing.device_id) {
+        console.log(`[App] ✅ 用户 ${userId} 已配对，发送配对状态: deviceId=${pairing.device_id}`);
+        // 发送配对成功事件（前端 Bridge 监听 'pairing_success'，Context 监听 'paired'）
+        socket.emit('pairing_success', {
+          deviceId: pairing.device_id,
+          deviceName: pairing.device_name || 'Clawbot'
+        });
+      } else {
+        console.log(`[App] ℹ️ 用户 ${userId} 尚未配对`);
+      }
+    } catch (err) {
+      console.error(`[App] ❌ 检查配对状态失败:`, err);
+    }
+  });
+
+  // ✅ P0-#4: 配对状态查询接口
+  socket.on('check_pairing_status', async (data, callback) => {
+    const { userId } = data;
+    console.log(`[App] 🔍 配对状态查询请求: userId=${userId}, socket=${socket.id}`);
+
+    try {
+      if (!userId || typeof userId !== 'string') {
+        return callback?.({
+          success: false,
+          error: 'Invalid user ID'
+        });
+      }
+
+      const pairing = await pairingService.getPairingByUserId(userId);
+      if (pairing && pairing.status === 'paired') {
+        // 检查 Bot 是否在线
+        const botOnline = botSockets.has(pairing.device_id);
+        console.log(`[App] ✅ 配对状态: userId=${userId}, deviceId=${pairing.device_id}, botOnline=${botOnline}`);
+
+        callback?.({
+          success: true,
+          paired: true,
+          deviceId: pairing.device_id,
+          deviceName: pairing.device_name || 'Clawbot',
+          botOnline: botOnline,
+          pairedAt: pairing.paired_at
+        });
+      } else {
+        console.log(`[App] ℹ️ 用户 ${userId} 尚未配对`);
+        callback?.({
+          success: true,
+          paired: false
+        });
+      }
+    } catch (err) {
+      console.error(`[App] ❌ 配对状态查询失败:`, err);
+      callback?.({
+        success: false,
+        error: err.message
+      });
+    }
   });
 
   // App 通过配对码配对
