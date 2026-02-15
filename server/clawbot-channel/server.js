@@ -259,11 +259,15 @@ io.on('connection', (socket) => {
         socket.isBot = true;
         socket.pairingId = existingPairing.id;
 
-        // 通知 Clawbot 配对已恢复
-        socket.emit('pairing_restored', {
-          pairingId: existingPairing.id,
-          userId: existingPairing.user_id
-        });
+        // ✅ P1-问题5: 通知 App Bot 已上线
+        if (existingPairing.user_id) {
+          io.to(`user_${existingPairing.user_id}`).emit('bot_online', {
+            deviceId,
+            message: 'Clawbot 已重新连接',
+            timestamp: Date.now()
+          });
+          console.log(`[Bot] 📢 通知用户 ${existingPairing.user_id}: Bot ${deviceId} 已上线`);
+        }
 
         console.log(`[Bot] ✅ 配对已恢复: ${deviceId}, 总 bots: ${botSockets.size}`);
         if (typeof callback === 'function') {
@@ -355,6 +359,13 @@ io.on('connection', (socket) => {
   // App 注册
   socket.on('app_register', async (data) => {
     const { userId } = data;
+
+    // ✅ P1-问题4: 检查是否已注册（避免重复）
+    if (socket.userId && socket.userId === userId) {
+      console.log(`[App] ℹ️ 用户 ${userId} 已注册，跳过重复注册`);
+      return;
+    }
+
     socket.userId = userId;
     socket.join(`user_${userId}`);
     console.log(`[App] 📱 App 注册: userId=${userId}, socket=${socket.id}`);
@@ -475,11 +486,7 @@ io.on('connection', (socket) => {
 
       console.log(`[App] ✅ 配对码验证成功: code=${code}, pairingId=${result.pairing.id}, deviceId=${result.pairing.device_id}`);
 
-      // 绑定 userId 到配对记录
-      await pairingService.bindUserToPairing(result.pairing.id, userId);
-      console.log(`[App] 🔗 用户已绑定: userId=${userId}, pairingId=${result.pairing.id}`);
-
-      // ✅ 检查 Bot 是否在线
+      // ✅ P1-问题3: 先检查 Bot 是否在线，再绑定用户
       if (!botSockets.has(result.pairing.device_id)) {
         console.log(`[App] ❌ Bot 离线，无法完成配对: deviceId=${result.pairing.device_id}, 总 bots=${botSockets.size}`);
         if (typeof callback === 'function') {
@@ -491,7 +498,11 @@ io.on('connection', (socket) => {
         return;
       }
 
-      console.log(`[App] ✅ Bot 在线 (${result.pairing.device_id})，正在完成配对...`);
+      console.log(`[App] ✅ Bot 在线 (${result.pairing.device_id})，继续配对...`);
+
+      // 绑定 userId 到配对记录
+      await pairingService.bindUserToPairing(result.pairing.id, userId);
+      console.log(`[App] 🔗 用户已绑定: userId=${userId}, pairingId=${result.pairing.id}`);
 
       // ✅ 直接完成配对（不再等待 Clawbot 额外确认）
       await pairingService.completeBotPairing(result.pairing.id, result.pairing.device_id, socket.id);
@@ -625,19 +636,20 @@ io.on('connection', (socket) => {
   // ✅ P0-#2: App 发送消息（带确认机制）
   socket.on('app_message', async (data) => {
     try {
-      const { content, contentType, mediaUrl } = data;
+      const { content, contentType, mediaUrl, messageId } = data; // ✅ P0-问题1: 接收 messageId
       const userId = socket.userId;
 
-      console.log(`[App] 📤 收到消息: userId=${userId}, type=${contentType}, content=${content?.substring(0, 50)}...`);
+      console.log(`[App] 📤 收到消息: userId=${userId}, type=${contentType}, messageId=${messageId}, content=${content?.substring(0, 50)}...`);
 
       const pairing = await pairingService.getPairingByUserId(userId);
       if (!pairing || !pairing.device_id) {
         console.log(`[App] ❌ 用户未配对: userId=${userId}`);
         socket.emit('error', { message: 'Not paired with any bot' });
 
-        // ✅ 发送失败确认
+        // ✅ P0-问题1: 发送失败确认（带 messageId）
         socket.emit('message_sent', {
           success: false,
+          messageId, // ✅ 返回 messageId
           error: 'Not paired with any bot'
         });
         return;
@@ -660,7 +672,7 @@ io.on('connection', (socket) => {
         // ✅ 发送成功确认
         socket.emit('message_sent', {
           success: true,
-          messageId: Date.now().toString()
+          messageId // ✅ 返回 messageId
         });
       } else {
         console.log(`[App] ❌ Bot 离线: deviceId=${pairing.device_id}, 总 bots=${botSockets.size}`);
@@ -670,9 +682,10 @@ io.on('connection', (socket) => {
           hint: '请确保 Clawbot 保持连接状态。如果 Clawbot 已关闭，请重新启动并连接。'
         });
 
-        // ✅ Bot 离线也发送确认
+        // ✅ P0-问题1: Bot 离线确认（带 messageId）
         socket.emit('message_sent', {
           success: false,
+          messageId, // ✅ 返回 messageId
           error: 'Bot is offline',
           deviceId: pairing.device_id
         });
@@ -681,9 +694,10 @@ io.on('connection', (socket) => {
       console.error('[App] ❌ 处理消息错误:', err);
       socket.emit('error', { message: err.message });
 
-      // ✅ 异常时发送错误确认
+      // ✅ P0-问题1: 异常时发送错误确认（带 messageId）
       socket.emit('message_sent', {
         success: false,
+        messageId, // ✅ 返回 messageId
         error: err.message
       });
     }

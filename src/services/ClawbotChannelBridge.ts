@@ -186,8 +186,16 @@ class ClawbotChannelBridge {
       this.reconnectAttempts = 0;
       this.startHeartbeat();
 
-      // 注册 App
-      this.socket?.emit('app_register', { userId: this.userId });
+      // ✅ P1-问题4: 防抖机制，避免重复注册
+      if (this.registerTimeout) {
+        clearTimeout(this.registerTimeout);
+      }
+      this.registerTimeout = setTimeout(() => {
+        if (this.userId) {
+          console.log('[ClawbotChannel] 📱 注册 App: userId=' + this.userId);
+          this.socket?.emit('app_register', { userId: this.userId });
+        }
+      }, 100); // 100ms 防抖
 
       this.emit('connected');
     });
@@ -228,6 +236,12 @@ class ClawbotChannelBridge {
     this.socket.on('bot_offline', (data: { deviceId: string; message: string; timestamp: number }) => {
       console.log('[ClawbotChannel] 📴 Bot 离线:', data);
       this.emit('bot_offline', data);
+    });
+
+    // ✅ P1-问题5: Bot 上线通知
+    this.socket.on('bot_online', (data: { deviceId: string; message: string; timestamp: number }) => {
+      console.log('[ClawbotChannel] 🟢 Bot 上线:', data);
+      this.emit('bot_online', data);
     });
 
     // 被解绑
@@ -340,25 +354,37 @@ class ClawbotChannelBridge {
 
       const messageId = generateMessageId();
 
-      // 监听消息发送确认
+      // ✅ P0-问题1: 使用 on() + 消息ID匹配，而不是 once()
+      // 防止其他消息的确认干扰当前消息
       const timeout = setTimeout(() => {
+        // ✅ 清除监听器
+        this.socket?.off('message_sent', handler);
         reject(new Error('消息发送超时'));
       }, 10000); // 10 秒超时
 
-      this.socket.once('message_sent', (response: { success: boolean; messageId?: string; error?: string }) => {
-        clearTimeout(timeout);
-        if (response.success) {
-          console.log('[ClawbotChannel] ✅ 消息已确认:', messageId);
-          resolve();
-        } else {
-          reject(new Error(response.error || '消息发送失败'));
+      // ✅ 使用 on() 并手动过滤消息ID
+      const handler = (response: { success: boolean; messageId?: string; error?: string }) => {
+        // ✅ 只处理当前消息的确认
+        if (response.messageId === messageId) {
+          clearTimeout(timeout);
+          this.socket?.off('message_sent', handler); // ✅ 清除监听器
+
+          if (response.success) {
+            console.log('[ClawbotChannel] ✅ 消息已确认:', messageId);
+            resolve();
+          } else {
+            reject(new Error(response.error || '消息发送失败'));
+          }
         }
-      });
+      };
+
+      this.socket.on('message_sent', handler);
 
       this.socket.emit('app_message', {
         content,
         contentType,
-        mediaUrl
+        mediaUrl,
+        messageId // ✅ 发送消息ID
       });
 
       console.log('[ClawbotChannel] 📤 消息已发送:', messageId);
