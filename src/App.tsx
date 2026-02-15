@@ -16,13 +16,12 @@ import DiagnosticAdvanced from './screens/DiagnosticAdvanced';
 import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import QRCodePairing from './screens/QRCodePairing';
-import NanobotPairing from './screens/NanobotPairing';
 import MapScreen from './screens/Map';
 import SnapMapScreen from './screens/SnapMapScreen';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { NanobotProvider } from './contexts/NanobotContext';
+import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 
@@ -65,6 +64,9 @@ function AppContent() {
 
   // 判断是否在认证页面 (登录/注册)
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
+
+  // 判断是否在配对页面
+  const isPairingPage = location.pathname === AppRoutes.PAIRING;
 
   // 切换导航栏和快拍卡片显示状态
   const toggleDock = () => {
@@ -112,7 +114,7 @@ function AppContent() {
         style={{ 
           zIndex: 10,
           // 首页完全透明，其他页面浅灰
-          backgroundColor: isHomePage ? 'transparent' : '#f2f4f6'
+          backgroundColor: (isHomePage || isPairingPage) ? 'transparent' : '#f2f4f6'
         }}
       >
         
@@ -140,7 +142,6 @@ function AppContent() {
                  </QRCodePairingProvider>
                </ProtectedRoute>
              } />
-             <Route path="/nanobot-pairing" element={<ProtectedRoute><NanobotPairing /></ProtectedRoute>} />
              <Route path={AppRoutes.MAP} element={<ProtectedRoute><MapScreen /></ProtectedRoute>} />
              <Route path="/snapmap" element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
@@ -201,11 +202,11 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <WebSocketProvider>
-        <NanobotProvider>
+        <ClawbotChannelProvider>
           <HashRouter>
             <AppContent />
           </HashRouter>
-        </NanobotProvider>
+        </ClawbotChannelProvider>
       </WebSocketProvider>
     </AuthProvider>
   );
