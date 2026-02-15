@@ -167,6 +167,30 @@ io.on('connection', (socket) => {
     try {
       const { deviceId } = data;
 
+      // 检查是否已有配对记录
+      const existingPairing = await pairingService.getPairingByDeviceId(deviceId);
+
+      if (existingPairing && existingPairing.status === 'paired') {
+        // Clawbot 已配对，恢复连接
+        console.log(`[Bot] Clawbot ${deviceId} reconnecting, restoring pairing`);
+
+        // 更新 socket
+        botSockets.set(deviceId, socket);
+        socket.deviceId = deviceId;
+        socket.isBot = true;
+        socket.pairingId = existingPairing.id;
+
+        // 通知 Clawbot 配对已恢复
+        socket.emit('pairing_restored', {
+          pairingId: existingPairing.id,
+          userId: existingPairing.user_id
+        });
+
+        console.log(`[Bot] Pairing restored for ${deviceId}, total bots: ${botSockets.size}`);
+        callback({ success: true, restored: true });
+        return;
+      }
+
       // 创建新的配对记录（没有 userId，等待 App 连接）
       const pairing = await pairingService.createBotPairing(deviceId);
       const { qrData, qrImage } = await pairingService.generateQRCodeData(pairing.pairingToken);
@@ -191,7 +215,7 @@ io.on('connection', (socket) => {
       console.log(`[Bot] Pairing generated: ${pairing.pairingCode} for device ${deviceId}`);
       console.log(`[Bot] Socket stored for device ${deviceId}, total bots: ${botSockets.size}`);
 
-      callback({ success: true });
+      callback({ success: true, restored: false });
     } catch (err) {
       console.error('[Bot] Error generating pairing:', err);
       callback({ success: false, error: err.message });
@@ -356,8 +380,14 @@ io.on('connection', (socket) => {
           contentType,
           mediaUrl
         });
+        console.log(`[App] Message forwarded to bot ${pairing.device_id}`);
       } else {
-        socket.emit('error', { message: 'Bot is offline' });
+        console.log(`[App] Bot offline: ${pairing.device_id}, total bots: ${botSockets.size}`);
+        socket.emit('error', {
+          message: 'Bot is offline',
+          deviceId: pairing.device_id,
+          hint: '请确保 Clawbot 保持连接状态。如果 Clawbot 已关闭，请重新启动并连接。'
+        });
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
@@ -388,8 +418,15 @@ io.on('connection', (socket) => {
   // 断开连接
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+
     if (socket.deviceId) {
+      console.log(`[Bot] Clawbot disconnected: ${socket.deviceId}`);
       botSockets.delete(socket.deviceId);
+      console.log(`[Bot] Total bots remaining: ${botSockets.size}`);
+    }
+
+    if (socket.userId) {
+      console.log(`[App] App disconnected: user_${socket.userId}`);
     }
   });
 });

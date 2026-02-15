@@ -55,7 +55,19 @@
       "Bash(pnpm store prune:*)",
       "Bash(where python)",
       "Bash(python3:*)",
-      "Bash(/c/Users/王健俊/AppData/Local/Programs/Python/Python313/python.exe -m:*)"
+      "Bash(/c/Users/王健俊/AppData/Local/Programs/Python/Python313/python.exe -m:*)",
+      "Bash(cmd.exe /c \"tasklist | findstr python\")",
+      "Bash(for pid in 38564 35872 33060 6744)",
+      "Bash(do kill -9 $pid)",
+      "Bash(done)",
+      "Bash(D:/miniconda/python.exe nanobotget.py:*)",
+      "Bash(D:/miniconda/python.exe web_interface_final.py)",
+      "Bash(D:/miniconda/python.exe:*)",
+      "Bash(tar:*)",
+      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' -Force\")",
+      "Bash(powershell.exe -Command \"scp -o StrictHostKeyChecking=no ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' root@TRIX_SERVER_HOST:/opt/clawbot-channel/\")",
+      "Bash(powershell.exe -Command \"ssh root@TRIX_SERVER_HOST ''head -5 /opt/clawbot-channel/services/ossService.js''\")",
+      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel-update.zip'' -Force\")"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
