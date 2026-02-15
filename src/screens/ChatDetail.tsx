@@ -49,7 +49,10 @@ const ChatDetail: React.FC = () => {
   const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
 
   // Clawbot Channel connection
-  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired } = useClawbotChannel();
+  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair } = useClawbotChannel();
+
+  // 菜单显示状态
+  const [showMenu, setShowMenu] = useState(false);
 
   // Speech to text
   const {
@@ -120,7 +123,7 @@ const ChatDetail: React.FC = () => {
   useEffect(() => {
     const loadChatHistory = async () => {
       // ✨ 特殊处理：Clawbot Channel 不从数据库加载历史，直接监听消息
-      if (friendId === 'clawbot_channel') {
+      if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
         console.log('[ChatDetail] Clawbot Channel 模式：跳过数据库加载');
         setLoading(false);
         return;
@@ -160,7 +163,7 @@ const ChatDetail: React.FC = () => {
 
   // ✨ 监听 Clawbot Channel 消息
   useEffect(() => {
-    if (friendId !== 'clawbot_channel') return;
+    if (friendId !== 'clawbot' && friendId !== 'clawbot_channel') return;
 
     console.log('[ChatDetail] 开始监听 Clawbot Channel 消息');
 
@@ -292,6 +295,18 @@ const ChatDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ESC 键关闭菜单
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showMenu) {
+        setShowMenu(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMenu]);
+
 
   const handleSend = async () => {
     // 检查是否有媒体或文字 - 包括从快拍传入的 attachmentPreview
@@ -320,7 +335,7 @@ const ChatDetail: React.FC = () => {
     }
 
     // ✨ 特殊处理：Clawbot Channel 使用 ClawbotChannelContext，不保存到 Supabase
-    if (friendId === 'clawbot_channel') {
+    if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
       try {
         // 清空输入
         setInput('');
@@ -551,11 +566,77 @@ const ChatDetail: React.FC = () => {
             </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50">
+
+        <div className="flex items-center gap-2 relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50"
+          >
             <MoreVertical size={20} className="text-slate-700" />
           </button>
+
+          {/* 下拉菜单 */}
+          <AnimatePresence>
+            {showMenu && (
+              <>
+                {/* 遮罩层 */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowMenu(false)}
+                  className="fixed inset-0 z-40"
+                />
+
+                {/* 菜单内容 */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+                >
+                  {isBot && isPaired && (
+                    <>
+                      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                        <p className="text-xs text-slate-500">Clawbot 配对管理</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const confirmed = window.confirm('确定要取消与 Clawbot 的配对吗？\n\n取消后需要重新配对才能继续使用。');
+                          if (confirmed) {
+                            unpair();
+                            setShowMenu(false);
+                            // 导航回聊天列表
+                            navigate('/chat');
+                            // 提示用户
+                            alert('配对已取消，您可以重新进入配对页面连接新的 Clawbot');
+                          }
+                        }}
+                        className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3"
+                      >
+                        <X size={18} />
+                        <span className="font-medium">取消配对</span>
+                      </button>
+                    </>
+                  )}
+
+                  {!isBot && (
+                    <div className="px-4 py-3 text-slate-500 text-sm">
+                      聊天设置
+                    </div>
+                  )}
+
+                  {!isPaired && isBot && (
+                    <div className="px-4 py-3 text-slate-500 text-sm">
+                      <p className="text-xs">当前未配对</p>
+                      <p className="text-xs mt-1">请在 Clawbot 端发起配对</p>
+                    </div>
+                  )}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 

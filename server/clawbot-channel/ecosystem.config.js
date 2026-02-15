@@ -5,9 +5,10 @@ module.exports = {
     instances: 1,
     exec_mode: 'fork',
     watch: false,
-    max_memory_restart: '500M',
+    max_memory_restart: '2048M',  // 2GB 内存限制
     env: {
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      PORT: 8765
     },
     log_file: './logs/combined.log',
     out_file: './logs/out.log',
@@ -16,11 +17,11 @@ module.exports = {
     merge_logs: true,
     // 自动重启
     autorestart: true,
-    // 崩溃后延迟重启
-    restart_delay: 3000,
-    // 最大重启次数
-    max_restarts: 10,
+    // 崩溃后延迟重启（减少频繁重启）
+    restart_delay: 5000,
+    // 最大重启次数（减少无限重启）
+    max_restarts: 5,
     // 最小运行时间
-    min_uptime: '10s'
+    min_uptime: '30s'
   }]
 };

@@ -187,7 +187,9 @@ io.on('connection', (socket) => {
         });
 
         console.log(`[Bot] Pairing restored for ${deviceId}, total bots: ${botSockets.size}`);
-        callback({ success: true, restored: true });
+        if (typeof callback === 'function') {
+          callback({ success: true, restored: true });
+        }
         return;
       }
 
@@ -215,10 +217,14 @@ io.on('connection', (socket) => {
       console.log(`[Bot] Pairing generated: ${pairing.pairingCode} for device ${deviceId}`);
       console.log(`[Bot] Socket stored for device ${deviceId}, total bots: ${botSockets.size}`);
 
-      callback({ success: true, restored: false });
+      if (typeof callback === 'function') {
+        callback({ success: true, restored: false });
+      }
     } catch (err) {
       console.error('[Bot] Error generating pairing:', err);
-      callback({ success: false, error: err.message });
+      if (typeof callback === 'function') {
+        callback({ success: false, error: err.message });
+      }
     }
   });
 
@@ -230,7 +236,10 @@ io.on('connection', (socket) => {
       // 获取配对信息
       const pairing = await pairingService.getPairingById(pairingId);
       if (!pairing) {
-        return callback({ success: false, error: 'Pairing not found' });
+        if (typeof callback === 'function') {
+          return callback({ success: false, error: 'Pairing not found' });
+        }
+        return;
       }
 
       // 完成配对
@@ -251,10 +260,14 @@ io.on('connection', (socket) => {
       }
 
       console.log(`[Bot] Pairing confirmed: ${deviceId} with user ${pairing.user_id}`);
-      callback({ success: true });
+      if (typeof callback === 'function') {
+        callback({ success: true });
+      }
     } catch (err) {
       console.error('[Bot] Error confirming pairing:', err);
-      callback({ success: false, error: err.message });
+      if (typeof callback === 'function') {
+        callback({ success: false, error: err.message });
+      }
     }
   });
 
@@ -278,36 +291,40 @@ io.on('connection', (socket) => {
 
       if (!result.success) {
         console.log(`[App] Pairing code invalid: ${code}`);
-        return callback(result);
+        if (typeof callback === 'function') {
+          return callback(result);
+        }
+        return;
       }
 
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
       console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
 
-      // 通知 Clawbot 可以确认配对了
-      const deviceId = pairingToDevice.get(result.pairing.id);
-      console.log(`[App] Looking for device ${deviceId} for pairing ${result.pairing.id}`);
+      // ✅ 直接完成配对（不再等待 Clawbot 额外确认）
+      await pairingService.completeBotPairing(result.pairing.id, result.pairing.device_id, socket.id);
 
-      if (deviceId && botSockets.has(deviceId)) {
-        const botSocket = botSockets.get(deviceId);
-        console.log(`[App] Sending user_paired event to bot ${deviceId}`);
-        botSocket.emit('user_paired', {
-          pairingId: result.pairing.id,
-          userId
-        });
-      } else {
-        console.log(`[App] Bot not found: deviceId=${deviceId}, hasSocket=${botSockets.has(deviceId)}, totalBots=${botSockets.size}`);
-      }
-
-      callback({
-        success: true,
-        pairingId: result.pairing.id,
-        status: 'waiting_for_bot_confirmation'
+      // ✅ 通知 App 配对成功
+      io.to(`user_${userId}`).emit('pairing_success', {
+        deviceId: result.pairing.device_id,
+        deviceName: 'Clawbot',
+        pairingId: result.pairing.id
       });
+
+      console.log(`[App] Pairing success: ${result.pairing.pairing_code}, user: ${userId}`);
+
+      if (typeof callback === 'function') {
+        callback({
+          success: true,
+          pairingId: result.pairing.id,
+          status: 'paired'  // ✅ 直接返回已配对状态
+        });
+      }
     } catch (err) {
       console.error('[App] Pair with code error:', err);
-      callback({ success: false, error: err.message });
+      if (typeof callback === 'function') {
+        callback({ success: false, error: err.message });
+      }
     }
   });
 
@@ -321,36 +338,40 @@ io.on('connection', (socket) => {
 
       if (!result.success) {
         console.log(`[App] Pairing token invalid`);
-        return callback(result);
+        if (typeof callback === 'function') {
+          return callback(result);
+        }
+        return;
       }
 
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
       console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
 
-      // 通知 Clawbot 可以确认配对了
-      const deviceId = pairingToDevice.get(result.pairing.id);
-      console.log(`[App] Looking for device ${deviceId} for pairing ${result.pairing.id}`);
+      // ✅ 直接完成配对（不再等待 Clawbot 额外确认）
+      await pairingService.completeBotPairing(result.pairing.id, result.pairing.device_id, socket.id);
 
-      if (deviceId && botSockets.has(deviceId)) {
-        const botSocket = botSockets.get(deviceId);
-        console.log(`[App] Sending user_paired event to bot ${deviceId}`);
-        botSocket.emit('user_paired', {
-          pairingId: result.pairing.id,
-          userId
-        });
-      } else {
-        console.log(`[App] Bot not found: deviceId=${deviceId}, hasSocket=${botSockets.has(deviceId)}, totalBots=${botSockets.size}`);
-      }
-
-      callback({
-        success: true,
-        pairingId: result.pairing.id,
-        status: 'waiting_for_bot_confirmation'
+      // ✅ 通知 App 配对成功
+      io.to(`user_${userId}`).emit('pairing_success', {
+        deviceId: result.pairing.device_id,
+        deviceName: 'Clawbot',
+        pairingId: result.pairing.id
       });
+
+      console.log(`[App] Pairing success: ${result.pairing.id}, user: ${userId}`);
+
+      if (typeof callback === 'function') {
+        callback({
+          success: true,
+          pairingId: result.pairing.id,
+          status: 'paired'  // ✅ 直接返回已配对状态
+        });
+      }
     } catch (err) {
       console.error('[App] Pair with token error:', err);
-      callback({ success: false, error: err.message });
+      if (typeof callback === 'function') {
+        callback({ success: false, error: err.message });
+      }
     }
   });
 
@@ -391,6 +412,47 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
+    }
+  });
+
+  // Clawbot 通过 Socket.io 发送消息给 App（替代 Webhook）
+  socket.on('bot_message', async (data) => {
+    try {
+      const { deviceId, content, contentType, mediaUrl } = data;
+
+      // 验证 Clawbot 已配对
+      const pairing = await pairingService.getPairingByDeviceId(deviceId);
+      if (!pairing || pairing.status !== 'paired') {
+        socket.emit('error', {
+          message: 'Not paired or invalid pairing status',
+          deviceId
+        });
+        return;
+      }
+
+      console.log(`[Bot] Message from ${deviceId}: ${content}`);
+
+      // 保存消息到数据库
+      await messageService.saveMessage(pairing.id, 'bot_to_app', content, contentType, mediaUrl);
+
+      // 转发给 App（通过 Socket.io Room）
+      io.to(`user_${pairing.user_id}`).emit('bot_message', {
+        content,
+        contentType,
+        mediaUrl,
+        timestamp: Date.now()
+      });
+
+      socket.emit('message_sent', {
+        success: true,
+        messageId: Date.now().toString()
+      });
+    } catch (err) {
+      console.error('[Bot] Error sending message:', err);
+      socket.emit('message_sent', {
+        success: false,
+        error: err.message
+      });
     }
   });
 
