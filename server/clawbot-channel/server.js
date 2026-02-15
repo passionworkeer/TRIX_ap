@@ -366,6 +366,43 @@ io.on('connection', (socket) => {
       const { code, userId } = data;
       console.log(`[App] 🔑 配对码验证请求: code=${code}, userId=${userId}, socket=${socket.id}`);
 
+      // ✅ P0-#3: 验证用户 ID
+      // 1. 检查 userId 是否提供
+      if (!userId || typeof userId !== 'string') {
+        console.log(`[App] ❌ 无效的用户 ID: userId=${userId}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Invalid user ID'
+          });
+        }
+        return;
+      }
+
+      // 2. 检查 userId 格式（假设是UUID，长度应该大于30）
+      if (userId.length < 30) {
+        console.log(`[App] ❌ 用户 ID 格式无效: userId=${userId}, length=${userId.length}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Invalid user ID format'
+          });
+        }
+        return;
+      }
+
+      // 3. 验证用户 ID 是否与 socket.userId 匹配（防止越权）
+      if (socket.userId && userId !== socket.userId) {
+        console.log(`[App] ❌ 用户 ID 不匹配: socket=${socket.userId}, request=${userId}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'User ID mismatch'
+          });
+        }
+        return;
+      }
+
       const result = await pairingService.verifyPairingCode(code);
 
       if (!result.success) {
@@ -428,6 +465,43 @@ io.on('connection', (socket) => {
     try {
       const { token, userId } = data;
       console.log(`[App] 📱 二维码 Token 验证请求: userId=${userId}, socket=${socket.id}`);
+
+      // ✅ P0-#3: 验证用户 ID
+      // 1. 检查 userId 是否提供
+      if (!userId || typeof userId !== 'string') {
+        console.log(`[App] ❌ 无效的用户 ID: userId=${userId}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Invalid user ID'
+          });
+        }
+        return;
+      }
+
+      // 2. 检查 userId 格式（假设是UUID，长度应该大于30）
+      if (userId.length < 30) {
+        console.log(`[App] ❌ 用户 ID 格式无效: userId=${userId}, length=${userId.length}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'Invalid user ID format'
+          });
+        }
+        return;
+      }
+
+      // 3. 验证用户 ID 是否与 socket.userId 匹配（防止越权）
+      if (socket.userId && userId !== socket.userId) {
+        console.log(`[App] ❌ 用户 ID 不匹配: socket=${socket.userId}, request=${userId}`);
+        if (typeof callback === 'function') {
+          return callback({
+            success: false,
+            error: 'User ID mismatch'
+          });
+        }
+        return;
+      }
 
       const result = await pairingService.verifyPairingToken(token);
 
@@ -628,6 +702,23 @@ io.on('connection', (socket) => {
       console.log(`[Bot] ❌ Clawbot 已断开: ${socket.deviceId}`);
       botSockets.delete(socket.deviceId);
       console.log(`[Bot] 🔢 剩余 Bots: ${botSockets.size}`);
+
+      // ✅ P1-#5: 通知配对的用户 Bot 已断开
+      (async () => {
+        try {
+          const pairing = await pairingService.getPairingByDeviceId(socket.deviceId);
+          if (pairing && pairing.status === 'paired' && pairing.user_id) {
+            console.log(`[Bot] 📢 通知用户 ${pairing.user_id}: Bot ${socket.deviceId} 已断开`);
+            io.to(`user_${pairing.user_id}`).emit('bot_offline', {
+              deviceId: socket.deviceId,
+              message: 'Clawbot 已离线',
+              timestamp: Date.now()
+            });
+          }
+        } catch (err) {
+          console.error('[Bot] ❌ 通知用户 Bot 断开失败:', err);
+        }
+      })();
     }
 
     if (socket.userId) {
