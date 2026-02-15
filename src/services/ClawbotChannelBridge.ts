@@ -224,6 +224,12 @@ class ClawbotChannelBridge {
       this.emit('message', message);
     });
 
+    // ✅ P1-#5: Bot 离线通知
+    this.socket.on('bot_offline', (data: { deviceId: string; message: string; timestamp: number }) => {
+      console.log('[ClawbotChannel] 📴 Bot 离线:', data);
+      this.emit('bot_offline', data);
+    });
+
     // 被解绑
     this.socket.on('unpaired', () => {
       console.log('[ClawbotChannel] 被解绑');

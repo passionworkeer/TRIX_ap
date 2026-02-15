@@ -25,8 +25,29 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 function initDatabase() {
   db.serialize(() => {
     // 配对关系表
-    // ✅ P1-#6: 添加唯一约束，防止数据不一致
-    db.run("CREATE TABLE IF NOT EXISTS pairings (id TEXT PRIMARY KEY, pairing_code TEXT UNIQUE, pairing_token TEXT UNIQUE, user_id TEXT, device_id TEXT, device_name TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, paired_at DATETIME, expires_at DATETIME, socket_id TEXT, UNIQUE(device_id) WHERE status = 'paired', UNIQUE(user_id) WHERE status = 'paired')");
+    db.run(`CREATE TABLE IF NOT EXISTS pairings (
+      id TEXT PRIMARY KEY,
+      pairing_code TEXT UNIQUE,
+      pairing_token TEXT UNIQUE,
+      user_id TEXT,
+      device_id TEXT,
+      device_name TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      paired_at DATETIME,
+      expires_at DATETIME,
+      socket_id TEXT
+    )`);
+
+    // ✅ P1-#6: 通过部分唯一索引实现一个 Bot 只能配对一个用户
+    db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_device_on_paired
+            ON pairings(device_id)
+            WHERE status = 'paired'`);
+
+    // ✅ P1-#6: 通过部分唯一索引实现一个用户只能配对一个 Bot
+    db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_user_on_paired
+            ON pairings(user_id)
+            WHERE status = 'paired'`);
 
     // 消息表（临时缓存，定期清理）
     db.run(`
@@ -47,6 +68,34 @@ function initDatabase() {
     db.run('CREATE INDEX IF NOT EXISTS idx_user_id ON pairings(user_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_device_id ON pairings(device_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_status ON pairings(status)');
+  });
+}
+
+// Promise 化的数据库辅助函数
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve({ id: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
   });
 }
 
