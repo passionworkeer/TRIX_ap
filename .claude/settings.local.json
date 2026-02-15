@@ -69,7 +69,13 @@
       "Bash(powershell.exe -Command \"ssh root@47.243.55.130 ''head -5 /opt/clawbot-channel/services/ossService.js''\")",
       "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel-update.zip'' -Force\")",
       "Bash(where ssh)",
-      "Bash(rsync:*)"
+      "Bash(rsync:*)",
+      "Bash(npx skills add:*)",
+      "Bash(npx pm2 stop:*)",
+      "Bash(pm2 list:*)",
+      "Bash(npx pm2 list)",
+      "Bash(npx pm2 start:*)",
+      "Bash(npx pm2 logs:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
