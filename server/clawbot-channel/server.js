@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const multer = require('multer');
 
 const { initDatabase } = require('./config/database');
 const pairingService = require('./services/pairingService');
@@ -23,6 +24,14 @@ const io = new Server(server, {
 const botSockets = new Map();
 // 存储 pairingId -> deviceId 映射
 const pairingToDevice = new Map();
+
+// Multer 配置（内存存储）
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
 
 // 中间件
 app.use(cors());
@@ -81,6 +90,67 @@ app.get('/oss/signed-url', async (req, res) => {
     }
     res.json({ url });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 文件上传接口（App 上传图片/视频）
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { buffer, originalname, mimetype } = req.file;
+    const { userId } = req.body;
+
+    // 上传到 OSS
+    const result = await ossService.uploadFile(buffer, originalname, mimetype);
+    if (!result) {
+      return res.status(500).json({ error: 'Upload failed' });
+    }
+
+    // 返回文件URL和objectKey
+    res.json({
+      success: true,
+      url: result.url,
+      objectKey: result.objectKey,
+      contentType: mimetype
+    });
+
+    console.log(`[Upload] File uploaded by user ${userId}: ${result.objectKey}`);
+  } catch (err) {
+    console.error('[Upload] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Base64 图片上传接口
+app.post('/upload/base64', async (req, res) => {
+  try {
+    const { base64Data, userId } = req.body;
+
+    if (!base64Data) {
+      return res.status(400).json({ error: 'No base64 data provided' });
+    }
+
+    // 上传到 OSS
+    const result = await ossService.uploadBase64(base64Data);
+    if (!result) {
+      return res.status(500).json({ error: 'Upload failed' });
+    }
+
+    // 返回文件URL和objectKey
+    res.json({
+      success: true,
+      url: result.url,
+      objectKey: result.objectKey,
+      contentType: 'image/jpeg'
+    });
+
+    console.log(`[Upload] Base64 image uploaded by user ${userId}: ${result.objectKey}`);
+  } catch (err) {
+    console.error('[Upload] Base64 error:', err);
     res.status(500).json({ error: err.message });
   }
 });
