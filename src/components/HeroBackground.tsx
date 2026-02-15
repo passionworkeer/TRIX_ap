@@ -56,7 +56,7 @@ export default function HeroBackground() {
           transition: 'opacity 0.3s ease-in-out',
           zIndex: 1,
         }}
-        onError={(e) => console.error("❌ 待机视频加载失败:", IDLE_VIDEO)}
+        onError={() => console.error("❌ 待机视频加载失败:", IDLE_VIDEO)}
       />
 
       {/* 说话视频层：机器人说话时播放 */}
@@ -78,7 +78,7 @@ export default function HeroBackground() {
           transition: 'opacity 0.3s ease-in-out',
           zIndex: 1,
         }}
-        onError={(e) => console.error("❌ 说话视频加载失败:", SAYING_VIDEO)}
+        onError={() => console.error("❌ 说话视频加载失败:", SAYING_VIDEO)}
       />
 
       {/* 渐变遮罩 (美化) */}

@@ -48,7 +48,7 @@ class ClawbotChannelBridge {
 
   // 重连
   private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 100;
+  private registerTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // 事件监听器
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
@@ -219,12 +219,12 @@ class ClawbotChannelBridge {
     });
 
     // 收到 Bot 消息
-    this.socket.on('bot_message', (msg: { content: string; contentType: string; mediaUrl?: string; timestamp: number }) => {
+    this.socket.on('bot_message', (msg: { content: string; contentType?: 'text' | 'image' | 'video' | 'file'; mediaUrl?: string; timestamp: number }) => {
       console.log('[ClawbotChannel] 📩 收到 Bot 消息:', msg);
       const message: ClawbotChannelMessage = {
         id: generateMessageId(),  // ✅ #8: 使用 UUID
         content: msg.content,
-        contentType: msg.contentType || 'text',
+        contentType: msg.contentType ?? 'text',
         mediaUrl: msg.mediaUrl,
         timestamp: msg.timestamp || Date.now(),
         sender: 'bot'
@@ -255,7 +255,7 @@ class ClawbotChannelBridge {
     });
 
     // 心跳响应
-    this.socket.on('pong', (data: { timestamp: number }) => {
+    this.socket.on('pong', () => {
       this.lastPongTime = Date.now();
     });
 
@@ -396,9 +396,9 @@ class ClawbotChannelBridge {
    */
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
-      const url = await ossService.uploadFile(file);
-      console.log('[ClawbotChannel] 文件上传成功:', url);
-      return url;
+      const result = await ossService.uploadFile(file);
+      console.log('[ClawbotChannel] 文件上传成功:', result.url);
+      return result.url;
     } catch (error) {
       console.error('[ClawbotChannel] 文件上传失败:', error);
       throw error;

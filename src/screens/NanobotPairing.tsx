@@ -102,7 +102,7 @@ const NanobotPairing: React.FC = () => {
 
     try {
       // 先绑定配对码
-      const result = await nanobotBridge.bindPairingCode(code, 'TRIX User');
+      const result = await nanobotBridge.bindPairingCode(code);
 
       if (result.success) {
         console.log('[NanobotPairing] 配对码绑定成功，开始连接...');

@@ -93,7 +93,7 @@ const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
     { lat: -0.003, lng: 0.001 },
   ];
   const offset = offsets[index % offsets.length];
-  return { lat: baseLat + offset.lat, lng: baseLng + offset.lng };
+  return { lat: baseLat + (offset?.lat ?? 0), lng: baseLng + (offset?.lng ?? 0) };
 };
 
 // 热力图数据
@@ -110,7 +110,7 @@ const heatZones: HeatZone[] = [
 ];
 
 // 创建标准 L.Icon 小人图标
-const createAvatarIcon = (friend: FriendLatestMessage, status: FriendStatus): L.Icon => {
+const createAvatarIcon = (friend: FriendLatestMessage): L.Icon => {
   // 使用好友头像，如果没有则使用默认 3D 图片
   const iconUrl = friend.avatar_url || HERO_3D_IMAGE;
 
@@ -188,15 +188,15 @@ const SnapMapScreen: React.FC = () => {
     return friends.map((friend, index) => {
       const pos = getOffsetPosition(center[0], center[1], index);
       const status = friendStatuses[friend.friend_id] || {
-        emoji: ['🧑‍💻', '🎮', '🎵'][index % 3],
-        text: ['Coding...', 'Gaming...', 'Listening...'][index % 3],
+        emoji: ['🧑‍💻', '🎮', '🎵'][index % 3] || '👤',
+        text: ['Coding...', 'Gaming...', 'Listening...'][index % 3] || 'Online',
       };
 
       return (
         <Marker
           key={friend.friend_id}
           position={[pos.lat, pos.lng]}
-          icon={createAvatarIcon(friend, status)}
+          icon={createAvatarIcon(friend)}
         >
           <Popup>
             <div style={{

@@ -188,7 +188,7 @@ class ConnectionManager {
   disconnectAll(): void {
     console.log(`[ConnectionManager] 断开所有连接 (${this.connections.size} 个)`);
 
-    this.connections.forEach((state, id) => {
+    this.connections.forEach((_state, id) => {
       this.disconnect(id);
     });
 
@@ -390,7 +390,7 @@ class ConnectionManager {
     let connected = 0;
     let disconnected = 0;
 
-    this.connections.forEach((state, id) => {
+    this.connections.forEach((_state, id) => {
       if (this.isConnected(id)) {
         connected++;
       } else {

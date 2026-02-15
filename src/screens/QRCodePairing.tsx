@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Scan, Wifi, WifiOff, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, Zap } from 'lucide-react';
+import { Scan, Wifi, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
 import { useQRCodePairing } from '../contexts/QRCodePairingContext';
 import { AppRoutes } from '../types';
 import QRScanner from '../components/QRScanner';

@@ -114,7 +114,6 @@ const MessageList: React.FC<MessageListProps> = ({
                     <MediaMessage
                       uri={msg.mediaUri}
                       type={msg.messageType}
-                      metadata={msg.mediaMetadata}
                     />
                   )}
 

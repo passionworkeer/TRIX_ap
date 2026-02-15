@@ -135,7 +135,7 @@ class NanobotBridge {
   /**
    * 绑定配对码
    */
-  async bindPairingCode(code: string, userName?: string): Promise<{ success: boolean; message: string }> {
+  async bindPairingCode(code: string): Promise<{ success: boolean; message: string }> {
     // 先保存配对码
     this.pairingCode = code.toUpperCase();
     localStorage.setItem('nanobot_pairing_code', this.pairingCode);
@@ -367,9 +367,9 @@ class NanobotBridge {
    */
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
-      const url = await ossService.uploadFile(file);
-      console.log('[NanobotBridge] 文件上传成功:', url);
-      return url;
+      const result = await ossService.uploadFile(file);
+      console.log('[NanobotBridge] 文件上传成功:', result.url);
+      return result.url;
     } catch (error) {
       console.error('[NanobotBridge] 文件上传失败:', error);
       throw error;

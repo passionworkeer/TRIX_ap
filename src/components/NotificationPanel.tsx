@@ -11,7 +11,6 @@ interface NotificationPanelProps {
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -20,10 +19,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   }, [isOpen]);
 
   const loadNotifications = async () => {
-    setLoading(true);
     const data = await getNotifications();
     setNotifications(data);
-    setLoading(false);
   };
 
   const handleMarkAsRead = async (notificationId: string) => {

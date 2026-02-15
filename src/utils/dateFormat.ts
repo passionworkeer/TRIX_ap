@@ -65,7 +65,7 @@ export function formatSmart(timestamp: string | Date): string {
     return '昨天';
   } else if (diffDays < 7) {
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return weekdays[date.getDay()];
+    return weekdays[date.getDay() ?? 0] ?? '周一';
   } else {
     return `${date.getMonth() + 1}/${date.getDate()}`;
   }

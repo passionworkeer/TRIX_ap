@@ -12,7 +12,6 @@ interface MailPanelProps {
 const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
   const [mails, setMails] = useState<Mail[]>([]);
   const [selectedMail, setSelectedMail] = useState<Mail | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -21,10 +20,8 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const loadMails = async () => {
-    setLoading(true);
     const data = await getMails();
     setMails(data);
-    setLoading(false);
   };
 
   const handleMailClick = async (mail: Mail) => {

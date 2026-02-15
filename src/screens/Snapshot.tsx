@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { ArrowLeft, FlipHorizontal2, MoreHorizontal, ShoppingCart, Edit3, Check, Sparkles, Home, History, User, ScanLine, Camera, X } from 'lucide-react';
+import { ArrowLeft, FlipHorizontal2, MoreHorizontal, ShoppingCart, Edit3, Check, Sparkles, Home, History, User, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';

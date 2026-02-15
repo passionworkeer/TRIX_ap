@@ -1,7 +1,6 @@
 ﻿import React, { useState } from 'react';
-import { User, Lock, Smartphone, MessageSquare } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { IMAGES } from '../constants';
+import { User, Lock, Smartphone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';

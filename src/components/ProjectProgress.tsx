@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { projectService, ProjectReport } from '../services/projectService';
 
 const ProjectProgress: React.FC = () => {
@@ -101,7 +101,7 @@ const ProjectProgress: React.FC = () => {
             {progress.completedTasks}
           </div>
           <div className="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
-            已完�?
+            已完�?
           </div>
         </div>
         <div className="bg-white/50 dark:bg-slate-700/30 rounded-2xl p-3 text-center border border-slate-200/50">
@@ -109,7 +109,7 @@ const ProjectProgress: React.FC = () => {
             {progress.totalTasks - progress.completedTasks}
           </div>
           <div className="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
-            待完�?
+            待完�?
           </div>
         </div>
         <div className="bg-white/50 dark:bg-slate-700/30 rounded-2xl p-3 text-center border border-slate-200/50">
@@ -152,7 +152,7 @@ const ProjectProgress: React.FC = () => {
       {isExpanded && (
         <div className="mt-4 space-y-2 max-h-80 overflow-y-auto">
           <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
-            所有任�?({progress.totalTasks})
+            所有任�?({progress.totalTasks})
           </div>
           {project.tasks.map(task => (
             <div

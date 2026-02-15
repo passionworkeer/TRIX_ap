@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Users, LogOut } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface UserSwitcherProps {
   onUserChange?: (userId: string, userName: string) => void;
@@ -25,7 +25,8 @@ const UserSwitcher: React.FC<UserSwitcherProps> = ({ onUserChange }) => {
 
   useEffect(() => {
     const savedId = localStorage.getItem('current_user_id');
-    if (savedId === users[1].id) {
+    const user2 = users[1];
+    if (user2 && savedId === user2.id) {
       setCurrentUser('user2');
     } else {
       setCurrentUser('user1');

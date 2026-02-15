@@ -167,30 +167,13 @@ const ChatDetail: React.FC = () => {
 
     console.log('[ChatDetail] 开始监听 Clawbot Channel 消息');
 
-    const handleClawbotMessage = (message: any) => {
-      console.log('[ChatDetail] 收到 Clawbot Channel 回复:', message);
-
-      const timeString = formatTime(new Date());
-
-      const botMessage: UIMessage = {
-        id: message.id || `bot-${Date.now()}`,
-        sender: message.sender || 'bot',
-        text: message.content,
-        timestamp: message.timestamp || timeString,
-        messageType: message.contentType || 'text',
-        mediaUri: message.mediaUrl
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-    };
-
     // 从 context 获取最新消息
     setMessages(clawbotMessages.map(msg => ({
       id: msg.id || `bot-${msg.timestamp}`,
       sender: msg.sender,
       text: msg.content,
       timestamp: formatTime(new Date(msg.timestamp)),
-      messageType: msg.contentType,
+      messageType: msg.contentType === 'file' ? 'image' : msg.contentType || 'text',
       mediaUri: msg.mediaUrl
     })));
 
