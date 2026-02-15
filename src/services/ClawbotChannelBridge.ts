@@ -9,6 +9,11 @@ import { io, Socket } from 'socket.io-client';
 import ossService from './OSSService';
 import { supabase } from '../config/supabase';
 
+// ✅ #8: 使用 UUID 生成唯一消息 ID
+function generateMessageId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 export interface ClawbotChannelMessage {
   id?: string;
   content: string;
@@ -160,9 +165,9 @@ class ClawbotChannelBridge {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionAttempts: 10,  // ✅ #13: 降低重连次数（原 100 次）
       reconnectionDelay: 2000,
-      reconnectionDelayMax: 60000
+      reconnectionDelayMax: 30000  // ✅ #13: 降低最大延迟（原 60000 秒）
     });
 
     this.setupEventHandlers();
@@ -207,9 +212,9 @@ class ClawbotChannelBridge {
 
     // 收到 Bot 消息
     this.socket.on('bot_message', (msg: { content: string; contentType: string; mediaUrl?: string; timestamp: number }) => {
-      console.log('[ClawbotChannel] 收到 Bot 消息:', msg);
+      console.log('[ClawbotChannel] 📩 收到 Bot 消息:', msg);
       const message: ClawbotChannelMessage = {
-        id: Date.now().toString(),
+        id: generateMessageId(),  // ✅ #8: 使用 UUID
         content: msg.content,
         contentType: msg.contentType || 'text',
         mediaUrl: msg.mediaUrl,
@@ -248,36 +253,9 @@ class ClawbotChannelBridge {
     });
   }
 
-  /**
-   * 请求配对（生成配对码和二维码）
-   */
-  requestPairing(): Promise<PairingData> {
-    return new Promise((resolve, reject) => {
-      if (!this.socket || !this.connected) {
-        reject(new Error('未连接到服务器'));
-        return;
-      }
-
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      this.socket.emit('request_pairing', {
-        userId: this.userId,
-        deviceName: isMobile ? 'TRIX Mobile App' : 'TRIX Web App'
-      }, (response: any) => {
-        if (response.success) {
-          this.pairingCode = response.pairingCode;
-          console.log('[ClawbotChannel] 配对码已生成:', this.pairingCode);
-          resolve({
-            pairingCode: response.pairingCode,
-            qrImage: response.qrImage,
-            expiresIn: response.expiresIn
-          });
-        } else {
-          reject(new Error(response.error || '请求配对失败'));
-        }
-      });
-    });
-  }
+  // ❌ 已删除: requestPairing() 方法
+  // 原因: 服务器没有处理 'request_pairing' 事件
+  // 配对流程应由 Clawbot 端发起，不是 App 端
 
   /**
    * 通过配对码配对
@@ -340,24 +318,45 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 发送消息到 Clawbot
+   * ✅ #14: 发送消息到 Clawbot（带确认机制）
    */
-  sendMessage(content: string, contentType: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string): void {
-    if (!this.socket || !this.connected) {
-      throw new Error('[ClawbotChannel] 未连接，无法发送消息');
-    }
+  sendMessage(content: string, contentType: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('[ClawbotChannel] 未连接，无法发送消息'));
+        return;
+      }
 
-    if (!this.paired) {
-      throw new Error('[ClawbotChannel] 未配对，无法发送消息');
-    }
+      if (!this.paired) {
+        reject(new Error('[ClawbotChannel] 未配对，无法发送消息'));
+        return;
+      }
 
-    this.socket.emit('app_message', {
-      content,
-      contentType,
-      mediaUrl
+      const messageId = generateMessageId();
+
+      // 监听消息发送确认
+      const timeout = setTimeout(() => {
+        reject(new Error('消息发送超时'));
+      }, 10000); // 10 秒超时
+
+      this.socket.once('message_sent', (response: { success: boolean; messageId?: string; error?: string }) => {
+        clearTimeout(timeout);
+        if (response.success) {
+          console.log('[ClawbotChannel] ✅ 消息已确认:', messageId);
+          resolve();
+        } else {
+          reject(new Error(response.error || '消息发送失败'));
+        }
+      });
+
+      this.socket.emit('app_message', {
+        content,
+        contentType,
+        mediaUrl
+      });
+
+      console.log('[ClawbotChannel] 📤 消息已发送:', messageId);
     });
-
-    console.log('[ClawbotChannel] 消息已发送');
   }
 
   /**

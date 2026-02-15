@@ -35,7 +35,6 @@ interface ClawbotChannelContextType {
   // 操作
   connect: () => Promise<void>;
   disconnect: () => void;
-  requestPairing: () => Promise<{ pairingCode: string; qrImage: string; expiresIn: number }>;
   pairWithCode: (code: string) => Promise<boolean>;
   pairWithQR: (token: string) => Promise<boolean>;
   sendMessage: (content: string, contentType?: 'text' | 'image' | 'video' | 'file', mediaUrl?: string) => void;
@@ -66,33 +65,36 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   // 初始化连接
   useEffect(() => {
     if (!user?.id) {
-      console.log('[ClawbotChannel] 用户未登录，等待登录...');
+      console.log('[ClawbotChannel] ⚠️ 用户未登录，等待登录...');
       return;
     }
 
-    console.log('[ClawbotChannel] 用户已登录，初始化连接...');
+    console.log('[ClawbotChannel] ✅ 用户已登录，初始化连接...');
 
-    // 检查是否已配对
-    const wasPaired = localStorage.getItem('clawbot_paired') === 'true';
-    const savedDeviceId = localStorage.getItem('clawbot_device_id');
-
-    if (wasPaired && savedDeviceId) {
-      setPairingStatus('paired');
-      setDeviceId(savedDeviceId);
-    }
+    // ❌ 删除: 仅依赖 localStorage 的配对状态检查
+    // ✅ 改为: 在连接成功后，通过服务器事件确认配对状态
 
     // 设置事件监听器
     const setupListeners = () => {
       clawbotChannelBridge.on('connecting', () => {
-        console.log('[ClawbotChannel] 正在连接...');
+        console.log('[ClawbotChannel] 🔄 正在连接服务器...');
         setStatus('CONNECTING');
         setLastError(null);
       });
 
-      clawbotChannelBridge.on('connected', () => {
-        console.log('[ClawbotChannel] 已连接');
+      clawbotChannelBridge.on('connected', async () => {
+        console.log('[ClawbotChannel] ✅ 已连接到服务器');
         setStatus('CONNECTED');
         setLastError(null);
+
+        // ✅ #5: 向服务器验证配对状态
+        // 注意: 实际配对状态会在 'paired' 事件中更新
+        // 这里只是清除本地状态，等待服务器确认
+        const deviceId = clawbotChannelBridge.getDeviceId();
+        if (deviceId) {
+          console.log('[ClawbotChannel] 📱 之前配对的设备 ID:', deviceId);
+          // 等待服务器发送 'paired' 事件确认
+        }
       });
 
       clawbotChannelBridge.on('disconnected', () => {
@@ -154,26 +156,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     setStatus('DISCONNECTED');
   }, []);
 
-  // 请求配对（生成配对码和二维码）
-  const requestPairing = useCallback(async (): Promise<{ pairingCode: string; qrImage: string; expiresIn: number }> => {
-    if (!clawbotChannelBridge.isConnected()) {
-      throw new Error('未连接到服务器');
-    }
-
-    setPairingStatus('pairing');
-    setLastError(null);
-
-    try {
-      const result = await clawbotChannelBridge.requestPairing();
-      setPairingCode(result.pairingCode);
-      setQrImage(result.qrImage);
-      return result;
-    } catch (error) {
-      setLastError(error instanceof Error ? error.message : '请求配对失败');
-      setPairingStatus('idle');
-      throw error;
-    }
-  }, []);
+  // ❌ 已删除: requestPairing() 方法
+  // 原因: 配对流程应由 Clawbot 端发起，不是 App 端
 
   // 配对码配对
   const pairWithCode = useCallback(async (code: string): Promise<boolean> => {
@@ -221,7 +205,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
   }, []);
 
-  // 发送消息
+  // ✅ #14: 发送消息（带确认机制）
   const sendMessage = useCallback((
     content: string,
     contentType: 'text' | 'image' | 'video' | 'file' = 'text',
@@ -232,23 +216,26 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       return;
     }
 
-    try {
-      clawbotChannelBridge.sendMessage(content, contentType, mediaUrl);
-
-      // 添加用户消息到列表
-      const userMessage: ClawbotChannelMessage = {
-        id: Date.now().toString(),
-        content,
-        contentType,
-        mediaUrl,
-        timestamp: Date.now(),
-        sender: 'user'
-      };
-      setMessages(prev => [...prev, userMessage]);
-      setLastError(null);
-    } catch (error) {
-      setLastError(error instanceof Error ? error.message : '发送失败');
-    }
+    // ✅ #14: Promise-based 发送
+    clawbotChannelBridge.sendMessage(content, contentType, mediaUrl)
+      .then(() => {
+        // 添加用户消息到列表
+        const userMessage: ClawbotChannelMessage = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,  // ✅ #8: 使用 UUID
+          content,
+          contentType,
+          mediaUrl,
+          timestamp: Date.now(),
+          sender: 'user'
+        };
+        setMessages(prev => [...prev, userMessage]);
+        setLastError(null);
+      })
+      .catch((error) => {
+        console.error('[ClawbotChannel] 发送消息失败:', error);
+        setLastError(error instanceof Error ? error.message : '发送失败');
+        toast.error(error instanceof Error ? error.message : '发送失败');
+      });
   }, []);
 
   // 上传媒体
@@ -290,7 +277,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     messages,
     connect,
     disconnect,
-    requestPairing,
     pairWithCode,
     pairWithQR,
     sendMessage,

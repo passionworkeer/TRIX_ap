@@ -34,8 +34,20 @@ const Pairing: React.FC = () => {
       setMode('success');
       stopScanner();
       toast.success('配对成功！');
+
+      // 自动跳转到聊天界面
+      setTimeout(() => {
+        navigate(AppRoutes.CHAT_DETAIL, {
+          state: {
+            friendId: 'clawbot',
+            name: 'TRIX Bot',
+            avatar: IMAGES.WIZARD_BOY_LOGIN,
+            isBot: true
+          }
+        });
+      }, 1500); // 1.5 秒后自动跳转
     }
-  }, [isPaired]);
+  }, [isPaired, navigate]);
 
   // 取消配对
   const handleUnpair = () => {
@@ -61,6 +73,9 @@ const Pairing: React.FC = () => {
   // 启动扫码器
   const startScanner = async () => {
     try {
+      // ✅ #12: 防止内存泄漏 - 先停止旧实例
+      await stopScanner();
+
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
