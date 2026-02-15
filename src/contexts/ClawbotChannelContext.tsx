@@ -72,9 +72,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
     console.log('[ClawbotChannel] ✅ 用户已登录，初始化连接...');
 
-    // ❌ 删除: 仅依赖 localStorage 的配对状态检查
-    // ✅ 改为: 在连接成功后，通过服务器事件确认配对状态
-
     // 设置事件监听器
     const setupListeners = () => {
       clawbotChannelBridge.on('connecting', () => {
@@ -87,15 +84,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         console.log('[ClawbotChannel] ✅ 已连接到服务器');
         setStatus('CONNECTED');
         setLastError(null);
-
-        // ✅ #5: 向服务器验证配对状态
-        // 注意: 实际配对状态会在 'paired' 事件中更新
-        // 这里只是清除本地状态，等待服务器确认
-        const deviceId = clawbotChannelBridge.getDeviceId();
-        if (deviceId) {
-          console.log('[ClawbotChannel] 📱 之前配对的设备 ID:', deviceId);
-          // 等待服务器发送 'paired' 事件确认
-        }
       });
 
       clawbotChannelBridge.on('disconnected', () => {
