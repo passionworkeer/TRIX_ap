@@ -30,7 +30,7 @@ function initDatabase() {
         id TEXT PRIMARY KEY,
         pairing_code TEXT UNIQUE,
         pairing_token TEXT UNIQUE,
-        user_id TEXT NOT NULL,
+        user_id TEXT,
         device_id TEXT,
         device_name TEXT,
         status TEXT DEFAULT 'pending',

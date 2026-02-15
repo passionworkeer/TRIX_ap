@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Mic, MicOff, MoreVertical, Bot, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
-import { useGlobalConnection } from '../contexts/WebSocketContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
 import { formatTime } from '../utils/dateFormat';
@@ -49,8 +48,7 @@ const ChatDetail: React.FC = () => {
   // 从路由参数接收到的图片预览状态
   const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
 
-  // WebSocket connection for Bot
-  const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
+  // Clawbot Channel connection
   const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired } = useClawbotChannel();
 
   // Speech to text
@@ -294,36 +292,6 @@ const ChatDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Bot Streaming Response Handler
-  useEffect(() => {
-    if (!fullResponse || !isBot || !currentStreamId) return;
-
-    setMessages(prev => {
-      const existingIndex = prev.findIndex(msg => msg.id === currentStreamId);
-      
-      const timeString = formatTime(new Date());
-
-      if (existingIndex !== -1) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          text: fullResponse,
-          timestamp: timeString,
-        };
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            id: currentStreamId,
-            sender: 'bot',
-            text: fullResponse,
-            timestamp: timeString,
-          }
-        ];
-      }
-    });
-  }, [fullResponse, currentStreamId, isBot]);
 
   const handleSend = async () => {
     // 检查是否有媒体或文字 - 包括从快拍传入的 attachmentPreview
@@ -460,8 +428,8 @@ const ChatDetail: React.FC = () => {
 
     // Handle Bot Logic (仅用于 Bot 聊天，暂不支持媒体)
     if (isBot && !hasMedia) {
-      if (isConnected) {
-        wsSendMessage(messageText);
+      if (isPaired) {
+        clawbotSendMessage(messageText);
       } else {
         // Fallback Mock Bot Response if offline
         setTimeout(async () => {
@@ -788,7 +756,7 @@ const ChatDetail: React.FC = () => {
                 {/* 发送按钮 */}
                 <button
                   onClick={handleSend}
-                  disabled={(!input.trim() && attachmentPreviews.length === 0 && !pendingMedia) || (isBot && !isConnected && false)}
+                  disabled={(!input.trim() && attachmentPreviews.length === 0 && !pendingMedia) || (isBot && !isPaired && false)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
                     input.trim() || attachmentPreviews.length > 0 || pendingMedia
                       ? 'bg-black text-white hover:bg-gray-800 shadow-md'

@@ -174,6 +174,12 @@ io.on('connection', (socket) => {
       // 存储 deviceId 和 pairingId 的映射
       pairingToDevice.set(pairing.id, deviceId);
 
+      // 存储 Clawbot socket（重要！用于后续发送 user_paired 事件）
+      botSockets.set(deviceId, socket);
+      socket.deviceId = deviceId;
+      socket.isBot = true;
+      socket.pairingId = pairing.id;
+
       // 发送配对信息给 Clawbot
       socket.emit('pairing_info', {
         pairingId: pairing.id,
@@ -183,6 +189,7 @@ io.on('connection', (socket) => {
       });
 
       console.log(`[Bot] Pairing generated: ${pairing.pairingCode} for device ${deviceId}`);
+      console.log(`[Bot] Socket stored for device ${deviceId}, total bots: ${botSockets.size}`);
 
       callback({ success: true });
     } catch (err) {
@@ -241,23 +248,32 @@ io.on('connection', (socket) => {
   socket.on('pair_with_code', async (data, callback) => {
     try {
       const { code, userId } = data;
+      console.log(`[App] Pair with code: ${code}, userId: ${userId}`);
+
       const result = await pairingService.verifyPairingCode(code);
 
       if (!result.success) {
+        console.log(`[App] Pairing code invalid: ${code}`);
         return callback(result);
       }
 
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
+      console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
 
       // 通知 Clawbot 可以确认配对了
       const deviceId = pairingToDevice.get(result.pairing.id);
+      console.log(`[App] Looking for device ${deviceId} for pairing ${result.pairing.id}`);
+
       if (deviceId && botSockets.has(deviceId)) {
         const botSocket = botSockets.get(deviceId);
+        console.log(`[App] Sending user_paired event to bot ${deviceId}`);
         botSocket.emit('user_paired', {
           pairingId: result.pairing.id,
           userId
         });
+      } else {
+        console.log(`[App] Bot not found: deviceId=${deviceId}, hasSocket=${botSockets.has(deviceId)}, totalBots=${botSockets.size}`);
       }
 
       callback({
@@ -266,6 +282,7 @@ io.on('connection', (socket) => {
         status: 'waiting_for_bot_confirmation'
       });
     } catch (err) {
+      console.error('[App] Pair with code error:', err);
       callback({ success: false, error: err.message });
     }
   });
@@ -274,23 +291,32 @@ io.on('connection', (socket) => {
   socket.on('pair_with_token', async (data, callback) => {
     try {
       const { token, userId } = data;
+      console.log(`[App] Pair with token, userId: ${userId}`);
+
       const result = await pairingService.verifyPairingToken(token);
 
       if (!result.success) {
+        console.log(`[App] Pairing token invalid`);
         return callback(result);
       }
 
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
+      console.log(`[App] User ${userId} bound to pairing ${result.pairing.id}`);
 
       // 通知 Clawbot 可以确认配对了
       const deviceId = pairingToDevice.get(result.pairing.id);
+      console.log(`[App] Looking for device ${deviceId} for pairing ${result.pairing.id}`);
+
       if (deviceId && botSockets.has(deviceId)) {
         const botSocket = botSockets.get(deviceId);
+        console.log(`[App] Sending user_paired event to bot ${deviceId}`);
         botSocket.emit('user_paired', {
           pairingId: result.pairing.id,
           userId
         });
+      } else {
+        console.log(`[App] Bot not found: deviceId=${deviceId}, hasSocket=${botSockets.has(deviceId)}, totalBots=${botSockets.size}`);
       }
 
       callback({
@@ -299,6 +325,7 @@ io.on('connection', (socket) => {
         status: 'waiting_for_bot_confirmation'
       });
     } catch (err) {
+      console.error('[App] Pair with token error:', err);
       callback({ success: false, error: err.message });
     }
   });
