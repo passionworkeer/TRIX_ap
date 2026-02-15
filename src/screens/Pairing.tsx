@@ -191,7 +191,7 @@ const Pairing: React.FC = () => {
         {mode === 'scan' && (
           <>
             {/* 扫码区域 */}
-            <div className="relative w-full max-w-[300px] aspect-square rounded-[2rem] bg-white/10 backdrop-blur-xl border border-white/30 shadow-[0_8px_32px_rgba(127,19,236,0.15)] overflow-hidden mb-6">
+            <div className="relative w-full max-w-[300px] md:max-w-sm aspect-square rounded-[2rem] bg-white/10 backdrop-blur-xl border border-white/30 shadow-[0_8px_32px_rgba(127,19,236,0.15)] overflow-hidden mb-6">
               <div id="qr-reader" className="w-full h-full"></div>
 
               {/* 扫描线动画 */}
@@ -209,8 +209,8 @@ const Pairing: React.FC = () => {
             </div>
 
             {/* 提示文字 */}
-            <div className="flex flex-col items-center gap-2 mb-6">
-              <p className="text-slate-800 text-base font-medium text-center max-w-[280px]">
+            <div className="flex flex-col items-center gap-2 mb-6 px-4">
+              <p className="text-slate-800 text-base font-medium text-center max-w-[280px] md:max-w-md">
                 扫描电脑屏幕上的二维码
               </p>
               <div className="w-12 h-1 bg-white/40 rounded-full"></div>
@@ -244,7 +244,7 @@ const Pairing: React.FC = () => {
         {/* 输入模式 */}
         {mode === 'input' && (
           <>
-            <div className="w-full max-w-[300px] mb-6">
+            <div className="w-full max-w-[300px] md:max-w-sm mb-6 px-4">
               {/* 输入框 */}
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 输入 6 位配对码
