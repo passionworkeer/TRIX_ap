@@ -11,7 +11,7 @@ import { supabase } from '../config/supabase';
 import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
 import { formatRelative } from '../utils/dateFormat';
-import { useNanobot } from '../contexts/NanobotContext';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 
 const BG_IMAGE = IMAGES.BACKGROUND;
 
@@ -32,14 +32,7 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { connected: isNanobotConnected } = useNanobot();
-  const [isClawbotConnected, setIsClawbotConnected] = useState(false);
-
-  // 检查 Clawbot 连接状态（兼容旧版本）
-  useEffect(() => {
-    const token = localStorage.getItem('clawbot_device_token');
-    setIsClawbotConnected(!!token);
-  }, []);
+  const { isConnected: isClawbotChannelConnected, isPaired: isClawbotPaired } = useClawbotChannel();
 
   // 加载好友列表
   useEffect(() => {
@@ -241,19 +234,19 @@ const Chat: React.FC = () => {
                           exit={{ opacity: 0, height: 0 }}
                           className="flex items-center py-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors mb-2"
                           onClick={() => {
-                            if (isNanobotConnected || isClawbotConnected) {
+                            if (isClawbotChannelConnected && isClawbotPaired) {
                               // 已连接，进入聊天
                               navigate(AppRoutes.CHAT_DETAIL, {
                                 state: {
-                                  name: 'Nanobot',
+                                  name: 'TRIX Bot',
                                   avatar: IMAGES.WIZARD_BOY,
                                   isBot: true,
-                                  friendId: 'nanobot'
+                                  friendId: 'clawbot_channel'
                                 }
                               });
                             } else {
-                              // 未连接，跳转到 Nanobot 配对页面
-                              navigate('/nanobot-pairing');
+                              // 未连接，跳转到配对页面
+                              navigate(AppRoutes.PAIRING);
                             }
                           }}
                         >
@@ -261,7 +254,7 @@ const Chat: React.FC = () => {
                           <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
                              <Avatar name="Nanobot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
                              {/* 连接状态指示器 */}
-                             {isNanobotConnected || isClawbotConnected ? (
+                             {isClawbotChannelConnected && isClawbotPaired ? (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
                              ) : (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-black/30"></div>
@@ -271,22 +264,22 @@ const Chat: React.FC = () => {
                           {/* 文本区域 */}
                           <div className="flex-1 min-w-0">
                              <h3 className="text-white font-bold text-base leading-tight mb-0.5 flex items-center gap-2">
-                               Nanobot
-                               {!(isNanobotConnected || isClawbotConnected) && (
-                                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">未连接</span>
+                               TRIX Bot
+                               {!(isClawbotChannelConnected && isClawbotPaired) && (
+                                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">未配对</span>
                                )}
                              </h3>
                              <div className="flex items-center gap-1.5">
-                                <MessageSquare size={14} className={isNanobotConnected || isClawbotConnected ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
+                                <MessageSquare size={14} className={isClawbotChannelConnected && isClawbotPaired ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
                                 <span className="text-sm text-gray-400 truncate">
-                                  {isNanobotConnected || isClawbotConnected ? 'AI 助手已就绪' : '点击配对'}
+                                  {isClawbotChannelConnected && isClawbotPaired ? 'AI 助手已就绪' : '点击配对'}
                                 </span>
                              </div>
                           </div>
 
                           {/* 右侧图标 */}
                           <div className="flex-shrink-0 pl-2">
-                             {isNanobotConnected || isClawbotConnected ? (
+                             {isClawbotChannelConnected && isClawbotPaired ? (
                                 <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-400/30 flex items-center justify-center">
                                    <Camera size={18} className="text-green-400" />
                                 </div>

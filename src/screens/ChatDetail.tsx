@@ -13,7 +13,7 @@ import AIActionSelector from '../components/AIActionSelector';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
-import nanobotBridge, { NanobotMessage } from '../services/NanobotBridge';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import type { ChatMessage } from '../config/supabase';
 
 // UI Message interface
@@ -51,6 +51,7 @@ const ChatDetail: React.FC = () => {
 
   // WebSocket connection for Bot
   const { status, sendMessage: wsSendMessage, fullResponse, currentStreamId, isConnected } = useGlobalConnection();
+  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired } = useClawbotChannel();
 
   // Speech to text
   const {
@@ -120,9 +121,9 @@ const ChatDetail: React.FC = () => {
   // 加载聊天历史
   useEffect(() => {
     const loadChatHistory = async () => {
-      // ✨ 特殊处理：Nanobot 不从数据库加载历史，直接监听 WebSocket
-      if (friendId === 'nanobot') {
-        console.log('[ChatDetail] Nanobot 模式：跳过数据库加载');
+      // ✨ 特殊处理：Clawbot Channel 不从数据库加载历史，直接监听消息
+      if (friendId === 'clawbot_channel') {
+        console.log('[ChatDetail] Clawbot Channel 模式：跳过数据库加载');
         setLoading(false);
         return;
       }
@@ -159,36 +160,43 @@ const ChatDetail: React.FC = () => {
     loadChatHistory();
   }, [friendId]);
 
-  // ✨ 监听 Nanobot 消息
+  // ✨ 监听 Clawbot Channel 消息
   useEffect(() => {
-    if (friendId !== 'nanobot') return;
+    if (friendId !== 'clawbot_channel') return;
 
-    console.log('[ChatDetail] 开始监听 Nanobot 消息');
+    console.log('[ChatDetail] 开始监听 Clawbot Channel 消息');
 
-    const handleNanobotMessage = (message: NanobotMessage) => {
-      console.log('[ChatDetail] 收到 Nanobot 回复:', message);
+    const handleClawbotMessage = (message: any) => {
+      console.log('[ChatDetail] 收到 Clawbot Channel 回复:', message);
 
       const timeString = formatTime(new Date());
 
       const botMessage: UIMessage = {
-        id: message.msg_id || `bot-${Date.now()}`,
-        sender: 'bot',
-        text: message.message,
+        id: message.id || `bot-${Date.now()}`,
+        sender: message.sender || 'bot',
+        text: message.content,
         timestamp: message.timestamp || timeString,
-        messageType: message.message_type || 'text',
-        mediaUri: message.media_url
+        messageType: message.contentType || 'text',
+        mediaUri: message.mediaUrl
       };
 
       setMessages(prev => [...prev, botMessage]);
     };
 
-    nanobotBridge.on('message', handleNanobotMessage);
+    // 从 context 获取最新消息
+    setMessages(clawbotMessages.map(msg => ({
+      id: msg.id || `bot-${msg.timestamp}`,
+      sender: msg.sender,
+      text: msg.content,
+      timestamp: formatTime(new Date(msg.timestamp)),
+      messageType: msg.contentType,
+      mediaUri: msg.mediaUrl
+    })));
 
     return () => {
-      console.log('[ChatDetail] 清理 Nanobot 消息监听');
-      nanobotBridge.off('message', handleNanobotMessage);
+      console.log('[ChatDetail] 清理 Clawbot Channel 消息监听');
     };
-  }, [friendId]);
+  }, [friendId, clawbotMessages]);
 
   // 实时订阅新消息 - 防抖动标准写法
   useEffect(() => {
@@ -343,8 +351,8 @@ const ChatDetail: React.FC = () => {
       };
     }
 
-    // ✨ 特殊处理：Nanobot 使用 NanobotBridge，不保存到 Supabase
-    if (friendId === 'nanobot') {
+    // ✨ 特殊处理：Clawbot Channel 使用 ClawbotChannelContext，不保存到 Supabase
+    if (friendId === 'clawbot_channel') {
       try {
         // 清空输入
         setInput('');
@@ -365,16 +373,16 @@ const ChatDetail: React.FC = () => {
         };
         setMessages(prev => [...prev, tempUserMessage]);
 
-        // 使用 NanobotBridge 发送消息
-        await nanobotBridge.sendMessage(
+        // 使用 ClawbotChannelContext 发送消息
+        await clawbotSendMessage(
           messageText,
           hasMedia && mediaData?.type ? mediaData.type : 'text',
           mediaData?.uri
         );
 
-        console.log('✅ Nanobot 消息已发送');
+        console.log('✅ Clawbot Channel 消息已发送');
       } catch (error) {
-        console.error('❌ Nanobot 发送消息失败:', error);
+        console.error('❌ Clawbot Channel 发送消息失败:', error);
         showError('发送失败，请重试');
 
         // 发送失败，移除临时消息

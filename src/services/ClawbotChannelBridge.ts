@@ -1,0 +1,463 @@
+/**
+ * Clawbot Channel Bridge Service
+ * 连接到 Clawbot Channel 云端配对服务
+ *
+ * 基于文档: docs/PROJECT_SUMMARY.md
+ */
+
+import { io, Socket } from 'socket.io-client';
+import ossService from './OSSService';
+import { supabase } from '../config/supabase';
+
+export interface ClawbotChannelMessage {
+  id?: string;
+  content: string;
+  contentType: 'text' | 'image' | 'video' | 'file';
+  mediaUrl?: string;
+  timestamp: number;
+  sender: 'user' | 'bot';
+}
+
+export interface PairingData {
+  pairingCode: string;
+  qrImage: string;
+  expiresIn: number;
+}
+
+type EventCallback = (data: any) => void;
+
+class ClawbotChannelBridge {
+  private socket: Socket | null = null;
+  private userId: string | null = null;
+  public connected: boolean = false;
+  public paired: boolean = false;
+
+  // 配对信息
+  private pairingCode: string | null = null;
+  private deviceId: string | null = null;
+
+  // 心跳
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private lastPongTime: number = Date.now();
+  private heartbeatInterval: number = 30000; // 30 秒
+
+  // 重连
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 100;
+
+  // 事件监听器
+  private eventListeners: Map<string, Set<EventCallback>> = new Map();
+
+  constructor() {
+    this.deviceId = this.getOrCreateDeviceId();
+    console.log('[ClawbotChannel] 初始化，设备 ID:', this.deviceId);
+  }
+
+  /**
+   * 添加事件监听器
+   */
+  on(event: string, callback: EventCallback): void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    this.eventListeners.get(event)!.add(callback);
+  }
+
+  /**
+   * 移除事件监听器
+   */
+  off(event: string, callback: EventCallback): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(callback);
+    }
+  }
+
+  /**
+   * 触发事件
+   */
+  private emit(event: string, data?: any): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`[ClawbotChannel] 事件回调错误 (${event}):`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * 移除所有事件监听器
+   */
+  removeAllListeners(): void {
+    this.eventListeners.clear();
+  }
+
+  /**
+   * 获取或创建设备唯一标识
+   */
+  private getOrCreateDeviceId(): string {
+    let deviceId = localStorage.getItem('clawbot_channel_device_id');
+    if (!deviceId) {
+      deviceId = 'app_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      localStorage.setItem('clawbot_channel_device_id', deviceId);
+    }
+    return deviceId;
+  }
+
+  /**
+   * 获取 Supabase User ID
+   */
+  private async getSupabaseUserId(): Promise<string | null> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('[ClawbotChannel] 获取 session 错误:', error);
+        return null;
+      }
+
+      if (!session || !session.user) {
+        console.warn('[ClawbotChannel] 用户未登录');
+        return null;
+      }
+
+      return session.user.id;
+    } catch (error) {
+      console.error('[ClawbotChannel] getSupabaseUserId 错误:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 连接到服务器
+   */
+  async connect(): Promise<void> {
+    // 获取用户 ID
+    this.userId = await this.getSupabaseUserId();
+    if (!this.userId) {
+      console.error('[ClawbotChannel] 用户未登录，无法连接');
+      this.emit('error', { message: '请先登录' });
+      return;
+    }
+
+    // 检查是否已配对
+    const wasPaired = localStorage.getItem('clawbot_paired') === 'true';
+    if (wasPaired) {
+      this.paired = true;
+      this.deviceId = localStorage.getItem('clawbot_device_id');
+    }
+
+    const serverUrl = import.meta.env.VITE_CLAWBOT_CHANNEL_URL || 'wss://m.jmtrick.com';
+    console.log('[ClawbotChannel] 正在连接到服务器:', serverUrl);
+
+    this.emit('connecting');
+
+    this.socket = io(serverUrl, {
+      transports: ['websocket'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 60000
+    });
+
+    this.setupEventHandlers();
+  }
+
+  /**
+   * 设置 Socket 事件处理
+   */
+  private setupEventHandlers(): void {
+    if (!this.socket) return;
+
+    // 连接成功
+    this.socket.on('connect', () => {
+      console.log('[ClawbotChannel] 已连接');
+      this.connected = true;
+      this.reconnectAttempts = 0;
+      this.startHeartbeat();
+
+      // 注册 App
+      this.socket?.emit('app_register', { userId: this.userId });
+
+      this.emit('connected');
+    });
+
+    // 断开连接
+    this.socket.on('disconnect', () => {
+      console.log('[ClawbotChannel] 已断开');
+      this.connected = false;
+      this.stopHeartbeat();
+      this.emit('disconnected');
+    });
+
+    // 配对成功
+    this.socket.on('pairing_success', (data: { deviceId: string; deviceName: string }) => {
+      console.log('[ClawbotChannel] 配对成功:', data);
+      this.paired = true;
+      this.deviceId = data.deviceId;
+      localStorage.setItem('clawbot_device_id', data.deviceId);
+      localStorage.setItem('clawbot_paired', 'true');
+      this.emit('paired', data);
+    });
+
+    // 收到 Bot 消息
+    this.socket.on('bot_message', (msg: { content: string; contentType: string; mediaUrl?: string; timestamp: number }) => {
+      console.log('[ClawbotChannel] 收到 Bot 消息:', msg);
+      const message: ClawbotChannelMessage = {
+        id: Date.now().toString(),
+        content: msg.content,
+        contentType: msg.contentType || 'text',
+        mediaUrl: msg.mediaUrl,
+        timestamp: msg.timestamp || Date.now(),
+        sender: 'bot'
+      };
+      this.emit('message', message);
+    });
+
+    // 被解绑
+    this.socket.on('unpaired', () => {
+      console.log('[ClawbotChannel] 被解绑');
+      this.paired = false;
+      this.deviceId = null;
+      localStorage.removeItem('clawbot_paired');
+      localStorage.removeItem('clawbot_device_id');
+      this.emit('unpaired');
+    });
+
+    // 心跳响应
+    this.socket.on('pong', (data: { timestamp: number }) => {
+      this.lastPongTime = Date.now();
+    });
+
+    // 错误
+    this.socket.on('error', (err: any) => {
+      console.error('[ClawbotChannel] 错误:', err);
+      this.emit('error', { message: err.message || '连接错误' });
+    });
+
+    // 连接错误
+    this.socket.on('connect_error', (err: Error) => {
+      console.error('[ClawbotChannel] 连接错误:', err);
+      this.reconnectAttempts++;
+      this.emit('reconnecting', { attempt: this.reconnectAttempts });
+    });
+  }
+
+  /**
+   * 请求配对（生成配对码和二维码）
+   */
+  requestPairing(): Promise<PairingData> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('未连接到服务器'));
+        return;
+      }
+
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      this.socket.emit('request_pairing', {
+        userId: this.userId,
+        deviceName: isMobile ? 'TRIX Mobile App' : 'TRIX Web App'
+      }, (response: any) => {
+        if (response.success) {
+          this.pairingCode = response.pairingCode;
+          console.log('[ClawbotChannel] 配对码已生成:', this.pairingCode);
+          resolve({
+            pairingCode: response.pairingCode,
+            qrImage: response.qrImage,
+            expiresIn: response.expiresIn
+          });
+        } else {
+          reject(new Error(response.error || '请求配对失败'));
+        }
+      });
+    });
+  }
+
+  /**
+   * 通过配对码配对
+   */
+  pairWithCode(code: string): Promise<{ success: boolean; pairingId?: string; status?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('未连接到服务器'));
+        return;
+      }
+
+      this.socket.emit('pair_with_code', { code: code.toUpperCase() }, (response: any) => {
+        if (response.success) {
+          console.log('[ClawbotChannel] 配对码验证成功，等待 Bot 连接');
+          resolve({
+            success: true,
+            pairingId: response.pairingId,
+            status: response.status
+          });
+        } else {
+          reject(new Error(response.error || '配对码无效'));
+        }
+      });
+    });
+  }
+
+  /**
+   * 通过二维码 Token 配对
+   */
+  pairWithToken(token: string): Promise<{ success: boolean; pairingId?: string; status?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('未连接到服务器'));
+        return;
+      }
+
+      this.socket.emit('pair_with_token', { token }, (response: any) => {
+        if (response.success) {
+          console.log('[ClawbotChannel] Token 验证成功，等待 Bot 连接');
+          resolve({
+            success: true,
+            pairingId: response.pairingId,
+            status: response.status
+          });
+        } else {
+          reject(new Error(response.error || 'Token 无效'));
+        }
+      });
+    });
+  }
+
+  /**
+   * 发送消息到 Clawbot
+   */
+  sendMessage(content: string, contentType: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string): void {
+    if (!this.socket || !this.connected) {
+      throw new Error('[ClawbotChannel] 未连接，无法发送消息');
+    }
+
+    if (!this.paired) {
+      throw new Error('[ClawbotChannel] 未配对，无法发送消息');
+    }
+
+    this.socket.emit('app_message', {
+      content,
+      contentType,
+      mediaUrl
+    });
+
+    console.log('[ClawbotChannel] 消息已发送');
+  }
+
+  /**
+   * 上传媒体文件到 OSS
+   */
+  async uploadMedia(file: File | Blob): Promise<string> {
+    try {
+      const url = await ossService.uploadFile(file);
+      console.log('[ClawbotChannel] 文件上传成功:', url);
+      return url;
+    } catch (error) {
+      console.error('[ClawbotChannel] 文件上传失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 解绑
+   */
+  unpair(): void {
+    if (this.socket && this.connected) {
+      this.socket.emit('unpair');
+    }
+    this.paired = false;
+    this.deviceId = null;
+    this.pairingCode = null;
+    localStorage.removeItem('clawbot_paired');
+    localStorage.removeItem('clawbot_device_id');
+    console.log('[ClawbotChannel] 已解绑');
+  }
+
+  /**
+   * 启动心跳
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.lastPongTime = Date.now();
+    this.heartbeatTimer = setInterval(() => {
+      // 检查是否超过 60 秒没收到 pong
+      if (Date.now() - this.lastPongTime > 60000) {
+        console.log('[ClawbotChannel] 心跳超时，重连...');
+        this.socket?.disconnect();
+        this.socket?.connect();
+        return;
+      }
+
+      this.socket?.emit('ping');
+    }, this.heartbeatInterval);
+  }
+
+  /**
+   * 停止心跳
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  /**
+   * 断开连接
+   */
+  disconnect(): void {
+    console.log('[ClawbotChannel] 断开连接');
+    this.stopHeartbeat();
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+    this.connected = false;
+    this.emit('disconnected');
+  }
+
+  /**
+   * 检查连接状态
+   */
+  isConnected(): boolean {
+    return this.connected && this.socket !== null && this.socket.connected;
+  }
+
+  /**
+   * 检查是否已配对
+   */
+  isPaired(): boolean {
+    return this.paired;
+  }
+
+  /**
+   * 获取设备 ID
+   */
+  getDeviceId(): string {
+    return this.deviceId || '';
+  }
+
+  /**
+   * 获取当前配对码
+   */
+  getPairingCode(): string | null {
+    return this.pairingCode;
+  }
+
+  /**
+   * 获取 User ID
+   */
+  getUserId(): string | null {
+    return this.userId;
+  }
+}
+
+// 导出单例实例
+export const clawbotChannelBridge = new ClawbotChannelBridge();
+export default clawbotChannelBridge;
