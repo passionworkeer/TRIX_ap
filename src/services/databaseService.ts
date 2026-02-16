@@ -338,21 +338,12 @@ export async function sendMessage(
 ): Promise<string | null> {
   try {
     const userId = await getCurrentUserId();
-    
-    console.log('🚀 [发送消息] 开始:', {
-      userId: userId.substring(0, 8) + '...',
-      friendId: friendId.substring(0, 8) + '...',
-      sender,
-      textLength: text.length
-    });
-    
+
     // 构建会话ID
-    const conversationId = userId < friendId 
-      ? `${userId}_${friendId}` 
+    const conversationId = userId < friendId
+      ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
-    
-    console.log('📦 [会话ID]:', conversationId);
-    
+
     // 确定发送者和接收者
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
@@ -364,14 +355,7 @@ export async function sendMessage(
       text: text,
       is_read: false
     };
-    
-    console.log('📨 [消息数据]:', {
-      ...messageData,
-      sender_id: messageData.sender_id.substring(0, 8) + '...',
-      receiver_id: messageData.receiver_id.substring(0, 8) + '...',
-      text: messageData.text.substring(0, 30) + '...'
-    });
-    
+
     const { data, error } = await supabase
       .from('chat_messages')
       .insert(messageData)
@@ -379,40 +363,16 @@ export async function sendMessage(
       .single();
 
     if (error) {
-      console.error('❌ [发送失败] Supabase 错误:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-      
-      // 检查是否是 RLS 权限问题
-      if (error.code === '42501' || error.message.includes('policy')) {
-        console.error('🔒 [RLS 策略错误] 数据库权限被拒绝！');
-        console.error('💡 解决方案: 检查 chat_messages 表的 RLS 策略配置');
-      }
-      
-      // 检查是否是表不存在或字段不匹配
-      if (error.code === '42P01') {
-        console.error('📋 [表不存在] chat_messages 表未找到！');
-      } else if (error.code === '42703') {
-        console.error('📋 [字段错误] 表结构不匹配！可能需要运行 complete-init.sql');
-      }
-      
+      console.error('发送消息失败:', error);
       return null;
     }
 
-    console.log('✅ [发送成功] 消息ID:', data?.id);
-    
     // 更新未读计数
     await updateUnreadCount(receiverId, senderId, text);
 
     return data?.id || null;
   } catch (error: any) {
-    console.error('❌ [发送失败] 捕获异常:', {
-      message: error.message,
-      stack: error.stack?.split('\n')[0]
-    });
+    console.error('发送消息失败:', error);
     return null;
   }
 }
@@ -446,20 +406,10 @@ export async function sendMessageWithMedia(
   try {
     const userId = await getCurrentUserId();
 
-    console.log('🚀 [发送媒体消息] 开始:', {
-      userId: userId.substring(0, 8) + '...',
-      friendId: friendId.substring(0, 8) + '...',
-      sender,
-      messageType,
-      mediaSize: (mediaData.size / 1024).toFixed(2) + 'KB'
-    });
-
     // 构建会话ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
-
-    console.log('📦 [会话ID]:', conversationId);
 
     // 确定发送者和接收者
     const senderId = sender === 'user' ? userId : friendId;
@@ -478,14 +428,6 @@ export async function sendMessageWithMedia(
       media_metadata: mediaData.metadata || null
     };
 
-    console.log('📨 [媒体消息数据]:', {
-      ...messageData,
-      sender_id: messageData.sender_id.substring(0, 8) + '...',
-      receiver_id: messageData.receiver_id.substring(0, 8) + '...',
-      text: messageData.text.substring(0, 30) + (messageData.text.length > 30 ? '...' : ''),
-      media_uri: messageData.media_uri.substring(0, 50) + '...'
-    });
-
     const { data, error } = await supabase
       .from('chat_messages')
       .insert(messageData)
@@ -493,29 +435,9 @@ export async function sendMessageWithMedia(
       .single();
 
     if (error) {
-      console.error('❌ [发送媒体消息失败] Supabase 错误:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-
-      // 检查是否是 RLS 权限问题
-      if (error.code === '42501' || error.message.includes('policy')) {
-        console.error('🔒 [RLS 策略错误] 数据库权限被拒绝！');
-        console.error('💡 解决方案: 检查 chat_messages 表的 RLS 策略配置');
-      }
-
-      // 检查新字段是否存在
-      if (error.code === '42703') {
-        console.error('📋 [字段错误] chat_messages 表缺少媒体字段！');
-        console.error('💡 解决方案: 运行 database/add-media-support-to-chat-messages.sql');
-      }
-
+      console.error('发送媒体消息失败:', error);
       return null;
     }
-
-    console.log('✅ [发送媒体消息成功] 消息ID:', data?.id);
 
     // 更新未读计数（使用预览文本）
     const previewText = text || `[${messageType === 'image' ? '图片' : '视频'}]`;
@@ -523,10 +445,7 @@ export async function sendMessageWithMedia(
 
     return data?.id || null;
   } catch (error: any) {
-    console.error('❌ [发送媒体消息失败] 捕获异常:', {
-      message: error.message,
-      stack: error.stack?.split('\n')[0]
-    });
+    console.error('发送媒体消息失败:', error);
     return null;
   }
 }

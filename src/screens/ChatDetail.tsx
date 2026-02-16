@@ -146,12 +146,6 @@ const ChatDetail: React.FC = () => {
       uiMessage.mediaUri = dbMsg.media_uri;
       uiMessage.mediaType = dbMsg.media_type;
       uiMessage.mediaMetadata = dbMsg.media_metadata;
-      
-      console.log('🖼️ [ChatDetail] Loading media message:', {
-        messageType: dbMsg.message_type,
-        mediaUri: dbMsg.media_uri,
-        mediaType: dbMsg.media_type
-      });
     }
 
     return uiMessage;
@@ -160,9 +154,8 @@ const ChatDetail: React.FC = () => {
   // 加载聊天历史
   useEffect(() => {
     const loadChatHistory = async () => {
-      // ✨ 特殊处理：Clawbot Channel 不从数据库加载历史，直接监听消息
+      // 特殊处理：Clawbot Channel 不从数据库加载历史，直接监听消息
       if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
-        console.log('[ChatDetail] Clawbot Channel 模式：跳过数据库加载');
         setLoading(false);
         return;
       }
@@ -199,11 +192,9 @@ const ChatDetail: React.FC = () => {
     loadChatHistory();
   }, [friendId]);
 
-  // ✨ 监听 Clawbot Channel 消息
+  // 监听 Clawbot Channel 消息
   useEffect(() => {
     if (friendId !== 'clawbot' && friendId !== 'clawbot_channel') return;
-
-    console.log('[ChatDetail] 开始监听 Clawbot Channel 消息');
 
     // 从 context 获取最新消息
     setMessages(clawbotMessages.map(msg => ({
@@ -216,20 +207,17 @@ const ChatDetail: React.FC = () => {
     })));
 
     return () => {
-      console.log('[ChatDetail] 清理 Clawbot Channel 消息监听');
+      // Cleanup
     };
   }, [friendId, clawbotMessages]);
 
   // 实时订阅新消息 - 防抖动标准写法
   useEffect(() => {
-    // 🚫 如果没有会话ID,则跳过
+    // 如果没有会话ID,则跳过
     if (!conversationId) {
-      console.log('⚠️ [Realtime] 会话ID未就绪,跳过订阅');
       return;
     }
-    
-    console.log('🔌 [Realtime] 启动监听:', conversationId);
-    
+
     // 1️⃣ 创建频道
     const channel = supabase.channel(`chat:${conversationId}`, {
       config: {
@@ -249,62 +237,47 @@ const ChatDetail: React.FC = () => {
         },
         (payload) => {
           const newMessage = payload.new as any;
-          
-          //  手动过滤逻辑
+
+          // 手动过滤逻辑
           if (newMessage.conversation_id !== conversationId) {
-            console.log('⚠️ [Realtime] 消息不属于当前会话:', {
-              received: newMessage.conversation_id,
-              expected: conversationId
-            });
             return;
           }
-          
-          console.log('🔥 [Realtime] 收到新消息:', newMessage.text);
-          
+
           // 只有当消息不是当前用户发送的,才添加到消息列表
           if (newMessage.sender_id !== currentUserId) {
-            console.log('✅ [Realtime] 消息来自好友，添加到UI');
-            
-            // ✅ 关键：使用函数式更新,不需要将 messages 加入依赖数组
+            // 使用函数式更新,不需要将 messages 加入依赖数组
             setMessages((prev) => {
               // 防止重复添加
               if (prev.some(msg => msg.id === newMessage.id)) {
-                console.log('⚠️ [Realtime] 消息已存在，跳过');
                 return prev;
               }
-              
+
               const uiMessage: UIMessage = {
                 id: newMessage.id,
                 sender: 'friend',
                 text: newMessage.text,
                 timestamp: formatTime(newMessage.created_at)
               };
-              
-              console.log('✅ [Realtime] 添加新消息到列表');
+
               return [...prev, uiMessage];
             });
-          } else {
-            console.log('⚠️ [Realtime] 消息来自自己，跳过');
           }
         }
       )
       .subscribe((status) => {
-        console.log(`📡 [Realtime] 连接状态: ${status}`);
-        
         if (status === 'SUBSCRIBED') {
-          console.log('✅ [Realtime] 订阅成功,长连接已建立');
+          // Subscription successful
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ [Realtime] 频道错误');
+          console.error('频道错误');
         } else if (status === 'TIMED_OUT') {
-          console.error('❌ [Realtime] 连接超时');
+          console.error('连接超时');
         } else if (status === 'CLOSED') {
-          console.log('🔌 [Realtime] 连接已关闭');
+          // Connection closed
         }
       });
-    
+
     // 3️⃣ 仅在 conversationId 真正改变时才清理
     return () => {
-      console.log('🧹 [Realtime] 清理连接:', conversationId);
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
@@ -384,9 +357,9 @@ const ChatDetail: React.FC = () => {
           mediaData?.uri
         );
 
-        console.log('✅ Clawbot Channel 消息已发送');
+        // Message sent successfully
       } catch (error) {
-        console.error('❌ Clawbot Channel 发送消息失败:', error);
+        console.error('Clawbot Channel 发送消息失败:', error);
         showError('发送失败，请重试');
 
         // 发送失败，移除临时消息
@@ -467,9 +440,9 @@ const ChatDetail: React.FC = () => {
       if (isPaired) {
         try {
           await clawbotSendMessage(messageText);
-          console.log('✅ Clawbot Channel 消息已发送');
+          // Message sent successfully
         } catch (error) {
-          console.error('❌ Clawbot Channel 发送消息失败:', error);
+          console.error('Clawbot Channel 发送消息失败:', error);
           showError('发送失败，请重试');
           // 发送失败，移除临时消息
           setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
@@ -501,7 +474,6 @@ const ChatDetail: React.FC = () => {
       // 添加到预览列表
       setAttachmentPreviews(prev => [...prev, result.uri]);
 
-      console.log('Upload successful:', result);
     } catch (error: any) {
       console.error('Upload error:', error);
       showError(error.message || '上传失败');
@@ -880,8 +852,6 @@ const ChatDetail: React.FC = () => {
                 >
                   <AIActionSelector
                     onSelect={(action: string) => {
-                      console.log('选择的 AI 功能:', action);
-
                       // AI功能指令映射（使用特殊标记，clawbot端可以识别）
                       const aiPrompts: Record<string, string> = {
                         chat: '', // 默认聊天，无前缀

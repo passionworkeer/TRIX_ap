@@ -24,11 +24,6 @@ class AliyunOSSService {
       accessKeySecret: import.meta.env.VITE_ALIYUN_OSS_ACCESS_KEY_SECRET || '',
       endpoint: import.meta.env.VITE_ALIYUN_OSS_ENDPOINT || 'oss-cn-shenzhen.aliyuncs.com',
     };
-
-    console.log('[OSS] 配置:', {
-      bucket: this.config.bucket,
-      endpoint: this.config.endpoint,
-    });
   }
 
   /**
@@ -74,8 +69,6 @@ class AliyunOSSService {
     filename?: string
   ): Promise<{ url: string; name: string }> {
     try {
-      console.log('[OSS] 开始上传文件...', file.size, 'bytes');
-
       // 生成唯一文件名
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(7);
@@ -94,8 +87,6 @@ class AliyunOSSService {
       // 构建 URL
       const url = `https://${this.config.bucket}.${this.config.endpoint}/${objectName}`;
 
-      console.log('[OSS] 上传 URL:', url);
-
       // 发起 PUT 请求
       const response = await fetch(url, {
         method: 'PUT',
@@ -112,8 +103,6 @@ class AliyunOSSService {
         console.error('[OSS] 上传失败:', errorText);
         throw new Error(`上传失败: ${response.status} ${response.statusText}`);
       }
-
-      console.log('[OSS] 上传成功:', url);
 
       return {
         url,

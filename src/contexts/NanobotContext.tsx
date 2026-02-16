@@ -54,7 +54,6 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
     const savedCode = localStorage.getItem('nanobot_pairing_code');
     if (savedCode) {
       pairingCodeRef.current = savedCode;
-      console.log('[NanobotContext] 恢复配对码:', savedCode);
       // 自动连接
       setTimeout(() => {
         if (isMounted) {
@@ -66,7 +65,6 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
     // 监听 Nanobot Bridge 事件
     const handleConnected = (data: any) => {
       if (isMounted) {
-        console.log('[NanobotContext] 已连接:', data);
         setStatus('CONNECTED');
         setLastError(null);
       }
@@ -74,28 +72,24 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
 
     const handleDisconnected = () => {
       if (isMounted) {
-        console.log('[NanobotContext] 已断开');
         setStatus('DISCONNECTED');
       }
     };
 
     const handleReconnecting = (data: any) => {
       if (isMounted) {
-        console.log('[NanobotContext] 重连中:', data);
         setStatus('RECONNECTING');
       }
     };
 
     const handleReconnected = (data: any) => {
       if (isMounted) {
-        console.log('[NanobotContext] 重连成功:', data);
         setStatus('CONNECTED');
       }
     };
 
     const handleMessage = (message: NanobotMessage) => {
       if (isMounted) {
-        console.log('[NanobotContext] 收到消息:', message);
         setMessages(prev => [...prev, message]);
       }
     };

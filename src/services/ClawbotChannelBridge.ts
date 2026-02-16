@@ -55,7 +55,6 @@ class ClawbotChannelBridge {
 
   constructor() {
     this.deviceId = this.getOrCreateDeviceId();
-    console.log('[ClawbotChannel] 初始化，设备 ID:', this.deviceId);
   }
 
   /**
@@ -157,7 +156,6 @@ class ClawbotChannelBridge {
     }
 
     const serverUrl = import.meta.env.VITE_CLAWBOT_CHANNEL_URL || 'wss://m.jmtrick.com';
-    console.log('[ClawbotChannel] 正在连接到服务器:', serverUrl);
 
     this.emit('connecting');
 
@@ -181,18 +179,16 @@ class ClawbotChannelBridge {
 
     // 连接成功
     this.socket.on('connect', () => {
-      console.log('[ClawbotChannel] 已连接');
       this.connected = true;
       this.reconnectAttempts = 0;
       this.startHeartbeat();
 
-      // ✅ P1-问题4: 防抖机制，避免重复注册
+      // 防抖机制，避免重复注册
       if (this.registerTimeout) {
         clearTimeout(this.registerTimeout);
       }
       this.registerTimeout = setTimeout(() => {
         if (this.userId) {
-          console.log('[ClawbotChannel] 📱 注册 App: userId=' + this.userId);
           this.socket?.emit('app_register', { userId: this.userId });
         }
       }, 100); // 100ms 防抖
@@ -202,7 +198,6 @@ class ClawbotChannelBridge {
 
     // 断开连接
     this.socket.on('disconnect', () => {
-      console.log('[ClawbotChannel] 已断开');
       this.connected = false;
       this.stopHeartbeat();
       this.emit('disconnected');
@@ -210,7 +205,6 @@ class ClawbotChannelBridge {
 
     // 配对成功
     this.socket.on('pairing_success', (data: { deviceId: string; deviceName: string }) => {
-      console.log('[ClawbotChannel] 配对成功:', data);
       this.paired = true;
       this.deviceId = data.deviceId;
       localStorage.setItem('clawbot_device_id', data.deviceId);
@@ -220,9 +214,8 @@ class ClawbotChannelBridge {
 
     // 收到 Bot 消息
     this.socket.on('bot_message', (msg: { content: string; contentType?: 'text' | 'image' | 'video' | 'file'; mediaUrl?: string; timestamp: number }) => {
-      console.log('[ClawbotChannel] 📩 收到 Bot 消息:', msg);
       const message: ClawbotChannelMessage = {
-        id: generateMessageId(),  // ✅ #8: 使用 UUID
+        id: generateMessageId(),
         content: msg.content,
         contentType: msg.contentType ?? 'text',
         mediaUrl: msg.mediaUrl,
@@ -232,21 +225,18 @@ class ClawbotChannelBridge {
       this.emit('message', message);
     });
 
-    // ✅ P1-#5: Bot 离线通知
+    // Bot 离线通知
     this.socket.on('bot_offline', (data: { deviceId: string; message: string; timestamp: number }) => {
-      console.log('[ClawbotChannel] 📴 Bot 离线:', data);
       this.emit('bot_offline', data);
     });
 
-    // ✅ P1-问题5: Bot 上线通知
+    // Bot 上线通知
     this.socket.on('bot_online', (data: { deviceId: string; message: string; timestamp: number }) => {
-      console.log('[ClawbotChannel] 🟢 Bot 上线:', data);
       this.emit('bot_online', data);
     });
 
     // 被解绑
     this.socket.on('unpaired', () => {
-      console.log('[ClawbotChannel] 被解绑');
       this.paired = false;
       this.deviceId = null;
       localStorage.removeItem('clawbot_paired');
@@ -294,7 +284,6 @@ class ClawbotChannelBridge {
 
       this.socket.emit('pair_with_code', { code: code.toUpperCase(), userId: this.userId }, (response: any) => {
         if (response.success) {
-          console.log('[ClawbotChannel] 配对码验证成功，等待 Bot 连接');
           resolve({
             success: true,
             pairingId: response.pairingId,
@@ -324,7 +313,6 @@ class ClawbotChannelBridge {
 
       this.socket.emit('pair_with_token', { token, userId: this.userId }, (response: any) => {
         if (response.success) {
-          console.log('[ClawbotChannel] Token 验证成功，等待 Bot 连接');
           resolve({
             success: true,
             pairingId: response.pairingId,
@@ -370,7 +358,6 @@ class ClawbotChannelBridge {
           this.socket?.off('message_sent', handler); // ✅ 清除监听器
 
           if (response.success) {
-            console.log('[ClawbotChannel] ✅ 消息已确认:', messageId);
             resolve();
           } else {
             reject(new Error(response.error || '消息发送失败'));
@@ -384,10 +371,8 @@ class ClawbotChannelBridge {
         content,
         contentType,
         mediaUrl,
-        messageId // ✅ 发送消息ID
+        messageId // 发送消息ID
       });
-
-      console.log('[ClawbotChannel] 📤 消息已发送:', messageId);
     });
   }
 
@@ -397,7 +382,6 @@ class ClawbotChannelBridge {
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
       const result = await ossService.uploadFile(file);
-      console.log('[ClawbotChannel] 文件上传成功:', result.url);
       return result.url;
     } catch (error) {
       console.error('[ClawbotChannel] 文件上传失败:', error);
@@ -417,7 +401,6 @@ class ClawbotChannelBridge {
     this.pairingCode = null;
     localStorage.removeItem('clawbot_paired');
     localStorage.removeItem('clawbot_device_id');
-    console.log('[ClawbotChannel] 已解绑');
   }
 
   /**
@@ -429,7 +412,6 @@ class ClawbotChannelBridge {
     this.heartbeatTimer = setInterval(() => {
       // 检查是否超过 60 秒没收到 pong
       if (Date.now() - this.lastPongTime > 60000) {
-        console.log('[ClawbotChannel] 心跳超时，重连...');
         this.socket?.disconnect();
         this.socket?.connect();
         return;
@@ -453,7 +435,6 @@ class ClawbotChannelBridge {
    * 断开连接
    */
   disconnect(): void {
-    console.log('[ClawbotChannel] 断开连接');
     this.stopHeartbeat();
     if (this.socket) {
       this.socket.disconnect();
