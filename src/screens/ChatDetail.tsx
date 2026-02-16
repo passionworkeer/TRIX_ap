@@ -10,7 +10,6 @@ import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
-import { ButtonLoadingSpinner } from '../components/LoadingSpinner';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
@@ -126,7 +125,6 @@ const ChatDetail: React.FC = () => {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
@@ -370,7 +368,7 @@ const ChatDetail: React.FC = () => {
         // 使用 ClawbotChannelContext 发送消息
         await clawbotSendMessage(
           messageText,
-          hasMedia && mediaData?.type ? mediaData.type : 'text',
+          hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
           mediaData?.uri
         );
 
@@ -392,8 +390,8 @@ const ChatDetail: React.FC = () => {
     const timeString = formatTime(new Date());
 
     // Determine message type
-    const messageType = hasMedia && hasText ? 'mixed'
-      : hasMedia ? (mediaData.category === 'image' ? 'image' : 'video')
+    const messageType: 'text' | 'image' | 'video' | 'mixed' = hasMedia && hasText ? 'mixed'
+      : hasMedia ? (mediaData?.category === 'image' ? 'image' : 'video')
       : 'text';
 
     // 临时显示用户消息(乐观更新UI)
@@ -416,6 +414,9 @@ const ChatDetail: React.FC = () => {
 
       if (hasMedia) {
         // Send message with media - 使用类型断言，因为 hasMedia 为 true 时 messageType 不会是 'text'
+        if (!mediaData) {
+          throw new Error('Media data is required when hasMedia is true');
+        }
         messageId = await sendMessageWithMedia(
           friendId,
           'user',
@@ -423,9 +424,9 @@ const ChatDetail: React.FC = () => {
           {
             uri: mediaData.uri,
             type: mediaData.type,
-            size: mediaData.size,
+            size: mediaData.size ?? 0,
             category: mediaData.category,
-            metadata: mediaData.metadata
+            metadata: mediaData.metadata ?? {}
           },
           messageType as 'image' | 'video' | 'mixed'
         );
@@ -766,7 +767,7 @@ const ChatDetail: React.FC = () => {
                       <div key={index} className="relative flex-shrink-0">
                         <div className="w-[80px] h-[80px] rounded-lg overflow-hidden border-2 border-black shadow-lg">
                           <img
-                            src={preview}
+                            src={preview.uri}
                             alt={`附件预览 ${index + 1}`}
                             className="w-full h-full object-cover"
                           />
@@ -834,14 +835,14 @@ const ChatDetail: React.FC = () => {
                 {/* 发送按钮 */}
                 <button
                   onClick={handleSend}
-                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false) || sendingMessage || uploadingFile}
+                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false) || uploadingFile}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
                     input.trim() || attachmentPreviews.length > 0
                       ? 'bg-black text-white hover:bg-gray-800 shadow-md'
                       : 'bg-gray-300 text-gray-400'
                   }`}
                 >
-                  {sendingMessage || uploadingFile ? (
+                  {uploadingFile ? (
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                   ) : (
                     <Send size={14} className={input.trim() ? '-rotate-45' : ''} />

@@ -85,7 +85,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         setStatus('DISCONNECTED');
       });
 
-      clawbotChannelBridge.on('reconnecting', (data: any) => {
+      clawbotChannelBridge.on('reconnecting', (_data: any) => {
         setStatus('RECONNECTING');
       });
 

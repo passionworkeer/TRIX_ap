@@ -150,3 +150,11 @@ export function getRequiredEnv(envVar: string): string {
 
   return value;
 }
+
+/**
+ * Checks if the application is running in development mode
+ * @returns true if in development mode
+ */
+export function isDev(): boolean {
+  return import.meta.env.DEV;
+}

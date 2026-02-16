@@ -30,7 +30,6 @@ import { useNotification } from './hooks/useNotification';
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
   const { showWarning } = useNotification();
-  const navigate = useNavigate();
   const [shouldRedirect, setShouldRedirect] = React.useState(false);
 
   React.useEffect(() => {
@@ -45,6 +44,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line consistent-return
+    return;
   }, [loading, user, shouldRedirect, showWarning]);
 
   if (loading) {
