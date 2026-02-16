@@ -79,7 +79,9 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
   if (!show) return null;
 
   const hasCompanion = !!companion;
-  const completionRate = Math.round((studyDuration / initialDuration) * 100);
+  const completionRate = initialDuration > 0
+    ? Math.round((studyDuration / initialDuration) * 100)
+    : 0;
   const earnedPoints = Math.floor(studyDuration * 2); // 每分钟2积分
 
   return (
