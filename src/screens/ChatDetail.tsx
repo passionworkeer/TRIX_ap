@@ -437,32 +437,10 @@ const ChatDetail: React.FC = () => {
           setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
         }
       } else {
-        // Fallback Mock Bot Response if offline
-        setTimeout(async () => {
-          const botResponse: UIMessage = {
-            id: `temp-bot-${Date.now()}`,
-            sender: 'bot',
-            text: '[Mock Mode] Gateway is offline. Echo: ' + messageText,
-            timestamp: formatTime(new Date()),
-          };
-          setMessages(prev => [...prev, botResponse]);
-
-          // 保存 Bot 消息到数据库
-          try {
-            const botMessageId = await dbSendMessage(friendId, 'bot', botResponse.text);
-            if (botMessageId) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === botResponse.id
-                    ? { ...msg, id: botMessageId }
-                    : msg
-                )
-              );
-            }
-          } catch (error) {
-            console.error('保存 Bot 消息失败:', error);
-          }
-        }, 1000);
+        // Bot 未配对，提示用户先配对
+        showError('请先配对 Clawbot 设备');
+        // 移除临时消息
+        setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
       }
     }
     // 对于好友聊天,好友的回复会通过实时订阅自动显示
