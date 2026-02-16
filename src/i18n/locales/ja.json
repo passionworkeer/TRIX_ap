@@ -1,0 +1,109 @@
+{
+  "profile": {
+    "title": "プロフィール",
+    "darkMode": "ダークモード",
+    "language": "言語",
+    "logout": "ログアウト",
+    "points": "ポイント",
+    "daysActive": "アクティブ日数",
+    "interactions": "インタラクション",
+    "level": "レベル",
+    "myWardrobe": "マイワードローブ",
+    "viewAll": "すべて表示",
+    "getMore": "もっと見る",
+    "appearance": "外観とパーソナライゼーション",
+    "general": "一般",
+    "privacy": "プライバシーとセキュリティ",
+    "about": "私たちについて",
+    "outfitEquipped": "装備済み: {{name}}",
+    "logoutConfirm": "ログアウトしてもよろしいですか？",
+    "privacyInDev": "プライバシーとセキュリティ設定（開発中）",
+    "aboutText": "TRIX v1.2.0\n開発チーム: TRIX Studio\n© 2026 All Rights Reserved",
+    "statsMessages": {
+      "daysActive": "🎉 あなたとTRIXの出会いから{{value}}日経ちました！\n継続して、一緒に成長しましょう！",
+      "points": "⭐ 現在のポイント: {{value}}\n学習を続けてポイントを稼ぎましょう！",
+      "interactions": "💬 総インタラクション数: {{value}}\n今週: 86回"
+    },
+    "wardrobeInDev": "衣装ショップ（開発中）\nさらに素晴らしい衣装が登場します！",
+    "getMoreOutfits": "もっと衣装を入手\n\nタスクやアクティビティを完了して新しい衣装をアンロックしよう！",
+    "languageChanged": "言語を {{language}} に変更しました"
+  },
+  "map": {
+    "virtualSpace": "バーチャル空間",
+    "studyRoom": "自習室",
+    "popularPlaces": "人気の場所",
+    "friendsCount": "人の友達",
+    "places": {
+      "starbucks": {
+        "name": "スターバックスコーヒー",
+        "description": "友達とコーヒーを楽しむ",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      },
+      "hotpot": {
+        "name": "海底火鍋",
+        "description": "賑やかな火鍋パーティー",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      },
+      "cinema": {
+        "name": "万達映画館",
+        "description": "最新映画上映中",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      },
+      "park": {
+        "name": "静安彫刻公園",
+        "description": "散歩やおしゃべりに最適",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      },
+      "studyRoom": {
+        "name": "24時間自習室",
+        "description": "静かな学習環境",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      },
+      "ktv": {
+        "name": "KTVカラオケ",
+        "description": "カラオケでリラックス",
+        "navigate": "ナビ",
+        "favorite": "お気に入り",
+        "favorited": "お気に入り済み"
+      }
+    },
+    "types": {
+      "dining": "🍽️ ダイニング",
+      "entertainment": "🎬 エンタメ",
+      "study": "📚 学習",
+      "shopping": "🛍️ ショッピング",
+      "park": "🌳 公園"
+    }
+  },
+  "friend": {
+    "sendMessage": "メッセージ",
+    "viewProfile": "プロフィール",
+    "inviteStudy": "招待",
+    "studying": "学習中",
+    "todayStudyTime": "今日 {{minutes}} 分学習しました",
+    "lastOnline": "最終アクティブ: {{time}}",
+    "online": "オンライン",
+    "inviteSent": "{{name}} さんを学習に招待しました"
+  },
+  "common": {
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "save": "保存",
+    "edit": "編集",
+    "delete": "削除",
+    "close": "閉じる"
+  }
+}

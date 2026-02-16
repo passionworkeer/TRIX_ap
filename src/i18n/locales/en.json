@@ -1,0 +1,109 @@
+{
+  "profile": {
+    "title": "Profile",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "logout": "Logout",
+    "points": "Points",
+    "daysActive": "Days Active",
+    "interactions": "Interactions",
+    "level": "Level",
+    "myWardrobe": "My Wardrobe",
+    "viewAll": "View All",
+    "getMore": "Get More",
+    "appearance": "Appearance & Personalization",
+    "general": "General",
+    "privacy": "Privacy & Security",
+    "about": "About Us",
+    "outfitEquipped": "Equipped: {{name}}",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "privacyInDev": "Privacy & Security settings (Coming Soon)",
+    "aboutText": "TRIX v1.2.0\nDevelopment Team: TRIX Studio\n© 2026 All Rights Reserved",
+    "statsMessages": {
+      "daysActive": "🎉 You've been with TRIX for {{value}} days!\nKeep it up, let's grow together!",
+      "points": "⭐ Current points: {{value}}\nKeep studying to earn more points!",
+      "interactions": "💬 Total interactions: {{value}}\nThis week: 86 interactions"
+    },
+    "wardrobeInDev": "Outfit Shop (Coming Soon)\nMore amazing outfits coming soon!",
+    "getMoreOutfits": "Get More Outfits\n\nComplete tasks and activities to unlock new outfits!",
+    "languageChanged": "Language changed to: {{language}}"
+  },
+  "map": {
+    "virtualSpace": "VIRTUAL SPACE",
+    "studyRoom": "Study Room",
+    "popularPlaces": "Popular Places",
+    "friendsCount": "friends",
+    "places": {
+      "starbucks": {
+        "name": "Starbucks Coffee",
+        "description": "Meet friends for coffee",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      },
+      "hotpot": {
+        "name": "Haidilao Hot Pot",
+        "description": "Lively hot pot gathering",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      },
+      "cinema": {
+        "name": "Wanda Cinema",
+        "description": "Latest movies showing",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      },
+      "park": {
+        "name": "Jing'an Sculpture Park",
+        "description": "Great for walking and chatting",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      },
+      "studyRoom": {
+        "name": "24h Study Room",
+        "description": "Quiet study environment",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      },
+      "ktv": {
+        "name": "KTV Karaoke",
+        "description": "Relax with karaoke",
+        "navigate": "Navigate",
+        "favorite": "Favorite",
+        "favorited": "Favorited"
+      }
+    },
+    "types": {
+      "dining": "🍽️ Dining",
+      "entertainment": "🎬 Entertainment",
+      "study": "📚 Study",
+      "shopping": "🛍️ Shopping",
+      "park": "🌳 Park"
+    }
+  },
+  "friend": {
+    "sendMessage": "Message",
+    "viewProfile": "Profile",
+    "inviteStudy": "Invite",
+    "studying": "Studying",
+    "todayStudyTime": "Studied {{minutes}} min today",
+    "lastOnline": "Last active: {{time}}",
+    "online": "Online",
+    "inviteSent": "Invited {{name}} to study"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close"
+  }
+}
