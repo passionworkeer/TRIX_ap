@@ -55,8 +55,10 @@ class ErrorBoundary extends Component<Props, State> {
 
     // 生产环境可以发送错误到监控服务
     if (!isDev()) {
-      // TODO: 发送到 Sentry/DataDog 等监控服务
-      // logErrorToService(error, errorInfo);
+      // 集成监控服务（如 Sentry/DataDog）以跟踪生产环境错误
+      // 需要配置监控服务的 SDK 和 API 密钥
+      // 示例：
+      // Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
     }
 
     // 更新状态
