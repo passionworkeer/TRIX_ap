@@ -19,7 +19,7 @@ interface DurationSelectorProps {
  *
  * 显示时间预设按钮、当前选中的时长和开始专注按钮
  */
-const DurationSelector: React.FC<DurationSelectorProps> = ({
+const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
   timePresets,
   selectedDuration,
   onSelectDuration,
@@ -84,6 +84,8 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
       </div>
     </div>
   );
-};
+});
+
+DurationSelector.displayName = 'DurationSelector';
 
 export default DurationSelector;

@@ -15,7 +15,7 @@ interface StudyHeaderProps {
  *
  * 显示标题、位置标识、积分按钮和添加好友按钮
  */
-const StudyHeader: React.FC<StudyHeaderProps> = ({
+const StudyHeader: React.FC<StudyHeaderProps> = React.memo(({
   totalStudyTime,
   onBuddyListOpen,
   onPointsClick
@@ -33,13 +33,15 @@ const StudyHeader: React.FC<StudyHeaderProps> = ({
       {/* 右侧：按钮组 */}
       <div className="flex items-center gap-2">
         {/* 积分按钮 */}
-        <button
-          onClick={onPointsClick}
-          className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
-          aria-label={`积分，已累计学习 ${totalStudyTime} 分钟`}
-        >
-          <Zap size={18} className="text-yellow-400" />
-        </button>
+        {onPointsClick && (
+          <button
+            onClick={onPointsClick}
+            className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
+            aria-label={`积分，已累计学习 ${totalStudyTime} 分钟`}
+          >
+            <Zap size={18} className="text-yellow-400" />
+          </button>
+        )}
 
         {/* 添加好友按钮 */}
         <button
@@ -52,6 +54,8 @@ const StudyHeader: React.FC<StudyHeaderProps> = ({
       </div>
     </div>
   );
-};
+});
+
+StudyHeader.displayName = 'StudyHeader';
 
 export default StudyHeader;

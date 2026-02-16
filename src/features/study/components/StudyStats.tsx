@@ -11,7 +11,7 @@ interface StudyStatsProps {
  *
  * 显示累计专注时长（小时和分钟）
  */
-const StudyStats: React.FC<StudyStatsProps> = ({ totalStudyTime }) => {
+const StudyStats: React.FC<StudyStatsProps> = React.memo(({ totalStudyTime }) => {
   const hours = Math.floor(totalStudyTime / 60);
   const minutes = totalStudyTime % 60;
 
@@ -41,6 +41,8 @@ const StudyStats: React.FC<StudyStatsProps> = ({ totalStudyTime }) => {
       </div>
     </div>
   );
-};
+});
+
+StudyStats.displayName = 'StudyStats';
 
 export default StudyStats;
