@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { handleGlobalError } from '../utils/errorHandler';
 import type {
   ChatMessage,
   UnreadCount,
@@ -65,12 +66,12 @@ export async function addFriend(account: string): Promise<void> {
     ]);
 
     if (insertError) {
-      console.error('添加好友失败:', insertError);
+      handleGlobalError(insertError, '添加好友失败');
       throw new Error('添加好友失败: ' + insertError.message);
     }
 
   } catch (error: any) {
-    console.error('添加好友错误:', error);
+    handleGlobalError(error, '添加好友操作失败');
     throw error;
   }
 }
@@ -173,13 +174,13 @@ export async function getFriends(): Promise<FriendLatestMessage[]> {
       .order('last_message_time', { ascending: false, nullsFirst: false });
 
     if (error) {
-      console.error('获取好友列表失败:', error);
+      handleGlobalError(error, '获取好友列表失败');
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取好友列表失败:', error);
+    handleGlobalError(error, '获取好友列表失败');
     return [];
   }
 }
@@ -291,7 +292,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('获取聊天记录失败:', error);
+      handleGlobalError(error, '获取聊天记录失败');
       return [];
     }
 
@@ -317,7 +318,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
       return uiMessage;
     });
   } catch (error) {
-    console.error('获取聊天记录失败:', error);
+    handleGlobalError(error, '获取聊天记录失败');
     return [];
   }
 }
@@ -355,7 +356,7 @@ export async function sendMessage(
       .single();
 
     if (error) {
-      console.error('发送消息失败:', error);
+      handleGlobalError(error, '发送消息失败');
       return null;
     }
 
@@ -364,7 +365,7 @@ export async function sendMessage(
 
     return data?.id || null;
   } catch (error: any) {
-    console.error('发送消息失败:', error);
+    handleGlobalError(error, '发送消息失败');
     return null;
   }
 }
