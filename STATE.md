@@ -10,26 +10,35 @@
 
 ---
 
-## Current Task: 13/18
+## Current Task: 14/18
 
-### Task 13: Improve ProtectedRoute error UX
+### Task 14: Add centralized error handling
 
 **Status**: ✅ Complete
-**Completed**: 2025-02-17 01:45:00
-**Agent**: agent_13
-**Commit**: 81d0411
-**Files Changed**: 1 file, 33 insertions(+), 4 deletions(-)
+**Completed**: 2025-02-17 02:00:00
+**Agent**: agent_14
+**Commit**: b0dc26e
+**Files Changed**: 4 files, 357 insertions(+), 14 deletions(-)
 
 Changes:
 
-- Added useNotification hook import to App.tsx
-- Modified ProtectedRoute to show friendly warning message: "请先登录以访问此页面"
-- Implemented 500ms delay before redirect to /auth for better UX
-- Added shouldRedirect state to control redirect timing
-- Display loading spinner with "跳转到登录页..." message during delay
-- Toast notification appears before navigation, giving users clear feedback
+**New File: src/utils/errorHandler.ts**
+- Created comprehensive centralized error handling utility
+- 14 error type enums (network, auth, database, file upload, validation, etc.)
+- AppError custom error class with type, original error, and context
+- Smart error parser that automatically identifies error types
+- useErrorHandler Hook for React components
+- handleGlobalError function for non-React environments
+- ErrorFactory for convenient error creation
+- User-friendly Chinese error messages
+- Structured error logging (ready for Sentry integration)
 
-Resolution: Users now see a clear "Please login first" warning toast before being redirected to the login page, improving the overall UX and reducing confusion about why navigation occurred.
+**Integration Points:**
+- ChatDetail.tsx: File upload, friend data loading, chat history loading
+- AuthContext.tsx: fetchProfile, updateProfile operations
+- databaseService.ts: addFriend, getFriends, getChatHistory, sendMessage
+
+Resolution: Application now has unified error handling logic. Users see consistent friendly error messages in Chinese. Error logging is structured and ready for monitoring service integration (e.g., Sentry). Development environment shows detailed logs, production shows minimal logs.
 
 ---
 
@@ -44,7 +53,7 @@ Resolution: Users now see a clear "Please login first" warning toast before bein
 5. **Task 5**: Remove deprecated simpleAddFriend function (2 min)
 6. **Task 6**: Fix databaseService.ts import order (2 min)
 7. **Task 7**: Add environment variable validation (5 min)
-8. **Task 8**: Fix ChatDetail media state duplication (5 min) - Current
+8. **Task 8**: Fix ChatDetail media state duplication (5 min)
 9. **Task 9**: Remove duplicate ArrowLeft button (2 min)
 10. **Task 10**: Add error boundary component (8 min)
 11. **Task 11**: Add loading states to slow operations (5 min)
@@ -96,7 +105,7 @@ Resolution: Users now see a clear "Please login first" warning toast before bein
 
 ---
 
-## Completed Tasks: 9/18
+## Completed Tasks: 10/18
 
 ### Task 1: Remove unused WebSocketProvider (Dead Code)
 
@@ -249,6 +258,36 @@ Changes:
 - Updated Auth.tsx to use AuthError for user-friendly messages
 
 Resolution: Users now see specific Chinese error messages for different auth failures. AuthContext returns structured error objects that are easy to debug and monitor.
+
+### Task 14: Add centralized error handling
+
+**Status**: ✅ Complete
+**Completed**: 2025-02-17 02:00:00
+**Agent**: agent_14
+**Commit**: b0dc26e
+**Files Changed**: 4 files, 357 insertions(+), 14 deletions(-)
+
+Changes:
+
+**New File: src/utils/errorHandler.ts**
+
+- Created comprehensive centralized error handling utility
+- 14 error type enums (network, auth, database, file upload, validation, etc.)
+- AppError custom error class with type, original error, and context
+- Smart error parser that automatically identifies error types
+- useErrorHandler Hook for React components
+- handleGlobalError function for non-React environments
+- ErrorFactory for convenient error creation
+- User-friendly Chinese error messages
+- Structured error logging (ready for Sentry integration)
+
+**Integration Points:**
+
+- ChatDetail.tsx: File upload, friend data loading, chat history loading
+- AuthContext.tsx: fetchProfile, updateProfile operations
+- databaseService.ts: addFriend, getFriends, getChatHistory, sendMessage
+
+Resolution: Application now has unified error handling logic. Users see consistent friendly error messages in Chinese. Error logging is structured and ready for monitoring service integration (e.g., Sentry). Development environment shows detailed logs, production shows minimal logs.
 
 ---
 
