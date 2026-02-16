@@ -3,7 +3,7 @@ import { User, Lock, Smartphone, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, AuthError } from '../contexts/AuthContext';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -23,9 +23,14 @@ export const Login: React.FC = () => {
     setError('');
 
     const { error: signInError } = await signIn(email, password);
-    
+
     if (signInError) {
-      setError(signInError.message || '登录失败，请检查邮箱和密码');
+      // 使用自定义错误消息，如果 AuthError 则显示友好的中文提示
+      if (signInError instanceof AuthError) {
+        setError(signInError.message);
+      } else {
+        setError(signInError.message || '登录失败，请检查邮箱和密码');
+      }
       setLoading(false);
     } else {
       navigate(AppRoutes.HOME);
@@ -151,9 +156,14 @@ export const Register: React.FC = () => {
      setError('');
 
      const { error: signUpError } = await signUp(email, password, username);
-     
+
      if (signUpError) {
-       setError(signUpError.message || '注册失败，请重试');
+       // 使用自定义错误消息，如果 AuthError 则显示友好的中文提示
+       if (signUpError instanceof AuthError) {
+         setError(signUpError.message);
+       } else {
+         setError(signUpError.message || '注册失败，请重试');
+       }
        setLoading(false);
      } else {
        setSuccess(true);
