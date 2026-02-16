@@ -233,6 +233,7 @@ const Pairing: React.FC = () => {
               <button
                 onClick={startScanner}
                 className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors flex items-center gap-2"
+                aria-label="启动摄像头扫描"
               >
                 <Camera size={18} />
                 启动摄像头

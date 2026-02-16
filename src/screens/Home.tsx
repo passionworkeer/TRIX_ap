@@ -52,7 +52,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
           });
         }}
       >
-        <div className="relative max-w-[180px]">
+        <div className="relative max-w-[180px] sm:max-w-[200px]">
           {/* 玻璃气泡容器 - 磨砂效果 */}
           <div className="relative bg-white/15 backdrop-blur-xl rounded-2xl rounded-br-none border border-white/25 shadow-lg p-3 hover:shadow-xl hover:scale-[1.02] transition-transform duration-200">
             {/* 发光图标 */}
