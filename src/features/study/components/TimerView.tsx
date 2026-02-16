@@ -10,12 +10,6 @@ interface TimerViewProps {
   };
   /** 是否完成 */
   isCompleted: boolean;
-  /** 是否显示总结弹窗 */
-  showSummaryModal: boolean;
-  /** 学习时长（分钟） */
-  studyDuration: number;
-  /** 初始时长（分钟） */
-  initialDuration: number;
   /** 学习伙伴信息 */
   companion?: {
     username: string;

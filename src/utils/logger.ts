@@ -12,7 +12,7 @@ type LogLevel = 'log' | 'info' | 'warn' | 'error';
 /**
  * 格式化日志前缀
  */
-const formatPrefix = (prefix: string, color: string) => {
+const formatPrefix = (prefix: string) => {
   if (typeof window === 'undefined') {
     return `[${prefix}]`;
   }
@@ -31,6 +31,13 @@ const colors: Record<string, string> = {
 };
 
 /**
+ * 获取颜色辅助函数
+ */
+const getColor = (key: keyof typeof colors): string => {
+  return (colors[key] ?? colors.log) as string;
+};
+
+/**
  * 基础日志函数
  */
 const log = (level: LogLevel, prefix: string, color: string, ...args: any[]) => {
@@ -38,7 +45,7 @@ const log = (level: LogLevel, prefix: string, color: string, ...args: any[]) => 
 
   if (typeof window !== 'undefined') {
     // 浏览器环境：带颜色
-    const styledPrefix = formatPrefix(prefix, color);
+    const styledPrefix = formatPrefix(prefix);
     console[level](styledPrefix, `color: ${color}; font-weight: bold`, ...args);
   } else {
     // Node.js环境
@@ -54,21 +61,21 @@ export const logger = {
    * 普通日志
    */
   log: (prefix: string, ...args: any[]) => {
-    log('log', prefix, colors.log, ...args);
+    log('log', prefix, getColor('log'), ...args);
   },
 
   /**
    * 信息日志
    */
   info: (prefix: string, ...args: any[]) => {
-    log('info', prefix, colors.info, ...args);
+    log('info', prefix, getColor('info'), ...args);
   },
 
   /**
    * 警告日志
    */
   warn: (prefix: string, ...args: any[]) => {
-    log('warn', prefix, colors.warn, ...args);
+    log('warn', prefix, getColor('warn'), ...args);
   },
 
   /**
@@ -76,7 +83,7 @@ export const logger = {
    */
   error: (prefix: string, ...args: any[]) => {
     // 错误日志总是输出
-    log('error', prefix, colors.error, ...args);
+    log('error', prefix, getColor('error'), ...args);
   },
 
   /**
@@ -84,7 +91,7 @@ export const logger = {
    */
   success: (prefix: string, ...args: any[]) => {
     if (!isDev) return;
-    log('info', prefix, colors.success, ...args);
+    log('info', prefix, getColor('success'), ...args);
   },
 
   /**
