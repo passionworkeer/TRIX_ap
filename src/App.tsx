@@ -59,7 +59,7 @@ function AppContent() {
   const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
 
   // 判断是否在计时器页面 (不显示底部导航，保持专注)
-  const isTimerPage = location.pathname === AppRoutes.TIMER;
+  const isTimerPage = location.pathname === '/study/timer';
 
   // 判断是否在认证页面 (登录/注册)
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
@@ -129,7 +129,7 @@ function AppContent() {
              <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
              <Route path={AppRoutes.SNAPSHOT_RESULT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
              <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study /></ProtectedRoute>} />
-             <Route path={AppRoutes.TIMER} element={<ProtectedRoute><Study /></ProtectedRoute>} />
+             <Route path="/study/timer" element={<ProtectedRoute><Study /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
              <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />

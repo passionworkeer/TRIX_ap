@@ -266,7 +266,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       });
 
       // 跳转到计时器页面，传递好友信息
-      navigate(AppRoutes.TIMER, {
+      navigate('/study/timer', {
         state: {
           duration: 25, // 默认25分钟
           companion: companionData
