@@ -43,67 +43,6 @@ export { ClawbotPairingService, default as clawbotPairingService } from '../serv
 // Contexts & Hooks
 // ============================================
 export {
-  WebSocketProvider,
-  useGlobalConnection,
-} from '../contexts/WebSocketContext';
-
-export {
   QRCodePairingProvider,
   useQRCodePairing,
 } from '../contexts/QRCodePairingContext';
-
-// ============================================
-// 统一 Hook（方便使用）
-// ============================================
-
-import { useGlobalConnection } from '../contexts/WebSocketContext';
-import { useQRCodePairing } from '../contexts/QRCodePairingContext';
-
-/**
- * 统一 Clawbot Hook
- *
- * 整合 WebSocket 连接和配对功能
- *
- * @example
- * ```typescript
- * const {
- *   // 连接状态
- *   isConnected,
- *   status,
- *   fullResponse,
- *   sendMessage,
- *   // 配对状态
- *   isPairing,
- *   pairingStatus,
- *   startPairing,
- * } = useClawbot();
- * ```
- */
-export const useClawbot = () => {
-  const ws = useGlobalConnection();
-  const pairing = useQRCodePairing();
-
-  return {
-    // WebSocket
-    connectionStatus: ws.status,
-    isConnected: ws.isConnected,
-    fullResponse: ws.fullResponse,
-    currentStreamId: ws.currentStreamId,
-    sendMessage: ws.sendMessage,
-    connect: ws.connect,
-    disconnect: ws.disconnect,
-    lastError: ws.lastError,
-    reconnectCount: ws.reconnectCount,
-
-    // Pairing
-    isPairing: pairing.isPairing,
-    pairingRequest: pairing.pairingRequest,
-    pairingStatus: pairing.pairingStatus,
-    deviceToken: pairing.deviceToken,
-    pairingError: pairing.errorMessage,
-    qrCodeContent: pairing.qrCodeContent,
-    startPairing: pairing.startPairing,
-    cancelPairing: pairing.cancelPairing,
-    resetPairing: pairing.resetPairing,
-  };
-};
