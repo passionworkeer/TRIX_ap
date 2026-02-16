@@ -69,7 +69,7 @@ const PlacePopupContent: React.FC<PlacePopupContentProps> = ({
         </span>
       </div>
 
-      {/* 评分 */}
+      {/* Star rating */}
       <div className="flex items-center gap-1 mb-2">
         <div className="flex items-center">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -77,15 +77,13 @@ const PlacePopupContent: React.FC<PlacePopupContentProps> = ({
               key={star}
               size={12}
               className={star <= Math.floor(rating)
-                ? 'text-yellow-400 fill="currentColor"
+                ? 'text-yellow-400 fill-current'
                 : 'text-gray-300'
               }
             />
           ))}
         </div>
-        <span className="text-xs text-gray-600">
-          {rating}
-        </span>
+        <span className="text-xs text-gray-600">{rating}</span>
         <span className="text-xs text-gray-400">({reviewCount}条评价)</span>
       </div>
 
