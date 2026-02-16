@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, ReactNode } from "react";
 import {
   ConnectionStatus,
   ConnectRequest,
@@ -372,7 +372,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     return () => disconnect();
   }, []);
 
-  const value: WebSocketContextValue = {
+  const value: WebSocketContextValue = useMemo(() => ({
     status,
     fullResponse,
     currentStreamId,
@@ -382,7 +382,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     sendMessage,
     lastError,
     reconnectCount,
-  };
+  }), [status, fullResponse, currentStreamId, lastError, reconnectCount, connect, disconnect, sendMessage]);
 
   return (
     <WebSocketContext.Provider value={value}>
