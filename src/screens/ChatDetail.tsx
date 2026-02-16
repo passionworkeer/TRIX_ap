@@ -777,14 +777,6 @@ const ChatDetail: React.FC = () => {
                   className="hidden"
                 />
 
-                {/* 返回按钮 */}
-                <button
-                  onClick={() => navigate(-1)}
-                  className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0"
-                >
-                  <ArrowLeft size={16} className="text-gray-600" />
-                </button>
-
                 {/* 添加按钮 */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
