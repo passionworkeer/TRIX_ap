@@ -1,3 +1,13 @@
+import { supabase } from '../config/supabase';
+import type {
+  ChatMessage,
+  UnreadCount,
+  Notification,
+  Mail,
+  StudySession,
+  FriendLatestMessage,
+} from '../config/supabase';
+
 /**
  * 添加好友 (支持邮箱或用户名)
  * @param account 对方账号（邮箱或用户名）
@@ -66,15 +76,6 @@ export async function addFriend(account: string): Promise<void> {
 }
 
 /**
- * 简单实现：直接让 123@trix.app 和 1234@trix.app 互为好友
- * 只要输入对方邮箱为这两个之一就直接插入互为好友
- * @deprecated 使用 addFriend 代替
- */
-export async function simpleAddFriend(account: string): Promise<void> {
-  // 直接调用新的通用函数
-  return addFriend(account);
-}
-/**
  * 发送好友请求
  * @param account 对方账号（邮箱或用户名）
  */
@@ -131,15 +132,6 @@ export async function sendFriendRequest(account: string): Promise<void> {
     throw new Error('发送好友请求失败');
   }
 }
-import { supabase } from '../config/supabase';
-import type {
-  ChatMessage,
-  UnreadCount,
-  Notification,
-  Mail,
-  StudySession,
-  FriendLatestMessage,
-} from '../config/supabase';
 
 // ============================================
 // 辅助函数 - 获取当前登录用户 ID
