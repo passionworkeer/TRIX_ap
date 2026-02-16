@@ -563,9 +563,6 @@ export default function Study() {
       <TimerView
         timeObj={timeObj}
         isCompleted={isCompleted}
-        showSummaryModal={showSummaryModal}
-        studyDuration={studyDuration}
-        initialDuration={initialDuration}
         companion={companion}
         profile={profile || undefined}
         userEmail={user?.email}
