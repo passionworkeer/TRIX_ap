@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Zap } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
@@ -10,6 +9,7 @@ import { SummaryModal } from "../features/study/components/SummaryModal";
 import TimerView from "../features/study/components/TimerView";
 import StudyHeader from "../features/study/components/StudyHeader";
 import DurationSelector from "../features/study/components/DurationSelector";
+import StudyStats from "../features/study/components/StudyStats";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -602,24 +602,7 @@ export default function Study() {
         />
 
         {/* 底部：Today's Focus 统计卡片 - 绝对定位，右下角 */}
-        <div
-          className="absolute bottom-32 right-6 z-10"
-          style={{ maxWidth: '200px' }}
-        >
-          <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-3 flex items-center gap-3 shadow-lg">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-md">
-              <Zap size={16} fill="white" className="text-white" />
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">Total Focus</p>
-              <p className="text-lg font-bold text-white">
-                {Math.floor(totalStudyTime / 60)}
-                <span className="text-xs font-medium opacity-60">h</span> {totalStudyTime % 60}
-                <span className="text-xs font-medium opacity-60">m</span>
-              </p>
-            </div>
-          </div>
-        </div>
+        <StudyStats totalStudyTime={totalStudyTime} />
 
       </div>
     </div>
