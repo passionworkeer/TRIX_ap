@@ -865,15 +865,22 @@ const ChatDetail: React.FC = () => {
                   <AIActionSelector
                     onSelect={(action: string) => {
                       console.log('选择的 AI 功能:', action);
-                      const prefixes: Record<string, string> = {
-                        chat: '',
-                        doc: '[创建文档] ',
-                        slide: '[创建幻灯片] ',
-                        table: '[创建表格] ',
-                        image: '[生成图片] ',
-                        video: '[生成视频] '
+
+                      // AI功能指令映射（使用特殊标记，clawbot端可以识别）
+                      const aiPrompts: Record<string, string> = {
+                        chat: '', // 默认聊天，无前缀
+                        doc: '@AI_DOC 请帮我创建文档：',
+                        slide: '@AI_SLIDE 请帮我创建幻灯片：',
+                        table: '@AI_TABLE 请帮我创建表格：',
+                        image: '@AI_IMAGE 请帮我生成图片：',
+                        video: '@AI_VIDEO 请帮我生成视频：'
                       };
-                      setInput(prev => prefixes[action] + prev);
+
+                      // 添加AI指令前缀
+                      const prefix = aiPrompts[action] || '';
+                      if (prefix) {
+                        setInput(prev => prefix + (prev ? '\n' + prev : ''));
+                      }
                     }}
                   />
                 </motion.div>
