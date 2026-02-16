@@ -404,11 +404,11 @@ export default function Study() {
     setInitialDuration(selectedDuration);
     
     // 跳转到计时器页面
-    navigate(AppRoutes.TIMER, { 
-      state: { 
+    navigate('/study/timer', {
+      state: {
         duration: selectedDuration,
         companion: companion // 携带 companion 信息
-      } 
+      }
     });
   };
 
