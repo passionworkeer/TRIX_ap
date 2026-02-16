@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import SnapshotModal from './components/SnapshotModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import Home from './screens/Home';
 import Snapshot from './screens/Snapshot';
 import Study from './screens/Study';
@@ -201,13 +202,15 @@ function AppContent() {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <ClawbotChannelProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
-      </ClawbotChannelProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ClawbotChannelProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </ClawbotChannelProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 
