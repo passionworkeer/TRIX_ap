@@ -83,8 +83,16 @@ const ChatDetail: React.FC = () => {
     }
   };
 
-  // 从路由参数接收到的图片预览状态
-  const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
+  // 从路由参数接收到的图片预览状态（包含完整媒体数据）
+  interface AttachmentPreview {
+    uri: string;
+    type: string;
+    size?: number;
+    category: 'image' | 'video';
+    metadata?: any;
+  }
+
+  const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
 
   // Clawbot Channel connection
   const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
@@ -114,14 +122,18 @@ const ChatDetail: React.FC = () => {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [pendingMedia, setPendingMedia] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
 
   // 当 photoUri 改变时，添加到图片列表
   useEffect(() => {
-    if (photoUri && !attachmentPreviews.includes(photoUri)) {
-      setAttachmentPreviews(prev => [...prev, photoUri]);
+    if (photoUri && !attachmentPreviews.some(p => p.uri === photoUri)) {
+      setAttachmentPreviews(prev => [...prev, {
+        uri: photoUri,
+        type: 'image/jpeg',
+        category: 'image',
+        metadata: {}
+      }]);
     }
   }, [photoUri]);
 
@@ -303,37 +315,22 @@ const ChatDetail: React.FC = () => {
 
 
   const handleSend = async () => {
-    // 检查是否有媒体或文字 - 包括从快拍传入的 attachmentPreview
-    const hasPendingMedia = pendingMedia !== null;
-    const hasAttachmentPreviews = attachmentPreviews.length > 0;
-    const hasMedia = hasPendingMedia || hasAttachmentPreviews;
+    // 检查是否有媒体或文字
+    const hasMedia = attachmentPreviews.length > 0;
     const hasText = input.trim();
 
     if (!hasMedia && !hasText) return;
 
     const messageText = input;
 
-    // 构建媒体数据 - 必须在使用前定义！
-    let mediaData: any = null;
-    if (hasPendingMedia) {
-      mediaData = pendingMedia;
-    } else if (attachmentPreviews.length > 0) {
-      // 从 attachmentPreviews 构建媒体数据（使用最后一张）
-      const lastPreview = attachmentPreviews[attachmentPreviews.length - 1];
-      mediaData = {
-        uri: lastPreview,
-        type: 'image/jpeg',
-        category: 'image',
-        metadata: {}
-      };
-    }
+    // 从 attachmentPreviews 获取媒体数据（使用第一个）
+    const mediaData = hasMedia ? attachmentPreviews[0] : null;
 
     // ✨ 特殊处理：Clawbot Channel 使用 ClawbotChannelContext，不保存到 Supabase
     if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
       try {
         // 清空输入
         setInput('');
-        setPendingMedia(null);
         setAttachmentPreviews([]);
 
         const timeString = formatTime(new Date());
@@ -370,7 +367,6 @@ const ChatDetail: React.FC = () => {
 
     // 📝 普通好友：保存到 Supabase（现有逻辑）
     setInput(''); // Clear input
-    setPendingMedia(null); // Clear pending media
     setAttachmentPreviews([]); // Clear all attachment previews
 
     const timeString = formatTime(new Date());
@@ -463,23 +459,20 @@ const ChatDetail: React.FC = () => {
       const category = file.type.startsWith('image/') ? 'image' : 'video';
       const result = await uploadFile(file, category);
 
-      setPendingMedia({
+      // 添加到预览列表（包含完整媒体数据）
+      setAttachmentPreviews(prev => [...prev, {
         uri: result.uri,
         type: result.type,
         size: result.size,
-        metadata: result.metadata,
-        category
-      });
-
-      // 添加到预览列表
-      setAttachmentPreviews(prev => [...prev, result.uri]);
+        category,
+        metadata: result.metadata
+      }]);
 
     } catch (error: any) {
       console.error('Upload error:', error);
       showError(error.message || '上传失败');
       // 清理状态，避免上传失败后预览残留
       setAttachmentPreviews([]);
-      setPendingMedia(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -759,9 +752,6 @@ const ChatDetail: React.FC = () => {
                           onClick={() => {
                             const newPreviews = attachmentPreviews.filter((_, i) => i !== index);
                             setAttachmentPreviews(newPreviews);
-                            if (newPreviews.length === 0) {
-                              setPendingMedia(null);
-                            }
                           }}
                           className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
                         >
@@ -828,9 +818,9 @@ const ChatDetail: React.FC = () => {
                 {/* 发送按钮 */}
                 <button
                   onClick={handleSend}
-                  disabled={(!input.trim() && attachmentPreviews.length === 0 && !pendingMedia) || (isBot && !isPaired && false)}
+                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
-                    input.trim() || attachmentPreviews.length > 0 || pendingMedia
+                    input.trim() || attachmentPreviews.length > 0
                       ? 'bg-black text-white hover:bg-gray-800 shadow-md'
                       : 'bg-gray-300 text-gray-400'
                   }`}
