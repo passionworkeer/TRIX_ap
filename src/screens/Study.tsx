@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Timer, Plus, Play, Zap, MapPin } from "lucide-react";
+import { Timer, Play, Zap } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { IMAGES } from "../constants";
 import { SummaryModal } from "../features/study/components/SummaryModal";
 import TimerView from "../features/study/components/TimerView";
+import StudyHeader from "../features/study/components/StudyHeader";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -579,27 +580,11 @@ export default function Study() {
 
       {/* 内容层：z-index: 10 */}
       <div className="relative z-10 h-full">
-
         {/* 顶部导航栏 - Header */}
-        <div className="px-6 pt-14 pb-4 flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-semibold text-blue-200 uppercase tracking-[0.2em] mb-1 flex items-center gap-1">
-              <MapPin size={10} /> VIRTUAL SPACE
-            </span>
-            <h1 className="text-2xl font-bold text-white">自习室</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95">
-              <Zap size={18} className="text-yellow-400" />
-            </button>
-            <button 
-              onClick={() => setIsBuddyListOpen(true)}
-              className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
-            >
-              <Plus size={18} className="text-white" />
-            </button>
-          </div>
-        </div>
+        <StudyHeader
+          totalStudyTime={totalStudyTime}
+          onBuddyListOpen={() => setIsBuddyListOpen(true)}
+        />
 
         {/* 自习伙伴列表 - Modal 弹窗 */}
         <StudyBuddiesList 
