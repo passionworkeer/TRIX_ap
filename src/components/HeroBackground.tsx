@@ -7,8 +7,11 @@ const IDLE_VIDEO = heroVideo;
 const SAYING_VIDEO = sayingVideo;
 
 export default function HeroBackground() {
-  // TODO: 集成 Nanobot 后恢复说话动画
-  // const fullResponse = "";
+  // 说话动画功能暂时禁用，等待 Nanobot 集成后恢复
+  // 集成时需要：
+  // 1. 从 Nanobot context 获取说话状态
+  // 2. 根据 isSpeaking 状态切换视频播放
+  // 3. 确保视频过渡平滑
   const isSpeaking = false;
 
   const idleVideoRef = useRef<HTMLVideoElement>(null);

@@ -31,7 +31,7 @@ const Profile: React.FC = () => {
   const interactionCount = profile?.interaction_count || 0;
 
   const handleOutfitChange = (outfitName: string) => {
-    // TODO: 实现装备更换逻辑
+    // 装备更换功能暂时使用提示框，需要实现装备系统后更新
     alert(t('profile.outfitEquipped', { name: outfitName }));
   };
 
@@ -47,12 +47,12 @@ const Profile: React.FC = () => {
   };
 
   const handlePrivacyClick = () => {
-    // TODO: 导航到隐私设置页面
+    // 隐私设置页面暂未实现
     alert(t('profile.privacyInDev'));
   };
 
   const handleAboutClick = () => {
-    // TODO: 导航到关于页面
+    // 关于页面暂未实现
     alert(t('profile.aboutText'));
   };
 
@@ -70,12 +70,12 @@ const Profile: React.FC = () => {
   };
 
   const handleViewAllOutfits = () => {
-    // TODO: 导航到装备商店页面
+    // 装备商店页面暂未实现
     alert(t('profile.wardrobeInDev'));
   };
 
   const handleGetMoreOutfits = () => {
-    // TODO: 导航到装备获取页面
+    // 装备获取页面暂未实现
     alert(t('profile.getMoreOutfits'));
   };
 

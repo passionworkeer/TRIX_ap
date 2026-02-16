@@ -222,9 +222,9 @@ const SnapMapScreen: React.FC = () => {
                 navigate(`/profile/${friend.friend_id}`);
               }}
               onInvite={() => {
-                // Send study invitation
+                // 邀请功能需要实现：发送自习邀请通知给好友
+                // 需要集成通知系统（如 Supabase Realtime 或推送服务）
                 console.log('邀请', friend.name, '一起自习');
-                // TODO: Implement invitation logic
               }}
             />
           </Popup>

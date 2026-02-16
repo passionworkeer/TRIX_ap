@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-02-15
+> **最后更新**: 2026-02-17
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -40,11 +40,13 @@ docs/
 
 | 文档 | 描述 |
 |------|------|
-| [PROJECT.md](./PROJECT.md) | 项目总览 - 技术栈、架构、核心模块 |
+| [PROJECT.md](./project-reports/PROJECT.md) | 项目总览 - 技术栈、架构、核心模块 |
 | [FEATURES.md](./FEATURES.md) | 功能文档 - 双向自习、专注模式、结算弹窗 |
 | [CHANGELOG.md](./CHANGELOG.md) | 开发日志 - 项目演进历程和架构决策 |
-| [DATABASE-REQUIREMENTS.md](./DATABASE-REQUIREMENTS.md) | 数据库需求 - 完整的数据访问清单 |
-| [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) | 项目审核报告 - 核心文件、目录结构、潜在问题 |
+| [DATABASE-REQUIREMENTS.md](./database-requirements/DATABASE-REQUIREMENTS.md) | 数据库需求 - 完整的数据访问清单 |
+| [PROJECT_AUDIT_REPORT.md](./project-reports/PROJECT_AUDIT_REPORT.md) | 项目审核报告 - 核心文件、目录结构、潜在问题 |
+| [三端接通架构文档.md](./三端接通架构文档.md) | 三端通信架构 - Clawbot Channel + Nanobot 双通道设计 |
+| [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) | OpenClaw集成 - WebSocket事件驱动MVP方案 |
 
 ### 🚀 Nanobot 三端通信 ⭐
 
@@ -64,12 +66,10 @@ docs/
 
 ### 🚀 部署上线
 
-| 文档 | 描述 |
-|------|------|
-| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 部署指南 - GitHub Actions 自动部署 + 手动部署 + HTTPS |
-| - GitHub Actions | 自动部署配置 |
-| - 服务器配置 | Nginx、目录、权限 |
-| - HTTPS 证书 | Let's Encrypt SSL |
+| 文档                                                            | 描述        |
+|:----------------------------------------------------------------|:------------|
+| [deployment-guides/DEPLOYMENT_GUIDE.md](./deployment-guides/DEPLOYMENT_GUIDE.md) | 部署指南  |
+| [deployment-guides/SERVER_PORTS.md](./deployment-guides/SERVER_PORTS.md)         | 服务器端口|
 
 ### 📖 归档文档
 
@@ -114,24 +114,28 @@ docs/
 
 | 主题 | 文档 |
 |------|------|
-| 项目架构 | [PROJECT.md](./PROJECT.md), [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) |
-| Nanobot 三端 | [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) ⭐ |
+| 项目架构 | [project-reports/PROJECT.md](./project-reports/PROJECT.md), [project-reports/PROJECT_AUDIT_REPORT.md](./project-reports/PROJECT_AUDIT_REPORT.md) |
+| 三端通信 | [三端接通架构文档.md](./三端接通架构文档.md) ⭐, [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) |
+| OpenClaw集成 | [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) |
 | Supabase 认证 | [integration/SUPABASE_AUTH.md](./integration/SUPABASE_AUTH.md) |
 | OSS 配置 | [integration/OSS_CONFIG.md](./integration/OSS_CONFIG.md) |
-| 数据库设计 | [DATABASE-REQUIREMENTS.md](./DATABASE-REQUIREMENTS.md) |
-| 功能实现 | [FEATURES.md](./FEATURES.md) |
+| 数据库设计 | [database-requirements/DATABASE-REQUIREMENTS.md](./database-requirements/DATABASE-REQUIREMENTS.md) |
+| 功能实现 | [FEATURES.md](./FEATURES.md), [feature-implementation/](./feature-implementation/) |
 | 项目演进 | [CHANGELOG.md](./CHANGELOG.md) |
-| 部署 | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) ⭐ |
+| 修复报告 | [fix-reports/](./fix-reports/) |
+| 部署 | [deployment-guides/DEPLOYMENT_GUIDE.md](./deployment-guides/DEPLOYMENT_GUIDE.md) ⭐ |
 
 ### 按文档类型查找
 
 | 类型 | 文档 |
 |------|------|
-| 集成指南 | [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) |
-| 实现总结 | [nanobot/IMPLEMENTATION_SUMMARY.md](./nanobot/IMPLEMENTATION_SUMMARY.md) |
+| 集成指南 | [nanobot/INTEGRATION_GUIDE.md](./nanobot/NANOBOT_INTEGRATION_GUIDE.md), [guides/](./guides/) |
+| 实现总结 | [nanobot/IMPLEMENTATION_SUMMARY.md](./nanobot/NANOBOT_IMPLEMENTATION_SUMMARY.md) |
+| 架构文档 | [三端接通架构文档.md](./三端接通架构文档.md) |
+| 集成方案 | [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) |
 | 配置文档 | [integration/](./integration/) |
 | 功能说明 | [FEATURES.md](./FEATURES.md) |
-| 审核报告 | [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) ⭐ |
+| 审核报告 | [project-reports/PROJECT_AUDIT_REPORT.md](./project-reports/PROJECT_AUDIT_REPORT.md) |
 
 ---
 
@@ -139,12 +143,18 @@ docs/
 
 | 目录 | 文档数量 | 说明 |
 |------|----------|------|
-| `docs/` (根) | 7 | 核心文档 |
+| `docs/` (根) | 9 | 核心文档 |
 | `docs/nanobot/` | 3 | Nanobot 三端通信 ⭐ |
 | `docs/integration/` | 3 | 集成配置 |
-| `docs/archive/` | 12+ | 归档文档 |
+| `docs/guides/` | 3 | 用户指南 |
+| `docs/feature-implementation/` | 4 | 功能实现文档 |
+| `docs/fix-reports/` | 3 | 修复报告 |
+| `docs/deployment-guides/` | 2 | 部署指南 |
+| `docs/project-reports/` | 2 | 项目报告 |
+| `docs/api/` | 1 | API 文档 |
+| `docs/archive/` | 5+ | 归档文档 |
 | `src/database/` | 2 | 数据库文档 |
-| **总计** | **27+** | - |
+| **总计** | **37+** | - |
 
 ---
 
@@ -192,4 +202,4 @@ docs/
 
 ---
 
-**最后更新**: 2026-02-15
+**最后更新**: 2026-02-17
