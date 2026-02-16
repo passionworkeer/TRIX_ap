@@ -63,7 +63,7 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
     }
 
     // 监听 Nanobot Bridge 事件
-    const handleConnected = (data: any) => {
+    const handleConnected = (_data: any) => {
       if (isMounted) {
         setStatus('CONNECTED');
         setLastError(null);
@@ -76,13 +76,13 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
       }
     };
 
-    const handleReconnecting = (data: any) => {
+    const handleReconnecting = (_data: any) => {
       if (isMounted) {
         setStatus('RECONNECTING');
       }
     };
 
-    const handleReconnected = (data: any) => {
+    const handleReconnected = (_data: any) => {
       if (isMounted) {
         setStatus('CONNECTED');
       }

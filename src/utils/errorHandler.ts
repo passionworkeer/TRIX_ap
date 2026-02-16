@@ -224,7 +224,7 @@ export function useErrorHandler() {
     logError(appError);
 
     // 显示错误消息给用户
-    notification.showError(appError.userMessage);
+    notification.showError(appError.userMessage || '操作失败，请稍后重试');
   };
 
   /**
@@ -295,7 +295,7 @@ export function handleGlobalError(error: unknown, customMessage?: string): void 
   if (typeof window !== 'undefined') {
     // 动态导入 toast
     import('react-hot-toast').then(({ toast }) => {
-      toast.error(appError.userMessage, {
+      toast.error(appError.userMessage || '操作失败，请稍后重试', {
         duration: 4000,
         style: {
           background: '#fef2f2',

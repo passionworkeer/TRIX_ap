@@ -251,7 +251,7 @@ class NanobotBridge {
         }
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = (_event) => {
         this.connected = false;
         this.stopHeartbeat();
         this.emit('disconnected');

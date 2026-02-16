@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { isDev } from '../utils/env';
 
 interface Props {
@@ -43,7 +43,7 @@ class ErrorBoundary extends Component<Props, State> {
    * 记录错误信息
    * 在提交阶段调用，用于记录错误日志
    */
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // 记录错误到控制台
     console.error('ErrorBoundary caught an error:', error);
     console.error('Error Info:', errorInfo);
@@ -84,7 +84,7 @@ class ErrorBoundary extends Component<Props, State> {
     window.location.hash = '/';
   };
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       const { error, errorInfo } = this.state;
 

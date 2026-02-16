@@ -249,7 +249,6 @@ export async function uploadFile(
   file: File,
   category: 'image' | 'video'
 ): Promise<UploadResult> {
-  const perfStart = performance.now();
   let compressedFile = file;
 
   try {
@@ -267,8 +266,6 @@ export async function uploadFile(
 
     // 3. Compress image if needed
     if (category === 'image') {
-      const compressStart = performance.now();
-
       try {
         compressedFile = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
       } catch (compressError) {
@@ -298,7 +295,7 @@ export async function uploadFile(
     }
 
     // 7. Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, compressedFile, {
         cacheControl: '31536000', // 1 year cache for better performance

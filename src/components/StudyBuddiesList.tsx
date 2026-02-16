@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { AppRoutes } from '../types';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
 import { X, Users } from 'lucide-react';
