@@ -481,6 +481,7 @@ export default function Study() {
         
         if (error) {
           console.error('❌ [Study] 更新自己的状态失败:', error);
+          return; // 停止执行，避免数据不一致
         } else {
           console.log('✅ [Study] 已更新 is_studying = false, companion_id = null, total_study_time =', newTotal);
           // 🎉 更新前端显示的总时长
