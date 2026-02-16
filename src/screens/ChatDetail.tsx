@@ -146,6 +146,16 @@ const ChatDetail: React.FC = () => {
   // 🔌 Realtime Channel 引用 (防止重复连接)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // 组件卸载时确保清理所有订阅
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, []);
+
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [conversationId, setConversationId] = useState<string>('');
 
@@ -244,7 +254,7 @@ const ChatDetail: React.FC = () => {
       }
     });
     channelRef.current = channel;
-    
+
     // 2️⃣ 绑定事件 (无 filter,手动过滤)
     channel
       .on(
@@ -295,10 +305,13 @@ const ChatDetail: React.FC = () => {
         }
       });
 
-    // 3️⃣ 仅在 conversationId 真正改变时才清理
+    // 3️⃣ 清理函数：conversationId 改变或组件卸载时都会执行
     return () => {
-      supabase.removeChannel(channel);
-      channelRef.current = null;
+      // 使用 channelRef.current 确保清理正确的频道
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   // ⚠️ 致命关键：依赖数组里只有 conversationId！绝对不能有 messages！
   }, [conversationId]);
