@@ -1,0 +1,45 @@
+{
+  "$schema": "https://code.claude.com/schemas/config.json",
+  "hooks": {
+    "PreToolUse": {
+      "Write": {
+        "comment": "Run lint check before writing code files",
+        "pattern": "**/*.{ts,tsx,js,jsx,vue,svelte}",
+        "type": "command",
+        "command": "bash .claude/hooks/check-lint-pass.sh"
+      },
+      "Bash": {
+        "comment": "Run tests before git commit",
+        "pattern": "git commit*",
+        "type": "command",
+        "command": "bash .claude/hooks/check-tests-pass.sh"
+      }
+    },
+    "userPromptSubmit": {
+      "comment": "Run build and E2E tests before git push",
+      "pattern": "git push",
+      "type": "command",
+      "command": "bash .claude/hooks/check-build-pass.sh && bash .claude/hooks/check-e2e-pass.sh"
+    },
+    "PostToolUse": {
+      "Bash": {
+        "comment": "Verify deployment health after git push",
+        "pattern": "git push",
+        "type": "command",
+        "command": "bash .claude/hooks/smoke-test.sh",
+        "background": true
+      }
+    },
+    "Stop": {
+      "comment": "Verify all quality gates before stopping work",
+      "type": "prompt",
+      "prompt": "Before stopping, verify:\n1. All tests pass (npm test)\n2. Build succeeds (npm run build)\n3. E2E tests pass (npx playwright test)\n4. Code is committed and pushed\n5. Deployment is healthy\n\nHave you completed all these checks?"
+    }
+  },
+  "env": {
+    "DEPLOY_URL": "http://localhost:3000",
+    "HEALTH_CHECK_PATH": "/health",
+    "MAX_RETRIES": "30",
+    "RETRY_DELAY": "2"
+  }
+}

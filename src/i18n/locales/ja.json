@@ -1,4 +1,8 @@
 {
+  "home": {
+    "greeting": "ねえ",
+    "whatToLearn": "今日は何を学びたい？"
+  },
   "profile": {
     "title": "プロフィール",
     "darkMode": "ダークモード",

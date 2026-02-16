@@ -1,4 +1,8 @@
 {
+  "home": {
+    "greeting": "嘿",
+    "whatToLearn": "今天想学点什么?"
+  },
   "profile": {
     "title": "个人中心",
     "darkMode": "深色模式",

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { IMAGES } from "../constants";
 import { AppRoutes } from "../types";
 import { useAuth } from "../contexts/AuthContext";
@@ -16,6 +17,7 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { t } = useTranslation();
   
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
@@ -64,7 +66,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
               {/* 消息内容 */}
               <div className="flex-1 min-w-0">
                 <p className="text-white text-xs font-medium leading-relaxed">
-                  {profile?.username ? `嘿 ${profile.username},` : '嘿,'} 今天想学点什么?
+                  {profile?.username ? `${t('home.greeting')} ${profile.username},` : `${t('home.greeting')},`} {t('home.whatToLearn')}
                 </p>
               </div>
             </div>
