@@ -2,13 +2,44 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, Profile } from '../config/supabase';
 
+// 错误类型枚举
+export enum AuthErrorType {
+  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS',
+  WEAK_PASSWORD = 'WEAK_PASSWORD',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+}
+
+// 错误消息映射
+export const AUTH_ERROR_MESSAGES: Record<AuthErrorType, string> = {
+  [AuthErrorType.INVALID_CREDENTIALS]: '邮箱或密码错误，请检查后重试',
+  [AuthErrorType.EMAIL_ALREADY_EXISTS]: '该邮箱已被注册，请直接登录',
+  [AuthErrorType.WEAK_PASSWORD]: '密码强度不足，请使用至少 6 位字符',
+  [AuthErrorType.NETWORK_ERROR]: '网络连接失败，请检查网络后重试',
+  [AuthErrorType.UNKNOWN_ERROR]: '操作失败，请稍后重试',
+};
+
+// 自定义认证错误类
+export class AuthError extends Error {
+  type: AuthErrorType;
+  originalError?: unknown;
+
+  constructor(type: AuthErrorType, originalError?: unknown) {
+    super(AUTH_ERROR_MESSAGES[type]);
+    this.type = type;
+    this.originalError = originalError;
+    this.name = 'AuthError';
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
@@ -73,9 +104,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      return { error };
+
+      if (error) {
+        // 根据错误类型映射到具体的错误类型
+        let errorType = AuthErrorType.UNKNOWN_ERROR;
+
+        if (error.message.includes('Invalid login credentials')) {
+          errorType = AuthErrorType.INVALID_CREDENTIALS;
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorType = AuthErrorType.NETWORK_ERROR;
+        }
+
+        return { error: new AuthError(errorType, error) };
+      }
+
+      return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      // 捕获网络错误等异常
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { error: new AuthError(AuthErrorType.NETWORK_ERROR, error) };
+      }
+      return { error: new AuthError(AuthErrorType.UNKNOWN_ERROR, error) };
     }
   };
 
@@ -91,9 +140,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailRedirectTo: undefined, // 禁用邮箱确认重定向
         },
       });
-      return { error };
+
+      if (error) {
+        // 根据错误类型映射到具体的错误类型
+        let errorType = AuthErrorType.UNKNOWN_ERROR;
+
+        if (error.message.includes('already') || error.message.includes('registered')) {
+          errorType = AuthErrorType.EMAIL_ALREADY_EXISTS;
+        } else if (error.message.includes('password') || error.message.includes('weak')) {
+          errorType = AuthErrorType.WEAK_PASSWORD;
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorType = AuthErrorType.NETWORK_ERROR;
+        }
+
+        return { error: new AuthError(errorType, error) };
+      }
+
+      return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      // 捕获网络错误等异常
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { error: new AuthError(AuthErrorType.NETWORK_ERROR, error) };
+      }
+      return { error: new AuthError(AuthErrorType.UNKNOWN_ERROR, error) };
     }
   };
 
