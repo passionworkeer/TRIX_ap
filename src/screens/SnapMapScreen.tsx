@@ -203,7 +203,11 @@ const SnapMapScreen: React.FC = () => {
         >
           <Popup>
             <FriendPopupContent
-              friend={{ ...friend, status }}
+              friend={{
+                ...friend,
+                status,
+                avatar_url: friend.avatar_url || undefined
+              }}
               onMessage={() => {
                 // Navigate to chat with this friend
                 navigate(`/chat/${friend.friend_id}`);
