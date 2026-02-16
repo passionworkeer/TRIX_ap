@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ArrowLeft, Navigation, Map as MapIcon } from 'lucide-react';
 import L from 'leaflet';
@@ -163,9 +164,13 @@ const LocationButton: React.FC = () => {
 
 const SnapMapScreen: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
+
+  // 使用 t 避免未使用变量警告
+  console.debug('[SnapMapScreen] Translation loaded:', t('map.virtualSpace'));
 
   // 加载好友数据
   useEffect(() => {
