@@ -1,5 +1,6 @@
 import React from 'react';
 import { Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface StudyStatsProps {
   /** 累计学习时长（分钟） */
@@ -12,6 +13,7 @@ interface StudyStatsProps {
  * 显示累计专注时长（小时和分钟）
  */
 const StudyStats: React.FC<StudyStatsProps> = React.memo(({ totalStudyTime }) => {
+  const { t } = useTranslation();
   const hours = Math.floor(totalStudyTime / 60);
   const minutes = totalStudyTime % 60;
 
@@ -29,7 +31,7 @@ const StudyStats: React.FC<StudyStatsProps> = React.memo(({ totalStudyTime }) =>
         {/* 统计数据 */}
         <div>
           <p className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">
-            Total Focus
+            {t('study.totalFocus')}
           </p>
           <p className="text-lg font-bold text-white" aria-live="polite">
             {hours}

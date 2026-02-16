@@ -3,6 +3,29 @@
     "greeting": "嘿",
     "whatToLearn": "今天想学点什么?"
   },
+  "study": {
+    "title": "自习室",
+    "totalFocus": "总专注时长",
+    "totalStudyTime": "累计学习",
+    "points": "积分",
+    "addBuddy": "添加学习伙伴",
+    "startFocus": "开始专注",
+    "selectDuration": "选择专注时长",
+    "minutes": "分钟"
+  },
+  "common": {
+    "minutes": "分钟",
+    "hours": "小时",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "edit": "编辑",
+    "delete": "删除",
+    "close": "关闭"
+  },
   "profile": {
     "title": "个人中心",
     "darkMode": "深色模式",

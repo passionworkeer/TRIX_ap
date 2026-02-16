@@ -3,6 +3,29 @@
     "greeting": "Hey",
     "whatToLearn": "What do you want to learn today?"
   },
+  "study": {
+    "title": "Study Room",
+    "totalFocus": "Total Focus",
+    "totalStudyTime": "Total Study",
+    "points": "Points",
+    "addBuddy": "Add Study Buddy",
+    "startFocus": "Start Focus",
+    "selectDuration": "Select Duration",
+    "minutes": "minutes"
+  },
+  "common": {
+    "minutes": "minutes",
+    "hours": "hours",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close"
+  },
   "profile": {
     "title": "Profile",
     "darkMode": "Dark Mode",
