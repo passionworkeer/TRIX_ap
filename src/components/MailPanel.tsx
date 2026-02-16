@@ -62,7 +62,12 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mail-panel-title"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
+    >
       <div className="w-full max-w-2xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col animate-slideIn">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -71,13 +76,14 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
               <MailIcon className="text-white" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">邮件</h2>
+              <h2 id="mail-panel-title" className="text-xl font-bold text-slate-800">邮件</h2>
               <p className="text-xs text-slate-500">{mails.filter(m => !m.is_read).length} 封未读</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+            aria-label="关闭邮件面板"
           >
             <X size={18} className="text-slate-600" />
           </button>

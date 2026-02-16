@@ -528,9 +528,10 @@ const ChatDetail: React.FC = () => {
       {/* Header */}
       <header className="px-4 py-4 pt-16 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-white/20 flex-shrink-0 z-40 shadow-sm transition-all duration-300">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(-1)} 
+          <button
+            onClick={() => navigate(-1)}
             className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50 active:scale-95 duration-200"
+            aria-label="返回"
           >
             <ArrowLeft size={20} className="text-slate-700" />
           </button>
@@ -562,6 +563,9 @@ const ChatDetail: React.FC = () => {
           <button
             onClick={() => setShowMenu(!showMenu)}
             className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center hover:bg-white transition-colors border border-white/50"
+            aria-label="更多选项"
+            aria-expanded={showMenu}
+            aria-haspopup="true"
           >
             <MoreVertical size={20} className="text-slate-700" />
           </button>

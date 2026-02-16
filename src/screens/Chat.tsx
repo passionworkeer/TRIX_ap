@@ -160,7 +160,8 @@ const Chat: React.FC = () => {
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="text-white/60 hover:text-white flex-shrink-0"
+                    className="text-white/60 hover:text-white flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                    aria-label="清除搜索"
                   >
                     <X size={16} />
                   </button>
@@ -188,11 +189,12 @@ const Chat: React.FC = () => {
                         >
                           {/* 关闭按钮 */}
                           <button
-                            className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors"
+                            className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors w-8 h-8 flex items-center justify-center"
                             onClick={() => {
                               const filtered = recommendedUsers.filter(u => u.id !== user.id);
                               setRecommendedUsers(filtered);
                             }}
+                            aria-label={`移除${user.display_name}`}
                           >
                             <X size={14} />
                           </button>
@@ -384,12 +386,13 @@ const Chat: React.FC = () => {
           </div>
 
           {/* 右上角添加好友按钮 */}
-          <div
-             className="absolute top-[5.5rem] right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all cursor-pointer z-20"
+          <button
+             className="absolute top-[5.5rem] right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
              onClick={() => setShowAddModal(true)}
+             aria-label="添加好友"
           >
              <UserPlus size={18} className="text-white/80" />
-          </div>
+          </button>
 
           {/* 添加好友弹窗 */}
           <AddFriendModal

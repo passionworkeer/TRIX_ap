@@ -76,7 +76,12 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notification-panel-title"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
+    >
       <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col animate-slideIn">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -85,7 +90,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               <Bell className="text-white" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">通知</h2>
+              <h2 id="notification-panel-title" className="text-xl font-bold text-slate-800">通知</h2>
               <p className="text-xs text-slate-500">{unreadCount} 条未读</p>
             </div>
           </div>
@@ -94,6 +99,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               <button
                 onClick={handleMarkAllAsRead}
                 className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors flex items-center gap-1"
+                aria-label="全部标记为已读"
               >
                 <Check size={14} />
                 全部已读
@@ -102,6 +108,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              aria-label="关闭通知面板"
             >
               <X size={18} className="text-slate-600" />
             </button>

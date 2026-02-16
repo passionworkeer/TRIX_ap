@@ -54,7 +54,7 @@ const UserSwitcher: React.FC<UserSwitcherProps> = ({ onUserChange }) => {
 
   return (
     <div className="fixed bottom-20 right-4 z-50">
-      <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl p-4 border border-slate-200/50 dark:border-slate-700/50 w-48 transition-all hover:scale-102">
+      <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl p-4 border border-slate-200/50 dark:border-slate-700/50 w-full max-w-[200px] sm:max-w-[220px] transition-all hover:scale-102">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${activeUser?.color} flex items-center justify-center shadow-lg`}>
             <Users className="text-white" size={20} />
