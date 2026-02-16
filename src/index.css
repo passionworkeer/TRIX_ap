@@ -57,7 +57,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden; /* 防止双层滚动 */
-  background-color: #f2f4f6; /* 统一背景色，防止黑边 */
+  background-color: var(--bg-primary); /* 使用主题背景色 */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
@@ -137,7 +137,7 @@ div:not([data-hero-background]):not([data-home-scroll]) {
 .overflow-y-auto:not([data-home-scroll]) {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  background-color: #f2f4f6;
+  background-color: var(--bg-primary);
 }
 
 .overflow-x-hidden:not([data-home-scroll]) {
@@ -164,10 +164,10 @@ div:not([data-hero-background]):not([data-home-scroll]) {
 
 /* index.css */
 body {
-  /* 确保背景是淡灰，让玻璃能透出来 */
-  background-color: #f2f4f6 !important;
+  /* 使用主题背景色 */
+  background-color: var(--bg-primary) !important;
   /* 防止某些插件导致的 padding 错乱 */
-  margin: 0; 
+  margin: 0;
   padding: 0;
 }
 

@@ -106,14 +106,14 @@ function AppContent() {
       {isHomePage && <HeroBackground />}
 
       {/* 📜 Layer 10: 滚动内容层 */}
-      <div 
+      <div
         data-home-scroll="true"
         onClick={isHomePage ? toggleDock : undefined}
         className={`relative w-full h-full overflow-y-auto overflow-x-hidden scroll-smooth touch-pan-y ${isHomePage ? 'home-transparent-scroll' : ''}`}
-        style={{ 
+        style={{
           zIndex: 10,
-          // 首页完全透明，其他页面浅灰
-          backgroundColor: (isHomePage || isPairingPage) ? 'transparent' : '#f2f4f6'
+          // 首页完全透明，其他页面使用主题背景色
+          backgroundColor: (isHomePage || isPairingPage) ? 'transparent' : 'var(--bg-primary)'
         }}
       >
         
