@@ -66,61 +66,50 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   // 初始化连接
   useEffect(() => {
     if (!user?.id) {
-      console.log('[ClawbotChannel] ⚠️ 用户未登录，等待登录...');
       return;
     }
-
-    console.log('[ClawbotChannel] ✅ 用户已登录，初始化连接...');
 
     // 设置事件监听器
     const setupListeners = () => {
       clawbotChannelBridge.on('connecting', () => {
-        console.log('[ClawbotChannel] 🔄 正在连接服务器...');
         setStatus('CONNECTING');
         setLastError(null);
       });
 
       clawbotChannelBridge.on('connected', async () => {
-        console.log('[ClawbotChannel] ✅ 已连接到服务器');
         setStatus('CONNECTED');
         setLastError(null);
       });
 
       clawbotChannelBridge.on('disconnected', () => {
-        console.log('[ClawbotChannel] 已断开');
         setStatus('DISCONNECTED');
       });
 
       clawbotChannelBridge.on('reconnecting', (data: any) => {
-        console.log('[ClawbotChannel] 重连中...', data);
         setStatus('RECONNECTING');
       });
 
       clawbotChannelBridge.on('paired', (data: any) => {
-        console.log('[ClawbotChannel] 配对成功:', data);
         setPairingStatus('paired');
         setDeviceId(data.deviceId || '');
         setLastError(null);
       });
 
       clawbotChannelBridge.on('unpaired', () => {
-        console.log('[ClawbotChannel] 已解绑');
         setPairingStatus('idle');
         setDeviceId('');
       });
 
-      // ✅ P1-#5: Bot 离线通知
+      // Bot 离线通知
       clawbotChannelBridge.on('bot_offline', (data: any) => {
-        console.log('[ClawbotChannel] Bot 离线:', data);
         toast.error(data.message || 'Clawbot 已离线', {
           duration: 5000,
           id: `bot_offline_${data.timestamp}`
         });
       });
 
-      // ✅ P1-问题5: Bot 上线通知
+      // Bot 上线通知
       clawbotChannelBridge.on('bot_online', (data: any) => {
-        console.log('[ClawbotChannel] Bot 上线:', data);
         toast.success(data.message || 'Clawbot 已重新连接', {
           duration: 3000,
           id: `bot_online_${data.timestamp}`
@@ -128,7 +117,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       });
 
       clawbotChannelBridge.on('message', (message: ClawbotChannelMessage) => {
-        console.log('[ClawbotChannel] 收到 Bot 消息:', message);
         setMessages(prev => [...prev, message]);
       });
 

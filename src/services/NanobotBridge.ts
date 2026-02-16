@@ -49,8 +49,6 @@ class NanobotBridge {
     // 服务器地址：默认 8766 端口（避免与 clawbot-channel 8765 冲突）
     this.serverUrl = serverUrl || import.meta.env.VITE_NANOBOT_SERVER_URL || 'ws://TRIX_SERVER_HOST:8766';
     this.deviceId = this.getOrCreateDeviceId();
-    console.log('[NanobotBridge] 服务器地址:', this.serverUrl);
-    console.log('[NanobotBridge] 设备 ID:', this.deviceId);
   }
 
   /**
@@ -199,8 +197,6 @@ class NanobotBridge {
     }
 
     this.ws.send(JSON.stringify(pairingData));
-
-    console.log('[NanobotBridge] 发送配对请求:', this.pairingCode, userId ? `(User: ${userId})` : '(匿名)');
   }
 
   /**
@@ -224,21 +220,18 @@ class NanobotBridge {
 
     // 如果已经连接，直接返回
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('[NanobotBridge] 已经连接');
       return;
     }
 
     // 清理旧连接
     this.cleanup();
 
-    console.log('[NanobotBridge] 正在连接到服务器:', this.serverUrl);
     this.emit('connecting');
 
     try {
       this.ws = new WebSocket(this.serverUrl);
 
       this.ws.onopen = () => {
-        console.log('[NanobotBridge] WebSocket 已连接');
         this.reconnectAttempts = 0;
 
         // 注册设备
@@ -259,7 +252,6 @@ class NanobotBridge {
       };
 
       this.ws.onclose = (event) => {
-        console.log('[NanobotBridge] WebSocket 断开:', event.code, event.reason);
         this.connected = false;
         this.stopHeartbeat();
         this.emit('disconnected');
@@ -287,7 +279,6 @@ class NanobotBridge {
 
     switch (msgType) {
       case 'register_success':
-        console.log('[NanobotBridge] 设备注册成功:', data.device_id);
         // 注册成功后发送配对请求
         if (this.pairingCode) {
           const userId = await this.getSupabaseUserId();
@@ -309,7 +300,6 @@ class NanobotBridge {
 
       case 'chat_response':
         // 收到 Nanobot 的回复
-        console.log('[NanobotBridge] 收到回复:', data);
         this.emit('message', {
           msg_id: data.msg_id,
           message: data.response,
@@ -328,7 +318,7 @@ class NanobotBridge {
         break;
 
       default:
-        console.log('[NanobotBridge] 未知消息类型:', msgType, data);
+        // Unknown message type
     }
   }
 
@@ -359,7 +349,6 @@ class NanobotBridge {
     }
 
     this.ws.send(JSON.stringify(data));
-    console.log('[NanobotBridge] 消息已发送:', msgId);
   }
 
   /**
@@ -368,7 +357,6 @@ class NanobotBridge {
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
       const result = await ossService.uploadFile(file);
-      console.log('[NanobotBridge] 文件上传成功:', result.url);
       return result.url;
     } catch (error) {
       console.error('[NanobotBridge] 文件上传失败:', error);
@@ -411,7 +399,6 @@ class NanobotBridge {
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * this.reconnectAttempts, 30000);
 
-    console.log(`[NanobotBridge] ${delay / 1000} 秒后重连 (第 ${this.reconnectAttempts} 次)`);
     this.emit('reconnecting', { attempt: this.reconnectAttempts });
 
     this.reconnectTimer = setTimeout(() => {
@@ -446,7 +433,6 @@ class NanobotBridge {
    * 断开连接
    */
   disconnect(): void {
-    console.log('[NanobotBridge] 主动断开连接');
     this.reconnectAttempts = this.maxReconnectAttempts; // 阻止自动重连
     this.cleanup();
     this.connected = false;
@@ -460,7 +446,6 @@ class NanobotBridge {
     this.pairingCode = null;
     localStorage.removeItem('nanobot_pairing_code');
     this.disconnect();
-    console.log('[NanobotBridge] 配对信息已清除');
   }
 
   /**

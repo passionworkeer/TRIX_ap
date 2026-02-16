@@ -253,13 +253,6 @@ export async function uploadFile(
   let compressedFile = file;
 
   try {
-    console.log('📤 [Upload] Starting upload:', {
-      fileName: file.name,
-      fileSize: (file.size / 1024 / 1024).toFixed(2) + 'MB',
-      fileType: file.type,
-      category
-    });
-
     // 1. Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -274,22 +267,12 @@ export async function uploadFile(
 
     // 3. Compress image if needed
     if (category === 'image') {
-      console.log('🗜️ [Upload] Compressing image...');
       const compressStart = performance.now();
 
       try {
         compressedFile = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
-        const compressTime = (performance.now() - compressStart).toFixed(0);
-
-        const savings = ((1 - compressedFile.size / file.size) * 100).toFixed(0);
-        console.log('✅ [Upload] Image compressed:', {
-          original: (file.size / 1024).toFixed(0) + 'KB',
-          compressed: (compressedFile.size / 1024).toFixed(0) + 'KB',
-          savings: savings + '%',
-          time: compressTime + 'ms'
-        });
       } catch (compressError) {
-        console.warn('⚠️ [Upload] Compression failed, using original:', compressError);
+        console.warn('[Upload] Compression failed, using original:', compressError);
         compressedFile = file;
       }
     }
@@ -299,31 +282,22 @@ export async function uploadFile(
     const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = `${user.id}/${category}s/${fileName}`;
 
-    console.log('📤 [Upload] Upload path:', filePath);
-
     // 5. Extract metadata
     const metadata = await extractMetadata(compressedFile, category);
-    console.log('📊 [Upload] Extracted metadata:', metadata);
 
     // 6. Generate thumbnail for images
     if (category === 'image' && !metadata.thumbnail) {
-      console.log('🖼️ [Upload] Generating thumbnail...');
-      const thumbStart = performance.now();
-
       try {
         const thumbnailUrl = await generateThumbnail(compressedFile);
         if (thumbnailUrl) {
           metadata.thumbnail = thumbnailUrl;
-          const thumbTime = (performance.now() - thumbStart).toFixed(0);
-          console.log('✅ [Upload] Thumbnail generated:', { time: thumbTime + 'ms' });
         }
       } catch (thumbError) {
-        console.warn('⚠️ [Upload] Thumbnail generation failed:', thumbError);
+        console.warn('[Upload] Thumbnail generation failed:', thumbError);
       }
     }
 
     // 7. Upload to Supabase Storage
-    const uploadStart = performance.now();
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, compressedFile, {
@@ -336,29 +310,16 @@ export async function uploadFile(
           uploadedAt: new Date().toISOString()
         }
       });
-    const uploadTime = (performance.now() - uploadStart).toFixed(0);
 
     if (uploadError) {
-      console.error('❌ [Upload] Upload error:', uploadError);
+      console.error('[Upload] Upload error:', uploadError);
       throw new Error(`上传失败: ${uploadError.message}`);
     }
-
-    console.log('✅ [Upload] Upload successful:', {
-      path: uploadData.path,
-      time: uploadTime + 'ms',
-      speed: ((compressedFile.size / 1024) / (parseFloat(uploadTime) / 1000)).toFixed(0) + ' KB/s'
-    });
 
     // 8. Get public URL
     const { data: urlData } = supabase.storage
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);
-
-    console.log('🔗 [Upload] Generated public URL:', {
-      bucket: BUCKET_NAME,
-      path: filePath,
-      fullUrl: urlData.publicUrl
-    });
 
     const result: UploadResult = {
       uri: urlData.publicUrl,
@@ -369,17 +330,10 @@ export async function uploadFile(
       metadata
     };
 
-    const totalTime = (performance.now() - perfStart).toFixed(0);
-    console.log('✅ [Upload] Complete:', {
-      uri: result.uri,
-      size: (result.size / 1024).toFixed(2) + 'KB',
-      totalTime: totalTime + 'ms'
-    });
-
     return result;
 
   } catch (error: any) {
-    console.error('❌ [Upload] Error:', error);
+    console.error('[Upload] Error:', error);
     throw error;
   }
 }
@@ -394,20 +348,16 @@ export async function uploadFile(
  */
 export async function deleteFile(path: string): Promise<void> {
   try {
-    console.log('🗑️ [Delete] Deleting file:', path);
-
     const { error } = await supabase.storage
       .from(BUCKET_NAME)
       .remove([path]);
 
     if (error) {
-      console.error('❌ [Delete] Error:', error);
+      console.error('[Delete] Error:', error);
       throw new Error(`删除失败: ${error.message}`);
     }
-
-    console.log('✅ [Delete] File deleted successfully');
   } catch (error: any) {
-    console.error('❌ [Delete] Error:', error);
+    console.error('[Delete] Error:', error);
     throw error;
   }
 }
