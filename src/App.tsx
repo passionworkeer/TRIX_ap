@@ -24,11 +24,29 @@ import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
+import { useNotification } from './hooks/useNotification';
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
-  
+  const { showWarning } = useNotification();
+  const navigate = useNavigate();
+  const [shouldRedirect, setShouldRedirect] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!loading && !user && !shouldRedirect) {
+      // 显示友好的提示消息
+      showWarning('请先登录以访问此页面');
+
+      // 延迟 500ms 后跳转，让用户看到提示
+      const timer = setTimeout(() => {
+        setShouldRedirect(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, user, shouldRedirect, showWarning]);
+
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#f0f9ff]">
@@ -39,11 +57,22 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
       </div>
     );
   }
-  
+
   if (!user) {
-    return <Navigate to={AppRoutes.LOGIN} replace />;
+    if (shouldRedirect) {
+      return <Navigate to={AppRoutes.LOGIN} replace />;
+    }
+    // 在等待跳转时显示空白页面（Toast 已经显示了提示）
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#f0f9ff]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">跳转到登录页...</p>
+        </div>
+      </div>
+    );
   }
-  
+
   return children;
 };
 
