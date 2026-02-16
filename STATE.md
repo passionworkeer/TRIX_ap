@@ -10,32 +10,29 @@
 
 ---
 
-## Current Task: 11/18
+## Current Task: 12/18
 
-### Task 11: Add loading states to slow operations
+### Task 12: Fix AuthContext error handling
 
 **Status**: ✅ Complete
-**Completed**: 2025-02-17 01:15:00
-**Agent**: agent_11
-**Commit**: 33b5768
-**Files Changed**: 3 files, 161 insertions(+), 12 deletions(-)
+**Completed**: 2025-02-17 01:30:00
+**Agent**: agent_12
+**Commit**: 84ea5a1
+**Files Changed**: 2 files, 90 insertions(+), 11 deletions(-)
 
 Changes:
-- Created src/components/LoadingSpinner.tsx with unified loading components
-  - LoadingSpinner: Generic spinner with size options (sm/md/lg)
-  - ButtonLoadingSpinner: Inline spinner for buttons
-  - FullPageLoading: Full-screen loading overlay
-- Updated src/screens/ChatDetail.tsx
-  - Added sendingMessage and uploadingFile state
-  - Send button shows spinner during message sending
-  - Send button disabled during file upload
-  - Prevents duplicate clicks on send button
-- Updated src/screens/Auth.tsx
-  - Login button shows Loader2 spinner + "登录中..."
-  - Register button shows Loader2 spinner + "注册中..."
-  - Improved visual feedback during auth operations
+- Created AuthErrorType enum with 5 error types:
+  - INVALID_CREDENTIALS: Invalid email or password
+  - EMAIL_ALREADY_EXISTS: Email already registered
+  - WEAK_PASSWORD: Password too weak
+  - NETWORK_ERROR: Network connection failed
+  - UNKNOWN_ERROR: Other unknown errors
+- Created AuthError custom error class with type and original error
+- Added AUTH_ERROR_MESSAGES mapping with Chinese error messages
+- Improved signIn and signUp error handling logic
+- Updated Auth.tsx to use AuthError for user-friendly messages
 
-Resolution: All slow operations now have clear loading indicators. Users can see when operations are in progress (upload, send, auth) and cannot trigger duplicate actions.
+Resolution: Users now see specific Chinese error messages for different auth failures. AuthContext returns structured error objects that are easy to debug and monitor.
 
 ---
 
@@ -53,7 +50,7 @@ Resolution: All slow operations now have clear loading indicators. Users can see
 8. **Task 8**: Fix ChatDetail media state duplication (5 min) - Current
 9. **Task 9**: Remove duplicate ArrowLeft button (2 min)
 10. **Task 10**: Add error boundary component (8 min)
-11. **Task 11**: Add loading states to slow operations (5 min) - Current
+11. **Task 11**: Add loading states to slow operations (5 min)
 12. **Task 12**: Fix AuthContext error handling (5 min)
 13. **Task 13**: Improve ProtectedRoute error UX (3 min)
 14. **Task 14**: Add centralized error handling (8 min)
@@ -102,9 +99,10 @@ Resolution: All slow operations now have clear loading indicators. Users can see
 
 ---
 
-## Completed Tasks: 8/18
+## Completed Tasks: 9/18
 
 ### Task 1: Remove unused WebSocketProvider (Dead Code)
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 20:45:00
 **Agent**: agent_1
@@ -117,6 +115,7 @@ Deleted:
 - Updated src/clawbot/index.ts (removed exports)
 
 ### Task 2: Fix Study route conflict
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 21:00:00
 **Agent**: agent_2
@@ -132,6 +131,7 @@ Changes:
 Resolution: The Study component now handles both /study and /study/timer routes internally via location.pathname detection, eliminating the confusing enum constant.
 
 ### Task 3: Fix ClawbotChannelContext dependency warning
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 21:15:00
 **Agent**: agent_3
@@ -146,6 +146,7 @@ Changes:
 Resolution: The pairWithCode callback now has stable dependencies (empty array), preventing performance issues from unnecessary callback recreations while maintaining correct functionality through functional state updates.
 
 ### Task 4: Clean up console.logs for production
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 21:45:00
 **Agent**: agent_4
@@ -159,6 +160,7 @@ Changes:
 Resolution: Production code is now cleaner without debug logging.
 
 ### Task 5: Remove deprecated simpleAddFriend function
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 22:00:00
 **Agent**: agent_5
@@ -173,6 +175,7 @@ Changes:
 Resolution: Code is now cleaner with the redundant deprecated function removed. Developers will use `addFriend` directly.
 
 ### Task 6: Fix databaseService.ts import order
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 22:15:00
 **Agent**: agent_6
@@ -187,6 +190,7 @@ Changes:
 Resolution: Import order now follows best practices with imports at file top.
 
 ### Task 7: Add environment variable validation
+
 **Status**: ✅ Complete
 **Completed**: 2025-02-16 22:30:00
 **Agent**: agent_7
@@ -201,6 +205,53 @@ Changes:
 - Integrated validation into src/index.tsx before app initialization
 
 Resolution: Environment variables are now validated at application startup with helpful error messages, improving developer experience and preventing runtime errors.
+
+### Task 11: Add loading states to slow operations
+
+**Status**: ✅ Complete
+**Completed**: 2025-02-17 01:15:00
+**Agent**: agent_11
+**Commit**: 33b5768
+**Files Changed**: 3 files, 161 insertions(+), 12 deletions(-)
+
+Changes:
+- Created src/components/LoadingSpinner.tsx with unified loading components
+  - LoadingSpinner: Generic spinner with size options (sm/md/lg)
+  - ButtonLoadingSpinner: Inline spinner for buttons
+  - FullPageLoading: Full-screen loading overlay
+- Updated src/screens/ChatDetail.tsx
+  - Added sendingMessage and uploadingFile state
+  - Send button shows spinner during message sending
+  - Send button disabled during file upload
+  - Prevents duplicate clicks on send button
+- Updated src/screens/Auth.tsx
+  - Login button shows Loader2 spinner + "登录中..."
+  - Register button shows Loader2 spinner + "注册中..."
+  - Improved visual feedback during auth operations
+
+Resolution: All slow operations now have clear loading indicators. Users can see when operations are in progress (upload, send, auth) and cannot trigger duplicate actions.
+
+### Task 12: Fix AuthContext error handling
+
+**Status**: ✅ Complete
+**Completed**: 2025-02-17 01:30:00
+**Agent**: agent_12
+**Commit**: 84ea5a1
+**Files Changed**: 2 files, 90 insertions(+), 11 deletions(-)
+
+Changes:
+- Created AuthErrorType enum with 5 error types:
+  - INVALID_CREDENTIALS: Invalid email or password
+  - EMAIL_ALREADY_EXISTS: Email already registered
+  - WEAK_PASSWORD: Password too weak
+  - NETWORK_ERROR: Network connection failed
+  - UNKNOWN_ERROR: Other unknown errors
+- Created AuthError custom error class with type and original error
+- Added AUTH_ERROR_MESSAGES mapping with Chinese error messages
+- Improved signIn and signUp error handling logic
+- Updated Auth.tsx to use AuthError for user-friendly messages
+
+Resolution: Users now see specific Chinese error messages for different auth failures. AuthContext returns structured error objects that are easy to debug and monitor.
 
 ---
 
