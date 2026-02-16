@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, Profile } from '../config/supabase';
+import { handleGlobalError } from '../utils/errorHandler';
 
 // 错误类型枚举
 export enum AuthErrorType {
@@ -65,7 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      // 使用统一的错误处理器记录日志
+      handleGlobalError(error, '获取用户信息失败');
     }
   };
 
@@ -186,6 +188,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await fetchProfile(user.id);
       return { error: null };
     } catch (error) {
+      // 使用统一的错误处理器记录日志
+      handleGlobalError(error, '更新用户信息失败');
       return { error: error as Error };
     }
   };

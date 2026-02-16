@@ -5,6 +5,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
+import { useErrorHandler } from '../utils/errorHandler';
 import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
@@ -39,6 +40,7 @@ const ChatDetail: React.FC = () => {
   const location = useLocation();
   const params = useParams();
   const { showError } = useNotification();
+  const { handleError } = useErrorHandler();
 
   // 优先从 URL 参数获取 friendId，否则从 location.state 获取
   const urlFriendId = params.friendId;
@@ -80,7 +82,8 @@ const ChatDetail: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to load friend data:', error);
+      // 使用统一的错误处理器
+      handleError(error, '加载好友信息失败');
     }
   };
 
@@ -198,7 +201,8 @@ const ChatDetail: React.FC = () => {
         // 标记消息为已读
         await markMessagesAsRead(friendId);
       } catch (error) {
-        console.error('加载聊天记录失败:', error);
+        // 使用统一的错误处理器
+        handleError(error, '加载聊天记录失败');
       } finally {
         setLoading(false);
       }
@@ -473,9 +477,9 @@ const ChatDetail: React.FC = () => {
         metadata: result.metadata
       }]);
 
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      showError(error.message || '上传失败');
+    } catch (error) {
+      // 使用统一的错误处理器
+      handleError(error, '文件上传失败，请重试');
       // 清理状态，避免上传失败后预览残留
       setAttachmentPreviews([]);
       if (fileInputRef.current) {
