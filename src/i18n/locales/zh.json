@@ -3,6 +3,12 @@
     "greeting": "嘿",
     "whatToLearn": "今天想学点什么?"
   },
+  "chat": {
+    "title": "聊天",
+    "noFriends": "暂无好友",
+    "unpaired": "未配对",
+    "quickAdd": "快速添加"
+  },
   "study": {
     "title": "自习室",
     "totalFocus": "总专注时长",

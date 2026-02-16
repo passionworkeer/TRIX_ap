@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Camera, MessageSquare, X, Scan } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import AddFriendModal from '../components/AddFriendModal';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
@@ -26,6 +27,7 @@ interface RecommendedUser {
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { showError } = useNotification();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
@@ -145,7 +147,7 @@ const Chat: React.FC = () => {
           {/* 顶部导航与搜索 */}
           <div className="pt-24 pb-4 px-4 flex-shrink-0">
              {/* 标题 */}
-             <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">Chat</h1>
+             <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">{t('chat.title')}</h1>
 
              {/* Snapchat 风格搜索栏 */}
              <div className="bg-white/5 border border-white/10 backdrop-blur-sm h-11 rounded-full flex items-center px-4 mx-auto max-w-md transition-all hover:bg-white/10">
@@ -224,7 +226,7 @@ const Chat: React.FC = () => {
              <div className="px-4 pt-4 pb-20">
                    {loading ? (
                       <div className="flex items-center justify-center py-10">
-                        <div className="text-sm text-gray-400">加载中...</div>
+                        <div className="text-sm text-gray-400">{t('common.loading')}</div>
                       </div>
                    ) : (
                       <AnimatePresence>
@@ -268,7 +270,7 @@ const Chat: React.FC = () => {
                              <h3 className="text-white font-bold text-base leading-tight mb-0.5 flex items-center gap-2">
                                TRIX Bot
                                {!(isClawbotChannelConnected && isClawbotPaired) && (
-                                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">未配对</span>
+                                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">{t('chat.unpaired')}</span>
                                )}
                              </h3>
                              <div className="flex items-center gap-1.5">
@@ -305,7 +307,7 @@ const Chat: React.FC = () => {
                         {/* 好友列表 */}
                         {friends.length === 0 && !loading ? (
                           <div className="flex items-center justify-center py-10">
-                            <div className="text-sm text-gray-400">暂无好友</div>
+                            <div className="text-sm text-gray-400">{t('chat.noFriends')}</div>
                           </div>
                         ) : (
                         filteredFriends.map((friend, index) => {
