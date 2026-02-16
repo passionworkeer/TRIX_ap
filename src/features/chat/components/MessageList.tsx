@@ -120,7 +120,7 @@ const MessageList: React.FC<MessageListProps> = ({
                   {/* 时间戳 */}
                   <p
                     className={`text-xs mt-1 ${
-                      isUser ? 'text-white/60' : 'text-gray-400'
+                      isUser ? 'text-white/80' : 'text-gray-500'
                     }`}
                   >
                     {msg.timestamp}

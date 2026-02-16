@@ -81,7 +81,9 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\cleanup_files.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\deep_scan.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_user_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\final_scan.ps1\")"
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\final_scan.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\clean_large_files.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_large_folders.ps1\")"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
