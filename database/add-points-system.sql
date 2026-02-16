@@ -15,7 +15,7 @@
 -- 存储用户的积分余额
 CREATE TABLE IF NOT EXISTS user_points (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
   total_points INTEGER DEFAULT 0 NOT NULL,
   level INTEGER DEFAULT 1 NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -39,7 +39,7 @@ COMMENT ON COLUMN user_points.level IS '等级（基于积分计算）';
 -- 记录所有积分变动历史
 CREATE TABLE IF NOT EXISTS point_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   points_change INTEGER NOT NULL, -- 正数为获得，负数为消费
   transaction_type TEXT NOT NULL CHECK (transaction_type IN (
     'study_complete',      -- 完成专注学习
@@ -246,7 +246,7 @@ SELECT
       AND DATE(pt.created_at) = CURRENT_DATE
       AND pt.points_change > 0
   ) AS today_transactions
-FROM users u
+FROM profiles u
 LEFT JOIN user_points up ON u.id = up.user_id
 ORDER BY up.total_points DESC NULLS LAST;
 
@@ -257,7 +257,7 @@ COMMENT ON VIEW user_points_overview IS '用户积分排行榜';
 -- ============================================
 -- 为所有现有用户创建积分记录（初始为0）
 INSERT INTO user_points (user_id, total_points, level)
-SELECT id, 0, 1 FROM users
+SELECT id, 0, 1 FROM profiles
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ============================================
