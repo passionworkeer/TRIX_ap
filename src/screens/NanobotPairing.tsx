@@ -168,15 +168,17 @@ const NanobotPairing: React.FC = () => {
 
           {/* 配对码输入 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label htmlFor="pairing-code-input" className="text-sm font-medium text-gray-700">
               配对码
             </label>
             <input
+              id="pairing-code-input"
               type="text"
               value={pairingCode}
               onChange={(e) => setPairingCode(e.target.value.toUpperCase())}
               placeholder="例如: A1B2C3D4"
               maxLength={8}
+              aria-label="配对码"
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-indigo-500 text-center text-2xl font-mono tracking-widest uppercase"
             />
             <p className="text-xs text-gray-500 text-center">

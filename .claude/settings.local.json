@@ -79,7 +79,9 @@
       "Bash(npx pm2 restart:*)",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\find_old_files.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\cleanup_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\deep_scan.ps1\")"
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\deep_scan.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_user_files.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\final_scan.ps1\")"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"

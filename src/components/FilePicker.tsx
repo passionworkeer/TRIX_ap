@@ -108,7 +108,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
 
       {/* Preview modal/overlay */}
       {preview && (
-        <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-3 w-72 border border-slate-200 dark:border-slate-700 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-3 w-full max-w-[280px] sm:max-w-[320px] border border-slate-200 dark:border-slate-700 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-start justify-between mb-2">
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
               {preview.type === 'image' ? '图片预览' : '视频预览'}
@@ -117,6 +117,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
               onClick={clearPreview}
               className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
               disabled={isUploading}
+              aria-label="清除预览"
             >
               <X size={16} />
             </button>

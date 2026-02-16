@@ -49,31 +49,35 @@ export const Login: React.FC = () => {
 
       <div className="w-full space-y-6 relative z-20 mb-6">
          {error && (
-           <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-2xl text-sm">
+           <div role="alert" aria-live="assertive" className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-2xl text-sm">
              {error}
            </div>
          )}
-         
+
          <div className="space-y-4">
             <GlassPanel className="flex items-center px-5 py-4 !bg-white/40 !rounded-2xl transition-all focus-within:!bg-white/60 focus-within:!border-white/90 group">
                <User className="text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={24} />
-               <input 
-                 type="email" 
-                 placeholder="邮箱" 
+               <label htmlFor="email-input" className="sr-only">邮箱</label>
+               <input
+                 id="email-input"
+                 type="email"
+                 placeholder="邮箱"
                  value={email}
                  onChange={(e) => setEmail(e.target.value)}
-                 className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium" 
+                 className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium"
                />
             </GlassPanel>
             <GlassPanel className="flex items-center px-5 py-4 !bg-white/40 !rounded-2xl transition-all focus-within:!bg-white/60 focus-within:!border-white/90 group">
                <Lock className="text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={24} />
-               <input 
-                 type="password" 
-                 placeholder="密码" 
+               <label htmlFor="password-input" className="sr-only">密码</label>
+               <input
+                 id="password-input"
+                 type="password"
+                 placeholder="密码"
                  value={password}
                  onChange={(e) => setPassword(e.target.value)}
                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                 className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium" 
+                 className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium"
                />
             </GlassPanel>
          </div>
@@ -93,10 +97,16 @@ export const Login: React.FC = () => {
                <div className="h-px bg-slate-300 flex-1"></div>
             </div>
             <div className="flex gap-6">
-               <button className="w-12 h-12 rounded-full bg-white/60 flex items-center justify-center text-green-600 shadow-sm border border-white hover:scale-105 transition-transform">
+               <button
+                 className="w-12 h-12 rounded-full bg-white/60 flex items-center justify-center text-green-600 shadow-sm border border-white hover:scale-105 transition-transform"
+                 aria-label="微信登录"
+               >
                   <span className="font-bold text-xl">W</span>
                </button>
-               <button className="w-12 h-12 rounded-full bg-white/60 flex items-center justify-center text-slate-800 shadow-sm border border-white hover:scale-105 transition-transform">
+               <button
+                 className="w-12 h-12 rounded-full bg-white/60 flex items-center justify-center text-slate-800 shadow-sm border border-white hover:scale-105 transition-transform"
+                 aria-label="Apple 登录"
+               >
                   <span className="font-bold text-xl">A</span>
                </button>
             </div>

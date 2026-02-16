@@ -211,7 +211,8 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
               e.stopPropagation();
               onClose();
             }}
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+            className="absolute -top-1.5 -right-1.5 w-11 h-11 p-2.5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+            aria-label="删除媒体"
           >
             <X size={10} strokeWidth={2.5} />
           </button>
@@ -248,7 +249,8 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
               e.stopPropagation();
               onClose();
             }}
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+            className="absolute -top-1.5 -right-1.5 w-11 h-11 p-2.5 rounded-full bg-white text-black flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors z-10"
+            aria-label="删除视频"
           >
             <X size={10} strokeWidth={2.5} />
           </button>
