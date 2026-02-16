@@ -207,7 +207,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setPairingStatus('idle');
       return false;
     }
-  }, [pairingStatus]); // ✅ 依赖 pairingStatus 状态
+  }, []); // ✅ 移除 pairingStatus 依赖，使用函数式更新
 
   // 二维码配对
   const pairWithQR = useCallback(async (token: string): Promise<boolean> => {
