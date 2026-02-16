@@ -3,6 +3,12 @@
     "greeting": "ねえ",
     "whatToLearn": "今日は何を学びたい？"
   },
+  "chat": {
+    "title": "チャット",
+    "noFriends": "まだ友達がいません",
+    "unpaired": "未ペアリング",
+    "quickAdd": "迅速に追加"
+  },
   "study": {
     "title": "自習室",
     "totalFocus": "総集中時間",

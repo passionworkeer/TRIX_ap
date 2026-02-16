@@ -3,6 +3,12 @@
     "greeting": "Hey",
     "whatToLearn": "What do you want to learn today?"
   },
+  "chat": {
+    "title": "Chat",
+    "noFriends": "No friends yet",
+    "unpaired": "Unpaired",
+    "quickAdd": "Quick Add"
+  },
   "study": {
     "title": "Study Room",
     "totalFocus": "Total Focus",
