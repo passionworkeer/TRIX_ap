@@ -9,6 +9,7 @@ import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
+import { ButtonLoadingSpinner } from '../components/LoadingSpinner';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
@@ -122,6 +123,8 @@ const ChatDetail: React.FC = () => {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
 
@@ -456,6 +459,8 @@ const ChatDetail: React.FC = () => {
   // Handle file upload
   const handleFileUpload = async (file: File) => {
     try {
+      setUploadingFile(true);
+
       const category = file.type.startsWith('image/') ? 'image' : 'video';
       const result = await uploadFile(file, category);
 
@@ -476,6 +481,8 @@ const ChatDetail: React.FC = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -810,14 +817,18 @@ const ChatDetail: React.FC = () => {
                 {/* 发送按钮 */}
                 <button
                   onClick={handleSend}
-                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false) || sendingMessage || uploadingFile}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
                     input.trim() || attachmentPreviews.length > 0
                       ? 'bg-black text-white hover:bg-gray-800 shadow-md'
                       : 'bg-gray-300 text-gray-400'
                   }`}
                 >
-                  <Send size={14} className={input.trim() ? '-rotate-45' : ''} />
+                  {sendingMessage || uploadingFile ? (
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    <Send size={14} className={input.trim() ? '-rotate-45' : ''} />
+                  )}
                 </button>
               </div>
             </div>
