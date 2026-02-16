@@ -4,6 +4,10 @@ import './index.css';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './i18n'; // Import i18n configuration
+import { validateEnv } from './utils/env'; // Import env validation
+
+// Validate environment variables before starting the app
+validateEnv();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
