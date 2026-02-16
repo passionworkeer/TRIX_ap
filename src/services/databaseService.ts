@@ -222,7 +222,7 @@ export async function updateFriendStudyStatus(
 ): Promise<void> {
   try {
     const userId = await getCurrentUserId();
-    
+
     const updateData: any = {
       is_studying: isStudying,
       updated_at: new Date().toISOString()
@@ -243,6 +243,40 @@ export async function updateFriendStudyStatus(
     }
   } catch (error) {
     console.error('更新好友学习状态失败:', error);
+  }
+}
+
+/** 根据 ID 获取好友信息 */
+export async function getFriendById(friendId: string): Promise<FriendLatestMessage | null> {
+  try {
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase
+      .from('friends')
+      .select(`
+        friend_id,
+        name,
+        avatar_url,
+        bio,
+        study_time,
+        is_studying,
+        unread_count,
+        last_message,
+        last_message_time
+      `)
+      .eq('user_id', userId)
+      .eq('friend_id', friendId)
+      .single();
+
+    if (error) {
+      console.error('获取好友信息失败:', error);
+      return null;
+    }
+
+    return data as FriendLatestMessage;
+  } catch (error) {
+    console.error('获取好友信息失败:', error);
+    return null;
   }
 }
 

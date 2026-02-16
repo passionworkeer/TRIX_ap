@@ -10,7 +10,9 @@ export enum AppRoutes {
   TIMER = '/study/timer',
   CHAT = '/chat',
   CHAT_DETAIL = '/chat/detail',
+  CHAT_WITH_FRIEND = '/chat/:friendId',  // 动态路由：与特定好友聊天
   PROFILE = '/profile',
+  PROFILE_VIEW = '/profile/:userId',      // 动态路由：查看其他用户主页
   SETTINGS = '/profile/settings',
   PAIRING = '/pairing',
   QR_PAIRING = '/qr-pairing',  // 🔗 二维码配对页面
