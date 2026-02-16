@@ -49,7 +49,7 @@ const ChatDetail: React.FC = () => {
   const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
 
   // Clawbot Channel connection
-  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair } = useClawbotChannel();
+  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
 
   // 菜单显示状态
   const [showMenu, setShowMenu] = useState(false);
@@ -506,9 +506,10 @@ const ChatDetail: React.FC = () => {
     if (!isBot) return 'bg-green-500';
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
-      case 'CONNECTING': return 'bg-yellow-500 animate-pulse';
-      case 'AUTH_FAILED':
+      case 'CONNECTING':
+      case 'RECONNECTING': return 'bg-yellow-500 animate-pulse';
       case 'ERROR': return 'bg-red-500';
+      case 'DISCONNECTED':
       default: return 'bg-gray-400';
     }
   };
@@ -516,9 +517,10 @@ const ChatDetail: React.FC = () => {
   const getStatusText = () => {
     switch (status) {
       case 'CONNECTED': return 'Online';
-      case 'CONNECTING': return 'Connecting...';
-      case 'AUTH_FAILED': return 'Auth Failed';
+      case 'CONNECTING':
+      case 'RECONNECTING': return 'Connecting...';
       case 'ERROR': return 'Error';
+      case 'DISCONNECTED':
       default: return 'Offline';
     }
   };
