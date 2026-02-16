@@ -10,6 +10,8 @@ import TimerView from "../features/study/components/TimerView";
 import StudyHeader from "../features/study/components/StudyHeader";
 import DurationSelector from "../features/study/components/DurationSelector";
 import StudyStats from "../features/study/components/StudyStats";
+import { PointsModal } from "../features/study/components/PointsModal";
+import { rewardStudyCompletion, initializeUserPoints } from "../services/pointsService";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -51,6 +53,9 @@ export default function Study() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [studyDuration, setStudyDuration] = useState(0); // 本次实际专注时长(分钟)
 
+  // 💎 积分弹窗状态
+  const [showPointsModal, setShowPointsModal] = useState(false);
+
   // 🎯 使用 ref 追踪用户 ID 和自习状态
   const userIdRef = useRef(user?.id);
   const isStudyingRef = useRef(false);
@@ -84,6 +89,11 @@ export default function Study() {
         console.error('❌ [Study] 查询时长异常:', err);
       }
     };
+
+    // 💎 初始化用户积分（如果是新用户）
+    initializeUserPoints(user.id).catch(err => {
+      console.error('❌ [Study] 初始化积分失败:', err);
+    });
 
     fetchTotalStudyTime();
   }, [user?.id]);
@@ -447,6 +457,17 @@ export default function Study() {
     // 🎉 保存专注时长用于结算显示
     setStudyDuration(studiedMinutes);
 
+    // 💎 奖励积分（每分钟2积分）
+    if (user?.id && studiedMinutes > 0) {
+      try {
+        const pointsEarned = await rewardStudyCompletion(user.id, studiedMinutes);
+        console.log(`💎 [Study] 已奖励 ${pointsEarned} 积分`);
+      } catch (error) {
+        console.error('❌ [Study] 奖励积分失败:', error);
+        // 积分奖励失败不影响学习流程，仅记录错误
+      }
+    }
+
     // 更新数据库：标记用户停止自习,并清除双向关联
     if (user?.id) {
       try {
@@ -586,6 +607,7 @@ export default function Study() {
         <StudyHeader
           totalStudyTime={totalStudyTime}
           onBuddyListOpen={() => setIsBuddyListOpen(true)}
+          onPointsClick={() => setShowPointsModal(true)}
         />
 
         {/* 自习伙伴列表 - Modal 弹窗 */}
@@ -606,6 +628,15 @@ export default function Study() {
         <StudyStats totalStudyTime={totalStudyTime} />
 
       </div>
+
+      {/* 💎 积分弹窗 */}
+      {user?.id && (
+        <PointsModal
+          show={showPointsModal}
+          onClose={() => setShowPointsModal(false)}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
