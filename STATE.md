@@ -10,29 +10,26 @@
 
 ---
 
-## Current Task: 12/18
+## Current Task: 13/18
 
-### Task 12: Fix AuthContext error handling
+### Task 13: Improve ProtectedRoute error UX
 
 **Status**: ✅ Complete
-**Completed**: 2025-02-17 01:30:00
-**Agent**: agent_12
-**Commit**: 84ea5a1
-**Files Changed**: 2 files, 90 insertions(+), 11 deletions(-)
+**Completed**: 2025-02-17 01:45:00
+**Agent**: agent_13
+**Commit**: 81d0411
+**Files Changed**: 1 file, 33 insertions(+), 4 deletions(-)
 
 Changes:
-- Created AuthErrorType enum with 5 error types:
-  - INVALID_CREDENTIALS: Invalid email or password
-  - EMAIL_ALREADY_EXISTS: Email already registered
-  - WEAK_PASSWORD: Password too weak
-  - NETWORK_ERROR: Network connection failed
-  - UNKNOWN_ERROR: Other unknown errors
-- Created AuthError custom error class with type and original error
-- Added AUTH_ERROR_MESSAGES mapping with Chinese error messages
-- Improved signIn and signUp error handling logic
-- Updated Auth.tsx to use AuthError for user-friendly messages
 
-Resolution: Users now see specific Chinese error messages for different auth failures. AuthContext returns structured error objects that are easy to debug and monitor.
+- Added useNotification hook import to App.tsx
+- Modified ProtectedRoute to show friendly warning message: "请先登录以访问此页面"
+- Implemented 500ms delay before redirect to /auth for better UX
+- Added shouldRedirect state to control redirect timing
+- Display loading spinner with "跳转到登录页..." message during delay
+- Toast notification appears before navigation, giving users clear feedback
+
+Resolution: Users now see a clear "Please login first" warning toast before being redirected to the login page, improving the overall UX and reducing confusion about why navigation occurred.
 
 ---
 
