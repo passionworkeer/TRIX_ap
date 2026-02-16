@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Timer, Play, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
@@ -9,6 +9,7 @@ import { IMAGES } from "../constants";
 import { SummaryModal } from "../features/study/components/SummaryModal";
 import TimerView from "../features/study/components/TimerView";
 import StudyHeader from "../features/study/components/StudyHeader";
+import DurationSelector from "../features/study/components/DurationSelector";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -587,57 +588,18 @@ export default function Study() {
         />
 
         {/* 自习伙伴列表 - Modal 弹窗 */}
-        <StudyBuddiesList 
-          isOpen={isBuddyListOpen} 
-          onClose={() => setIsBuddyListOpen(false)} 
+        <StudyBuddiesList
+          isOpen={isBuddyListOpen}
+          onClose={() => setIsBuddyListOpen(false)}
         />
 
         {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}
-        <div
-          className="absolute top-32 left-6 z-20"
-          style={{ maxWidth: '240px' }}
-        >
-          <div className="bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-3.5 shadow-2xl">
-            {/* 标题 */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
-                <Timer size={14} className="text-white" />
-              </div>
-              <span className="text-[10px] font-bold tracking-wider uppercase text-white/90">Focus Timer</span>
-            </div>
-
-            {/* 时间选择器 */}
-            <div className="flex gap-1.5 mb-4 p-1 bg-black/20 rounded-full">
-              {timePresets.map((time) => (
-                <button
-                  key={time}
-                  onClick={() => setSelectedDuration(time)}
-                  className={`flex-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                    selectedDuration === time
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  {time}m
-                </button>
-              ))}
-            </div>
-
-            {/* 时间显示和开始按钮 */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-col">
-                <span className="text-4xl font-bold text-white leading-none">{selectedDuration}</span>
-                <span className="text-[9px] font-semibold text-white/60 uppercase tracking-wider mt-1">Minutes</span>
-              </div>
-              <button
-                onClick={handleStartFocus}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all border border-white/20"
-              >
-                <Play fill="white" size={18} className="ml-0.5 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <DurationSelector
+          timePresets={timePresets}
+          selectedDuration={selectedDuration}
+          onSelectDuration={setSelectedDuration}
+          onStartFocus={handleStartFocus}
+        />
 
         {/* 底部：Today's Focus 统计卡片 - 绝对定位，右下角 */}
         <div
