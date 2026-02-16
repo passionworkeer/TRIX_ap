@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { User, Lock, Smartphone } from 'lucide-react';
+import { User, Lock, Smartphone, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
@@ -82,12 +82,19 @@ export const Login: React.FC = () => {
             </GlassPanel>
          </div>
 
-         <button 
-           onClick={handleLogin} 
+         <button
+           onClick={handleLogin}
            disabled={loading}
-           className="w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white font-bold text-lg tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+           className="w-full py-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white font-bold text-lg tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
          >
-            {loading ? '登录中...' : '登录'}
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                登录中...
+              </>
+            ) : (
+              '登录'
+            )}
          </button>
 
          <div className="flex flex-col items-center space-y-6 pt-2">
@@ -217,12 +224,21 @@ export const Register: React.FC = () => {
              </GlassPanel>
           </div>
  
-          <button 
-            onClick={handleRegister} 
+          <button
+            onClick={handleRegister}
             disabled={loading || success}
-            className="w-full py-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white font-bold text-lg shadow-lg shadow-cyan-400/30 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white font-bold text-lg shadow-lg shadow-cyan-400/30 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-             {loading ? '注册中...' : success ? '注册成功' : '立即注册'}
+             {loading ? (
+               <>
+                 <Loader2 className="w-5 h-5 animate-spin" />
+                 注册中...
+               </>
+             ) : success ? (
+               '注册成功'
+             ) : (
+               '立即注册'
+             )}
           </button>
           
           <div className="text-center text-sm text-slate-500">
