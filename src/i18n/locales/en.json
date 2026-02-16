@@ -1,4 +1,8 @@
 {
+  "home": {
+    "greeting": "Hey",
+    "whatToLearn": "What do you want to learn today?"
+  },
   "profile": {
     "title": "Profile",
     "darkMode": "Dark Mode",
