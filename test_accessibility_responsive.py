@@ -2,6 +2,14 @@
 测试 TRIX 3D Companion 应用的可访问性和响应式设计
 """
 
+import sys
+import io
+
+# Fix UTF-8 encoding on Windows
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 from playwright.sync_api import sync_playwright
 import json
 import time
@@ -31,7 +39,7 @@ def test_accessibility_and_responsive():
             print('='*60)
 
             page = browser.new_page()
-            page.set_viewport_size(viewport['width'], viewport['height'])
+            page.set_viewport_size({"width": viewport['width'], "height": viewport['height']})
 
             # 访问首页
             print("访问首页...")
@@ -44,12 +52,27 @@ def test_accessibility_and_responsive():
             page.screenshot(path=screenshot_path, full_page=True)
             print(f"✅ 截图已保存: {screenshot_path}")
 
-            # 检查可访问性
+            # 检查可访问性 - 手动检查
             print("运行可访问性审计...")
-            accessibility_results = page.accessibility.snapshot()
+
+            # 检查 ARIA 标签
+            buttons = page.locator('button').all()
+            buttons_without_labels = []
+            for btn in buttons[:20]:  # 只检查前20个按钮
+                aria_label = btn.get_attribute('aria-label')
+                text_content = btn.text_content()
+                if not aria_label and not text_content:
+                    buttons_without_labels.append('Button without label')
 
             # 统计可访问性问题
-            violations = page.accessibility.snapshot().get('violations', [])
+            violations = []
+            if buttons_without_labels:
+                violations.append({
+                    'id': 'missing-aria-labels',
+                    'description': f'{len(buttons_without_labels)} 个按钮缺少 aria-label 或文本内容',
+                    'impact': 'serious'
+                })
+
             results['accessibility'][viewport['name']] = {
                 'violations_count': len(violations),
                 'violations': violations[:5]  # 只保留前5个

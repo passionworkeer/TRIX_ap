@@ -107,7 +107,8 @@ const Snapshot: React.FC = () => {
                   <p className="text-sm font-medium">Confidence 98%</p>
                 </div>
               </div>
-              <button className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center">
+              <button className="w-11 h-11 p-2.5 rounded-full bg-black/5 flex items-center justify-center hover:bg-black/10 active:scale-95 transition-all"
+                      aria-label="更多选项">
                  <MoreHorizontal size={18} className="text-slate-500" />
               </button>
             </GlassPanel>
