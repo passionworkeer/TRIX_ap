@@ -3,6 +3,29 @@
     "greeting": "ねえ",
     "whatToLearn": "今日は何を学びたい？"
   },
+  "study": {
+    "title": "自習室",
+    "totalFocus": "総集中時間",
+    "totalStudyTime": "総学習時間",
+    "points": "ポイント",
+    "addBuddy": "学習仲間を追加",
+    "startFocus": "集中開始",
+    "selectDuration": "時間を選択",
+    "minutes": "分"
+  },
+  "common": {
+    "minutes": "分",
+    "hours": "時間",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "save": "保存",
+    "edit": "編集",
+    "delete": "削除",
+    "close": "閉じる"
+  },
   "profile": {
     "title": "プロフィール",
     "darkMode": "ダークモード",
