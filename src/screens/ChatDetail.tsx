@@ -489,6 +489,12 @@ const ChatDetail: React.FC = () => {
     } catch (error: any) {
       console.error('Upload error:', error);
       showError(error.message || '上传失败');
+      // 清理状态，避免上传失败后预览残留
+      setAttachmentPreviews([]);
+      setPendingMedia(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
