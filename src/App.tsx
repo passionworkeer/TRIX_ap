@@ -123,7 +123,7 @@ function AppContent() {
              {/* 公开路由 - 不需要登录 */}
              <Route path={AppRoutes.LOGIN} element={<Login />} />
              <Route path={AppRoutes.REGISTER} element={<Register />} />
-             
+
              {/* 受保护路由 - 需要登录 */}
              <Route path={AppRoutes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
              <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
@@ -132,7 +132,9 @@ function AppContent() {
              <Route path={AppRoutes.TIMER} element={<ProtectedRoute><Study /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
+             <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
              <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+             <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
              <Route path={AppRoutes.QR_PAIRING} element={
                <ProtectedRoute>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Mic, MicOff, MoreVertical, Bot, X } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
@@ -9,7 +9,7 @@ import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
-import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead } from '../services/databaseService';
+import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
@@ -36,13 +36,51 @@ interface UIMessage {
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
   const { showError } = useNotification();
-  const { name, avatar, isBot, friendId, photoUri } = location.state || {
-    name: 'Clawdbot Gateway',
-    avatar: IMAGES.WIZARD_BOY_LOGIN,
-    isBot: true,
-    friendId: 'clawbot',
-    photoUri: null
+
+  // 优先从 URL 参数获取 friendId，否则从 location.state 获取
+  const urlFriendId = params.friendId;
+  const stateData = location.state || {};
+
+  const [friendData, setFriendData] = useState<{
+    name: string;
+    avatar: string;
+    isBot: boolean;
+    friendId: string;
+    photoUri: string | null;
+  }>({
+    name: stateData.name || 'Clawdbot Gateway',
+    avatar: stateData.avatar || IMAGES.WIZARD_BOY_LOGIN,
+    isBot: stateData.isBot ?? true,
+    friendId: urlFriendId || stateData.friendId || 'clawbot',
+    photoUri: stateData.photoUri || null
+  });
+
+  const { name, avatar, isBot, friendId, photoUri } = friendData;
+
+  // 如果有 URL 参数且不是 state，从数据库加载好友信息
+  useEffect(() => {
+    if (urlFriendId && !stateData.name) {
+      loadFriendData(urlFriendId);
+    }
+  }, [urlFriendId]);
+
+  const loadFriendData = async (id: string) => {
+    try {
+      const friend = await getFriendById(id);
+      if (friend) {
+        setFriendData({
+          name: friend.name,
+          avatar: friend.avatar_url || IMAGES.SHIBA_AVATAR,
+          isBot: false,
+          friendId: friend.friend_id,
+          photoUri: null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load friend data:', error);
+    }
   };
 
   // 从路由参数接收到的图片预览状态
