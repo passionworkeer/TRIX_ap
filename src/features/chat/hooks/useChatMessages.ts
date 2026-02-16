@@ -155,18 +155,18 @@ export const useChatMessages = ({
   const sendMessage = async (text: string, mediaData?: { uri: string; type: string }) => {
     if (!text.trim() && !mediaData) return;
 
-    try {
-      // 添加临时消息
-      const tempMessage: Message = {
-        id: `temp-${Date.now()}`,
-        sender: 'user',
-        text,
-        timestamp: formatTime(new Date()),
-        messageType: mediaData?.type === 'image/' ? 'image' : mediaData?.type === 'video/' ? 'video' : 'text',
-        mediaUri: mediaData?.uri,
-        mediaType: mediaData?.type
-      };
+    // 添加临时消息
+    const tempMessage: Message = {
+      id: `temp-${Date.now()}`,
+      sender: 'user',
+      text,
+      timestamp: formatTime(new Date()),
+      messageType: mediaData?.type === 'image/' ? 'image' : mediaData?.type === 'video/' ? 'video' : 'text',
+      mediaUri: mediaData?.uri,
+      mediaType: mediaData?.type
+    };
 
+    try {
       setMessages((prev) => [...prev, tempMessage]);
 
       // 发送到数据库
@@ -199,7 +199,7 @@ export const useChatMessages = ({
       // 保留临时消息，但标记为发送失败
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === `temp-${Date.now()}`
+          msg.id === tempMessage.id
             ? { ...msg, failed: true }
             : msg
         )

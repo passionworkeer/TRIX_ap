@@ -352,7 +352,7 @@ const ChatDetail: React.FC = () => {
         showError('发送失败，请重试');
 
         // 发送失败，移除临时消息
-        setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
+        setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
       }
       return;
     }
