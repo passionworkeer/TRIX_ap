@@ -1,0 +1,109 @@
+{
+  "profile": {
+    "title": "个人中心",
+    "darkMode": "深色模式",
+    "language": "语言",
+    "logout": "退出登录",
+    "points": "积分",
+    "daysActive": "陪伴天数",
+    "interactions": "互动",
+    "level": "等级",
+    "myWardrobe": "我的衣橱",
+    "viewAll": "查看全部",
+    "getMore": "获取更多",
+    "appearance": "外观与个性化",
+    "general": "通用",
+    "privacy": "隐私与安全",
+    "about": "关于我们",
+    "outfitEquipped": "已装备: {{name}}",
+    "logoutConfirm": "确定要退出登录吗？",
+    "privacyInDev": "隐私与安全设置页面（开发中）",
+    "aboutText": "TRIX v1.2.0\n开发团队: TRIX Studio\n© 2026 All Rights Reserved",
+    "statsMessages": {
+      "daysActive": "🎉 你已经和 TRIX 相伴 {{value}} 天啦！\n继续保持，一起成长！",
+      "points": "⭐ 当前积分: {{value}}\n继续学习赚取更多积分！",
+      "interactions": "💬 总互动次数: {{value}}\n本周互动: 86 次"
+    },
+    "wardrobeInDev": "装备商店（开发中）\n即将推出更多精美装备！",
+    "getMoreOutfits": "获取更多装备\n\n完成任务和活动即可解锁新装备！",
+    "languageChanged": "语言已切换为: {{language}}"
+  },
+  "map": {
+    "virtualSpace": "VIRTUAL SPACE",
+    "studyRoom": "自习室",
+    "popularPlaces": "热门地点",
+    "friendsCount": "位好友",
+    "places": {
+      "starbucks": {
+        "name": "星巴克咖啡",
+        "description": "和朋友聚会喝咖啡",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "hotpot": {
+        "name": "海底捞火锅",
+        "description": "热闹的火锅聚餐",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "cinema": {
+        "name": "万达影城",
+        "description": "最新电影上映中",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "park": {
+        "name": "静安雕塑公园",
+        "description": "适合散步和聊天",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "studyRoom": {
+        "name": "24小时自习室",
+        "description": "安静的学习环境",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "ktv": {
+        "name": "KTV 唱歌",
+        "description": "聚会唱K放松",
+        "navigate": "导航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      }
+    },
+    "types": {
+      "dining": "🍽️ 餐饮",
+      "entertainment": "🎬 娱乐",
+      "study": "📚 学习",
+      "shopping": "🛍️ 购物",
+      "park": "🌳 公园"
+    }
+  },
+  "friend": {
+    "sendMessage": "发消息",
+    "viewProfile": "主页",
+    "inviteStudy": "邀请自习",
+    "studying": "正在学习中",
+    "todayStudyTime": "今日已学习 {{minutes}} 分钟",
+    "lastOnline": "最后活跃: {{time}}",
+    "online": "在线",
+    "inviteSent": "已邀请 {{name}} 一起自习"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "edit": "编辑",
+    "delete": "删除",
+    "close": "关闭"
+  }
+}

@@ -88,7 +88,9 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_unused_software.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\manual_software_scan.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\software_report.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\delete_unused_software.ps1\")"
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\delete_unused_software.ps1\")",
+      "Bash(npx skills list)",
+      "Bash(npx skills list:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"

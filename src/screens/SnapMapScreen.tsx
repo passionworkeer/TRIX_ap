@@ -6,6 +6,8 @@ import L from 'leaflet';
 import { getFriends } from '../services/databaseService';
 import type { FriendLatestMessage } from '../config/supabase';
 import { IMAGES } from '../constants';
+import PlacePopupContent from '../components/map/PlacePopupContent';
+import FriendPopupContent from '../components/map/FriendPopupContent';
 
 // 修复 Leaflet 默认图标丢失问题
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -163,6 +165,7 @@ const SnapMapScreen: React.FC = () => {
   const navigate = useNavigate();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
 
   // 加载好友数据
   useEffect(() => {
@@ -199,42 +202,33 @@ const SnapMapScreen: React.FC = () => {
           icon={createAvatarIcon(friend)}
         >
           <Popup>
-            <div style={{
-              textAlign: 'center',
-              padding: '8px',
-              minWidth: '120px',
-            }}>
-              <div style={{ fontSize: '24px', marginBottom: '6px' }}>{status.emoji}</div>
-              <div style={{
-                fontWeight: 700,
-                fontSize: '15px',
-                color: '#1f2937',
-                marginBottom: '4px'
-              }}>
-                {friend.name}
-              </div>
-              <div style={{
-                fontSize: '13px',
-                color: '#22c55e',
-                fontWeight: 500,
-                padding: '4px 8px',
-                background: '#dcfce7',
-                borderRadius: '12px',
-                display: 'inline-block'
-              }}>
-                {status.text}
-              </div>
-            </div>
+            <FriendPopupContent
+              friend={{ ...friend, status }}
+              onMessage={() => {
+                // Navigate to chat with this friend
+                navigate(`/chat/${friend.friend_id}`);
+              }}
+              onViewProfile={() => {
+                // Navigate to friend's profile
+                navigate(`/profile/${friend.friend_id}`);
+              }}
+              onInvite={() => {
+                // Send study invitation
+                console.log('邀请', friend.name, '一起自习');
+                // TODO: Implement invitation logic
+              }}
+            />
           </Popup>
         </Marker>
       );
     });
-  }, [friends]);
+  }, [friends, navigate]);
 
   // 生成虚拟地点标记
   const placeMarkers = useMemo(() => {
     return mockPlaces.map((place, index) => {
       const pos = getOffsetPosition(center[0], center[1], index + 10); // 偏移10位避免重叠
+      const isFavorite = favoritePlaces.has(place.name);
 
       return (
         <Marker
@@ -242,110 +236,26 @@ const SnapMapScreen: React.FC = () => {
           position={[pos.lat, pos.lng]}
         >
           <Popup>
-            <div style={{
-              textAlign: 'left',
-              padding: '12px',
-              minWidth: '160px',
-            }}>
-              {/* 标题行 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '8px'
-              }}>
-                <span style={{ fontSize: '28px' }}>{place.emoji}</span>
-                <div style={{
-                  fontWeight: 700,
-                  fontSize: '16px',
-                  color: '#1f2937',
-                  flex: 1
-                }}>
-                  {place.name}
-                </div>
-              </div>
-
-              {/* 描述 */}
-              <div style={{
-                fontSize: '13px',
-                color: '#6b7280',
-                marginBottom: '8px',
-                lineHeight: '1.5'
-              }}>
-                {place.description}
-              </div>
-
-              {/* 营业时间 */}
-              {place.openHours && (
-                <div style={{
-                  fontSize: '12px',
-                  color: '#64748b',
-                  padding: '6px 10px',
-                  background: '#f3f4f6',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span>🕐</span>
-                  <span>{place.openHours}</span>
-                </div>
-              )}
-
-              {/* 类型标签 */}
-              <div style={{
-                marginTop: '8px',
-                display: 'flex',
-                gap: '6px',
-                flexWrap: 'wrap'
-              }}>
-                {place.type === 'dining' && (
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    background: '#fef3c7',
-                    color: '#d97706',
-                    borderRadius: '12px',
-                    fontWeight: 600
-                  }}>🍽️ 美食</span>
-                )}
-                {place.type === 'entertainment' && (
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    background: '#e0e7ff',
-                    color: '#4338ca',
-                    borderRadius: '12px',
-                    fontWeight: 600
-                  }}>🎪 娱乐</span>
-                )}
-                {place.type === 'study' && (
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    background: '#dbeafe',
-                    color: '#15803d',
-                    borderRadius: '12px',
-                    fontWeight: 600
-                  }}>📖 学习</span>
-                )}
-                {place.type === 'park' && (
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    background: '#d1fae5',
-                    color: '#166534',
-                    borderRadius: '12px',
-                    fontWeight: 600
-                  }}>🌿️ 公园</span>
-                )}
-              </div>
-            </div>
+            <PlacePopupContent
+              place={place}
+              isFavorite={isFavorite}
+              onFavorite={() => {
+                setFavoritePlaces(prev => {
+                  const newFavorites = new Set(prev);
+                  if (newFavorites.has(place.name)) {
+                    newFavorites.delete(place.name);
+                  } else {
+                    newFavorites.add(place.name);
+                  }
+                  return newFavorites;
+                });
+              }}
+            />
           </Popup>
         </Marker>
       );
     });
-  }, []);
+  }, [favoritePlaces]);
 
   // 生成热力圈标记
   const heatMarkers = useMemo(() => {

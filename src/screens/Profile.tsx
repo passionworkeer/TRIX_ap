@@ -1,22 +1,25 @@
 ﻿import React, { useState } from 'react';
 import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { signOut, user, profile } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const { t, i18n } = useTranslation();
 
-  // 从 localStorage 读取初始值，实现状态持久化
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('darkMode') === 'true';
-  });
-  const [language, setLanguage] = useState<string>(() => {
-    return localStorage.getItem('language') || '简体中文';
-  });
+  // Get current language display name
+  const languageNames: Record<string, string> = {
+    zh: '简体中文',
+    en: 'English',
+    ja: '日本語'
+  };
 
   // 从认证信息中获取用户名
   const username = profile?.username || (user?.email ? user.email.split('@')[0] : 'User');
@@ -29,61 +32,51 @@ const Profile: React.FC = () => {
 
   const handleOutfitChange = (outfitName: string) => {
     // TODO: 实现装备更换逻辑
-    alert(`已装备: ${outfitName}`);
+    alert(t('profile.outfitEquipped', { name: outfitName }));
   };
 
   const handleDarkModeToggle = () => {
-    const newValue = !darkMode;
-    setDarkMode(newValue);
-    localStorage.setItem('darkMode', String(newValue));
-    // TODO: 实现深色模式切换（应用 CSS 类到 document.documentElement）
-    alert(newValue ? '深色模式已开启' : '深色模式已关闭');
+    toggleTheme();
   };
 
   const handleLanguageChange = () => {
-    const languages = ['简体中文', 'English', '日本語'];
-    const currentIndex = languages.indexOf(language);
-    const nextLanguage = languages[(currentIndex + 1) % languages.length] ?? '简体中文';
-    setLanguage(nextLanguage);
-    localStorage.setItem('language', nextLanguage);
-    // TODO: 应用语言切换到 i18n 系统
-    alert(`语言已切换为: ${nextLanguage}`);
+    const languages = ['zh', 'en', 'ja'];
+    const currentIndex = languages.indexOf(i18n.language);
+    const nextLanguage = languages[(currentIndex + 1) % languages.length];
+    i18n.changeLanguage(nextLanguage);
   };
 
   const handlePrivacyClick = () => {
     // TODO: 导航到隐私设置页面
-    alert('隐私与安全设置页面（开发中）');
+    alert(t('profile.privacyInDev'));
   };
 
   const handleAboutClick = () => {
     // TODO: 导航到关于页面
-    alert('TRIX v1.2.0\n开发团队: TRIX Studio\n© 2026 All Rights Reserved');
+    alert(t('profile.aboutText'));
   };
 
   const handleLogout = async () => {
-    if (confirm('确定要退出登录吗？')) {
+    if (confirm(t('profile.logoutConfirm'))) {
       await signOut();
       navigate(AppRoutes.LOGIN, { replace: true });
     }
   };
 
   const handleStatClick = (statName: string, value: number) => {
-    const messages: { [key: string]: string } = {
-      '陪伴天数': `🎉 你已经和 TRIX 相伴 ${value} 天啦！\n继续保持，一起成长！`,
-      '等级': `⭐ 当前等级: Lv.${value}\n距离下一级还需 230 经验值`,
-      '互动': `💬 总互动次数: ${value}\n本周互动: 86 次`
-    };
-    alert(messages[statName] || `${statName}: ${value}`);
+    const key = statName === '陪伴天数' ? 'daysActive' :
+                statName === '积分' ? 'points' : 'interactions';
+    alert(t(`profile.statsMessages.${key}`, { value }));
   };
 
   const handleViewAllOutfits = () => {
     // TODO: 导航到装备商店页面
-    alert('装备商店（开发中）\n即将推出更多精美装备！');
+    alert(t('profile.wardrobeInDev'));
   };
 
   const handleGetMoreOutfits = () => {
     // TODO: 导航到装备获取页面
-    alert('获取更多装备\n\n完成任务和活动即可解锁新装备！');
+    alert(t('profile.getMoreOutfits'));
   };
 
   const BG_IMAGE = IMAGES.BACKGROUND;
@@ -108,7 +101,7 @@ const Profile: React.FC = () => {
        <div className="relative z-10 h-full flex flex-col overflow-hidden">
           {/* 头部标题 - 固定不滚动 */}
           <div className="pt-24 pb-4 px-6 flex-shrink-0">
-             <h1 className="text-base font-bold tracking-tight text-white/90 uppercase text-center">个人中心</h1>
+             <h1 className="text-base font-bold tracking-tight text-white/90 uppercase text-center">{t('profile.title')}</h1>
           </div>
 
           {/* 滚动内容区域 */}
@@ -155,7 +148,7 @@ const Profile: React.FC = () => {
                 <div className="mt-3 flex justify-center">
                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
                       <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-                      <span className="text-amber-300 font-bold text-xs tracking-wide">积分: {points}</span>
+                      <span className="text-amber-300 font-bold text-xs tracking-wide">{t('profile.points')}: {points}</span>
                    </div>
                 </div>
 
@@ -166,21 +159,21 @@ const Profile: React.FC = () => {
                       onClick={() => handleStatClick('陪伴天数', daysActive)}
                    >
                       <div className="text-xl font-black text-white">{daysActive}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">陪伴天数</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.daysActive')}</div>
                    </div>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
                       onClick={() => handleStatClick('积分', points)}
                    >
                       <div className="text-xl font-black text-white">{points}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">积分</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.points')}</div>
                    </div>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
                       onClick={() => handleStatClick('互动', interactionCount)}
                    >
                       <div className="text-xl font-black text-white">{interactionCount}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">互动</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.interactions')}</div>
                    </div>
                 </div>
              </div>
@@ -190,12 +183,12 @@ const Profile: React.FC = () => {
                 {/* 我的衣橱 */}
                 <div className="w-full">
                    <div className="flex items-center justify-between mb-4 pl-1">
-                      <h3 className="text-lg font-bold text-white">我的衣橱</h3>
+                      <h3 className="text-lg font-bold text-white">{t('profile.myWardrobe')}</h3>
                       <button
                          onClick={handleViewAllOutfits}
                          className="text-xs font-bold text-amber-400 hover:text-amber-300 active:scale-95 transition-all"
                       >
-                         查看全部
+                         {t('profile.viewAll')}
                       </button>
                    </div>
 
@@ -230,14 +223,14 @@ const Profile: React.FC = () => {
                          <div className="w-12 h-12 rounded-full bg-white/10 group-hover:bg-white/20 group-hover:text-amber-400 flex items-center justify-center text-gray-500 transition-colors duration-300">
                             <Plus size={22} />
                          </div>
-                         <span className="text-xs font-bold text-gray-500 group-hover:text-amber-400 transition-colors">获取更多</span>
+                         <span className="text-xs font-bold text-gray-500 group-hover:text-amber-400 transition-colors">{t('profile.getMore')}</span>
                       </div>
                    </div>
                 </div>
 
                 {/* 外观与个性化 */}
                 <div className="w-full">
-                   <h3 className="text-lg font-bold text-white mb-3 pl-1">外观与个性化</h3>
+                   <h3 className="text-lg font-bold text-white mb-3 pl-1">{t('profile.appearance')}</h3>
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handleDarkModeToggle}
@@ -247,10 +240,10 @@ const Profile: React.FC = () => {
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Moon size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">深色模式</span>
+                            <span className="font-bold text-sm text-gray-200">{t('profile.darkMode')}</span>
                          </div>
-                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${darkMode ? 'bg-amber-500' : 'bg-white/10'}`}>
-                             <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${isDark ? 'bg-amber-500' : 'bg-white/10'}`}>
+                             <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isDark ? 'translate-x-5' : 'translate-x-0'}`}></div>
                          </div>
                       </GlassPanel>
 
@@ -262,17 +255,17 @@ const Profile: React.FC = () => {
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Globe size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">语言</span>
+                            <span className="font-bold text-sm text-gray-200">{t('profile.language')}</span>
                          </div>
                          <div className="flex items-center gap-2 text-gray-500">
-                            <span className="text-xs font-medium">{language}</span>
+                            <span className="text-xs font-medium">{languageNames[i18n.language] || i18n.language}</span>
                             <ChevronRight size={16} />
                          </div>
                       </GlassPanel>
                    </div>
 
                    {/* 通用设置 */}
-                   <h3 className="text-lg font-bold text-white mb-3 pl-1 mt-6">通用</h3>
+                   <h3 className="text-lg font-bold text-white mb-3 pl-1 mt-6">{t('profile.general')}</h3>
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handlePrivacyClick}
@@ -282,7 +275,7 @@ const Profile: React.FC = () => {
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Lock size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">隐私与安全</span>
+                            <span className="font-bold text-sm text-gray-200">{t('profile.privacy')}</span>
                          </div>
                          <ChevronRight size={16} className="text-gray-500" />
                       </GlassPanel>
@@ -295,7 +288,7 @@ const Profile: React.FC = () => {
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Verified size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">关于我们</span>
+                            <span className="font-bold text-sm text-gray-200">{t('profile.about')}</span>
                          </div>
                           <div className="flex items-center gap-2 text-gray-500">
                             <span className="text-xs font-medium">v1.2.0</span>
@@ -308,7 +301,7 @@ const Profile: React.FC = () => {
                         className="mt-4 w-full bg-white/10 backdrop-blur-md border border-red-500/20 p-4 rounded-xl flex items-center justify-center gap-2 text-red-400 font-bold text-sm hover:bg-red-500/10 transition-colors active:scale-95 duration-200"
                       >
                          <LogOut size={18} />
-                         退出登录
+                         {t('profile.logout')}
                       </button>
                    </div>
                 </div>
