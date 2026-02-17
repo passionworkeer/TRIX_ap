@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
+import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
@@ -7,6 +7,7 @@ import GlassPanel from '../components/GlassPanel';
 import { AboutDialog } from '../components/AboutDialog';
 import { StatsDetailDialog } from '../components/StatsDetailDialog';
 import { PrivacySettings } from '../components/PrivacySettings';
+import { PointsHistory } from '../components/PointsHistory';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -23,6 +24,7 @@ const Profile: React.FC = () => {
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
   const [isPrivacySettingsOpen, setIsPrivacySettingsOpen] = useState(false);
+  const [isPointsHistoryOpen, setIsPointsHistoryOpen] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -127,6 +129,13 @@ const Profile: React.FC = () => {
         userId={user?.id || ''}
       />
 
+      {/* 积分历史对话框 */}
+      <PointsHistory
+        isOpen={isPointsHistoryOpen}
+        onClose={() => setIsPointsHistoryOpen(false)}
+        userId={user?.id || ''}
+      />
+
       <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
        {/* 背景层：z-index: 0 - 固定背景，不阻挡交互 */}
        <div
@@ -191,7 +200,8 @@ const Profile: React.FC = () => {
                 <p className="text-xs text-gray-400 mt-1">{email}</p>
 
                 <div className="mt-3 flex justify-center">
-                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 cursor-pointer hover:bg-white/15 transition-colors"
+                        onClick={() => setIsPointsHistoryOpen(true)}>
                       <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
                       <span className="text-amber-300 font-bold text-xs tracking-wide">{t('profile.points')}: {points}</span>
                    </div>
