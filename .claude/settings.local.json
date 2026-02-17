@@ -97,7 +97,8 @@
       "Bash(npx skills --help)",
       "Bash(ln:*)",
       "Bash(npx skills find:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npx skills:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
