@@ -12,63 +12,6 @@
     <meta name="msapplication-TileColor" content="#f2f4f6" />
     <title>TRIX 3D Companion</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-20px); }
-      }
-      .animate-float {
-        animation: float 4s ease-in-out infinite;
-      }
-      @keyframes pulse-slow {
-        0%, 100% { opacity: 0.2; transform: scale(1); }
-        50% { opacity: 0.3; transform: scale(1.1); }
-      }
-      .animate-pulse-slow {
-        animation: pulse-slow 4s ease-in-out infinite;
-      }
-      /* 移动端全局样式：防止视口抖动和黑边 */
-      html {
-        height: 100vh;
-        height: 100dvh; /* 动态视口高度 (新标准) */
-        height: -webkit-fill-available;
-        overflow: hidden;
-        background-color: #f2f4f6; /* 确保 HTML 层也有背景色 */
-        /* 防止回弹露出黑边 */
-        overscroll-behavior-y: none;
-        -webkit-overflow-scrolling: auto;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background-color: #f2f4f6;
-        min-height: 100vh;
-        min-height: 100dvh;
-        min-height: -webkit-fill-available;
-        position: fixed;
-        width: 100%;
-        top: 0;
-        left: 0;
-        /* 防止触摸拖动 */
-        touch-action: pan-x pan-y;
-        overscroll-behavior: none;
-      }
-      #root {
-        height: 100vh;
-        height: 100dvh;
-        height: -webkit-fill-available;
-        overflow: hidden;
-        background-color: #f2f4f6; /* 三层保险 */
-      }
-      /* CSS 变量：安全区域适配 */
-      :root {
-        --safe-area-inset-top: env(safe-area-inset-top, 0px);
-        --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-        --safe-area-inset-left: env(safe-area-inset-left, 0px);
-        --safe-area-inset-right: env(safe-area-inset-right, 0px);
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>
