@@ -17,18 +17,14 @@ docs/
 ├── DEPLOYMENT_GUIDE.md               # 部署指南
 ├── PROJECT_AUDIT_REPORT.md           # 项目审核报告
 │
-├── nanobot/                         # Nanobot 三端通信 ⭐
-│   ├── INTEGRATION_GUIDE.md          # 集成指南
-│   ├── IMPLEMENTATION_SUMMARY.md     # 实现总结
-│   └── QR_CODE_MODIFICATION.md       # QR 码修改指南
-│
 ├── integration/                      # 集成相关
 │   ├── SUPABASE_AUTH.md             # Supabase 认证
 │   ├── OSS_CONFIG.md                # 阿里云 OSS 配置
 │   └── SERVER_INFO.md               # 服务器信息
 │
 └── archive/                         # 归档文档
-    ├── clawbot/                     # Clawbot 旧文档（已废弃）
+    ├── NANOBOT_ARCHIVE.md           # Nanobot 方案归档
+    ├── clawbot/                     # Clawbot 文档
     └── old-guides/                  # 其他旧指南
 ```
 
@@ -48,14 +44,6 @@ docs/
 | [三端接通架构文档.md](./三端接通架构文档.md) | 三端通信架构 - Clawbot Channel + Nanobot 双通道设计 |
 | [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) | OpenClaw集成 - WebSocket事件驱动MVP方案 |
 
-### 🚀 Nanobot 三端通信 ⭐
-
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) | 完整集成指南 - 云端服务器 + App + 本地 Nanobot 三端连通 | 所有用户 |
-| [nanobot/IMPLEMENTATION_SUMMARY.md](./nanobot/IMPLEMENTATION_SUMMARY.md) | 实现总结 - 架构设计、关键实现 | 开发者 |
-| [nanobot/QR_CODE_MODIFICATION.md](./nanobot/QR_CODE_MODIFICATION.md) | QR 码修改指南 - 配对码功能定制 | 高级用户 |
-
 ### 🔧 集成配置
 
 | 文档 | 描述 |
@@ -73,10 +61,13 @@ docs/
 
 ### 📖 归档文档
 
-| 目录              | 说明                           |
-|-------------------|--------------------------------|
-| archive/clawbot/   | Clawbot 旧文档（已废弃）          |
-| archive/old-guides/ | 其他旧指南和文档                |
+| 文档 | 说明 |
+|------|------|
+| [archive/NANOBOT_ARCHIVE.md](./archive/NANOBOT_ARCHIVE.md) | Nanobot 云端中转方案（已废弃） |
+| [archive/clawbot/CLAWBOT_CHANNEL_GUIDE.md](./archive/clawbot/CLAWBOT_CHANNEL_GUIDE.md) | Clawbot Channel 集成指南 |
+| [archive/clawbot/CLAWBOT_PROTOCOL.md](./archive/clawbot/CLAWBOT_PROTOCOL.md) | Clawbot WebSocket 协议规范 |
+| [archive/clawbot/CLAWBOT_DEPLOYMENT.md](./archive/clawbot/CLAWBOT_DEPLOYMENT.md) | Clawbot 服务器部署文档 |
+| [archive/old-guides/](./archive/old-guides/) | 其他旧指南和文档 |
 
 ---
 
@@ -88,11 +79,11 @@ docs/
 2. [FEATURES.md](./FEATURES.md) - 了解核心功能
 3. [PROJECT_AUDIT_REPORT.md](./PROJECT_AUDIT_REPORT.md) - 核心文件和潜在问题
 
-### 路径 2: Nanobot 三端集成（30 分钟）⭐
+### 路径 2: Clawbot Channel 集成（30 分钟）⭐
 
-1. [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) - 三端连通指南
-2. 启动云端服务器、本地 Nanobot、App 三端
-3. 测试配对和消息收发
+1. [三端接通架构文档.md](./三端接通架构文档.md) - 了解架构设计
+2. [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) - 集成指南
+3. 配置 Clawbot Channel 连接
 
 ### 路径 3: 功能开发（1 小时）
 
@@ -115,8 +106,8 @@ docs/
 | 主题 | 文档 |
 |------|------|
 | 项目架构 | [project-reports/PROJECT.md](./project-reports/PROJECT.md), [project-reports/PROJECT_AUDIT_REPORT.md](./project-reports/PROJECT_AUDIT_REPORT.md) |
-| 三端通信 | [三端接通架构文档.md](./三端接通架构文档.md) ⭐, [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) |
-| OpenClaw集成 | [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) |
+| 三端通信 | [三端接通架构文档.md](./三端接通架构文档.md) ⭐, [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) |
+| Clawbot 集成 | [archive/clawbot/](./archive/clawbot/) |
 | Supabase 认证 | [integration/SUPABASE_AUTH.md](./integration/SUPABASE_AUTH.md) |
 | OSS 配置 | [integration/OSS_CONFIG.md](./integration/OSS_CONFIG.md) |
 | 数据库设计 | [database-requirements/DATABASE-REQUIREMENTS.md](./database-requirements/DATABASE-REQUIREMENTS.md) |
@@ -129,8 +120,7 @@ docs/
 
 | 类型 | 文档 |
 |------|------|
-| 集成指南 | [nanobot/INTEGRATION_GUIDE.md](./nanobot/NANOBOT_INTEGRATION_GUIDE.md), [guides/](./guides/) |
-| 实现总结 | [nanobot/IMPLEMENTATION_SUMMARY.md](./nanobot/NANOBOT_IMPLEMENTATION_SUMMARY.md) |
+| 集成指南 | [guides/](./guides/) |
 | 架构文档 | [三端接通架构文档.md](./三端接通架构文档.md) |
 | 集成方案 | [OpenClaw最佳接入方案-MVP.md](./OpenClaw最佳接入方案-MVP.md) |
 | 配置文档 | [integration/](./integration/) |
@@ -144,7 +134,6 @@ docs/
 | 目录 | 文档数量 | 说明 |
 |------|----------|------|
 | `docs/` (根) | 9 | 核心文档 |
-| `docs/nanobot/` | 3 | Nanobot 三端通信 ⭐ |
 | `docs/integration/` | 3 | 集成配置 |
 | `docs/guides/` | 3 | 用户指南 |
 | `docs/feature-implementation/` | 4 | 功能实现文档 |
@@ -152,9 +141,9 @@ docs/
 | `docs/deployment-guides/` | 2 | 部署指南 |
 | `docs/project-reports/` | 2 | 项目报告 |
 | `docs/api/` | 1 | API 文档 |
-| `docs/archive/` | 5+ | 归档文档 |
+| `docs/archive/` | 14+ | 归档文档（含 Nanobot、Clawbot） |
 | `src/database/` | 2 | 数据库文档 |
-| **总计** | **37+** | - |
+| **总计** | **43+** | - |
 
 ---
 
@@ -163,7 +152,7 @@ docs/
 ### 新建文档
 
 1. 根据内容类型放入对应目录：
-   - `nanobot/` - Nanobot 相关
+   - `guides/` - 用户指南
    - `integration/` - 集成配置
    - 根目录 - 核心文档
 2. 使用清晰的标题层级（##, ###）
@@ -183,20 +172,24 @@ docs/
 
 ### Q: Clawbot 和 Nanobot 有什么区别？
 
-**A**: Clawbot 是旧的本地 WebSocket 方案，Nanobot 是新的云端中转方案。项目已切换到 Nanobot 架构，Clawbot 文档已归档到 [archive/clawbot/](./archive/clawbot/)。
+**A**:
+- **Clawbot Channel**: 当前使用的方案，通过本地 WebSocket 直连 OpenClaw
+- **Nanobot**: 旧方案（已归档），通过云端服务器中转实现三端通信
+
+Nanobot 文档已归档到 [archive/NANOBOT_ARCHIVE.md](./archive/NANOBOT_ARCHIVE.md)。
 
 ### Q: 如何快速开始？
 
 **A**: 建议按以下顺序阅读：
-1. [PROJECT.md](./PROJECT.md) - 了解项目
-2. [nanobot/INTEGRATION_GUIDE.md](./nanobot/INTEGRATION_GUIDE.md) - 启动三端
-3. [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - 部署上线（可选）
+1. [PROJECT.md](./project-reports/PROJECT.md) - 了解项目
+2. [三端接通架构文档.md](./三端接通架构文档.md) - 了解架构
+3. [DEPLOYMENT_GUIDE.md](./deployment-guides/DEPLOYMENT_GUIDE.md) - 部署上线（可选）
 
 ### Q: 我应该使用哪个文档？
 
 **A**:
 - **新手**: 从路径 1 开始
-- **需要集成 Nanobot**: 路径 2
+- **需要集成 Clawbot**: 路径 2
 - **开发新功能**: 路径 3
 - **准备上线**: 路径 4
 
