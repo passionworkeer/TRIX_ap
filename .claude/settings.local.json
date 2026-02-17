@@ -98,7 +98,12 @@
       "Bash(ln:*)",
       "Bash(npx skills find:*)",
       "Bash(xargs:*)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(chmod:*)",
+      "Bash(claude:*)",
+      "Bash(echo:*)",
+      "Read(//c/Users/王健俊/.claude//**)",
+      "Read(//c/Users/王健俊/AppData/Roaming//**)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
