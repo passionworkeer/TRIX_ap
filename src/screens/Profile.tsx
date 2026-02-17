@@ -6,6 +6,7 @@ import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AboutDialog } from '../components/AboutDialog';
 import { StatsDetailDialog } from '../components/StatsDetailDialog';
+import { PrivacySettings } from '../components/PrivacySettings';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,6 +22,7 @@ const Profile: React.FC = () => {
   // 对话框状态
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
+  const [isPrivacySettingsOpen, setIsPrivacySettingsOpen] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -57,8 +59,8 @@ const Profile: React.FC = () => {
   };
 
   const handlePrivacyClick = () => {
-    // 隐私设置页面暂未实现
-    alert(t('profile.privacyInDev'));
+    // 打开隐私设置对话框
+    setIsPrivacySettingsOpen(true);
   };
 
   const handleAboutClick = () => {
@@ -116,6 +118,13 @@ const Profile: React.FC = () => {
         onClose={() => setIsStatsDialogOpen(false)}
         stats={userStats}
         loading={statsLoading}
+      />
+
+      {/* 隐私设置对话框 */}
+      <PrivacySettings
+        isOpen={isPrivacySettingsOpen}
+        onClose={() => setIsPrivacySettingsOpen(false)}
+        userId={user?.id || ''}
       />
 
       <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
