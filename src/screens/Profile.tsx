@@ -5,9 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AboutDialog } from '../components/AboutDialog';
+import { StatsDetailDialog } from '../components/StatsDetailDialog';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { getUserStats } from '../services/userStatsService';
+import type { UserStats } from '../services/userStatsService';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +20,9 @@ const Profile: React.FC = () => {
 
   // 对话框状态
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
+  const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // Get current language display name
   const languageNames: Record<string, string> = {
@@ -67,10 +73,21 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleStatClick = (statName: string, value: number) => {
-    const key = statName === '陪伴天数' ? 'daysActive' :
-                statName === '积分' ? 'points' : 'interactions';
-    alert(t(`profile.statsMessages.${key}`, { value }));
+  const handleStatClick = async (statName: string, value: number) => {
+    // 打开统计详情对话框并加载数据
+    setIsStatsDialogOpen(true);
+    setStatsLoading(true);
+
+    try {
+      if (user?.id) {
+        const stats = await getUserStats(user.id);
+        setUserStats(stats);
+      }
+    } catch (error) {
+      console.error('加载统计数据失败:', error);
+    } finally {
+      setStatsLoading(false);
+    }
   };
 
   const handleViewAllOutfits = () => {
@@ -91,6 +108,14 @@ const Profile: React.FC = () => {
       <AboutDialog
         isOpen={isAboutDialogOpen}
         onClose={() => setIsAboutDialogOpen(false)}
+      />
+
+      {/* 统计详情对话框 */}
+      <StatsDetailDialog
+        isOpen={isStatsDialogOpen}
+        onClose={() => setIsStatsDialogOpen(false)}
+        stats={userStats}
+        loading={statsLoading}
       />
 
       <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
