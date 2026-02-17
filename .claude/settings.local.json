@@ -94,7 +94,10 @@
       "Bash(grep:*)",
       "Bash(git config:*)",
       "Bash(git clone:*)",
-      "Bash(npx skills --help)"
+      "Bash(npx skills --help)",
+      "Bash(ln:*)",
+      "Bash(npx skills find:*)",
+      "Bash(xargs:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
