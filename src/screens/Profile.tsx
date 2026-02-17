@@ -1,9 +1,10 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
+import { AboutDialog } from '../components/AboutDialog';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,6 +14,9 @@ const Profile: React.FC = () => {
   const { signOut, user, profile } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
+
+  // 对话框状态
+  const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
 
   // Get current language display name
   const languageNames: Record<string, string> = {
@@ -52,8 +56,8 @@ const Profile: React.FC = () => {
   };
 
   const handleAboutClick = () => {
-    // 关于页面暂未实现
-    alert(t('profile.aboutText'));
+    // 打开关于对话框
+    setIsAboutDialogOpen(true);
   };
 
   const handleLogout = async () => {
@@ -82,7 +86,14 @@ const Profile: React.FC = () => {
   const BG_IMAGE = IMAGES.BACKGROUND;
 
   return (
-    <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
+    <>
+      {/* 关于对话框 */}
+      <AboutDialog
+        isOpen={isAboutDialogOpen}
+        onClose={() => setIsAboutDialogOpen(false)}
+      />
+
+      <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
        {/* 背景层：z-index: 0 - 固定背景，不阻挡交互 */}
        <div
           className="fixed inset-0 w-full h-full"
@@ -309,6 +320,7 @@ const Profile: React.FC = () => {
           </div>
        </div>
     </div>
+    </>
   );
 };
 
