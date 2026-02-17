@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
+import toast from 'react-hot-toast';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -44,9 +45,14 @@ const Profile: React.FC = () => {
   const daysActive = profile?.days_active || 0;
   const interactionCount = profile?.interaction_count || 0;
 
+  const handleGetMoreOutfits = () => {
+    // 装备获取功能开发中
+    toast('完成任务和活动即可解锁新装备！', { icon: '🎁' });
+  };
+
   const handleOutfitChange = (outfitName: string) => {
-    // 装备更换功能暂时使用提示框，需要实现装备系统后更新
-    alert(t('profile.outfitEquipped', { name: outfitName }));
+    // 装备更换功能
+    toast.success(t('profile.outfitEquipped', { name: outfitName }));
   };
 
   const handleDarkModeToggle = () => {
@@ -95,13 +101,8 @@ const Profile: React.FC = () => {
   };
 
   const handleViewAllOutfits = () => {
-    // 装备商店页面暂未实现
-    alert(t('profile.wardrobeInDev'));
-  };
-
-  const handleGetMoreOutfits = () => {
-    // 装备获取页面暂未实现
-    alert(t('profile.getMoreOutfits'));
+    // 打开衣柜模态框（暂时使用 toast 提示）
+    toast('衣柜功能开发中，敬请期待！', { icon: '👔' });
   };
 
   const BG_IMAGE = IMAGES.BACKGROUND;
