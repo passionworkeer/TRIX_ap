@@ -103,7 +103,8 @@
       "Bash(claude:*)",
       "Bash(echo:*)",
       "Read(//c/Users/王健俊/.claude//**)",
-      "Read(//c/Users/王健俊/AppData/Roaming//**)"
+      "Read(//c/Users/王健俊/AppData/Roaming//**)",
+      "Bash(git rm:*)"
     ],
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion"
