@@ -196,7 +196,7 @@ class StorageService {
 
     for (let i = 0; i < toRemove; i++) {
       const key = keys[i];
-      if (key && !key.startsWith('clawbot_') && !key.startsWith('nanobot_')) {
+      if (key && !key.startsWith('clawbot_')) {
         // 保留重要数据
         localStorage.removeItem(key);
       }
@@ -272,9 +272,6 @@ export const STORAGE_KEYS = {
   CLAWBOT_PAIRED: 'clawbot_paired',
   CLAWBOT_CHANNEL_URL: 'clawbot_channel_url',
   CLAWBOT_CHANNEL_DEVICE_ID: 'clawbot_channel_device_id',
-
-  // Nanobot 相关
-  NANOBOT_PAIRING_CODE: 'nanobot_pairing_code',
 
   // 配置
   THEME: 'theme',

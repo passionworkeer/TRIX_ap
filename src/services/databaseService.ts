@@ -14,66 +14,8 @@ import type {
  * @param account 对方账号（邮箱或用户名）
  */
 export async function addFriend(account: string): Promise<void> {
-  try {
-    // 1. 获取当前登录用户
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error('请先登录');
-    
-    const currentUserId = user.id;
-
-    // 2. 从 profiles 表查找目标用户（支持邮箱或用户名）
-    const { data: targetProfile, error: targetError } = await supabase
-      .from('profiles')
-      .select('id')
-      .or(`email.eq.${account},username.eq.${account}`)
-      .single();
-
-    if (targetError || !targetProfile) {
-      throw new Error('用户不存在');
-    }
-
-    const targetUserId = targetProfile.id;
-
-    // 3. 不能添加自己
-    if (targetUserId === currentUserId) {
-      throw new Error('不能添加自己为好友');
-    }
-
-    // 4. 检查是否已是好友
-    const { data: existing } = await supabase
-      .from('friends')
-      .select('id')
-      .eq('user_id', currentUserId)
-      .eq('friend_id', targetUserId)
-      .maybeSingle();
-    
-    if (existing) {
-      throw new Error('你们已经是好友了');
-    }
-
-    // 5. 插入双向好友关系（只写必要字段）
-    const { error: insertError } = await supabase.from('friends').insert([
-      {
-        user_id: currentUserId,
-        friend_id: targetUserId,
-        status: 'accepted'
-      },
-      {
-        user_id: targetUserId,
-        friend_id: currentUserId,
-        status: 'accepted'
-      }
-    ]);
-
-    if (insertError) {
-      handleGlobalError(insertError, '添加好友失败');
-      throw new Error('添加好友失败: ' + insertError.message);
-    }
-
-  } catch (error: any) {
-    handleGlobalError(error, '添加好友操作失败');
-    throw error;
-  }
+  // 兼容旧调用方：统一走好友请求流程，避免直接建立 accepted 关系
+  await sendFriendRequest(account);
 }
 
 /**
@@ -81,56 +23,109 @@ export async function addFriend(account: string): Promise<void> {
  * @param account 对方账号（邮箱或用户名）
  */
 export async function sendFriendRequest(account: string): Promise<void> {
-  // 1. 查找目标用户 (从 profiles 表)
-  const { data: targetProfile, error: userError } = await supabase
-    .from('profiles')
-    .select('id')
-    .or(`email.eq.${account},username.eq.${account}`)
-    .single();
+  try {
+    // 1. 查找目标用户 (从 profiles 表)
+    const { data: targetProfile, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`email.eq.${account},username.eq.${account}`)
+      .single();
 
-  if (userError || !targetProfile) {
-    throw new Error('用户不存在');
-  }
+    if (userError || !targetProfile) {
+      throw new Error('用户不存在');
+    }
 
-  const targetUserId = targetProfile.id;
+    const targetUserId = targetProfile.id;
 
-  // 2. 获取当前用户信息
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !session?.user) {
-    throw new Error('请先登录');
-  }
-  const currentUserId = session.user.id;
-  const currentUserEmail = session.user.email;
+    // 2. 获取当前用户信息
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) {
+      throw new Error('请先登录');
+    }
+    const currentUserId = session.user.id;
+    const currentUserEmail = session.user.email;
 
-  if (targetUserId === currentUserId) {
-    throw new Error('不能添加自己为好友');
-  }
+    if (targetUserId === currentUserId) {
+      throw new Error('不能添加自己为好友');
+    }
 
-  // 3. 检查是否已是好友
-  const { data: existing } = await supabase
-    .from('friends')
-    .select('id')
-    .eq('user_id', currentUserId)
-    .eq('friend_id', targetUserId)
-    .maybeSingle();
-  if (existing) {
-    throw new Error('你们已经是好友了');
-  }
+    // 3. 检查双向关系
+    const [{ data: outgoing }, { data: incoming }] = await Promise.all([
+      supabase
+        .from('friends')
+        .select('id,status')
+        .eq('user_id', currentUserId)
+        .eq('friend_id', targetUserId)
+        .maybeSingle(),
+      supabase
+        .from('friends')
+        .select('id,status')
+        .eq('user_id', targetUserId)
+        .eq('friend_id', currentUserId)
+        .maybeSingle()
+    ]);
 
-  // 4. 插入通知（type: friend_request）
-  const { error: notifyError } = await supabase
-    .from('notifications')
-    .insert({
-      user_id: targetUserId,
-      type: 'friend_request',
-      title: '好友请求',
-      content: `${currentUserEmail || '某用户'} 想添加你为好友`,
-      avatar_url: '',
-      is_read: false,
-      created_at: new Date().toISOString(),
-    });
-  if (notifyError) {
-    throw new Error('发送好友请求失败');
+    if (outgoing?.status === 'accepted' || incoming?.status === 'accepted') {
+      throw new Error('你们已经是好友了');
+    }
+
+    if (outgoing?.status === 'pending') {
+      throw new Error('好友请求已发送，请等待对方确认');
+    }
+
+    // 对方已经给你发过请求：自动互相通过
+    if (incoming?.status === 'pending') {
+      const { error: acceptError } = await supabase
+        .from('friends')
+        .upsert([
+          { user_id: currentUserId, friend_id: targetUserId, status: 'accepted', updated_at: new Date().toISOString() },
+          { user_id: targetUserId, friend_id: currentUserId, status: 'accepted', updated_at: new Date().toISOString() }
+        ], {
+          onConflict: 'user_id,friend_id',
+          ignoreDuplicates: false
+        });
+
+      if (acceptError) {
+        throw new Error('接受好友请求失败');
+      }
+      return;
+    }
+
+    // 4. 创建 pending 请求记录（仅单向）
+    const { error: requestError } = await supabase
+      .from('friends')
+      .upsert({
+        user_id: currentUserId,
+        friend_id: targetUserId,
+        status: 'pending',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,friend_id',
+        ignoreDuplicates: false
+      });
+
+    if (requestError) {
+      throw new Error('发送好友请求失败');
+    }
+
+    // 5. 插入通知（type: friend_request）
+    const { error: notifyError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: targetUserId,
+        type: 'friend_request',
+        title: '好友请求',
+        content: `${currentUserEmail || '某用户'} 想添加你为好友`,
+        avatar_url: '',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+    if (notifyError) {
+      throw new Error('发送好友请求通知失败');
+    }
+  } catch (error: any) {
+    handleGlobalError(error, '发送好友请求失败');
+    throw error;
   }
 }
 

@@ -17,7 +17,6 @@ import DiagnosticAdvanced from './screens/DiagnosticAdvanced';
 import { Login, Register } from './screens/Auth';
 import Pairing from './screens/Pairing';
 import QRCodePairing from './screens/QRCodePairing';
-import MapScreen from './screens/Map';
 import SnapMapScreen from './screens/SnapMapScreen';
 import TokenMonitor from './screens/TokenMonitor';
 import { AppRoutes } from './types';
@@ -161,8 +160,8 @@ function AppContent() {
              <Route path={AppRoutes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
              <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
              <Route path={AppRoutes.SNAPSHOT_RESULT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
-             <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study /></ProtectedRoute>} />
-             <Route path="/study/timer" element={<ProtectedRoute><Study /></ProtectedRoute>} />
+             <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study key="study-home" /></ProtectedRoute>} />
+             <Route path="/study/timer" element={<ProtectedRoute><Study key="study-timer" /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
              <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
@@ -176,8 +175,8 @@ function AppContent() {
                  </QRCodePairingProvider>
                </ProtectedRoute>
              } />
-             <Route path={AppRoutes.MAP} element={<ProtectedRoute><MapScreen /></ProtectedRoute>} />
-             <Route path="/snapmap" element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
+             <Route path={AppRoutes.MAP} element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
+             <Route path="/snapmap" element={<Navigate to={AppRoutes.MAP} replace />} />
              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
              <Route path={AppRoutes.TOKEN_MONITOR} element={

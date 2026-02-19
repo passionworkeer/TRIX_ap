@@ -264,7 +264,7 @@ const Chat: React.FC = () => {
                         >
                           {/* 头像 */}
                           <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
-                             <Avatar name="Nanobot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                             <Avatar name="TRIX Bot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
                              {/* 连接状态指示器 */}
                              {isClawbotChannelConnected && isClawbotPaired ? (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>

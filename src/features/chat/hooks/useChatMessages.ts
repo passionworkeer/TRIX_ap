@@ -83,7 +83,7 @@ export const useChatMessages = ({
   // 加载聊天历史
   useEffect(() => {
     const loadHistory = async () => {
-      if (!friendId || friendId.startsWith('clawbot') || friendId === 'nanobot') {
+      if (!friendId || friendId.startsWith('clawbot')) {
         // Bot 聊天不从数据库加载
         setLoading(false);
         return;

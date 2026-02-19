@@ -268,6 +268,73 @@ class ClawbotChannelBridge {
   // 配对流程应由 Clawbot 端发起，不是 App 端
 
   /**
+   * 检查当前用户的服务端配对状态
+   */
+  checkPairingStatus(): Promise<{
+    paired: boolean;
+    deviceId?: string;
+    deviceName?: string;
+    botOnline?: boolean;
+    pairedAt?: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('未连接到服务器'));
+        return;
+      }
+
+      if (!this.userId) {
+        reject(new Error('用户未登录'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('检查配对状态超时'));
+      }, 8000);
+
+      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: any) => {
+        clearTimeout(timeout);
+
+        if (!response?.success) {
+          this.paired = false;
+          this.deviceId = null;
+          localStorage.removeItem('clawbot_paired');
+          localStorage.removeItem('clawbot_device_id');
+          resolve({ paired: false });
+          return;
+        }
+
+        const data = response.data || response;
+        const paired = Boolean(data?.paired);
+
+        if (paired) {
+          this.paired = true;
+          this.deviceId = data.deviceId || this.deviceId;
+          if (this.deviceId) {
+            localStorage.setItem('clawbot_device_id', this.deviceId);
+          }
+          localStorage.setItem('clawbot_paired', 'true');
+
+          resolve({
+            paired: true,
+            deviceId: data.deviceId,
+            deviceName: data.deviceName,
+            botOnline: data.botOnline,
+            pairedAt: data.pairedAt
+          });
+          return;
+        }
+
+        this.paired = false;
+        this.deviceId = null;
+        localStorage.removeItem('clawbot_paired');
+        localStorage.removeItem('clawbot_device_id');
+        resolve({ paired: false });
+      });
+    });
+  }
+
+  /**
    * 通过配对码配对
    */
   pairWithCode(code: string): Promise<{ success: boolean; pairingId?: string; status?: string }> {

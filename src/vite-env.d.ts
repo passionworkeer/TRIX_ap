@@ -8,7 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_PC_WEBSOCKET_URL: string
   readonly VITE_PC_AUTH_TOKEN: string
   readonly VITE_CLAWBOT_CHANNEL_URL?: string
-  readonly VITE_NANOBOT_SERVER_URL?: string
   readonly VITE_OSS_ENDPOINT?: string
 }
 

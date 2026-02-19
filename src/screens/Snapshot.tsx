@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, FlipHorizontal2, MoreHorizontal, ShoppingCart, Edit3, Check, Sparkles, Home, History, User, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMAGES } from '../constants';
@@ -10,6 +10,7 @@ const Snapshot: React.FC = () => {
   const [isResult, setIsResult] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [useMockCamera, setUseMockCamera] = useState(false);
+  const fallbackTriggeredRef = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,7 +34,10 @@ const Snapshot: React.FC = () => {
     },
     onError: (err) => {
       console.error(' 相机错误:', err);
-      setUseMockCamera(true); // 相机失败时回退到模拟模式
+      if (!fallbackTriggeredRef.current) {
+        fallbackTriggeredRef.current = true;
+        setUseMockCamera(true); // 相机失败时回退到模拟模式
+      }
     }
   });
 
@@ -53,7 +57,7 @@ const Snapshot: React.FC = () => {
     return () => {
       stopCamera(); // 组件卸载时停止相机
     };
-  }, [location, isCameraSupported, useMockCamera]); // Added dependencies
+  }, [location.pathname, isCameraSupported]);
 
   const handleScan = () => {
     if (!useMockCamera && isReady) {
