@@ -32,7 +32,7 @@ interface UIMessage {
   };
 }
 
-// Mock conversations - 已删除,使用数据库数据替代
+// Mock conversations - 已删�?使用数据库数据替�?
 
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -41,9 +41,10 @@ const ChatDetail: React.FC = () => {
   const { showError } = useNotification();
   const { handleError } = useErrorHandler();
 
-  // 优先从 URL 参数获取 friendId，否则从 location.state 获取
+  // 优先�?URL 参数获取 friendId，否则从 location.state 获取
   const urlFriendId = params.friendId;
   const stateData = location.state || {};
+  const autoSendPrompt = typeof stateData.autoSendPrompt === 'string' ? stateData.autoSendPrompt.trim() : '';
 
   const [friendData, setFriendData] = useState<{
     name: string;
@@ -62,7 +63,7 @@ const ChatDetail: React.FC = () => {
   const { name, avatar, isBot, friendId, photoUri } = friendData;
   const isBotConversation = friendId === 'clawbot' || friendId === 'clawbot_channel';
 
-  // 如果有 URL 参数且不是 state，从数据库加载好友信息
+  // 如果�?URL 参数且不�?state，从数据库加载好友信�?
   useEffect(() => {
     if (urlFriendId && !stateData.name && !['clawbot', 'clawbot_channel'].includes(urlFriendId)) {
       loadFriendData(urlFriendId);
@@ -87,7 +88,7 @@ const ChatDetail: React.FC = () => {
     }
   };
 
-  // 从路由参数接收到的图片预览状态（包含完整媒体数据）
+  // 从路由参数接收到的图片预览状态（包含完整媒体数据�?
   interface AttachmentPreview {
     uri: string;
     type: string;
@@ -101,7 +102,7 @@ const ChatDetail: React.FC = () => {
   // Clawbot Channel connection
   const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
 
-  // 菜单显示状态
+  // 菜单显示状�?
   const [showMenu, setShowMenu] = useState(false);
 
   // Speech to text
@@ -129,8 +130,10 @@ const ChatDetail: React.FC = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
+  const autoPromptPrefilledRef = useRef(false);
+  const autoSendTriggeredRef = useRef(false);
 
-  // 当 photoUri 改变时，添加到图片列表
+  // �?photoUri 改变时，添加到图片列�?
   useEffect(() => {
     if (photoUri && !attachmentPreviews.some(p => p.uri === photoUri)) {
       setAttachmentPreviews(prev => [...prev, {
@@ -142,10 +145,17 @@ const ChatDetail: React.FC = () => {
     }
   }, [photoUri]);
 
+  // �ӿ��ս���ʱ���Ȱ��Զ���ʾ����������򣨿ɱ༭��
+  useEffect(() => {
+    if (!autoSendPrompt || autoPromptPrefilledRef.current) return;
+    setInput(autoSendPrompt);
+    autoPromptPrefilledRef.current = true;
+  }, [autoSendPrompt]);
+
   // 🔌 Realtime Channel 引用 (防止重复连接)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // 组件卸载时确保清理所有订阅
+  // 组件卸载时确保清理所有订�?
   useEffect(() => {
     return () => {
       if (channelRef.current) {
@@ -187,7 +197,7 @@ const ChatDetail: React.FC = () => {
         return;
       }
 
-      // 📝 普通好友：从数据库加载历史（现有逻辑）
+      // 📝 普通好友：从数据库加载历史（现有逻辑�?
       try {
         setLoading(true);
 
@@ -207,7 +217,7 @@ const ChatDetail: React.FC = () => {
         const uiMessages = history.map(convertDbMessageToUI);
         setMessages(uiMessages);
 
-        // 标记消息为已读
+        // 标记消息为已�?
         await markMessagesAsRead(friendId);
       } catch (error) {
         // 使用统一的错误处理器
@@ -224,7 +234,7 @@ const ChatDetail: React.FC = () => {
   useEffect(() => {
     if (!isBotConversation) return;
 
-    // 从 context 获取最新消息
+    // �?context 获取最新消�?
     setMessages(clawbotMessages.map(msg => ({
       id: msg.id || `bot-${msg.timestamp}`,
       sender: msg.sender,
@@ -239,9 +249,9 @@ const ChatDetail: React.FC = () => {
     };
   }, [isBotConversation, clawbotMessages]);
 
-  // 实时订阅新消息 - 防抖动标准写法
+  // 实时订阅新消�?- 防抖动标准写�?
   useEffect(() => {
-    // 如果没有会话ID,则跳过
+    // 如果没有会话ID,则跳�?
     if (!conversationId) {
       return;
     }
@@ -254,7 +264,7 @@ const ChatDetail: React.FC = () => {
     });
     channelRef.current = channel;
 
-    // 2️⃣ 绑定事件 (无 filter,手动过滤)
+    // 2️⃣ 绑定事件 (�?filter,手动过滤)
     channel
       .on(
         'postgres_changes',
@@ -273,7 +283,7 @@ const ChatDetail: React.FC = () => {
 
           // 只有当消息不是当前用户发送的,才添加到消息列表
           if (newMessage.sender_id !== currentUserId) {
-            // 使用函数式更新,不需要将 messages 加入依赖数组
+            // 使用函数式更�?不需要将 messages 加入依赖数组
             setMessages((prev) => {
               // 防止重复添加
               if (prev.some(msg => msg.id === newMessage.id)) {
@@ -306,13 +316,13 @@ const ChatDetail: React.FC = () => {
 
     // 3️⃣ 清理函数：conversationId 改变或组件卸载时都会执行
     return () => {
-      // 使用 channelRef.current 确保清理正确的频道
+      // 使用 channelRef.current 确保清理正确的频�?
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  // ⚠️ 致命关键：依赖数组里只有 conversationId！绝对不能有 messages！
+  // ⚠️ 致命关键：依赖数组里只有 conversationId！绝对不能有 messages�?
   }, [conversationId]);
 
   // Scroll to bottom
@@ -320,7 +330,7 @@ const ChatDetail: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ESC 键关闭菜单
+  // ESC 键关闭菜�?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && showMenu) {
@@ -333,19 +343,20 @@ const ChatDetail: React.FC = () => {
   }, [showMenu]);
 
 
-  const handleSend = async () => {
-    // 检查是否有媒体或文字
+  const handleSend = async (overrideText?: string) => {
+    // ����Ƿ���ý����ı�
+    const draftText = overrideText ?? input;
     const hasMedia = attachmentPreviews.length > 0;
-    const hasText = input.trim();
+    const hasText = draftText.trim().length > 0;
 
     if (!hasMedia && !hasText) return;
 
-    const messageText = input;
+    const messageText = draftText.trim();
 
-    // 从 attachmentPreviews 获取媒体数据（使用第一个）
+    // �� attachmentPreviews ��ȡý�����ݣ�ʹ�õ�һ����
     const mediaData = hasMedia ? attachmentPreviews[0] : null;
 
-    // ✨ 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
+    // ���⴦���������˻Ựֱ�ӷ��͵���Ӧ Bridge�������浽 Supabase
     if (isBotConversation) {
       const tempUserMessage: UIMessage = {
         id: `temp-${Date.now()}`,
@@ -354,66 +365,65 @@ const ChatDetail: React.FC = () => {
         timestamp: formatTime(new Date()),
         messageType: hasMedia ? 'mixed' : 'text',
         mediaUri: mediaData?.uri,
-        mediaType: mediaData?.type
+        mediaType: mediaData?.type,
       };
 
       try {
-        // 清空输入
+        // �������
         setInput('');
         setAttachmentPreviews([]);
 
-        // 临时显示用户消息(乐观更新UI)
+        // ��ʱ��ʾ�û���Ϣ(�ֹ۸��� UI)
         setMessages(prev => [...prev, tempUserMessage]);
 
-        // 使用 ClawbotChannelContext 发送消息
+        // ʹ�� ClawbotChannelContext ������Ϣ
         await clawbotSendMessage(
           messageText,
-          hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
+          hasMedia && mediaData?.category ? mediaData.category : 'text',
           mediaData?.uri
         );
-
-        // Message sent successfully
       } catch (error) {
-        console.error('Bot 消息发送失败:', error);
-        showError('发送失败，请重试');
+        console.error('Bot ��Ϣ����ʧ��:', error);
+        showError('����ʧ�ܣ�������');
 
-        // 发送失败，移除临时消息
+        // ����ʧ�ܣ��Ƴ���ʱ��Ϣ
         setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
       }
       return;
     }
 
-    // 📝 普通好友：保存到 Supabase（现有逻辑）
-    setInput(''); // Clear input
-    setAttachmentPreviews([]); // Clear all attachment previews
+    // ��ͨ���ѣ����浽 Supabase�������߼���
+    setInput('');
+    setAttachmentPreviews([]);
 
     const timeString = formatTime(new Date());
 
     // Determine message type
-    const messageType: 'text' | 'image' | 'video' | 'mixed' = hasMedia && hasText ? 'mixed'
-      : hasMedia ? (mediaData?.category === 'image' ? 'image' : 'video')
-      : 'text';
+    const messageType: 'text' | 'image' | 'video' | 'mixed' = hasMedia && hasText
+      ? 'mixed'
+      : hasMedia
+        ? (mediaData?.category === 'image' ? 'image' : 'video')
+        : 'text';
 
-    // 临时显示用户消息(乐观更新UI)
+    // ��ʱ��ʾ�û���Ϣ(�ֹ۸��� UI)
     const tempUserMessage: UIMessage = {
-      id: `temp-${Date.now()}`, // 临时 ID
+      id: `temp-${Date.now()}`,
       sender: 'user',
       text: messageText,
       timestamp: timeString,
       messageType,
       mediaUri: mediaData?.uri,
       mediaType: mediaData?.type,
-      mediaMetadata: mediaData?.metadata
+      mediaMetadata: mediaData?.metadata,
     };
 
     setMessages(prev => [...prev, tempUserMessage]);
 
-    // 保存用户消息到数据库
+    // �����û���Ϣ�����ݿ�
     try {
       let messageId: string | null = null;
 
       if (hasMedia) {
-        // Send message with media - 使用类型断言，因为 hasMedia 为 true 时 messageType 不会是 'text'
         if (!mediaData) {
           throw new Error('Media data is required when hasMedia is true');
         }
@@ -426,16 +436,15 @@ const ChatDetail: React.FC = () => {
             type: mediaData.type,
             size: mediaData.size ?? 0,
             category: mediaData.category,
-            metadata: mediaData.metadata ?? {}
+            metadata: mediaData.metadata ?? {},
           },
           messageType as 'image' | 'video' | 'mixed'
         );
       } else {
-        // Send text-only message
         messageId = await dbSendMessage(friendId, 'user', messageText);
       }
 
-      // 用真实的数据库 ID 替换临时 ID
+      // ����ʵ���ݿ� ID �滻��ʱ ID
       if (messageId) {
         setMessages(prev =>
           prev.map(msg =>
@@ -446,14 +455,26 @@ const ChatDetail: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('保存用户消息失败:', error);
-      // 发送失败,移除临时消息
+      console.error('�����û���Ϣʧ��:', error);
+      // ����ʧ�ܣ��Ƴ���ʱ��Ϣ
       setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
-      showError('发送消息失败,请检查网络连接');
+      showError('������Ϣʧ�ܣ�������������');
     }
 
-    // 对于好友聊天,好友的回复会通过实时订阅自动显示
+    // ���ں������죬���ѻظ���ͨ��ʵʱ�����Զ���ʾ
   };
+
+  // ������ڣ�ͼƬԤ���������Զ�����һ�ε� Clawbot
+  useEffect(() => {
+    if (!autoSendPrompt || autoSendTriggeredRef.current) return;
+    if (!isBotConversation || !isPaired) return;
+
+    const mediaReady = !photoUri || attachmentPreviews.some(preview => preview.uri === photoUri);
+    if (!mediaReady) return;
+
+    autoSendTriggeredRef.current = true;
+    void handleSend(autoSendPrompt);
+  }, [autoSendPrompt, isBotConversation, isPaired, attachmentPreviews, photoUri]);
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
@@ -463,7 +484,7 @@ const ChatDetail: React.FC = () => {
       const category = file.type.startsWith('image/') ? 'image' : 'video';
       const result = await uploadFile(file, category);
 
-      // 添加到预览列表（包含完整媒体数据）
+      // 添加到预览列表（包含完整媒体数据�?
       setAttachmentPreviews(prev => [...prev, {
         uri: result.uri,
         type: result.type,
@@ -475,7 +496,7 @@ const ChatDetail: React.FC = () => {
     } catch (error) {
       // 使用统一的错误处理器
       handleError(error, '文件上传失败，请重试');
-      // 清理状态，避免上传失败后预览残留
+      // 清理状态，避免上传失败后预览残�?
       setAttachmentPreviews([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -570,7 +591,7 @@ const ChatDetail: React.FC = () => {
           <AnimatePresence>
             {showMenu && (
               <>
-                {/* 遮罩层 */}
+                {/* 遮罩�?*/}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -594,14 +615,14 @@ const ChatDetail: React.FC = () => {
                       </div>
                       <button
                         onClick={() => {
-                          const confirmed = window.confirm('确定要取消与 Clawbot 的配对吗？\n\n取消后需要重新配对才能继续使用。');
+                          const confirmed = window.confirm('ȷ��Ҫȡ���� Clawbot �������\\n\\nȡ������Ҫ������Բ��ܼ���ʹ�á�');
                           if (confirmed) {
                             unpair();
                             setShowMenu(false);
-                            // 导航回聊天列表
+                            // 导航回聊天列�?
                             navigate('/chat');
                             // 提示用户
-                            alert('配对已取消，您可以重新进入配对页面连接新的 Clawbot');
+                            alert('�����ȡ������������½������ҳ�����µ� Clawbot');
                           }
                         }}
                         className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3"
@@ -620,8 +641,8 @@ const ChatDetail: React.FC = () => {
 
                   {isBotConversation && !isPaired && (
                     <div className="px-4 py-3 text-slate-500 text-sm">
-                      <p className="text-xs">当前未配对</p>
-                      <p className="text-xs mt-1">请在 Clawbot 端发起配对</p>
+                      <p className="text-xs">��ǰδ���</p>
+                      <p className="text-xs mt-1">���� Clawbot �˷������</p>
                     </div>
                   )}
                 </motion.div>
@@ -636,7 +657,7 @@ const ChatDetail: React.FC = () => {
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <span className="text-xs text-slate-400 animate-pulse bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-              加载聊天记录中...
+              加载聊天记录�?..
             </span>
           </div>
         ) : (
@@ -680,7 +701,7 @@ const ChatDetail: React.FC = () => {
                     />
                   </div>
                 )}
-                {/* 用户消息的媒体 - 使用 inline 样式带黑色外框 */}
+                {/* 用户消息的媒�?- 使用 inline 样式带黑色外�?*/}
                 {msg.mediaUri && msg.sender === 'user' && (
                   <div className="mb-2 -mr-2 -mt-2">
                     <div className="relative w-[80px] h-[80px]">
@@ -730,9 +751,9 @@ const ChatDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Input Area - 优化样式，图片和输入框融为一体 */}
+      {/* Input Area - 优化样式，图片和输入框融为一�?*/}
       <div className="flex-shrink-0 px-4 py-3 pb-6 bg-white border-t border-gray-100">
-          {/* 主容器 */}
+          {/* 主容�?*/}
           <div className="max-w-lg mx-auto">
             {/* 图片附件预览 - 在输入框内部上方 */}
             <AnimatePresence>
@@ -771,11 +792,11 @@ const ChatDetail: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* 输入框容器 */}
+            {/* 输入框容�?*/}
             <div className="bg-[#F5F5F5] rounded-2xl p-2">
               {/* 实际输入区域 */}
               <div className="flex items-end gap-2">
-                {/* 隐藏的文件输入 */}
+                {/* 隐藏的文件输�?*/}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -792,17 +813,17 @@ const ChatDetail: React.FC = () => {
                   <span className="text-sm text-gray-600">+</span>
                 </button>
 
-                {/* 输入框 */}
+                {/* 输入�?*/}
                 <input
                   type="text"
                   value={isListening ? transcript : input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={isListening ? "Listening..." : "问我任何事，创造任何东西"}
+                  placeholder={isListening ? 'Listening...' : 'Ask anything, create anything'}
                   className="flex-1 px-3 py-2 bg-white rounded-xl text-sm text-[#333333] placeholder:text-gray-500 border-0 outline-none"
                 />
 
-                {/* 麦克风按钮 */}
+                {/* 麦克风按�?*/}
                 {isSpeechSupported && (
                   <button
                     onClick={() => isListening ? stopListening() : startListening()}
@@ -814,10 +835,10 @@ const ChatDetail: React.FC = () => {
                   </button>
                 )}
 
-                {/* 发送按钮 */}
+                {/* 发送按�?*/}
                 <button
                   onClick={handleSend}
-                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBot && !isPaired && false) || uploadingFile}
+                  disabled={(!input.trim() && attachmentPreviews.length === 0) || (isBotConversation && !isPaired) || uploadingFile}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
                     input.trim() || attachmentPreviews.length > 0
                       ? 'bg-black text-white hover:bg-gray-800 shadow-md'
@@ -833,7 +854,7 @@ const ChatDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* AI 功能选择 - 在输入框下方，只要有图片就显示 */}
+            {/* AI 功能选择 - 在输入框下方，只要有图片就显�?*/}
             <AnimatePresence>
               {attachmentPreviews.length > 0 && (
                 <motion.div
@@ -849,7 +870,7 @@ const ChatDetail: React.FC = () => {
                       const aiPrompts: Record<string, string> = {
                         chat: '', // 默认聊天，无前缀
                         doc: '@AI_DOC 请帮我创建文档：',
-                        slide: '@AI_SLIDE 请帮我创建幻灯片：',
+                        slide: '@AI_SLIDE Please create slides:',
                         table: '@AI_TABLE 请帮我创建表格：',
                         image: '@AI_IMAGE 请帮我生成图片：',
                         video: '@AI_VIDEO 请帮我生成视频：'
@@ -872,3 +893,10 @@ const ChatDetail: React.FC = () => {
 };
 
 export default ChatDetail;
+
+
+
+
+
+
+

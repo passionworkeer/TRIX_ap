@@ -13,129 +13,366 @@ import type {
  * æ·»åŠ å¥½å‹ (æ”¯æŒé‚®ç®±æˆ–ç”¨æˆ·å)
  * @param account å¯¹æ–¹è´¦å·ï¼ˆé‚®ç®±æˆ–ç”¨æˆ·åï¼‰
  */
+const FRIEND_REQUEST_META_PREFIX = '[friend_request_from:]';
+
+type ProfileLite = {
+  id: string;
+  username?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+};
+
+function buildFriendRequestContent(displayName: string, requesterId: string): string {
+  return `${displayName} ÏëÌí¼ÓÄãÎªºÃÓÑ\n${FRIEND_REQUEST_META_PREFIX}${requesterId}`;
+}
+
+function extractFriendRequestSenderId(content: string): string | null {
+  const escapedPrefix = FRIEND_REQUEST_META_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = content.match(new RegExp(`${escapedPrefix}([0-9a-fA-F-]{36})`));
+  return match?.[1] || null;
+}
+
+export function getNotificationDisplayContent(content: string): string {
+  const escapedPrefix = FRIEND_REQUEST_META_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return content.replace(new RegExp(`\\n?${escapedPrefix}[0-9a-fA-F-]{36}`, 'g'), '').trim();
+}
+
+function resolveProfileDisplayName(profile: ProfileLite): string {
+  return profile.full_name || profile.username || 'ºÃÓÑ';
+}
+
+async function getNotificationById(notificationId: string): Promise<Notification> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('id', notificationId)
+    .single();
+
+  if (error || !data) {
+    throw new Error('ºÃÓÑÇëÇó²»´æÔÚ»òÒÑÊ§Ğ§');
+  }
+
+  return data as Notification;
+}
+
+async function getProfilesByIds(userIds: string[]): Promise<Record<string, ProfileLite>> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, bio')
+    .in('id', userIds);
+
+  if (error || !data) {
+    throw new Error('»ñÈ¡ÓÃ»§ĞÅÏ¢Ê§°Ü');
+  }
+
+  const profileMap: Record<string, ProfileLite> = {};
+  data.forEach((profile: any) => {
+    profileMap[profile.id] = profile as ProfileLite;
+  });
+  return profileMap;
+}
+
+async function hasFriendRelation(userA: string, userB: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('friends')
+    .select('id')
+    .or(`and(user_id.eq.${userA},friend_id.eq.${userB}),and(user_id.eq.${userB},friend_id.eq.${userA})`)
+    .limit(1);
+
+  if (error) {
+    throw new Error('Ğ£ÑéºÃÓÑ¹ØÏµÊ§°Ü');
+  }
+
+  return (data?.length || 0) > 0;
+}
+
+async function upsertFriendRelations(
+  rows: Array<{
+    user_id: string;
+    friend_id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+  }>
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  const richRows = rows.map(row => ({
+    ...row,
+    status: 'offline',
+    study_time: 0,
+    is_studying: false,
+    updated_at: now,
+  }));
+
+  const { error: richError } = await supabase
+    .from('friends')
+    .upsert(richRows, {
+      onConflict: 'user_id,friend_id',
+      ignoreDuplicates: false,
+    });
+
+  if (!richError) {
+    return;
+  }
+
+  const fallbackRows = rows.map(row => ({
+    user_id: row.user_id,
+    friend_id: row.friend_id,
+    status: 'offline',
+  }));
+
+  const { error: fallbackError } = await supabase
+    .from('friends')
+    .upsert(fallbackRows, {
+      onConflict: 'user_id,friend_id',
+      ignoreDuplicates: false,
+    });
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+}
+
+/**
+ * Ìí¼ÓºÃÓÑ (Ö§³ÖÓÊÏä»òÓÃ»§Ãû)
+ */
 export async function addFriend(account: string): Promise<void> {
-  // å…¼å®¹æ—§è°ƒç”¨æ–¹ï¼šç»Ÿä¸€èµ°å¥½å‹è¯·æ±‚æµç¨‹ï¼Œé¿å…ç›´æ¥å»ºç«‹ accepted å…³ç³»
   await sendFriendRequest(account);
 }
 
 /**
- * å‘é€å¥½å‹è¯·æ±‚
- * @param account å¯¹æ–¹è´¦å·ï¼ˆé‚®ç®±æˆ–ç”¨æˆ·åï¼‰
+ * ·¢ËÍºÃÓÑÇëÇó£¨Í¨ÖªÇı¶¯£¬²»Ö±½Ó½¨ºÃÓÑ¹ØÏµ£©
  */
 export async function sendFriendRequest(account: string): Promise<void> {
   try {
-    // 1. æŸ¥æ‰¾ç›®æ ‡ç”¨æˆ· (ä» profiles è¡¨)
-    const { data: targetProfile, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .or(`email.eq.${account},username.eq.${account}`)
-      .single();
-
-    if (userError || !targetProfile) {
-      throw new Error('ç”¨æˆ·ä¸å­˜åœ¨');
+    const normalizedAccount = account.trim();
+    if (!normalizedAccount) {
+      throw new Error('ÇëÊäÈëÓÃ»§Ãû»òÓÊÏä');
     }
 
-    const targetUserId = targetProfile.id;
-
-    // 2. è·å–å½“å‰ç”¨æˆ·ä¿¡æ¯
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.user) {
-      throw new Error('è¯·å…ˆç™»å½•');
-    }
-    const currentUserId = session.user.id;
-    const currentUserEmail = session.user.email;
-
-    if (targetUserId === currentUserId) {
-      throw new Error('ä¸èƒ½æ·»åŠ è‡ªå·±ä¸ºå¥½å‹');
-    }
-
-    // 3. æ£€æŸ¥åŒå‘å…³ç³»
-    const [{ data: outgoing }, { data: incoming }] = await Promise.all([
+    // 1. ²éÕÒÄ¿±êÓÃ»§£¨ÓÅÏÈ email£¬Æä´Î username£©
+    const [{ data: byEmail, error: byEmailError }, { data: byUsername, error: byUsernameError }] = await Promise.all([
       supabase
-        .from('friends')
-        .select('id,status')
-        .eq('user_id', currentUserId)
-        .eq('friend_id', targetUserId)
+        .from('profiles')
+        .select('id, username, full_name, email')
+        .eq('email', normalizedAccount)
         .maybeSingle(),
       supabase
-        .from('friends')
-        .select('id,status')
-        .eq('user_id', targetUserId)
-        .eq('friend_id', currentUserId)
-        .maybeSingle()
+        .from('profiles')
+        .select('id, username, full_name, email')
+        .eq('username', normalizedAccount)
+        .maybeSingle(),
     ]);
 
-    if (outgoing?.status === 'accepted' || incoming?.status === 'accepted') {
-      throw new Error('ä½ ä»¬å·²ç»æ˜¯å¥½å‹äº†');
+    if ((byEmailError && byEmailError.code !== 'PGRST116') || (byUsernameError && byUsernameError.code !== 'PGRST116')) {
+      throw new Error('²éÕÒÓÃ»§Ê§°Ü');
     }
 
-    if (outgoing?.status === 'pending') {
-      throw new Error('å¥½å‹è¯·æ±‚å·²å‘é€ï¼Œè¯·ç­‰å¾…å¯¹æ–¹ç¡®è®¤');
+    const targetProfile = byEmail || byUsername;
+    if (!targetProfile) {
+      throw new Error('ÓÃ»§²»´æÔÚ');
     }
 
-    // å¯¹æ–¹å·²ç»ç»™ä½ å‘è¿‡è¯·æ±‚ï¼šè‡ªåŠ¨äº’ç›¸é€šè¿‡
-    if (incoming?.status === 'pending') {
-      const { error: acceptError } = await supabase
-        .from('friends')
-        .upsert([
-          { user_id: currentUserId, friend_id: targetUserId, status: 'accepted', updated_at: new Date().toISOString() },
-          { user_id: targetUserId, friend_id: currentUserId, status: 'accepted', updated_at: new Date().toISOString() }
-        ], {
-          onConflict: 'user_id,friend_id',
-          ignoreDuplicates: false
-        });
+    // 2. »ñÈ¡µ±Ç°ÓÃ»§ĞÅÏ¢
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) {
+      throw new Error('ÇëÏÈµÇÂ¼');
+    }
 
-      if (acceptError) {
-        throw new Error('æ¥å—å¥½å‹è¯·æ±‚å¤±è´¥');
-      }
+    const currentUserId = session.user.id;
+    const targetUserId = targetProfile.id;
+
+    if (targetUserId === currentUserId) {
+      throw new Error('²»ÄÜÌí¼Ó×Ô¼ºÎªºÃÓÑ');
+    }
+
+    // 3. ÒÑ¾­ÊÇºÃÓÑ£¬Ö±½ÓÀ¹½Ø
+    if (await hasFriendRelation(currentUserId, targetUserId)) {
+      throw new Error('ÄãÃÇÒÑ¾­ÊÇºÃÓÑÁË');
+    }
+
+    // 4. ±ÜÃâÖØ¸´·¢ËÍÇëÇó
+    const { data: outgoingPending, error: outgoingPendingError } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', targetUserId)
+      .eq('type', 'friend_request')
+      .eq('is_read', false)
+      .like('content', `%${FRIEND_REQUEST_META_PREFIX}${currentUserId}%`)
+      .limit(1);
+
+    if (outgoingPendingError) {
+      throw new Error('Ğ£ÑéºÃÓÑÇëÇóÊ§°Ü');
+    }
+
+    if ((outgoingPending?.length || 0) > 0) {
+      throw new Error('ºÃÓÑÇëÇóÒÑ·¢ËÍ£¬ÇëµÈ´ı¶Ô·½È·ÈÏ');
+    }
+
+    // 5. ¶Ô·½ÒÑ·¢¹ıÇëÇó£¬Ôò×Ô¶¯°´¡°½ÓÊÜ¡±´¦Àí
+    const { data: incomingPending, error: incomingPendingError } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', currentUserId)
+      .eq('type', 'friend_request')
+      .eq('is_read', false)
+      .like('content', `%${FRIEND_REQUEST_META_PREFIX}${targetUserId}%`)
+      .limit(1);
+
+    if (incomingPendingError) {
+      throw new Error('Ğ£ÑéºÃÓÑÇëÇóÊ§°Ü');
+    }
+
+    const incomingPendingId = incomingPending?.[0]?.id;
+    if (incomingPendingId) {
+      await acceptFriendRequest(incomingPendingId);
       return;
     }
 
-    // 4. åˆ›å»º pending è¯·æ±‚è®°å½•ï¼ˆä»…å•å‘ï¼‰
-    const { error: requestError } = await supabase
-      .from('friends')
-      .upsert({
-        user_id: currentUserId,
-        friend_id: targetUserId,
-        status: 'pending',
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,friend_id',
-        ignoreDuplicates: false
-      });
+    // 6. ´´½¨Í¨Öª£¨ÇëÇó´ıÉóÅú£©
+    const requesterDisplayName =
+      (session.user.user_metadata?.full_name as string | undefined) ||
+      (session.user.user_metadata?.name as string | undefined) ||
+      session.user.email ||
+      'Ä³ÓÃ»§';
 
-    if (requestError) {
-      throw new Error('å‘é€å¥½å‹è¯·æ±‚å¤±è´¥');
-    }
-
-    // 5. æ’å…¥é€šçŸ¥ï¼ˆtype: friend_requestï¼‰
     const { error: notifyError } = await supabase
       .from('notifications')
       .insert({
         user_id: targetUserId,
         type: 'friend_request',
-        title: 'å¥½å‹è¯·æ±‚',
-        content: `${currentUserEmail || 'æŸç”¨æˆ·'} æƒ³æ·»åŠ ä½ ä¸ºå¥½å‹`,
+        title: 'ºÃÓÑÇëÇó',
+        content: buildFriendRequestContent(requesterDisplayName, currentUserId),
         avatar_url: '',
         is_read: false,
         created_at: new Date().toISOString(),
       });
+
     if (notifyError) {
-      throw new Error('å‘é€å¥½å‹è¯·æ±‚é€šçŸ¥å¤±è´¥');
+      throw new Error('·¢ËÍºÃÓÑÇëÇóÊ§°Ü');
     }
   } catch (error: any) {
-    handleGlobalError(error, 'å‘é€å¥½å‹è¯·æ±‚å¤±è´¥');
+    handleGlobalError(error, '·¢ËÍºÃÓÑÇëÇóÊ§°Ü');
     throw error;
   }
 }
 
+/**
+ * ½ÓÊÜºÃÓÑÇëÇó£¨»ùÓÚÍ¨Öª£©
+ */
+export async function acceptFriendRequest(notificationId: string): Promise<void> {
+  try {
+    const currentUserId = await getCurrentUserId();
+    const notification = await getNotificationById(notificationId);
+
+    if (notification.user_id !== currentUserId) {
+      throw new Error('ÎŞÈ¨´¦Àí´ËºÃÓÑÇëÇó');
+    }
+
+    if (notification.type !== 'friend_request') {
+      throw new Error('¸ÃÍ¨Öª²»ÊÇºÃÓÑÇëÇó');
+    }
+
+    const requesterId = extractFriendRequestSenderId(notification.content);
+    if (!requesterId) {
+      throw new Error('ºÃÓÑÇëÇóÊı¾İ²»ÍêÕû£¬ÇëÈÃ¶Ô·½ÖØĞÂ·¢ËÍ');
+    }
+
+    if (requesterId === currentUserId) {
+      throw new Error('ÎŞĞ§µÄºÃÓÑÇëÇó');
+    }
+
+    if (await hasFriendRelation(currentUserId, requesterId)) {
+      await markNotificationAsRead(notificationId);
+      return;
+    }
+
+    const profiles = await getProfilesByIds([currentUserId, requesterId]);
+    const currentProfile = profiles[currentUserId];
+    const requesterProfile = profiles[requesterId];
+
+    if (!currentProfile || !requesterProfile) {
+      throw new Error('ÓÃ»§ĞÅÏ¢²»´æÔÚ');
+    }
+
+    await upsertFriendRelations([
+      {
+        user_id: currentUserId,
+        friend_id: requesterId,
+        name: resolveProfileDisplayName(requesterProfile),
+        avatar_url: requesterProfile.avatar_url || null,
+        bio: requesterProfile.bio || null,
+      },
+      {
+        user_id: requesterId,
+        friend_id: currentUserId,
+        name: resolveProfileDisplayName(currentProfile),
+        avatar_url: currentProfile.avatar_url || null,
+        bio: currentProfile.bio || null,
+      },
+    ]);
+
+    await markNotificationAsRead(notificationId);
+
+    await supabase.from('notifications').insert({
+      user_id: requesterId,
+      type: 'system',
+      title: 'ºÃÓÑÇëÇóÒÑÍ¨¹ı',
+      content: `${resolveProfileDisplayName(currentProfile)} ÒÑ½ÓÊÜÄãµÄºÃÓÑÇëÇó`,
+      avatar_url: currentProfile.avatar_url || '',
+      is_read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    handleGlobalError(error, '½ÓÊÜºÃÓÑÇëÇóÊ§°Ü');
+    throw error;
+  }
+}
+
+/**
+ * ¾Ü¾øºÃÓÑÇëÇó£¨»ùÓÚÍ¨Öª£©
+ */
+export async function rejectFriendRequest(notificationId: string): Promise<void> {
+  try {
+    const currentUserId = await getCurrentUserId();
+    const notification = await getNotificationById(notificationId);
+
+    if (notification.user_id !== currentUserId) {
+      throw new Error('ÎŞÈ¨´¦Àí´ËºÃÓÑÇëÇó');
+    }
+
+    if (notification.type !== 'friend_request') {
+      throw new Error('¸ÃÍ¨Öª²»ÊÇºÃÓÑÇëÇó');
+    }
+
+    const requesterId = extractFriendRequestSenderId(notification.content);
+    await markNotificationAsRead(notificationId);
+
+    if (requesterId) {
+      await supabase.from('notifications').insert({
+        user_id: requesterId,
+        type: 'system',
+        title: 'ºÃÓÑÇëÇóÒÑ¾Ü¾ø',
+        content: 'ÄãµÄºÃÓÑÇëÇóÎ´Í¨¹ı',
+        avatar_url: '',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (error: any) {
+    handleGlobalError(error, '¾Ü¾øºÃÓÑÇëÇóÊ§°Ü');
+    throw error;
+  }
+}
 // ============================================
 // è¾…åŠ©å‡½æ•° - è·å–å½“å‰ç™»å½•ç”¨æˆ· ID
 // ============================================
 
 /**
- * è·å–å½“å‰ç™»å½•ç”¨æˆ·çš„ ID
- * @throws {Error} å¦‚æœç”¨æˆ·æœªç™»å½•
+ * è·å–å½“å‰ç™»å½•ç”¨æˆ·çš?ID
+ * @throws {Error} å¦‚æœç”¨æˆ·æœªç™»å½?
  * @returns {Promise<string>} ç”¨æˆ· ID
  */
 async function getCurrentUserId(): Promise<string> {
@@ -157,7 +394,7 @@ async function getCurrentUserId(): Promise<string> {
 // å¥½å‹ç®¡ç†
 // ============================================
 
-/** è·å–æ‰€æœ‰å¥½å‹ï¼ˆåŒ…å«æœªè¯»æ¶ˆæ¯ä¿¡æ¯ï¼‰ */
+/** è·å–æ‰€æœ‰å¥½å‹ï¼ˆåŒ…å«æœªè¯»æ¶ˆæ¯ä¿¡æ¯ï¼?*/
 export async function getFriends(): Promise<FriendLatestMessage[]> {
   try {
     const userId = await getCurrentUserId();
@@ -180,7 +417,7 @@ export async function getFriends(): Promise<FriendLatestMessage[]> {
   }
 }
 
-/** æ›´æ–°å¥½å‹åœ¨çº¿çŠ¶æ€ */
+/** æ›´æ–°å¥½å‹åœ¨çº¿çŠ¶æ€?*/
 export async function updateFriendStatus(
   friendId: string,
   status: 'online' | 'offline' | 'busy' | 'away'
@@ -195,14 +432,14 @@ export async function updateFriendStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('æ›´æ–°å¥½å‹çŠ¶æ€å¤±è´¥:', error);
+      console.error('æ›´æ–°å¥½å‹çŠ¶æ€å¤±è´?', error);
     }
   } catch (error) {
-    console.error('æ›´æ–°å¥½å‹çŠ¶æ€å¤±è´¥:', error);
+    console.error('æ›´æ–°å¥½å‹çŠ¶æ€å¤±è´?', error);
   }
 }
 
-/** æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€ */
+/** æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€?*/
 export async function updateFriendStudyStatus(
   friendId: string,
   isStudying: boolean,
@@ -227,10 +464,10 @@ export async function updateFriendStudyStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€å¤±è´¥:', error);
+      console.error('æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€å¤±è´?', error);
     }
   } catch (error) {
-    console.error('æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€å¤±è´¥:', error);
+    console.error('æ›´æ–°å¥½å‹å­¦ä¹ çŠ¶æ€å¤±è´?', error);
   }
 }
 
@@ -318,7 +555,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
   }
 }
 
-/** å‘é€æ¶ˆæ¯ */
+/** å‘é€æ¶ˆæ?*/
 export async function sendMessage(
   friendId: string,
   sender: 'user' | 'friend' | 'bot',
@@ -332,7 +569,7 @@ export async function sendMessage(
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
 
-    // ç¡®å®šå‘é€è€…å’Œæ¥æ”¶è€…
+    // ç¡®å®šå‘é€è€…å’Œæ¥æ”¶è€?
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
     
@@ -351,7 +588,7 @@ export async function sendMessage(
       .single();
 
     if (error) {
-      handleGlobalError(error, 'å‘é€æ¶ˆæ¯å¤±è´¥');
+      handleGlobalError(error, '·¢ËÍÏûÏ¢Ê§°Ü');
       return null;
     }
 
@@ -360,15 +597,15 @@ export async function sendMessage(
 
     return data?.id || null;
   } catch (error: any) {
-    handleGlobalError(error, 'å‘é€æ¶ˆæ¯å¤±è´¥');
+    handleGlobalError(error, '·¢ËÍÏûÏ¢Ê§°Ü');
     return null;
   }
 }
 
 /**
- * ğŸ“ å‘é€å¸¦åª’ä½“é™„ä»¶çš„æ¶ˆæ¯
+ * ğŸ“ å‘é€å¸¦åª’ä½“é™„ä»¶çš„æ¶ˆæ?
  * @param friendId - å¥½å‹ID
- * @param sender - å‘é€è€…ç±»å‹
+ * @param sender - å‘é€è€…ç±»å?
  * @param text - æ¶ˆæ¯æ–‡æœ¬ï¼ˆå¯ä»¥ä¸ºç©ºï¼‰
  * @param mediaData - åª’ä½“æ•°æ®
  * @param messageType - æ¶ˆæ¯ç±»å‹ ('image' | 'video' | 'mixed')
@@ -399,7 +636,7 @@ export async function sendMessageWithMedia(
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
 
-    // ç¡®å®šå‘é€è€…å’Œæ¥æ”¶è€…
+    // ç¡®å®šå‘é€è€…å’Œæ¥æ”¶è€?
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
 
@@ -423,7 +660,7 @@ export async function sendMessageWithMedia(
       .single();
 
     if (error) {
-      console.error('å‘é€åª’ä½“æ¶ˆæ¯å¤±è´¥:', error);
+      console.error('å‘é€åª’ä½“æ¶ˆæ¯å¤±è´?', error);
       return null;
     }
 
@@ -433,7 +670,7 @@ export async function sendMessageWithMedia(
 
     return data?.id || null;
   } catch (error: any) {
-    console.error('å‘é€åª’ä½“æ¶ˆæ¯å¤±è´¥:', error);
+    console.error('å‘é€åª’ä½“æ¶ˆæ¯å¤±è´?', error);
     return null;
   }
 }
@@ -462,7 +699,7 @@ async function updateUnreadCount(
   }
 }
 
-/** æ ‡è®°æ¶ˆæ¯ä¸ºå·²è¯» */
+/** æ ‡è®°æ¶ˆæ¯ä¸ºå·²è¯?*/
 export async function markMessagesAsRead(friendId: string): Promise<void> {
   try {
     const userId = await getCurrentUserId();
@@ -481,7 +718,7 @@ export async function markMessagesAsRead(friendId: string): Promise<void> {
   }
 }
 
-/** æ¸…ç©ºæŸä¸ªå¥½å‹çš„èŠå¤©è®°å½• */
+/** æ¸…ç©ºæŸä¸ªå¥½å‹çš„èŠå¤©è®°å½?*/
 export async function clearChatHistory(friendId: string): Promise<void> {
   try {
     const userId = await getCurrentUserId();
@@ -508,7 +745,7 @@ export async function clearChatHistory(friendId: string): Promise<void> {
 // æœªè¯»æ¶ˆæ¯ç®¡ç†
 // ============================================
 
-/** è·å–æ‰€æœ‰æœªè¯»æ¶ˆæ¯è®¡æ•° */
+/** è·å–æ‰€æœ‰æœªè¯»æ¶ˆæ¯è®¡æ•?*/
 export async function getUnreadCounts(): Promise<UnreadCount[]> {
   try {
     const userId = await getCurrentUserId();
@@ -579,7 +816,7 @@ export async function getNotifications(): Promise<Notification[]> {
   }
 }
 
-/** æ ‡è®°é€šçŸ¥ä¸ºå·²è¯» */
+/** æ ‡è®°é€šçŸ¥ä¸ºå·²è¯?*/
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
   const { error } = await supabase
     .from('notifications')
@@ -615,13 +852,13 @@ export async function getUnreadNotificationCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('è·å–æœªè¯»é€šçŸ¥æ•°å¤±è´¥:', error);
+      console.error('è·å–æœªè¯»é€šçŸ¥æ•°å¤±è´?', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('è·å–æœªè¯»é€šçŸ¥æ•°å¤±è´¥:', error);
+    console.error('è·å–æœªè¯»é€šçŸ¥æ•°å¤±è´?', error);
     return 0;
   }
 }
@@ -630,7 +867,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 // é‚®ä»¶ç®¡ç†
 // ============================================
 
-/** è·å–æ‰€æœ‰é‚®ä»¶ */
+/** è·å–æ‰€æœ‰é‚®ä»?*/
 export async function getMails(): Promise<Mail[]> {
   try {
     const userId = await getCurrentUserId();
@@ -653,7 +890,7 @@ export async function getMails(): Promise<Mail[]> {
   }
 }
 
-/** æ ‡è®°é‚®ä»¶ä¸ºå·²è¯» */
+/** æ ‡è®°é‚®ä»¶ä¸ºå·²è¯?*/
 export async function markMailAsRead(mailId: string): Promise<void> {
   const { error } = await supabase
     .from('mails')
@@ -689,13 +926,13 @@ export async function getUnreadMailCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('è·å–æœªè¯»é‚®ä»¶æ•°å¤±è´¥:', error);
+      console.error('è·å–æœªè¯»é‚®ä»¶æ•°å¤±è´?', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('è·å–æœªè¯»é‚®ä»¶æ•°å¤±è´¥:', error);
+    console.error('è·å–æœªè¯»é‚®ä»¶æ•°å¤±è´?', error);
     return 0;
   }
 }
@@ -907,3 +1144,4 @@ export async function subscribeToNotifications(
     return () => {}; // è¿”å›ç©ºçš„æ¸…ç†å‡½æ•°
   }
 }
+
