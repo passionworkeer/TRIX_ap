@@ -14,7 +14,6 @@ import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, mar
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
-import { useNanobot } from '../contexts/NanobotContext';
 import type { ChatMessage } from '../config/supabase';
 
 // UI Message interface
@@ -61,13 +60,11 @@ const ChatDetail: React.FC = () => {
   });
 
   const { name, avatar, isBot, friendId, photoUri } = friendData;
-  const isClawbotConversation = friendId === 'clawbot' || friendId === 'clawbot_channel';
-  const isNanobotConversation = friendId === 'nanobot';
-  const isBotConversation = isClawbotConversation || isNanobotConversation;
+  const isBotConversation = friendId === 'clawbot' || friendId === 'clawbot_channel';
 
   // 如果有 URL 参数且不是 state，从数据库加载好友信息
   useEffect(() => {
-    if (urlFriendId && !stateData.name && !['clawbot', 'clawbot_channel', 'nanobot'].includes(urlFriendId)) {
+    if (urlFriendId && !stateData.name && !['clawbot', 'clawbot_channel'].includes(urlFriendId)) {
       loadFriendData(urlFriendId);
     }
   }, [urlFriendId]);
@@ -103,11 +100,6 @@ const ChatDetail: React.FC = () => {
 
   // Clawbot Channel connection
   const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
-  const {
-    messages: nanobotMessages,
-    sendMessage: nanobotSendMessage,
-    status: nanobotStatus
-  } = useNanobot();
 
   // 菜单显示状态
   const [showMenu, setShowMenu] = useState(false);

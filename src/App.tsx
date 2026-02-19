@@ -20,14 +20,12 @@ import QRCodePairing from './screens/QRCodePairing';
 import MapScreen from './screens/Map';
 import SnapMapScreen from './screens/SnapMapScreen';
 import TokenMonitor from './screens/TokenMonitor';
-import NanobotPairing from './screens/NanobotPairing';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { TokenMonitorProvider } from './contexts/TokenMonitorContext';
-import { NanobotProvider } from './contexts/NanobotContext';
 import { useNotification } from './hooks/useNotification';
 
 // 路由保护组件 - 未登录用户重定向到登录页
@@ -171,11 +169,6 @@ function AppContent() {
              <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
              <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
-             <Route path={AppRoutes.NANOBOT_PAIRING} element={
-               <ProtectedRoute>
-                 <NanobotPairing />
-               </ProtectedRoute>
-             } />
              <Route path={AppRoutes.QR_PAIRING} element={
                <ProtectedRoute>
                  <QRCodePairingProvider>
@@ -251,11 +244,9 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <AuthProvider>
         <ClawbotChannelProvider>
-          <NanobotProvider autoReconnect={false}>
-            <HashRouter>
-              <AppContent />
-            </HashRouter>
-          </NanobotProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
         </ClawbotChannelProvider>
       </AuthProvider>
     </ErrorBoundary>
