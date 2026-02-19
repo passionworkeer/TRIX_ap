@@ -6,7 +6,7 @@ const socketIOClient = require('socket.io-client');
 
 // ==================== 配置 ====================
 
-// 云端 Relay Server 地址（生产环境）
+// 云端 Relay Server 地址（生产模式）
 const RELAY_SERVER_URL = 'ws://47.243.55.130:8765';
 // 本地测试: 'ws://localhost:8765'
 // 备选: 'wss://m.jmtrick.com'
