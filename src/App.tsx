@@ -9,7 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
+import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { useNotification } from './hooks/useNotification';
 
@@ -91,6 +91,8 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showWarning } = useNotification();
+  const { isConnected: isClawbotConnected, isPaired: isClawbotPaired } = useClawbotChannel();
   const [showDockOnHome, setShowDockOnHome] = useState(false);
 
   // 判断是否在首页
@@ -118,11 +120,18 @@ function AppContent() {
   // 处理图片选择 - 导航到聊天详情页
   const handleImageSelect = (imageUri: string) => {
     setShowDockOnHome(false);
+
+    if (!isClawbotConnected || !isClawbotPaired) {
+      showWarning('请先完成 TRIX Bot 配对');
+      navigate(AppRoutes.PAIRING);
+      return;
+    }
+
     navigate(AppRoutes.CHAT_DETAIL, {
       state: {
         friendId: 'clawbot',
         name: 'TRIX Bot',
-        avatar: IMAGES.WIZARD_BOY,
+        avatar: IMAGES.WIZARD_BOY_LOGIN,
         isBot: true,
         photoUri: imageUri
       }
