@@ -1,49 +1,39 @@
 #!/bin/bash
-# 云端服务器快速重启脚本
-# 使用: bash restart_cloud_server.sh
+# Clawbot Channel 重启脚本
 
-echo "🔄 正在重启云端服务器..."
+set -e
 
-# 停止旧服务器
-echo "1️⃣ 停止旧服务器..."
-pkill -9 -f cloud_server.py
-pkill -9 -f cloud_server_advanced.py
-sleep 2
+APP_NAME="clawbot-channel"
+APP_DIR="/opt/clawbot-channel"
 
-# 检查端口是否释放
-if lsof -i :8765 > /dev/null 2>&1; then
-    echo "❌ 端口 8765 仍被占用，强制清理..."
-    lsof -ti:8765 | xargs kill -9
-    sleep 1
+echo "Restarting ${APP_NAME}..."
+
+if ! command -v pm2 > /dev/null 2>&1; then
+    echo "Error: pm2 is not installed. Please install pm2 first."
+    exit 1
 fi
 
-# 启动新服务器
-echo "2️⃣ 启动高级版服务器..."
-nohup python3 /opt/nanobot-cloud/cloud_server_advanced.py > /tmp/cloud_server_advanced.log 2>&1 &
-SERVER_PID=$!
-echo $SERVER_PID > /tmp/cloud_server_advanced.pid
-
-# 等待服务器启动
-sleep 3
-
-# 验证服务器
-echo "3️⃣ 验证服务器状态..."
-if ps -p $SERVER_PID > /dev/null; then
-    echo "✅ 服务器启动成功 (PID: $SERVER_PID)"
-
-    # 显示最新日志
-    echo ""
-    echo "📋 最新日志:"
-    tail -10 /tmp/cloud_server_advanced.log
-
-    echo ""
-    echo "✨ 服务器已就绪!"
-    echo "WebSocket: ws://TRIX_SERVER_HOST:8765"
-    echo "日志文件: /tmp/cloud_server_advanced.log"
-    echo "PID 文件: /tmp/cloud_server_advanced.pid"
-else
-    echo "❌ 服务器启动失败"
-    echo "📋 错误日志:"
-    tail -20 /tmp/cloud_server_advanced.log
+if [ ! -d "$APP_DIR" ]; then
+    echo "Error: app directory not found: $APP_DIR"
     exit 1
+fi
+
+cd "$APP_DIR"
+
+if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+    echo "Restart existing PM2 process..."
+    pm2 restart "$APP_NAME"
+else
+    echo "PM2 process not found, start from ecosystem config..."
+    pm2 start ecosystem.config.js --only "$APP_NAME"
+fi
+
+echo "PM2 status:"
+pm2 status "$APP_NAME"
+
+echo "Health check:"
+if curl -fsS http://127.0.0.1:8765/health > /dev/null; then
+    echo "Health check passed: http://127.0.0.1:8765/health"
+else
+    echo "Warning: health check failed, please inspect logs: pm2 logs $APP_NAME"
 fi

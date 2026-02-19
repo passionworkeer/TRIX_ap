@@ -21,7 +21,6 @@ show_help() {
     echo ""
     echo "服务:"
     echo "  frontend           部署前端应用"
-    echo "  nanobot            部署 Nanobot 后端服务"
     echo "  clawbot            部署 Clawbot Channel 服务"
     echo "  update-clawbot     更新 Clawbot Channel 服务"
     echo "  init-server        初始化服务器环境"
@@ -51,13 +50,6 @@ deploy_frontend() {
     echo -e "${GREEN}部署前端应用...${NC}"
     check_script "$DEPLOYMENTS_DIR/frontend/build-and-deploy.sh"
     bash "$DEPLOYMENTS_DIR/frontend/build-and-deploy.sh"
-}
-
-# 部署 Nanobot
-deploy_nanobot() {
-    echo -e "${GREEN}部署 Nanobot 后端服务...${NC}"
-    check_script "$DEPLOYMENTS_DIR/backend/nanobot/deploy.sh"
-    bash "$DEPLOYMENTS_DIR/backend/nanobot/deploy.sh"
 }
 
 # 部署 Clawbot Channel
@@ -98,9 +90,6 @@ main() {
             ;;
         frontend)
             deploy_frontend
-            ;;
-        nanobot)
-            deploy_nanobot
             ;;
         clawbot)
             deploy_clawbot

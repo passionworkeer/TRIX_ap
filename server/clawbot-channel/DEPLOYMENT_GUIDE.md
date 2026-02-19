@@ -20,7 +20,7 @@ ssh root@TRIX_SERVER_HOST
 
 ### 步骤 2: 停止旧版服务器
 
-连接成功后，先停止当前运行的 Python 服务器：
+连接成功后，先停止当前占用 8765 端口的旧服务（无论来源）：
 
 ```bash
 # 查找占用 8765 端口的进程
@@ -29,8 +29,8 @@ lsof -i :8765
 # 杀死进程
 kill -9 $(lsof -ti:8765)
 
-# 或使用 pkill
-pkill -f cloud_server_advanced.py
+# 若 PM2 已管理 clawbot-channel，优先使用
+pm2 stop clawbot-channel
 ```
 
 ### 步骤 3: 创建目录
