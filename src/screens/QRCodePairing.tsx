@@ -357,7 +357,7 @@ const QRCodePairing: React.FC = () => {
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
                 placeholder="留空将自动生成"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
 
@@ -421,7 +421,7 @@ const QRCodePairing: React.FC = () => {
                       onChange={(e) => setManualCode(e.target.value)}
                       placeholder='粘贴配对码...'
                       rows={4}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
                     />
                     
                     {/* 验证提示 */}
