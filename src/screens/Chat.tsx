@@ -67,9 +67,9 @@ const Chat: React.FC = () => {
       const currentUserEmail = session.user.email;
 
       // 获取所有用户（排除自己）
-      const { data: allUsers, error: usersError } = await supabase
-        .from('users')
-        .select('id, username, display_name, email, bio')
+      const { data: allProfiles, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, email, bio')
         .neq('id', currentUserId)
         .limit(10);
 
@@ -92,13 +92,21 @@ const Chat: React.FC = () => {
       const friendIds = new Set(existingFriends?.map(f => f.friend_id) || []);
 
       // 过滤出不是好友的用户
-      const notFriends = (allUsers || []).filter(user =>
+      const notFriends = (allProfiles || []).filter(user =>
         !friendIds.has(user.id) &&
         user.id !== currentUserId &&
         user.email !== currentUserEmail
       );
 
-      setRecommendedUsers(notFriends.slice(0, 5));
+      const normalizedUsers: RecommendedUser[] = notFriends.map(user => ({
+        id: user.id,
+        username: user.username,
+        display_name: user.full_name || user.username,
+        email: user.email,
+        bio: user.bio
+      }));
+
+      setRecommendedUsers(normalizedUsers.slice(0, 5));
     } catch (error) {
       console.error('加载推荐用户失败:', error);
     }

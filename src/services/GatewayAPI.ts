@@ -15,12 +15,20 @@ import type {
   SessionUsage,
   TimeSeriesData,
   UsageStatus,
-  SessionListItem,
-  GatewayConnectionConfig,
-  GatewayMessageEvent,
-  MessageRoutingConfig,
-  MessageRouteTarget
+  SessionListItem
 } from '../types/tokenMonitor';
+
+interface GatewayMessageEvent {
+  type: string;
+  payload?: Record<string, unknown>;
+}
+
+interface MessageRoutingConfig {
+  showSubagentMessages: boolean;
+  showInternalMessages: boolean;
+  showDebugMessages: boolean;
+  allowedTargets: string[];
+}
 
 // 生成唯一 ID
 function generateId(): string {
@@ -42,7 +50,6 @@ class GatewayAPI {
   > = new Map();
   private onStatusChange?: (status: GatewayConnectionStatus) => void;
   private onMessage?: (event: GatewayMessageEvent) => void;
-  private config: GatewayConnectionConfig | null = null;
   private routingConfig: MessageRoutingConfig = {
     showSubagentMessages: false,  // 默认不显示子代理消息
     showInternalMessages: false,  // 默认不显示内部消息
@@ -57,55 +64,33 @@ class GatewayAPI {
     return new Promise((resolve, reject) => {
       console.log('[GatewayAPI] 开始连接到 Gateway:', url);
 
-      this.config = { url, token };
       this.connectionStatus = 'CONNECTING';
       this.onStatusChange?.('CONNECTING');
 
       // 清理旧连接
       connectionManager.disconnect(this.connectionId);
 
-      // 创建新连接
-      const socket = connectionManager.connect(this.connectionId, url, {
-        heartbeatInterval: 30000,
-        reconnect: true,
-        reconnectDelay: 2000,
-        reconnectAttempts: 10,
-        onMessage: (data) => this.handleMessage(data),
-        onConnected: () => {
-          console.log('[GatewayAPI] WebSocket 连接成功，等待认证挑战');
-          this.connectionStatus = 'CONNECTED';
-          this.onStatusChange?.('CONNECTED');
-        },
-        onDisconnected: () => {
-          console.log('[GatewayAPI] 连接断开');
-          this.connectionStatus = 'DISCONNECTED';
-          this.onStatusChange?.('DISCONNECTED');
-          // 清理所有待处理的请求
-        this.pendingRequests.forEach(({ reject: rejectReq, timeout }) => {
-          clearTimeout(timeout);
-            rejectReq(new Error('连接已断开'));
-          });
-          this.pendingRequests.clear();
-        },
-        onError: (error) => {
-          console.error('[GatewayAPI] 连接错误:', error);
-          this.connectionStatus = 'ERROR';
-          this.onStatusChange?.('ERROR');
-          reject(new Error('连接失败'));
+      let settled = false;
+      let authRequestSent = false;
+      let authTimeout: ReturnType<typeof setTimeout> | null = null;
+
+      const settle = (handler: () => void) => {
+        if (settled) return;
+        settled = true;
+        if (authTimeout) {
+          clearTimeout(authTimeout);
+          authTimeout = null;
         }
-      });
+        handler();
+      };
 
-      if (!socket) {
-        reject(new Error('无法创建 WebSocket 连接'));
-        return;
-      }
+      const handleAuthMessage = (data: unknown) => {
+        const messageType = this.getMessageType(data);
 
-      // 监听认证挑战
-      const authHandler = (data: unknown) => {
-        if (this.isConnectChallenge(data)) {
+        if (this.isConnectChallenge(data) && !authRequestSent) {
           console.log('[GatewayAPI] 收到认证挑战，发送认证响应');
+          authRequestSent = true;
 
-          // 发送认证响应
           const authParams = {
             minProtocol: 3,
             maxProtocol: 3,
@@ -119,38 +104,102 @@ class GatewayAPI {
               instanceId: this.instanceId
             },
             auth: {
-              token: token
+              token
             }
           };
 
+          const requestId =
+            (typeof data === 'object' &&
+              data !== null &&
+              'payload' in data &&
+              typeof (data as { payload: unknown }).payload === 'object' &&
+              (data as { payload: { nonce?: string } }).payload !== null &&
+              'nonce' in (data as { payload: { nonce?: string } }).payload
+              ? (data as { payload: { nonce?: string } }).payload.nonce
+              : undefined) || generateId();
+
           connectionManager.send(this.connectionId, {
             type: 'req',
-            id: generateId(),
+            id: requestId,
             method: 'connect',
             params: authParams
           });
-
-          // 移除临时监听器
-          connectionManager.off(this.connectionId, 'message', authHandler);
+          return;
         }
 
-        // 检查认证成功响应
         if (this.isHelloOk(data)) {
           console.log('[GatewayAPI] 认证成功');
           this.connectionStatus = 'AUTHENTICATED';
           this.onStatusChange?.('AUTHENTICATED');
-          resolve();
+          settle(() => resolve());
+          return;
+        }
+
+        if (messageType === 'error') {
+          const errorMessage =
+            typeof data === 'object' &&
+            data !== null &&
+            'error' in data &&
+            typeof (data as { error: unknown }).error === 'object' &&
+            (data as { error: { message?: string } }).error !== null
+              ? (data as { error: { message?: string } }).error.message
+              : undefined;
+
+          if (errorMessage) {
+            settle(() => reject(new Error(`认证失败: ${errorMessage}`)));
+          }
         }
       };
 
-      // 添加临时监听器处理认证
-      connectionManager.on(this.connectionId, 'message', authHandler);
+      // 创建新连接
+      const socket = connectionManager.connect(this.connectionId, url, {
+        heartbeatInterval: 30000,
+        reconnect: true,
+        reconnectDelay: 2000,
+        reconnectAttempts: 10,
+        onMessage: (data) => {
+          handleAuthMessage(data);
+          this.handleMessage(data);
+        },
+        onConnected: () => {
+          console.log('[GatewayAPI] WebSocket 连接成功，等待认证挑战');
+          this.connectionStatus = 'CONNECTED';
+          this.onStatusChange?.('CONNECTED');
+        },
+        onDisconnected: () => {
+          console.log('[GatewayAPI] 连接断开');
+          this.connectionStatus = 'DISCONNECTED';
+          this.onStatusChange?.('DISCONNECTED');
+          // 清理所有待处理的请求
+          this.pendingRequests.forEach(({ reject: rejectReq, timeout }) => {
+            clearTimeout(timeout);
+            rejectReq(new Error('连接已断开'));
+          });
+          this.pendingRequests.clear();
+
+          if (!settled) {
+            settle(() => reject(new Error('连接已断开')));
+          }
+        },
+        onError: (error) => {
+          console.error('[GatewayAPI] 连接错误:', error);
+          this.connectionStatus = 'ERROR';
+          this.onStatusChange?.('ERROR');
+          if (!settled) {
+            settle(() => reject(new Error('连接失败')));
+          }
+        }
+      });
+
+      if (!socket) {
+        settle(() => reject(new Error('无法创建 WebSocket 连接')));
+        return;
+      }
 
       // 设置认证超时
-      const authTimeout = setTimeout(() => {
-        connectionManager.off(this.connectionId, 'message', authHandler);
+      authTimeout = setTimeout(() => {
         if (this.connectionStatus !== 'AUTHENTICATED') {
-          reject(new Error('认证超时'));
+          settle(() => reject(new Error('认证超时')));
         }
       }, 10000);
     });
@@ -463,7 +512,7 @@ class GatewayAPI {
   /**
    * 判断是否是调试消息
    */
-  private isDebugMessage(type: string, payload: unknown): boolean {
+  private isDebugMessage(type: string, _payload: unknown): boolean {
     return type.startsWith('debug.') ||
            type.startsWith('trace.');
   }
@@ -489,9 +538,23 @@ class GatewayAPI {
     return (
       typeof data === 'object' &&
       data !== null &&
-      'type' in data &&
-      (data as { type: string }).type === 'connect.challenge'
+      (('type' in data && (data as { type: string }).type === 'connect.challenge') ||
+       ('event' in data && (data as { event: string }).event === 'connect.challenge'))
     );
+  }
+
+  /**
+   * 提取消息类型（兼容 type/event）
+   */
+  private getMessageType(data: unknown): string | undefined {
+    if (typeof data !== 'object' || data === null) return undefined;
+    if ('type' in data && typeof (data as { type?: unknown }).type === 'string') {
+      return (data as { type: string }).type;
+    }
+    if ('event' in data && typeof (data as { event?: unknown }).event === 'string') {
+      return (data as { event: string }).event;
+    }
+    return undefined;
   }
 
   /**

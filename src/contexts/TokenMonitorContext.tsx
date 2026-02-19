@@ -62,8 +62,8 @@ interface TokenMonitorProviderProps {
 
 export const TokenMonitorProvider: React.FC<TokenMonitorProviderProps> = ({
   children,
-  gatewayUrl = import.meta.env.VITE_GATEWAY_WS_URL || 'ws://127.0.0.1:18789',
-  authToken = import.meta.env.VITE_GATEWAY_AUTH_TOKEN || '',
+  gatewayUrl = import.meta.env.VITE_GATEWAY_WS_URL || import.meta.env.VITE_PC_WEBSOCKET_URL || 'ws://127.0.0.1:18789',
+  authToken = import.meta.env.VITE_GATEWAY_AUTH_TOKEN || import.meta.env.VITE_PC_AUTH_TOKEN || '',
   autoConnect = true,
   autoRefreshInterval = 30000
 }) => {
@@ -146,6 +146,7 @@ export const TokenMonitorProvider: React.FC<TokenMonitorProviderProps> = ({
 
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [connectionStatus, autoRefreshInterval]);
 
   // 连接到 Gateway

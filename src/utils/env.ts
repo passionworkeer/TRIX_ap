@@ -13,6 +13,8 @@ const REQUIRED_ENV_VARS = [
 
 // Optional environment variables (for informational purposes)
 const OPTIONAL_ENV_VARS = [
+  'VITE_GATEWAY_WS_URL',
+  'VITE_GATEWAY_AUTH_TOKEN',
   'VITE_PC_WEBSOCKET_URL',
   'VITE_PC_AUTH_TOKEN',
   'VITE_NANOBOT_SERVER_URL',

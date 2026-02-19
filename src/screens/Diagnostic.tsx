@@ -16,8 +16,8 @@ const Diagnostic: React.FC = () => {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_PC_WEBSOCKET_URL as string;
-    const authToken = import.meta.env.VITE_PC_AUTH_TOKEN as string;
+    const wsUrl = (import.meta.env.VITE_GATEWAY_WS_URL || import.meta.env.VITE_PC_WEBSOCKET_URL) as string;
+    const authToken = (import.meta.env.VITE_GATEWAY_AUTH_TOKEN || import.meta.env.VITE_PC_AUTH_TOKEN) as string;
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     setResults({ wsUrl, authToken, supabaseUrl });
   }, []);
@@ -35,12 +35,14 @@ const Diagnostic: React.FC = () => {
       ws.onopen = () => console.log('Connected');
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.event === 'connect.challenge') {
+        const messageType = data.event || data.type;
+        if (messageType === 'connect.challenge') {
+          const requestId = data?.payload?.nonce || 'diag-connect';
           ws.send(JSON.stringify({
-            type: 'req', id: '1', method: 'connect',
+            type: 'req', id: requestId, method: 'connect',
             params: { minProtocol: 3, maxProtocol: 3, role: 'operator', client: { id: 'diag', mode: 'web', platform: 'web', displayName: 'Diag', version: '1.0', instanceId: '1' }, auth: { token: authToken } }
           }));
-        } else if (data.type === 'res' && data.payload?.type === 'hello-ok') {
+        } else if (messageType === 'res' && data.payload?.type === 'hello-ok') {
           setResults(prev => ({ ...prev, connectionTest: { success: true, message: 'Authenticated Successfully' } }));
           ws.close();
           setTesting(false);
