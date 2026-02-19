@@ -5,10 +5,17 @@ import { useTranslation } from "react-i18next";
 import { IMAGES } from "../constants";
 import { AppRoutes } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useClawbotChannel } from "../contexts/ClawbotChannelContext";
+import { useNotification } from "../hooks/useNotification";
 import { getUnreadMailCount, getUnreadNotificationCount } from "../services/databaseService";
 import MailPanel from "../components/MailPanel";
 import NotificationPanel from "../components/NotificationPanel";
 import StudyRoom from "../components/StudyRoom";
+import {
+  PAIRING_REQUIRED_TOAST_ID,
+  PAIRING_REQUIRED_TOAST_MESSAGE,
+  PAIRING_REQUIRED_TOAST_OPTIONS
+} from "../utils/pairingToast";
 
 interface HomeProps {
   onBackgroundClick?: () => void;
@@ -17,6 +24,8 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { isConnected, isPaired } = useClawbotChannel();
+  const { showWarning } = useNotification();
   const { t } = useTranslation();
   
   const [showMailPanel, setShowMailPanel] = useState(false);
@@ -33,6 +42,28 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleOpenTrixBot = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+
+    if (!isConnected || !isPaired) {
+      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
+        ...PAIRING_REQUIRED_TOAST_OPTIONS,
+        id: PAIRING_REQUIRED_TOAST_ID,
+      });
+      navigate(AppRoutes.PAIRING);
+      return;
+    }
+
+    navigate(AppRoutes.CHAT_DETAIL, {
+      state: {
+        friendId: 'clawbot',
+        name: 'TRIX Bot',
+        avatar: IMAGES.WIZARD_BOY_LOGIN,
+        isBot: true
+      }
+    });
+  };
+
   return (
     <div 
       className="relative h-screen w-full flex flex-col overflow-hidden"
@@ -42,17 +73,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick }) => {
       {/* 🎯 Layer 50: 人物对话气泡 - 固定定位防止跳转飞走 */}
       <div 
         className="fixed top-[15%] right-[5%] z-50 cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(AppRoutes.CHAT_DETAIL, { 
-            state: { 
-              friendId: 'clawbot', 
-              name: 'TRIX Bot', 
-              avatar: IMAGES.WIZARD_BOY,
-              isBot: true 
-            } 
-          });
-        }}
+        onClick={handleOpenTrixBot}
       >
         <div className="relative max-w-[180px] sm:max-w-[200px]">
           {/* 玻璃气泡容器 - 磨砂效果 */}

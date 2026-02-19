@@ -2,11 +2,12 @@
 import { ArrowLeft, Camera, Keyboard, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
@@ -169,6 +170,14 @@ const Pairing: React.FC = () => {
   }, [isPaired, navigate]);
 
   useEffect(() => {
+    toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
+
+    return () => {
+      toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       void stopScanner();
     };
@@ -176,8 +185,6 @@ const Pairing: React.FC = () => {
 
   return (
     <div className="relative h-screen w-full flex flex-col bg-gradient-to-br from-cyan-100 via-indigo-100 to-pink-100 overflow-hidden">
-      <Toaster position="top-center" />
-
       <header className="flex items-center p-4 pt-12 pb-2 justify-between z-20">
         <button
           onClick={() => navigate(AppRoutes.PROFILE)}

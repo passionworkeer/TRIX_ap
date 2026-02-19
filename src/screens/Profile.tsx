@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, History } from 'lucide-react';
+import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
@@ -106,6 +106,13 @@ const Profile: React.FC = () => {
   };
 
   const BG_IMAGE = IMAGES.BACKGROUND;
+  const titleTextClass = isDark ? 'text-white/90' : 'text-slate-900';
+  const primaryTextClass = isDark ? 'text-white' : 'text-slate-900';
+  const secondaryTextClass = isDark ? 'text-gray-400' : 'text-slate-600';
+  const mutedTextClass = isDark ? 'text-gray-500' : 'text-slate-500';
+  const panelClass = isDark
+    ? 'hover:bg-white/15 border-white/20'
+    : 'hover:bg-white/85 border-slate-200/80';
 
   return (
     <>
@@ -147,16 +154,20 @@ const Profile: React.FC = () => {
              src={BG_IMAGE}
              alt="Background"
              className="w-full h-full object-cover"
-             style={{ filter: 'brightness(0.3)' }}
+             style={{ filter: isDark ? 'brightness(0.3)' : 'brightness(0.65)' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/50" />
+          <div
+            className={`absolute inset-0 ${isDark
+              ? 'bg-gradient-to-b from-black/20 via-transparent to-black/50'
+              : 'bg-gradient-to-b from-white/35 via-white/10 to-white/40'}`}
+          />
        </div>
 
        {/* 内容层：z-index: 10 - 所有可交互内容 */}
        <div className="relative z-10 h-full flex flex-col overflow-hidden">
           {/* 头部标题 - 固定不滚动 */}
           <div className="pt-24 pb-4 px-6 flex-shrink-0">
-             <h1 className="text-base font-bold tracking-tight text-white/90 uppercase text-center">{t('profile.title')}</h1>
+             <h1 className={`text-base font-bold tracking-tight uppercase text-center ${titleTextClass}`}>{t('profile.title')}</h1>
           </div>
 
           {/* 滚动内容区域 */}
@@ -197,39 +208,39 @@ const Profile: React.FC = () => {
 
              {/* 用户信息 */}
              <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
-                <h2 className="text-2xl font-black text-white tracking-tight capitalize drop-shadow-md">{username}</h2>
-                <p className="text-xs text-gray-400 mt-1">{email}</p>
+                <h2 className={`text-2xl font-black tracking-tight capitalize drop-shadow-md ${primaryTextClass}`}>{username}</h2>
+                <p className={`text-xs mt-1 ${secondaryTextClass}`}>{email}</p>
 
                 <div className="mt-3 flex justify-center">
-                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 cursor-pointer hover:bg-white/15 transition-colors"
+                   <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md cursor-pointer transition-colors ${isDark ? 'bg-white/10 border border-white/20 hover:bg-white/15' : 'bg-white/75 border border-slate-200 hover:bg-white'}`}
                         onClick={() => setIsPointsHistoryOpen(true)}>
                       <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-                      <span className="text-amber-300 font-bold text-xs tracking-wide">{t('profile.points')}: {points}</span>
+                      <span className={`font-bold text-xs tracking-wide ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{t('profile.points')}: {points}</span>
                    </div>
                 </div>
 
                 {/* Stats Row - 数据统计栏 */}
-                <div className="flex items-center justify-center gap-0 mt-6 w-full divide-x divide-white/10">
+                <div className={`flex items-center justify-center gap-0 mt-6 w-full divide-x ${isDark ? 'divide-white/10' : 'divide-slate-300/70'}`}>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
                       onClick={() => handleStatClick('陪伴天数', daysActive)}
                    >
-                      <div className="text-xl font-black text-white">{daysActive}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.daysActive')}</div>
+                      <div className={`text-xl font-black ${primaryTextClass}`}>{daysActive}</div>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.daysActive')}</div>
                    </div>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
                       onClick={() => handleStatClick('积分', points)}
                    >
-                      <div className="text-xl font-black text-white">{points}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.points')}</div>
+                      <div className={`text-xl font-black ${primaryTextClass}`}>{points}</div>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.points')}</div>
                    </div>
                    <div
                       className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
                       onClick={() => handleStatClick('互动', interactionCount)}
                    >
-                      <div className="text-xl font-black text-white">{interactionCount}</div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('profile.interactions')}</div>
+                      <div className={`text-xl font-black ${primaryTextClass}`}>{interactionCount}</div>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.interactions')}</div>
                    </div>
                 </div>
              </div>
@@ -239,10 +250,10 @@ const Profile: React.FC = () => {
                 {/* 我的衣橱 */}
                 <div className="w-full">
                    <div className="flex items-center justify-between mb-4 pl-1">
-                      <h3 className="text-lg font-bold text-white">{t('profile.myWardrobe')}</h3>
+                      <h3 className={`text-lg font-bold ${primaryTextClass}`}>{t('profile.myWardrobe')}</h3>
                       <button
                          onClick={handleViewAllOutfits}
-                         className="text-xs font-bold text-amber-400 hover:text-amber-300 active:scale-95 transition-all"
+                         className={`text-xs font-bold active:scale-95 transition-all ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-600'}`}
                       >
                          {t('profile.viewAll')}
                       </button>
@@ -257,63 +268,63 @@ const Profile: React.FC = () => {
                           <GlassPanel
                              key={i}
                              onClick={() => handleOutfitChange(item.name)}
-                             className="flex-shrink-0 w-32 h-44 !rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group hover:bg-white/15 transition-all duration-300 hover:-translate-y-1 relative border border-white/20"
+                             className={`flex-shrink-0 w-32 h-44 !rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative border ${panelClass}`}
                            >
                              {item.hasDot && <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-sm z-10 ring-2 ring-white/20 animate-pulse"></div>}
 
-                             <div className="w-full aspect-square rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 overflow-hidden relative">
+                             <div className={`w-full aspect-square rounded-xl flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 overflow-hidden relative ${isDark ? 'bg-white/10' : 'bg-slate-100/80'}`}>
                                 <img src={item.img} className="w-20 h-20 object-contain drop-shadow-lg transform group-hover:rotate-3 hover:scale-105 transition-all duration-500" alt={item.name} />
                              </div>
 
                              <div className="flex-1 flex flex-col items-center justify-center">
-                                <p className="font-bold text-xs text-gray-300">{item.name}</p>
-                                <p className="text-[10px] text-amber-400 font-bold opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all duration-300">点击装备</p>
+                                <p className={`font-bold text-xs ${secondaryTextClass}`}>{item.name}</p>
+                                <p className={`text-[10px] font-bold opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all duration-300 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>点击装备</p>
                              </div>
                           </GlassPanel>
                        ))}
 
                       <div
                          onClick={handleGetMoreOutfits}
-                         className="flex-shrink-0 w-32 h-44 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-amber-500/50 hover:bg-white/10 transition-all group active:scale-95"
+                         className={`flex-shrink-0 w-32 h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group active:scale-95 ${isDark ? 'border-white/20 hover:border-amber-500/50 hover:bg-white/10' : 'border-slate-300 hover:border-amber-500/60 hover:bg-white/70'}`}
                       >
-                         <div className="w-12 h-12 rounded-full bg-white/10 group-hover:bg-white/20 group-hover:text-amber-400 flex items-center justify-center text-gray-500 transition-colors duration-300">
+                         <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-300 ${isDark ? 'bg-white/10 group-hover:bg-white/20 group-hover:text-amber-400 text-gray-500' : 'bg-white/80 group-hover:bg-white group-hover:text-amber-700 text-slate-500'}`}>
                             <Plus size={22} />
                          </div>
-                         <span className="text-xs font-bold text-gray-500 group-hover:text-amber-400 transition-colors">{t('profile.getMore')}</span>
+                         <span className={`text-xs font-bold transition-colors ${isDark ? 'text-gray-500 group-hover:text-amber-400' : 'text-slate-500 group-hover:text-amber-700'}`}>{t('profile.getMore')}</span>
                       </div>
                    </div>
                 </div>
 
                 {/* 外观与个性化 */}
                 <div className="w-full">
-                   <h3 className="text-lg font-bold text-white mb-3 pl-1">{t('profile.appearance')}</h3>
+                   <h3 className={`text-lg font-bold mb-3 pl-1 ${primaryTextClass}`}>{t('profile.appearance')}</h3>
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handleDarkModeToggle}
-                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Moon size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">{t('profile.darkMode')}</span>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>{t('profile.darkMode')}</span>
                          </div>
-                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${isDark ? 'bg-amber-500' : 'bg-white/10'}`}>
+                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${isDark ? 'bg-amber-500' : 'bg-slate-300'}`}>
                              <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isDark ? 'translate-x-5' : 'translate-x-0'}`}></div>
                          </div>
                       </GlassPanel>
 
                       <GlassPanel
                          onClick={handleLanguageChange}
-                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Globe size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">{t('profile.language')}</span>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>{t('profile.language')}</span>
                          </div>
-                         <div className="flex items-center gap-2 text-gray-500">
+                         <div className={`flex items-center gap-2 ${mutedTextClass}`}>
                             <span className="text-xs font-medium">{languageNames[i18n.language] || i18n.language}</span>
                             <ChevronRight size={16} />
                          </div>
@@ -321,32 +332,32 @@ const Profile: React.FC = () => {
                    </div>
 
                    {/* 通用设置 */}
-                   <h3 className="text-lg font-bold text-white mb-3 pl-1 mt-6">{t('profile.general')}</h3>
+                   <h3 className={`text-lg font-bold mb-3 pl-1 mt-6 ${primaryTextClass}`}>{t('profile.general')}</h3>
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handlePrivacyClick}
-                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Lock size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">{t('profile.privacy')}</span>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>{t('profile.privacy')}</span>
                          </div>
-                         <ChevronRight size={16} className="text-gray-500" />
+                         <ChevronRight size={16} className={mutedTextClass} />
                       </GlassPanel>
 
                       <GlassPanel
                          onClick={handleAboutClick}
-                         className="p-4 !rounded-xl flex items-center justify-between cursor-pointer group hover:bg-white/15 transition-all duration-300 active:scale-95 border border-white/20"
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
                                <Verified size={20} />
                             </div>
-                            <span className="font-bold text-sm text-gray-200">{t('profile.about')}</span>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>{t('profile.about')}</span>
                          </div>
-                          <div className="flex items-center gap-2 text-gray-500">
+                          <div className={`flex items-center gap-2 ${mutedTextClass}`}>
                             <span className="text-xs font-medium">v1.2.0</span>
                             <ChevronRight size={16} />
                           </div>
@@ -354,7 +365,11 @@ const Profile: React.FC = () => {
 
                       <button
                         onClick={handleLogout}
-                        className="mt-4 w-full bg-white/10 backdrop-blur-md border border-red-500/20 p-4 rounded-xl flex items-center justify-center gap-2 text-red-400 font-bold text-sm hover:bg-red-500/10 transition-colors active:scale-95 duration-200"
+                        className={`mt-4 w-full backdrop-blur-md border p-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 duration-200 ${
+                          isDark
+                            ? 'bg-white/10 border-red-500/20 text-red-400 hover:bg-red-500/10'
+                            : 'bg-white/75 border-red-200 text-red-600 hover:bg-red-50'
+                        }`}
                       >
                          <LogOut size={18} />
                          {t('profile.logout')}
