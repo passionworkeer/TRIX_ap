@@ -79,6 +79,20 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       clawbotChannelBridge.on('connected', async () => {
         setStatus('CONNECTED');
         setLastError(null);
+
+        // 连接后主动同步服务端配对状态，避免仅依赖本地缓存
+        try {
+          const pairing = await clawbotChannelBridge.checkPairingStatus();
+          if (pairing.paired) {
+            setPairingStatus('paired');
+            setDeviceId(pairing.deviceId || '');
+          } else {
+            setPairingStatus('idle');
+            setDeviceId('');
+          }
+        } catch (error) {
+          console.warn('[ClawbotChannel] 同步配对状态失败:', error);
+        }
       });
 
       clawbotChannelBridge.on('disconnected', () => {
@@ -209,7 +223,11 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     try {
       const result = await clawbotChannelBridge.pairWithToken(token);
       if (result.success) {
-        setPairingStatus('waiting_for_bot');
+        if (result.status === 'paired') {
+          setPairingStatus('paired');
+        } else {
+          setPairingStatus('waiting_for_bot');
+        }
         return true;
       }
       return false;

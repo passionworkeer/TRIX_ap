@@ -222,7 +222,7 @@ const ChatDetail: React.FC = () => {
 
   // 监听 Clawbot Channel 消息
   useEffect(() => {
-    if (!isClawbotConversation) return;
+    if (!isBotConversation) return;
 
     // 从 context 获取最新消息
     setMessages(clawbotMessages.map(msg => ({
@@ -237,21 +237,7 @@ const ChatDetail: React.FC = () => {
     return () => {
       // Cleanup
     };
-  }, [isClawbotConversation, clawbotMessages]);
-
-  // 监听 Nanobot 消息
-  useEffect(() => {
-    if (!isNanobotConversation) return;
-
-    setMessages(nanobotMessages.map(msg => ({
-      id: msg.msg_id || `nanobot-${msg.timestamp}`,
-      sender: 'bot',
-      text: msg.message,
-      timestamp: formatTime(new Date(msg.timestamp)),
-      messageType: msg.message_type === 'file' ? 'image' : msg.message_type || 'text',
-      mediaUri: msg.media_url
-    })));
-  }, [isNanobotConversation, nanobotMessages]);
+  }, [isBotConversation, clawbotMessages]);
 
   // 实时订阅新消息 - 防抖动标准写法
   useEffect(() => {
@@ -379,21 +365,12 @@ const ChatDetail: React.FC = () => {
         // 临时显示用户消息(乐观更新UI)
         setMessages(prev => [...prev, tempUserMessage]);
 
-        if (isClawbotConversation) {
-          // 使用 ClawbotChannelContext 发送消息
-          await clawbotSendMessage(
-            messageText,
-            hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
-            mediaData?.uri
-          );
-        } else {
-          // 使用 NanobotContext 发送消息
-          nanobotSendMessage(
-            messageText,
-            hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
-            mediaData?.uri
-          );
-        }
+        // 使用 ClawbotChannelContext 发送消息
+        await clawbotSendMessage(
+          messageText,
+          hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
+          mediaData?.uri
+        );
 
         // Message sent successfully
       } catch (error) {
@@ -521,17 +498,6 @@ const ChatDetail: React.FC = () => {
   const getStatusColor = () => {
     if (!isBotConversation) return 'bg-green-500';
 
-    if (isNanobotConversation) {
-      switch (nanobotStatus) {
-        case 'CONNECTED': return 'bg-green-500';
-        case 'CONNECTING':
-        case 'RECONNECTING': return 'bg-yellow-500 animate-pulse';
-        case 'ERROR': return 'bg-red-500';
-        case 'DISCONNECTED':
-        default: return 'bg-gray-400';
-      }
-    }
-
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
       case 'CONNECTING':
@@ -543,17 +509,6 @@ const ChatDetail: React.FC = () => {
   };
 
   const getStatusText = () => {
-    if (isNanobotConversation) {
-      switch (nanobotStatus) {
-        case 'CONNECTED': return 'Online';
-        case 'CONNECTING':
-        case 'RECONNECTING': return 'Connecting...';
-        case 'ERROR': return 'Error';
-        case 'DISCONNECTED':
-        default: return 'Offline';
-      }
-    }
-
     switch (status) {
       case 'CONNECTED': return 'Online';
       case 'CONNECTING':
@@ -632,7 +587,7 @@ const ChatDetail: React.FC = () => {
                   transition={{ duration: 0.15 }}
                   className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
                 >
-                  {isClawbotConversation && isPaired && (
+                  {isBotConversation && isPaired && (
                     <>
                       <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                         <p className="text-xs text-slate-500">Clawbot 配对管理</p>
@@ -663,7 +618,7 @@ const ChatDetail: React.FC = () => {
                     </div>
                   )}
 
-                  {isClawbotConversation && !isPaired && (
+                  {isBotConversation && !isPaired && (
                     <div className="px-4 py-3 text-slate-500 text-sm">
                       <p className="text-xs">当前未配对</p>
                       <p className="text-xs mt-1">请在 Clawbot 端发起配对</p>

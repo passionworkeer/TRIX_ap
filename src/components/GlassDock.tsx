@@ -7,7 +7,7 @@ export default function GlassDock() {
   const location = useLocation();
 
   const tabs = [
-    { id: "map", icon: Map, path: "/snapmap" },
+    { id: "map", icon: Map, path: "/map" },
     { id: "study", icon: BookOpen, path: "/study" },
     { id: "core", icon: Camera, path: "/", isCore: true },
     { id: "chat", icon: MessageSquare, path: "/chat" },
