@@ -7,6 +7,10 @@ import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useCamera } from '../hooks/useCamera';
 import { uploadFile } from '../services/uploadService';
+import {
+  PAIRING_REQUIRED_TOAST_MESSAGE,
+  PAIRING_REQUIRED_TOAST_OPTIONS
+} from '../utils/pairingToast';
 
 type SnapshotActionKey = 'identify' | 'extract_text' | 'study_points' | 'next_steps';
 
@@ -131,7 +135,7 @@ const Snapshot: React.FC = () => {
 
     const handleSendToClawbot = async () => {
     if (!isConnected || !isPaired) {
-      toast.error('请先完成 TRIX Bot 配对');
+      toast.error(PAIRING_REQUIRED_TOAST_MESSAGE, PAIRING_REQUIRED_TOAST_OPTIONS);
       navigate(AppRoutes.PAIRING);
       return;
     }

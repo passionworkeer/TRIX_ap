@@ -1,15 +1,15 @@
 /**
  * 隐私设置组件 - Privacy Settings
- * 管理用户的隐私和安全设置
+ * 管理用户的隐私与安全设置
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 
-interface PrivacySettings {
+interface PrivacySettingsState {
   allow_stranger_search: boolean;
   show_online_status: boolean;
   allow_study_invites: boolean;
@@ -21,6 +21,12 @@ interface PrivacySettingsProps {
   userId: string;
 }
 
+const DEFAULT_SETTINGS: PrivacySettingsState = {
+  allow_stranger_search: true,
+  show_online_status: true,
+  allow_study_invites: true,
+};
+
 export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
   isOpen,
   onClose,
@@ -29,30 +35,85 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<PrivacySettings>({
-    allow_stranger_search: true,
-    show_online_status: true,
-    allow_study_invites: true
-  });
+  const [settings, setSettings] = useState<PrivacySettingsState>(DEFAULT_SETTINGS);
 
-  // 加载设置
-  useEffect(() => {
-    if (isOpen && userId) {
-      loadSettings();
+  const settingItems = useMemo(() => ([
+    {
+      key: 'allow_stranger_search' as const,
+      title: '允许陌生人搜索',
+      description: '其他人可通过邮箱或用户名找到你',
+      icon: UserCheck,
+      activeClass: 'bg-cyan-500',
+      iconBgClass: 'bg-cyan-500'
+    },
+    {
+      key: 'show_online_status' as const,
+      title: '显示在线状态',
+      description: '好友可以看到你是否在线',
+      icon: Eye,
+      activeClass: 'bg-emerald-500',
+      iconBgClass: 'bg-emerald-500'
+    },
+    {
+      key: 'allow_study_invites' as const,
+      title: '允许学习邀请',
+      description: '好友可以邀请你一起学习',
+      icon: AlertCircle,
+      activeClass: 'bg-indigo-500',
+      iconBgClass: 'bg-indigo-500'
     }
+  ]), []);
+
+  useEffect(() => {
+    if (!isOpen || !userId) {
+      return;
+    }
+
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            await createDefaultSettings();
+            setSettings(DEFAULT_SETTINGS);
+            return;
+          }
+          throw error;
+        }
+
+        if (data) {
+          setSettings({
+            allow_stranger_search: Boolean(data.allow_stranger_search),
+            show_online_status: Boolean(data.show_online_status),
+            allow_study_invites: Boolean(data.allow_study_invites)
+          });
+        }
+      } catch (error: any) {
+        console.error('加载设置失败:', error);
+        toast.error('加载设置失败，请重试');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadSettings();
   }, [isOpen, userId]);
 
-  // 自动聚焦关闭按钮
   useEffect(() => {
     if (isOpen && closeButtonRef.current) {
       closeButtonRef.current.focus();
     }
   }, [isOpen]);
 
-  // ESC 键关闭
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
         onClose();
       }
     };
@@ -61,62 +122,36 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        // 如果记录不存在，创建默认设置
-        if (error.code === 'PGRST116') {
-          await createDefaultSettings();
-        } else {
-          throw error;
-        }
-      } else if (data) {
-        setSettings({
-          allow_stranger_search: data.allow_stranger_search,
-          show_online_status: data.show_online_status,
-          allow_study_invites: data.allow_study_invites
-        });
-      }
-    } catch (error: any) {
-      console.error('加载设置失败:', error);
-      toast.error('加载设置失败，请重试');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const createDefaultSettings = async () => {
     try {
       const { error } = await supabase
         .from('user_settings')
         .insert({
           user_id: userId,
-          allow_stranger_search: true,
-          show_online_status: true,
-          allow_study_invites: true
+          ...DEFAULT_SETTINGS
         });
 
-      if (error) throw error;
-    } catch (error: any) {
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
       console.error('创建默认设置失败:', error);
     }
   };
 
-  const handleToggle = (key: keyof PrivacySettings) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
+  const handleToggle = (key: keyof PrivacySettingsState) => {
+    setSettings(previous => ({
+      ...previous,
+      [key]: !previous[key],
     }));
   };
 
   const handleSave = async () => {
+    if (!userId) {
+      toast.error('用户信息无效，请重新登录');
+      return;
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase
@@ -126,7 +161,9 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
           ...settings
         });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast.success('设置已保存');
       onClose();
@@ -142,41 +179,40 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* 背景遮罩 */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
             onClick={onClose}
           />
 
-          {/* 对话框 */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', duration: 0.3 }}
-              className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
             >
-              {/* 顶部标题栏 */}
-              <div className="bg-gradient-to-br from-amber-400 to-yellow-500 p-6 text-white">
-                <div className="flex justify-between items-start">
+              <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 px-6 py-5 text-white dark:from-slate-800 dark:via-slate-900 dark:to-black">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
                       <Lock size={20} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">隐私与安全</h2>
-                      <p className="text-white/90 text-sm">管理你的隐私设置</p>
+                      <h2 className="text-lg font-bold">隐私与安全</h2>
+                      <p className="text-sm text-white/80">管理你的隐私设置</p>
                     </div>
                   </div>
+
                   <button
                     ref={closeButtonRef}
+                    type="button"
                     onClick={onClose}
-                    className="text-white/80 hover:text-white transition-colors"
+                    className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                     aria-label="关闭"
                   >
                     <X size={20} />
@@ -184,114 +220,60 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
                 </div>
               </div>
 
-              {/* 内容区域 */}
               <div className="p-6">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700 dark:border-slate-700 dark:border-t-slate-200" />
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* 允许陌生人查找 */}
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
-                          <UserCheck size={18} className="text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200">
-                            允许陌生人查找
-                          </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                            其他人可以通过邮箱或用户名找到你
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleToggle('allow_stranger_search')}
-                        className={`relative w-12 h-7 rounded-full p-1 transition-colors ${
-                          settings.allow_stranger_search ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
-                        }`}
-                      >
-                        <div
-                          className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${
-                            settings.allow_stranger_search ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
+                    {settingItems.map((item) => {
+                      const Icon = item.icon;
+                      const enabled = settings[item.key];
 
-                    {/* 显示在线状态 */}
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
-                          <Eye size={18} className="text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200">
-                            显示在线状态
-                          </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                            好友可以看到你是否在线
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleToggle('show_online_status')}
-                        className={`relative w-12 h-7 rounded-full p-1 transition-colors ${
-                          settings.show_online_status ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
-                        }`}
-                      >
+                      return (
                         <div
-                          className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${
-                            settings.show_online_status ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
+                          key={item.key}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70"
+                        >
+                          <div className="flex flex-1 items-center gap-3">
+                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-white ${item.iconBgClass}`}>
+                              <Icon size={18} />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.title}</h4>
+                              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{item.description}</p>
+                            </div>
+                          </div>
 
-                    {/* 允许学习邀请 */}
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
-                          <AlertCircle size={18} className="text-white" />
+                          <button
+                            type="button"
+                            aria-label={item.title}
+                            onClick={() => handleToggle(item.key)}
+                            className={`relative h-7 w-12 rounded-full p-1 transition-colors ${enabled ? item.activeClass : 'bg-slate-300 dark:bg-slate-600'}`}
+                          >
+                            <div
+                              className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                            />
+                          </button>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200">
-                            允许学习邀请
-                          </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                            好友可以邀请你一起自习
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleToggle('allow_study_invites')}
-                        className={`relative w-12 h-7 rounded-full p-1 transition-colors ${
-                          settings.allow_study_invites ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'
-                        }`}
-                      >
-                        <div
-                          className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${
-                            settings.allow_study_invites ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
+                      );
+                    })}
 
-                    {/* 保存按钮 */}
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap-3 pt-2">
                       <button
+                        type="button"
                         onClick={onClose}
-                        className="flex-1 px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold rounded-2xl transition-colors disabled:opacity-50"
                         disabled={saving}
+                        className="flex-1 rounded-2xl bg-slate-200 px-5 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-300 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                       >
                         取消
                       </button>
                       <button
+                        type="button"
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white font-semibold rounded-2xl transition-colors disabled:opacity-50 shadow-lg shadow-amber-500/30"
+                        className="flex-1 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-500 px-5 py-3 font-semibold text-white shadow-lg shadow-cyan-500/25 transition-colors hover:from-cyan-600 hover:to-indigo-600 disabled:opacity-50"
                       >
                         {saving ? '保存中...' : '保存'}
                       </button>
