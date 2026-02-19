@@ -19,6 +19,7 @@ import Pairing from './screens/Pairing';
 import QRCodePairing from './screens/QRCodePairing';
 import MapScreen from './screens/Map';
 import SnapMapScreen from './screens/SnapMapScreen';
+import TokenMonitor from './screens/TokenMonitor';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -178,6 +179,11 @@ function AppContent() {
              <Route path="/snapmap" element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
              <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
+             <Route path={AppRoutes.TOKEN_MONITOR} element={
+               <ProtectedRoute>
+                 <TokenMonitor />
+               </ProtectedRoute>
+             } />
            </Routes>
         </div>
         
