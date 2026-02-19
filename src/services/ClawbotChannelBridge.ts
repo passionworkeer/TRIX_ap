@@ -8,6 +8,7 @@
 import { io, Socket } from 'socket.io-client';
 import ossService from './OSSService';
 import { supabase } from '../config/supabase';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 
 // ✅ #8: 使用 UUID 生成唯一消息 ID
 function generateMessageId(): string {
@@ -30,6 +31,8 @@ export interface PairingData {
 }
 
 type EventCallback = (data: any) => void;
+
+export const CHANNEL_PROTOCOL_MISMATCH = 'CHANNEL_PROTOCOL_MISMATCH';
 
 class ClawbotChannelBridge {
   private socket: Socket | null = null;
@@ -155,7 +158,8 @@ class ClawbotChannelBridge {
       this.deviceId = localStorage.getItem('clawbot_device_id');
     }
 
-    const serverUrl = import.meta.env.VITE_CLAWBOT_CHANNEL_URL || 'wss://m.jmtrick.com';
+    const { channelUrl } = getClawbotEndpoints();
+    const serverUrl = channelUrl;
 
     this.emit('connecting');
 
@@ -179,21 +183,7 @@ class ClawbotChannelBridge {
 
     // 连接成功
     this.socket.on('connect', () => {
-      this.connected = true;
-      this.reconnectAttempts = 0;
-      this.startHeartbeat();
-
-      // 防抖机制，避免重复注册
-      if (this.registerTimeout) {
-        clearTimeout(this.registerTimeout);
-      }
-      this.registerTimeout = setTimeout(() => {
-        if (this.userId) {
-          this.socket?.emit('app_register', { userId: this.userId });
-        }
-      }, 100); // 100ms 防抖
-
-      this.emit('connected');
+      void this.handleConnected();
     });
 
     // 断开连接
@@ -252,7 +242,7 @@ class ClawbotChannelBridge {
     // 错误
     this.socket.on('error', (err: any) => {
       console.error('[ClawbotChannel] 错误:', err);
-      this.emit('error', { message: err.message || '连接错误' });
+      this.emit('error', this.toErrorPayload(err, '连接错误'));
     });
 
     // 连接错误
@@ -261,6 +251,106 @@ class ClawbotChannelBridge {
       this.reconnectAttempts++;
       this.emit('reconnecting', { attempt: this.reconnectAttempts });
     });
+  }
+
+  private toErrorPayload(error: any, fallbackMessage: string): { code?: string; message: string } {
+    if (error && typeof error === 'object') {
+      return {
+        code: error.code,
+        message: error.message || fallbackMessage
+      };
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+      return { message: error };
+    }
+
+    return { message: fallbackMessage };
+  }
+
+  private wait(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  private probePairingStatusAck(timeoutMs: number = 3000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.userId) {
+        reject({
+          code: CHANNEL_PROTOCOL_MISMATCH,
+          message: 'Channel protocol probe failed: missing socket or user.'
+        });
+        return;
+      }
+
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        reject({
+          code: CHANNEL_PROTOCOL_MISMATCH,
+          message: 'Channel protocol probe timed out: check_pairing_status ACK was not returned.'
+        });
+      }, timeoutMs);
+
+      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: any) => {
+        if (settled) {
+          return;
+        }
+
+        clearTimeout(timeout);
+        settled = true;
+
+        const hasExpectedShape = Boolean(
+          response &&
+          typeof response === 'object' &&
+          (Object.prototype.hasOwnProperty.call(response, 'success') ||
+            Object.prototype.hasOwnProperty.call(response, 'paired'))
+        );
+
+        if (!hasExpectedShape) {
+          reject({
+            code: CHANNEL_PROTOCOL_MISMATCH,
+            message: 'Channel protocol probe failed: ACK payload format is invalid.'
+          });
+          return;
+        }
+
+        resolve();
+      });
+    });
+  }
+
+  private async handleConnected(): Promise<void> {
+    this.connected = true;
+    this.reconnectAttempts = 0;
+    this.startHeartbeat();
+
+    if (this.registerTimeout) {
+      clearTimeout(this.registerTimeout);
+    }
+
+    this.registerTimeout = setTimeout(() => {
+      if (this.userId) {
+        this.socket?.emit('app_register', { userId: this.userId });
+      }
+    }, 100);
+
+    try {
+      // Wait briefly to ensure app_register is flushed before probing protocol capability.
+      await this.wait(150);
+      await this.probePairingStatusAck(3000);
+      this.emit('connected');
+    } catch (error: any) {
+      this.connected = false;
+      this.stopHeartbeat();
+      this.emit('error', this.toErrorPayload(error, 'Channel protocol mismatch'));
+      this.socket?.disconnect();
+    }
   }
 
   // ❌ 已删除: requestPairing() 方法
