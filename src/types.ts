@@ -14,6 +14,7 @@ export enum AppRoutes {
   PROFILE_VIEW = '/profile/:userId',      // 动态路由：查看其他用户主页
   SETTINGS = '/profile/settings',
   PAIRING = '/pairing',
+  NANOBOT_PAIRING = '/nanobot-pairing',
   QR_PAIRING = '/qr-pairing',  // 🔗 二维码配对页面
   DIAGNOSTIC = '/diagnostic',  // 🔧 诊断页面
   DIAGNOSTIC_ADV = '/diagnostic-advanced',  // 🔧 高级诊断

@@ -14,6 +14,7 @@ import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, mar
 import { uploadFile } from '../services/uploadService';
 import { supabase } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { useNanobot } from '../contexts/NanobotContext';
 import type { ChatMessage } from '../config/supabase';
 
 // UI Message interface
@@ -60,10 +61,13 @@ const ChatDetail: React.FC = () => {
   });
 
   const { name, avatar, isBot, friendId, photoUri } = friendData;
+  const isClawbotConversation = friendId === 'clawbot' || friendId === 'clawbot_channel';
+  const isNanobotConversation = friendId === 'nanobot';
+  const isBotConversation = isClawbotConversation || isNanobotConversation;
 
   // 如果有 URL 参数且不是 state，从数据库加载好友信息
   useEffect(() => {
-    if (urlFriendId && !stateData.name) {
+    if (urlFriendId && !stateData.name && !['clawbot', 'clawbot_channel', 'nanobot'].includes(urlFriendId)) {
       loadFriendData(urlFriendId);
     }
   }, [urlFriendId]);
@@ -99,6 +103,11 @@ const ChatDetail: React.FC = () => {
 
   // Clawbot Channel connection
   const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
+  const {
+    messages: nanobotMessages,
+    sendMessage: nanobotSendMessage,
+    status: nanobotStatus
+  } = useNanobot();
 
   // 菜单显示状态
   const [showMenu, setShowMenu] = useState(false);
@@ -180,8 +189,8 @@ const ChatDetail: React.FC = () => {
   // 加载聊天历史
   useEffect(() => {
     const loadChatHistory = async () => {
-      // 特殊处理：Clawbot Channel 不从数据库加载历史，直接监听消息
-      if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
+      // 特殊处理：机器人会话不从数据库加载历史，直接监听消息通道
+      if (isBotConversation) {
         setLoading(false);
         return;
       }
@@ -217,11 +226,11 @@ const ChatDetail: React.FC = () => {
     };
 
     loadChatHistory();
-  }, [friendId]);
+  }, [friendId, isBotConversation]);
 
   // 监听 Clawbot Channel 消息
   useEffect(() => {
-    if (friendId !== 'clawbot' && friendId !== 'clawbot_channel') return;
+    if (!isClawbotConversation) return;
 
     // 从 context 获取最新消息
     setMessages(clawbotMessages.map(msg => ({
@@ -236,7 +245,21 @@ const ChatDetail: React.FC = () => {
     return () => {
       // Cleanup
     };
-  }, [friendId, clawbotMessages]);
+  }, [isClawbotConversation, clawbotMessages]);
+
+  // 监听 Nanobot 消息
+  useEffect(() => {
+    if (!isNanobotConversation) return;
+
+    setMessages(nanobotMessages.map(msg => ({
+      id: msg.msg_id || `nanobot-${msg.timestamp}`,
+      sender: 'bot',
+      text: msg.message,
+      timestamp: formatTime(new Date(msg.timestamp)),
+      messageType: msg.message_type === 'file' ? 'image' : msg.message_type || 'text',
+      mediaUri: msg.media_url
+    })));
+  }, [isNanobotConversation, nanobotMessages]);
 
   // 实时订阅新消息 - 防抖动标准写法
   useEffect(() => {
@@ -344,37 +367,45 @@ const ChatDetail: React.FC = () => {
     // 从 attachmentPreviews 获取媒体数据（使用第一个）
     const mediaData = hasMedia ? attachmentPreviews[0] : null;
 
-    // ✨ 特殊处理：Clawbot Channel 使用 ClawbotChannelContext，不保存到 Supabase
-    if (friendId === 'clawbot' || friendId === 'clawbot_channel') {
+    // ✨ 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
+    if (isBotConversation) {
+      const tempUserMessage: UIMessage = {
+        id: `temp-${Date.now()}`,
+        sender: 'user',
+        text: messageText,
+        timestamp: formatTime(new Date()),
+        messageType: hasMedia ? 'mixed' : 'text',
+        mediaUri: mediaData?.uri,
+        mediaType: mediaData?.type
+      };
+
       try {
         // 清空输入
         setInput('');
         setAttachmentPreviews([]);
 
-        const timeString = formatTime(new Date());
-
         // 临时显示用户消息(乐观更新UI)
-        const tempUserMessage: UIMessage = {
-          id: `temp-${Date.now()}`,
-          sender: 'user',
-          text: messageText,
-          timestamp: timeString,
-          messageType: hasMedia ? 'mixed' : 'text',
-          mediaUri: mediaData?.uri,
-          mediaType: mediaData?.type
-        };
         setMessages(prev => [...prev, tempUserMessage]);
 
-        // 使用 ClawbotChannelContext 发送消息
-        await clawbotSendMessage(
-          messageText,
-          hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
-          mediaData?.uri
-        );
+        if (isClawbotConversation) {
+          // 使用 ClawbotChannelContext 发送消息
+          await clawbotSendMessage(
+            messageText,
+            hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
+            mediaData?.uri
+          );
+        } else {
+          // 使用 NanobotContext 发送消息
+          nanobotSendMessage(
+            messageText,
+            hasMedia && mediaData?.type ? (mediaData.type as 'text' | 'image' | 'video' | 'file') : 'text',
+            mediaData?.uri
+          );
+        }
 
         // Message sent successfully
       } catch (error) {
-        console.error('Clawbot Channel 发送消息失败:', error);
+        console.error('Bot 消息发送失败:', error);
         showError('发送失败，请重试');
 
         // 发送失败，移除临时消息
@@ -452,25 +483,6 @@ const ChatDetail: React.FC = () => {
       showError('发送消息失败,请检查网络连接');
     }
 
-    // Handle Bot Logic (仅用于 Bot 聊天，暂不支持媒体)
-    if (isBot && !hasMedia) {
-      if (isPaired) {
-        try {
-          await clawbotSendMessage(messageText);
-          // Message sent successfully
-        } catch (error) {
-          console.error('Clawbot Channel 发送消息失败:', error);
-          showError('发送失败，请重试');
-          // 发送失败，移除临时消息
-          setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
-        }
-      } else {
-        // Bot 未配对，提示用户先配对
-        showError('请先配对 Clawbot 设备');
-        // 移除临时消息
-        setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
-      }
-    }
     // 对于好友聊天,好友的回复会通过实时订阅自动显示
   };
 
@@ -515,7 +527,19 @@ const ChatDetail: React.FC = () => {
   };
 
   const getStatusColor = () => {
-    if (!isBot) return 'bg-green-500';
+    if (!isBotConversation) return 'bg-green-500';
+
+    if (isNanobotConversation) {
+      switch (nanobotStatus) {
+        case 'CONNECTED': return 'bg-green-500';
+        case 'CONNECTING':
+        case 'RECONNECTING': return 'bg-yellow-500 animate-pulse';
+        case 'ERROR': return 'bg-red-500';
+        case 'DISCONNECTED':
+        default: return 'bg-gray-400';
+      }
+    }
+
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
       case 'CONNECTING':
@@ -527,6 +551,17 @@ const ChatDetail: React.FC = () => {
   };
 
   const getStatusText = () => {
+    if (isNanobotConversation) {
+      switch (nanobotStatus) {
+        case 'CONNECTED': return 'Online';
+        case 'CONNECTING':
+        case 'RECONNECTING': return 'Connecting...';
+        case 'ERROR': return 'Error';
+        case 'DISCONNECTED':
+        default: return 'Offline';
+      }
+    }
+
     switch (status) {
       case 'CONNECTED': return 'Online';
       case 'CONNECTING':
@@ -605,7 +640,7 @@ const ChatDetail: React.FC = () => {
                   transition={{ duration: 0.15 }}
                   className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
                 >
-                  {isBot && isPaired && (
+                  {isClawbotConversation && isPaired && (
                     <>
                       <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                         <p className="text-xs text-slate-500">Clawbot 配对管理</p>
@@ -636,7 +671,7 @@ const ChatDetail: React.FC = () => {
                     </div>
                   )}
 
-                  {!isPaired && isBot && (
+                  {isClawbotConversation && !isPaired && (
                     <div className="px-4 py-3 text-slate-500 text-sm">
                       <p className="text-xs">当前未配对</p>
                       <p className="text-xs mt-1">请在 Clawbot 端发起配对</p>

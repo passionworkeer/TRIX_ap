@@ -15,8 +15,8 @@ export default function DiagnosticAdvanced() {
     setTestResult("testing");
     log(" 开始直接 WebSocket 测试...");
     
-    const wsUrl = import.meta.env.VITE_PC_WEBSOCKET_URL || "ws://localhost:18789";
-    const authToken = import.meta.env.VITE_PC_AUTH_TOKEN || "";
+    const wsUrl = import.meta.env.VITE_GATEWAY_WS_URL || import.meta.env.VITE_PC_WEBSOCKET_URL || "ws://localhost:18789";
+    const authToken = import.meta.env.VITE_GATEWAY_AUTH_TOKEN || import.meta.env.VITE_PC_AUTH_TOKEN || "";
     
     log(` 目标: ${wsUrl}`);
     log("");
@@ -39,11 +39,12 @@ export default function DiagnosticAdvanced() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          log(` 收到: ${data.event || data.type}`);
-          if (data.event === "connect.challenge") {
+          const messageType = data.event || data.type;
+          log(` 收到: ${messageType}`);
+          if (messageType === "connect.challenge") {
             const response = {
               type: "req",
-              id: data.payload.nonce,
+              id: data?.payload?.nonce || "diag-connect",
               method: "connect",
               params: {
                 minProtocol: 3,

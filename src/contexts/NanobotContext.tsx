@@ -38,9 +38,13 @@ const NanobotContext = createContext<NanobotContextType | undefined>(undefined);
 
 interface NanobotProviderProps {
   children: ReactNode;
+  autoReconnect?: boolean;
 }
 
-export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) => {
+export const NanobotProvider: React.FC<NanobotProviderProps> = ({
+  children,
+  autoReconnect = false
+}) => {
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [messages, setMessages] = useState<NanobotMessage[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -54,12 +58,14 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
     const savedCode = localStorage.getItem('nanobot_pairing_code');
     if (savedCode) {
       pairingCodeRef.current = savedCode;
-      // 自动连接
-      setTimeout(() => {
-        if (isMounted) {
-          connect(savedCode);
-        }
-      }, 1000);
+      if (autoReconnect) {
+        // 自动连接
+        setTimeout(() => {
+          if (isMounted) {
+            connect(savedCode);
+          }
+        }, 1000);
+      }
     }
 
     // 监听 Nanobot Bridge 事件
@@ -111,9 +117,14 @@ export const NanobotProvider: React.FC<NanobotProviderProps> = ({ children }) =>
 
     return () => {
       isMounted = false;
-      nanobotBridge.removeAllListeners();
+      nanobotBridge.off('connected', handleConnected);
+      nanobotBridge.off('disconnected', handleDisconnected);
+      nanobotBridge.off('reconnecting', handleReconnecting);
+      nanobotBridge.off('reconnected', handleReconnected);
+      nanobotBridge.off('message', handleMessage);
+      nanobotBridge.off('error', handleError);
     };
-  }, []);
+  }, [autoReconnect]);
 
   const connect = (code?: string) => {
     if (code) {
