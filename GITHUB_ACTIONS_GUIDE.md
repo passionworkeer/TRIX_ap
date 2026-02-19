@@ -1,61 +1,53 @@
-# 🚀 GitHub Actions 全自动部署指南
+# GitHub Actions 全自动部署指南
 
 ## ✅ 已完成的配置
 
 GitHub Actions 自动部署已经配置完成！
 
-### 📦 工作流程文件
-- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) - 自动部署工作流
+### 📋 服务器配置状态
 
-## 🔧 需要手动配置的步骤
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| SSH 密钥 | ✅ 已配置 | `github-actions` 密钥已存在 |
+| Git | ✅ 已安装 | `git version 2.25.1` |
+| Nginx | ✅ 运行中 | Web 目录已配置 |
 
-### 步骤 1：配置 GitHub Secrets
+## 🚀 配置 GitHub Secrets（只需一次）
 
-访问：https://github.com/meowdoone/TRIX_ap/settings/secrets/actions
+SSH 密钥已经配置完成，但还需要在 GitHub 上添加 `SSH_PRIVATE_KEY` Secret。
 
-添加以下 Secrets：
-
-| Secret 名称 | 值 |
-|------------|-----|
-| `SERVER_HOST` | `47.243.55.130` |
-| `SERVER_USER` | `root` |
-| `SSH_PRIVATE_KEY` | 见步骤 2 |
-| `VITE_SUPABASE_URL` | `https://hmbukjvrbyhbuqumqdug.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `eyJhbGci...` (完整密钥) |
-
-### 步骤 2：生成 SSH 密钥对
+### 步骤 1：获取私钥内容
 
 **Windows 用户：**
 ```bash
-# 运行配置脚本
-setup-auto-deploy.bat
+type %USERPROFILE%\.ssh\github_actions
 ```
 
 **Linux/Mac 用户：**
 ```bash
-# 生成密钥对
-ssh-keygen -t rsa -b 4096 -C "github-actions" -f ~/.ssh/github_actions
-
-# 上传公钥到服务器
-ssh-copy-id -i ~/.ssh/github_actions.pub root@47.243.55.130
-```
-
-**获取私钥：**
-```bash
-# Windows
-type %USERPROFILE%\.ssh\github_actions
-
-# Linux/Mac
 cat ~/.ssh/github_actions
 ```
 
-复制整个输出（包括 `-----BEGIN` 和 `-----END` 行）到 `SSH_PRIVATE_KEY` Secret。
+### 步骤 2：添加到 GitHub Secrets
+
+1. 访问：https://github.com/meowdoone/TRIX_ap/settings/secrets/actions
+2. 点击 "New repository secret"
+3. 填写以下内容：
+   - **Name**: `SSH_PRIVATE_KEY`
+   - **Value**: 粘贴步骤 1 中获取的完整私钥内容（包括 BEGIN 和 END 行）
+
+### ⚠️ 也可以跳过配置（测试阶段）
+
+如果只是测试，可以暂时使用手动脚本部署：
+- **Windows**: 双击运行 [deploy.bat](deploy.bat)
+- **Linux/Mac**: 运行 `./deploy.sh`
 
 ## 🎯 使用方法
 
 配置完成后，**每次推送代码**就会自动部署：
 
 ```bash
+# 修改代码
 git add .
 git commit -m "your message"
 git push origin feature-nanobot-integration
@@ -72,32 +64,44 @@ GitHub Actions 会自动：
 ### 查看部署状态
 访问：https://github.com/meowdoone/TRIX_ap/actions
 
-### 部署时间
-- ⏱️ 通常需要 2-3 分钟
-- 🔄 构建时间：~30 秒
-- 📤 部署时间：~10 秒
-
-### 部署日志
+### 查看部署日志
 点击具体的 workflow run 可以查看详细日志。
 
-## 🆘 故障排查
+### 部署时间
+- ⏱️️ 构建时间：~30 秒
+- ⏱️️ 部署时间：~10 秒
+- 🔄 总计：~40 秒
+
+## 🔧 故障排查
 
 ### 部署失败？
 
-1. **检查 Secrets**
-   - 访问仓库设置页面
-   - 确认所有 Secrets 都已正确配置
+1. **检查 GitHub Secrets**
+   - 确认所有 4 个 Secrets 都已配置：
+     - `SERVER_HOST`
+     - `SERVER_USER`
+     - `SSH_PRIVATE_KEY`
+     - `VITE_SUPABASE_URL`
+     - `VITE_SUPABASE_ANON_KEY`
 
-2. **检查 SSH 密钥**
+2. **检查服务器连接**
    ```bash
-   # 测试 SSH 连接
-   ssh -i ~/.ssh/github_actions root@47.243.55.130
+   ssh root@47.243.55.130
    ```
 
 3. **查看 Actions 日志**
-   - 访问 Actions 页面
+   - 访问 GitHub Actions 页面
    - 点击失败的 workflow
    - 查看详细错误信息
+
+4. **手动回滚**
+   ```bash
+   ssh root@47.243.55.130
+   cd /var/www/html
+   rm -rf *
+   cp -r ../html-backup/*
+   systemctl reload nginx
+   ```
 
 ### 手动触发部署
 
@@ -109,36 +113,58 @@ git commit --allow-empty -m "trigger deploy"
 git push origin feature-nanobot-integration
 ```
 
-## 🔄 回滚部署
+## 📝 快速参考
 
-如果新版本有问题，可以快速回滚：
-
+### 常用 Git 命令
 ```bash
-ssh root@47.243.55.130
-cd /var/www/html
-rm -rf *
-cp -r ../html-backup/* .
-systemctl reload nginx
+# 查看状态
+git status
+
+# 查看最新提交
+git log -1
+
+# 推送到 GitHub
+git push origin feature-nanobot-integration
+
+# 查看远程状态
+git remote -v
 ```
 
-## 📋 与手动部署的对比
+### 服务器命令
+```bash
+# 查看部署文件
+ssh root@47.243.55.130 "ls -la /var/www/html"
 
-| 方式 | 优点 | 缺点 |
-|------|------|------|
-| **GitHub Actions** | 全自动，推送即部署，有日志 | 需要 2-3 分钟，需要配置 Secrets |
-| **手动脚本** (`deploy.bat`) | 快速（30 秒），无需配置 | 需要手动运行 |
+# 查看后端服务
+ssh root@47.243.55.130 "pm2 list"
 
-两种方式都已配置好，你可以根据需要选择使用！
+# 查看 Nginx 状态
+ssh root@47.243.55.130 "systemctl status nginx"
 
-## 🎉 配置完成清单
+# 查看 Nginx 日志
+ssh root@47.243.55.130 "tail -f /var/log/nginx/error.log"
+```
 
-- [x] GitHub Actions workflow 文件已创建
-- [x] 工作流已推送到 GitHub
-- [ ] GitHub Secrets 已配置（需要手动完成）
-- [ ] SSH 密钥已生成并上传（需要手动完成）
+### 测试部署
+```bash
+# 测试前端访问
+curl -I http://47.243.55.130
 
-完成以上所有步骤后，就可以实现**全自动部署**了！
+# 测试后端 API
+curl http://47.243.55.130:8765/health
+
+# 测试 Git 仓库
+ssh root@47.243.55.130 "cd /opt/trix-3d-companion && git log -1"
+```
+
+## 🎉 完成步骤总结
+
+1. ✅ 服务器 SSH 密钥已配置
+2. ✅ Git 已安装并初始化
+3. ✅ GitHub Actions workflow 已创建
+4. ⚠️  需要手动配置 GitHub Secrets（一次性）
+5. ⚠️  配置后即可实现全自动部署
 
 ---
 
-**需要帮助？** 查看 [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) 或联系我。
+**需要帮助？** 查看详细部署文档或联系我。

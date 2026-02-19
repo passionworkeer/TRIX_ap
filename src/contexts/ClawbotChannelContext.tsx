@@ -4,7 +4,10 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import clawbotChannelBridge, { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
+import clawbotChannelBridge, {
+  ClawbotChannelMessage,
+  CHANNEL_PROTOCOL_MISMATCH
+} from '../services/ClawbotChannelBridge';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 
@@ -53,6 +56,17 @@ interface ClawbotChannelProviderProps {
   children: ReactNode;
 }
 
+const CHANNEL_PROTOCOL_MISMATCH_MESSAGE =
+  '当前 8765 服务不是 Clawbot Channel 服务，请启动 server/clawbot-channel/server.js';
+
+const resolveChannelErrorMessage = (error: any): string => {
+  if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
+    return CHANNEL_PROTOCOL_MISMATCH_MESSAGE;
+  }
+
+  return error?.message || '连接错误';
+};
+
 export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
@@ -92,6 +106,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
           }
         } catch (error) {
           console.warn('[ClawbotChannel] 同步配对状态失败:', error);
+          const message = resolveChannelErrorMessage(error);
+          setLastError(message);
         }
       });
 
@@ -136,8 +152,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
       clawbotChannelBridge.on('error', (error: any) => {
         console.error('[ClawbotChannel] 错误:', error);
+        const message = resolveChannelErrorMessage(error);
         setStatus('ERROR');
-        setLastError(error.message || '连接错误');
+        setLastError(message);
+        if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
+          toast.error(message, { id: 'channel_protocol_mismatch' });
+        }
       });
     };
 
@@ -146,7 +166,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     // 连接到服务器
     clawbotChannelBridge.connect().catch(err => {
       console.error('[ClawbotChannel] 连接失败:', err);
-      setLastError(err.message || '连接失败');
+      setLastError(resolveChannelErrorMessage(err));
     });
 
     return () => {

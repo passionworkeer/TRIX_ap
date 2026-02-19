@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import {
   PairingRequest,
   PairingResponse,
@@ -47,14 +48,15 @@ class ClawbotPairingService {
   private static readonly DEFAULT_NGROK_TOKEN = 'f5a90456ca2531d1d227c95bba997726c5f139bcb5b798d6';
 
   constructor(options?: PairingServiceOptions) {
+    const endpoints = getClawbotEndpoints();
+
     // 从环境变量或选项读取 Gateway 配置
     this.gatewayUrl = options?.gatewayUrl
-      || import.meta.env.VITE_CLAWBOT_GATEWAY_URL
-      || 'ws://localhost:18789';
+      || endpoints.gatewayUrl;
 
     // 优先使用传入的 token，其次环境变量，最后默认 ngrok token
     this.authToken = options?.authToken
-      || import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN
+      || endpoints.gatewayToken
       || ClawbotPairingService.DEFAULT_NGROK_TOKEN;
 
     this.pollInterval = options?.pollInterval || 2000;

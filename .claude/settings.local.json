@@ -1,141 +1,81 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(wc:*)",
-      "Bash(npm run dev)",
-      "Bash(python:*)",
-      "Bash(where claude)",
-      "Bash(dir:*)",
-      "Bash(timeout 10 tail:*)",
-      "Bash(timeout 15 cat:*)",
-      "Bash(npx tsc:*)",
-      "Bash(git add:*)",
-      "Bash(ls:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 添加轻量级服务器部署方案\n\n针对2GB内存服务器优化的完整部署方案：\n- 优化 Vite 构建配置（代码分割、Gzip压缩、移除console）\n- 添加 Nginx 配置（超轻量级、内存占用约10-20MB）\n- 创建自动化部署脚本（Linux/Mac: deploy.sh, Windows: deploy.ps1）\n- 添加服务器初始化脚本（server-setup.sh）\n- 完整部署文档（DEPLOY.md）\n\n部署特点：\n- 前端构建优化，减小文件体积\n- Nginx 作为静态服务器，资源占用极低\n- 支持一键自动化部署\n- 包含 SSL 证书配置指南\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push:*)",
-      "Bash(ssh:*)",
-      "Bash(npm run build)",
-      "Bash(npm install)",
-      "Bash(npm vite:*)",
-      "Bash(git commit:*)",
-      "Bash(scp:*)",
-      "Bash(gh:*)",
-      "Bash(curl:*)",
-      "Bash(npm install:*)",
-      "WebFetch(domain:www.anthropic.com)",
-      "Bash(test:*)",
-      "Bash(timeout 5 bash:*)",
-      "Bash(taskkill:*)",
-      "Bash(set PORT=5173)",
-      "Bash(powershell:*)",
-      "Bash(git checkout:*)",
-      "Bash(npm create:*)",
-      "Bash(npx tailwindcss init:*)",
-      "Bash(pip install:*)",
-      "Bash(tasklist:*)",
-      "Bash(netstat:*)",
-      "Bash(start //B python web_interface_final.py)",
-      "Bash(findstr:*)",
-      "Bash(start //B cmd /c \"python web_interface_final.py && pause\")",
-      "Bash(wmic:*)",
-      "Bash(pip cache:*)",
-      "Bash(du:*)",
-      "Bash(node nanobot-simple.js)",
-      "Bash(nanobot --help)",
-      "Bash(start //B cmd /c \"python web_interface_final.py &amp; pause\")",
-      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test.html\")",
-      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test-realtime.html\")",
-      "Bash(npm cache clean:*)",
-      "Bash(node scripts/test-connection.js)",
-      "Bash(start \"\" \"e:\\\\desktop\\\\trix-3d-companion\\\\test-simple.html\")",
-      "Bash(start test-simple.html)",
-      "Bash(node:*)",
-      "Bash(timeout:*)",
-      "Bash(pnpm store prune:*)",
-      "Bash(where python)",
-      "Bash(python3:*)",
-      "Bash(/c/Users/王健俊/AppData/Local/Programs/Python/Python313/python.exe -m:*)",
-      "Bash(cmd.exe /c \"tasklist | findstr python\")",
-      "Bash(for pid in 38564 35872 33060 6744)",
-      "Bash(do kill -9 $pid)",
-      "Bash(done)",
-      "Bash(D:/miniconda/python.exe nanobotget.py:*)",
-      "Bash(D:/miniconda/python.exe web_interface_final.py)",
-      "Bash(D:/miniconda/python.exe:*)",
-      "Bash(tar:*)",
-      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' -Force\")",
-      "Bash(powershell.exe -Command \"scp -o StrictHostKeyChecking=no ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel.zip'' root@47.243.55.130:/opt/clawbot-channel/\")",
-      "Bash(powershell.exe -Command \"ssh root@47.243.55.130 ''head -5 /opt/clawbot-channel/services/ossService.js''\")",
-      "Bash(powershell.exe -Command \"Compress-Archive -Path ''E:\\\\desktop\\\\trix-3d-companion\\\\server\\\\clawbot-channel\\\\*'' -DestinationPath ''E:\\\\desktop\\\\trix-3d-companion\\\\clawbot-channel-update.zip'' -Force\")",
-      "Bash(where ssh)",
-      "Bash(rsync:*)",
-      "Bash(npx skills add:*)",
-      "Bash(npx pm2 stop:*)",
-      "Bash(pm2 list:*)",
-      "Bash(npx pm2 list)",
-      "Bash(npx pm2 start:*)",
-      "Bash(npx pm2 logs:*)",
-      "Bash(npx pm2 restart:*)",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\find_old_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\cleanup_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\deep_scan.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_user_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\final_scan.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\clean_large_files.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_large_folders.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\final_report.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\scan_unused_software.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\manual_software_scan.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\software_report.ps1\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"e:\\\\desktop\\\\trix-3d-companion\\\\delete_unused_software.ps1\")",
-      "Bash(npx skills list)",
-      "Bash(npx skills list:*)",
-      "Bash(grep:*)",
-      "Bash(git config:*)",
-      "Bash(git clone:*)",
-      "Bash(npx skills --help)",
-      "Bash(ln:*)",
-      "Bash(npx skills find:*)",
-      "Bash(xargs:*)",
-      "Bash(npx skills:*)",
-      "Bash(chmod:*)",
-      "Bash(claude:*)",
-      "Bash(echo:*)",
-      "Read(//c/Users/王健俊/.claude//**)",
-      "Read(//c/Users/王健俊/AppData/Roaming//**)",
-      "Bash(git rm:*)",
-      "Bash(supabase --version)",
-      "Bash(psql:*)",
-      "Bash(scoop:*)",
-      "Bash(powershell.exe -Command \"scoop bucket add supabase https://github.com/supabase/scoop-bucket.git\")",
-      "Bash(powershell.exe -Command \"Invoke-WebRequest -Uri ''https://github.com/supabase/cli/releases/download/v1.200.3/supabase_1.200.3_windows_amd64.zip'' -OutFile ''supabase.zip''\")",
-      "Bash(powershell.exe -Command \"winget install Supabase.Supabase\")",
-      "Bash(powershell.exe -Command \"Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force\")",
-      "Bash(powershell.exe -Command \"Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression\")",
-      "Bash(powershell.exe -Command \"$env:USERPROFILE\\\\scoop\\\\shims\\\\scoop.exe bucket add supabase https://github.com/supabase/scoop-bucket.git\")",
-      "Bash(powershell.exe -Command:*)",
-      "Bash(cmd.exe /c \"set PATH=%USERPROFILE%\\\\scoop\\\\shims;%PATH% && scoop bucket add supabase https://github.com/supabase/scoop-bucket.git\")",
-      "Bash(./supabase.exe --version)",
-      "Bash(where supabase)",
-      "Bash(where:*)",
-      "Bash(npm ls:*)",
-      "Bash(openclaw-cn gateway stop)",
-      "Bash(cmd.exe /c \"C:\\\\nodejs_global\\\\openclaw-cn.cmd gateway stop\")",
-      "Bash(cmd.exe /c \"C:\\\\nodejs_global\\\\openclaw-cn.cmd gateway uninstall\")",
-      "Bash(npm rm:*)",
-      "Bash(supabase migration list:*)",
-      "Bash(wsl --status:*)",
-      "Bash(npm config get prefix)",
-      "Bash(npm config set:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(happy:*)",
-      "Bash(export PATH=\"/c/nodejs_global:$PATH\")",
-      "Bash(file:*)",
-      "Bash(git mv:*)"
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "NotebookEdit(*)",
+      "AskUserQuestion(*)",
+      "Skill(*)",
+      "Task(*)",
+      "TodoWrite(*)",
+      "EnterPlanMode(*)",
+      "ExitPlanMode(*)",
+      "TaskOutput(*)",
+      "TaskStop(*)",
+      "mcp__4_5v_mcp__*",
+      "mcp__web_reader__*"
     ],
     "additionalDirectories": [
-      "e:\\desktop\\trix-3d-companion"
+      "e:\\desktop\\trix-3d-companion",
+      "e:\\desktop\\openclaw-token-monitor",
+      "C:\\Users\\wang\\.openclaw\\skills\\pairing",
+      "C:\\Users\\wang\\.openclaw",
+      "e:\\desktop\\nanobot"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-lint-pass.sh",
+            "statusMessage": "Running lint check..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-tests-pass.sh",
+            "statusMessage": "Running tests before commit..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "git push",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-build-pass.sh && bash .claude/hooks/check-e2e-pass.sh",
+            "statusMessage": "Running build and E2E tests before push..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash(git push",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/smoke-test.sh",
+            "statusMessage": "Running deployment smoke test...",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
