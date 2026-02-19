@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+ï»¿import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, Keyboard, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -60,10 +60,10 @@ const Pairing: React.FC = () => {
       );
 
       isScanning.current = true;
-      toast.success('ÉãÏñÍ·ÒÑÆô¶¯');
+      toast.success('æ‘„åƒå¤´å·²å¯åŠ¨');
     } catch (error) {
       console.error('Start scanner failed:', error);
-      toast.error('ÎÞ·¨·ÃÎÊÉãÏñÍ·£¬Çë¼ì²éÈ¨ÏÞÉèÖÃ');
+      toast.error('æ— æ³•è®¿é—®æ‘„åƒå¤´ï¼Œè¯·æ£€æŸ¥æƒé™è®¾ç½®');
     }
   };
 
@@ -92,7 +92,7 @@ const Pairing: React.FC = () => {
           return;
         }
 
-        toast.error('¶þÎ¬ÂëÅä¶ÔÊ§°Ü');
+        toast.error('äºŒç»´ç é…å¯¹å¤±è´¥');
         return;
       }
 
@@ -103,13 +103,13 @@ const Pairing: React.FC = () => {
           return;
         }
 
-        toast.error('Åä¶ÔÂëÎÞÐ§»òÒÑ¹ýÆÚ');
+        toast.error('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
         return;
       }
 
-      toast.error('ÎÞÐ§µÄ¶þÎ¬Âë»òÅä¶ÔÂë');
+      toast.error('æ— æ•ˆçš„äºŒç»´ç å†…å®¹');
     } catch (error: any) {
-      toast.error(error?.message || 'Åä¶ÔÊ§°Ü£¬ÇëÖØÊÔ');
+      toast.error(error?.message || 'é…å¯¹å¤±è´¥ï¼Œè¯·é‡è¯•');
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ const Pairing: React.FC = () => {
 
   const handlePairWithCode = async () => {
     if (!codeInput || codeInput.length !== 6) {
-      toast.error('ÇëÊäÈë 6 Î»Åä¶ÔÂë');
+      toast.error('è¯·è¾“å…¥ 6 ä½é…å¯¹ç ');
       return;
     }
 
@@ -126,12 +126,12 @@ const Pairing: React.FC = () => {
       const success = await pairWithCode(codeInput.toUpperCase());
       if (success) {
         setMode('waiting');
-        toast.success('Åä¶ÔÂëÒÑÌá½»£¬µÈ´ýÉè±¸È·ÈÏ');
+        toast.success('é…å¯¹è¯·æ±‚å·²æäº¤ï¼Œè¯·ç­‰å¾…è®¾å¤‡ç¡®è®¤');
       } else {
-        toast.error('Åä¶ÔÂëÎÞÐ§»òÒÑ¹ýÆÚ');
+        toast.error('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
       }
     } catch (error: any) {
-      toast.error(error?.message || 'Åä¶ÔÊ§°Ü');
+      toast.error(error?.message || 'é…å¯¹å¤±è´¥');
     } finally {
       setLoading(false);
     }
@@ -142,14 +142,14 @@ const Pairing: React.FC = () => {
     unpair();
     setMode('scan');
     setCodeInput('');
-    toast.success('ÒÑÈ¡ÏûÅä¶Ô');
+    toast.success('å·²å–æ¶ˆé…å¯¹');
   };
 
   useEffect(() => {
     if (isPaired) {
       setMode('success');
       void stopScanner();
-      toast.success('Åä¶Ô³É¹¦');
+      toast.success('é…å¯¹æˆåŠŸ');
 
       const timer = window.setTimeout(() => {
         navigate(AppRoutes.CHAT_DETAIL, {
@@ -185,14 +185,14 @@ const Pairing: React.FC = () => {
         >
           <ArrowLeft size={24} />
         </button>
-        <h2 className="text-slate-800 text-lg font-bold flex-1 text-center pr-10">Éè±¸Åä¶Ô</h2>
+        <h2 className="text-slate-800 text-lg font-bold flex-1 text-center pr-10">è®¾å¤‡é…å¯¹</h2>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center relative w-full px-6 pb-24 z-10">
         {!isConnected && (
           <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-orange-500/20 backdrop-blur-sm rounded-full border border-orange-500/30">
             <AlertCircle size={16} className="text-orange-600" />
-            <span className="text-orange-700 text-sm font-medium">ÕýÔÚÁ¬½Ó·þÎñÆ÷...</span>
+            <span className="text-orange-700 text-sm font-medium">æ­£åœ¨è¿žæŽ¥æœåŠ¡å™¨...</span>
           </div>
         )}
 
@@ -213,7 +213,7 @@ const Pairing: React.FC = () => {
 
             <div className="flex flex-col items-center gap-2 mb-6 px-4">
               <p className="text-slate-800 text-base font-medium text-center max-w-[280px] md:max-w-md">
-                É¨ÃèµçÄÔ¶ËÕ¹Ê¾µÄÅä¶Ô¶þÎ¬Âë
+                æ‰«æç”µè„‘ç«¯å±•ç¤ºçš„é…å¯¹äºŒç»´ç 
               </p>
               <div className="w-12 h-1 bg-white/40 rounded-full"></div>
             </div>
@@ -226,17 +226,17 @@ const Pairing: React.FC = () => {
               }}
             >
               <Keyboard size={18} className="mr-2 text-slate-700" />
-              <span className="text-slate-800 text-sm font-bold tracking-wide">»òÊäÈëÅä¶ÔÂë</span>
+              <span className="text-slate-800 text-sm font-bold tracking-wide">æ‰‹åŠ¨è¾“å…¥é…å¯¹ç </span>
             </GlassPanel>
 
             {!isScanning.current && (
               <button
                 onClick={() => void startScanner()}
                 className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors flex items-center gap-2"
-                aria-label="Æô¶¯ÉãÏñÍ·É¨Ãè"
+                aria-label="å¯ç”¨æ‘„åƒå¤´æ‰«æ"
               >
                 <Camera size={18} />
-                Æô¶¯ÉãÏñÍ·
+                å¼€å¯æ‘„åƒå¤´
               </button>
             )}
           </>
@@ -246,7 +246,7 @@ const Pairing: React.FC = () => {
           <>
             <div className="w-full max-w-[300px] md:max-w-sm mb-6 px-4">
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                ÊäÈë 6 Î»Åä¶ÔÂë
+                è¾“å…¥ 6 ä½é…å¯¹ç 
               </label>
               <input
                 type="text"
@@ -267,10 +267,10 @@ const Pairing: React.FC = () => {
               {loading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  ÑéÖ¤ÖÐ...
+                  éªŒè¯ä¸­...
                 </>
               ) : (
-                'ÑéÖ¤Åä¶ÔÂë'
+                'éªŒè¯é…å¯¹ç '
               )}
             </button>
 
@@ -278,7 +278,7 @@ const Pairing: React.FC = () => {
               onClick={handleUnpair}
               className="w-full max-w-[300px] py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full font-medium transition-colors"
             >
-              È¡ÏûÅä¶Ô
+              å–æ¶ˆé…å¯¹
             </button>
 
             <button
@@ -289,7 +289,7 @@ const Pairing: React.FC = () => {
               className="mt-4 text-slate-600 text-sm flex items-center gap-1 hover:text-slate-800 transition-colors"
             >
               <Camera size={16} />
-              ·µ»ØÉ¨Âë
+              è¿”å›žæ‰«ç 
             </button>
           </>
         )}
@@ -299,8 +299,8 @@ const Pairing: React.FC = () => {
             <div className="w-20 h-20 mb-6 rounded-full bg-purple-100 flex items-center justify-center">
               <Loader2 size={40} className="text-purple-600 animate-spin" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">µÈ´ýÉè±¸È·ÈÏ</h3>
-            <p className="text-slate-600 text-center max-w-[280px]">ÇëÔÚµçÄÔ¶ËÈ·ÈÏÅä¶ÔÇëÇó</p>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">ç­‰å¾…è®¾å¤‡ç¡®è®¤</h3>
+            <p className="text-slate-600 text-center max-w-[280px]">è¯·åœ¨ç”µè„‘ç«¯ç¡®è®¤æœ¬æ¬¡é…å¯¹</p>
           </div>
         )}
 
@@ -309,8 +309,8 @@ const Pairing: React.FC = () => {
             <div className="w-20 h-20 mb-6 rounded-full bg-green-100 flex items-center justify-center">
               <Check size={40} className="text-green-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Åä¶Ô³É¹¦</h3>
-            <p className="text-slate-600 text-center max-w-[280px] mb-6">ÄúµÄÉè±¸ÒÑÁ¬½Óµ½ Clawbot</p>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">é…å¯¹æˆåŠŸ</h3>
+            <p className="text-slate-600 text-center max-w-[280px] mb-6">ä½ çš„è®¾å¤‡å·²è¿žæŽ¥åˆ° Clawbot</p>
             <button
               onClick={() => navigate(AppRoutes.CHAT_DETAIL, {
                 state: {
@@ -322,7 +322,7 @@ const Pairing: React.FC = () => {
               })}
               className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
             >
-              ¿ªÊ¼ÁÄÌì
+              å¼€å§‹èŠå¤©
             </button>
           </div>
         )}
