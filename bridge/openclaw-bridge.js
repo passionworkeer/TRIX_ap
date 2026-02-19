@@ -6,9 +6,9 @@ const socketIOClient = require('socket.io-client');
 
 // ==================== 配置 ====================
 
-// 云端 Relay Server 地址
-const RELAY_SERVER_URL = 'ws://localhost:8765';
-// 生产环境: 'ws://TRIX_SERVER_HOST:8765'
+// 云端 Relay Server 地址（生产环境）
+const RELAY_SERVER_URL = 'ws://TRIX_SERVER_HOST:8765';
+// 本地测试: 'ws://localhost:8765'
 // 备选: 'wss://m.jmtrick.com'
 
 // 本地 OpenClaw Gateway 配置
