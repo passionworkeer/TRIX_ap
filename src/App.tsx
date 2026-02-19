@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -6,26 +6,35 @@ import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import SnapshotModal from './components/SnapshotModal';
 import ErrorBoundary from './components/ErrorBoundary';
-import Home from './screens/Home';
-import Snapshot from './screens/Snapshot';
-import Study from './screens/Study';
-import Chat from './screens/Chat';
-import ChatDetail from './screens/ChatDetail';
-import Profile from './screens/Profile';
-import Diagnostic from './screens/Diagnostic';
-import DiagnosticAdvanced from './screens/DiagnosticAdvanced';
-import { Login, Register } from './screens/Auth';
-import Pairing from './screens/Pairing';
-import QRCodePairing from './screens/QRCodePairing';
-import SnapMapScreen from './screens/SnapMapScreen';
-import TokenMonitor from './screens/TokenMonitor';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
-import { TokenMonitorProvider } from './contexts/TokenMonitorContext';
 import { useNotification } from './hooks/useNotification';
+
+const Home = lazy(() => import('./screens/Home'));
+const Snapshot = lazy(() => import('./screens/Snapshot'));
+const Study = lazy(() => import('./screens/Study'));
+const Chat = lazy(() => import('./screens/Chat'));
+const ChatDetail = lazy(() => import('./screens/ChatDetail'));
+const Profile = lazy(() => import('./screens/Profile'));
+const Diagnostic = lazy(() => import('./screens/Diagnostic'));
+const DiagnosticAdvanced = lazy(() => import('./screens/DiagnosticAdvanced'));
+const Pairing = lazy(() => import('./screens/Pairing'));
+const QRCodePairing = lazy(() => import('./screens/QRCodePairing'));
+const SnapMapScreen = lazy(() => import('./screens/SnapMapScreen'));
+const Login = lazy(async () => ({ default: (await import('./screens/Auth')).Login }));
+const Register = lazy(async () => ({ default: (await import('./screens/Auth')).Register }));
+
+const RouteLoading: React.FC = () => (
+  <div className="h-screen w-full flex items-center justify-center bg-[#f0f9ff]">
+    <div className="text-center">
+      <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-slate-600 font-medium">页面加载中...</p>
+    </div>
+  </div>
+);
 
 // 路由保护组件 - 未登录用户重定向到登录页
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -151,42 +160,37 @@ function AppContent() {
         
         {/* 路由出口 */}
         <div className="min-h-full">
-           <Routes location={location} key={location.pathname}>
-             {/* 公开路由 - 不需要登录 */}
-             <Route path={AppRoutes.LOGIN} element={<Login />} />
-             <Route path={AppRoutes.REGISTER} element={<Register />} />
+          <Suspense fallback={<RouteLoading />}>
+            <Routes location={location} key={location.pathname}>
+              {/* 公开路由 - 不需要登录 */}
+              <Route path={AppRoutes.LOGIN} element={<Login />} />
+              <Route path={AppRoutes.REGISTER} element={<Register />} />
 
-             {/* 受保护路由 - 需要登录 */}
-             <Route path={AppRoutes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
-             <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
-             <Route path={AppRoutes.SNAPSHOT_RESULT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
-             <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study key="study-home" /></ProtectedRoute>} />
-             <Route path="/study/timer" element={<ProtectedRoute><Study key="study-timer" /></ProtectedRoute>} />
-             <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-             <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
-             <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
-             <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-             <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-             <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
-             <Route path={AppRoutes.QR_PAIRING} element={
-               <ProtectedRoute>
-                 <QRCodePairingProvider>
-                   <QRCodePairing />
-                 </QRCodePairingProvider>
-               </ProtectedRoute>
-             } />
-             <Route path={AppRoutes.MAP} element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
-             <Route path="/snapmap" element={<Navigate to={AppRoutes.MAP} replace />} />
-             <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
-             <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
-             <Route path={AppRoutes.TOKEN_MONITOR} element={
-               <ProtectedRoute>
-                 <TokenMonitorProvider>
-                   <TokenMonitor />
-                 </TokenMonitorProvider>
-               </ProtectedRoute>
-             } />
-           </Routes>
+              {/* 受保护路由 - 需要登录 */}
+              <Route path={AppRoutes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
+              <Route path={AppRoutes.SNAPSHOT_RESULT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
+              <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study key="study-home" /></ProtectedRoute>} />
+              <Route path="/study/timer" element={<ProtectedRoute><Study key="study-timer" /></ProtectedRoute>} />
+              <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
+              <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
+              <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
+              <Route path={AppRoutes.QR_PAIRING} element={
+                <ProtectedRoute>
+                  <QRCodePairingProvider>
+                    <QRCodePairing />
+                  </QRCodePairingProvider>
+                </ProtectedRoute>
+              } />
+              <Route path={AppRoutes.MAP} element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
+              <Route path="/snapmap" element={<Navigate to={AppRoutes.MAP} replace />} />
+              <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
+              <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
+            </Routes>
+          </Suspense>
         </div>
         
         {/* 物理占位符：给底部 Dock 撑开空间，防止内容被遮挡 */}

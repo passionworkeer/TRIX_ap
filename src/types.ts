@@ -17,8 +17,7 @@ export enum AppRoutes {
   QR_PAIRING = '/qr-pairing',  // 🔗 二维码配对页面
   DIAGNOSTIC = '/diagnostic',  // 🔧 诊断页面
   DIAGNOSTIC_ADV = '/diagnostic-advanced',  // 🔧 高级诊断
-  MAP = '/map',
-  TOKEN_MONITOR = '/token-monitor'  // 📊 Token 监控页面
+  MAP = '/map'
 }
 
 export interface NavItem {
