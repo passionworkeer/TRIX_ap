@@ -57,3 +57,15 @@ test('Snapshot entry should require pairing and use unified TRIX avatar', () => 
   assert.equal(snapshotTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Snapshot upload flow should redirect to pairing');
   assert.equal(snapshotTsx.includes('avatar: IMAGES.WIZARD_BOY_LOGIN,'), true, 'Snapshot upload flow should use unified TRIX avatar');
 });
+
+test('Input fields on pairing flows should keep explicit dark text on light backgrounds', () => {
+  const appTsx = read('src/App.tsx');
+  const pairingTsx = read('src/screens/Pairing.tsx');
+  const qrPairingTsx = read('src/screens/QRCodePairing.tsx');
+  const addFriendModal = read('src/components/AddFriendModal.tsx');
+
+  assert.equal(appTsx.includes("color: 'var(--text-primary)'"), false, 'App root should not force global text color inheritance');
+  assert.equal(pairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'Pairing code input should have explicit dark text');
+  assert.equal(qrPairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'QRCode pairing inputs should have explicit dark text');
+  assert.equal(addFriendModal.includes('text-slate-900 placeholder:text-slate-400'), true, 'Add friend input should have explicit dark text');
+});

@@ -26,14 +26,30 @@ const Pairing: React.FC = () => {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isScanning = useRef(false);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
 
-  const stopScanner = async () => {
-    if (scannerRef.current && isScanning.current) {
+  const stopScanner = async (clearDom: boolean = false) => {
+    if (!scannerRef.current) {
+      return;
+    }
+
+    if (isScanning.current) {
       try {
         await scannerRef.current.stop();
-        isScanning.current = false;
       } catch (error) {
         console.error('Stop scanner failed:', error);
+      }
+    }
+
+    isScanning.current = false;
+
+    if (clearDom) {
+      try {
+        await scannerRef.current.clear();
+      } catch (error) {
+        console.error('Clear scanner failed:', error);
+      } finally {
+        scannerRef.current = null;
       }
     }
   };
@@ -170,6 +186,19 @@ const Pairing: React.FC = () => {
   }, [isPaired, navigate]);
 
   useEffect(() => {
+    if (mode !== 'input') {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      codeInputRef.current?.focus();
+      codeInputRef.current?.select();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [mode]);
+
+  useEffect(() => {
     toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
 
     return () => {
@@ -179,7 +208,7 @@ const Pairing: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      void stopScanner();
+      void stopScanner(true);
     };
   }, []);
 
@@ -229,7 +258,7 @@ const Pairing: React.FC = () => {
               className="!rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer hover:bg-white/60 transition-colors"
               onClick={() => {
                 setMode('input');
-                void stopScanner();
+                void stopScanner(true);
               }}
             >
               <Keyboard size={18} className="mr-2 text-slate-700" />
@@ -256,13 +285,16 @@ const Pairing: React.FC = () => {
                 输入 6 位配对码
               </label>
               <input
+                ref={codeInputRef}
                 type="text"
                 value={codeInput}
-                onChange={(event) => setCodeInput(event.target.value.toUpperCase().slice(0, 6))}
+                onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
                 placeholder="ABC123"
-                className="w-full px-4 py-3 text-center text-2xl font-mono font-bold tracking-wider bg-white/90 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all"
+                className="w-full px-4 py-3 text-center text-2xl font-mono font-bold tracking-wider text-slate-900 placeholder:text-slate-400 bg-white/90 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all"
                 maxLength={6}
                 autoFocus
+                autoCapitalize="characters"
+                spellCheck={false}
               />
             </div>
 

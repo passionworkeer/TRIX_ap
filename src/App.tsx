@@ -146,7 +146,7 @@ function AppContent() {
   return (
     <div
       className="fixed inset-0 w-full h-full overflow-hidden font-sans"
-      style={{ background: 'transparent', color: 'var(--text-primary)' }}
+      style={{ background: 'transparent' }}
     >
       {isHomePage && <HeroBackground />}
 

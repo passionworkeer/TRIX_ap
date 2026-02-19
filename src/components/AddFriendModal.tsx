@@ -55,7 +55,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
         </label>
         <input
           id="friend-account"
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 mb-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="输入对方账号（邮箱或用户名）"
           value={account}
           onChange={e => setAccount(e.target.value)}
