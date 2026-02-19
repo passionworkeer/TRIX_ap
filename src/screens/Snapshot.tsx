@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+ï»¿import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, FlipHorizontal2, Check, X, Sparkles, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useCamera } from '../hooks/useCamera';
 import { uploadFile } from '../services/uploadService';
 
@@ -12,23 +13,23 @@ type SnapshotActionKey = 'identify' | 'extract_text' | 'study_points' | 'next_st
 const SNAPSHOT_ACTIONS: Array<{ key: SnapshotActionKey; label: string; prompt: string }> = [
   {
     key: 'identify',
-    label: 'Ê¶±ğ»­ÃæÄÚÈİ',
-    prompt: 'ÇëÏêÏ¸Ê¶±ğÕâÕÅÍ¼Æ¬ÀïµÄÖ÷ÌåÄÚÈİ¡¢¹Ø¼üÎïÌåºÍ¿ÉÄÜ³¡¾°¡£',
+    label: 'è¯†åˆ«ç”»é¢å†…å®¹',
+    prompt: 'è¯·è¯¦ç»†è¯†åˆ«è¿™å¼ å›¾ç‰‡é‡Œçš„ä¸»ä½“å†…å®¹ã€å…³é”®ç‰©ä½“å’Œå¯èƒ½åœºæ™¯ã€‚',
   },
   {
     key: 'extract_text',
-    label: 'ÌáÈ¡Í¼Æ¬ÎÄ×Ö',
-    prompt: 'ÇëÌáÈ¡ÕâÕÅÍ¼Æ¬ÖĞµÄÈ«²¿¿É¶ÁÎÄ×Ö£¬²¢°´½á¹¹ÕûÀí¡£',
+    label: 'æå–å›¾ç‰‡æ–‡å­—',
+    prompt: 'è¯·æå–è¿™å¼ å›¾ç‰‡ä¸­çš„å…¨éƒ¨å¯è¯»æ–‡å­—ï¼Œå¹¶æŒ‰ç»“æ„æ•´ç†ã€‚',
   },
   {
     key: 'study_points',
-    label: 'Éú³ÉÑ§Ï°Òªµã',
-    prompt: 'Çë»ùÓÚÍ¼Æ¬ÄÚÈİÌáÁ¶Ñ§Ï°Òªµã£¬¸ø³ö3-5ÌõÖØµã¡£',
+    label: 'ç”Ÿæˆå­¦ä¹ è¦ç‚¹',
+    prompt: 'è¯·åŸºäºå›¾ç‰‡å†…å®¹æç‚¼å­¦ä¹ è¦ç‚¹ï¼Œç»™å‡º3-5æ¡é‡ç‚¹ã€‚',
   },
   {
     key: 'next_steps',
-    label: '¸ø³öÏÂÒ»²½½¨Òé',
-    prompt: 'Çë½áºÏÍ¼Æ¬ÄÚÈİ£¬¸ø³ö¿ÉÖ´ĞĞµÄÏÂÒ»²½ĞĞ¶¯½¨Òé¡£',
+    label: 'ç»™å‡ºä¸‹ä¸€æ­¥å»ºè®®',
+    prompt: 'è¯·ç»“åˆå›¾ç‰‡å†…å®¹ï¼Œç»™å‡ºå¯æ‰§è¡Œçš„ä¸‹ä¸€æ­¥è¡ŒåŠ¨å»ºè®®ã€‚',
   },
 ];
 
@@ -41,6 +42,7 @@ const Snapshot: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const fallbackTriggeredRef = useRef(false);
   const navigate = useNavigate();
+  const { isConnected, isPaired } = useClawbotChannel();
 
   const {
     videoRef,
@@ -83,7 +85,7 @@ const Snapshot: React.FC = () => {
     if (capturedPhoto) return;
 
     if (useMockCamera || !isReady) {
-      toast.error('µ±Ç°ÎŞ·¨»ñÈ¡ÕæÊµÏà»ú»­Ãæ£¬Çë¼ì²éÈ¨ÏŞºóÖØÊÔ');
+      toast.error('å½“å‰æ— æ³•è·å–çœŸå®ç›¸æœºç”»é¢ï¼Œè¯·æ£€æŸ¥æƒé™åé‡è¯•');
       return;
     }
 
@@ -102,7 +104,7 @@ const Snapshot: React.FC = () => {
 
   const handleEnterResult = () => {
     if (!capturedPhoto?.blob) {
-      toast.error('ÇëÏÈÅÄÉãÒ»ÕÅÕæÊµÕÕÆ¬');
+      toast.error('è¯·å…ˆæ‹æ‘„ä¸€å¼ çœŸå®ç…§ç‰‡');
       return;
     }
     setIsResult(true);
@@ -127,14 +129,19 @@ const Snapshot: React.FC = () => {
     setPromptText(selected.prompt);
   };
 
-  const handleSendToClawbot = async () => {
+    const handleSendToClawbot = async () => {
+    if (!isConnected || !isPaired) {
+      toast.error('è¯·å…ˆå®Œæˆ TRIX Bot é…å¯¹');
+      navigate(AppRoutes.PAIRING);
+      return;
+    }
     if (!capturedPhoto?.blob) {
-      toast.error('Ã»ÓĞ¿ÉÉÏ´«µÄÕÕÆ¬£¬ÇëÖØÅÄ');
+      toast.error('æ²¡æœ‰å¯ä¸Šä¼ çš„ç…§ç‰‡ï¼Œè¯·é‡æ‹');
       return;
     }
 
     if (!promptText.trim()) {
-      toast.error('ÇëÏÈµã»÷Ò»¸ö·ÖÎö°´Å¥£¬Éú³ÉÌáÊ¾´Ê');
+      toast.error('è¯·å…ˆç‚¹å‡»ä¸€ä¸ªåˆ†ææŒ‰é’®ï¼Œç”Ÿæˆæç¤ºè¯');
       return;
     }
 
@@ -155,7 +162,7 @@ const Snapshot: React.FC = () => {
         state: {
           friendId: 'clawbot',
           name: 'TRIX Bot',
-          avatar: IMAGES.WIZARD_BOY,
+          avatar: IMAGES.WIZARD_BOY_LOGIN,
           isBot: true,
           photoUri: uploadResult.uri,
           autoSendPrompt: promptText.trim(),
@@ -163,7 +170,7 @@ const Snapshot: React.FC = () => {
         },
       });
     } catch (error: any) {
-      toast.error(error?.message || 'ÉÏ´«Ê§°Ü£¬ÇëÖØÊÔ');
+      toast.error(error?.message || 'ä¸Šä¼ å¤±è´¥ï¼Œè¯·é‡è¯•');
     } finally {
       setUploading(false);
     }
@@ -176,11 +183,11 @@ const Snapshot: React.FC = () => {
           <button
             onClick={handleRetake}
             className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center"
-            aria-label="·µ»ØÏà»ú"
+            aria-label="è¿”å›ç›¸æœº"
           >
             <ArrowLeft size={22} />
           </button>
-          <h1 className="text-white font-semibold text-lg">¿ìÕÕ·ÖÎö</h1>
+          <h1 className="text-white font-semibold text-lg">å¿«ç…§åˆ†æ</h1>
           <div className="w-10" />
         </div>
 
@@ -195,14 +202,14 @@ const Snapshot: React.FC = () => {
                 />
               ) : (
                 <div className="w-full h-56 bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
-                  ÔİÎŞÍ¼Æ¬
+                  æš‚æ— å›¾ç‰‡
                 </div>
               )}
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-cyan-300 text-sm">
               <Sparkles size={14} />
-              µã»÷ÏÂÃæ°´Å¥»á×Ô¶¯Éú³É¶ÔÓ¦ÌáÊ¾´Ê
+              ç‚¹å‡»ä¸‹é¢æŒ‰é’®ä¼šè‡ªåŠ¨ç”Ÿæˆå¯¹åº”æç¤ºè¯
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -222,11 +229,11 @@ const Snapshot: React.FC = () => {
             </div>
 
             <div className="mt-4">
-              <p className="text-xs text-slate-300 mb-2">ÌáÊ¾´Ê</p>
+              <p className="text-xs text-slate-300 mb-2">æç¤ºè¯</p>
               <textarea
                 value={promptText}
                 onChange={(event) => setPromptText(event.target.value)}
-                placeholder="µã»÷ÉÏ·½°´Å¥ºó£¬ÕâÀï»á³öÏÖ¶ÔÓ¦ÌáÊ¾´Ê"
+                placeholder="ç‚¹å‡»ä¸Šæ–¹æŒ‰é’®åï¼Œè¿™é‡Œä¼šå‡ºç°å¯¹åº”æç¤ºè¯"
                 className="w-full min-h-[120px] rounded-xl bg-black/30 border border-white/15 text-white text-sm px-3 py-2 outline-none focus:border-cyan-400"
               />
             </div>
@@ -236,7 +243,7 @@ const Snapshot: React.FC = () => {
                 onClick={handleRetake}
                 className="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20"
               >
-                ÖØÅÄ
+                é‡æ‹
               </button>
               <button
                 onClick={handleSendToClawbot}
@@ -248,7 +255,7 @@ const Snapshot: React.FC = () => {
                 ) : (
                   <Send size={16} />
                 )}
-                ·¢ËÍ¸ø Clawbot
+                å‘é€ç»™ Clawbot
               </button>
             </div>
           </div>
@@ -286,16 +293,16 @@ const Snapshot: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <h1 className="text-white text-xl font-bold">¿ìÕÕ</h1>
+            <h1 className="text-white text-xl font-bold">å¿«ç…§</h1>
             {!useMockCamera && isReady && (
               <div className="flex items-center gap-1 bg-green-500/30 px-2 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs text-green-100">ÊµÊ±</span>
+                <span className="text-xs text-green-100">å®æ—¶</span>
               </div>
             )}
             {useMockCamera && (
               <div className="flex items-center gap-1 bg-yellow-500/30 px-2 py-1 rounded-full">
-                <span className="text-xs text-yellow-100">ÑİÊ¾</span>
+                <span className="text-xs text-yellow-100">æ¼”ç¤º</span>
               </div>
             )}
           </div>
@@ -312,7 +319,7 @@ const Snapshot: React.FC = () => {
         {cameraError && (
           <div className="mx-4 mt-4 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl px-4 py-3">
             <p className="text-red-100 text-sm text-center">{cameraError}</p>
-            <p className="text-red-200 text-xs text-center mt-1">ÒÑÇĞ»»µ½ÑİÊ¾Ä£Ê½</p>
+            <p className="text-red-200 text-xs text-center mt-1">å·²åˆ‡æ¢åˆ°æ¼”ç¤ºæ¨¡å¼</p>
           </div>
         )}
 
@@ -330,14 +337,14 @@ const Snapshot: React.FC = () => {
                   className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center gap-2 transition-colors"
                 >
                   <X size={20} />
-                  <span>ÖØÅÄ</span>
+                  <span>é‡æ‹</span>
                 </button>
                 <button
                   onClick={handleEnterResult}
                   className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full flex items-center gap-2 transition-colors"
                 >
                   <Check size={20} />
-                  <span>È·ÈÏ·ÖÎö</span>
+                  <span>ç¡®è®¤åˆ†æ</span>
                 </button>
               </div>
             </div>
@@ -369,7 +376,7 @@ const Snapshot: React.FC = () => {
           >
             <div className={`w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] ${isScanning ? 'animate-ping' : ''}`} />
             <p className="text-white text-sm font-medium tracking-wider">
-              {isScanning ? 'ÅÄÉãÖĞ...' : capturedPhoto ? 'ÕÕÆ¬ÒÑ¾ÍĞ÷' : 'µã»÷ÅÄÉãÒÔ·ÖÎö'}
+              {isScanning ? 'æ‹æ‘„ä¸­...' : capturedPhoto ? 'ç…§ç‰‡å·²å°±ç»ª' : 'ç‚¹å‡»æ‹æ‘„ä»¥åˆ†æ'}
             </p>
           </div>
         </div>
@@ -396,3 +403,4 @@ const Snapshot: React.FC = () => {
 };
 
 export default Snapshot;
+
