@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { ArrowLeft, Navigation, Map as MapIcon } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { getFriends } from '../services/databaseService';
 import type { FriendLatestMessage } from '../config/supabase';
 import { IMAGES } from '../constants';
@@ -13,9 +17,9 @@ import FriendPopupContent from '../components/map/FriendPopupContent';
 // 修复 Leaflet 默认图标丢失问题
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 });
 
 // 本地 3D PNG 图片路径
@@ -38,6 +42,48 @@ interface PlaceInfo {
 const friendStatuses: Record<string, FriendStatus> = {
   'clawbot': { emoji: '🤖', text: 'Coding...' },
 };
+
+const mockFriends: FriendLatestMessage[] = [
+  {
+    user_id: 'mock-user',
+    friend_id: 'mock-friend-1',
+    name: 'Ava',
+    avatar_url: IMAGES.WIZARD_BOY_LOGIN,
+    status: 'online',
+    bio: 'Map mock user 1',
+    study_time: 45,
+    is_studying: true,
+    unread_count: 0,
+    last_message: '在地图上见！',
+    last_message_time: new Date().toISOString(),
+  },
+  {
+    user_id: 'mock-user',
+    friend_id: 'mock-friend-2',
+    name: 'Leo',
+    avatar_url: IMAGES.AVATAR_GIRL,
+    status: 'online',
+    bio: 'Map mock user 2',
+    study_time: 30,
+    is_studying: false,
+    unread_count: 0,
+    last_message: '今天去哪儿？',
+    last_message_time: new Date().toISOString(),
+  },
+  {
+    user_id: 'mock-user',
+    friend_id: 'mock-friend-3',
+    name: 'Mia',
+    avatar_url: IMAGES.FRIEND_2,
+    status: 'away',
+    bio: 'Map mock user 3',
+    study_time: 72,
+    is_studying: true,
+    unread_count: 1,
+    last_message: '我在附近自习',
+    last_message_time: new Date().toISOString(),
+  },
+];
 
 // 虚拟地点数据 - 上海热门地标
 const mockPlaces: PlaceInfo[] = [
@@ -178,9 +224,10 @@ const SnapMapScreen: React.FC = () => {
       try {
         setLoading(true);
         const data = await getFriends();
-        setFriends(data.slice(0, 3));
+        setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);
       } catch (error) {
         console.error('加载好友失败:', error);
+        setFriends(mockFriends);
       } finally {
         setLoading(false);
       }
