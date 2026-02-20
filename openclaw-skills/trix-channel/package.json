@@ -1,7 +1,7 @@
 {
   "name": "trix-channel",
-  "version": "1.0.0",
-  "description": "TRIX 3D Companion App Channel for OpenClaw - 实时双向通信",
+  "version": "2.0.0",
+  "description": "TRIX 3D Companion App Channel for OpenClaw - 实时双向通信（生产级版本）",
   "main": "index.js",
   "author": "TRIX Team",
   "license": "MIT",
@@ -14,6 +14,7 @@
     "channel",
     "trix",
     "websocket",
-    "real-time"
+    "real-time",
+    "production"
   ]
 }
