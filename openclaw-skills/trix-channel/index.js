@@ -1,5 +1,5 @@
 /**
- * TRIX App Channel for OpenClaw
+ * TRIX App Channel for OpenClaw (生产级版本)
  *
  * 功能：为 TRIX 3D Companion App 提供长连接 Channel
  * 类似 WhatsApp Web 的实时双向通信
@@ -8,14 +8,24 @@
  *   TRIX App <--WebSocket--> clawbot-channel Server <--WebSocket--> OpenClaw Gateway
  *
  * 作者：TRIX Team
- * 版本：1.0.0
+ * 版本：2.0.0 (修复版)
+ *
+ * 修复问题：
+ * - ✅ 动态获取 Gateway Token（不再硬编码）
+ * - ✅ 持久化配对状态（重启不需要重新配对）
+ * - ✅ Gateway 断线自动重连
+ * - ✅ 防止消息回声循环
  */
 
 const { io } = require('socket.io-client');
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
 // 配置
 const SERVER_URL = process.env.CLAWBOT_SERVER_URL || 'http://47.243.55.130:8765';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'ws://127.0.0.1:18789';
+const AUTH_FILE = path.join(__dirname, 'trix-auth.json');
 
 // 状态
 let serverSocket = null;
@@ -24,8 +34,103 @@ let isConnectedToServer = false;
 let isConnectedToGateway = false;
 let keepRunning = true;
 let heartbeatInterval = null;
+let gatewayReconnectTimer = null;
 let deviceId = null;
 let pairingId = null;
+let lastSentMessageId = null; // 用于防止消息回声
+
+/**
+ * 获取 OpenClaw Gateway Token
+ * 动态从 OpenClaw 配置中读取，不再硬编码
+ */
+function getGatewayToken() {
+  try {
+    // 方法 1: 从环境变量读取
+    if (process.env.GATEWAY_TOKEN) {
+      return process.env.GATEWAY_TOKEN;
+    }
+
+    // 方法 2: 从 OpenClaw 配置文件读取
+    const openclawConfigPath = path.join(
+      process.env.HOME || process.env.USERPROFILE,
+      '.openclaw',
+      'openclaw.json'
+    );
+
+    if (fs.existsSync(openclawConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(openclawConfigPath, 'utf-8'));
+      const token = config?.gateway?.auth?.token;
+      if (token) {
+        console.log('[TRIXChannel] ✅ 从配置文件读取 Gateway Token');
+        return token;
+      }
+    }
+
+    // 方法 3: 使用 OpenClaw CLI 获取（如果可用）
+    try {
+      const token = execSync('claw config get gateway.auth.token 2>/dev/null || openclaw config get gateway.auth.token 2>/dev/null', {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      }).trim();
+
+      if (token && token.length > 10) {
+        console.log('[TRIXChannel] ✅ 从 CLI 获取 Gateway Token');
+        return token;
+      }
+    } catch (e) {
+      // CLI 不可用，继续
+    }
+
+    console.warn('[TRIXChannel] ⚠️  无法获取 Gateway Token，请手动设置 GATEWAY_TOKEN 环境变量');
+    return null;
+
+  } catch (error) {
+    console.error('[TRIXChannel] ❌ 获取 Gateway Token 失败:', error.message);
+    return null;
+  }
+}
+
+/**
+ * 加载持久化的认证信息
+ */
+function loadAuth() {
+  try {
+    if (fs.existsSync(AUTH_FILE)) {
+      const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+      console.log('[TRIXChannel] 📂 加载持久化认证信息');
+      return auth;
+    }
+  } catch (error) {
+    console.warn('[TRIXChannel] ⚠️  加载认证信息失败:', error.message);
+  }
+  return null;
+}
+
+/**
+ * 保存认证信息到本地
+ */
+function saveAuth(auth) {
+  try {
+    fs.writeFileSync(AUTH_FILE, JSON.stringify(auth, null, 2));
+    console.log('[TRIXChannel] 💾 认证信息已保存');
+  } catch (error) {
+    console.error('[TRIXChannel] ❌ 保存认证信息失败:', error.message);
+  }
+}
+
+/**
+ * 清除认证信息
+ */
+function clearAuth() {
+  try {
+    if (fs.existsSync(AUTH_FILE)) {
+      fs.unlinkSync(AUTH_FILE);
+      console.log('[TRIXChannel] 🗑️  认证信息已清除');
+    }
+  } catch (error) {
+    console.warn('[TRIXChannel] ⚠️  清除认证信息失败:', error.message);
+  }
+}
 
 /**
  * 启动 TRIX Channel
@@ -36,6 +141,14 @@ async function start() {
   console.log(`[TRIXChannel] 🌐 Gateway: ${GATEWAY_URL}`);
 
   try {
+    // 0. 加载持久化认证
+    const savedAuth = loadAuth();
+    if (savedAuth?.deviceId) {
+      deviceId = savedAuth.deviceId;
+      pairingId = savedAuth.pairingId;
+      console.log(`[TRIXChannel] ♻️  恢复设备 ID: ${deviceId.substring(0, 30)}...`);
+    }
+
     // 1. 连接到 clawbot-channel 服务器
     await connectToServer();
 
@@ -76,16 +189,29 @@ async function connectToServer() {
       console.log('[TRIXChannel] ✅ 已连接到 clawbot-channel 服务器');
       isConnectedToServer = true;
 
+      // 使用持久化的 deviceId 或生成新的
+      if (!deviceId) {
+        deviceId = `trix_${require('os').hostname()}_${Date.now()}`;
+      }
+
       // 请求配对（Bot 身份）
-      deviceId = `trix_${process.pid || 'default'}_${Date.now()}`;
       serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
         if (response.success) {
           pairingId = response.pairingId;
+
           if (response.restored) {
             console.log('[TRIXChannel] ♻️  恢复配对:', response.pairingId);
           } else {
             console.log('[TRIXChannel] 🆕 新配对码:', response.pairingCode);
           }
+
+          // 持久化保存
+          saveAuth({
+            deviceId,
+            pairingId,
+            savedAt: new Date().toISOString()
+          });
+
           resolve();
         } else {
           reject(new Error(response.error || '配对请求失败'));
@@ -109,6 +235,15 @@ async function connectToServer() {
     serverSocket.on('reconnect', (attemptNumber) => {
       console.log(`[TRIXChannel] 🔄 重连成功 (第 ${attemptNumber} 次尝试)`);
       isConnectedToServer = true;
+
+      // 重连后重新注册
+      if (deviceId) {
+        serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
+          if (response.success) {
+            console.log('[TRIXChannel] ✅ 重连后重新注册成功');
+          }
+        });
+      }
     });
 
     // 用户消息（从 App 发来）
@@ -150,6 +285,16 @@ async function connectToGateway() {
   return new Promise((resolve, reject) => {
     console.log('[TRIXChannel] 🌐 连接到 OpenClaw Gateway...');
 
+    // 动态获取 Token
+    const gatewayToken = getGatewayToken();
+
+    if (!gatewayToken) {
+      console.warn('[TRIXChannel] ⚠️  未获取到 Gateway Token，跳过 Gateway 连接');
+      console.warn('[TRIXChannel] 💡 请设置环境变量 GATEWAY_TOKEN 或确保 OpenClaw 配置正确');
+      resolve(); // 不阻塞启动
+      return;
+    }
+
     gatewayWs = new WebSocket(GATEWAY_URL);
 
     // 连接成功
@@ -157,9 +302,6 @@ async function connectToGateway() {
       console.log('[TRIXChannel] ✅ 已连接到 Gateway');
 
       // 发送连接请求
-      // Gateway 认证 Token
-      const gatewayToken = process.env.GATEWAY_TOKEN || '3162c7078b7fa574271f483401729cac57f309cd2a507dd7';
-
       const connectReq = {
         type: 'req',
         id: 'c1',
@@ -170,7 +312,7 @@ async function connectToGateway() {
           client: {
             id: 'trix-channel',
             displayName: 'TRIX App Channel',
-            version: '1.0.0',
+            version: '2.0.0',
             platform: 'node',
             mode: 'channel'
           },
@@ -192,16 +334,28 @@ async function connectToGateway() {
     // 连接错误
     gatewayWs.on('error', (err) => {
       console.error('[TRIXChannel] ❌ Gateway 错误:', err.message);
-      // Gateway 连接失败不是致命错误，继续运行
       if (!isConnectedToGateway) {
         resolve(); // 不阻塞启动
       }
     });
 
-    // 连接关闭
+    // 连接关闭 - 关键修复：自动重连
     gatewayWs.on('close', () => {
       console.log('[TRIXChannel] ⚠️  Gateway 连接已关闭');
       isConnectedToGateway = false;
+
+      // 清除旧的重连定时器
+      if (gatewayReconnectTimer) {
+        clearTimeout(gatewayReconnectTimer);
+      }
+
+      // 3秒后自动重连
+      gatewayReconnectTimer = setTimeout(() => {
+        console.log('[TRIXChannel] 🔄 尝试重新连接 Gateway...');
+        connectToGateway().catch(err => {
+          console.error('[TRIXChannel] ❌ Gateway 重连失败:', err.message);
+        });
+      }, 3000);
     });
 
     // 超时
@@ -227,8 +381,23 @@ function handleGatewayMessage(msg) {
 
   // Chat 响应（OpenClaw 的回复）
   if (msg.type === 'event' && msg.event === 'chat') {
+    // 关键修复：防止消息回声
+    const payload = msg.payload || {};
+
+    // 检查是否是我们自己发送的消息被广播回来了
+    if (payload.messageId && lastSentMessageId === payload.messageId) {
+      console.log('[TRIXChannel] 🔄 检测到消息回声，忽略');
+      return;
+    }
+
+    // 确保这是 AI 的回复，而不是用户消息的回显
+    if (payload.role === 'user' || payload.sender === 'user') {
+      console.log('[TRIXChannel] 🔄 忽略用户消息回显');
+      return;
+    }
+
     console.log('[TRIXChannel] 💬 收到 Gateway Chat 事件');
-    forwardToApp(msg.payload);
+    forwardToApp(payload);
   }
 
   // 其他响应
@@ -246,9 +415,14 @@ function forwardToGateway(data) {
     return;
   }
 
+  const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // 记录发送的消息 ID，用于防止回声
+  lastSentMessageId = messageId;
+
   const chatReq = {
     type: 'req',
-    id: `chat_${Date.now()}`,
+    id: messageId,
     method: 'chat',
     params: {
       text: data.text,
@@ -267,6 +441,13 @@ function forwardToGateway(data) {
   } catch (error) {
     console.error('[TRIXChannel] ❌ 转发到 Gateway 失败:', error);
   }
+
+  // 10秒后清除消息 ID（防止内存泄漏）
+  setTimeout(() => {
+    if (lastSentMessageId === messageId) {
+      lastSentMessageId = null;
+    }
+  }, 10000);
 }
 
 /**
@@ -279,7 +460,12 @@ function forwardToApp(payload) {
   }
 
   // 提取回复文本
-  const responseText = payload.response || payload.text || '';
+  const responseText = payload.response || payload.text || payload.message?.content || '';
+
+  if (!responseText) {
+    console.warn('[TRIXChannel] ⚠️  空消息，跳过转发');
+    return;
+  }
 
   serverSocket.emit('bot_response', {
     response: responseText,
@@ -325,6 +511,11 @@ function stopHeartbeat() {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
   }
+
+  if (gatewayReconnectTimer) {
+    clearTimeout(gatewayReconnectTimer);
+    gatewayReconnectTimer = null;
+  }
 }
 
 /**
@@ -365,6 +556,7 @@ function getStatus() {
     gatewayUrl: GATEWAY_URL,
     deviceId,
     pairingId,
+    hasPersistentAuth: fs.existsSync(AUTH_FILE),
     message: isConnectedToServer ? '✅ 运行中' : '❌ 未启动'
   };
 }
@@ -383,6 +575,14 @@ async function generatePairingCode() {
   return new Promise((resolve, reject) => {
     serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
       if (response.success) {
+        // 更新持久化信息
+        pairingId = response.pairingId;
+        saveAuth({
+          deviceId,
+          pairingId,
+          savedAt: new Date().toISOString()
+        });
+
         resolve({
           success: true,
           code: response.pairingCode,
@@ -400,12 +600,23 @@ async function generatePairingCode() {
   });
 }
 
+/**
+ * 重置配对（清除本地认证信息）
+ */
+function resetPairing() {
+  clearAuth();
+  deviceId = null;
+  pairingId = null;
+  console.log('[TRIXChannel] 🔄 配对信息已重置');
+}
+
 // 导出
 module.exports = {
   start,
   stop,
   getStatus,
   generatePairingCode,
+  resetPairing,
 
   // OpenClaw Channel Plugin API
   id: 'trix-app',
