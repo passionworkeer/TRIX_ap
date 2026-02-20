@@ -493,19 +493,14 @@ io.on('connection', (socket) => {
 
       console.log(`[App] ✅ 配对码验证成功: code=${code}, pairingId=${result.pairing.id}, deviceId=${result.pairing.device_id}`);
 
-      // ✅ P1-问题3: 先检查 Bot 是否在线，再绑定用户
-      if (!botSockets.has(result.pairing.device_id)) {
-        console.log(`[App] ❌ Bot 离线，无法完成配对: deviceId=${result.pairing.device_id}, 总 bots=${botSockets.size}`);
-        if (typeof callback === 'function') {
-          return callback({
-            success: false,
-            error: 'Clawbot is offline. Please ensure Clawbot is connected and try pairing again.'
-          });
-        }
-        return;
+      // ⚠️ 允许 Bot 离线时完成配对（OpenClaw skill 请求后可能断开）
+      // 配对记录已存在，Bot 稍后重连时会收到 user_paired 通知
+      const botOnline = botSockets.has(result.pairing.device_id);
+      if (!botOnline) {
+        console.log(`[App] ⚠️  Bot 离线 (deviceId=${result.pairing.device_id})，先完成配对，Bot 重连时将收到通知`);
       }
 
-      console.log(`[App] ✅ Bot 在线 (${result.pairing.device_id})，继续配对...`);
+      console.log(`[App] ✅ Bot ${botOnline ? '在线' : '离线'}，继续配对...`);
 
       // 绑定 userId 到配对记录
       await pairingService.bindUserToPairing(result.pairing.id, userId);
