@@ -13,7 +13,8 @@
     "mobile-app"
   ],
   "dependencies": {
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "socket.io-client": "^4.7.2"
   },
   "openclaw": {
     "type": "skill",
