@@ -160,18 +160,57 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         }
       });
 
-      // ✅ 修复 2: 监听消息同步事件，从 Supabase 拉取遗漏消息
+      // ✅ 修复 2: 监听消息同步事件，从服务器拉取遗漏消息
       // 解决移动端切后台/锁屏期间的消息黑洞问题
       clawbotChannelBridge.on('sync_missed_messages', async () => {
         console.log('[ClawbotChannel] 📩 收到消息同步指令，开始拉取遗漏消息...');
         try {
-          // TODO: 实现 Supabase 消息拉取逻辑
-          // 示例伪代码：
-          // const lastMessageTimestamp = messages.length > 0 ? messages[messages.length - 1].timestamp : 0;
-          // const missedMessages = await fetchMissedMessagesFromSupabase(lastMessageTimestamp);
-          // setMessages(prev => [...prev, ...missedMessages]);
+          // 获取最后一条消息的时间戳
+          const lastMessageTimestamp = messages.length > 0
+            ? messages[messages.length - 1].timestamp
+            : 0;
 
-          console.log('[ClawbotChannel] ✅ 消息同步完成（待实现 Supabase 拉取逻辑）');
+          const userId = clawbotChannelBridge.getUserId();
+          if (!userId) {
+            console.warn('[ClawbotChannel] 用户未登录，跳过消息同步');
+            return;
+          }
+
+          // 从服务器拉取遗漏的消息
+          const response = await fetch(
+            `http://47.243.55.130:8765/api/messages/sync?userId=${userId}&lastTimestamp=${lastMessageTimestamp}`
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.messages && result.messages.length > 0) {
+            console.log(`[ClawbotChannel] ✅ 拉取到 ${result.messages.length} 条遗漏消息`);
+
+            // 转换为 ClawbotChannelMessage 格式
+            const missedMessages: ClawbotChannelMessage[] = result.messages.map((msg: any) => ({
+              id: msg.message_id || `msg_${msg.timestamp}`,
+              content: msg.content,
+              contentType: msg.content_type || 'text',
+              mediaUrl: msg.media_url,
+              timestamp: msg.timestamp,
+              sender: msg.sender
+            }));
+
+            // 添加到消息列表（去重）
+            setMessages(prev => {
+              const existingIds = new Set(prev.map(m => m.id));
+              const newMessages = missedMessages.filter(m => !existingIds.has(m.id));
+              return [...prev, ...newMessages];
+            });
+
+            console.log(`[ClawbotChannel] ✅ 已添加 ${missedMessages.filter(m => !messages.some(pm => pm.id === m.id)).length} 条新消息`);
+          } else {
+            console.log('[ClawbotChannel] ✅ 没有遗漏的消息');
+          }
         } catch (error) {
           console.error('[ClawbotChannel] 消息同步失败:', error);
         }
