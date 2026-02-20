@@ -173,6 +173,21 @@ class ClawbotChannelBridge {
     });
 
     this.setupEventHandlers();
+
+    // ✅ 修复 1: 移动端前后台切换强制连接检测
+    // 解决 iOS Safari 等移动端浏览器冻结 JS 线程导致的"假死"问题
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[ClawbotChannel] 📱 App 切回前台，检查连接...');
+        // 强制重置心跳时间，防止刚唤醒就被判定超时断开
+        this.lastPongTime = Date.now();
+
+        if (this.socket && this.socket.disconnected) {
+          console.log('[ClawbotChannel] 🔄 发现连接断开，立即强制重连');
+          this.socket.connect();
+        }
+      }
+    });
   }
 
   /**
@@ -345,6 +360,13 @@ class ClawbotChannelBridge {
       await this.wait(150);
       await this.probePairingStatusAck(3000);
       this.emit('connected');
+
+      // ✅ 修复 2: 通知 UI 层去 Supabase 拉取断网期间可能遗漏的消息
+      // 解决移动端切后台/锁屏期间的消息黑洞问题
+      // UI 层应该监听 'sync_missed_messages' 事件并从 Supabase 拉取最新消息
+      this.emit('sync_missed_messages');
+      console.log('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
+
     } catch (error: any) {
       this.connected = false;
       this.stopHeartbeat();
