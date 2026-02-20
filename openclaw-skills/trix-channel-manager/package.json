@@ -1,0 +1,9 @@
+{
+  "name": "trix-channel-manager",
+  "version": "1.0.0",
+  "description": "TRIX App Channel Manager for OpenClaw - 管理和启动 TRIX App Channel",
+  "main": "index.js",
+  "author": "TRIX Team",
+  "license": "MIT",
+  "dependencies": {}
+}
