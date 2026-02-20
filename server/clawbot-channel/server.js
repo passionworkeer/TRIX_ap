@@ -301,7 +301,14 @@ io.on('connection', (socket) => {
       console.log(`[Bot] ✅ 配对码已生成: ${pairing.pairingCode}, device=${deviceId}, 总 bots: ${botSockets.size}`);
 
       if (typeof callback === 'function') {
-        callback({ success: true, restored: false });
+        callback({
+          success: true,
+          restored: false,
+          pairingCode: pairing.pairingCode,
+          pairingToken: pairing.pairingToken,
+          pairingId: pairing.id,
+          expiresAt: pairing.expiresAt
+        });
       }
     } catch (err) {
       console.error('[Bot] ❌ 生成配对失败:', err);

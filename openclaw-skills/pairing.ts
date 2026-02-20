@@ -4,229 +4,181 @@
  *
  * 使用方法：
  * 1. 在OpenClaw中输入: "生成配对码" 或 "pairing code"
- * 2. OpenClaw会生成6位配对码
+ * 2. OpenClaw会通过服务器生成6位配对码
  * 3. 手机App输入配对码完成配对
+ *
+ * ✅ 修复: 使用 Socket.IO 连接到 clawbot-channel 服务器
  */
 
-import { randomBytes } from 'crypto';
+import { io, Socket } from 'socket.io-client';
 
-// 配对码存储（实际应用中应该使用Redis或数据库）
-const pairingCodes = new Map<string, {
-  code: string;
-  userId?: string;
-  deviceId?: string;
-  createdAt: Date;
-  expiresAt: Date;
-  status: 'pending' | 'active' | 'expired';
-}>();
-
-// 二维码Token存储
-const qrTokens = new Map<string, {
-  token: string;
-  userId?: string;
-  deviceId?: string;
-  createdAt: Date;
-  expiresAt: Date;
-  status: 'pending' | 'active' | 'expired';
-}>();
-
-// 清理过期配对码
-setInterval(() => {
-  const now = new Date();
-  for (const [key, value] of pairingCodes.entries()) {
-    if (value.expiresAt < now) {
-      value.status = 'expired';
-      pairingCodes.delete(key);
-    }
-  }
-  for (const [key, value] of qrTokens.entries()) {
-    if (value.expiresAt < now) {
-      value.status = 'expired';
-      qrTokens.delete(key);
-    }
-  }
-}, 60000); // 每分钟清理一次
+// Socket 连接
+let socket: Socket | null = null;
+const SERVER_URL = process.env.CLAWBOT_SERVER_URL || 'http://m.jmtrick.com:8765';
 
 /**
- * 生成6位配对码
+ * 获取或创建 Socket 连接
  */
-function generatePairingCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 排除易混淆字符
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+function getSocket(): Promise<Socket> {
+  return new Promise((resolve, reject) => {
+    if (socket && socket.connected) {
+      return resolve(socket);
+    }
+
+    // 创建新连接
+    socket = io(SERVER_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socket.on('connect', () => {
+      console.log('[PairingSkill] ✅ 已连接到服务器:', SERVER_URL);
+      resolve(socket!);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[PairingSkill] ❌ 连接失败:', err);
+      reject(new Error(`无法连接到服务器: ${err.message}`));
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[PairingSkill] ⚠️  已断开连接');
+    });
+
+    // 连接超时
+    setTimeout(() => {
+      if (!socket?.connected) {
+        reject(new Error('连接超时'));
+      }
+    }, 5000);
+  });
 }
 
 /**
- * 生成二维码Token
- */
-function generateQRToken(): string {
-  return randomBytes(16).toString('hex');
-}
-
-/**
- * 生成配对码
+ * 生成配对码（通过服务器）
  */
 export async function generatePairingCode() {
-  const code = generatePairingCode();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟过期
+  try {
+    const sock = await getSocket();
 
-  pairingCodes.set(code, {
-    code,
-    createdAt: new Date(),
-    expiresAt,
-    status: 'pending'
-  });
+    return new Promise((resolve, reject) => {
+      // 生成设备ID（使用进程ID或固定标识）
+      const deviceId = `clawbot_${process.pid || 'default'}`;
 
-  return {
-    success: true,
-    code,
-    expiresAt: expiresAt.toISOString(),
-    message: `配对码: ${code}\n有效期: 5分钟\n请在手机App中输入此配对码`
-  };
+      sock.emit('bot_request_pairing', { deviceId }, (response: any) => {
+        if (response.success) {
+          console.log('[PairingSkill] ✅ 配对码已生成:', response.pairingCode);
+
+          resolve({
+            success: true,
+            code: response.pairingCode,
+            expiresAt: response.expiresAt,
+            message: `配对码: ${response.pairingCode}\n有效期: 5分钟\n请在手机App中输入此配对码`
+          });
+        } else {
+          console.error('[PairingSkill] ❌ 生成失败:', response.error);
+          reject(new Error(response.error || '生成配对码失败'));
+        }
+      });
+
+      // 超时处理
+      setTimeout(() => {
+        reject(new Error('请求超时，请检查服务器连接'));
+      }, 5000);
+    });
+  } catch (error: any) {
+    console.error('[PairingSkill] ❌ 生成配对码错误:', error);
+    return {
+      success: false,
+      error: error.message || '无法连接到服务器'
+    };
+  }
 }
 
 /**
- * 生成二维码Token
+ * 生成二维码Token（通过服务器）
  */
 export async function generateQRCode() {
-  const token = generateQRToken();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟过期
+  try {
+    const sock = await getSocket();
 
-  qrTokens.set(token, {
-    token,
-    createdAt: new Date(),
-    expiresAt,
-    status: 'pending'
-  });
+    return new Promise((resolve, reject) => {
+      const deviceId = `clawbot_${process.pid || 'default'}`;
 
-  // 生成二维码URL（手机App扫描此URL）
-  const qrUrl = `trix://pair/${token}`;
+      sock.emit('bot_request_pairing', { deviceId }, (response: any) => {
+        if (response.success) {
+          // 生成二维码URL（手机App扫描此URL）
+          const qrUrl = `trix://pair/${response.pairingToken}`;
 
-  return {
-    success: true,
-    token,
-    qrUrl,
-    expiresAt: expiresAt.toISOString(),
-    message: `二维码已生成\nToken: ${token}\n有效期: 5分钟\n请在手机App中扫描二维码`
-  };
+          console.log('[PairingSkill] ✅ 二维码已生成');
+
+          resolve({
+            success: true,
+            token: response.pairingToken,
+            qrUrl,
+            expiresAt: response.expiresAt,
+            message: `二维码已生成\nToken: ${response.pairingToken}\n有效期: 5分钟\n请在手机App中扫描二维码`
+          });
+        } else {
+          console.error('[PairingSkill] ❌ 生成失败:', response.error);
+          reject(new Error(response.error || '生成二维码失败'));
+        }
+      });
+
+      // 超时处理
+      setTimeout(() => {
+        reject(new Error('请求超时，请检查服务器连接'));
+      }, 5000);
+    });
+  } catch (error: any) {
+    console.error('[PairingSkill] ❌ 生成二维码错误:', error);
+    return {
+      success: false,
+      error: error.message || '无法连接到服务器'
+    };
+  }
 }
 
-/**
- * 验证配对码
- */
-export async function validatePairingCode(code: string, userId: string) {
-  const pairing = pairingCodes.get(code.toUpperCase());
-
-  if (!pairing) {
-    return {
-      success: false,
-      error: '配对码无效或已过期'
-    };
-  }
-
-  if (pairing.status === 'expired' || pairing.expiresAt < new Date()) {
-    pairingCodes.delete(code);
-    return {
-      success: false,
-      error: '配对码已过期'
-    };
-  }
-
-  if (pairing.status === 'active') {
-    return {
-      success: false,
-      error: '配对码已被使用'
-    };
-  }
-
-  // 激活配对
-  pairing.userId = userId;
-  pairing.status = 'active';
-
-  return {
-    success: true,
-    pairingId: code,
-    message: '配对成功！'
-  };
-}
 
 /**
- * 验证二维码Token
- */
-export async function validateQRToken(token: string, userId: string) {
-  const pairing = qrTokens.get(token);
-
-  if (!pairing) {
-    return {
-      success: false,
-      error: 'Token无效或已过期'
-    };
-  }
-
-  if (pairing.status === 'expired' || pairing.expiresAt < new Date()) {
-    qrTokens.delete(token);
-    return {
-      success: false,
-      error: 'Token已过期'
-    };
-  }
-
-  if (pairing.status === 'active') {
-    return {
-      success: false,
-      error: 'Token已被使用'
-    };
-  }
-
-  // 激活配对
-  pairing.userId = userId;
-  pairing.status = 'active';
-
-  return {
-    success: true,
-    pairingId: token,
-    message: '配对成功！'
-  };
-}
-
-/**
- * 查看当前有效的配对码
+ * 查看当前服务器连接状态
  */
 export async function listActivePairings() {
-  const now = new Date();
-  const activeCodes = Array.from(pairingCodes.values())
-    .filter(p => p.status === 'pending' && p.expiresAt > now)
-    .map(p => ({
-      code: p.code,
-      expiresAt: p.expiresAt.toISOString(),
-      remainingSeconds: Math.floor((p.expiresAt.getTime() - now.getTime()) / 1000)
-    }));
+  try {
+    const sock = await getSocket();
 
-  const activeTokens = Array.from(qrTokens.values())
-    .filter(p => p.status === 'pending' && p.expiresAt > now)
-    .map(p => ({
-      token: p.token,
-      expiresAt: p.expiresAt.toISOString(),
-      remainingSeconds: Math.floor((p.expiresAt.getTime() - now.getTime()) / 1000)
-    }));
-
-  return {
-    success: true,
-    pairingCodes: activeCodes,
-    qrTokens: activeTokens,
-    message: activeCodes.length > 0 || activeTokens.length > 0
-      ? `当前有 ${activeCodes.length} 个配对码和 ${activeTokens.length} 个二维码有效`
-      : '当前没有有效的配对码'
-  };
+    return new Promise((resolve) => {
+      if (sock.connected) {
+        resolve({
+          success: true,
+          connected: true,
+          serverUrl: SERVER_URL,
+          message: '已连接到服务器，可以生成配对码'
+        });
+      } else {
+        resolve({
+          success: false,
+          connected: false,
+          message: '未连接到服务器'
+        });
+      }
+    });
+  } catch (error: any) {
+    return {
+      success: false,
+      connected: false,
+      error: error.message
+    };
+  }
 }
 
 // 技能元数据
 export const metadata = {
   name: 'pairing',
-  description: '生成配对码和二维码，用于手机App配对',
-  version: '1.0.0',
+  description: '生成配对码和二维码，用于手机App配对（通过服务器）',
+  version: '2.0.0',
   author: 'TRIX Team'
 };
+
