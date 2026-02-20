@@ -157,6 +157,9 @@ async function connectToGateway() {
       console.log('[TRIXChannel] ✅ 已连接到 Gateway');
 
       // 发送连接请求
+      // Gateway 认证 Token
+      const gatewayToken = process.env.GATEWAY_TOKEN || '__GATEWAY_AUTH_TOKEN_REDACTED__';
+
       const connectReq = {
         type: 'req',
         id: 'c1',
@@ -170,6 +173,9 @@ async function connectToGateway() {
             version: '1.0.0',
             platform: 'node',
             mode: 'channel'
+          },
+          auth: {
+            token: gatewayToken
           }
         }
       };
