@@ -660,14 +660,16 @@ io.on('connection', (socket) => {
       // 保存消息
       await messageService.saveMessage(pairing.id, 'app_to_bot', content, contentType, mediaUrl);
 
-      // 转发给 Clawbot
+      // 转发给 Clawbot (TRIX Channel v2.0.0 格式)
       const botSocket = botSockets.get(pairing.device_id);
       if (botSocket) {
         botSocket.emit('app_message', {
-          userId,
-          content,
-          contentType,
-          mediaUrl
+          type: 'chat_message',
+          message: content,
+          msg_id: messageId,
+          sender_device_id: 'mobile_app',
+          content_type: contentType,
+          media_url: mediaUrl
         });
         console.log(`[App] ✅ 消息已转发给 Bot: deviceId=${pairing.device_id}`);
 
