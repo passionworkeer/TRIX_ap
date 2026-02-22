@@ -10,10 +10,125 @@ import type {
 } from '../config/supabase';
 
 /**
- * 娣诲姞濂藉弸 (鏀寔閭鎴栫敤鎴峰悕)
- * @param account 瀵规柟璐﹀彿锛堥偖绠辨垨鐢ㄦ埛鍚嶏級
+ * Friend request management (notification-based)
+ * @param account Username or email for finding target user
  */
 const FRIEND_REQUEST_META_PREFIX = '[friend_request_from:]';
+const CLAWBOT_HISTORY_STORAGE_KEY_PREFIX = 'trix_clawbot_history';
+const CLAWBOT_HISTORY_MAX_MESSAGES = 500;
+
+export interface ClawbotHistoryMessage {
+  id: string;
+  content: string;
+  contentType: 'text' | 'image' | 'video' | 'file';
+  mediaUrl?: string;
+  timestamp: number;
+  sender: 'user' | 'bot';
+}
+
+function resolveClawbotHistoryStorageKey(userId: string): string {
+  return `${CLAWBOT_HISTORY_STORAGE_KEY_PREFIX}:${userId}`;
+}
+
+function normalizeClawbotHistoryMessage(raw: any): ClawbotHistoryMessage | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const id = typeof raw.id === 'string' ? raw.id.trim() : '';
+  const content = typeof raw.content === 'string' ? raw.content : '';
+  const contentType = raw.contentType;
+  const sender = raw.sender;
+  const timestamp = Number(raw.timestamp);
+
+  if (!id || !Number.isFinite(timestamp)) {
+    return null;
+  }
+  if (!['text', 'image', 'video', 'file'].includes(contentType)) {
+    return null;
+  }
+  if (sender !== 'user' && sender !== 'bot') {
+    return null;
+  }
+
+  return {
+    id,
+    content,
+    contentType,
+    mediaUrl: typeof raw.mediaUrl === 'string' ? raw.mediaUrl : undefined,
+    timestamp,
+    sender,
+  };
+}
+
+export async function loadClawbotMessageHistory(userId: string): Promise<ClawbotHistoryMessage[]> {
+  try {
+    if (!userId) {
+      return [];
+    }
+
+    const storageKey = resolveClawbotHistoryStorageKey(userId);
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(normalizeClawbotHistoryMessage)
+      .filter((item): item is ClawbotHistoryMessage => item !== null)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  } catch (error) {
+    console.error('加载 Clawbot 历史消息失败:', error);
+    return [];
+  }
+}
+
+export async function saveClawbotMessage(
+  userId: string,
+  message: ClawbotHistoryMessage
+): Promise<void> {
+  try {
+    if (!userId) {
+      return;
+    }
+
+    const normalized = normalizeClawbotHistoryMessage(message);
+    if (!normalized) {
+      return;
+    }
+
+    const storageKey = resolveClawbotHistoryStorageKey(userId);
+    const existingMessages = await loadClawbotMessageHistory(userId);
+    const withoutCurrent = existingMessages.filter((item) => item.id !== normalized.id);
+    const merged = [...withoutCurrent, normalized]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-CLAWBOT_HISTORY_MAX_MESSAGES);
+
+    localStorage.setItem(storageKey, JSON.stringify(merged));
+  } catch (error) {
+    console.error('保存 Clawbot 消息失败:', error);
+  }
+}
+
+export async function deleteClawbotMessage(userId: string, messageId: string): Promise<void> {
+  try {
+    if (!userId || !messageId) {
+      return;
+    }
+
+    const storageKey = resolveClawbotHistoryStorageKey(userId);
+    const existingMessages = await loadClawbotMessageHistory(userId);
+    const nextMessages = existingMessages.filter((message) => message.id !== messageId);
+    localStorage.setItem(storageKey, JSON.stringify(nextMessages));
+  } catch (error) {
+    console.error('删除 Clawbot 消息失败:', error);
+  }
+}
 
 type ProfileLite = {
   id: string;
@@ -391,7 +506,7 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 // ============================================
-// 濂藉弸绠＄悊
+// Friend management
 // ============================================
 
 /** 获取所有好友（包含未读消息信息） */
@@ -564,7 +679,7 @@ export async function sendMessage(
   try {
     const userId = await getCurrentUserId();
 
-    // 鏋勫缓浼氳瘽ID
+    // Build conversation ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
@@ -631,7 +746,7 @@ export async function sendMessageWithMedia(
   try {
     const userId = await getCurrentUserId();
 
-    // 鏋勫缓浼氳瘽ID
+    // Build conversation ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
@@ -723,7 +838,7 @@ export async function clearChatHistory(friendId: string): Promise<void> {
   try {
     const userId = await getCurrentUserId();
     
-    // 鏋勫缓浼氳瘽ID
+    // Build conversation ID
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;
@@ -1043,7 +1158,7 @@ export async function subscribeToChatMessages(
   try {
     const userId = await getCurrentUserId();
     
-    // 鏋勫缓浼氳瘽ID
+    // Build conversation ID
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;

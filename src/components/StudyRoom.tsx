@@ -34,10 +34,10 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const { showError, showWarning } = useNotification();
 
-  // 榛樿鑷範瀹?ID (鍙互鏀逛负鍔ㄦ€侀€夋嫨)
+  // Default room ID (can be changed to dynamic selection)
   const DEFAULT_ROOM_ID = '00000000-0000-0000-0000-000000000001';
 
-  // 鑾峰彇褰撳墠鐢ㄦ埛 ID
+  // Get current user ID
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
