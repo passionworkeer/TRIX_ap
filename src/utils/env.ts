@@ -19,6 +19,12 @@ const OPTIONAL_ENV_VARS = [
   'VITE_CLAWBOT_GATEWAY_TOKEN',
   'VITE_PC_WEBSOCKET_URL',
   'VITE_PC_AUTH_TOKEN',
+  'VITE_USE_SERVER_OSS_UPLOAD',
+  'VITE_ALIYUN_OSS_REGION',
+  'VITE_ALIYUN_OSS_BUCKET',
+  'VITE_ALIYUN_OSS_ACCESS_KEY_ID',
+  'VITE_ALIYUN_OSS_ACCESS_KEY_SECRET',
+  'VITE_ALIYUN_OSS_ENDPOINT',
   'VITE_OSS_ENDPOINT',
   'VITE_TTS_PROXY_URL',
 ] as const;
@@ -26,6 +32,15 @@ const OPTIONAL_ENV_VARS = [
 interface ValidationError {
   variable: string;
   message: string;
+}
+
+interface AliyunOssEnv {
+  region: string;
+  bucket: string;
+  accessKeyId: string;
+  accessKeySecret: string;
+  endpoint: string;
+  usingLegacyEndpointFallback: boolean;
 }
 
 function isLoopbackHost(hostname: string): boolean {
@@ -158,6 +173,47 @@ function displayOptionalInfo(): void {
   console.log(`  - Clawbot Channel URL: ${endpoints.channelUrl}`);
   console.log(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl}`);
   console.log(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
+
+  if (import.meta.env.VITE_OSS_ENDPOINT?.trim()) {
+    console.warn(
+      'Environment Variables: VITE_OSS_ENDPOINT is deprecated; prefer VITE_ALIYUN_OSS_* for OSS config.'
+    );
+  }
+}
+
+function normalizeLegacyOssEndpoint(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.host;
+    if (!host) {
+      return '';
+    }
+    return host;
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/upload\/?$/i, '')
+      .replace(/\/$/, '');
+  }
+}
+
+export function getAliyunOssEnv(): AliyunOssEnv {
+  const legacyEndpoint = normalizeLegacyOssEndpoint(import.meta.env.VITE_OSS_ENDPOINT ?? '');
+  const endpoint = import.meta.env.VITE_ALIYUN_OSS_ENDPOINT?.trim() || legacyEndpoint;
+
+  return {
+    region: import.meta.env.VITE_ALIYUN_OSS_REGION?.trim() || 'oss-cn-shenzhen',
+    bucket: import.meta.env.VITE_ALIYUN_OSS_BUCKET?.trim() || 'jmtrick-assets',
+    accessKeyId: import.meta.env.VITE_ALIYUN_OSS_ACCESS_KEY_ID?.trim() || '',
+    accessKeySecret: import.meta.env.VITE_ALIYUN_OSS_ACCESS_KEY_SECRET?.trim() || '',
+    endpoint: endpoint || 'oss-cn-shenzhen.aliyuncs.com',
+    usingLegacyEndpointFallback: Boolean(legacyEndpoint) && !import.meta.env.VITE_ALIYUN_OSS_ENDPOINT?.trim(),
+  };
 }
 
 export function validateEnv(): void {

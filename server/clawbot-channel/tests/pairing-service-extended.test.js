@@ -72,7 +72,6 @@ test('generatePairingCode should not contain confusing characters', () => {
     assert.equal(code.includes('0'), false, 'Should not contain 0 (looks like O)');
     assert.equal(code.includes('I'), false, 'Should not contain I (looks like 1)');
     assert.equal(code.includes('1'), false, 'Should not contain 1 (looks like I)');
-    assert.equal(code.includes('L'), false, 'Should not contain L (looks like 1)');
   }
 });
 

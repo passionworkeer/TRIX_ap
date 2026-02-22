@@ -20,8 +20,8 @@ const AUTH_FILE = path.join(__dirname, 'trix-auth.json');
 
 const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE !== 'false';
 const DEDUP_TTL_MS = Number(process.env.MESSAGE_DEDUP_TTL_MS || 10000);
-const ENABLE_GATEWAY_CHAT_BRIDGE = process.env.ENABLE_GATEWAY_CHAT_BRIDGE === 'true';
-const ENABLE_CLI_AGENT_BRIDGE = process.env.ENABLE_CLI_AGENT_BRIDGE !== 'false';
+const ENABLE_GATEWAY_CHAT_BRIDGE = process.env.ENABLE_GATEWAY_CHAT_BRIDGE !== 'false';
+const ENABLE_CLI_AGENT_BRIDGE = process.env.ENABLE_CLI_AGENT_BRIDGE === 'true';
 const OPENCLAW_CLI_BIN_HINT = process.env.OPENCLAW_CLI_BIN || null;
 const CLI_AGENT_TIMEOUT_SECONDS = Number(process.env.CLI_AGENT_TIMEOUT_SECONDS || 120);
 const CLI_MAX_BUFFER_BYTES = Number(process.env.CLI_MAX_BUFFER_BYTES || 10 * 1024 * 1024);
@@ -210,6 +210,7 @@ function normalizeInboundAppMessage(data = {}) {
     content: typeof content === 'string' ? content : String(content ?? ''),
     contentType: data.contentType ?? data.content_type ?? 'text',
     mediaUrl: data.mediaUrl ?? data.media_url ?? null,
+    mediaMimeType: data.mediaMimeType ?? data.media_mime_type ?? null,
     threadId: data.threadId ?? data.thread_id ?? 'default',
     userId: data.userId ?? data.user_id ?? null,
     timestamp: toTimestamp(data.timestamp),
@@ -226,9 +227,46 @@ function normalizeGatewayReply(payload = {}) {
     content: typeof content === 'string' ? content : String(content ?? ''),
     contentType: payload.contentType ?? payload.content_type ?? 'text',
     mediaUrl: payload.mediaUrl ?? payload.media_url ?? null,
+    mediaMimeType: payload.mediaMimeType ?? payload.media_mime_type ?? null,
     timestamp: toTimestamp(payload.timestamp),
     raw: payload
   };
+}
+
+function getMediaPlaceholder(contentType) {
+  if (contentType === 'image' || contentType === 'mixed') {
+    return '[image]';
+  }
+  return '[media]';
+}
+
+function withMaterializedContent(normalized) {
+  const content = typeof normalized.content === 'string' ? normalized.content : String(normalized.content ?? '');
+  if (content.trim()) {
+    return { ...normalized, content };
+  }
+  if (!normalized.mediaUrl) {
+    return { ...normalized, content };
+  }
+  return { ...normalized, content: getMediaPlaceholder(normalized.contentType) };
+}
+
+function hasContentOrMedia(normalized) {
+  return Boolean((normalized.content && normalized.content.trim()) || normalized.mediaUrl);
+}
+
+function buildCliPrompt(normalized) {
+  const payload = withMaterializedContent(normalized);
+  if (!payload.mediaUrl) {
+    return payload.content;
+  }
+
+  const mediaLine = `${getMediaPlaceholder(payload.contentType)} ${payload.mediaUrl}`;
+  if (!payload.content.trim() || payload.content === getMediaPlaceholder(payload.contentType)) {
+    return mediaLine;
+  }
+
+  return `${payload.content}\n\n${mediaLine}`;
 }
 
 function getSessionId(normalized) {
@@ -319,13 +357,14 @@ function getCliAgentCommands() {
 function runCliAgentWithCommand(command, normalized) {
   return new Promise((resolve, reject) => {
     const sessionId = getSessionId(normalized);
+    const prompt = buildCliPrompt(normalized);
     const args = [
       ...(command.prefixArgs || []),
       'agent',
       '--session-id',
       sessionId,
       '--message',
-      normalized.content,
+      prompt,
       '--json',
       '--timeout',
       String(CLI_AGENT_TIMEOUT_SECONDS)
@@ -435,39 +474,42 @@ function enqueueCliBridge(normalized, reason = 'fallback') {
 }
 
 function forwardToGateway(normalized) {
+  const payload = withMaterializedContent(normalized);
+
   if (!gatewayWs || gatewayWs.readyState !== WebSocket.OPEN) {
     console.error('[TRIXChannel] gateway not connected, skip forwarding');
     return false;
   }
 
-  if (!normalized.content.trim()) {
+  if (!hasContentOrMedia(payload)) {
     console.warn('[TRIXChannel] empty app message, skip forwarding');
     return false;
   }
 
-  lastSentMessageId = normalized.messageId;
-  const requestId = normalized.messageId || makeMessageId('gw');
+  lastSentMessageId = payload.messageId;
+  const requestId = payload.messageId || makeMessageId('gw');
 
   const req = {
     type: 'req',
     id: requestId,
     method: 'chat.send',
     params: {
-      text: normalized.content,
-      threadId: normalized.threadId,
-      contentType: normalized.contentType,
-      mediaUrl: normalized.mediaUrl,
+      text: payload.content,
+      threadId: payload.threadId,
+      contentType: payload.contentType,
+      mediaUrl: payload.mediaUrl,
+      mediaMimeType: payload.mediaMimeType,
       context: {
         source: 'trix-app',
-        userId: normalized.userId,
+        userId: payload.userId,
         deviceId,
-        messageId: normalized.messageId
+        messageId: payload.messageId
       }
     }
   };
 
   pendingGatewayRequests.set(requestId, {
-    normalized,
+    normalized: payload,
     createdAt: Date.now()
   });
   gatewayWs.send(JSON.stringify(req));
@@ -475,40 +517,43 @@ function forwardToGateway(normalized) {
 }
 
 function forwardToApp(normalized) {
+  const payload = withMaterializedContent(normalized);
+
   if (!serverSocket || !isConnectedToServer) {
     console.error('[TRIXChannel] server not connected, skip app forward');
     return;
   }
 
-  if (!normalized.content.trim()) {
+  if (!hasContentOrMedia(payload)) {
     return;
   }
 
-  const payload = {
+  const outboundPayload = {
     deviceId,
-    content: normalized.content,
-    contentType: normalized.contentType,
-    mediaUrl: normalized.mediaUrl,
-    timestamp: normalized.timestamp,
-    messageId: normalized.messageId
+    content: payload.content,
+    contentType: payload.contentType,
+    mediaUrl: payload.mediaUrl,
+    mediaMimeType: payload.mediaMimeType,
+    timestamp: payload.timestamp,
+    messageId: payload.messageId
   };
 
-  serverSocket.emit('bot_message', payload);
+  serverSocket.emit('bot_message', outboundPayload);
 
   if (ENABLE_LEGACY_BOT_RESPONSE) {
     serverSocket.emit('bot_response', {
       pairingId,
-      response: normalized.content,
-      messageId: normalized.messageId,
-      timestamp: new Date(normalized.timestamp).toISOString()
+      response: payload.content,
+      messageId: payload.messageId,
+      timestamp: new Date(payload.timestamp).toISOString()
     });
   }
 }
 
 function handleServerAppMessage(eventName, data) {
-  const normalized = normalizeInboundAppMessage(data);
+  const normalized = withMaterializedContent(normalizeInboundAppMessage(data));
 
-  if (!normalized.content.trim()) {
+  if (!hasContentOrMedia(normalized)) {
     return;
   }
 
@@ -520,7 +565,9 @@ function handleServerAppMessage(eventName, data) {
     return;
   }
 
-  console.log(`[TRIXChannel] app message (${eventName}): ${normalized.content.slice(0, 80)}`);
+  console.log(
+    `[TRIXChannel] app message (${eventName}): type=${normalized.contentType} media=${normalized.mediaUrl ? 'yes' : 'no'} text=${normalized.content.slice(0, 80)}`
+  );
 
   if (ENABLE_GATEWAY_CHAT_BRIDGE && isConnectedToGateway) {
     const sent = forwardToGateway(normalized);

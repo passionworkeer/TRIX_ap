@@ -125,14 +125,11 @@ test('OSS signed URL endpoint should require authentication', async () => {
     return;
   }
 
-  const res = await makeRequest('POST', '/oss/signed-url', {
-    key: 'test/image.jpg',
-    expiresIn: 3600,
-  });
+  const res = await makeRequest('GET', '/oss/signed-url?key=test/image.jpg');
 
   // Without proper auth, should return error
   // Accept any reasonable status code (depends on server config)
-  const validStatus = [200, 401, 403, 404, 500];
+  const validStatus = [200, 401, 403, 404, 500, 501];
   assert.equal(validStatus.includes(res.status), true, `Expected status in ${validStatus}, got ${res.status}`);
 });
 

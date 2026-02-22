@@ -18,8 +18,9 @@ function generateMessageId(): string {
 export interface ClawbotChannelMessage {
   id?: string;
   content: string;
-  contentType: 'text' | 'image' | 'video' | 'file';
+  contentType: 'text' | 'image' | 'video' | 'file' | 'mixed';
   mediaUrl?: string;
+  mediaMimeType?: string;
   timestamp: number;
   sender: 'user' | 'bot';
 }
@@ -220,8 +221,10 @@ class ClawbotChannelBridge {
     // 收到 Bot 消息
     this.socket.on('bot_message', (msg: {
       content: string;
-      contentType?: 'text' | 'image' | 'video' | 'file';
+      contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed';
       mediaUrl?: string;
+      mediaMimeType?: string;
+      media_mime_type?: string;
       timestamp: number;
       messageId?: string;
     }) => {
@@ -230,6 +233,7 @@ class ClawbotChannelBridge {
         content: msg.content,
         contentType: msg.contentType ?? 'text',
         mediaUrl: msg.mediaUrl,
+        mediaMimeType: msg.mediaMimeType ?? msg.media_mime_type,
         timestamp: msg.timestamp || Date.now(),
         sender: 'bot'
       };
@@ -513,7 +517,12 @@ class ClawbotChannelBridge {
   /**
    * ✅ #14: 发送消息到 Clawbot（带确认机制）
    */
-  sendMessage(content: string, contentType: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string): Promise<void> {
+  sendMessage(
+    content: string,
+    contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = 'text',
+    mediaUrl?: string,
+    mediaMimeType?: string
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.socket || !this.connected) {
         reject(new Error('[ClawbotChannel] 未连接，无法发送消息'));
@@ -556,6 +565,7 @@ class ClawbotChannelBridge {
         content,
         contentType,
         mediaUrl,
+        mediaMimeType,
         messageId // 发送消息ID
       });
     });

@@ -177,6 +177,7 @@ function normalizeAppPayload(data = {}, socketUserId) {
   const content = data.content ?? data.text ?? data.message ?? data.response ?? '';
   const contentType = data.contentType ?? data.content_type ?? 'text';
   const mediaUrl = data.mediaUrl ?? data.media_url ?? null;
+  const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ?? null;
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeFallbackMessageId('app');
   const threadId = data.threadId ?? data.thread_id ?? 'default';
   const userId = socketUserId ?? data.userId ?? data.user_id ?? null;
@@ -186,6 +187,7 @@ function normalizeAppPayload(data = {}, socketUserId) {
     content: typeof content === 'string' ? content : String(content ?? ''),
     contentType,
     mediaUrl,
+    mediaMimeType,
     messageId: String(messageId),
     threadId,
     timestamp: toNumberTimestamp(data.timestamp),
@@ -197,6 +199,7 @@ async function normalizeBotPayload(data = {}, socket) {
   const content = data.content ?? data.response ?? data.text ?? data.message ?? '';
   const contentType = data.contentType ?? data.content_type ?? 'text';
   const mediaUrl = data.mediaUrl ?? data.media_url ?? null;
+  const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ?? null;
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeFallbackMessageId('bot');
 
   let deviceId = data.deviceId ?? data.device_id ?? socket.deviceId ?? null;
@@ -210,6 +213,7 @@ async function normalizeBotPayload(data = {}, socket) {
     content: typeof content === 'string' ? content : String(content ?? ''),
     contentType,
     mediaUrl,
+    mediaMimeType,
     messageId: String(messageId),
     timestamp: toNumberTimestamp(data.timestamp),
     raw: data
@@ -221,6 +225,28 @@ function buildDedupKey(prefix, normalized) {
     return `${prefix}:${normalized.messageId}`;
   }
   return `${prefix}:${normalized.contentType}:${normalized.content.slice(0, 64)}:${Math.floor(normalized.timestamp / DEDUP_TTL_MS)}`;
+}
+
+function hasMessagePayload(content, mediaUrl) {
+  return Boolean((typeof content === 'string' && content.trim()) || mediaUrl);
+}
+
+function getMediaPlaceholder(contentType) {
+  if (contentType === 'image' || contentType === 'mixed') {
+    return '[image]';
+  }
+  return '[media]';
+}
+
+function normalizeMediaOnlyContent(content, contentType, mediaUrl) {
+  const normalizedContent = typeof content === 'string' ? content : String(content ?? '');
+  if (normalizedContent.trim()) {
+    return normalizedContent;
+  }
+  if (!mediaUrl) {
+    return normalizedContent;
+  }
+  return getMediaPlaceholder(contentType);
 }
 
 const upload = multer({
@@ -344,7 +370,7 @@ app.post('/api/tts/synthesize', ttsLimiter, async (req, res) => {
 });
 
 app.post('/webhook/clawbot', async (req, res) => {
-  const { deviceId, content, contentType, mediaUrl } = req.body;
+  const { deviceId, content, contentType, mediaUrl, mediaMimeType } = req.body;
 
   try {
     const authHeader = req.headers['x-webhook-secret'];
@@ -363,6 +389,7 @@ app.post('/webhook/clawbot', async (req, res) => {
       content,
       contentType,
       mediaUrl,
+      mediaMimeType,
       timestamp: now(),
       messageId: makeFallbackMessageId('webhook')
     });
@@ -408,6 +435,9 @@ app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
       success: true,
       url: result.url,
       objectKey: result.objectKey,
+      filename: originalname,
+      size: buffer.length,
+      mimeType: mimetype,
       contentType: mimetype
     });
   } catch (error) {
@@ -431,6 +461,9 @@ app.post('/upload/base64', async (req, res) => {
       success: true,
       url: result.url,
       objectKey: result.objectKey,
+      filename: 'upload.jpg',
+      size: Buffer.from(base64Data.split(',').pop() || '', 'base64').length,
+      mimeType: 'image/jpeg',
       contentType: 'image/jpeg'
     });
   } catch (error) {
@@ -695,9 +728,13 @@ io.on('connection', (socket) => {
 
     try {
       const normalized = normalizeAppPayload(rawData, socket.userId);
-      messageId = normalized.messageId;
+      const routedMessage = {
+        ...normalized,
+        content: normalizeMediaOnlyContent(normalized.content, normalized.contentType, normalized.mediaUrl)
+      };
+      messageId = routedMessage.messageId;
 
-      if (!normalized.userId) {
+      if (!routedMessage.userId) {
         socket.emit('message_sent', {
           success: false,
           messageId,
@@ -706,7 +743,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (!normalized.content.trim()) {
+      if (!hasMessagePayload(routedMessage.content, routedMessage.mediaUrl)) {
         socket.emit('message_sent', {
           success: false,
           messageId,
@@ -715,13 +752,13 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const dedupKey = buildDedupKey(`app:${normalized.userId}`, normalized);
+      const dedupKey = buildDedupKey(`app:${routedMessage.userId}`, routedMessage);
       if (seenRecently(dedupKey)) {
         socket.emit('message_sent', { success: true, messageId, duplicate: true });
         return;
       }
 
-      const pairing = await pairingService.getPairingByUserId(normalized.userId);
+      const pairing = await pairingService.getPairingByUserId(routedMessage.userId);
       if (!pairing || !pairing.device_id) {
         socket.emit('error', { message: 'Not paired with any bot' });
         socket.emit('message_sent', {
@@ -736,7 +773,7 @@ io.on('connection', (socket) => {
       let targetDeviceId = requestedDeviceId || pairing.device_id;
       if (requestedDeviceId && pairing.device_id && requestedDeviceId !== pairing.device_id) {
         console.warn(
-          `[App] deviceId mismatch user=${normalized.userId}, requested=${requestedDeviceId}, paired=${pairing.device_id}, using paired device`
+          `[App] deviceId mismatch user=${routedMessage.userId}, requested=${requestedDeviceId}, paired=${pairing.device_id}, using paired device`
         );
         targetDeviceId = pairing.device_id;
       }
@@ -744,9 +781,9 @@ io.on('connection', (socket) => {
       await messageService.saveMessage(
         pairing.id,
         'app_to_bot',
-        normalized.content,
-        normalized.contentType,
-        normalized.mediaUrl
+        routedMessage.content,
+        routedMessage.contentType,
+        routedMessage.mediaUrl
       );
 
       const botSocket = getConnectedBot(targetDeviceId);
@@ -771,27 +808,29 @@ io.on('connection', (socket) => {
 
       const appPayload = {
         messageId,
-        userId: normalized.userId,
+        userId: routedMessage.userId,
         deviceId: targetDeviceId,
-        content: normalized.content,
-        contentType: normalized.contentType,
-        mediaUrl: normalized.mediaUrl,
-        threadId: normalized.threadId,
-        timestamp: normalized.timestamp,
+        content: routedMessage.content,
+        contentType: routedMessage.contentType,
+        mediaUrl: routedMessage.mediaUrl,
+        mediaMimeType: routedMessage.mediaMimeType,
+        threadId: routedMessage.threadId,
+        timestamp: routedMessage.timestamp,
         sourceEvent
       };
 
       botSocket.emit('app_message', appPayload);
       botSocket.emit('user_message', {
-        text: normalized.content,
-        content: normalized.content,
+        text: routedMessage.content,
+        content: routedMessage.content,
         messageId,
-        userId: normalized.userId,
+        userId: routedMessage.userId,
         deviceId: targetDeviceId,
-        threadId: normalized.threadId,
-        contentType: normalized.contentType,
-        mediaUrl: normalized.mediaUrl,
-        timestamp: normalized.timestamp,
+        threadId: routedMessage.threadId,
+        contentType: routedMessage.contentType,
+        mediaUrl: routedMessage.mediaUrl,
+        mediaMimeType: routedMessage.mediaMimeType,
+        timestamp: routedMessage.timestamp,
         sourceEvent
       });
 
@@ -815,9 +854,13 @@ io.on('connection', (socket) => {
 
     try {
       const normalized = await normalizeBotPayload(rawData, socket);
-      messageId = normalized.messageId;
+      const routedMessage = {
+        ...normalized,
+        content: normalizeMediaOnlyContent(normalized.content, normalized.contentType, normalized.mediaUrl)
+      };
+      messageId = routedMessage.messageId;
 
-      if (!normalized.deviceId) {
+      if (!routedMessage.deviceId) {
         socket.emit('message_sent', {
           success: false,
           messageId,
@@ -826,7 +869,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (!normalized.content.trim()) {
+      if (!hasMessagePayload(routedMessage.content, routedMessage.mediaUrl)) {
         socket.emit('message_sent', {
           success: false,
           messageId,
@@ -835,19 +878,19 @@ io.on('connection', (socket) => {
         return;
       }
 
-      touchConnectedBot(normalized.deviceId, socket, socket.pairingId ?? null, sourceEvent);
+      touchConnectedBot(routedMessage.deviceId, socket, socket.pairingId ?? null, sourceEvent);
 
-      const dedupKey = buildDedupKey(`bot:${normalized.deviceId}`, normalized);
+      const dedupKey = buildDedupKey(`bot:${routedMessage.deviceId}`, routedMessage);
       if (seenRecently(dedupKey)) {
         socket.emit('message_sent', { success: true, messageId, duplicate: true });
         return;
       }
 
-      const pairing = await pairingService.getPairingByDeviceId(normalized.deviceId);
+      const pairing = await pairingService.getPairingByDeviceId(routedMessage.deviceId);
       if (!pairing || pairing.status !== 'paired') {
         socket.emit('error', {
           message: 'Not paired or invalid pairing status',
-          deviceId: normalized.deviceId
+          deviceId: routedMessage.deviceId
         });
         socket.emit('message_sent', {
           success: false,
@@ -860,16 +903,17 @@ io.on('connection', (socket) => {
       await messageService.saveMessage(
         pairing.id,
         'bot_to_app',
-        normalized.content,
-        normalized.contentType,
-        normalized.mediaUrl
+        routedMessage.content,
+        routedMessage.contentType,
+        routedMessage.mediaUrl
       );
 
       const appPayload = {
-        content: normalized.content,
-        contentType: normalized.contentType,
-        mediaUrl: normalized.mediaUrl,
-        timestamp: normalized.timestamp,
+        content: routedMessage.content,
+        contentType: routedMessage.contentType,
+        mediaUrl: routedMessage.mediaUrl,
+        mediaMimeType: routedMessage.mediaMimeType,
+        timestamp: routedMessage.timestamp,
         messageId,
         sourceEvent
       };
@@ -878,9 +922,9 @@ io.on('connection', (socket) => {
 
       if (ENABLE_LEGACY_BOT_RESPONSE) {
         io.to(`user_${pairing.user_id}`).emit('bot_response', {
-          response: normalized.content,
+          response: routedMessage.content,
           messageId,
-          timestamp: new Date(normalized.timestamp).toISOString(),
+          timestamp: new Date(routedMessage.timestamp).toISOString(),
           pairingId: pairing.id
         });
       }
