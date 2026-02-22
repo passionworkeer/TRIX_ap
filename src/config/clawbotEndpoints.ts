@@ -1,5 +1,5 @@
-const DEFAULT_CHANNEL_URL = 'ws://localhost:8765';
-const DEFAULT_GATEWAY_URL = 'ws://localhost:18789';
+const DEV_DEFAULT_CHANNEL_URL = 'ws://localhost:8765';
+const DEV_DEFAULT_GATEWAY_URL = 'ws://localhost:18789';
 
 export interface ClawbotEndpoints {
   channelUrl: string;
@@ -7,9 +7,27 @@ export interface ClawbotEndpoints {
   gatewayToken: string;
 }
 
-function cleanUrl(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : fallback;
+function cleanValue(value: string | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function pickValue(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    const cleaned = cleanValue(value);
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
+  }
+
+  return '';
+}
+
+function withDevFallback(value: string, fallback: string): string {
+  if (value.length > 0) {
+    return value;
+  }
+
+  return import.meta.env.DEV ? fallback : '';
 }
 
 export function maskSecret(secret: string | undefined | null): string {
@@ -25,19 +43,24 @@ export function maskSecret(secret: string | undefined | null): string {
 }
 
 export function getClawbotEndpoints(): ClawbotEndpoints {
-  const channelUrl = cleanUrl(
-    import.meta.env.VITE_CLAWBOT_CHANNEL_URL,
-    DEFAULT_CHANNEL_URL
+  const channelUrl = withDevFallback(
+    pickValue(import.meta.env.VITE_CLAWBOT_CHANNEL_URL),
+    DEV_DEFAULT_CHANNEL_URL
   );
 
-  const gatewayUrl = cleanUrl(
-    import.meta.env.VITE_GATEWAY_WS_URL || import.meta.env.VITE_CLAWBOT_GATEWAY_URL,
-    DEFAULT_GATEWAY_URL
+  const gatewayUrl = withDevFallback(
+    pickValue(
+      import.meta.env.VITE_GATEWAY_WS_URL,
+      import.meta.env.VITE_CLAWBOT_GATEWAY_URL,
+      import.meta.env.VITE_PC_WEBSOCKET_URL
+    ),
+    DEV_DEFAULT_GATEWAY_URL
   );
 
-  const gatewayToken = cleanUrl(
-    import.meta.env.VITE_GATEWAY_AUTH_TOKEN || import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN,
-    ''
+  const gatewayToken = pickValue(
+    import.meta.env.VITE_GATEWAY_AUTH_TOKEN,
+    import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN,
+    import.meta.env.VITE_PC_AUTH_TOKEN
   );
 
   return { channelUrl, gatewayUrl, gatewayToken };

@@ -5,6 +5,12 @@ const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_ANON_KEY',
 ] as const;
 
+const PRODUCTION_REQUIRED_ENV_VARS = [
+  'VITE_CLAWBOT_CHANNEL_URL',
+  'VITE_GATEWAY_WS_URL',
+  'VITE_GATEWAY_AUTH_TOKEN',
+] as const;
+
 const OPTIONAL_ENV_VARS = [
   'VITE_CLAWBOT_CHANNEL_URL',
   'VITE_GATEWAY_WS_URL',
@@ -21,26 +27,79 @@ interface ValidationError {
   message: string;
 }
 
-function validateEnvVars(): ValidationError[] {
-  const errors: ValidationError[] = [];
+function isLoopbackHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]';
+}
 
-  for (const envVar of REQUIRED_ENV_VARS) {
+function isLoopbackUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return isLoopbackHost(parsed.hostname);
+  } catch {
+    return /(^|:\/\/)(localhost|127\.0\.0\.1|\[::1\]|::1)(:|\/|$)/i.test(url);
+  }
+}
+
+function validateRequiredVars(
+  envVars: readonly string[],
+  errors: ValidationError[],
+  options?: { prefix?: string }
+): void {
+  const prefix = options?.prefix ?? '';
+
+  for (const envVar of envVars) {
     const value = import.meta.env[envVar];
 
     if (!value || value.trim() === '') {
       errors.push({
         variable: envVar,
-        message: 'Missing or empty value',
+        message: `${prefix}Missing or empty value`.trim(),
       });
-    } else if (envVar === 'VITE_SUPABASE_URL' && !value.startsWith('https://')) {
+    }
+  }
+}
+
+function validateEnvVars(): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  validateRequiredVars(REQUIRED_ENV_VARS, errors);
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && !supabaseUrl.startsWith('https://')) {
+    errors.push({
+      variable: 'VITE_SUPABASE_URL',
+      message: 'Invalid format: must start with "https://"',
+    });
+  }
+
+  if (supabaseAnonKey && supabaseAnonKey.length < 50) {
+    errors.push({
+      variable: 'VITE_SUPABASE_ANON_KEY',
+      message: 'Invalid format: appears too short for a valid Supabase key',
+    });
+  }
+
+  if (!import.meta.env.DEV) {
+    validateRequiredVars(PRODUCTION_REQUIRED_ENV_VARS, errors, {
+      prefix: 'Production requirement: ',
+    });
+
+    const endpoints = getClawbotEndpoints();
+
+    if (endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
       errors.push({
-        variable: envVar,
-        message: 'Invalid format: must start with "https://"',
+        variable: 'VITE_CLAWBOT_CHANNEL_URL',
+        message: `Invalid production URL: loopback address is not allowed (${endpoints.channelUrl})`,
       });
-    } else if (envVar === 'VITE_SUPABASE_ANON_KEY' && value.length < 50) {
+    }
+
+    if (endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
       errors.push({
-        variable: envVar,
-        message: 'Invalid format: appears too short for a valid Supabase key',
+        variable: 'VITE_GATEWAY_WS_URL',
+        message: `Invalid production URL: loopback address is not allowed (${endpoints.gatewayUrl})`,
       });
     }
   }
@@ -54,8 +113,8 @@ function displayErrors(errors: ValidationError[]): void {
   console.error(`\n${separator}`);
   console.error('  Environment Variable Validation Failed');
   console.error(`${separator}\n`);
-  console.error('The application cannot start because required environment variables are missing.\n');
-  console.error('Missing Variables:\n');
+  console.error('The application cannot start because required environment variables are missing or invalid.\n');
+  console.error('Validation Errors:\n');
 
   errors.forEach((error, index) => {
     console.error(`  ${index + 1}. ${error.variable}`);
@@ -71,7 +130,7 @@ function displayErrors(errors: ValidationError[]): void {
     console.error(`     ${error.variable}=<your-value-here>`);
   });
 
-  console.error('\n  3. For more information, see:');
+  console.error('\n  3. For Supabase keys, see:');
   console.error('     https://supabase.com/dashboard/project/YOUR_PROJECT_ID/settings/api\n');
   console.error(`${separator}\n`);
 }
@@ -110,7 +169,9 @@ export function validateEnv(): void {
     );
   }
 
-  displayOptionalInfo();
+  if (import.meta.env.DEV) {
+    displayOptionalInfo();
+  }
 }
 
 export function isEnvVarSet(envVar: string): boolean {

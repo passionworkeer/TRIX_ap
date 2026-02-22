@@ -44,9 +44,12 @@ npm install
 ```env
 VITE_SUPABASE_URL=<your-supabase-url>
 VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-VITE_PC_WEBSOCKET_URL=ws://localhost:18789
-VITE_PC_AUTH_TOKEN=<your-gateway-token>
+VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
+VITE_GATEWAY_WS_URL=ws://localhost:18789
+VITE_GATEWAY_AUTH_TOKEN=<your-gateway-token>
 ```
+
+生产环境额外要求：`VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 必填，且不能使用 `localhost` 或 `127.0.0.1`。
 
 ### 启动
 
@@ -204,7 +207,7 @@ src/
 | 实时通信 | WebSocket + Supabase Realtime |
 | 动画 | Framer Motion 12 |
 | 地图 | Leaflet |
-| 样式 | Tailwind CSS (CDN) |
+| 样式 | Tailwind CSS (Vite build pipeline) |
 
 ---
 
