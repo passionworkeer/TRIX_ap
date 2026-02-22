@@ -63,70 +63,39 @@ npm run dev
 
 ## 📚 文档
 
-### 快速导航
+> 📚 完整文档索引请参考：**[docs/INDEX.md](./docs/INDEX.md)**
+
+### 核心文档
 
 | 文档 | 说明 |
 |------|------|
-| **[docs/project-reports/PROJECT.md](./docs/project-reports/PROJECT.md)** | 项目结构、技术栈、核心模块 |
-| **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** | 开发迭代日志和架构决策 |
-| **[docs/INDEX.md](./docs/INDEX.md)** | 完整文档索引 |
+| **[docs/INDEX.md](./docs/INDEX.md)** | 📚 完整文档索引 |
+| **[docs/development/ARCHITECTURE.md](./docs/development/ARCHITECTURE.md)** | 🏗️ 系统架构文档 |
+| **[docs/project-reports/PROJECT.md](./docs/project-reports/PROJECT.md)** | 📊 项目总览 |
+| **[docs/project-reports/PROJECT_AUDIT_P0123_2026-02-22.md](./docs/project-reports/PROJECT_AUDIT_P0123_2026-02-22.md)** | 🔍 最新审计报告 |
+| **[docs/FEATURES.md](./docs/FEATURES.md)** | ✨ 功能文档 |
+| **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** | 📝 开发迭代日志 |
 
-### 用户指南
-
-位于 `docs/guides/` 目录：
+### 快速指南
 
 | 文档 | 说明 |
 |------|------|
 | [扫码配对指南](./docs/guides/QR_PAIRING_USER_GUIDE.md) | 手机与电脑配对完整指南 |
-| [配对输入指南](./docs/guides/PAIRING_INPUT_GUIDE.md) | 配对输入功能使用说明 |
 | [专注模式快速开始](./docs/guides/QUICK-START-FOCUS-MODE.md) | 学习计时功能使用指南 |
 | [解绑功能指南](./docs/guides/UNPAIR_FEATURE_GUIDE.md) | 解绑配对设备操作指南 |
 
-### API 文档
-
-位于 `docs/api/` 目录：
-
-| 文档 | 说明 |
-|------|------|
-| [Clawbot API 文档](./docs/api/new_clawbot_api.md) | Clawbot API 使用指南 |
-| [新 API 文档](./docs/api/new_api.md) | 最新 API 说明 |
-
 ### 部署文档
-
-位于 `docs/deployment-guides/` 目录：
 
 | 文档 | 说明 |
 |------|------|
 | [服务器部署指南](./docs/deployment-guides/DEPLOYMENT_GUIDE.md) | 完整部署方案 |
 | [服务器端口说明](./docs/deployment-guides/SERVER_PORTS.md) | 端口配置和说明 |
 
-### 功能文档
-
-位于 `docs/feature-implementation/` 目录：
-
-| 文档 | 说明 |
-|------|------|
-| [Clawbot 持久连接](./docs/feature-implementation/CLAWBOT_PERSISTENT_CONNECTION.md) | 持久连接实现说明 |
-| [Clawbot 回复实现](./docs/feature-implementation/CLAWBOT_REPLY_IMPLEMENTATION.md) | 回复功能实现文档 |
-| [Clawbot 回复通知](./docs/feature-implementation/CLAWBOT_REPLY_NOTIFICATION.md) | 通知系统实现 |
-| [功能实现总览](./docs/feature-implementation/FEATURE_IMPLEMENTATION.md) | 功能实现说明 |
-
-### 修复报告
-
-位于 `docs/fix-reports/` 目录：
-
-| 文档 | 说明 |
-|------|------|
-| [Bug 修复总结](./docs/fix-reports/BUG_FIX_SUMMARY.md) | Bug 修复记录 |
-| [诊断报告](./docs/fix-reports/DIAGNOSIS_REPORT.md) | 问题诊断记录 |
-| [修复报告汇总](./docs/fix-reports/FIX_REPORTS.md) | 修复报告集合 |
-
 ### 数据库文档
 
 | 文档 | 说明 |
 |------|------|
-| [src/database/SCHEMA.md](./src/database/SCHEMA.md) | 数据库架构详细文档 |
-| [src/database/README.md](./src/database/README.md) | 数据库配置指南 |
+| [database/docs/SCHEMA.md](./database/docs/SCHEMA.md) | 数据库架构详细文档 |
 | [数据库需求文档](./docs/database-requirements/DATABASE-REQUIREMENTS.md) | 数据访问清单 |
 
 ---
@@ -239,4 +208,4 @@ TRIX 3D Companion 开发团队
 
 ---
 
-**最后更新**: 2026-02-13
+**最后更新**: 2026-02-22
