@@ -20,6 +20,7 @@ const OPTIONAL_ENV_VARS = [
   'VITE_PC_WEBSOCKET_URL',
   'VITE_PC_AUTH_TOKEN',
   'VITE_OSS_ENDPOINT',
+  'VITE_TTS_PROXY_URL',
 ] as const;
 
 interface ValidationError {
