@@ -418,12 +418,12 @@ export function isValidFile(file: File): boolean {
  * const category = getFileCategory(file.type);
  *
  * if (!category) {
- *   alert('请选择图片或视频文件');
+ *   console.warn('请选择图片或视频文件');
  *   return;
  * }
  *
  * if (!isValidFile(file)) {
- *   alert('文件过大或格式不支持');
+ *   console.warn('文件过大或格式不支持');
  *   return;
  * }
  *

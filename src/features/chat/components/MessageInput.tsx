@@ -1,13 +1,13 @@
 /**
- * MessageInput - 消息输入组件
- *
- * 负责处理用户输入、发送消息、语音输入、媒体文件上传等功能
+ * MessageInput component
+ * Handles text entry, media preview, speech recognition and send events.
  */
 
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, MicOff, Image } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Image, Mic, MicOff, Send } from 'lucide-react';
 import { useSpeechToText } from '../../../hooks/useSpeechToText';
+import { useNotification } from '../../../hooks/useNotification';
 import MediaPreview from './MediaPreview';
 
 interface MediaData {
@@ -31,48 +31,39 @@ const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   disabled = false,
   isSpeechSupported = false,
-  placeholder = '输入消息...'
+  placeholder = '输入消息...',
 }) => {
   const [pendingMedia, setPendingMedia] = useState<MediaData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showWarning } = useNotification();
 
-  // 语音识别
-  const {
-    isListening,
-    startListening,
-    stopListening
-  } = useSpeechToText({
+  const { isListening, startListening, stopListening } = useSpeechToText({
     lang: 'zh-CN',
     continuous: false,
     interimResults: true,
     onResult: (text) => {
       onChange(value + text);
     },
-    onError: (err) => {
-      console.error('Speech error:', err);
-    }
+    onError: (error) => {
+      console.error('Speech error:', error);
+    },
   });
 
-  // 处理发送
   const handleSend = () => {
     if ((!value.trim() && !pendingMedia) || disabled) return;
 
     onSend(value, pendingMedia || undefined);
-
-    // 清空输入
     onChange('');
     setPendingMedia(null);
   };
 
-  // 处理键盘事件
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       handleSend();
     }
   };
 
-  // 切换语音识别
   const toggleSpeech = () => {
     if (isListening) {
       stopListening();
@@ -81,78 +72,60 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  // 处理文件选择
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  // 处理文件变更
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    // 验证文件类型
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      alert('请选择图片或视频文件');
+      showWarning('请选择图片或视频文件');
       return;
     }
 
-    // 验证文件大小（50MB 限制）
     if (file.size > 50 * 1024 * 1024) {
-      alert('文件大小不能超过 50MB');
+      showWarning('文件大小不能超过 50MB');
       return;
     }
 
-    // 创建预览
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const uri = e.target?.result as string;
+    reader.onload = (loadEvent) => {
+      const uri = loadEvent.target?.result as string;
       setPendingMedia({
         uri,
         type: file.type.startsWith('image/') ? 'image' : 'video',
-        size: file.size
+        size: file.size,
       });
     };
     reader.readAsDataURL(file);
 
-    // 清空 input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // 移除媒体预览
-  const handleRemoveMedia = () => {
-    setPendingMedia(null);
-  };
-
   return (
-    <div className="px-4 pb-4 pt-2 bg-gradient-to-t from-black/20 to-transparent">
-      {/* 媒体预览 */}
+    <div className="bg-gradient-to-t from-black/20 to-transparent px-4 pb-4 pt-2">
       <AnimatePresence>
         {pendingMedia && (
           <MediaPreview
             media={pendingMedia}
-            onRemove={handleRemoveMedia}
+            onRemove={() => setPendingMedia(null)}
           />
         )}
       </AnimatePresence>
 
-      {/* 输入框 */}
       <div className="flex items-end gap-2">
-        {/* 媒体按钮 */}
         {!pendingMedia && (
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleFileSelect}
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
-            className="p-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:bg-white/20 transition-colors disabled:opacity-50"
+            className="rounded-full border border-white/20 bg-white/10 p-3 text-white transition-colors hover:bg-white/20 disabled:opacity-50"
           >
             <Image size={20} />
           </motion.button>
         )}
 
-        {/* 隐藏的文件输入 */}
         <input
           ref={fileInputRef}
           type="file"
@@ -161,46 +134,45 @@ const MessageInput: React.FC<MessageInputProps> = ({
           className="hidden"
         />
 
-        {/* 文本输入框 */}
-        <div className="flex-1 relative">
+        <div className="relative flex-1">
           <textarea
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className="w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50"
+            className="w-full resize-none rounded-full border border-white/20 bg-white/10 px-4 py-3 pr-12 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50"
             style={{
               minHeight: '48px',
               maxHeight: '120px',
-              overflowY: 'auto'
+              overflowY: 'auto',
             }}
           />
         </div>
 
-        {/* 语音按钮 */}
         {isSpeechSupported && !pendingMedia && (
           <motion.button
             whileTap={{ scale: 0.95 }}
+            type="button"
             onClick={toggleSpeech}
             disabled={disabled}
-            className={`p-3 rounded-full border transition-colors ${
+            className={`rounded-full border p-3 transition-colors disabled:opacity-50 ${
               isListening
-                ? 'bg-red-500/80 border-red-400 text-white animate-pulse'
-                : 'bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20'
-            } disabled:opacity-50`}
+                ? 'animate-pulse border-red-400 bg-red-500/80 text-white'
+                : 'border-white/20 bg-white/10 text-white hover:bg-white/20'
+            }`}
           >
             {isListening ? <MicOff size={20} /> : <Mic size={20} />}
           </motion.button>
         )}
 
-        {/* 发送按钮 */}
         <motion.button
           whileTap={{ scale: 0.95 }}
+          type="button"
           onClick={handleSend}
           disabled={disabled || (!value.trim() && !pendingMedia)}
-          className="p-3 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full bg-indigo-600 p-3 text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send size={20} />
         </motion.button>

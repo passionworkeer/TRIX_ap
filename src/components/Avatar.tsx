@@ -16,7 +16,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
       return name.charAt(0);
     }
     
-    // 如果是英文名，取首字母大�?
+    // 如果是英文名，取首字母大写
     return name.charAt(0).toUpperCase();
   };
 
@@ -43,12 +43,12 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
       'from-emerald-500 to-green-600',
     ];
     
-    // 根据名字生成一致的渐变�?
+    // 根据名字生成一致的渐变
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % gradients.length;
     return gradients[index];
   };
 
-  // 如果有头像URL且不为空，尝试渲染图�?
+  // 如果有头像 URL 且不为空，尝试渲染图片
   if (avatar && avatar.trim()) {
     return (
       <div className={`${getSize()} rounded-full overflow-hidden ${className}`}>
@@ -57,7 +57,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
           alt={name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            // 图片加载失败时，隐藏图片并显示字�?
+            // 图片加载失败时，隐藏图片并显示字母
             e.currentTarget.style.display = 'none';
             if (e.currentTarget.nextSibling) {
               (e.currentTarget.nextSibling as HTMLElement).style.display = 'flex';

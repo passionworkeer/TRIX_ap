@@ -1,92 +1,109 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Table, Presentation, Image as ImageIcon, Video, Sparkles } from 'lucide-react';
+import {
+  FileText,
+  Table,
+  Presentation,
+  Image as ImageIcon,
+  Video,
+  Sparkles,
+} from 'lucide-react';
+import type { AIActionId } from '../features/chat/utils/aiPrompt';
 
 interface AIActionSelectorProps {
-  onSelect: (action: string) => void;
+  value: AIActionId;
+  onSelect: (action: AIActionId) => void;
 }
 
-const AIActions = [
+const actions: Array<{
+  id: AIActionId;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  iconBg: string;
+  selectedClass: string;
+}> = [
   {
     id: 'chat',
     label: 'AI聊天',
     icon: Sparkles,
-    bgColor: '#E6F0FF',
     iconBg: 'from-blue-500 to-indigo-600',
-    textColor: '#0066CC'
+    selectedClass:
+      'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200',
   },
   {
     id: 'doc',
     label: 'AI文档',
     icon: FileText,
-    bgColor: '#E6F0FF',
-    iconBg: 'from-blue-500 to-indigo-600',
-    textColor: '#0066CC'
+    iconBg: 'from-cyan-500 to-blue-600',
+    selectedClass:
+      'border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-200',
   },
   {
     id: 'slide',
     label: 'AI幻灯片',
     icon: Presentation,
-    bgColor: '#F3E6FF',
-    iconBg: 'from-purple-500 to-purple-600',
-    textColor: '#9333EA'
+    iconBg: 'from-violet-500 to-purple-600',
+    selectedClass:
+      'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/30 dark:text-violet-200',
   },
   {
     id: 'table',
     label: 'AI表格',
     icon: Table,
-    bgColor: '#E6F7EE',
-    iconBg: 'from-green-500 to-green-600',
-    textColor: '#00A854'
+    iconBg: 'from-emerald-500 to-green-600',
+    selectedClass:
+      'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200',
   },
   {
     id: 'image',
     label: 'AI图片',
     icon: ImageIcon,
-    bgColor: '#F3E6FF',
-    iconBg: 'from-purple-500 to-pink-600',
-    textColor: '#9333EA'
+    iconBg: 'from-fuchsia-500 to-pink-600',
+    selectedClass:
+      'border-fuchsia-300 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-200',
   },
   {
     id: 'video',
     label: 'AI视频',
     icon: Video,
-    bgColor: '#FFF5E6',
-    iconBg: 'from-orange-500 to-orange-600',
-    textColor: '#FF8C00'
+    iconBg: 'from-orange-500 to-amber-600',
+    selectedClass:
+      'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200',
   },
 ];
 
-const AIActionSelector: React.FC<AIActionSelectorProps> = ({ onSelect }) => {
+const AIActionSelector: React.FC<AIActionSelectorProps> = ({ value, onSelect }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.2 }}
       className="flex gap-2 overflow-x-auto pb-1"
     >
-      {AIActions.map((action) => {
+      {actions.map((action) => {
         const Icon = action.icon;
+        const isSelected = value === action.id;
 
         return (
           <motion.button
             key={action.id}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            type="button"
+            whileTap={{ scale: 0.96 }}
             onClick={() => onSelect(action.id)}
-            className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-gray-200 transition-all hover:border-gray-300"
-            style={{ backgroundColor: action.bgColor }}
+            className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
+              isSelected
+                ? action.selectedClass
+                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800'
+            }`}
+            aria-pressed={isSelected}
           >
-            {/* 图标 */}
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${action.iconBg} flex items-center justify-center`}>
-              <Icon size={16} className="text-white" />
-            </div>
-
-            {/* 标签 */}
-            <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: action.textColor }}>
-              {action.label}
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br ${action.iconBg}`}
+            >
+              <Icon size={14} className="text-white" />
             </span>
+            <span className="whitespace-nowrap">{action.label}</span>
           </motion.button>
         );
       })}

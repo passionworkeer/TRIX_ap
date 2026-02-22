@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../index.html";
 @source "./**/*.{ts,tsx}";
 
@@ -128,13 +129,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 强制所有滚动容器使用统一背景 - 但不包括首页 */
-div:not([data-hero-background]):not([data-home-scroll]) {
-  background-color: inherit;
-}
-
-/* 确保页面内容区域不会露出黑边 - 但保留首页透明 */
-.overflow-y-auto:not([data-home-scroll]) {
+/* 需要统一背景的滚动容器使用显式作用域类，避免全局污染 */
+.overscroll-safe {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   background-color: var(--bg-primary);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+ï»¿import React, { useEffect, useState } from 'react';
 import { X, Bell, MessageCircle, UserPlus, AlertCircle, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -39,7 +39,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   };
 
   const handleMarkAllAsRead = async () => {
-    // ºÃÓÑÇëÇó±ØĞëÍ¨¹ı¡°½ÓÊÜ/¾Ü¾ø¡±´¦Àí£¬±ÜÃâÒ»¼üÒÑ¶Áµ¼ÖÂÉóÅú¶ªÊ§
+    // å¥½å‹è¯·æ±‚å¿…é¡»é€šè¿‡â€œæ¥å—/æ‹’ç»â€å¤„ç†ï¼Œé¿å…ä¸€é”®å·²è¯»å¯¼è‡´å®¡æ‰¹ä¸¢å¤±
     const unreadIds = notifications
       .filter(n => !n.is_read && n.type !== 'friend_request')
       .map(n => n.id);
@@ -61,15 +61,15 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
 
       if (action === 'accept') {
         await acceptFriendRequest(notificationId);
-        toast.success('ÒÑ½ÓÊÜºÃÓÑÇëÇó');
+        toast.success('å·²æ¥å—å¥½å‹è¯·æ±‚');
       } else {
         await rejectFriendRequest(notificationId);
-        toast.success('ÒÑ¾Ü¾øºÃÓÑÇëÇó');
+        toast.success('å·²æ‹’ç»å¥½å‹è¯·æ±‚');
       }
 
       await loadNotifications();
     } catch (error: any) {
-      toast.error(error?.message || '´¦ÀíºÃÓÑÇëÇóÊ§°Ü');
+      toast.error(error?.message || 'å¤„ç†å¥½å‹è¯·æ±‚å¤±è´¥');
     } finally {
       setProcessingId(null);
     }
@@ -109,10 +109,10 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return '¸Õ¸Õ';
-    if (diffMins < 60) return `${diffMins}·ÖÖÓÇ°`;
-    if (diffHours < 24) return `${diffHours}Ğ¡Ê±Ç°`;
-    if (diffDays < 7) return `${diffDays}ÌìÇ°`;
+    if (diffMins < 1) return 'åˆšåˆš';
+    if (diffMins < 60) return `${diffMins}åˆ†é’Ÿå‰`;
+    if (diffHours < 24) return `${diffHours}å°æ—¶å‰`;
+    if (diffDays < 7) return `${diffDays}å¤©å‰`;
     return date.toLocaleDateString('zh-CN');
   };
 
@@ -134,8 +134,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               <Bell className="text-white" size={20} />
             </div>
             <div>
-              <h2 id="notification-panel-title" className="text-xl font-bold text-slate-800">Í¨Öª</h2>
-              <p className="text-xs text-slate-500">{unreadCount} ÌõÎ´¶Á</p>
+              <h2 id="notification-panel-title" className="text-xl font-bold text-slate-800">é€šçŸ¥</h2>
+              <p className="text-xs text-slate-500">{unreadCount} æ¡æœªè¯»</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -143,16 +143,16 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               <button
                 onClick={handleMarkAllAsRead}
                 className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors flex items-center gap-1"
-                aria-label="È«²¿±ê¼ÇÎªÒÑ¶Á"
+                aria-label="å…¨éƒ¨æ ‡è®°ä¸ºå·²è¯»"
               >
                 <Check size={14} />
-                È«²¿ÒÑ¶Á
+                å…¨éƒ¨å·²è¯»
               </button>
             )}
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-              aria-label="¹Ø±ÕÍ¨ÖªÃæ°å"
+              aria-label="å…³é—­é€šçŸ¥é¢æ¿"
             >
               <X size={18} className="text-slate-600" />
             </button>
@@ -163,7 +163,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Bell size={48} className="mb-2 opacity-50" />
-              <p>Ã»ÓĞÍ¨Öª</p>
+              <p>æ²¡æœ‰é€šçŸ¥</p>
             </div>
           ) : (
             notifications.map(notification => {
@@ -224,7 +224,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                         disabled={isProcessing}
                         className="flex-1 px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
                       >
-                        ½ÓÊÜ
+                        æ¥å—
                       </button>
                       <button
                         onClick={(event) => {
@@ -234,7 +234,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                         disabled={isProcessing}
                         className="flex-1 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 disabled:opacity-60 disabled:cursor-not-allowed text-slate-700 text-xs font-medium transition-colors"
                       >
-                        ¾Ü¾ø
+                        æ‹’ç»
                       </button>
                     </div>
                   )}
@@ -249,3 +249,4 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
 };
 
 export default NotificationPanel;
+

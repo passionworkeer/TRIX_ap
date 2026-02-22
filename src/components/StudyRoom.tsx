@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Flame, Play, Square } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
+import { useNotification } from '../hooks/useNotification';
 
 interface StudyRoomProps {
   isOpen: boolean;
@@ -31,11 +32,12 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [studyTime, setStudyTime] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const { showError, showWarning } = useNotification();
 
-  // 默认自习室 ID (可以改为动态选择)
+  // 榛樿鑷範瀹?ID (鍙互鏀逛负鍔ㄦ€侀€夋嫨)
   const DEFAULT_ROOM_ID = '00000000-0000-0000-0000-000000000001';
 
-  // 获取当前用户 ID
+  // 鑾峰彇褰撳墠鐢ㄦ埛 ID
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -46,7 +48,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     getCurrentUser();
   }, []);
 
-  // 加载自习室成员
+  // 鍔犺浇鑷範瀹ゆ垚鍛?
   const loadMembers = async () => {
     setLoading(true);
     try {
@@ -58,7 +60,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
-      // 过滤出活跃成员 (5分钟内有活动)
+      // 杩囨护鍑烘椿璺冩垚鍛?(5鍒嗛挓鍐呮湁娲诲姩)
       const now = new Date();
       const activeMembers = (data || []).filter(member => {
         const lastSeen = new Date(member.last_seen);
@@ -68,20 +70,20 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
       setMembers(activeMembers);
     } catch (error) {
-      console.error('加载自习室成员失败:', error);
+      console.error('鍔犺浇鑷範瀹ゆ垚鍛樺け璐?', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 初始加载
+  // 鍒濆鍔犺浇
   useEffect(() => {
     if (isOpen) {
       loadMembers();
     }
   }, [isOpen]);
 
-  // 实时订阅自习室成员变化
+  // 瀹炴椂璁㈤槄鑷範瀹ゆ垚鍛樺彉鍖?
   useEffect(() => {
     if (!isOpen) return;
 
@@ -96,8 +98,8 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
           filter: `room_id=eq.${DEFAULT_ROOM_ID}`
         },
         (payload) => {
-          console.log('自习室成员变化:', payload);
-          loadMembers(); // 重新加载成员列表
+          console.log('鑷範瀹ゆ垚鍛樺彉鍖?', payload);
+          loadMembers(); // 閲嶆柊鍔犺浇鎴愬憳鍒楄〃
         }
       )
       .subscribe();
@@ -107,10 +109,10 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     };
   }, [isOpen]);
 
-  // 开始专注
+  // 寮€濮嬩笓娉?
   const handleStartFocus = async () => {
     if (!currentUserId) {
-      alert('请先登录');
+      showWarning('请先登录');
       return;
     }
 
@@ -121,7 +123,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         p_room_id: DEFAULT_ROOM_ID,
         p_user_id: currentUserId,
         p_status: 'focusing',
-        p_display_name: user?.email?.split('@')[0] || '匿名用户',
+        p_display_name: user?.email?.split('@')[0] || '鍖垮悕鐢ㄦ埛',
         p_avatar_url: user?.user_metadata?.avatar_url || null
       });
 
@@ -130,19 +132,19 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
       setIsFocusing(true);
       setStudyTime(0);
 
-      // 启动计时器
+      // 鍚姩璁℃椂鍣?
       const interval = setInterval(() => {
         setStudyTime(prev => prev + 1);
       }, 1000);
       setTimerInterval(interval);
 
     } catch (error) {
-      console.error('开始专注失败:', error);
-      alert('开始专注失败,请重试');
+      console.error('寮€濮嬩笓娉ㄥけ璐?', error);
+      showError('开始专注失败，请重试');
     }
   };
 
-  // 停止专注
+  // 鍋滄涓撴敞
   const handleStopFocus = async () => {
     if (!currentUserId) return;
 
@@ -159,11 +161,11 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         setTimerInterval(null);
       }
     } catch (error) {
-      console.error('停止专注失败:', error);
+      console.error('鍋滄涓撴敞澶辫触:', error);
     }
   };
 
-  // 组件卸载时清理
+  // 缁勪欢鍗歌浇鏃舵竻鐞?
   useEffect(() => {
     return () => {
       if (timerInterval) {
@@ -183,7 +185,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 渲染座位 (最多6个座位)
+  // 娓叉煋搴т綅 (鏈€澶?涓骇浣?
   const renderSeats = () => {
     const maxSeats = 6;
     const seats = [];
@@ -196,9 +198,9 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
           className="relative bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/40 shadow-lg hover:shadow-xl transition-all"
         >
           {member ? (
-            // 有人在座位上
+            // 鏈変汉鍦ㄥ骇浣嶄笂
             <div className="flex flex-col items-center gap-2">
-              {/* 头像 */}
+              {/* 澶村儚 */}
               <div className="relative">
                 <Avatar 
                   name={member.display_name} 
@@ -206,23 +208,23 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                   size="lg" 
                   className="ring-4 ring-green-400/50 shadow-lg"
                 />
-                {/* 专注状态指示器 */}
+                {/* 涓撴敞鐘舵€佹寚绀哄櫒 */}
                 <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-pulse">
                   <Flame size={14} className="text-white" />
                 </div>
               </div>
 
-              {/* 名称 */}
+              {/* 鍚嶇О */}
               <div className="text-center">
                 <div className="text-sm font-bold text-slate-800 truncate max-w-[100px]">
                   {member.display_name}
                 </div>
                 <div className="text-[10px] text-green-600 font-semibold">
-                  正在专注
+                  姝ｅ湪涓撴敞
                 </div>
               </div>
 
-              {/* 学习时间 */}
+              {/* 瀛︿範鏃堕棿 */}
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50">
                 <Clock size={12} className="text-green-600" />
                 <span className="text-xs font-mono text-green-700">
@@ -236,13 +238,13 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           ) : (
-            // 空座位
+            // 绌哄骇浣?
             <div className="flex flex-col items-center justify-center h-full opacity-40">
               <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-2">
                 <User size={32} className="text-slate-300" />
               </div>
               <div className="text-xs text-slate-400 font-medium">
-                空座位
+                绌哄骇浣?
               </div>
             </div>
           )}
@@ -257,10 +259,10 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 深色遮罩层 - 半透明保留背景可见 */}
+      {/* 娣辫壊閬僵灞?- 鍗婇€忔槑淇濈暀鑳屾櫙鍙 */}
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
 
-      {/* iOS 风格毛玻璃面板 - 缩小尺寸 */}
+      {/* iOS 椋庢牸姣涚幓鐠冮潰鏉?- 缂╁皬灏哄 */}
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl shadow-2xl max-h-[75vh] flex flex-col animate-scaleIn"
            style={{
              background: 'rgba(255, 255, 255, 0.65)',
@@ -280,18 +282,18 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
-                  多人自习室
+                  澶氫汉鑷範瀹?
                   <span className="bg-green-500/20 text-green-600 text-[10px] px-1.5 py-0.5 rounded-full border border-green-200/50 animate-pulse">
                     LIVE
                   </span>
                 </h2>
                 <p className="text-xs text-slate-500">
-                  {members.length} / 6 人正在专注学习
+                  {members.length} / 6 浜烘鍦ㄤ笓娉ㄥ涔?
                 </p>
               </div>
             </div>
 
-            {/* 我的学习时间 */}
+            {/* 鎴戠殑瀛︿範鏃堕棿 */}
             {isFocusing && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg">
                 <Clock size={14} />
@@ -314,16 +316,16 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         <div className="relative z-10 flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="text-sm text-slate-400 animate-pulse">加载中...</div>
+              <div className="text-sm text-slate-400 animate-pulse">鍔犺浇涓?..</div>
             </div>
           ) : (
             <>
-              {/* 座位区域 */}
+              {/* 搴т綅鍖哄煙 */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                 {renderSeats()}
               </div>
 
-              {/* 控制按钮 */}
+              {/* 鎺у埗鎸夐挳 */}
               <div className="flex justify-center gap-3 mb-4">
                 {!isFocusing ? (
                   <button
@@ -331,7 +333,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                     className="px-6 py-3 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
                   >
                     <Play size={18} />
-                    开始专注
+                    寮€濮嬩笓娉?
                   </button>
                 ) : (
                   <button
@@ -339,15 +341,15 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                     className="px-6 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
                   >
                     <Square size={18} />
-                    停止专注
+                    鍋滄涓撴敞
                   </button>
                 )}
               </div>
 
-              {/* 提示信息 */}
+              {/* 鎻愮ず淇℃伅 */}
               <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200/30">
                 <p className="text-xs text-blue-600 text-center">
-                  💡 提示: 点击"开始专注"加入自习室,与其他同学一起学习吧!
+                  馃挕 鎻愮ず: 鐐瑰嚮"寮€濮嬩笓娉?鍔犲叆鑷範瀹?涓庡叾浠栧悓瀛︿竴璧峰涔犲惂!
                 </p>
               </div>
             </>
