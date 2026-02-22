@@ -107,7 +107,14 @@ const ChatDetail: React.FC = () => {
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
 
   // Clawbot Channel connection
-  const { messages: clawbotMessages, sendMessage: clawbotSendMessage, isPaired, unpair, status } = useClawbotChannel();
+  const {
+    messages: clawbotMessages,
+    sendMessage: clawbotSendMessage,
+    isPaired,
+    unpair,
+    status,
+    botState,
+  } = useClawbotChannel();
 
   // 鑿滃崟鏄剧ず鐘舵€?
   const [showMenu, setShowMenu] = useState(false);
@@ -742,6 +749,29 @@ const ChatDetail: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {isBotConversation && botState === 'THINKING' && (
+              <div className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start">
+                <div className="mr-2 mt-auto shrink-0">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-[10px] text-white">
+                    <Bot size={14} />
+                  </div>
+                </div>
+                <div className="flex max-w-[75%] flex-col gap-1">
+                  <div className="relative px-4 py-3 text-sm leading-relaxed shadow-sm transition-all duration-200 rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100">
+                    <div className="flex items-center gap-1">
+                      {[0, 1, 2].map((index) => (
+                        <span
+                          key={index}
+                          className="h-1.5 w-1.5 rounded-full bg-slate-500 animate-bounce dark:bg-slate-300"
+                          style={{ animationDelay: `${index * 120}ms` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {isBot && status === 'CONNECTING' && (
               <div className="my-4 flex justify-center">

@@ -102,7 +102,11 @@ function AppContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showWarning } = useNotification();
-  const { isConnected: isClawbotConnected, isPaired: isClawbotPaired } = useClawbotChannel();
+  const {
+    isConnected: isClawbotConnected,
+    isPaired: isClawbotPaired,
+    botState,
+  } = useClawbotChannel();
   const [showDockOnHome, setShowDockOnHome] = useState(false);
 
   const isHomePage = location.pathname === '/' || location.pathname === '';
@@ -148,7 +152,7 @@ function AppContent() {
       className="fixed inset-0 w-full h-full overflow-hidden font-sans"
       style={{ background: 'transparent' }}
     >
-      {isHomePage && <HeroBackground />}
+      {isHomePage && <HeroBackground botState={botState} />}
 
       <div
         data-home-scroll="true"

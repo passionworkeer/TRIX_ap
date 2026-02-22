@@ -218,9 +218,15 @@ class ClawbotChannelBridge {
     });
 
     // 收到 Bot 消息
-    this.socket.on('bot_message', (msg: { content: string; contentType?: 'text' | 'image' | 'video' | 'file'; mediaUrl?: string; timestamp: number }) => {
+    this.socket.on('bot_message', (msg: {
+      content: string;
+      contentType?: 'text' | 'image' | 'video' | 'file';
+      mediaUrl?: string;
+      timestamp: number;
+      messageId?: string;
+    }) => {
       const message: ClawbotChannelMessage = {
-        id: generateMessageId(),
+        id: msg.messageId || generateMessageId(),
         content: msg.content,
         contentType: msg.contentType ?? 'text',
         mediaUrl: msg.mediaUrl,
