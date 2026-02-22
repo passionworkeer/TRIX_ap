@@ -25,8 +25,9 @@ const TypingIndicator: React.FC = () => (
 const HomeBotBubble: React.FC<HomeBotBubbleProps> = ({ onClick }) => {
   const { profile } = useAuth();
   const { t } = useTranslation();
-  const { botState, latestBotMessage, idleEnteredAt } = useClawbotChannel();
+  const { botState, latestBotMessage, idleEnteredAt, hasSessionConversationStarted } = useClawbotChannel();
   const [showDefaultGreeting, setShowDefaultGreeting] = useState(false);
+  const isFreshLaunch = !hasSessionConversationStarted;
 
   useEffect(() => {
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -70,12 +71,16 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = ({ onClick }) => {
   }, [profile?.username, t]);
 
   const bubbleText = useMemo(() => {
+    if (botState === 'IDLE' && isFreshLaunch) {
+      return defaultGreeting;
+    }
+
     const botText = latestBotMessage?.content?.trim();
     if (!showDefaultGreeting && botText) {
       return botText;
     }
     return defaultGreeting;
-  }, [defaultGreeting, latestBotMessage?.content, showDefaultGreeting]);
+  }, [botState, defaultGreeting, isFreshLaunch, latestBotMessage?.content, showDefaultGreeting]);
 
   return (
     <div className="fixed top-[15%] right-[5%] z-50 cursor-pointer" onClick={onClick}>
