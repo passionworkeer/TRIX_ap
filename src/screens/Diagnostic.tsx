@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 
 interface DiagnosticResult {
   wsUrl?: string;
@@ -16,8 +17,9 @@ const Diagnostic: React.FC = () => {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    const wsUrl = (import.meta.env.VITE_GATEWAY_WS_URL || import.meta.env.VITE_PC_WEBSOCKET_URL) as string;
-    const authToken = (import.meta.env.VITE_GATEWAY_AUTH_TOKEN || import.meta.env.VITE_PC_AUTH_TOKEN) as string;
+    const endpoints = getClawbotEndpoints();
+    const wsUrl = endpoints.gatewayUrl;
+    const authToken = endpoints.gatewayToken;
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     setResults({ wsUrl, authToken, supabaseUrl });
   }, []);
@@ -93,3 +95,4 @@ const Diagnostic: React.FC = () => {
 };
 
 export default Diagnostic;
+

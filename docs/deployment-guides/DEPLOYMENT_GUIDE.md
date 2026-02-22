@@ -564,3 +564,17 @@ certbot certificates
 ---
 
 *文档整合自: AUTO_DEPLOY_COMPLETE_GUIDE.md, deployment/DEPLOY.md, deployment/AUTO_DEPLOY.md, deployment/HTTPS_SETUP_GUIDE.md*
+
+---
+
+## 8. Production Env Requirements
+
+Before deploying, ensure these frontend variables are set in production and do not use loopback URLs:
+
+```env
+VITE_CLAWBOT_CHANNEL_URL=<production channel url>
+VITE_GATEWAY_WS_URL=<production gateway ws url>
+VITE_GATEWAY_AUTH_TOKEN=<production gateway token>
+```
+
+Loopback addresses such as `localhost` and `127.0.0.1` are rejected by runtime validation in production builds.

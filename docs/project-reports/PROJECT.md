@@ -13,7 +13,7 @@ TRIX 3D Companion 是一款面向移动端的 AI 伴侣应用，核心理念为"
 | 动画 | Framer Motion |
 | 地图 | Leaflet + React Leaflet |
 | 图标 | Lucide React |
-| 样式 | Tailwind CSS (CDN) |
+| 样式 | Tailwind CSS (Vite build pipeline) |
 | 实时通信 | WebSocket (Clawbot Gateway) |
 
 ## 项目结构
@@ -134,10 +134,15 @@ public/
 ```env
 VITE_SUPABASE_URL=<Supabase 项目 URL>
 VITE_SUPABASE_ANON_KEY=<Supabase 匿名密钥>
-VITE_PC_WEBSOCKET_URL=ws://localhost/gateway
-VITE_PC_WEBSOCKET_URL_MOBILE=ws://<局域网IP>/gateway
-VITE_PC_AUTH_TOKEN=<Clawbot Gateway 认证令牌>
+VITE_CLAWBOT_CHANNEL_URL=<Clawbot Channel URL>
+VITE_GATEWAY_WS_URL=<OpenClaw Gateway WebSocket URL>
+VITE_GATEWAY_AUTH_TOKEN=<OpenClaw Gateway 认证令牌>
+# 兼容旧变量（可选）:
+# VITE_PC_WEBSOCKET_URL=<legacy gateway url>
+# VITE_PC_AUTH_TOKEN=<legacy token>
 ```
+
+生产环境要求：`VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 必填，且不能使用 `localhost` / `127.0.0.1`。
 
 ### 启动开发
 

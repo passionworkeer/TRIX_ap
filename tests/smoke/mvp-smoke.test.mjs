@@ -69,3 +69,27 @@ test('Input fields on pairing flows should keep explicit dark text on light back
   assert.equal(qrPairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'QRCode pairing inputs should have explicit dark text');
   assert.equal(addFriendModal.includes('text-slate-900 placeholder:text-slate-400'), true, 'Add friend input should have explicit dark text');
 });
+
+test('Index HTML should not use Tailwind CDN and should use modern mobile web app meta', () => {
+  const html = read('index.html');
+
+  assert.equal(html.includes('https://cdn.tailwindcss.com'), false, 'Tailwind CDN must not be used');
+  assert.equal(html.includes('name="mobile-web-app-capable"'), true, 'Expected modern mobile web app meta');
+  assert.equal(html.includes('name="apple-mobile-web-app-capable"'), false, 'Deprecated Apple meta should be removed');
+});
+
+test('Production env checks should require canonical gateway vars and disallow loopback defaults', () => {
+  const envTs = read('src/utils/env.ts');
+  const endpointConfig = read('src/config/clawbotEndpoints.ts');
+  const envProd = read('.env.production');
+  const gatewayLine = envProd.split('\n').find((line) => line.startsWith('VITE_GATEWAY_WS_URL='));
+
+  assert.equal(envTs.includes("'VITE_CLAWBOT_CHANNEL_URL'"), true, 'Production should require VITE_CLAWBOT_CHANNEL_URL');
+  assert.equal(envTs.includes("'VITE_GATEWAY_WS_URL'"), true, 'Production should require VITE_GATEWAY_WS_URL');
+  assert.equal(envTs.includes("'VITE_GATEWAY_AUTH_TOKEN'"), true, 'Production should require VITE_GATEWAY_AUTH_TOKEN');
+  assert.equal(envTs.includes('Invalid production URL: loopback address is not allowed'), true, 'Loopback URLs should be rejected in production validation');
+  assert.equal(endpointConfig.includes("return import.meta.env.DEV ? fallback : '';"), true, 'Endpoint fallback should only apply in development');
+  assert.equal(Boolean(gatewayLine), true, '.env.production should define VITE_GATEWAY_WS_URL');
+  assert.equal(gatewayLine?.includes('127.0.0.1') ?? false, false, 'Gateway WS URL should not use 127.0.0.1');
+  assert.equal(gatewayLine?.includes('localhost') ?? false, false, 'Gateway WS URL should not use localhost');
+});
