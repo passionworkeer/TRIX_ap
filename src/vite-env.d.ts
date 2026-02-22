@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_PC_AUTH_TOKEN?: string
 
   readonly VITE_OSS_ENDPOINT?: string
+  readonly VITE_TTS_PROXY_URL?: string
 }
 
 interface ImportMeta {
