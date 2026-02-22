@@ -148,6 +148,39 @@ export const logger = {
     error: (...args: any[]) => logger.error('Points', ...args),
     success: (...args: any[]) => logger.success('Points', ...args),
   },
+
+  /**
+   * 便捷方法：Clawbot模块日志
+   */
+  clawbot: {
+    log: (...args: any[]) => logger.log('Clawbot', ...args),
+    info: (...args: any[]) => logger.info('Clawbot', ...args),
+    warn: (...args: any[]) => logger.warn('Clawbot', ...args),
+    error: (...args: any[]) => logger.error('Clawbot', ...args),
+    success: (...args: any[]) => logger.success('Clawbot', ...args),
+  },
+
+  /**
+   * 便捷方法：Database模块日志
+   */
+  database: {
+    log: (...args: any[]) => logger.log('Database', ...args),
+    info: (...args: any[]) => logger.info('Database', ...args),
+    warn: (...args: any[]) => logger.warn('Database', ...args),
+    error: (...args: any[]) => logger.error('Database', ...args),
+    success: (...args: any[]) => logger.success('Database', ...args),
+  },
+
+  /**
+   * 便捷方法：Media模块日志
+   */
+  media: {
+    log: (...args: any[]) => logger.log('Media', ...args),
+    info: (...args: any[]) => logger.info('Media', ...args),
+    warn: (...args: any[]) => logger.warn('Media', ...args),
+    error: (...args: any[]) => logger.error('Media', ...args),
+    success: (...args: any[]) => logger.success('Media', ...args),
+  },
 };
 
 export default logger;

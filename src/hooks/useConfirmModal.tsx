@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import ConfirmModal, { ConfirmModalVariant } from '../components/ui/ConfirmModal';
 
 export interface ConfirmRequestOptions {

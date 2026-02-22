@@ -41,11 +41,8 @@ class ClawbotPairingService {
   private authToken: string;
   private pollInterval: number;
   private maxPollAttempts: number;
-  private pollingTimer: NodeJS.Timeout | null = null;
+  private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private currentRequestId: string | null = null;
-
-  // ngrok 默认 Token（从文档获取）
-  private static readonly DEFAULT_NGROK_TOKEN = '__PC_AUTH_TOKEN_REDACTED__';
 
   constructor(options?: PairingServiceOptions) {
     const endpoints = getClawbotEndpoints();
@@ -54,10 +51,14 @@ class ClawbotPairingService {
     this.gatewayUrl = options?.gatewayUrl
       || endpoints.gatewayUrl;
 
-    // 优先使用传入的 token，其次环境变量，最后默认 ngrok token
+    // 必须从环境变量或选项获取 token，不再使用硬编码默认值
     this.authToken = options?.authToken
       || endpoints.gatewayToken
-      || ClawbotPairingService.DEFAULT_NGROK_TOKEN;
+      || '';
+
+    if (!this.authToken) {
+      console.warn('[ClawbotPairingService] 警告：未配置 Gateway Token，请设置 VITE_GATEWAY_AUTH_TOKEN 环境变量');
+    }
 
     this.pollInterval = options?.pollInterval || 2000;
     this.maxPollAttempts = options?.maxPollAttempts || 180;

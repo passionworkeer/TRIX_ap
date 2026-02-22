@@ -83,7 +83,7 @@ class MessageService {
           INNER JOIN pairings p ON p.id = m.pairing_id
           WHERE p.user_id = ?
             AND p.status = 'paired'
-            AND m.direction = 'bot_to_app'
+            AND m.direction IN ('bot_to_app', 'app_to_bot')
             AND m.created_at > ?
           ORDER BY m.created_at ASC
           LIMIT ?
