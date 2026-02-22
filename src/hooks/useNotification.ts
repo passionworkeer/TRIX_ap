@@ -3,7 +3,7 @@ import toast, { ToastOptions } from 'react-hot-toast';
 
 /**
  * 统一通知系统 Hook
- * 基于 react-hot-toast 封装，提供常用的通知方法
+ * 基于 react-hot-toast 封装，提供常用的通知方法。
  */
 export function useNotification() {
   const showError = useCallback((message: string, options?: ToastOptions) => {

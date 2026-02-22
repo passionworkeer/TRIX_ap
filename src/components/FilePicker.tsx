@@ -1,18 +1,12 @@
 /**
- * 📎 FilePicker Component
- * ============================================
- * File selection and preview UI for chat attachments
- * Features:
- * - ➕ button to open file picker
- * - Preview overlay with thumbnail
- * - File info display (name, size)
- * - Cancel button to remove selection
- * - Upload progress indicator
+ * FilePicker Component
+ * File selection and preview UI for chat attachments.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
-import { Image as ImageIcon, X, Upload } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { ACCEPTED_IMAGE_TYPES, ACCEPTED_VIDEO_TYPES } from '../services/uploadService';
+import { useNotification } from '../hooks/useNotification';
 
 interface FilePreview {
   file: File;
@@ -27,12 +21,12 @@ interface FilePickerProps {
 
 export const FilePicker: React.FC<FilePickerProps> = ({
   onFileSelect,
-  isUploading = false
+  isUploading = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<FilePreview | null>(null);
+  const { showError } = useNotification();
 
-  // Clean up preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) {
@@ -40,37 +34,6 @@ export const FilePicker: React.FC<FilePickerProps> = ({
       }
     };
   }, [preview]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Determine file type
-    const isImage = ACCEPTED_IMAGE_TYPES.includes(file.type);
-    const isVideo = ACCEPTED_VIDEO_TYPES.includes(file.type);
-
-    if (!isImage && !isVideo) {
-      alert('请选择图片或视频文件');
-      return;
-    }
-
-    // Create preview
-    const previewUrl = URL.createObjectURL(file);
-    setPreview({
-      file,
-      preview: previewUrl,
-      type: isImage ? 'image' : 'video'
-    });
-
-    // Trigger upload
-    try {
-      await onFileSelect(file);
-    } catch (error: any) {
-      console.error('Upload failed:', error);
-      alert(error.message || '上传失败，请重试');
-      clearPreview();
-    }
-  };
 
   const clearPreview = () => {
     if (preview) {
@@ -82,9 +45,35 @@ export const FilePicker: React.FC<FilePickerProps> = ({
     }
   };
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const isImage = ACCEPTED_IMAGE_TYPES.includes(file.type);
+    const isVideo = ACCEPTED_VIDEO_TYPES.includes(file.type);
+
+    if (!isImage && !isVideo) {
+      showError('请选择图片或视频文件');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPreview({
+      file,
+      preview: previewUrl,
+      type: isImage ? 'image' : 'video',
+    });
+
+    try {
+      await onFileSelect(file);
+    } catch (error: any) {
+      showError(error?.message || '上传失败，请重试');
+      clearPreview();
+    }
+  };
+
   return (
     <div className="relative">
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -94,28 +83,28 @@ export const FilePicker: React.FC<FilePickerProps> = ({
         disabled={isUploading}
       />
 
-      {/* File picker button */}
       {!preview && (
         <button
+          type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="w-10 h-10 rounded-full hover:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 active:scale-90 duration-200"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:scale-90 disabled:opacity-50 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
           title="添加图片或视频"
         >
           <ImageIcon size={20} />
         </button>
       )}
 
-      {/* Preview modal/overlay */}
       {preview && (
-        <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-3 w-full max-w-[280px] sm:max-w-[320px] border border-slate-200 dark:border-slate-700 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="flex items-start justify-between mb-2">
+        <div className="absolute bottom-14 left-0 z-50 w-full max-w-[280px] animate-in rounded-xl border border-slate-200 bg-white p-3 shadow-2xl fade-in slide-in-from-bottom-2 duration-200 sm:max-w-[320px] dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-2 flex items-start justify-between">
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
               {preview.type === 'image' ? '图片预览' : '视频预览'}
             </span>
             <button
+              type="button"
               onClick={clearPreview}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
               disabled={isUploading}
               aria-label="清除预览"
             >
@@ -123,24 +112,24 @@ export const FilePicker: React.FC<FilePickerProps> = ({
             </button>
           </div>
 
-          {/* Preview content */}
-          <div className="relative rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 mb-2">
+          <div className="relative mb-2 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
             {preview.type === 'image' ? (
               <img
                 src={preview.preview}
                 alt="Preview"
-                className="w-full h-40 object-cover"
+                className="h-40 w-full object-cover"
               />
             ) : (
               <video
                 src={preview.preview}
-                className="w-full h-40 object-cover"
+                className="h-40 w-full object-cover"
                 controls
               />
             )}
+
             {isUploading && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                <div className="text-white text-xs flex items-center gap-2">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="flex items-center gap-2 text-xs text-white">
                   <Upload size={14} className="animate-bounce" />
                   上传中...
                 </div>
@@ -148,9 +137,8 @@ export const FilePicker: React.FC<FilePickerProps> = ({
             )}
           </div>
 
-          {/* File info */}
-          <div className="text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
-            <p className="font-medium truncate">{preview.file.name}</p>
+          <div className="space-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+            <p className="truncate font-medium">{preview.file.name}</p>
             <p>{(preview.file.size / 1024 / 1024).toFixed(2)} MB</p>
           </div>
         </div>

@@ -1,9 +1,29 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function collectSourceFiles(dirPath) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectSourceFiles(fullPath));
+      continue;
+    }
+
+    if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+      files.push(fullPath.replace(/\\/g, '/'));
+    }
+  }
+
+  return files;
 }
 
 test('MVP app routes should not expose token monitor entry', () => {
@@ -92,4 +112,49 @@ test('Production env checks should require canonical gateway vars and disallow l
   assert.equal(Boolean(gatewayLine), true, '.env.production should define VITE_GATEWAY_WS_URL');
   assert.equal(gatewayLine?.includes('127.0.0.1') ?? false, false, 'Gateway WS URL should not use 127.0.0.1');
   assert.equal(gatewayLine?.includes('localhost') ?? false, false, 'Gateway WS URL should not use localhost');
+});
+
+test('Runtime src code should not use native alert/confirm dialogs', () => {
+  const sourceFiles = collectSourceFiles('src');
+  const dialogPattern = /(?:^|[^\w.])(?:alert|confirm)\s*\(/g;
+  const offenders = [];
+
+  for (const filePath of sourceFiles) {
+    const content = read(filePath);
+    if (dialogPattern.test(content)) {
+      offenders.push(filePath);
+    }
+  }
+
+  assert.deepEqual(offenders, [], `Native dialog calls found in: ${offenders.join(', ')}`);
+});
+
+test('Theme system should use class-based dark variant and avoid global background pollution selectors', () => {
+  const css = read('src/index.css');
+  const themeContext = read('src/contexts/ThemeContext.tsx');
+
+  assert.equal(css.includes('@custom-variant dark (&:where(.dark, .dark *));'), true, 'Tailwind dark variant should follow .dark class');
+  assert.equal(css.includes('div:not([data-hero-background]):not([data-home-scroll])'), false, 'Global div background override should be removed');
+  assert.equal(css.includes('.overflow-y-auto:not([data-home-scroll])'), false, 'Global overflow-y background override should be removed');
+  assert.equal(css.includes('.overscroll-safe'), true, 'Scoped overscroll-safe class should exist');
+  assert.equal(themeContext.includes("type ThemeMode = 'system' | 'light' | 'dark'"), true, 'ThemeContext should expose ThemeMode');
+  assert.equal(themeContext.includes("const [themeMode, setThemeModeState]"), true, 'ThemeContext should persist themeMode');
+  assert.equal(themeContext.includes("window.matchMedia('(prefers-color-scheme: dark)')"), true, 'ThemeContext should watch system preference');
+});
+
+test('ChatDetail should use deterministic AI prefix replacement and IME-safe enter-send', () => {
+  const chatDetail = read('src/screens/ChatDetail.tsx');
+  const aiPrompt = read('src/features/chat/utils/aiPrompt.ts');
+  const aiSelector = read('src/components/AIActionSelector.tsx');
+
+  assert.equal(chatDetail.includes('requestConfirm({'), true, 'Unpair flow should use custom confirm modal');
+  assert.equal(chatDetail.includes('applyAIActionPrefix(previous, action)'), true, 'AI action should replace prefix deterministically');
+  assert.equal(chatDetail.includes('detectAIActionFromInput(input)'), true, 'AI action state should derive from input');
+  assert.equal(chatDetail.includes('!event.nativeEvent.isComposing'), true, 'Enter send should guard IME composition');
+  assert.equal(chatDetail.includes('value={selectedAIAction}'), true, 'AI selector should be controlled');
+
+  assert.equal(aiPrompt.includes("chat: ''"), true, 'chat action should clear prefix');
+  assert.equal(aiPrompt.includes('removeLeadingKnownPrefix'), true, 'AI prefix cleanup helper should exist');
+  assert.equal(aiSelector.includes('aria-pressed={isSelected}'), true, 'AI selector should expose selected state');
+  assert.equal(aiSelector.includes('dark:'), true, 'AI selector should define dark mode classes');
 });

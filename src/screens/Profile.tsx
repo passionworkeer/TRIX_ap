@@ -14,12 +14,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
 import toast from 'react-hot-toast';
+import { useConfirmModal } from '../hooks/useConfirmModal';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { signOut, user, profile } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
+  const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
 
   // 对话框状态
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
@@ -77,10 +79,17 @@ const Profile: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    if (confirm(t('profile.logoutConfirm'))) {
-      await signOut();
-      navigate(AppRoutes.LOGIN, { replace: true });
-    }
+    const shouldLogout = await requestConfirm({
+      title: t('profile.logout'),
+      message: t('profile.logoutConfirm'),
+      confirmText: t('profile.logout'),
+      cancelText: t('common.cancel'),
+      variant: 'warning',
+    });
+    if (!shouldLogout) return;
+
+    await signOut();
+    navigate(AppRoutes.LOGIN, { replace: true });
   };
 
   const handleStatClick = async (statName: string, value: number) => {
@@ -143,6 +152,7 @@ const Profile: React.FC = () => {
         onClose={() => setIsPointsHistoryOpen(false)}
         userId={user?.id || ''}
       />
+      <ConfirmModalRenderer />
 
       <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
        {/* 背景层：z-index: 0 - 固定背景，不阻挡交互 */}

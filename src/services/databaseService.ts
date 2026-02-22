@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+﻿import { supabase } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
 import type {
   ChatMessage,
@@ -10,8 +10,8 @@ import type {
 } from '../config/supabase';
 
 /**
- * 添加好友 (支持邮箱或用户名)
- * @param account 对方账号（邮箱或用户名）
+ * 娣诲姞濂藉弸 (鏀寔閭鎴栫敤鎴峰悕)
+ * @param account 瀵规柟璐﹀彿锛堥偖绠辨垨鐢ㄦ埛鍚嶏級
  */
 const FRIEND_REQUEST_META_PREFIX = '[friend_request_from:]';
 
@@ -24,7 +24,7 @@ type ProfileLite = {
 };
 
 function buildFriendRequestContent(displayName: string, requesterId: string): string {
-  return `${displayName} ��������Ϊ����\n${FRIEND_REQUEST_META_PREFIX}${requesterId}`;
+  return `${displayName} 想添加你为好友\n${FRIEND_REQUEST_META_PREFIX}${requesterId}`;
 }
 
 function extractFriendRequestSenderId(content: string): string | null {
@@ -39,7 +39,7 @@ export function getNotificationDisplayContent(content: string): string {
 }
 
 function resolveProfileDisplayName(profile: ProfileLite): string {
-  return profile.full_name || profile.username || '����';
+  return profile.full_name || profile.username || '好友';
 }
 
 async function getNotificationById(notificationId: string): Promise<Notification> {
@@ -50,7 +50,7 @@ async function getNotificationById(notificationId: string): Promise<Notification
     .single();
 
   if (error || !data) {
-    throw new Error('�������󲻴��ڻ���ʧЧ');
+    throw new Error('好友请求不存在或已失效');
   }
 
   return data as Notification;
@@ -63,7 +63,7 @@ async function getProfilesByIds(userIds: string[]): Promise<Record<string, Profi
     .in('id', userIds);
 
   if (error || !data) {
-    throw new Error('��ȡ�û���Ϣʧ��');
+    throw new Error('获取用户信息失败');
   }
 
   const profileMap: Record<string, ProfileLite> = {};
@@ -81,7 +81,7 @@ async function hasFriendRelation(userA: string, userB: string): Promise<boolean>
     .limit(1);
 
   if (error) {
-    throw new Error('У����ѹ�ϵʧ��');
+    throw new Error('校验好友关系失败');
   }
 
   return (data?.length || 0) > 0;
@@ -136,23 +136,23 @@ async function upsertFriendRelations(
 }
 
 /**
- * ���Ӻ��� (֧��������û���)
+ * 添加好友 (支持邮箱或用户名)
  */
 export async function addFriend(account: string): Promise<void> {
   await sendFriendRequest(account);
 }
 
 /**
- * ���ͺ�������֪ͨ��������ֱ�ӽ����ѹ�ϵ��
+ * 发送好友请求（通知驱动，不直接建好友关系）
  */
 export async function sendFriendRequest(account: string): Promise<void> {
   try {
     const normalizedAccount = account.trim();
     if (!normalizedAccount) {
-      throw new Error('�������û���������');
+      throw new Error('请输入用户名或邮箱');
     }
 
-    // 1. ����Ŀ���û������� email����� username��
+    // 1. 查找目标用户（优先 email，其次 username）
     const [{ data: byEmail, error: byEmailError }, { data: byUsername, error: byUsernameError }] = await Promise.all([
       supabase
         .from('profiles')
@@ -167,33 +167,33 @@ export async function sendFriendRequest(account: string): Promise<void> {
     ]);
 
     if ((byEmailError && byEmailError.code !== 'PGRST116') || (byUsernameError && byUsernameError.code !== 'PGRST116')) {
-      throw new Error('�����û�ʧ��');
+      throw new Error('查找用户失败');
     }
 
     const targetProfile = byEmail || byUsername;
     if (!targetProfile) {
-      throw new Error('�û�������');
+      throw new Error('用户不存在');
     }
 
-    // 2. ��ȡ��ǰ�û���Ϣ
+    // 2. 获取当前用户信息
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !session?.user) {
-      throw new Error('���ȵ�¼');
+      throw new Error('请先登录');
     }
 
     const currentUserId = session.user.id;
     const targetUserId = targetProfile.id;
 
     if (targetUserId === currentUserId) {
-      throw new Error('���������Լ�Ϊ����');
+      throw new Error('不能添加自己为好友');
     }
 
-    // 3. �Ѿ��Ǻ��ѣ�ֱ������
+    // 3. 已经是好友，直接拦截
     if (await hasFriendRelation(currentUserId, targetUserId)) {
-      throw new Error('�����Ѿ��Ǻ�����');
+      throw new Error('你们已经是好友了');
     }
 
-    // 4. �����ظ���������
+    // 4. 避免重复发送请求
     const { data: outgoingPending, error: outgoingPendingError } = await supabase
       .from('notifications')
       .select('id')
@@ -204,14 +204,14 @@ export async function sendFriendRequest(account: string): Promise<void> {
       .limit(1);
 
     if (outgoingPendingError) {
-      throw new Error('У���������ʧ��');
+      throw new Error('校验好友请求失败');
     }
 
     if ((outgoingPending?.length || 0) > 0) {
-      throw new Error('���������ѷ��ͣ���ȴ��Է�ȷ��');
+      throw new Error('好友请求已发送，请等待对方确认');
     }
 
-    // 5. �Է��ѷ����������Զ��������ܡ�����
+    // 5. 对方已发过请求，则自动按“接受”处理
     const { data: incomingPending, error: incomingPendingError } = await supabase
       .from('notifications')
       .select('id')
@@ -222,7 +222,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
       .limit(1);
 
     if (incomingPendingError) {
-      throw new Error('У���������ʧ��');
+      throw new Error('校验好友请求失败');
     }
 
     const incomingPendingId = incomingPending?.[0]?.id;
@@ -231,19 +231,19 @@ export async function sendFriendRequest(account: string): Promise<void> {
       return;
     }
 
-    // 6. ����֪ͨ�������������
+    // 6. 创建通知（请求待审批）
     const requesterDisplayName =
       (session.user.user_metadata?.full_name as string | undefined) ||
       (session.user.user_metadata?.name as string | undefined) ||
       session.user.email ||
-      'ĳ�û�';
+      '某用户';
 
     const { error: notifyError } = await supabase
       .from('notifications')
       .insert({
         user_id: targetUserId,
         type: 'friend_request',
-        title: '��������',
+        title: '好友请求',
         content: buildFriendRequestContent(requesterDisplayName, currentUserId),
         avatar_url: '',
         is_read: false,
@@ -251,16 +251,16 @@ export async function sendFriendRequest(account: string): Promise<void> {
       });
 
     if (notifyError) {
-      throw new Error('���ͺ�������ʧ��');
+      throw new Error('发送好友请求失败');
     }
   } catch (error: any) {
-    handleGlobalError(error, '���ͺ�������ʧ��');
+    handleGlobalError(error, '发送好友请求失败');
     throw error;
   }
 }
 
 /**
- * ���ܺ������󣨻���֪ͨ��
+ * 接受好友请求（基于通知）
  */
 export async function acceptFriendRequest(notificationId: string): Promise<void> {
   try {
@@ -268,20 +268,20 @@ export async function acceptFriendRequest(notificationId: string): Promise<void>
     const notification = await getNotificationById(notificationId);
 
     if (notification.user_id !== currentUserId) {
-      throw new Error('��Ȩ�����˺�������');
+      throw new Error('无权处理此好友请求');
     }
 
     if (notification.type !== 'friend_request') {
-      throw new Error('��֪ͨ���Ǻ�������');
+      throw new Error('该通知不是好友请求');
     }
 
     const requesterId = extractFriendRequestSenderId(notification.content);
     if (!requesterId) {
-      throw new Error('�����������ݲ����������öԷ����·���');
+      throw new Error('好友请求数据不完整，请让对方重新发送');
     }
 
     if (requesterId === currentUserId) {
-      throw new Error('��Ч�ĺ�������');
+      throw new Error('无效的好友请求');
     }
 
     if (await hasFriendRelation(currentUserId, requesterId)) {
@@ -294,7 +294,7 @@ export async function acceptFriendRequest(notificationId: string): Promise<void>
     const requesterProfile = profiles[requesterId];
 
     if (!currentProfile || !requesterProfile) {
-      throw new Error('�û���Ϣ������');
+      throw new Error('用户信息不存在');
     }
 
     await upsertFriendRelations([
@@ -319,20 +319,20 @@ export async function acceptFriendRequest(notificationId: string): Promise<void>
     await supabase.from('notifications').insert({
       user_id: requesterId,
       type: 'system',
-      title: '����������ͨ��',
-      content: `${resolveProfileDisplayName(currentProfile)} �ѽ�����ĺ�������`,
+      title: '好友请求已通过',
+      content: `${resolveProfileDisplayName(currentProfile)} 已接受你的好友请求`,
       avatar_url: currentProfile.avatar_url || '',
       is_read: false,
       created_at: new Date().toISOString(),
     });
   } catch (error: any) {
-    handleGlobalError(error, '���ܺ�������ʧ��');
+    handleGlobalError(error, '接受好友请求失败');
     throw error;
   }
 }
 
 /**
- * �ܾ��������󣨻���֪ͨ��
+ * 拒绝好友请求（基于通知）
  */
 export async function rejectFriendRequest(notificationId: string): Promise<void> {
   try {
@@ -340,11 +340,11 @@ export async function rejectFriendRequest(notificationId: string): Promise<void>
     const notification = await getNotificationById(notificationId);
 
     if (notification.user_id !== currentUserId) {
-      throw new Error('��Ȩ�����˺�������');
+      throw new Error('无权处理此好友请求');
     }
 
     if (notification.type !== 'friend_request') {
-      throw new Error('��֪ͨ���Ǻ�������');
+      throw new Error('该通知不是好友请求');
     }
 
     const requesterId = extractFriendRequestSenderId(notification.content);
@@ -354,15 +354,15 @@ export async function rejectFriendRequest(notificationId: string): Promise<void>
       await supabase.from('notifications').insert({
         user_id: requesterId,
         type: 'system',
-        title: '���������Ѿܾ�',
-        content: '��ĺ�������δͨ��',
+        title: '好友请求已拒绝',
+        content: '你的好友请求未通过',
         avatar_url: '',
         is_read: false,
         created_at: new Date().toISOString(),
       });
     }
   } catch (error: any) {
-    handleGlobalError(error, '�ܾ���������ʧ��');
+    handleGlobalError(error, '拒绝好友请求失败');
     throw error;
   }
 }
@@ -371,8 +371,8 @@ export async function rejectFriendRequest(notificationId: string): Promise<void>
 // ============================================
 
 /**
- * 获取当前登录用户�?ID
- * @throws {Error} 如果用户未登�?
+ * 获取当前登录用户的 ID
+ * @throws {Error} 如果用户未登录
  * @returns {Promise<string>} 用户 ID
  */
 async function getCurrentUserId(): Promise<string> {
@@ -391,10 +391,10 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 // ============================================
-// 好友管理
+// 濂藉弸绠＄悊
 // ============================================
 
-/** 获取所有好友（包含未读消息信息�?*/
+/** 获取所有好友（包含未读消息信息） */
 export async function getFriends(): Promise<FriendLatestMessage[]> {
   try {
     const userId = await getCurrentUserId();
@@ -417,7 +417,7 @@ export async function getFriends(): Promise<FriendLatestMessage[]> {
   }
 }
 
-/** 更新好友在线状�?*/
+/** 更新好友在线状态 */
 export async function updateFriendStatus(
   friendId: string,
   status: 'online' | 'offline' | 'busy' | 'away'
@@ -432,14 +432,14 @@ export async function updateFriendStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('更新好友状态失�?', error);
+      console.error('更新好友状态失败:', error);
     }
   } catch (error) {
-    console.error('更新好友状态失�?', error);
+    console.error('更新好友状态失败:', error);
   }
 }
 
-/** 更新好友学习状�?*/
+/** 更新好友学习状态 */
 export async function updateFriendStudyStatus(
   friendId: string,
   isStudying: boolean,
@@ -464,10 +464,10 @@ export async function updateFriendStudyStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('更新好友学习状态失�?', error);
+      console.error('更新好友学习状态失败:', error);
     }
   } catch (error) {
-    console.error('更新好友学习状态失�?', error);
+    console.error('更新好友学习状态失败:', error);
   }
 }
 
@@ -512,7 +512,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
   try {
     const userId = await getCurrentUserId();
     
-    // 构建会话ID (较小的UUID在前)
+    // 构建会话 ID（较小 UID 在前）
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;
@@ -528,7 +528,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
       return [];
     }
 
-    // 转换为旧的数据格式以兼容现有代码
+    // 转换为旧数据格式以兼容现有代码
     return (data || []).map(msg => {
       const uiMessage: ChatMessage = {
         id: msg.id,
@@ -555,7 +555,7 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
   }
 }
 
-/** 发送消�?*/
+/** 发送消息 */
 export async function sendMessage(
   friendId: string,
   sender: 'user' | 'friend' | 'bot',
@@ -564,12 +564,12 @@ export async function sendMessage(
   try {
     const userId = await getCurrentUserId();
 
-    // 构建会话ID
+    // 鏋勫缓浼氳瘽ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
 
-    // 确定发送者和接收�?
+    // 确定发送者和接收者
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
     
@@ -588,7 +588,7 @@ export async function sendMessage(
       .single();
 
     if (error) {
-      handleGlobalError(error, '������Ϣʧ��');
+      handleGlobalError(error, '发送消息失败');
       return null;
     }
 
@@ -597,19 +597,19 @@ export async function sendMessage(
 
     return data?.id || null;
   } catch (error: any) {
-    handleGlobalError(error, '������Ϣʧ��');
+    handleGlobalError(error, '发送消息失败');
     return null;
   }
 }
 
 /**
- * 📎 发送带媒体附件的消�?
- * @param friendId - 好友ID
- * @param sender - 发送者类�?
+ * 发送包含媒体附件的消息
+ * @param friendId - 好友 ID
+ * @param sender - 发送者类型
  * @param text - 消息文本（可以为空）
  * @param mediaData - 媒体数据
  * @param messageType - 消息类型 ('image' | 'video' | 'mixed')
- * @returns 消息ID或null
+ * @returns 消息 ID 或 null
  */
 export async function sendMessageWithMedia(
   friendId: string,
@@ -631,12 +631,12 @@ export async function sendMessageWithMedia(
   try {
     const userId = await getCurrentUserId();
 
-    // 构建会话ID
+    // 鏋勫缓浼氳瘽ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
 
-    // 确定发送者和接收�?
+    // 确定发送者和接收者
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
 
@@ -644,7 +644,7 @@ export async function sendMessageWithMedia(
       conversation_id: conversationId,
       sender_id: senderId,
       receiver_id: receiverId,
-      text: text || '', // 允许空文本用于纯媒体消息
+      text: text || '', // 允许纯媒体消息为空文本
       is_read: false,
       message_type: messageType,
       media_uri: mediaData.uri,
@@ -660,7 +660,7 @@ export async function sendMessageWithMedia(
       .single();
 
     if (error) {
-      console.error('发送媒体消息失�?', error);
+      console.error('发送媒体消息失败:', error);
       return null;
     }
 
@@ -670,12 +670,12 @@ export async function sendMessageWithMedia(
 
     return data?.id || null;
   } catch (error: any) {
-    console.error('发送媒体消息失�?', error);
+    console.error('发送媒体消息失败:', error);
     return null;
   }
 }
 
-/** 更新未读计数 (内部辅助函数) */
+/** 更新未读计数（内部辅助函数） */
 async function updateUnreadCount(
   userId: string,
   friendId: string,
@@ -699,7 +699,7 @@ async function updateUnreadCount(
   }
 }
 
-/** 标记消息为已�?*/
+/** 标记消息为已读 */
 export async function markMessagesAsRead(friendId: string): Promise<void> {
   try {
     const userId = await getCurrentUserId();
@@ -718,12 +718,12 @@ export async function markMessagesAsRead(friendId: string): Promise<void> {
   }
 }
 
-/** 清空某个好友的聊天记�?*/
+/** 清空某个好友的聊天记录 */
 export async function clearChatHistory(friendId: string): Promise<void> {
   try {
     const userId = await getCurrentUserId();
     
-    // 构建会话ID
+    // 鏋勫缓浼氳瘽ID
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;
@@ -745,7 +745,7 @@ export async function clearChatHistory(friendId: string): Promise<void> {
 // 未读消息管理
 // ============================================
 
-/** 获取所有未读消息计�?*/
+/** 获取所有未读消息计数 */
 export async function getUnreadCounts(): Promise<UnreadCount[]> {
   try {
     const userId = await getCurrentUserId();
@@ -816,7 +816,7 @@ export async function getNotifications(): Promise<Notification[]> {
   }
 }
 
-/** 标记通知为已�?*/
+/** 标记通知为已读 */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
   const { error } = await supabase
     .from('notifications')
@@ -852,13 +852,13 @@ export async function getUnreadNotificationCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('获取未读通知数失�?', error);
+      console.error('获取未读通知数失败:', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('获取未读通知数失�?', error);
+    console.error('获取未读通知数失败:', error);
     return 0;
   }
 }
@@ -867,7 +867,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 // 邮件管理
 // ============================================
 
-/** 获取所有邮�?*/
+/** 获取所有邮件 */
 export async function getMails(): Promise<Mail[]> {
   try {
     const userId = await getCurrentUserId();
@@ -890,7 +890,7 @@ export async function getMails(): Promise<Mail[]> {
   }
 }
 
-/** 标记邮件为已�?*/
+/** 标记邮件为已读 */
 export async function markMailAsRead(mailId: string): Promise<void> {
   const { error } = await supabase
     .from('mails')
@@ -926,13 +926,13 @@ export async function getUnreadMailCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('获取未读邮件数失�?', error);
+      console.error('获取未读邮件数失败:', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('获取未读邮件数失�?', error);
+    console.error('获取未读邮件数失败:', error);
     return 0;
   }
 }
@@ -1043,7 +1043,7 @@ export async function subscribeToChatMessages(
   try {
     const userId = await getCurrentUserId();
     
-    // 构建会话ID
+    // 鏋勫缓浼氳瘽ID
     const conversationId = userId < friendId 
       ? `${userId}_${friendId}` 
       : `${friendId}_${userId}`;
@@ -1144,4 +1144,7 @@ export async function subscribeToNotifications(
     return () => {}; // 返回空的清理函数
   }
 }
+
+
+
 
