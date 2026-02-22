@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -12,6 +12,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { useNotification } from './hooks/useNotification';
+import { useImmersiveVoice } from './hooks/useImmersiveVoice';
+import { audioContextUnlock } from './services/voicePlaybackService';
 import {
   PAIRING_REQUIRED_TOAST_MESSAGE,
   PAIRING_REQUIRED_TOAST_OPTIONS
@@ -98,6 +100,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 };
 
 function AppContent() {
+  const isDev = import.meta.env.DEV;
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -108,6 +111,10 @@ function AppContent() {
     botState,
   } = useClawbotChannel();
   const [showDockOnHome, setShowDockOnHome] = useState(false);
+  const [devActiveVideoSource, setDevActiveVideoSource] = useState<string>('');
+  const hasUnlockedAudioRef = useRef(false);
+
+  useImmersiveVoice();
 
   const isHomePage = location.pathname === '/' || location.pathname === '';
   const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
@@ -147,12 +154,27 @@ function AppContent() {
     }
   }, [isHomePage]);
 
+  const handleFirstGestureUnlock = useCallback(() => {
+    if (hasUnlockedAudioRef.current) {
+      return;
+    }
+    hasUnlockedAudioRef.current = true;
+    audioContextUnlock();
+  }, []);
+
   return (
     <div
       className="fixed inset-0 w-full h-full overflow-hidden font-sans"
       style={{ background: 'transparent' }}
+      onClickCapture={handleFirstGestureUnlock}
+      onTouchStartCapture={handleFirstGestureUnlock}
     >
-      {isHomePage && <HeroBackground botState={botState} />}
+      {isHomePage && (
+        <HeroBackground
+          botState={botState}
+          onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
+        />
+      )}
 
       <div
         data-home-scroll="true"
@@ -169,7 +191,14 @@ function AppContent() {
               <Route path={AppRoutes.LOGIN} element={<Login />} />
               <Route path={AppRoutes.REGISTER} element={<Register />} />
 
-              <Route path={AppRoutes.HOME} element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route
+                path={AppRoutes.HOME}
+                element={
+                  <ProtectedRoute>
+                    <Home devVideoSource={isDev ? devActiveVideoSource : undefined} />
+                  </ProtectedRoute>
+                }
+              />
               <Route path={AppRoutes.SNAPSHOT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
               <Route path={AppRoutes.SNAPSHOT_RESULT} element={<ProtectedRoute><Snapshot /></ProtectedRoute>} />
               <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study key="study-home" /></ProtectedRoute>} />
