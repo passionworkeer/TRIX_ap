@@ -13,6 +13,7 @@ import clawbotChannelBridge, {
   type ClawbotChannelMessage,
 } from '../services/ClawbotChannelBridge';
 import { useAuth } from './AuthContext';
+import { useVoiceSettings } from './VoiceSettingsContext';
 
 export type ConnectionStatus =
   | 'DISCONNECTED'
@@ -46,6 +47,9 @@ interface ClawbotChannelContextType {
     contentType?: 'text' | 'image' | 'video' | 'file',
     mediaUrl?: string
   ) => Promise<void>;
+  notifyVoicePlaybackStarted: (messageId: string) => void;
+  notifyVoicePlaybackEnded: (messageId: string) => void;
+  notifyVoicePlaybackError: (messageId: string) => void;
   uploadMedia: (file: File | Blob) => Promise<string>;
   unpair: () => void;
   clearMessages: () => void;
@@ -75,6 +79,7 @@ const resolveChannelErrorMessage = (error: any): string => {
 
 export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ children }) => {
   const { user } = useAuth();
+  const { voiceEnabled } = useVoiceSettings();
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [pairingStatus, setPairingStatus] = useState<PairingStatus>('idle');
   const [messages, setMessages] = useState<ClawbotChannelMessage[]>([]);
@@ -88,6 +93,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);
+  const activeVoiceMessageIdRef = useRef<string | null>(null);
+  const pendingVoiceMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -106,6 +113,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     clearSpeakingTimeout();
     setBotState('IDLE');
     setIdleEnteredAt(Date.now());
+    activeVoiceMessageIdRef.current = null;
+    pendingVoiceMessageIdRef.current = null;
   }, [clearSpeakingTimeout]);
 
   const enterThinking = useCallback(() => {
@@ -113,10 +122,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     setBotState('THINKING');
   }, [clearSpeakingTimeout]);
 
-  const enterSpeaking = useCallback((message: ClawbotChannelMessage) => {
+  const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
     setBotState('SPEAKING');
     setLatestBotMessage(message);
+    activeVoiceMessageIdRef.current = null;
+    pendingVoiceMessageIdRef.current = null;
 
     const contentLength = message.content.length;
     const durationMs = Math.min(
@@ -131,11 +142,41 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }, durationMs);
   }, [clearSpeakingTimeout]);
 
+  const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
+    if (voiceEnabled) {
+      clearSpeakingTimeout();
+      setLatestBotMessage(message);
+      setBotState('THINKING');
+      const messageId = message.id || `bot-${message.timestamp}`;
+      activeVoiceMessageIdRef.current = messageId;
+      pendingVoiceMessageIdRef.current = messageId;
+      return;
+    }
+
+    enterSpeakingWithTimeout(message);
+  }, [clearSpeakingTimeout, enterSpeakingWithTimeout, voiceEnabled]);
+
   useEffect(() => {
     return () => {
       clearSpeakingTimeout();
     };
   }, [clearSpeakingTimeout]);
+
+  useEffect(() => {
+    if (voiceEnabled) {
+      return;
+    }
+    if (botState !== 'THINKING' || !latestBotMessage) {
+      return;
+    }
+
+    const latestMessageId = latestBotMessage.id || `bot-${latestBotMessage.timestamp}`;
+    if (pendingVoiceMessageIdRef.current !== latestMessageId) {
+      return;
+    }
+
+    enterSpeakingWithTimeout(latestBotMessage);
+  }, [botState, enterSpeakingWithTimeout, latestBotMessage, voiceEnabled]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -204,7 +245,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
       clawbotChannelBridge.on('message', (message: ClawbotChannelMessage) => {
         setMessages((prev) => [...prev, message]);
-        enterSpeaking(message);
+        if (message.sender === 'bot') {
+          handleBotMessageState(message);
+        }
       });
 
       clawbotChannelBridge.on('error', (error: any) => {
@@ -278,7 +321,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       clawbotChannelBridge.removeAllListeners();
       clearSpeakingTimeout();
     };
-  }, [clearSpeakingTimeout, enterIdle, enterSpeaking, user?.id]);
+  }, [clearSpeakingTimeout, enterIdle, handleBotMessageState, user?.id]);
 
   const connect = useCallback(async () => {
     await clawbotChannelBridge.connect();
@@ -390,6 +433,44 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
   }, [enterIdle, enterThinking]);
 
+  const notifyVoicePlaybackStarted = useCallback((messageId: string) => {
+    if (!voiceEnabled || !messageId) {
+      return;
+    }
+
+    const activeMessageId = activeVoiceMessageIdRef.current;
+    const pendingMessageId = pendingVoiceMessageIdRef.current;
+    if (activeMessageId !== messageId && pendingMessageId !== messageId) {
+      return;
+    }
+
+    clearSpeakingTimeout();
+    pendingVoiceMessageIdRef.current = null;
+    activeVoiceMessageIdRef.current = messageId;
+    setBotState('SPEAKING');
+  }, [clearSpeakingTimeout, voiceEnabled]);
+
+  const notifyVoicePlaybackEnded = useCallback((messageId: string) => {
+    if (!messageId || activeVoiceMessageIdRef.current !== messageId) {
+      return;
+    }
+    enterIdle();
+  }, [enterIdle]);
+
+  const notifyVoicePlaybackError = useCallback((messageId: string) => {
+    if (!messageId) {
+      return;
+    }
+
+    const activeMessageId = activeVoiceMessageIdRef.current;
+    const pendingMessageId = pendingVoiceMessageIdRef.current;
+    if (activeMessageId !== messageId && pendingMessageId !== messageId) {
+      return;
+    }
+
+    enterIdle();
+  }, [enterIdle]);
+
   const uploadMedia = useCallback(async (file: File | Blob): Promise<string> => {
     try {
       const url = await clawbotChannelBridge.uploadMedia(file);
@@ -434,6 +515,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     pairWithCode,
     pairWithQR,
     sendMessage,
+    notifyVoicePlaybackStarted,
+    notifyVoicePlaybackEnded,
+    notifyVoicePlaybackError,
     uploadMedia,
     unpair,
     clearMessages,

@@ -11,6 +11,7 @@ const { initDatabase } = require('./config/database');
 const pairingService = require('./services/pairingService');
 const messageService = require('./services/messageService');
 const ossService = require('./services/ossService');
+const ttsService = require('./services/ttsService');
 
 const app = express();
 const server = http.createServer(app);
@@ -269,6 +270,14 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false
 });
 
+const ttsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Too many TTS requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 initDatabase();
 messageService.initMessageTable().catch((error) => {
   console.error('[MessageService] initMessageTable failed:', error);
@@ -280,6 +289,58 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+app.post('/api/tts/synthesize', ttsLimiter, async (req, res) => {
+  const { text, scene = 'bot_reply', messageId } = req.body || {};
+
+  if (process.env.DOUBAO_TTS_ENABLED === 'false') {
+    return res.status(503).json({
+      success: false,
+      error: 'TTS is disabled by server configuration'
+    });
+  }
+
+  if (typeof text !== 'string' || text.trim().length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'text is required'
+    });
+  }
+
+  if (!['welcome', 'status', 'bot_reply'].includes(scene)) {
+    return res.status(400).json({
+      success: false,
+      error: 'scene must be one of welcome/status/bot_reply'
+    });
+  }
+
+  try {
+    const result = await ttsService.synthesizeSpeech({
+      text,
+      scene,
+      messageId
+    });
+
+    if (scene === 'bot_reply') {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', String(result.audioBuffer.length));
+    return res.status(200).send(result.audioBuffer);
+  } catch (error) {
+    console.error('[TTS] synthesize failed:', {
+      scene,
+      messageId,
+      textLength: typeof text === 'string' ? text.length : 0,
+      error: error.message
+    });
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'TTS synthesis failed'
+    });
+  }
 });
 
 app.post('/webhook/clawbot', async (req, res) => {

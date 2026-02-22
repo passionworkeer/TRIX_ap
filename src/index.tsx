@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { VoiceSettingsProvider } from './contexts/VoiceSettingsContext';
 import './i18n'; // Import i18n configuration
 import { validateEnv } from './utils/env'; // Import env validation
 
@@ -18,7 +19,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ThemeProvider>
-      <App />
+      <VoiceSettingsProvider>
+        <App />
+      </VoiceSettingsProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

@@ -3,6 +3,7 @@ import type { BotState } from '../contexts/ClawbotChannelContext';
 
 interface HeroBackgroundProps {
   botState: BotState;
+  onActiveVideoSourceChange?: (source: string) => void;
 }
 
 const VIDEO_SOURCES = {
@@ -39,7 +40,7 @@ function resolveVideoSource(botState: BotState, isLowBattery: boolean): string {
   }
 }
 
-export default function HeroBackground({ botState }: HeroBackgroundProps) {
+export default function HeroBackground({ botState, onActiveVideoSourceChange }: HeroBackgroundProps) {
   const videoRefs = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)] as const;
   const [activeLayer, setActiveLayer] = useState<LayerIndex>(0);
   const [isLowBattery, setIsLowBattery] = useState(false);
@@ -164,6 +165,13 @@ export default function HeroBackground({ botState }: HeroBackgroundProps) {
       hiddenVideo.pause();
     }
   }, [activeLayer, layerSources]);
+
+  useEffect(() => {
+    if (!onActiveVideoSourceChange) {
+      return;
+    }
+    onActiveVideoSourceChange(layerSources[activeLayer]);
+  }, [activeLayer, layerSources, onActiveVideoSourceChange]);
 
   return (
     <div

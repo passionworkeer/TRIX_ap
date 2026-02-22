@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight } from 'lucide-react';
+import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
@@ -11,6 +11,7 @@ import { PointsHistory } from '../components/PointsHistory';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { signOut, user, profile } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { voiceEnabled, toggleVoiceEnabled } = useVoiceSettings();
   const { t, i18n } = useTranslation();
   const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
 
@@ -66,6 +68,10 @@ const Profile: React.FC = () => {
     const currentIndex = languages.indexOf(i18n.language);
     const nextLanguage = languages[(currentIndex + 1) % languages.length];
     i18n.changeLanguage(nextLanguage);
+  };
+
+  const handleVoiceToggle = () => {
+    toggleVoiceEnabled();
   };
 
   const handlePrivacyClick = () => {
@@ -337,6 +343,21 @@ const Profile: React.FC = () => {
                          <div className={`flex items-center gap-2 ${mutedTextClass}`}>
                             <span className="text-xs font-medium">{languageNames[i18n.language] || i18n.language}</span>
                             <ChevronRight size={16} />
+                         </div>
+                      </GlassPanel>
+
+                      <GlassPanel
+                         onClick={handleVoiceToggle}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Volume2 size={20} />
+                            </div>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>语音沉浸模式</span>
+                         </div>
+                         <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${voiceEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}>
+                             <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${voiceEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
                          </div>
                       </GlassPanel>
                    </div>

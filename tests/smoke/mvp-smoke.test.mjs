@@ -163,9 +163,15 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   const appTsx = read('src/App.tsx');
   const channelContext = read('src/contexts/ClawbotChannelContext.tsx');
   const homeBubble = read('src/components/HomeBotBubble.tsx');
+  const homeTsx = read('src/screens/Home.tsx');
   const heroBackground = read('src/components/HeroBackground.tsx');
   const chatDetail = read('src/screens/ChatDetail.tsx');
   const bridge = read('src/services/ClawbotChannelBridge.ts');
+  const profileTsx = read('src/screens/Profile.tsx');
+  const immersiveVoiceHook = read('src/hooks/useImmersiveVoice.ts');
+  const voicePlaybackService = read('src/services/voicePlaybackService.ts');
+  const voiceSettingsContext = read('src/contexts/VoiceSettingsContext.tsx');
+  const ttsService = read('src/services/ttsService.ts');
 
   assert.equal(channelContext.includes("export type BotState = 'IDLE' | 'THINKING' | 'SPEAKING'"), true, 'Context should expose BotState enum');
   assert.equal(channelContext.includes('latestBotMessage: ClawbotChannelMessage | null;'), true, 'Context should expose latest bot message');
@@ -173,18 +179,46 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   assert.equal(channelContext.includes(') => Promise<void>;'), true, 'Context sendMessage should return Promise<void>');
   assert.equal(channelContext.includes('const SPEAKING_MAX_MS = 12000;'), true, 'Speaking timeout upper bound should be 12000ms');
   assert.equal(channelContext.includes('clearSpeakingTimeout();'), true, 'Speaking timeout should be explicitly cleared');
+  assert.equal(channelContext.includes('notifyVoicePlaybackStarted: (messageId: string) => void;'), true, 'Context should expose voice playback started notifier');
+  assert.equal(channelContext.includes('notifyVoicePlaybackEnded: (messageId: string) => void;'), true, 'Context should expose voice playback ended notifier');
+  assert.equal(channelContext.includes('notifyVoicePlaybackError: (messageId: string) => void;'), true, 'Context should expose voice playback error notifier');
+  assert.equal(channelContext.includes('if (voiceEnabled) {'), true, 'Context should branch on voiceEnabled for bot message state');
 
   assert.equal(homeBubble.includes('line-clamp-2'), true, 'Home bubble should clamp to two lines');
   assert.equal(homeBubble.includes('botState === \'THINKING\''), true, 'Home bubble should render thinking state');
   assert.equal(homeBubble.includes('clearTimeout(fallbackTimer);'), true, 'Home fallback timer should be cleared on cleanup');
+  assert.equal(homeTsx.includes('import.meta.env.DEV'), true, 'Home dev badge must be DEV-only');
+  assert.equal(homeTsx.includes('botState: {botState}'), true, 'Home dev badge should display botState');
+  assert.equal(homeTsx.includes('video: {devVideoSource || \'unknown\'}'), true, 'Home dev badge should display active video source');
 
-  assert.equal(appTsx.includes('<HeroBackground botState={botState} />'), true, 'App should pass botState to hero background');
+  assert.equal(appTsx.includes('botState={botState}'), true, 'App should pass botState to hero background');
+  assert.equal(appTsx.includes('onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}'), true, 'App should wire hero active source callback in dev');
+  assert.equal(appTsx.includes('onClickCapture={handleFirstGestureUnlock}'), true, 'App should unlock audio on click capture');
+  assert.equal(appTsx.includes('onTouchStartCapture={handleFirstGestureUnlock}'), true, 'App should unlock audio on touch start capture');
+  assert.equal(appTsx.includes('audioContextUnlock();'), true, 'App should call audioContextUnlock on first gesture');
   assert.equal(heroBackground.includes('/videos/role1/idle.mp4'), true, 'Hero background should use public video paths');
   assert.equal(heroBackground.includes('/videos/role1/thinking.mp4'), true, 'Hero background should include thinking source');
   assert.equal(heroBackground.includes('hiddenVideo.pause();'), true, 'Hidden video layer must be paused');
   assert.equal(heroBackground.includes('setActiveLayer(hiddenLayer);'), true, 'Hero background should switch layers after preload');
+  assert.equal(heroBackground.includes('onActiveVideoSourceChange(layerSources[activeLayer]);'), true, 'Hero background should report active source');
 
   assert.equal(chatDetail.includes('botState === \'THINKING\''), true, 'Chat detail should render thinking placeholder');
   assert.equal(chatDetail.includes('sendMessage: clawbotSendMessage'), true, 'Chat detail should use context sendMessage alias');
   assert.equal(bridge.includes('id: msg.messageId || generateMessageId()'), true, 'Bridge should prefer backend messageId for bot message');
+  assert.equal(profileTsx.includes('voiceEnabled'), true, 'Profile should bind voice enabled state');
+  assert.equal(profileTsx.includes('toggleVoiceEnabled'), true, 'Profile should support voice toggle action');
+
+  assert.equal(voiceSettingsContext.includes('voiceEnabled: boolean;'), true, 'Voice settings context should expose voiceEnabled');
+  assert.equal(voiceSettingsContext.includes('toggleVoiceEnabled: () => void;'), true, 'Voice settings context should expose toggle action');
+
+  assert.equal(voicePlaybackService.includes('audioContextUnlock(): void'), true, 'Voice playback service should expose audioContextUnlock');
+  assert.equal(voicePlaybackService.includes("addEventListener('ended', onEnded)"), true, 'Voice playback service should handle audio ended event');
+  assert.equal(voicePlaybackService.includes("addEventListener('error', onError)"), true, 'Voice playback service should handle audio error event');
+
+  assert.equal(immersiveVoiceHook.includes('notifyVoicePlaybackStarted(messageId);'), true, 'Immersive voice hook should notify playback start');
+  assert.equal(immersiveVoiceHook.includes('notifyVoicePlaybackEnded(messageId);'), true, 'Immersive voice hook should notify playback end');
+  assert.equal(immersiveVoiceHook.includes('notifyVoicePlaybackError(messageId);'), true, 'Immersive voice hook should notify playback error');
+  assert.equal(immersiveVoiceHook.includes("synthesizeSpeech(latestBotMessage.content, 'bot_reply'"), true, 'Immersive voice hook should synthesize bot replies');
+
+  assert.equal(ttsService.includes('/api/tts/synthesize'), true, 'Frontend TTS service should call backend tts proxy');
 });
