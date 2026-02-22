@@ -304,7 +304,7 @@ const ChatDetail: React.FC = () => {
           if (newMessage.sender_id !== currentUserId) {
             // 使用函数式更新，避免将 messages 放入依赖数组。
             setMessages((prev) => {
-              // 闃叉閲嶅娣诲姞
+              // Prevent duplicate additions
               if (prev.some(msg => msg.id === newMessage.id)) {
                 return prev;
               }
@@ -503,7 +503,7 @@ const ChatDetail: React.FC = () => {
       const category = file.type.startsWith('image/') ? 'image' : 'video';
       const result = await uploadFile(file, category);
 
-      // 娣诲姞鍒伴瑙堝垪琛紙鍖呭惈瀹屾暣濯掍綋鏁版嵁锛?
+      // Add to preview list (including media metadata)?
       setAttachmentPreviews(prev => [...prev, {
         uri: result.uri,
         type: result.type,
