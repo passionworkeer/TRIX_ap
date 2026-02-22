@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Github, Mail, Heart } from 'lucide-react';
+import { X, Heart } from 'lucide-react';
 
 interface AboutDialogProps {
   isOpen: boolean;

@@ -1,5 +1,6 @@
 ﻿import { supabase } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
 import type {
   ChatMessage,
   UnreadCount,

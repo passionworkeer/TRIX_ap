@@ -31,7 +31,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   const [isFocusing, setIsFocusing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [studyTime, setStudyTime] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const { showError, showWarning } = useNotification();
 
   // Default room ID (can be changed to dynamic selection)

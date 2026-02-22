@@ -3,7 +3,7 @@
  * 显示用户的详细统计信息：陪伴天数、积分、互动次数等
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, Calendar, MessageCircle, Star, Target } from 'lucide-react';
 

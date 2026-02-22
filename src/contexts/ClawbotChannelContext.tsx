@@ -12,6 +12,11 @@ import clawbotChannelBridge, {
   CHANNEL_PROTOCOL_MISMATCH,
   type ClawbotChannelMessage,
 } from '../services/ClawbotChannelBridge';
+import {
+  deleteClawbotMessage,
+  loadClawbotMessageHistory,
+  saveClawbotMessage,
+} from '../services/databaseService';
 import { useAuth } from './AuthContext';
 import { useVoiceSettings } from './VoiceSettingsContext';
 
@@ -100,6 +105,26 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
   const previousUserIdRef = useRef<string | null>(null);
+
+  const toPersistedMessageId = useCallback((message: ClawbotChannelMessage): string => {
+    if (message.id && message.id.length > 0) {
+      return message.id;
+    }
+    return `${message.sender}-${message.timestamp}`;
+  }, []);
+
+  const upsertMessageState = useCallback((message: ClawbotChannelMessage) => {
+    setMessages((prev) => {
+      const messageId = toPersistedMessageId(message);
+      const exists = prev.some((item) => toPersistedMessageId(item) === messageId);
+      if (exists) {
+        return prev;
+      }
+      const next = [...prev, { ...message, id: messageId }];
+      next.sort((a, b) => a.timestamp - b.timestamp);
+      return next;
+    });
+  }, [toPersistedMessageId]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -238,6 +263,36 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       return;
     }
 
+    let disposed = false;
+    void loadClawbotMessageHistory(user.id).then((history) => {
+      if (disposed || history.length === 0) {
+        return;
+      }
+
+      const historyMessages: ClawbotChannelMessage[] = history.map((message) => ({
+        id: message.id,
+        content: message.content,
+        contentType: message.contentType,
+        mediaUrl: message.mediaUrl,
+        timestamp: message.timestamp,
+        sender: message.sender,
+      }));
+
+      setMessages((prev) => {
+        if (prev.length > 0) {
+          return prev;
+        }
+        return historyMessages;
+      });
+
+      const latestBotMessage = [...historyMessages]
+        .reverse()
+        .find((message) => message.sender === 'bot');
+      if (latestBotMessage) {
+        setLatestBotMessage((prev) => prev ?? latestBotMessage);
+      }
+    });
+
     const setupListeners = () => {
       clawbotChannelBridge.on('connecting', () => {
         setStatus('CONNECTING');
@@ -300,9 +355,23 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       });
 
       clawbotChannelBridge.on('message', (message: ClawbotChannelMessage) => {
-        setMessages((prev) => [...prev, message]);
+        const normalizedMessage = {
+          ...message,
+          id: toPersistedMessageId(message),
+        };
+        upsertMessageState(normalizedMessage);
+        if (user?.id) {
+          void saveClawbotMessage(user.id, {
+            id: normalizedMessage.id || toPersistedMessageId(normalizedMessage),
+            content: normalizedMessage.content,
+            contentType: normalizedMessage.contentType,
+            mediaUrl: normalizedMessage.mediaUrl,
+            timestamp: normalizedMessage.timestamp,
+            sender: normalizedMessage.sender,
+          });
+        }
         if (message.sender === 'bot') {
-          handleBotMessageState(message);
+          handleBotMessageState(normalizedMessage);
         }
       });
 
@@ -349,10 +418,28 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
           }));
 
           setMessages((prev) => {
-            const existingIds = new Set(prev.map((m) => m.id));
-            const newMessages = missedMessages.filter((m) => !existingIds.has(m.id));
-            return [...prev, ...newMessages];
+            const existingIds = new Set(prev.map((m) => toPersistedMessageId(m)));
+            const newMessages = missedMessages
+              .map((message) => ({ ...message, id: toPersistedMessageId(message) }))
+              .filter((message) => !existingIds.has(message.id || toPersistedMessageId(message)));
+            const next = [...prev, ...newMessages];
+            next.sort((a, b) => a.timestamp - b.timestamp);
+            return next;
           });
+
+          if (user?.id) {
+            missedMessages.forEach((message) => {
+              const persistedMessageId = toPersistedMessageId(message);
+              void saveClawbotMessage(user.id!, {
+                id: persistedMessageId,
+                content: message.content,
+                contentType: message.contentType,
+                mediaUrl: message.mediaUrl,
+                timestamp: message.timestamp,
+                sender: message.sender,
+              });
+            });
+          }
 
           const latestMissedBotMessage = [...missedMessages]
             .reverse()
@@ -374,11 +461,20 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     });
 
     return () => {
+      disposed = true;
       clawbotChannelBridge.removeAllListeners();
       clearSpeakingTimeout();
       clearThinkingTimeout();
     };
-  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle, handleBotMessageState, user?.id]);
+  }, [
+    clearSpeakingTimeout,
+    clearThinkingTimeout,
+    enterIdle,
+    handleBotMessageState,
+    toPersistedMessageId,
+    upsertMessageState,
+    user?.id,
+  ]);
 
   const connect = useCallback(async () => {
     await clawbotChannelBridge.connect();
@@ -467,8 +563,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       throw new Error(message);
     }
 
-    setHasSessionConversationStarted(true);
-    enterThinking();
     const optimisticUserMessage: ClawbotChannelMessage = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       content,
@@ -477,21 +571,42 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       timestamp: Date.now(),
       sender: 'user',
     };
-    setMessages((prev) => [...prev, optimisticUserMessage]);
+    const optimisticMessageId = optimisticUserMessage.id || toPersistedMessageId(optimisticUserMessage);
+    const normalizedOptimisticMessage = {
+      ...optimisticUserMessage,
+      id: optimisticMessageId,
+    };
+
+    setHasSessionConversationStarted(true);
+    enterThinking();
+    upsertMessageState(normalizedOptimisticMessage);
+    if (user?.id) {
+      void saveClawbotMessage(user.id, {
+        id: optimisticMessageId,
+        content: normalizedOptimisticMessage.content,
+        contentType: normalizedOptimisticMessage.contentType,
+        mediaUrl: normalizedOptimisticMessage.mediaUrl,
+        timestamp: normalizedOptimisticMessage.timestamp,
+        sender: normalizedOptimisticMessage.sender,
+      });
+    }
 
     try {
       await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl);
       setLastError(null);
     } catch (error) {
       console.error('[ClawbotChannel] 发送消息失败:', error);
-      setMessages((prev) => prev.filter((message) => message.id !== optimisticUserMessage.id));
+      setMessages((prev) => prev.filter((message) => toPersistedMessageId(message) !== optimisticMessageId));
+      if (user?.id) {
+        void deleteClawbotMessage(user.id, optimisticMessageId);
+      }
       const message = error instanceof Error ? error.message : '发送失败';
       setLastError(message);
       toast.error(message);
       enterIdle();
       throw error instanceof Error ? error : new Error(message);
     }
-  }, [enterIdle, enterThinking]);
+  }, [enterIdle, enterThinking, toPersistedMessageId, upsertMessageState, user?.id]);
 
   const notifyVoicePlaybackStarted = useCallback((messageId: string) => {
     if (!voiceEnabled || !messageId) {
