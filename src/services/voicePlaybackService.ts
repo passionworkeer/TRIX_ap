@@ -4,13 +4,17 @@ export type VoicePlaybackCallbacks = {
   onError?: () => void;
 };
 
+type AudioUnlockedListener = () => void;
+
 const SILENT_DATA_URI =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+const IS_DEV = import.meta.env.DEV;
 
 class VoicePlaybackService {
   private audioElement: HTMLAudioElement;
   private audioContext: AudioContext | null = null;
   private isUnlocked = false;
+  private unlockListeners = new Set<AudioUnlockedListener>();
   private playbackToken = 0;
   private activeObjectUrl: string | null = null;
   private detachHandlers: (() => void) | null = null;
@@ -19,6 +23,38 @@ class VoicePlaybackService {
     this.audioElement = new Audio();
     this.audioElement.preload = 'auto';
     this.audioElement.playsInline = true;
+  }
+
+  private debugLog(message: string, payload?: Record<string, unknown>): void {
+    if (!IS_DEV) {
+      return;
+    }
+    if (payload) {
+      console.debug(`[VoicePlayback] ${message}`, payload);
+      return;
+    }
+    console.debug(`[VoicePlayback] ${message}`);
+  }
+
+  private emitAudioUnlocked(): void {
+    this.unlockListeners.forEach((listener) => {
+      try {
+        listener();
+      } catch {
+        // Ignore observer errors.
+      }
+    });
+  }
+
+  subscribeAudioUnlocked(listener: AudioUnlockedListener): () => void {
+    this.unlockListeners.add(listener);
+    return () => {
+      this.unlockListeners.delete(listener);
+    };
+  }
+
+  getIsAudioUnlocked(): boolean {
+    return this.isUnlocked;
   }
 
   audioContextUnlock(): void {
@@ -44,32 +80,48 @@ class VoicePlaybackService {
       source.stop(0);
     }
 
+    const markUnlocked = () => {
+      if (this.isUnlocked) {
+        return;
+      }
+      this.isUnlocked = true;
+      this.debugLog('Audio unlocked');
+      this.emitAudioUnlocked();
+    };
+
     const previousSrc = this.audioElement.src;
     this.audioElement.muted = true;
     this.audioElement.src = SILENT_DATA_URI;
     const unlockPromise = this.audioElement.play();
 
+    const restoreAudioElement = () => {
+      this.audioElement.pause();
+      this.audioElement.currentTime = 0;
+      this.audioElement.src = previousSrc;
+      this.audioElement.muted = false;
+    };
+
     if (unlockPromise) {
-      void unlockPromise.finally(() => {
-        this.audioElement.pause();
-        this.audioElement.currentTime = 0;
-        this.audioElement.src = previousSrc;
-        this.audioElement.muted = false;
-        this.isUnlocked = true;
-      });
+      void unlockPromise
+        .then(() => {
+          markUnlocked();
+        })
+        .catch(() => {
+          this.debugLog('Audio unlock blocked by browser');
+        })
+        .finally(() => {
+          restoreAudioElement();
+        });
       return;
     }
 
-    this.audioElement.pause();
-    this.audioElement.currentTime = 0;
-    this.audioElement.src = previousSrc;
-    this.audioElement.muted = false;
-    this.isUnlocked = true;
+    markUnlocked();
+    restoreAudioElement();
   }
 
   async playFromBlob(blob: Blob, callbacks: VoicePlaybackCallbacks = {}): Promise<void> {
-    const playbackToken = ++this.playbackToken;
     this.stopCurrent('interrupt');
+    const playbackToken = this.playbackToken;
 
     const objectUrl = URL.createObjectURL(blob);
     this.activeObjectUrl = objectUrl;
@@ -77,33 +129,67 @@ class VoicePlaybackService {
     this.audioElement.currentTime = 0;
 
     let started = false;
-    const onPlay = () => {
+    const handleStarted = (event: 'play' | 'playing' | 'play-promise') => {
       if (this.playbackToken !== playbackToken || started) {
+        this.debugLog('Skipped start event due to stale token', {
+          event,
+          playbackToken,
+          activeToken: this.playbackToken,
+        });
         return;
       }
       started = true;
+      this.debugLog('Playback started', {
+        event,
+        playbackToken,
+        activeToken: this.playbackToken,
+      });
       callbacks.onStart?.();
+    };
+    const onPlay = () => {
+      handleStarted('play');
+    };
+    const onPlaying = () => {
+      handleStarted('playing');
     };
     const onEnded = () => {
       if (this.playbackToken !== playbackToken) {
+        this.debugLog('Skipped ended event due to stale token', {
+          playbackToken,
+          activeToken: this.playbackToken,
+        });
         return;
       }
+      this.debugLog('Playback ended', {
+        playbackToken,
+        activeToken: this.playbackToken,
+      });
       callbacks.onEnded?.();
       this.cleanupAfterPlayback(playbackToken);
     };
     const onError = () => {
       if (this.playbackToken !== playbackToken) {
+        this.debugLog('Skipped error event due to stale token', {
+          playbackToken,
+          activeToken: this.playbackToken,
+        });
         return;
       }
+      this.debugLog('Playback error', {
+        playbackToken,
+        activeToken: this.playbackToken,
+      });
       callbacks.onError?.();
       this.cleanupAfterPlayback(playbackToken);
     };
 
     this.audioElement.addEventListener('play', onPlay);
+    this.audioElement.addEventListener('playing', onPlaying);
     this.audioElement.addEventListener('ended', onEnded);
     this.audioElement.addEventListener('error', onError);
     this.detachHandlers = () => {
       this.audioElement.removeEventListener('play', onPlay);
+      this.audioElement.removeEventListener('playing', onPlaying);
       this.audioElement.removeEventListener('ended', onEnded);
       this.audioElement.removeEventListener('error', onError);
       this.detachHandlers = null;
@@ -112,11 +198,14 @@ class VoicePlaybackService {
     try {
       await this.audioElement.play();
       if (!started && this.playbackToken === playbackToken) {
-        started = true;
-        callbacks.onStart?.();
+        handleStarted('play-promise');
       }
     } catch {
       if (this.playbackToken === playbackToken) {
+        this.debugLog('Playback rejected by play() promise', {
+          playbackToken,
+          activeToken: this.playbackToken,
+        });
         callbacks.onError?.();
         this.cleanupAfterPlayback(playbackToken);
       }
@@ -125,6 +214,10 @@ class VoicePlaybackService {
 
   stopCurrent(_reason: 'interrupt' | 'manual' = 'manual'): void {
     ++this.playbackToken;
+    this.debugLog('Stop current playback', {
+      reason: _reason,
+      activeToken: this.playbackToken,
+    });
     if (this.detachHandlers) {
       this.detachHandlers();
     }
@@ -160,6 +253,14 @@ const voicePlaybackService = new VoicePlaybackService();
 
 export const audioContextUnlock = (): void => {
   voicePlaybackService.audioContextUnlock();
+};
+
+export const isAudioUnlocked = (): boolean => {
+  return voicePlaybackService.getIsAudioUnlocked();
+};
+
+export const subscribeAudioUnlocked = (listener: AudioUnlockedListener): (() => void) => {
+  return voicePlaybackService.subscribeAudioUnlocked(listener);
 };
 
 export const playFromBlob = (

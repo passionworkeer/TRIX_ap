@@ -6,6 +6,12 @@
 SERVER="TRIX_SERVER_HOST"
 USER="root"
 
+deploy_clawbot() {
+  echo "[deploy_clawbot] start"
+}
+
+deploy_clawbot
+
 echo "============================================"
 echo "  TRIX 3D Companion - 自动部署"
 echo "============================================"

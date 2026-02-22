@@ -37,6 +37,7 @@ interface ClawbotChannelContextType {
   messages: ClawbotChannelMessage[];
   botState: BotState;
   latestBotMessage: ClawbotChannelMessage | null;
+  hasSessionConversationStarted: boolean;
   idleEnteredAt: number;
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -68,6 +69,7 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
+const THINKING_MAX_MS = 25000;
 
 const resolveChannelErrorMessage = (error: any): string => {
   if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
@@ -89,12 +91,15 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const [deviceId, setDeviceId] = useState<string>('');
   const [botState, setBotState] = useState<BotState>('IDLE');
   const [latestBotMessage, setLatestBotMessage] = useState<ClawbotChannelMessage | null>(null);
+  const [hasSessionConversationStarted, setHasSessionConversationStarted] = useState(false);
   const [idleEnteredAt, setIdleEnteredAt] = useState<number>(() => Date.now());
 
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -109,21 +114,37 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     speakingTimeoutRef.current = null;
   }, []);
 
+  const clearThinkingTimeout = useCallback(() => {
+    if (!thinkingTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(thinkingTimeoutRef.current);
+    thinkingTimeoutRef.current = null;
+  }, []);
+
   const enterIdle = useCallback(() => {
     clearSpeakingTimeout();
+    clearThinkingTimeout();
     setBotState('IDLE');
     setIdleEnteredAt(Date.now());
     activeVoiceMessageIdRef.current = null;
     pendingVoiceMessageIdRef.current = null;
-  }, [clearSpeakingTimeout]);
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const enterThinking = useCallback(() => {
     clearSpeakingTimeout();
+    clearThinkingTimeout();
     setBotState('THINKING');
-  }, [clearSpeakingTimeout]);
+    thinkingTimeoutRef.current = setTimeout(() => {
+      thinkingTimeoutRef.current = null;
+      enterIdle();
+    }, THINKING_MAX_MS);
+  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
+    clearThinkingTimeout();
     setBotState('SPEAKING');
     setLatestBotMessage(message);
     activeVoiceMessageIdRef.current = null;
@@ -140,13 +161,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setBotState('IDLE');
       setIdleEnteredAt(Date.now());
     }, durationMs);
-  }, [clearSpeakingTimeout]);
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
     if (voiceEnabled) {
-      clearSpeakingTimeout();
       setLatestBotMessage(message);
-      setBotState('THINKING');
+      enterThinking();
       const messageId = message.id || `bot-${message.timestamp}`;
       activeVoiceMessageIdRef.current = messageId;
       pendingVoiceMessageIdRef.current = messageId;
@@ -154,13 +174,27 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
 
     enterSpeakingWithTimeout(message);
-  }, [clearSpeakingTimeout, enterSpeakingWithTimeout, voiceEnabled]);
+  }, [enterSpeakingWithTimeout, enterThinking, voiceEnabled]);
+
+  const resetSessionScopedState = useCallback(() => {
+    setStatus('DISCONNECTED');
+    setPairingStatus('idle');
+    setPairingCode(null);
+    setQrImage(null);
+    setDeviceId('');
+    setMessages([]);
+    setLatestBotMessage(null);
+    setHasSessionConversationStarted(false);
+    setLastError(null);
+    enterIdle();
+  }, [enterIdle]);
 
   useEffect(() => {
     return () => {
       clearSpeakingTimeout();
+      clearThinkingTimeout();
     };
-  }, [clearSpeakingTimeout]);
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   useEffect(() => {
     if (voiceEnabled) {
@@ -177,6 +211,27 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
     enterSpeakingWithTimeout(latestBotMessage);
   }, [botState, enterSpeakingWithTimeout, latestBotMessage, voiceEnabled]);
+
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+
+    if (!currentUserId) {
+      previousUserIdRef.current = null;
+      clawbotChannelBridge.removeAllListeners();
+      clawbotChannelBridge.disconnect();
+      resetSessionScopedState();
+      return;
+    }
+
+    const previousUserId = previousUserIdRef.current;
+    if (previousUserId && previousUserId !== currentUserId) {
+      clawbotChannelBridge.removeAllListeners();
+      clawbotChannelBridge.disconnect();
+      resetSessionScopedState();
+    }
+
+    previousUserIdRef.current = currentUserId;
+  }, [resetSessionScopedState, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -226,6 +281,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       clawbotChannelBridge.on('unpaired', () => {
         setPairingStatus('idle');
         setDeviceId('');
+        setHasSessionConversationStarted(false);
         enterIdle();
       });
 
@@ -320,8 +376,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     return () => {
       clawbotChannelBridge.removeAllListeners();
       clearSpeakingTimeout();
+      clearThinkingTimeout();
     };
-  }, [clearSpeakingTimeout, enterIdle, handleBotMessageState, user?.id]);
+  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle, handleBotMessageState, user?.id]);
 
   const connect = useCallback(async () => {
     await clawbotChannelBridge.connect();
@@ -330,6 +387,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const disconnect = useCallback(() => {
     clawbotChannelBridge.disconnect();
     setStatus('DISCONNECTED');
+    setHasSessionConversationStarted(false);
     enterIdle();
   }, [enterIdle]);
 
@@ -409,22 +467,24 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       throw new Error(message);
     }
 
+    setHasSessionConversationStarted(true);
     enterThinking();
+    const optimisticUserMessage: ClawbotChannelMessage = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      content,
+      contentType,
+      mediaUrl,
+      timestamp: Date.now(),
+      sender: 'user',
+    };
+    setMessages((prev) => [...prev, optimisticUserMessage]);
 
     try {
       await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl);
-      const userMessage: ClawbotChannelMessage = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-        content,
-        contentType,
-        mediaUrl,
-        timestamp: Date.now(),
-        sender: 'user',
-      };
-      setMessages((prev) => [...prev, userMessage]);
       setLastError(null);
     } catch (error) {
       console.error('[ClawbotChannel] 发送消息失败:', error);
+      setMessages((prev) => prev.filter((message) => message.id !== optimisticUserMessage.id));
       const message = error instanceof Error ? error.message : '发送失败';
       setLastError(message);
       toast.error(message);
@@ -445,10 +505,11 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
 
     clearSpeakingTimeout();
+    clearThinkingTimeout();
     pendingVoiceMessageIdRef.current = null;
     activeVoiceMessageIdRef.current = messageId;
     setBotState('SPEAKING');
-  }, [clearSpeakingTimeout, voiceEnabled]);
+  }, [clearSpeakingTimeout, clearThinkingTimeout, voiceEnabled]);
 
   const notifyVoicePlaybackEnded = useCallback((messageId: string) => {
     if (!messageId || activeVoiceMessageIdRef.current !== messageId) {
@@ -490,6 +551,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     setQrImage(null);
     setMessages([]);
     setLatestBotMessage(null);
+    setHasSessionConversationStarted(false);
     setLastError(null);
     enterIdle();
   }, [enterIdle]);
@@ -509,6 +571,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     messages,
     botState,
     latestBotMessage,
+    hasSessionConversationStarted,
     idleEnteredAt,
     connect,
     disconnect,

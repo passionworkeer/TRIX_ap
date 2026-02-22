@@ -154,10 +154,22 @@ function AppContent() {
     }
   }, [isHomePage]);
 
-  const handleFirstGestureUnlock = useCallback(() => {
+  const handleFirstGestureUnlock = useCallback((event: React.SyntheticEvent<HTMLDivElement>) => {
     if (hasUnlockedAudioRef.current) {
       return;
     }
+
+    const nativeEvent = event.nativeEvent as Event | undefined;
+    const eventType = nativeEvent?.type ?? event.type;
+    if (eventType !== 'click' && eventType !== 'touchstart') {
+      return;
+    }
+
+    const isTrusted = nativeEvent?.isTrusted ?? false;
+    if (!isTrusted) {
+      return;
+    }
+
     hasUnlockedAudioRef.current = true;
     audioContextUnlock();
   }, []);
