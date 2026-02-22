@@ -66,6 +66,7 @@
 
 | 场景 | 使用全局 Skill |
 |------|---------------|
+| **主动性增强** | **`proactive-agent`** ⭐ 内置行为模式 |
 | JS/TS 测试 | `javascript-testing-patterns` |
 | 性能优化 | `performance` |
 | Docker | `docker-expert` |
@@ -76,6 +77,23 @@
 | 架构决策记录 | `architecture-decision-records` |
 | TypeScript 高级类型 | `typescript-advanced-types` |
 | Node.js 后端 | `nodejs-backend-patterns` |
+
+### ⭐ proactive-agent 核心能力（v3.0.0）
+
+**已内化为默认行为，自动应用以下协议：**
+
+| 协议 | 触发场景 | 行为 |
+|------|---------|------|
+| **WAL Protocol** | 用户纠正、决策、偏好表达 | 先记录到 SESSION-STATE.md，再响应 |
+| **Working Buffer** | 上下文 >60% | 自动记录所有对话到 working-buffer.md |
+| **Compaction Recovery** | 上下文压缩后 | 从 working buffer 恢复状态 |
+| **Relentless Resourcefulness** | 遇到问题 | 尝试 10 种方法后再求助 |
+| **Security Hardening** | 安装 skill、外部内容 | 自动审查安全风险 |
+
+**三大支柱：**
+- Proactive（主动性）- 不等待指令，主动创造价值
+- Persistent（持久性）- 上下文丢失后仍能恢复
+- Self-improving（自我改进）- 持续优化服务能力
 
 ### 归档的 Skills
 以下 skills 已移至 `~/.claude/skills-archive/`，其他项目需要时可恢复：
@@ -229,6 +247,6 @@ src/
 
 ---
 
-**最后更新：2026-02-20**
-**版本：2.0 - 加入强制性检查点**
+**最后更新：2026-02-22**
+**版本：2.1 - 集成 proactive-agent skill 和权限优化**
 **维护者：Claude + 用户协作制定**

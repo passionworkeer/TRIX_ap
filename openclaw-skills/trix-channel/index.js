@@ -27,6 +27,8 @@ const CLI_AGENT_TIMEOUT_SECONDS = Number(process.env.CLI_AGENT_TIMEOUT_SECONDS |
 const CLI_MAX_BUFFER_BYTES = Number(process.env.CLI_MAX_BUFFER_BYTES || 10 * 1024 * 1024);
 const GATEWAY_CLIENT_ID = process.env.GATEWAY_CLIENT_ID || 'gateway-client';
 const GATEWAY_CLIENT_MODE = process.env.GATEWAY_CLIENT_MODE || 'backend';
+const HEARTBEAT_INTERVAL_MS = Number(process.env.ADAPTER_HEARTBEAT_INTERVAL_MS || 15000);
+const REGISTER_TIMEOUT_MS = Number(process.env.ADAPTER_REGISTER_TIMEOUT_MS || 12000);
 
 let serverSocket = null;
 let gatewayWs = null;
@@ -38,6 +40,7 @@ let gatewayReconnectTimer = null;
 let deviceId = null;
 let pairingId = null;
 let lastSentMessageId = null;
+let registerInFlight = null;
 
 const inboundDedup = new Map();
 const pendingGatewayRequests = new Map();
@@ -577,6 +580,67 @@ function handleGatewayMessage(msg) {
   }
 }
 
+function registerWithServer(reason = 'register') {
+  if (!serverSocket || !serverSocket.connected) {
+    return Promise.reject(new Error('server socket not connected'));
+  }
+
+  if (!deviceId) {
+    deviceId = `trix_${os.hostname()}_${Date.now()}`;
+  }
+
+  if (registerInFlight) {
+    return registerInFlight;
+  }
+
+  registerInFlight = new Promise((resolve, reject) => {
+    let finished = false;
+    const timer = setTimeout(() => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      reject(new Error(`register timeout (${reason})`));
+    }, REGISTER_TIMEOUT_MS);
+
+    serverSocket.emit(
+      'bot_request_pairing',
+      { deviceId, pairingId, reason, timestamp: Date.now() },
+      (response) => {
+        if (finished) {
+          return;
+        }
+
+        clearTimeout(timer);
+        finished = true;
+
+        if (!response?.success) {
+          reject(new Error(response?.error || `pairing request failed (${reason})`));
+          return;
+        }
+
+        pairingId = response.pairingId || pairingId || null;
+        saveAuth({ deviceId, pairingId, savedAt: new Date().toISOString() });
+
+        if (response.restored) {
+          console.log(`[TRIXChannel] pairing restored: ${pairingId || 'unknown'} (${reason})`);
+        } else if (response.pairingCode) {
+          console.log(
+            `[TRIXChannel] pairing code: ${response.pairingCode} (pairingId=${response.pairingId || 'unknown'}, ${reason})`
+          );
+        }
+
+        resolve(response);
+      }
+    );
+  })
+    .finally(() => {
+      registerInFlight = null;
+    });
+
+  return registerInFlight;
+}
+
 async function connectToServer() {
   return new Promise((resolve, reject) => {
     let resolved = false;
@@ -591,33 +655,22 @@ async function connectToServer() {
 
     serverSocket.on('connect', () => {
       isConnectedToServer = true;
-      if (!deviceId) {
-        deviceId = `trix_${os.hostname()}_${Date.now()}`;
-      }
-
-      serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
-        if (!response?.success) {
+      registerWithServer('connect')
+        .then(() => {
           if (!resolved) {
             resolved = true;
-            reject(new Error(response?.error || 'pairing request failed'));
+            resolve();
           }
-          return;
-        }
+        })
+        .catch((error) => {
+          if (!resolved) {
+            resolved = true;
+            reject(error);
+            return;
+          }
 
-        pairingId = response.pairingId || pairingId;
-        saveAuth({ deviceId, pairingId, savedAt: new Date().toISOString() });
-
-        if (response.restored) {
-          console.log(`[TRIXChannel] pairing restored: ${pairingId || 'unknown'}`);
-        } else if (response.pairingCode) {
-          console.log(`[TRIXChannel] pairing code: ${response.pairingCode} (pairingId=${response.pairingId || 'unknown'})`);
-        }
-
-        if (!resolved) {
-          resolved = true;
-          resolve();
-        }
-      });
+          console.error('[TRIXChannel] register after connect failed:', error.message);
+        });
     });
 
     serverSocket.on('disconnect', (reason) => {
@@ -627,15 +680,19 @@ async function connectToServer() {
 
     serverSocket.on('reconnect', () => {
       isConnectedToServer = true;
-      if (deviceId) {
-        serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
-          if (response?.success) {
-            pairingId = response.pairingId || pairingId;
-            saveAuth({ deviceId, pairingId, savedAt: new Date().toISOString() });
-          }
-        });
-      }
+      registerWithServer('reconnect').catch((error) => {
+        console.error('[TRIXChannel] register after reconnect failed:', error.message);
+      });
     });
+
+    if (serverSocket.io && typeof serverSocket.io.on === 'function') {
+      serverSocket.io.on('reconnect', () => {
+        isConnectedToServer = true;
+        registerWithServer('manager_reconnect').catch((error) => {
+          console.error('[TRIXChannel] register after manager reconnect failed:', error.message);
+        });
+      });
+    }
 
     serverSocket.on('app_message', (data) => handleServerAppMessage('app_message', data));
     serverSocket.on('user_message', (data) => handleServerAppMessage('user_message', data));
@@ -741,7 +798,29 @@ function startHeartbeat() {
 
   heartbeatInterval = setInterval(() => {
     if (serverSocket && isConnectedToServer) {
-      serverSocket.emit('ping', { timestamp: Date.now() });
+      const timestamp = Date.now();
+      const heartbeatPayload = {
+        role: 'bot',
+        deviceId,
+        pairingId,
+        timestamp
+      };
+
+      serverSocket.emit('bot_keepalive', heartbeatPayload, (response) => {
+        if (!response?.success) {
+          registerWithServer('heartbeat_keepalive_rebind').catch((error) => {
+            console.error('[TRIXChannel] keepalive re-register failed:', error.message);
+          });
+        }
+      });
+
+      serverSocket.emit('ping', heartbeatPayload, (pong) => {
+        if (pong?.registered === false) {
+          registerWithServer('heartbeat_ping_rebind').catch((error) => {
+            console.error('[TRIXChannel] ping re-register failed:', error.message);
+          });
+        }
+      });
     }
 
     if (gatewayWs && gatewayWs.readyState === WebSocket.OPEN) {
@@ -751,7 +830,7 @@ function startHeartbeat() {
         method: 'health'
       }));
     }
-  }, 30000);
+  }, HEARTBEAT_INTERVAL_MS);
 }
 
 function stopHeartbeat() {
