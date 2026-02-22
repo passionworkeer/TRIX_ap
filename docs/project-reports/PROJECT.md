@@ -1,164 +1,375 @@
-# TRIX 3D Companion
+# TRIX 3D Companion - 项目总览
 
-TRIX 3D Companion 是一款面向移动端的 AI 伴侣应用，核心理念为"Zero UI"沉浸式交互。用户主页仅展示全屏 3D 角色（Clawbot），点击后才显示导航栏和功能面板。应用通过 WebSocket 连接本地 PC 上的 Clawbot Gateway，实现 AI 对话和桌面代理操控。
+> **最后更新**: 2026-02-22
+> **版本**: v1.0
+> **技术栈**: React 19 + TypeScript + Vite 6 + Supabase
 
-## 技术栈
+---
 
-| 类别 | 技术 |
-|------|------|
-| 框架 | React 19 + TypeScript |
-| 构建 | Vite 6 |
-| 路由 | React Router v7 (HashRouter) |
-| 数据库 | Supabase (PostgreSQL) |
-| 动画 | Framer Motion |
-| 地图 | Leaflet + React Leaflet |
-| 图标 | Lucide React |
-| 样式 | Tailwind CSS (Vite build pipeline) |
-| 实时通信 | WebSocket (Clawbot Gateway) |
+## 📋 项目简介
 
-## 项目结构
+**TRIX 3D Companion** 是一款面向移动端的 AI 伴侣应用，核心理念为 **"Zero UI" 沉浸式交互**。
+
+### 核心特性
+
+- 🎭 **Zero UI 设计** - 首页仅展示全屏 3D 角色，点击后显示功能面板
+- 🤖 **AI 对话** - 通过 WebSocket 连接 Clawbot Gateway，实现流式 AI 响应
+- 👥 **社交功能** - 好友聊天、实时消息、未读提醒
+- ⏱️ **学习计时** - 番茄钟学习工具，支持状态同步和虚拟自习室
+- 🗣️ **语音交互** - TTS 语音合成（豆包集成）、语音识别
+- 📱 **扫码配对** - 手机端与电脑端 Gateway 通过二维码配对
+
+---
+
+## 🏗️ 技术栈
+
+| 类别 | 技术 | 版本 |
+|------|------|------|
+| 框架 | React + TypeScript | 19.2.4 / 5.8.2 |
+| 构建 | Vite | 6.2.0 |
+| 路由 | React Router | v7 (HashRouter) |
+| 数据库 | Supabase (PostgreSQL) | - |
+| 实时通信 | WebSocket + Supabase Realtime | - |
+| 动画 | Framer Motion | 12.33.0 |
+| 地图 | Leaflet + React Leaflet | - |
+| 样式 | Tailwind CSS | - |
+| 国际化 | i18next | - |
+
+---
+
+## 📁 项目结构
 
 ```
-src/
-├── App.tsx                     # 主路由和三层布局（背景/内容/悬浮UI）
-├── index.tsx                   # React 入口
-├── index.css                   # 全局样式
-├── constants.ts                # 图片资源常量映射
-├── types.ts                    # 路由枚举和通用接口
-├── vite-env.d.ts               # Vite 环境类型声明
+trix-3d-companion/
+├── src/                          # 前端源代码
+│   ├── components/               # UI 组件 (27个)
+│   │   ├── common/               # 通用组件
+│   │   ├── layout/               # 布局组件
+│   │   ├── modals/               # 模态框
+│   │   ├── chat/                 # 聊天相关
+│   │   ├── study/                # 学习相关
+│   │   └── map/                  # 地图相关
+│   │
+│   ├── screens/                  # 页面组件 (12个)
+│   │   ├── Home.tsx              # 首页
+│   │   ├── Chat.tsx              # 聊天列表
+│   │   ├── ChatDetail.tsx        # 聊天详情
+│   │   ├── Study.tsx             # 学习计时器
+│   │   ├── Profile.tsx           # 个人中心
+│   │   ├── Map.tsx               # 地图
+│   │   ├── Auth.tsx              # 登录/注册
+│   │   ├── Pairing.tsx           # PC 配对
+│   │   ├── QRCodePairing.tsx     # 二维码配对
+│   │   ├── Snapshot.tsx          # 拍照截图
+│   │   └── Diagnostic.tsx        # 诊断工具
+│   │
+│   ├── features/                 # 功能模块
+│   │   ├── chat/                 # 聊天功能
+│   │   │   ├── components/       # 聊天组件
+│   │   │   ├── hooks/            # 聊天 Hooks
+│   │   │   └── utils/            # 聊天工具
+│   │   └── study/                # 学习功能
+│   │       └── components/       # 学习组件
+│   │
+│   ├── contexts/                 # React Context (6个)
+│   │   ├── AuthContext.tsx       # 认证状态
+│   │   ├── ThemeContext.tsx      # 主题状态
+│   │   ├── ClawbotChannelContext.tsx  # Bot 连接管理
+│   │   ├── QRCodePairingContext.tsx   # 配对管理
+│   │   └── VoiceSettingsContext.tsx   # 语音设置
+│   │
+│   ├── services/                 # 业务服务层 (12个)
+│   │   ├── databaseService.ts    # 数据库操作
+│   │   ├── ClawbotChannelBridge.ts    # Bot 通信桥
+│   │   ├── clawbotPairingService.ts   # 配对服务
+│   │   ├── ttsService.ts         # TTS 服务
+│   │   ├── voicePlaybackService.ts    # 语音播放
+│   │   ├── pointsService.ts      # 积分服务
+│   │   ├── userStatsService.ts   # 用户统计
+│   │   ├── OSSService.ts         # OSS 上传
+│   │   └── uploadService.ts      # 文件上传
+│   │
+│   ├── hooks/                    # 自定义 Hooks (6个)
+│   │   ├── useImmersiveVoice.ts  # 沉浸式语音
+│   │   ├── useSpeechToText.ts    # 语音识别
+│   │   ├── useCamera.ts          # 相机
+│   │   ├── useNotification.ts    # 通知
+│   │   └── useConfirmModal.tsx   # 确认弹窗
+│   │
+│   ├── config/                   # 配置文件
+│   │   ├── supabase.ts           # Supabase 客户端
+│   │   └── clawbotEndpoints.ts   # Bot 端点配置
+│   │
+│   ├── types/                    # TypeScript 类型
+│   │   ├── types.ts              # 通用类型
+│   │   └── clawbot.ts            # Bot 类型
+│   │
+│   ├── utils/                    # 工具函数
+│   │   ├── dateFormat.ts         # 日期格式化
+│   │   ├── errorHandler.ts       # 错误处理
+│   │   ├── logger.ts             # 日志
+│   │   └── env.ts                # 环境变量
+│   │
+│   ├── i18n/                     # 国际化
+│   │   └── index.ts              # i18n 配置
+│   │
+│   └── App.tsx                   # 主应用组件
 │
-├── components/                 # UI 组件
-│   ├── Avatar.tsx              # 头像组件（支持图片/渐变回退）
-│   ├── GlassDock.tsx           # 底部导航栏（毛玻璃效果）
-│   ├── GlassPanel.tsx          # 通用毛玻璃容器
-│   ├── HeroBackground.tsx      # 首页全屏背景和问候气泡
-│   ├── MailPanel.tsx           # 邮件查看弹窗
-│   ├── NotificationPanel.tsx   # 通知中心弹窗
-│   ├── ProjectProgress.tsx     # 项目/任务进度面板
-│   ├── StatusHeader.tsx        # 顶部状态栏（PC 连接状态、时间）
-│   ├── StudyRoom.tsx           # 虚拟自习室弹窗
-│   └── UserSwitcher.tsx        # 多用户切换面板
+├── server/                       # 后端服务器
+│   └── clawbot-channel/          # Clawbot Channel 服务
+│       ├── server.js             # 主服务入口
+│       ├── config/               # 配置
+│       │   └── database.js       # 数据库配置
+│       ├── services/             # 服务层
+│       │   ├── pairingService.js # 配对服务
+│       │   ├── messageService.js # 消息服务
+│       │   ├── ossService.js     # OSS 服务
+│       │   └── ttsService.js     # TTS 服务
+│       └── tests/                # 测试
 │
-├── screens/                    # 页面组件
-│   ├── Home.tsx                # 首页（沉浸式 3D 角色展示）
-│   ├── Chat.tsx                # 聊天列表
-│   ├── ChatDetail.tsx          # 聊天对话详情（支持 Bot/好友）
-│   ├── Study.tsx               # 学习计时器（番茄钟）
-│   ├── Map.tsx                 # 实时位置地图
-│   ├── Profile.tsx             # 个人中心和设置
-│   ├── Snapshot.tsx            # 拍照/截图功能
-│   ├── Auth.tsx                # 登录/注册
-│   ├── Pairing.tsx             # PC 代理配对
-│   ├── Diagnostic.tsx          # 连接诊断工具
-│   └── DiagnosticAdvanced.tsx  # 高级 WebSocket 诊断
+├── database/                     # 数据库脚本
+│   ├── INIT_ALL.sql              # 统一初始化脚本
+│   ├── docs/                     # 数据库文档
+│   │   ├── README.md
+│   │   └── SCHEMA.md
+│   └── *.sql                     # 迁移脚本
 │
-├── contexts/                   # React Context 状态管理
-│   ├── AuthContext.tsx          # 认证状态（Supabase Auth）
-│   └── WebSocketContext.tsx     # Bot WebSocket 连接管理
+├── docs/                         # 项目文档
+│   ├── INDEX.md                  # 文档索引
+│   ├── development/              # 开发文档
+│   ├── project-reports/          # 项目报告
+│   ├── guides/                   # 用户指南
+│   ├── api/                      # API 文档
+│   ├── deployment-guides/        # 部署指南
+│   ├── feature-implementation/   # 功能实现
+│   ├── integration/              # 集成文档
+│   └── archive/                  # 归档文档
 │
-├── services/                   # 业务服务层
-│   ├── databaseService.ts      # Supabase 数据库操作 API
-│   └── projectService.ts       # 项目任务管理（localStorage）
+├── tests/                        # 测试文件
+│   └── smoke/                    # Smoke 测试
+│       └── mvp-smoke.test.mjs
 │
-├── config/                     # 配置
-│   └── supabase.ts             # Supabase 客户端和类型定义
+├── scripts/                      # 工具脚本
+│   └── database/                 # 数据库脚本
 │
-├── hooks/                      # 自定义 Hooks
-│   └── useSpeechToText.ts      # 语音识别 Hook
+├── archive/                      # 归档文件
+│   ├── nanobot/                  # Nanobot 旧代码
+│   └── deploy-scripts/           # 旧部署脚本
 │
-├── database/                   # 数据库脚本
-│   ├── init.sql                # 数据库初始化脚本（表结构 + mock 数据）
-│   ├── SCHEMA.md               # 数据库架构文档
-│   └── README.md               # 数据库配置指南
-│
-└── assets/                     # 本地图片资源
-    ├── role.jpg
-    └── StudyRoomBG.png
-
-public/
-└── assets/                     # 静态资源
-    ├── AvatarHead.png
-    ├── hero_render.png
-    ├── main.jpg
-    ├── map.png
-    ├── role.jpg
-    └── StudyRoomBG.png
+├── public/                       # 静态资源
+├── .claude/                      # Claude 配置
+├── CLAUDE.md                     # Claude 协作配置
+├── README.md                     # 项目 README
+└── package.json                  # 项目配置
 ```
 
-## 核心模块
+---
 
-### 三层布局架构 (App.tsx)
+## 🗃️ 数据库架构
 
-应用采用三层布局：
-1. **背景层** — `HeroBackground` 组件，固定定位的全屏 3D 角色渲染
-2. **内容层** — 可滚动的路由页面内容，首页透明显示背景
-3. **悬浮 UI 层** — `GlassDock` 导航栏，首页点击后才显示，其他页面常驻
-
-### WebSocket Bot 连接 (WebSocketContext.tsx)
-
-通过 WebSocket 连接本地 Clawbot Gateway：
-- 支持移动端/桌面端不同 URL 配置
-- 自动重连机制（最多 5 次，间隔 3 秒）
-- 协议握手认证（challenge-response 模式）
-- 流式响应处理（增量 delta 拼接）
-
-### 数据库服务 (databaseService.ts)
-
-封装了 Supabase 的全部 CRUD 操作：
-- **好友管理** — 列表查询、状态更新、学习状态同步
-- **聊天记录** — 消息收发、已读标记、历史清空
-- **通知/邮件** — 获取、已读、删除
-- **学习记录** — 创建、查询、今日统计
-- **实时订阅** — 消息、未读计数、通知的 Postgres 实时监听
-
-### 数据库架构 (9 张核心表)
+### 核心表 (9个)
 
 | 表名 | 用途 |
 |------|------|
-| users | 用户信息 |
-| friends | 好友列表及状态 |
-| chat_messages | 聊天消息记录 |
-| unread_counts | 未读消息计数 |
-| notifications | 系统通知 |
-| mails | 邮件消息 |
-| study_sessions | 学习时长记录 |
-| study_rooms | 共享自习室 |
-| study_room_members | 自习室成员 |
+| `profiles` | 用户配置 (Supabase Auth 扩展) |
+| `friends` | 好友关系 |
+| `chat_messages` | 聊天消息 |
+| `unread_counts` | 未读计数 |
+| `notifications` | 系统通知 |
+| `mails` | 邮件消息 |
+| `study_sessions` | 学习记录 |
+| `study_rooms` | 自习室 |
+| `study_room_members` | 自习室成员 |
 
-详细架构见 [src/database/SCHEMA.md](src/database/SCHEMA.md)。
+### 扩展表 (4个)
 
-## 开发配置
+| 表名 | 用途 |
+|------|------|
+| `pairing_requests` | 配对请求 |
+| `user_points` | 用户积分 |
+| `point_transactions` | 积分交易记录 |
+| `user_settings` | 用户隐私设置 |
 
-### 环境变量 (.env)
+详细文档: [database/docs/SCHEMA.md](../../database/docs/SCHEMA.md)
 
-```env
-VITE_SUPABASE_URL=<Supabase 项目 URL>
-VITE_SUPABASE_ANON_KEY=<Supabase 匿名密钥>
-VITE_CLAWBOT_CHANNEL_URL=<Clawbot Channel URL>
-VITE_GATEWAY_WS_URL=<OpenClaw Gateway WebSocket URL>
-VITE_GATEWAY_AUTH_TOKEN=<OpenClaw Gateway 认证令牌>
-# 兼容旧变量（可选）:
-# VITE_PC_WEBSOCKET_URL=<legacy gateway url>
-# VITE_PC_AUTH_TOKEN=<legacy token>
+---
+
+## 🔌 API 架构
+
+### 前端 API
+
+- **Supabase Client** - 数据库 CRUD 操作
+- **ClawbotChannelBridge** - Bot WebSocket 通信
+- **TTS Service** - 语音合成
+
+### 后端 API
+
+- **HTTP API** - 文件上传、TTS、健康检查
+- **WebSocket API** - 配对、消息转发、心跳
+
+详细文档: [docs/api/new_clawbot_api.md](../api/new_clawbot_api.md)
+
+---
+
+## 🎨 UI 组件
+
+### 布局组件
+
+| 组件 | 说明 |
+|------|------|
+| `GlassPanel` | 毛玻璃容器 |
+| `GlassDock` | 底部导航栏 |
+| `HeroBackground` | 首页全屏背景 |
+
+### 模态框
+
+| 组件 | 说明 |
+|------|------|
+| `Modal` | 通用模态框 |
+| `ConfirmModal` | 确认对话框 |
+| `AddFriendModal` | 添加好友 |
+| `SnapshotModal` | 拍照预览 |
+| `AIActionModal` | AI 动作选择 |
+
+### 功能组件
+
+| 组件 | 说明 |
+|------|------|
+| `StudyRoom` | 虚拟自习室 |
+| `StudyBuddiesList` | 学习伙伴列表 |
+| `NotificationPanel` | 通知面板 |
+| `MailPanel` | 邮件面板 |
+| `HomeBotBubble` | 首页机器人气泡 |
+| `QRScanner` | 二维码扫描器 |
+
+---
+
+## 🔐 认证流程
+
+```
+用户注册/登录
+    ↓
+Supabase Auth
+    ↓
+获取 Session Token
+    ↓
+存储到 AuthContext
+    ↓
+访问受保护资源
 ```
 
-生产环境要求：`VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 必填，且不能使用 `localhost` / `127.0.0.1`。
+---
 
-### 启动开发
+## 🔄 实时通信
+
+### Supabase Realtime
+
+```typescript
+// 订阅新消息
+supabase.channel('chat')
+  .on('postgres_changes', { event: 'INSERT', ... }, handler)
+  .subscribe();
+```
+
+### Clawbot WebSocket
+
+```typescript
+// 发送消息
+socket.emit('app_message', { content, userId });
+
+// 接收消息
+socket.on('bot_message', (data) => { ... });
+```
+
+---
+
+## 📊 状态管理
+
+### Context 结构
+
+```
+AuthContext          - 用户认证状态
+ThemeContext         - 主题/暗色模式
+ClawbotChannelContext - Bot 连接和消息状态
+QRCodePairingContext  - 配对流程状态
+VoiceSettingsContext  - 语音设置
+```
+
+### Bot 状态机
+
+```
+IDLE ──────→ THINKING ──────→ SPEAKING
+  ↑              │                │
+  └──────────────┴────────────────┘
+```
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Node.js >= 18
+- npm 或 pnpm
+
+### 安装
 
 ```bash
+git clone https://github.com/your-repo/trix-3d-companion.git
+cd trix-3d-companion
 npm install
-npm run dev        # 启动开发服务器
-npm run build      # 生产构建
 ```
 
-### WebSocket 代理
+### 配置
 
-Vite 开发服务器内置反向代理，将 `/gateway` 路径转发到本地 Clawbot Gateway (`ws://127.0.0.1:18789`)，解决移动端跨域连接问题。
+创建 `.env` 文件：
 
-## 当前状态
+```env
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
+VITE_GATEWAY_WS_URL=ws://localhost:18789
+VITE_GATEWAY_AUTH_TOKEN=<your-gateway-token>
+```
 
-- 单用户模式（固定用户 ID）
-- 数据库迁移约 80% 完成（NotificationPanel 和 StudyRoom 待迁移）
-- Bot 聊天为核心可用功能，好友聊天使用 mock 数据
-- RLS 策略为开发模式（全开放），生产环境需收紧
+### 启动
+
+```bash
+# 前端开发服务器
+npm run dev
+
+# 后端服务器
+cd server/clawbot-channel
+npm install
+npm start
+```
+
+---
+
+## 📈 统计
+
+| 类别 | 数量 |
+|------|------|
+| 前端 TypeScript 文件 | 29 |
+| 前端 TSX 组件文件 | 62 |
+| 后端 JavaScript 文件 | 12 |
+| 数据库表 | 13 |
+| 核心文档 | 15+ |
+| **总代码文件** | **~117** |
+
+---
+
+## 📚 相关文档
+
+| 文档 | 说明 |
+|------|------|
+| [INDEX.md](../INDEX.md) | 完整文档索引 |
+| [ARCHITECTURE.md](./development/ARCHITECTURE.md) | 架构文档 |
+| [FEATURES.md](../FEATURES.md) | 功能文档 |
+| [CHANGELOG.md](../CHANGELOG.md) | 变更日志 |
+| [PROJECT_AUDIT_P0123_2026-02-22.md](./project-reports/PROJECT_AUDIT_P0123_2026-02-22.md) | 最新审计报告 |
+
+---
+
+**最后更新**: 2026-02-22
+**维护者**: TRIX 3D Companion 开发团队
