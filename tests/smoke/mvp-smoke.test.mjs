@@ -158,3 +158,33 @@ test('ChatDetail should use deterministic AI prefix replacement and IME-safe ent
   assert.equal(aiSelector.includes('aria-pressed={isSelected}'), true, 'AI selector should expose selected state');
   assert.equal(aiSelector.includes('dark:'), true, 'AI selector should define dark mode classes');
 });
+
+test('Bot state machine and home/video/chat UX should be wired to real channel state', () => {
+  const appTsx = read('src/App.tsx');
+  const channelContext = read('src/contexts/ClawbotChannelContext.tsx');
+  const homeBubble = read('src/components/HomeBotBubble.tsx');
+  const heroBackground = read('src/components/HeroBackground.tsx');
+  const chatDetail = read('src/screens/ChatDetail.tsx');
+  const bridge = read('src/services/ClawbotChannelBridge.ts');
+
+  assert.equal(channelContext.includes("export type BotState = 'IDLE' | 'THINKING' | 'SPEAKING'"), true, 'Context should expose BotState enum');
+  assert.equal(channelContext.includes('latestBotMessage: ClawbotChannelMessage | null;'), true, 'Context should expose latest bot message');
+  assert.equal(channelContext.includes('idleEnteredAt: number;'), true, 'Context should expose idle timestamp');
+  assert.equal(channelContext.includes(') => Promise<void>;'), true, 'Context sendMessage should return Promise<void>');
+  assert.equal(channelContext.includes('const SPEAKING_MAX_MS = 12000;'), true, 'Speaking timeout upper bound should be 12000ms');
+  assert.equal(channelContext.includes('clearSpeakingTimeout();'), true, 'Speaking timeout should be explicitly cleared');
+
+  assert.equal(homeBubble.includes('line-clamp-2'), true, 'Home bubble should clamp to two lines');
+  assert.equal(homeBubble.includes('botState === \'THINKING\''), true, 'Home bubble should render thinking state');
+  assert.equal(homeBubble.includes('clearTimeout(fallbackTimer);'), true, 'Home fallback timer should be cleared on cleanup');
+
+  assert.equal(appTsx.includes('<HeroBackground botState={botState} />'), true, 'App should pass botState to hero background');
+  assert.equal(heroBackground.includes('/videos/role1/idle.mp4'), true, 'Hero background should use public video paths');
+  assert.equal(heroBackground.includes('/videos/role1/thinking.mp4'), true, 'Hero background should include thinking source');
+  assert.equal(heroBackground.includes('hiddenVideo.pause();'), true, 'Hidden video layer must be paused');
+  assert.equal(heroBackground.includes('setActiveLayer(hiddenLayer);'), true, 'Hero background should switch layers after preload');
+
+  assert.equal(chatDetail.includes('botState === \'THINKING\''), true, 'Chat detail should render thinking placeholder');
+  assert.equal(chatDetail.includes('sendMessage: clawbotSendMessage'), true, 'Chat detail should use context sendMessage alias');
+  assert.equal(bridge.includes('id: msg.messageId || generateMessageId()'), true, 'Bridge should prefer backend messageId for bot message');
+});
