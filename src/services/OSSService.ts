@@ -5,6 +5,8 @@
  * 注意：需要配置 OSS Bucket 的 CORS 规则
  */
 
+import { getAliyunOssEnv } from '../utils/env';
+
 interface OSSConfig {
   region: string;
   bucket: string;
@@ -17,13 +19,18 @@ class AliyunOSSService {
   private config: OSSConfig;
 
   constructor() {
+    const env = getAliyunOssEnv();
     this.config = {
-      region: import.meta.env.VITE_ALIYUN_OSS_REGION || 'oss-cn-shenzhen',
-      bucket: import.meta.env.VITE_ALIYUN_OSS_BUCKET || 'jmtrick-assets',
-      accessKeyId: import.meta.env.VITE_ALIYUN_OSS_ACCESS_KEY_ID || '',
-      accessKeySecret: import.meta.env.VITE_ALIYUN_OSS_ACCESS_KEY_SECRET || '',
-      endpoint: import.meta.env.VITE_ALIYUN_OSS_ENDPOINT || 'oss-cn-shenzhen.aliyuncs.com',
+      region: env.region,
+      bucket: env.bucket,
+      accessKeyId: env.accessKeyId,
+      accessKeySecret: env.accessKeySecret,
+      endpoint: env.endpoint,
     };
+
+    if (env.usingLegacyEndpointFallback) {
+      console.warn('[OSS] VITE_OSS_ENDPOINT is deprecated; please migrate to VITE_ALIYUN_OSS_ENDPOINT');
+    }
   }
 
   /**

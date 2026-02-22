@@ -18,6 +18,7 @@ import {
 } from '../features/chat/utils/aiPrompt';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
 import { uploadFile } from '../services/uploadService';
+import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/serverOssUploadService';
 import { supabase } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import type { ChatMessage } from '../config/supabase';
@@ -377,12 +378,16 @@ const ChatDetail: React.FC = () => {
 
     // 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
     if (isBotConversation) {
+      const botContentType: 'text' | 'image' | 'mixed' = hasMedia
+        ? (hasText ? 'mixed' : 'image')
+        : 'text';
+
       const tempUserMessage: UIMessage = {
         id: `temp-${Date.now()}`,
         sender: 'user',
         text: messageText,
         timestamp: formatTime(new Date()),
-        messageType: hasMedia ? 'mixed' : 'text',
+        messageType: botContentType,
         mediaUri: mediaData?.uri,
         mediaType: mediaData?.type,
       };
@@ -398,8 +403,9 @@ const ChatDetail: React.FC = () => {
         // 使用 ClawbotChannelContext 发送消息
         await clawbotSendMessage(
           messageText,
-          hasMedia && mediaData?.category ? mediaData.category : 'text',
-          mediaData?.uri
+          botContentType,
+          mediaData?.uri,
+          mediaData?.type
         );
       } catch (error) {
         console.error('Bot 消息发送失败:', error);
@@ -501,6 +507,24 @@ const ChatDetail: React.FC = () => {
       setUploadingFile(true);
 
       const category = file.type.startsWith('image/') ? 'image' : 'video';
+      if (isBotConversation) {
+        if (category !== 'image') {
+          throw new Error('Clawbot 当前仅支持图片附件');
+        }
+
+        if (isServerOssUploadEnabled()) {
+          const result = await uploadFileToServerOss(file);
+          setAttachmentPreviews(prev => [...prev, {
+            uri: result.url,
+            type: result.mimeType,
+            size: result.size,
+            category: 'image',
+            metadata: {}
+          }]);
+          return;
+        }
+      }
+
       const result = await uploadFile(file, category);
 
       // Add to preview list (including media metadata)?

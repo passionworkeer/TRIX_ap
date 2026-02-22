@@ -62,7 +62,10 @@ Content-Type: multipart/form-data
 {
   "success": true,
   "url": "https://oss.example.com/uploads/xxx.jpg",
-  "key": "uploads/xxx.jpg"
+  "objectKey": "uploads/xxx.jpg",
+  "filename": "example.jpg",
+  "size": 123456,
+  "mimeType": "image/jpeg"
 }
 ```
 
@@ -87,7 +90,10 @@ POST /upload/base64
 {
   "success": true,
   "url": "https://oss.example.com/uploads/xxx.png",
-  "key": "uploads/xxx.png"
+  "objectKey": "uploads/xxx.png",
+  "filename": "image.png",
+  "size": 123456,
+  "mimeType": "image/jpeg"
 }
 ```
 
@@ -96,23 +102,17 @@ POST /upload/base64
 ### OSS 签名 URL
 
 ```
-POST /oss/signed-url
+GET /oss/signed-url?key=uploads/example.jpg
 ```
 
-**请求体**:
-```json
-{
-  "key": "uploads/example.jpg",
-  "expiresIn": 3600
-}
-```
+**Query 参数**:
+Query parameter:
+- `key` (required): OSS object key
 
 **响应**:
 ```json
 {
-  "success": true,
-  "url": "https://oss.example.com/uploads/example.jpg?signature=xxx",
-  "expiresAt": "2026-02-22T13:00:00.000Z"
+  "url": "https://oss.example.com/uploads/example.jpg?signature=xxx"
 }
 ```
 

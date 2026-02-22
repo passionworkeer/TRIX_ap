@@ -21,8 +21,9 @@ const CLAWBOT_HISTORY_MAX_MESSAGES = 500;
 export interface ClawbotHistoryMessage {
   id: string;
   content: string;
-  contentType: 'text' | 'image' | 'video' | 'file';
+  contentType: 'text' | 'image' | 'video' | 'file' | 'mixed';
   mediaUrl?: string;
+  mediaMimeType?: string;
   timestamp: number;
   sender: 'user' | 'bot';
 }
@@ -45,7 +46,7 @@ function normalizeClawbotHistoryMessage(raw: any): ClawbotHistoryMessage | null 
   if (!id || !Number.isFinite(timestamp)) {
     return null;
   }
-  if (!['text', 'image', 'video', 'file'].includes(contentType)) {
+  if (!['text', 'image', 'video', 'file', 'mixed'].includes(contentType)) {
     return null;
   }
   if (sender !== 'user' && sender !== 'bot') {
@@ -57,6 +58,12 @@ function normalizeClawbotHistoryMessage(raw: any): ClawbotHistoryMessage | null 
     content,
     contentType,
     mediaUrl: typeof raw.mediaUrl === 'string' ? raw.mediaUrl : undefined,
+    mediaMimeType:
+      typeof raw.mediaMimeType === 'string'
+        ? raw.mediaMimeType
+        : typeof raw.media_mime_type === 'string'
+          ? raw.media_mime_type
+          : undefined,
     timestamp,
     sender,
   };

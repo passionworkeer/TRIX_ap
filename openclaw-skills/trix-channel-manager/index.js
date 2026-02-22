@@ -29,10 +29,17 @@ async function startChannel() {
   ensureChannelPath();
 
   return new Promise((resolve, reject) => {
+    const channelEnv = {
+      ...process.env,
+      ENABLE_GATEWAY_CHAT_BRIDGE: process.env.ENABLE_GATEWAY_CHAT_BRIDGE ?? 'true',
+      ENABLE_CLI_AGENT_BRIDGE: process.env.ENABLE_CLI_AGENT_BRIDGE ?? 'false'
+    };
+
     channelProcess = spawn('node', ['index.js'], {
       cwd: CHANNEL_PATH,
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: false
+      detached: false,
+      env: channelEnv
     });
 
     const timeout = setTimeout(() => {
