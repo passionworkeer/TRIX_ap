@@ -30,8 +30,11 @@ const io = new Server(server, {
 
 const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE === 'true';
 const DEDUP_TTL_MS = Number(process.env.MESSAGE_DEDUP_TTL_MS || 10000);
+const BOT_HEARTBEAT_TIMEOUT_MS = Number(process.env.BOT_HEARTBEAT_TIMEOUT_MS || 45000);
 
-const botSockets = new Map();
+const connectedBots = new Map();
+const connectedBotMeta = new Map();
+const botSockets = connectedBots;
 const pairingToDevice = new Map();
 const dedupCache = new Map();
 
@@ -60,6 +63,96 @@ function seenRecently(key) {
   }
   dedupCache.set(key, ts + DEDUP_TTL_MS);
   return false;
+}
+
+function bindConnectedBot(deviceId, socket, pairingId = null, reason = 'register') {
+  if (!deviceId || !socket) {
+    return;
+  }
+
+  connectedBots.set(deviceId, socket);
+  connectedBotMeta.set(deviceId, {
+    socketId: socket.id,
+    pairingId: pairingId || null,
+    lastSeenAt: now(),
+    reason
+  });
+
+  socket.deviceId = deviceId;
+  socket.isBot = true;
+  if (pairingId) {
+    socket.pairingId = pairingId;
+  }
+}
+
+function touchConnectedBot(deviceId, socket = null, pairingId = null, reason = 'heartbeat') {
+  if (!deviceId) {
+    return;
+  }
+
+  const existingSocket = connectedBots.get(deviceId);
+  const targetSocket = socket || existingSocket || null;
+  if (!targetSocket) {
+    return;
+  }
+
+  if (!existingSocket || existingSocket.id !== targetSocket.id) {
+    connectedBots.set(deviceId, targetSocket);
+  }
+
+  const prev = connectedBotMeta.get(deviceId) || {};
+  connectedBotMeta.set(deviceId, {
+    socketId: targetSocket.id,
+    pairingId: pairingId || prev.pairingId || null,
+    lastSeenAt: now(),
+    reason
+  });
+}
+
+function getConnectedBot(deviceId) {
+  if (!deviceId) {
+    return null;
+  }
+
+  const socket = connectedBots.get(deviceId);
+  if (!socket) {
+    return null;
+  }
+
+  if (!socket.connected) {
+    connectedBots.delete(deviceId);
+    connectedBotMeta.delete(deviceId);
+    return null;
+  }
+
+  const meta = connectedBotMeta.get(deviceId);
+  if (meta && now() - meta.lastSeenAt > BOT_HEARTBEAT_TIMEOUT_MS) {
+    connectedBots.delete(deviceId);
+    connectedBotMeta.delete(deviceId);
+    return null;
+  }
+
+  return socket;
+}
+
+function removeConnectedBotIfMatches(deviceId, socketId) {
+  if (!deviceId || !socketId) {
+    return false;
+  }
+
+  const mappedSocket = connectedBots.get(deviceId);
+  if (!mappedSocket) {
+    connectedBotMeta.delete(deviceId);
+    return false;
+  }
+
+  if (mappedSocket.id !== socketId) {
+    return false;
+  }
+
+  connectedBots.delete(deviceId);
+  connectedBotMeta.delete(deviceId);
+  return true;
 }
 
 function toNumberTimestamp(input) {
@@ -322,10 +415,7 @@ io.on('connection', (socket) => {
 
       const existingPairing = await pairingService.getPairingByDeviceId(deviceId);
       if (existingPairing && existingPairing.status === 'paired') {
-        botSockets.set(deviceId, socket);
-        socket.deviceId = deviceId;
-        socket.isBot = true;
-        socket.pairingId = existingPairing.id;
+        bindConnectedBot(deviceId, socket, existingPairing.id, 'bot_request_pairing:restore');
 
         if (existingPairing.user_id) {
           io.to(`user_${existingPairing.user_id}`).emit('bot_online', {
@@ -335,7 +425,12 @@ io.on('connection', (socket) => {
           });
         }
 
-        callback?.({ success: true, restored: true });
+        callback?.({
+          success: true,
+          restored: true,
+          pairingId: existingPairing.id,
+          deviceId
+        });
         return;
       }
 
@@ -343,10 +438,7 @@ io.on('connection', (socket) => {
       const { qrImage } = await pairingService.generateQRCodeData(pairing.pairingToken);
 
       pairingToDevice.set(pairing.id, deviceId);
-      botSockets.set(deviceId, socket);
-      socket.deviceId = deviceId;
-      socket.isBot = true;
-      socket.pairingId = pairing.id;
+      bindConnectedBot(deviceId, socket, pairing.id, 'bot_request_pairing:create');
 
       socket.emit('pairing_info', {
         pairingId: pairing.id,
@@ -361,6 +453,7 @@ io.on('connection', (socket) => {
         pairingCode: pairing.pairingCode,
         pairingToken: pairing.pairingToken,
         pairingId: pairing.id,
+        deviceId,
         expiresAt: pairing.expiresAt
       });
     } catch (error) {
@@ -380,10 +473,7 @@ io.on('connection', (socket) => {
 
       await pairingService.completeBotPairing(pairingId, deviceId, socket.id);
 
-      botSockets.set(deviceId, socket);
-      socket.deviceId = deviceId;
-      socket.isBot = true;
-      socket.pairingId = pairingId;
+      bindConnectedBot(deviceId, socket, pairingId, 'bot_confirm_pairing');
 
       if (pairing.user_id) {
         io.to(`user_${pairing.user_id}`).emit('pairing_success', {
@@ -392,7 +482,7 @@ io.on('connection', (socket) => {
         });
       }
 
-      callback?.({ success: true });
+      callback?.({ success: true, pairingId, deviceId });
     } catch (error) {
       callback?.({ success: false, error: error.message });
     }
@@ -440,7 +530,7 @@ io.on('connection', (socket) => {
           paired: true,
           deviceId: pairing.device_id,
           deviceName: pairing.device_name || 'Clawbot',
-          botOnline: botSockets.has(pairing.device_id),
+          botOnline: Boolean(getConnectedBot(pairing.device_id)),
           pairedAt: pairing.paired_at
         });
       } else {
@@ -508,7 +598,7 @@ io.on('connection', (socket) => {
 
       await pairingService.bindUserToPairing(result.pairing.id, userId);
 
-      if (!botSockets.has(result.pairing.device_id)) {
+      if (!getConnectedBot(result.pairing.device_id)) {
         callback?.({
           success: false,
           error: 'Clawbot is offline. Please ensure Clawbot is connected and try pairing again.'
@@ -581,6 +671,15 @@ io.on('connection', (socket) => {
         return;
       }
 
+      const requestedDeviceId = rawData?.deviceId ?? rawData?.device_id ?? null;
+      let targetDeviceId = requestedDeviceId || pairing.device_id;
+      if (requestedDeviceId && pairing.device_id && requestedDeviceId !== pairing.device_id) {
+        console.warn(
+          `[App] deviceId mismatch user=${normalized.userId}, requested=${requestedDeviceId}, paired=${pairing.device_id}, using paired device`
+        );
+        targetDeviceId = pairing.device_id;
+      }
+
       await messageService.saveMessage(
         pairing.id,
         'app_to_bot',
@@ -589,26 +688,30 @@ io.on('connection', (socket) => {
         normalized.mediaUrl
       );
 
-      const botSocket = botSockets.get(pairing.device_id);
+      const botSocket = getConnectedBot(targetDeviceId);
       if (!botSocket) {
+        const mapped = connectedBots.get(targetDeviceId);
         socket.emit('error', {
           message: 'Bot is offline',
-          deviceId: pairing.device_id,
+          deviceId: targetDeviceId,
+          mappedSocketId: mapped?.id || null,
           hint: 'Please keep Clawbot connected and try again.'
         });
         socket.emit('message_sent', {
           success: false,
           messageId,
           error: 'Bot is offline',
-          deviceId: pairing.device_id
+          deviceId: targetDeviceId
         });
         return;
       }
 
+      touchConnectedBot(targetDeviceId, botSocket, pairing.id, 'app_message_route');
+
       const appPayload = {
         messageId,
         userId: normalized.userId,
-        deviceId: pairing.device_id,
+        deviceId: targetDeviceId,
         content: normalized.content,
         contentType: normalized.contentType,
         mediaUrl: normalized.mediaUrl,
@@ -623,7 +726,7 @@ io.on('connection', (socket) => {
         content: normalized.content,
         messageId,
         userId: normalized.userId,
-        deviceId: pairing.device_id,
+        deviceId: targetDeviceId,
         threadId: normalized.threadId,
         contentType: normalized.contentType,
         mediaUrl: normalized.mediaUrl,
@@ -670,6 +773,8 @@ io.on('connection', (socket) => {
         });
         return;
       }
+
+      touchConnectedBot(normalized.deviceId, socket, socket.pairingId ?? null, sourceEvent);
 
       const dedupKey = buildDedupKey(`bot:${normalized.deviceId}`, normalized);
       if (seenRecently(dedupKey)) {
@@ -738,12 +843,42 @@ io.on('connection', (socket) => {
   socket.on('bot_message', (data) => handleBotToAppMessage(data, 'bot_message'));
   socket.on('bot_response', (data) => handleBotToAppMessage(data, 'bot_response'));
 
-  socket.on('ping', (_data, callback) => {
-    if (typeof callback === 'function') {
-      callback({ timestamp: now() });
-    } else {
-      socket.emit('pong', { timestamp: now() });
+  socket.on('ping', (data, callback) => {
+    const pingDeviceId = data?.deviceId ?? socket.deviceId ?? null;
+    const pingPairingId = data?.pairingId ?? socket.pairingId ?? null;
+    if (pingDeviceId && (socket.isBot || data?.role === 'bot')) {
+      touchConnectedBot(pingDeviceId, socket, pingPairingId, 'ping');
     }
+
+    const payload = {
+      ok: true,
+      timestamp: now(),
+      deviceId: pingDeviceId,
+      registered: Boolean(pingDeviceId && getConnectedBot(pingDeviceId))
+    };
+
+    if (typeof callback === 'function') {
+      callback(payload);
+    } else {
+      socket.emit('pong', payload);
+    }
+  });
+
+  socket.on('bot_keepalive', (data, callback) => {
+    const keepaliveDeviceId = data?.deviceId ?? socket.deviceId ?? null;
+    const keepalivePairingId = data?.pairingId ?? socket.pairingId ?? null;
+
+    if (!keepaliveDeviceId) {
+      callback?.({ success: false, error: 'Missing deviceId' });
+      return;
+    }
+
+    bindConnectedBot(keepaliveDeviceId, socket, keepalivePairingId, 'bot_keepalive');
+    callback?.({
+      success: true,
+      timestamp: now(),
+      deviceId: keepaliveDeviceId
+    });
   });
 
   socket.on('unpair', async () => {
@@ -764,7 +899,10 @@ io.on('connection', (socket) => {
     console.log(`[Socket.io] disconnected: ${socket.id}, total=${io.sockets.sockets.size - 1}`);
 
     if (socket.deviceId) {
-      botSockets.delete(socket.deviceId);
+      const removed = removeConnectedBotIfMatches(socket.deviceId, socket.id);
+      if (!removed) {
+        return;
+      }
 
       (async () => {
         try {
