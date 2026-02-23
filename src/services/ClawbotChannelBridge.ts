@@ -1,8 +1,8 @@
 ﻿/**
  * Clawbot Channel Bridge Service
- * 杩炴帴鍒?Clawbot Channel 浜戠閰嶅鏈嶅姟
+ * Connect to Clawbot Channel backend pairing service
  *
- * 鍩轰簬鏂囨。: docs/PROJECT_SUMMARY.md
+ * Based on: docs/PROJECT_SUMMARY.md
  */
 
 import { io, Socket } from 'socket.io-client';
@@ -16,7 +16,7 @@ import type {
   StudyRoomStateEvent
 } from '../types/studyRoom';
 
-// 鉁?#8: 浣跨敤 UUID 鐢熸垚鍞竴娑堟伅 ID
+// P-#8: Use timestamp + random to generate unique message ID
 function generateMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
@@ -47,20 +47,20 @@ class ClawbotChannelBridge {
   public connected: boolean = false;
   public paired: boolean = false;
 
-  // 閰嶅淇℃伅
+  // Pairing info
   private pairingCode: string | null = null;
   private deviceId: string | null = null;
 
-  // 蹇冭烦
+  // Heartbeat
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private lastPongTime: number = Date.now();
-  private heartbeatInterval: number = 30000; // 30 绉?
+  private heartbeatInterval: number = 30000; // 30 seconds
 
-  // 閲嶈繛
+  // Reconnect
   private reconnectAttempts: number = 0;
   private registerTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // 浜嬩欢鐩戝惉鍣?
+  // Event listeners
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
   constructor() {

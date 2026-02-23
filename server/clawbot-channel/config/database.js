@@ -1,10 +1,10 @@
-﻿const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
 const DB_PATH = process.env.DATABASE_PATH || './data/clawbot.db';
 
-// 纭繚鐩綍瀛樺湪
+// Ensure database directory exists
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -15,16 +15,16 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
     console.error('Database connection failed:', err);
   } else {
     console.log('Connected to SQLite database');
-    // 寮€鍚?WAL 妯″紡鎻愬崌骞跺彂鎬ц兘
+    // Enable WAL mode to improve concurrent performance
     db.run('PRAGMA journal_mode = WAL');
     db.run('PRAGMA synchronous = NORMAL');
   }
 });
 
-// 鍒濆鍖栬〃
+// Initialize database tables
 function initDatabase() {
   db.serialize(() => {
-    // 閰嶅鍏崇郴琛?
+    // Pairing relationship table
     db.run(`CREATE TABLE IF NOT EXISTS pairings (
       id TEXT PRIMARY KEY,
       pairing_code TEXT UNIQUE,
@@ -39,22 +39,22 @@ function initDatabase() {
       socket_id TEXT
     )`);
 
-    // 鉁?P1-#6: 閫氳繃閮ㄥ垎鍞竴绱㈠紩瀹炵幇涓€涓?Bot 鍙兘閰嶅涓€涓敤鎴?
+    // P1-#6: Ensure one device can only pair with one user via partial unique index
     db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_device_on_paired
             ON pairings(device_id)
             WHERE status = 'paired'`);
 
-    // 鉁?P1-#6: 閫氳繃閮ㄥ垎鍞竴绱㈠紩瀹炵幇涓€涓敤鎴峰彧鑳介厤瀵逛竴涓?Bot
+    // P1-#6: Ensure one user can only pair with one device via partial unique index
     db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_user_on_paired
             ON pairings(user_id)
             WHERE status = 'paired'`);
 
-    // 娑堟伅琛紙涓存椂缂撳瓨锛屽畾鏈熸竻鐞嗭級
+    // Messages table (temporary cache, periodically cleaned)
     db.run(`
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
         pairing_id TEXT NOT NULL,
-        direction TEXT NOT NULL, -- 'app_to_bot' 鎴?'bot_to_app'
+        direction TEXT NOT NULL, -- 'app_to_bot' or 'bot_to_app'
         content TEXT,
         content_type TEXT DEFAULT 'text',
         media_url TEXT,
@@ -63,7 +63,7 @@ function initDatabase() {
       )
     `);
 
-    // 鍒涘缓绱㈠紩
+    // Create indexes
     db.run('CREATE INDEX IF NOT EXISTS idx_pairing_code ON pairings(pairing_code)');
     db.run('CREATE INDEX IF NOT EXISTS idx_user_id ON pairings(user_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_device_id ON pairings(device_id)');
@@ -71,7 +71,7 @@ function initDatabase() {
   });
 }
 
-// Promise 鍖栫殑鏁版嵁搴撹緟鍔╁嚱鏁?
+// Promise wrapper for database operations
 function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function(err) {
