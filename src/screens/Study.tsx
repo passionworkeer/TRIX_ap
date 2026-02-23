@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyBuddiesList from "../components/StudyBuddiesList";
+import StudyRoom from "../components/StudyRoom";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { IMAGES } from "../constants";
@@ -48,6 +49,7 @@ export default function Study() {
 
   // 好友列表弹窗状态
   const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
+  const [isStudyRoomOpen, setIsStudyRoomOpen] = useState(false);
 
   // 🎉 结算弹窗状态
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -604,6 +606,7 @@ export default function Study() {
         <StudyHeader
           totalStudyTime={totalStudyTime}
           onBuddyListOpen={() => setIsBuddyListOpen(true)}
+          onStudyRoomOpen={() => setIsStudyRoomOpen(true)}
           onPointsClick={() => setShowPointsModal(true)}
         />
 
@@ -611,6 +614,11 @@ export default function Study() {
         <StudyBuddiesList
           isOpen={isBuddyListOpen}
           onClose={() => setIsBuddyListOpen(false)}
+        />
+
+        <StudyRoom
+          isOpen={isStudyRoomOpen}
+          onClose={() => setIsStudyRoomOpen(false)}
         />
 
         {/* 中部：Focus Timer 组件 - 绝对定位，z-index: 20 */}

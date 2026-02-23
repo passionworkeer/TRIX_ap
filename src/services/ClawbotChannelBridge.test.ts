@@ -16,6 +16,15 @@ describe('ClawbotChannelBridge', () => {
       // CHANNEL_PROTOCOL_MISMATCH is exported as a constant
       expect(bridge.CHANNEL_PROTOCOL_MISMATCH).toBe('CHANNEL_PROTOCOL_MISMATCH');
     });
+
+    it('should expose study room bridge methods', async () => {
+      const bridge = await import('../../src/services/ClawbotChannelBridge');
+      expect(typeof bridge.default.createStudyRoom).toBe('function');
+      expect(typeof bridge.default.joinStudyRoom).toBe('function');
+      expect(typeof bridge.default.leaveStudyRoom).toBe('function');
+      expect(typeof bridge.default.hostActionStudyRoom).toBe('function');
+      expect(typeof bridge.default.getStudyRoomState).toBe('function');
+    });
   });
 
   describe('interface types', () => {

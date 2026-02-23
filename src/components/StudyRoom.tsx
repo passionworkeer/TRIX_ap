@@ -1,360 +1,415 @@
-﻿import React, { useState, useEffect } from 'react';
-import { X, Clock, User, Flame, Play, Square } from 'lucide-react';
-import { supabase } from '../config/supabase';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Crown,
+  DoorOpen,
+  LogIn,
+  Pause,
+  Play,
+  Square,
+  Users,
+  X
+} from 'lucide-react';
 import Avatar from './Avatar';
+import { useAuth } from '../contexts/AuthContext';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
+import clawbotChannelBridge from '../services/ClawbotChannelBridge';
+import type {
+  StudyRoomHostAction,
+  StudyRoomMember,
+  StudyRoomState,
+  StudyRoomStateEvent
+} from '../types/studyRoom';
 
 interface StudyRoomProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface RoomMember {
-  id: string;
-  user_id: string | null;
-  friend_id: string | null;
-  display_name: string;
-  avatar_url: string | null;
-  status: 'focusing' | 'idle' | 'away';
-  last_seen: string;
-  joined_at: string;
+const ROOM_CODE_REGEX = /^[A-Z0-9]{4,8}$/;
+
+function statusLabel(status: StudyRoomMember['status']): string {
+  switch (status) {
+    case 'focusing':
+      return '专注中';
+    case 'resting':
+      return '休息中';
+    case 'online':
+    default:
+      return '在线';
+  }
 }
 
-interface StudyRoomProps {
-  isOpen: boolean;
-  onClose: () => void;
+function statusClass(status: StudyRoomMember['status']): string {
+  switch (status) {
+    case 'focusing':
+      return 'text-emerald-700 bg-emerald-100 border-emerald-200';
+    case 'resting':
+      return 'text-amber-700 bg-amber-100 border-amber-200';
+    case 'online':
+    default:
+      return 'text-slate-700 bg-slate-100 border-slate-200';
+  }
+}
+
+function sessionLabel(sessionState: StudyRoomState['sessionState']): string {
+  switch (sessionState) {
+    case 'focusing':
+      return '专注阶段';
+    case 'resting':
+      return '休息阶段';
+    case 'idle':
+    default:
+      return '空闲';
+  }
 }
 
 const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
-  const [members, setMembers] = useState<RoomMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isFocusing, setIsFocusing] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [studyTime, setStudyTime] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-  const { showError, showWarning } = useNotification();
+  const { user, profile } = useAuth();
+  const { connect } = useClawbotChannel();
+  const { showError, showInfo, showSuccess, showWarning } = useNotification();
 
-  // Default room ID (can be changed to dynamic selection)
-  const DEFAULT_ROOM_ID = '00000000-0000-0000-0000-000000000001';
+  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [room, setRoom] = useState<StudyRoomState | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [isActionBusy, setIsActionBusy] = useState(false);
 
-  // Get current user ID
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        setCurrentUserId(session.user.id);
-      }
-    };
-    getCurrentUser();
-  }, []);
+  const currentUserId = user?.id ?? null;
+  const displayName = profile?.username?.trim() || user?.email?.split('@')[0] || 'User';
+  const avatarUrl = profile?.avatar_url || undefined;
+  const isHost = Boolean(room && currentUserId && room.hostUserId === currentUserId);
 
-  // 鍔犺浇鑷範瀹ゆ垚鍛?
-  const loadMembers = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('study_room_members')
-        .select('*')
-        .eq('room_id', DEFAULT_ROOM_ID)
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      // 杩囨护鍑烘椿璺冩垚鍛?(5鍒嗛挓鍐呮湁娲诲姩)
-      const now = new Date();
-      const activeMembers = (data || []).filter(member => {
-        const lastSeen = new Date(member.last_seen);
-        const diffMinutes = (now.getTime() - lastSeen.getTime()) / 60000;
-        return diffMinutes < 5 && member.status !== 'idle';
-      });
-
-      setMembers(activeMembers);
-    } catch (error) {
-      console.error('鍔犺浇鑷範瀹ゆ垚鍛樺け璐?', error);
-    } finally {
-      setLoading(false);
+  const seats = useMemo<(StudyRoomMember | null)[]>(() => {
+    const members = room?.members ?? [];
+    const maxMembers = room?.maxMembers ?? 5;
+    const filled: (StudyRoomMember | null)[] = [...members];
+    while (filled.length < maxMembers) {
+      filled.push(null);
     }
-  };
+    return filled.slice(0, maxMembers);
+  }, [room]);
 
-  // 鍒濆鍔犺浇
-  useEffect(() => {
-    if (isOpen) {
-      loadMembers();
+  const ensureSocketReady = useCallback(async () => {
+    if (!currentUserId) {
+      throw new Error('请先登录');
     }
-  }, [isOpen]);
 
-  // 瀹炴椂璁㈤槄鑷範瀹ゆ垚鍛樺彉鍖?
-  useEffect(() => {
-    if (!isOpen) return;
+    if (!clawbotChannelBridge.isConnected()) {
+      await connect();
+    }
+  }, [connect, currentUserId]);
 
-    const channel = supabase
-      .channel(`study_room:${DEFAULT_ROOM_ID}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'study_room_members',
-          filter: `room_id=eq.${DEFAULT_ROOM_ID}`
-        },
-        (payload) => {
-          console.log('鑷範瀹ゆ垚鍛樺彉鍖?', payload);
-          loadMembers(); // 閲嶆柊鍔犺浇鎴愬憳鍒楄〃
+  const handleStudyRoomState = useCallback((payload: StudyRoomStateEvent) => {
+    if (!payload || !payload.roomCode) {
+      return;
+    }
+
+    setRoom((prev) => {
+      if (payload.room) {
+        const includesCurrentUser = Boolean(
+          currentUserId && payload.room.members.some((member) => member.userId === currentUserId)
+        );
+
+        if (prev?.roomCode === payload.roomCode || includesCurrentUser) {
+          return payload.room;
         }
-      )
-      .subscribe();
+
+        return prev;
+      }
+
+      if (prev?.roomCode === payload.roomCode) {
+        return null;
+      }
+
+      return prev;
+    });
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    clawbotChannelBridge.on('study_room_state', handleStudyRoomState);
+    return () => {
+      clawbotChannelBridge.off('study_room_state', handleStudyRoomState);
+    };
+  }, [handleStudyRoomState, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let disposed = false;
+
+    void (async () => {
+      try {
+        await ensureSocketReady();
+        const state = await clawbotChannelBridge.getStudyRoomState();
+        if (disposed) {
+          return;
+        }
+        setRoom(state);
+        setRoomCodeInput(state.roomCode);
+      } catch (error) {
+        if (disposed) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : '获取房间状态失败';
+        if (
+          message.includes('NOT_IN_ROOM') ||
+          message.toLowerCase().includes('not in any room') ||
+          message.toLowerCase().includes('not in the room')
+        ) {
+          setRoom(null);
+          return;
+        }
+
+        showError(message);
+      }
+    })();
 
     return () => {
-      supabase.removeChannel(channel);
+      disposed = true;
     };
-  }, [isOpen]);
+  }, [ensureSocketReady, isOpen, showError]);
 
-  // 寮€濮嬩笓娉?
-  const handleStartFocus = async () => {
-    if (!currentUserId) {
-      showWarning('请先登录');
+  const handleCreateRoom = useCallback(async () => {
+    try {
+      setIsBusy(true);
+      await ensureSocketReady();
+      const created = await clawbotChannelBridge.createStudyRoom(displayName, avatarUrl);
+      setRoom(created);
+      setRoomCodeInput(created.roomCode);
+      showSuccess(`已创建房间 ${created.roomCode}`);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : '创建房间失败');
+    } finally {
+      setIsBusy(false);
+    }
+  }, [avatarUrl, displayName, ensureSocketReady, showError, showSuccess]);
+
+  const handleJoinRoom = useCallback(async () => {
+    const normalizedCode = roomCodeInput.trim().toUpperCase();
+    if (!ROOM_CODE_REGEX.test(normalizedCode)) {
+      showWarning('请输入 4-8 位房间码（字母或数字）');
       return;
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase.rpc('upsert_study_room_member', {
-        p_room_id: DEFAULT_ROOM_ID,
-        p_user_id: currentUserId,
-        p_status: 'focusing',
-        p_display_name: user?.email?.split('@')[0] || '鍖垮悕鐢ㄦ埛',
-        p_avatar_url: user?.user_metadata?.avatar_url || null
-      });
-
-      if (error) throw error;
-
-      setIsFocusing(true);
-      setStudyTime(0);
-
-      // 鍚姩璁℃椂鍣?
-      const interval = setInterval(() => {
-        setStudyTime(prev => prev + 1);
-      }, 1000);
-      setTimerInterval(interval);
-
+      setIsBusy(true);
+      await ensureSocketReady();
+      const joined = await clawbotChannelBridge.joinStudyRoom(normalizedCode, displayName, avatarUrl);
+      setRoom(joined);
+      setRoomCodeInput(joined.roomCode);
+      showSuccess(`已加入房间 ${joined.roomCode}`);
     } catch (error) {
-      console.error('寮€濮嬩笓娉ㄥけ璐?', error);
-      showError('开始专注失败，请重试');
+      showError(error instanceof Error ? error.message : '加入房间失败');
+    } finally {
+      setIsBusy(false);
     }
-  };
+  }, [avatarUrl, displayName, ensureSocketReady, roomCodeInput, showError, showSuccess, showWarning]);
 
-  // 鍋滄涓撴敞
-  const handleStopFocus = async () => {
-    if (!currentUserId) return;
+  const handleLeaveRoom = useCallback(async () => {
+    if (!room) {
+      return;
+    }
 
     try {
-      await supabase
-        .from('study_room_members')
-        .update({ status: 'idle', is_active: false })
-        .eq('room_id', DEFAULT_ROOM_ID)
-        .eq('user_id', currentUserId);
-
-      setIsFocusing(false);
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
+      setIsBusy(true);
+      await ensureSocketReady();
+      await clawbotChannelBridge.leaveStudyRoom(room.roomCode);
+      setRoom(null);
+      showInfo('已离开房间');
     } catch (error) {
-      console.error('鍋滄涓撴敞澶辫触:', error);
+      showError(error instanceof Error ? error.message : '离开房间失败');
+    } finally {
+      setIsBusy(false);
     }
-  };
+  }, [ensureSocketReady, room, showError, showInfo]);
 
-  // 缁勪欢鍗歌浇鏃舵竻鐞?
-  useEffect(() => {
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
-    };
-  }, [timerInterval]);
-
-  const formatStudyTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // 娓叉煋搴т綅 (鏈€澶?涓骇浣?
-  const renderSeats = () => {
-    const maxSeats = 6;
-    const seats = [];
-
-    for (let i = 0; i < maxSeats; i++) {
-      const member = members[i];
-      seats.push(
-        <div
-          key={i}
-          className="relative bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-white/40 shadow-lg hover:shadow-xl transition-all"
-        >
-          {member ? (
-            // 鏈変汉鍦ㄥ骇浣嶄笂
-            <div className="flex flex-col items-center gap-2">
-              {/* 澶村儚 */}
-              <div className="relative">
-                <Avatar 
-                  name={member.display_name} 
-                  avatar={member.avatar_url || ''} 
-                  size="lg" 
-                  className="ring-4 ring-green-400/50 shadow-lg"
-                />
-                {/* 涓撴敞鐘舵€佹寚绀哄櫒 */}
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-pulse">
-                  <Flame size={14} className="text-white" />
-                </div>
-              </div>
-
-              {/* 鍚嶇О */}
-              <div className="text-center">
-                <div className="text-sm font-bold text-slate-800 truncate max-w-[100px]">
-                  {member.display_name}
-                </div>
-                <div className="text-[10px] text-green-600 font-semibold">
-                  姝ｅ湪涓撴敞
-                </div>
-              </div>
-
-              {/* 瀛︿範鏃堕棿 */}
-              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50">
-                <Clock size={12} className="text-green-600" />
-                <span className="text-xs font-mono text-green-700">
-                  {(() => {
-                    const joined = new Date(member.joined_at);
-                    const now = new Date();
-                    const diffSeconds = Math.floor((now.getTime() - joined.getTime()) / 1000);
-                    return formatStudyTime(diffSeconds);
-                  })()}
-                </span>
-              </div>
-            </div>
-          ) : (
-            // 绌哄骇浣?
-            <div className="flex flex-col items-center justify-center h-full opacity-40">
-              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-2">
-                <User size={32} className="text-slate-300" />
-              </div>
-              <div className="text-xs text-slate-400 font-medium">
-                绌哄骇浣?
-              </div>
-            </div>
-          )}
-        </div>
-      );
+  const handleHostAction = useCallback(async (action: StudyRoomHostAction) => {
+    if (!room) {
+      return;
     }
 
-    return seats;
-  };
+    try {
+      setIsActionBusy(true);
+      await ensureSocketReady();
+      const updated = await clawbotChannelBridge.hostActionStudyRoom(room.roomCode, action);
+      setRoom(updated);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : '房间控制失败');
+    } finally {
+      setIsActionBusy(false);
+    }
+  }, [ensureSocketReady, room, showError]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 娣辫壊閬僵灞?- 鍗婇€忔槑淇濈暀鑳屾櫙鍙 */}
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      {/* iOS 椋庢牸姣涚幓鐠冮潰鏉?- 缂╁皬灏哄 */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl shadow-2xl max-h-[75vh] flex flex-col animate-scaleIn"
-           style={{
-             background: 'rgba(255, 255, 255, 0.65)',
-             backdropFilter: 'blur(40px) saturate(180%)',
-             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-             border: '1px solid rgba(255, 255, 255, 0.3)',
-           }}>
-
-        {/* Header */}
-        <div className="relative z-10 p-4 border-b border-white/20">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full blur-2xl"></div>
-          
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <User className="text-white" size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
-                  澶氫汉鑷範瀹?
-                  <span className="bg-green-500/20 text-green-600 text-[10px] px-1.5 py-0.5 rounded-full border border-green-200/50 animate-pulse">
-                    LIVE
-                  </span>
-                </h2>
-                <p className="text-xs text-slate-500">
-                  {members.length} / 6 浜烘鍦ㄤ笓娉ㄥ涔?
-                </p>
-              </div>
-            </div>
-
-            {/* 鎴戠殑瀛︿範鏃堕棿 */}
-            {isFocusing && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg">
-                <Clock size={14} />
-                <span className="text-sm font-mono font-bold">
-                  {formatStudyTime(studyTime)}
-                </span>
-              </div>
-            )}
-
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/60 hover:bg-white/80 flex items-center justify-center transition-all hover:rotate-90 shadow-md"
-            >
-              <X size={18} className="text-slate-500" />
-            </button>
+      <div className="relative w-full max-w-2xl rounded-3xl border border-white/30 bg-white/75 p-5 shadow-2xl backdrop-blur-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">多人自习室</h2>
+            <p className="text-sm text-slate-600">
+              基于实时房间状态机，同步房主控制与成员状态
+            </p>
           </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-slate-600 transition hover:bg-white"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-sm text-slate-400 animate-pulse">鍔犺浇涓?..</div>
+        {!room && (
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+              <Users size={16} />
+              创建或加入房间
             </div>
-          ) : (
-            <>
-              {/* 搴т綅鍖哄煙 */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                {renderSeats()}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                value={roomCodeInput}
+                onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())}
+                placeholder="输入 RoomCode（如 A1B2C3）"
+                maxLength={8}
+                className="h-10 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateRoom}
+                  disabled={isBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  创建
+                </button>
+                <button
+                  onClick={handleJoinRoom}
+                  disabled={isBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <LogIn size={14} className="mr-1" />
+                  加入
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {room ? (
+          <>
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">RoomCode</p>
+                  <p className="font-mono text-lg font-bold text-slate-900">{room.roomCode}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Session</p>
+                  <p className="text-sm font-semibold text-slate-800">{sessionLabel(room.sessionState)}</p>
+                </div>
               </div>
 
-              {/* 鎺у埗鎸夐挳 */}
-              <div className="flex justify-center gap-3 mb-4">
-                {!isFocusing ? (
+              {isHost ? (
+                <div className="mt-4 grid grid-cols-3 gap-2">
                   <button
-                    onClick={handleStartFocus}
-                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
+                    onClick={() => handleHostAction('start_focus')}
+                    disabled={isActionBusy}
+                    className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                   >
-                    <Play size={18} />
-                    寮€濮嬩笓娉?
+                    <Play size={14} className="mr-1" />
+                    开始
                   </button>
-                ) : (
                   <button
-                    onClick={handleStopFocus}
-                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
+                    onClick={() => handleHostAction('pause')}
+                    disabled={isActionBusy}
+                    className="inline-flex items-center justify-center rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   >
-                    <Square size={18} />
-                    鍋滄涓撴敞
+                    <Pause size={14} className="mr-1" />
+                    暂停
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => handleHostAction('end')}
+                    disabled={isActionBusy}
+                    className="inline-flex items-center justify-center rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60"
+                  >
+                    <Square size={14} className="mr-1" />
+                    结束
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-4 text-xs text-slate-500">仅房主可控制开始/暂停/结束。</p>
+              )}
+            </div>
 
-              {/* 鎻愮ず淇℃伅 */}
-              <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200/30">
-                <p className="text-xs text-blue-600 text-center">
-                  馃挕 鎻愮ず: 鐐瑰嚮"寮€濮嬩笓娉?鍔犲叆鑷範瀹?涓庡叾浠栧悓瀛︿竴璧峰涔犲惂!
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {seats.map((member, index) => (
+                <div
+                  key={member?.userId || `seat-${index}`}
+                  className="rounded-2xl border border-slate-200 bg-white/80 p-3"
+                >
+                  {member ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative">
+                        <Avatar
+                          name={member.displayName}
+                          avatar={member.avatarUrl || ''}
+                          size="lg"
+                        />
+                        {room.hostUserId === member.userId && (
+                          <span className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white">
+                            <Crown size={11} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="max-w-[120px] truncate text-sm font-semibold text-slate-900">
+                        {member.displayName}
+                      </p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusClass(member.status)}`}
+                      >
+                        {statusLabel(member.status)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex h-full min-h-[118px] flex-col items-center justify-center text-slate-400">
+                      <Users size={22} />
+                      <p className="mt-1 text-xs">空位</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleLeaveRoom}
+                disabled={isBusy}
+                className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                <DoorOpen size={15} className="mr-1" />
+                离开房间
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center">
+            <p className="text-sm text-slate-600">
+              创建新房间或输入 RoomCode 加入，支持 3-5 人状态实时同步。
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
