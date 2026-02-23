@@ -185,8 +185,8 @@ class ClawbotChannelBridge {
     // 瑙ｅ喅 iOS Safari 绛夌Щ鍔ㄧ娴忚鍣ㄥ喕缁?JS 绾跨▼瀵艰嚧鐨?鍋囨"闂
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        console.log('[ClawbotChannel] 馃摫 App 鍒囧洖鍓嶅彴锛屾鏌ヨ繛鎺?..');
-        // 寮哄埗閲嶇疆蹇冭烦鏃堕棿锛岄槻姝㈠垰鍞ら啋灏辫鍒ゅ畾瓒呮椂鏂紑
+        console.log('[ClawbotChannel] 🎉 App 切回前台，检查连接...');
+        // 强制重置心跳时间，防止刚接收就被判定超时断开
         this.lastPongTime = Date.now();
 
         if (this.socket && this.socket.disconnected) {
@@ -384,8 +384,8 @@ class ClawbotChannelBridge {
       // 鉁?淇 2: 閫氱煡 UI 灞傚幓 Supabase 鎷夊彇鏂綉鏈熼棿鍙兘閬楁紡鐨勬秷鎭?
       // 瑙ｅ喅绉诲姩绔垏鍚庡彴/閿佸睆鏈熼棿鐨勬秷鎭粦娲為棶棰?
       // UI 灞傚簲璇ョ洃鍚?'sync_missed_messages' 浜嬩欢骞朵粠 Supabase 鎷夊彇鏈€鏂版秷鎭?
-      this.emit('sync_missed_messages');
-      console.log('[ClawbotChannel] 鉁?宸茶Е鍙戞秷鎭悓姝ワ紝UI 灞傚簲浠?Supabase 鎷夊彇閬楁紡娑堟伅');
+      // UI 层应监听 'sync_missed_messages' 事件并从 Supabase 拉取最新消息
+      console.log('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
 
     } catch (error: any) {
       this.connected = false;

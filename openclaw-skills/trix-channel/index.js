@@ -8,6 +8,7 @@
  */
 
 const { io } = require('socket.io-client');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -27,6 +28,17 @@ const CLI_AGENT_TIMEOUT_SECONDS = Number(process.env.CLI_AGENT_TIMEOUT_SECONDS |
 const CLI_MAX_BUFFER_BYTES = Number(process.env.CLI_MAX_BUFFER_BYTES || 10 * 1024 * 1024);
 const GATEWAY_CLIENT_ID = process.env.GATEWAY_CLIENT_ID || 'gateway-client';
 const GATEWAY_CLIENT_MODE = process.env.GATEWAY_CLIENT_MODE || 'backend';
+const GATEWAY_ROLE = process.env.GATEWAY_ROLE || 'operator';
+const GATEWAY_SESSION_KEY = process.env.GATEWAY_SESSION_KEY || 'agent:main:main';
+const OPENCLAW_STATE_DIR = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), '.openclaw');
+const OPENCLAW_DEVICE_IDENTITY_FILE =
+  process.env.OPENCLAW_DEVICE_IDENTITY_FILE ||
+  path.join(OPENCLAW_STATE_DIR, 'identity', 'device.json');
+const OPENCLAW_DEVICE_AUTH_FILE =
+  process.env.OPENCLAW_DEVICE_AUTH_FILE ||
+  path.join(OPENCLAW_STATE_DIR, 'identity', 'device-auth.json');
+const DEFAULT_GATEWAY_SCOPES = ['operator.admin', 'operator.approvals', 'operator.pairing'];
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const HEARTBEAT_INTERVAL_MS = Number(process.env.ADAPTER_HEARTBEAT_INTERVAL_MS || 15000);
 const REGISTER_TIMEOUT_MS = Number(process.env.ADAPTER_REGISTER_TIMEOUT_MS || 12000);
 
@@ -41,10 +53,17 @@ let deviceId = null;
 let pairingId = null;
 let lastSentMessageId = null;
 let registerInFlight = null;
+let gatewayConnectRequestId = 'c1';
+let gatewayConnectNonce = null;
+let gatewaySharedToken = null;
+let gatewayDeviceIdentity = null;
+let gatewayDeviceToken = null;
+let gatewayDeviceScopes = [...DEFAULT_GATEWAY_SCOPES];
 
 const inboundDedup = new Map();
 const pendingGatewayRequests = new Map();
 const cliThreadQueues = new Map();
+const deliveredGatewayRuns = new Set();
 
 function makeMessageId(prefix = 'msg') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -170,6 +189,237 @@ function getGatewayToken() {
   return tryReadGatewayTokenFromFile() || tryReadGatewayTokenFromCli();
 }
 
+function readJsonFileSafe(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    console.warn(`[TRIXChannel] failed reading json ${filePath}: ${error.message}`);
+    return null;
+  }
+}
+
+function base64UrlEncode(buffer) {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function publicKeyRawBase64UrlFromPem(publicKeyPem) {
+  const key = crypto.createPublicKey(publicKeyPem);
+  const der = key.export({ type: 'spki', format: 'der' });
+  const raw =
+    der.length === ED25519_SPKI_PREFIX.length + 32 &&
+    der.subarray(0, ED25519_SPKI_PREFIX.length).equals(ED25519_SPKI_PREFIX)
+      ? der.subarray(ED25519_SPKI_PREFIX.length)
+      : der;
+  return base64UrlEncode(raw);
+}
+
+function signDevicePayload(privateKeyPem, payload) {
+  const key = crypto.createPrivateKey(privateKeyPem);
+  const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), key);
+  return base64UrlEncode(signature);
+}
+
+function buildDeviceAuthPayload({
+  deviceId,
+  clientId,
+  clientMode,
+  role,
+  scopes,
+  signedAtMs,
+  token,
+  nonce
+}) {
+  const version = nonce ? 'v2' : 'v1';
+  const base = [
+    version,
+    deviceId,
+    clientId,
+    clientMode,
+    role,
+    scopes.join(','),
+    String(signedAtMs),
+    token || ''
+  ];
+
+  if (version === 'v2') {
+    base.push(nonce || '');
+  }
+
+  return base.join('|');
+}
+
+function loadGatewayDeviceIdentity() {
+  const identity = readJsonFileSafe(OPENCLAW_DEVICE_IDENTITY_FILE);
+  if (!identity) {
+    return null;
+  }
+
+  if (
+    typeof identity.deviceId !== 'string' ||
+    typeof identity.publicKeyPem !== 'string' ||
+    typeof identity.privateKeyPem !== 'string'
+  ) {
+    return null;
+  }
+
+  try {
+    return {
+      deviceId: identity.deviceId,
+      publicKey: publicKeyRawBase64UrlFromPem(identity.publicKeyPem),
+      privateKeyPem: identity.privateKeyPem
+    };
+  } catch (error) {
+    console.warn(`[TRIXChannel] invalid gateway device identity: ${error.message}`);
+    return null;
+  }
+}
+
+function loadGatewayDeviceAuth(role = GATEWAY_ROLE) {
+  const auth = readJsonFileSafe(OPENCLAW_DEVICE_AUTH_FILE);
+  const tokenEntry = auth?.tokens?.[role];
+  if (!tokenEntry || typeof tokenEntry.token !== 'string' || tokenEntry.token.length < 8) {
+    return null;
+  }
+
+  return {
+    token: tokenEntry.token,
+    scopes:
+      Array.isArray(tokenEntry.scopes) && tokenEntry.scopes.length > 0
+        ? tokenEntry.scopes
+        : [...DEFAULT_GATEWAY_SCOPES]
+  };
+}
+
+function resolveGatewaySessionKey(normalized) {
+  const threadId = normalized.threadId ? String(normalized.threadId).trim() : '';
+  if (threadId.length > 0) {
+    return `trix:${threadId}`;
+  }
+
+  if (pairingId) {
+    return `trix:pairing:${pairingId}`;
+  }
+
+  return GATEWAY_SESSION_KEY;
+}
+
+function buildGatewayUserMessage(normalized) {
+  const payload = withMaterializedContent(normalized);
+  if (!payload.mediaUrl) {
+    return payload.content;
+  }
+
+  const mediaLine = `${getMediaPlaceholder(payload.contentType)} ${payload.mediaUrl}`;
+  if (!payload.content.trim() || payload.content === getMediaPlaceholder(payload.contentType)) {
+    return mediaLine;
+  }
+
+  return `${payload.content}\n\n${mediaLine}`;
+}
+
+function extractGatewayMessageText(message) {
+  if (!message) {
+    return '';
+  }
+
+  if (typeof message === 'string') {
+    return message.trim();
+  }
+
+  if (typeof message.text === 'string' && message.text.trim()) {
+    return message.text.trim();
+  }
+
+  if (typeof message.content === 'string' && message.content.trim()) {
+    return message.content.trim();
+  }
+
+  if (Array.isArray(message.content)) {
+    const parts = message.content
+      .map((part) => (typeof part?.text === 'string' ? part.text.trim() : ''))
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join('\n');
+    }
+  }
+
+  return '';
+}
+
+function sendGatewayConnectRequest() {
+  if (!gatewayWs || gatewayWs.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  const authToken = gatewayDeviceToken || gatewaySharedToken;
+  if (!authToken) {
+    console.warn('[TRIXChannel] gateway auth token unavailable');
+    return;
+  }
+
+  const role = GATEWAY_ROLE;
+  const scopes =
+    Array.isArray(gatewayDeviceScopes) && gatewayDeviceScopes.length > 0
+      ? gatewayDeviceScopes
+      : [...DEFAULT_GATEWAY_SCOPES];
+  const signedAtMs = Date.now();
+
+  const params = {
+    minProtocol: 3,
+    maxProtocol: 3,
+    role,
+    scopes,
+    client: {
+      id: GATEWAY_CLIENT_ID,
+      displayName: 'TRIX App Channel',
+      version: '2.2.0',
+      platform: 'node',
+      mode: GATEWAY_CLIENT_MODE,
+      instanceId: deviceId || os.hostname()
+    },
+    auth: { token: authToken }
+  };
+
+  if (gatewayDeviceIdentity?.deviceId && gatewayDeviceIdentity?.privateKeyPem && gatewayDeviceIdentity?.publicKey) {
+    const payload = buildDeviceAuthPayload({
+      deviceId: gatewayDeviceIdentity.deviceId,
+      clientId: GATEWAY_CLIENT_ID,
+      clientMode: GATEWAY_CLIENT_MODE,
+      role,
+      scopes,
+      signedAtMs,
+      token: authToken,
+      nonce: gatewayConnectNonce
+    });
+
+    params.device = {
+      id: gatewayDeviceIdentity.deviceId,
+      publicKey: gatewayDeviceIdentity.publicKey,
+      signature: signDevicePayload(gatewayDeviceIdentity.privateKeyPem, payload),
+      signedAt: signedAtMs,
+      nonce: gatewayConnectNonce || undefined
+    };
+  }
+
+  gatewayConnectRequestId = gatewayConnectNonce || 'c1';
+  gatewayWs.send(
+    JSON.stringify({
+      type: 'req',
+      id: gatewayConnectRequestId,
+      method: 'connect',
+      params
+    })
+  );
+}
+
 function loadAuth() {
   try {
     if (!fs.existsSync(AUTH_FILE)) {
@@ -219,8 +469,10 @@ function normalizeInboundAppMessage(data = {}) {
 }
 
 function normalizeGatewayReply(payload = {}) {
-  const content = payload.response ?? payload.text ?? payload.content ?? payload.message?.content ?? '';
-  const messageId = payload.messageId ?? payload.id ?? makeMessageId('bot');
+  const content =
+    extractGatewayMessageText(payload.message ?? payload.response ?? payload.text ?? payload.content ?? payload) ||
+    '';
+  const messageId = payload.messageId ?? payload.id ?? payload.runId ?? makeMessageId('bot');
 
   return {
     messageId: String(messageId),
@@ -228,7 +480,7 @@ function normalizeGatewayReply(payload = {}) {
     contentType: payload.contentType ?? payload.content_type ?? 'text',
     mediaUrl: payload.mediaUrl ?? payload.media_url ?? null,
     mediaMimeType: payload.mediaMimeType ?? payload.media_mime_type ?? null,
-    timestamp: toTimestamp(payload.timestamp),
+    timestamp: toTimestamp(payload.timestamp ?? payload.message?.timestamp),
     raw: payload
   };
 }
@@ -488,23 +740,18 @@ function forwardToGateway(normalized) {
 
   lastSentMessageId = payload.messageId;
   const requestId = payload.messageId || makeMessageId('gw');
+  const sessionKey = resolveGatewaySessionKey(payload);
+  const message = buildGatewayUserMessage(payload);
 
   const req = {
     type: 'req',
     id: requestId,
     method: 'chat.send',
     params: {
-      text: payload.content,
-      threadId: payload.threadId,
-      contentType: payload.contentType,
-      mediaUrl: payload.mediaUrl,
-      mediaMimeType: payload.mediaMimeType,
-      context: {
-        source: 'trix-app',
-        userId: payload.userId,
-        deviceId,
-        messageId: payload.messageId
-      }
+      sessionKey,
+      message,
+      idempotencyKey: String(payload.messageId || requestId),
+      deliver: false
     }
   };
 
@@ -585,10 +832,24 @@ function handleServerAppMessage(eventName, data) {
 }
 
 function handleGatewayMessage(msg) {
+  if (msg.type === 'event' && msg.event === 'connect.challenge') {
+    const nonce = msg?.payload?.nonce;
+    if (typeof nonce === 'string' && nonce.trim()) {
+      gatewayConnectNonce = nonce.trim();
+      sendGatewayConnectRequest();
+    }
+    return;
+  }
+
   if (msg.type === 'res') {
-    if (msg.id === 'c1') {
+    if (msg.id === gatewayConnectRequestId || msg.id === 'c1' || msg.id === gatewayConnectNonce) {
+      if (isConnectedToGateway) {
+        return;
+      }
+
       if (msg.ok) {
         isConnectedToGateway = true;
+        gatewayConnectNonce = null;
         console.log('[TRIXChannel] gateway connected');
       } else {
         console.error('[TRIXChannel] gateway connect failed:', msg.error);
@@ -612,15 +873,35 @@ function handleGatewayMessage(msg) {
 
   if (msg.type === 'event' && msg.event === 'chat' && ENABLE_GATEWAY_CHAT_BRIDGE) {
     const payload = msg.payload || {};
+    const runId = typeof payload.runId === 'string' ? payload.runId : null;
+    const state = typeof payload.state === 'string' ? payload.state : null;
 
-    if (payload.role === 'user' || payload.sender === 'user') {
+    if (payload.role === 'user' || payload.sender === 'user' || payload.message?.role === 'user') {
+      return;
+    }
+
+    if (state && state !== 'final') {
+      return;
+    }
+
+    if (runId && deliveredGatewayRuns.has(runId)) {
       return;
     }
 
     const normalized = normalizeGatewayReply(payload);
+    if (!normalized.content.trim()) {
+      return;
+    }
 
     if (normalized.messageId && normalized.messageId === lastSentMessageId) {
       return;
+    }
+
+    if (runId) {
+      deliveredGatewayRuns.add(runId);
+      if (deliveredGatewayRuns.size > 500) {
+        deliveredGatewayRuns.clear();
+      }
     }
 
     forwardToApp(normalized);
@@ -776,34 +1057,24 @@ async function connectToGateway() {
       return;
     }
 
-    const gatewayToken = getGatewayToken();
-    if (!gatewayToken) {
+    gatewaySharedToken = getGatewayToken();
+    if (!gatewaySharedToken) {
       console.warn('[TRIXChannel] gateway token not found, gateway bridge disabled');
       resolve();
       return;
     }
 
+    gatewayDeviceIdentity = loadGatewayDeviceIdentity();
+    const deviceAuth = loadGatewayDeviceAuth(GATEWAY_ROLE);
+    gatewayDeviceToken = deviceAuth?.token || null;
+    gatewayDeviceScopes = deviceAuth?.scopes || [...DEFAULT_GATEWAY_SCOPES];
+    gatewayConnectNonce = null;
+    gatewayConnectRequestId = 'c1';
+
     gatewayWs = new WebSocket(GATEWAY_URL);
 
     gatewayWs.on('open', () => {
-      gatewayWs.send(JSON.stringify({
-        type: 'req',
-        id: 'c1',
-        method: 'connect',
-        params: {
-          minProtocol: 3,
-          maxProtocol: 3,
-          client: {
-            id: GATEWAY_CLIENT_ID,
-            displayName: 'TRIX App Channel',
-            version: '2.1.0',
-            platform: 'node',
-            mode: GATEWAY_CLIENT_MODE,
-            instanceId: deviceId || os.hostname()
-          },
-          auth: { token: gatewayToken }
-        }
-      }));
+      sendGatewayConnectRequest();
     });
 
     gatewayWs.on('message', (data) => {
