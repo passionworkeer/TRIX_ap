@@ -12,6 +12,7 @@ const pairingService = require('./services/pairingService');
 const messageService = require('./services/messageService');
 const ossService = require('./services/ossService');
 const ttsService = require('./services/ttsService');
+const { studyRoomService } = require('./services/studyRoomService');
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +31,7 @@ const io = new Server(server, {
 });
 
 const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE === 'true';
+const ENABLE_STUDY_ROOM_SOCKET = process.env.ENABLE_STUDY_ROOM_SOCKET !== 'false';
 const DEDUP_TTL_MS = Number(process.env.MESSAGE_DEDUP_TTL_MS || 10000);
 const BOT_HEARTBEAT_TIMEOUT_MS = Number(process.env.BOT_HEARTBEAT_TIMEOUT_MS || 45000);
 
@@ -247,6 +249,44 @@ function normalizeMediaOnlyContent(content, contentType, mediaUrl) {
     return normalizedContent;
   }
   return getMediaPlaceholder(contentType);
+}
+
+function resolveStudyRoomUserId(socket, data = {}) {
+  const socketUserId = socket?.userId ?? null;
+  const payloadUserId = data?.userId ?? data?.user_id ?? null;
+  if (socketUserId && payloadUserId && socketUserId !== payloadUserId) {
+    console.warn(
+      `[StudyRoom] userId mismatch socket=${socketUserId} payload=${payloadUserId}, using socket user`
+    );
+  }
+  return socketUserId || payloadUserId || null;
+}
+
+function toStudyRoomErrorPayload(error, fallbackMessage = 'Study room operation failed') {
+  return {
+    success: false,
+    code: error?.code || 'UNKNOWN_ERROR',
+    error: error?.message || fallbackMessage
+  };
+}
+
+function emitStudyRoomStateUpdate(update) {
+  if (!update || !update.roomCode) {
+    return;
+  }
+
+  io.to(`study_room_${update.roomCode}`).emit('study_room_state', {
+    roomCode: update.roomCode,
+    reason: update.reason || 'update',
+    room: update.room || null,
+    serverTs: now()
+  });
+}
+
+function emitStudyRoomStateUpdates(updates = []) {
+  for (const update of updates) {
+    emitStudyRoomStateUpdate(update);
+  }
 }
 
 const upload = multer({
@@ -589,11 +629,17 @@ io.on('connection', (socket) => {
     }
 
     if (socket.userId === userId) {
+      if (ENABLE_STUDY_ROOM_SOCKET) {
+        studyRoomService.bindSocketUser(socket.id, userId);
+      }
       return;
     }
 
     socket.userId = userId;
     socket.join(`user_${userId}`);
+    if (ENABLE_STUDY_ROOM_SOCKET) {
+      studyRoomService.bindSocketUser(socket.id, userId);
+    }
 
     try {
       const pairing = await pairingService.getPairingByUserId(userId);
@@ -632,6 +678,170 @@ io.on('connection', (socket) => {
       }
     } catch (error) {
       callback?.({ success: false, error: error.message });
+    }
+  });
+
+  socket.on('study_room_create', (data, callback) => {
+    if (!ENABLE_STUDY_ROOM_SOCKET) {
+      callback?.({
+        success: false,
+        code: 'FEATURE_DISABLED',
+        error: 'Study room realtime is disabled'
+      });
+      return;
+    }
+
+    try {
+      const userId = resolveStudyRoomUserId(socket, data);
+      const previousRoomCode = studyRoomService.getRoomCodeForUser(userId);
+      const result = studyRoomService.createRoom({
+        userId,
+        displayName: data?.displayName,
+        avatarUrl: data?.avatarUrl,
+        maxMembers: data?.maxMembers
+      });
+
+      if (previousRoomCode && previousRoomCode !== result.roomCode) {
+        socket.leave(`study_room_${previousRoomCode}`);
+      }
+      socket.join(`study_room_${result.roomCode}`);
+
+      emitStudyRoomStateUpdates(result.updates);
+      callback?.({
+        success: true,
+        roomCode: result.roomCode,
+        room: result.room
+      });
+    } catch (error) {
+      callback?.(toStudyRoomErrorPayload(error, 'Create room failed'));
+    }
+  });
+
+  socket.on('study_room_join', (data, callback) => {
+    if (!ENABLE_STUDY_ROOM_SOCKET) {
+      callback?.({
+        success: false,
+        code: 'FEATURE_DISABLED',
+        error: 'Study room realtime is disabled'
+      });
+      return;
+    }
+
+    try {
+      const userId = resolveStudyRoomUserId(socket, data);
+      const previousRoomCode = studyRoomService.getRoomCodeForUser(userId);
+      const result = studyRoomService.joinRoom({
+        userId,
+        roomCode: data?.roomCode,
+        displayName: data?.displayName,
+        avatarUrl: data?.avatarUrl
+      });
+
+      if (previousRoomCode && previousRoomCode !== result.roomCode) {
+        socket.leave(`study_room_${previousRoomCode}`);
+      }
+      socket.join(`study_room_${result.roomCode}`);
+
+      emitStudyRoomStateUpdates(result.updates);
+      callback?.({
+        success: true,
+        roomCode: result.roomCode,
+        room: result.room
+      });
+    } catch (error) {
+      callback?.(toStudyRoomErrorPayload(error, 'Join room failed'));
+    }
+  });
+
+  socket.on('study_room_leave', (data, callback) => {
+    if (!ENABLE_STUDY_ROOM_SOCKET) {
+      callback?.({
+        success: false,
+        code: 'FEATURE_DISABLED',
+        error: 'Study room realtime is disabled'
+      });
+      return;
+    }
+
+    try {
+      const userId = resolveStudyRoomUserId(socket, data);
+      const activeRoomCode = studyRoomService.getRoomCodeForUser(userId);
+      const roomCode = data?.roomCode || activeRoomCode;
+      const result = studyRoomService.leaveRoom({
+        userId,
+        roomCode,
+        reason: 'leave'
+      });
+
+      if (roomCode) {
+        socket.leave(`study_room_${roomCode}`);
+      }
+
+      emitStudyRoomStateUpdates(result.updates);
+      callback?.({
+        success: true,
+        roomCode: result.roomCode,
+        room: result.room
+      });
+    } catch (error) {
+      callback?.(toStudyRoomErrorPayload(error, 'Leave room failed'));
+    }
+  });
+
+  socket.on('study_room_host_action', (data, callback) => {
+    if (!ENABLE_STUDY_ROOM_SOCKET) {
+      callback?.({
+        success: false,
+        code: 'FEATURE_DISABLED',
+        error: 'Study room realtime is disabled'
+      });
+      return;
+    }
+
+    try {
+      const userId = resolveStudyRoomUserId(socket, data);
+      const result = studyRoomService.hostAction({
+        userId,
+        roomCode: data?.roomCode,
+        action: data?.action
+      });
+
+      emitStudyRoomStateUpdates(result.updates);
+      callback?.({
+        success: true,
+        roomCode: result.roomCode,
+        room: result.room
+      });
+    } catch (error) {
+      callback?.(toStudyRoomErrorPayload(error, 'Host action failed'));
+    }
+  });
+
+  socket.on('study_room_get_state', (data, callback) => {
+    if (!ENABLE_STUDY_ROOM_SOCKET) {
+      callback?.({
+        success: false,
+        code: 'FEATURE_DISABLED',
+        error: 'Study room realtime is disabled'
+      });
+      return;
+    }
+
+    try {
+      const userId = resolveStudyRoomUserId(socket, data);
+      const result = studyRoomService.getRoomState({
+        userId,
+        roomCode: data?.roomCode
+      });
+
+      socket.join(`study_room_${result.roomCode}`);
+      callback?.({
+        success: true,
+        roomCode: result.roomCode,
+        room: result.room
+      });
+    } catch (error) {
+      callback?.(toStudyRoomErrorPayload(error, 'Get room state failed'));
     }
   });
 
@@ -1002,6 +1212,13 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`[Socket.io] disconnected: ${socket.id}, total=${io.sockets.sockets.size - 1}`);
+
+    if (ENABLE_STUDY_ROOM_SOCKET) {
+      const { updates } = studyRoomService.handleDisconnect(socket.id);
+      if (updates.length > 0) {
+        emitStudyRoomStateUpdates(updates);
+      }
+    }
 
     if (socket.deviceId) {
       const removed = removeConnectedBotIfMatches(socket.deviceId, socket.id);
