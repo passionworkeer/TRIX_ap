@@ -68,7 +68,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 娣诲姞浜嬩欢鐩戝惉鍣?
+   * Add event listener
    */
   on(event: string, callback: EventCallback): void {
     if (!this.eventListeners.has(event)) {
@@ -78,7 +78,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 绉婚櫎浜嬩欢鐩戝惉鍣?
+   * Remove event listener
    */
   off(event: string, callback: EventCallback): void {
     const listeners = this.eventListeners.get(event);
@@ -88,7 +88,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 瑙﹀彂浜嬩欢
+   * Emit event
    */
   private emit(event: string, data?: any): void {
     const listeners = this.eventListeners.get(event);
@@ -104,14 +104,14 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 绉婚櫎鎵€鏈変簨浠剁洃鍚櫒
+   * Remove all event listeners
    */
   removeAllListeners(): void {
     this.eventListeners.clear();
   }
 
   /**
-   * 鑾峰彇鎴栧垱寤鸿澶囧敮涓€鏍囪瘑
+   * Get or create device unique ID
    */
   private getOrCreateDeviceId(): string {
     let deviceId = localStorage.getItem('clawbot_channel_device_id');
@@ -123,14 +123,14 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 鑾峰彇 Supabase User ID
+   * Get Supabase User ID
    */
   private async getSupabaseUserId(): Promise<string | null> {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('[ClawbotChannel] 鑾峰彇 session 閿欒:', error);
+        console.error('[ClawbotChannel] Get session error:', error);
         return null;
       }
 
@@ -150,7 +150,7 @@ class ClawbotChannelBridge {
    * 杩炴帴鍒版湇鍔″櫒
    */
   async connect(): Promise<void> {
-    // 鑾峰彇鐢ㄦ埛 ID
+    // Get user ID
     this.userId = await this.getSupabaseUserId();
     if (!this.userId) {
       console.error('[ClawbotChannel] 鐢ㄦ埛鏈櫥褰曪紝鏃犳硶杩炴帴');
@@ -158,7 +158,7 @@ class ClawbotChannelBridge {
       return;
     }
 
-    // 妫€鏌ユ槸鍚﹀凡閰嶅
+    // Check if already paired
     const wasPaired = localStorage.getItem('clawbot_paired') === 'true';
     if (wasPaired) {
       this.paired = true;
@@ -400,7 +400,7 @@ class ClawbotChannelBridge {
   // 閰嶅娴佺▼搴旂敱 Clawbot 绔彂璧凤紝涓嶆槸 App 绔?
 
   /**
-   * 妫€鏌ュ綋鍓嶇敤鎴风殑鏈嶅姟绔厤瀵圭姸鎬?
+   * Check current user's server-side pairing status
    */
   private emitWithAck<T extends { success?: boolean; error?: string }>(
     event: string,
@@ -495,7 +495,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 閫氳繃閰嶅鐮侀厤瀵?
+   * Pair via pairing code
    */
   pairWithCode(code: string): Promise<{ success: boolean; pairingId?: string; status?: string }> {
     return new Promise((resolve, reject) => {
@@ -524,7 +524,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 閫氳繃浜岀淮鐮?Token 閰嶅
+   * Pair via QR code token
    */
   pairWithToken(token: string): Promise<{ success: boolean; pairingId?: string; status?: string }> {
     return new Promise((resolve, reject) => {
@@ -726,14 +726,14 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 涓婁紶濯掍綋鏂囦欢鍒?OSS
+   * Upload media file to OSS
    */
   async uploadMedia(file: File | Blob): Promise<string> {
     try {
       const result = await ossService.uploadFile(file);
       return result.url;
     } catch (error) {
-      console.error('[ClawbotChannel] 鏂囦欢涓婁紶澶辫触:', error);
+      console.error('[ClawbotChannel] File upload failed:', error);
       throw error;
     }
   }
@@ -759,7 +759,7 @@ class ClawbotChannelBridge {
     this.stopHeartbeat();
     this.lastPongTime = Date.now();
     this.heartbeatTimer = setInterval(() => {
-      // 妫€鏌ユ槸鍚﹁秴杩?60 绉掓病鏀跺埌 pong
+      // Check if timed out without receiving pong for over 60 seconds
       if (Date.now() - this.lastPongTime > 60000) {
         this.socket?.disconnect();
         this.socket?.connect();
@@ -771,7 +771,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 鍋滄蹇冭烦
+   * Stop heartbeat
    */
   private stopHeartbeat(): void {
     if (this.heartbeatTimer) {
@@ -794,42 +794,42 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 妫€鏌ヨ繛鎺ョ姸鎬?
+   * Check connection status
    */
   isConnected(): boolean {
     return this.connected && this.socket !== null && this.socket.connected;
   }
 
   /**
-   * 妫€鏌ユ槸鍚﹀凡閰嶅
+   * Check if paired
    */
   isPaired(): boolean {
     return this.paired;
   }
 
   /**
-   * 鑾峰彇璁惧 ID
+   * Get device ID
    */
   getDeviceId(): string {
     return this.deviceId || '';
   }
 
   /**
-   * 鑾峰彇褰撳墠閰嶅鐮?
+   * Get current pairing code
    */
   getPairingCode(): string | null {
     return this.pairingCode;
   }
 
   /**
-   * 鑾峰彇 User ID
+   * Get User ID
    */
   getUserId(): string | null {
     return this.userId;
   }
 }
 
-// 瀵煎嚭鍗曚緥瀹炰緥
+// Export singleton instance
 export const clawbotChannelBridge = new ClawbotChannelBridge();
 export default clawbotChannelBridge;
 
