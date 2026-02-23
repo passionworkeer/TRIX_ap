@@ -42,7 +42,7 @@ const Diagnostic: React.FC = () => {
           const requestId = data?.payload?.nonce || 'diag-connect';
           ws.send(JSON.stringify({
             type: 'req', id: requestId, method: 'connect',
-            params: { minProtocol: 3, maxProtocol: 3, role: 'operator', client: { id: 'diag', mode: 'web', platform: 'web', displayName: 'Diag', version: '1.0', instanceId: '1' }, auth: { token: authToken } }
+            params: { minProtocol: 3, maxProtocol: 3, role: 'operator', client: { id: 'clawdbot-ios', mode: 'webchat', platform: 'web', displayName: 'Diag', version: '1.0', instanceId: '1' }, auth: { token: authToken } }
           }));
         } else if (messageType === 'res' && data.payload?.type === 'hello-ok') {
           setResults(prev => ({ ...prev, connectionTest: { success: true, message: 'Authenticated Successfully' } }));

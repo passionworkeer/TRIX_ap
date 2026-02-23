@@ -12,6 +12,7 @@ import clawbotChannelBridge, {
   CHANNEL_PROTOCOL_MISMATCH,
   type ClawbotChannelMessage,
 } from '../services/ClawbotChannelBridge';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import {
   deleteClawbotMessage,
   loadClawbotMessageHistory,
@@ -399,9 +400,18 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             return;
           }
 
-          const response = await fetch(
-            `http://TRIX_SERVER_HOST:8765/api/messages/sync?userId=${userId}&lastTimestamp=${lastMessageTimestamp}`
-          );
+          const { channelUrl } = getClawbotEndpoints();
+          if (!channelUrl) {
+            return;
+          }
+
+          const syncUrl = new URL(channelUrl);
+          syncUrl.protocol = syncUrl.protocol === 'wss:' ? 'https:' : 'http:';
+          syncUrl.pathname = '/api/messages/sync';
+          syncUrl.searchParams.set('userId', userId);
+          syncUrl.searchParams.set('lastTimestamp', String(lastMessageTimestamp));
+
+          const response = await fetch(syncUrl.toString());
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }

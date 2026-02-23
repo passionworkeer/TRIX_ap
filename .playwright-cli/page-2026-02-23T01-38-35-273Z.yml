@@ -1,0 +1,19 @@
+- generic [ref=e10]:
+  - generic [ref=e12]:
+    - heading "欢迎加入" [level=1] [ref=e13]
+    - paragraph [ref=e14]: 开启你的 3D 探索之旅
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - img [ref=e18]
+        - textbox "用户名" [ref=e21]
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - textbox "邮箱" [ref=e25]
+      - generic [ref=e26]:
+        - img [ref=e27]
+        - textbox "设置密码 (至少 6 位)" [ref=e30]
+    - button "立即注册" [ref=e31]
+    - generic [ref=e32]:
+      - text: 已有账号？
+      - button "立即登录" [ref=e33]

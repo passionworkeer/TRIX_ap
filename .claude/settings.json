@@ -11,7 +11,11 @@
       "Bash(taskkill:*)",
       "Bash(git push:*)",
       "Bash(find server/clawbot-channel -name \"*.js\" -type f -exec sh -c 'if grep -q \"\"锟斤拷\\\\|鍒涘缓\\\\|褰撶敤\\\\|鍒犻櫎\\\\|楠岃瘉\\\\|璁剧疆\\\\|鎴愬姛\"\" \"\"$1\"\" 2>/dev/null; then echo \"\"$1\"\"; fi' _ {} ;)",
-      "Bash(iconv:*)"
+      "Bash(iconv:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)"
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
