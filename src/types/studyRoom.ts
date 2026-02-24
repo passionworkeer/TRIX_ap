@@ -11,6 +11,13 @@ export interface StudyRoomMember {
   status: StudyRoomMemberStatus;
 }
 
+export interface StudyRoomTimerState {
+  durationSeconds: number;
+  startedAt: number;
+  endsAt: number;
+  remainingSeconds: number;
+}
+
 export interface StudyRoomState {
   roomCode: string;
   hostUserId: string;
@@ -20,6 +27,7 @@ export interface StudyRoomState {
   version: number;
   createdAt: number;
   updatedAt: number;
+  timer: StudyRoomTimerState | null;
 }
 
 export interface StudyRoomStateEvent {

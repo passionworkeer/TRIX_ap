@@ -1,18 +1,16 @@
 import React from 'react';
-import { MapPin, Plus, Users, Zap } from 'lucide-react';
+import { MapPin, Plus, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface StudyHeaderProps {
   totalStudyTime: number;
   onBuddyListOpen: () => void;
-  onStudyRoomOpen?: () => void;
   onPointsClick?: () => void;
 }
 
 const StudyHeader: React.FC<StudyHeaderProps> = React.memo(({
   totalStudyTime,
   onBuddyListOpen,
-  onStudyRoomOpen,
   onPointsClick
 }) => {
   const { t } = useTranslation();
@@ -34,16 +32,6 @@ const StudyHeader: React.FC<StudyHeaderProps> = React.memo(({
             aria-label={`${t('study.points')}, ${t('study.totalStudyTime')}: ${totalStudyTime} ${t('common.minutes')}`}
           >
             <Zap size={18} className="text-yellow-400" />
-          </button>
-        )}
-
-        {onStudyRoomOpen && (
-          <button
-            onClick={onStudyRoomOpen}
-            className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
-            aria-label="多人房间"
-          >
-            <Users size={18} className="text-cyan-200" />
           </button>
         )}
 

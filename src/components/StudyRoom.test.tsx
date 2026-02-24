@@ -31,7 +31,8 @@ const mocks = vi.hoisted(() => ({
     maxMembers: 5,
     version: 1,
     createdAt: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    timer: null
   })),
   joinStudyRoom: vi.fn(),
   leaveStudyRoom: vi.fn(),
@@ -80,20 +81,22 @@ describe('StudyRoom', () => {
     mocks.getStudyRoomState.mockRejectedValue(new Error('NOT_IN_ROOM'));
   });
 
-  it('renders create/join controls when no active room', async () => {
+  it('renders three entry modes when no active room', async () => {
     const StudyRoom = (await import('./StudyRoom')).default;
     render(<StudyRoom isOpen={true} onClose={() => {}} />);
 
-    expect(await screen.findByText('创建或加入房间')).toBeDefined();
+    expect(await screen.findByText('自己自习')).toBeDefined();
+    expect(screen.getByText('加入好友')).toBeDefined();
+    expect(screen.getByText('房间号加入')).toBeDefined();
     expect(mocks.on).toHaveBeenCalledWith('study_room_state', expect.any(Function));
   });
 
-  it('calls createStudyRoom when create button is clicked', async () => {
+  it('calls createStudyRoom when create button is clicked in room-code mode', async () => {
     const StudyRoom = (await import('./StudyRoom')).default;
     render(<StudyRoom isOpen={true} onClose={() => {}} />);
 
-    const createButton = await screen.findByRole('button', { name: '创建' });
-    fireEvent.click(createButton);
+    fireEvent.click(await screen.findByRole('button', { name: '房间号加入' }));
+    fireEvent.click(await screen.findByRole('button', { name: '创建' }));
 
     await waitFor(() => {
       expect(mocks.createStudyRoom).toHaveBeenCalled();
@@ -119,7 +122,8 @@ describe('StudyRoom', () => {
       maxMembers: 5,
       version: 1,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      timer: null
     });
 
     const StudyRoom = (await import('./StudyRoom')).default;

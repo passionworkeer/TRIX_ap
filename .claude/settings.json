@@ -21,7 +21,19 @@
       "Read(//e/tmp/**)",
       "Bash(test:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(//c/Users/wang/**)",
+      "Read(//e/desktop/**)",
+      "Bash(ls:*)",
+      "mcp__fetch__fetch",
+      "Bash(curl:*)",
+      "Bash(git clone:*)",
+      "mcp__memory__create_entities",
+      "mcp__memory__add_observations",
+      "mcp__memory__search_nodes",
+      "Bash(npm test:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)"
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
