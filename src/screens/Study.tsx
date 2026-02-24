@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
-import StudyBuddiesList from "../components/StudyBuddiesList";
 import StudyRoom from "../components/StudyRoom";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -48,7 +47,6 @@ export default function Study() {
   const [totalStudyTime, setTotalStudyTime] = useState(0); // 单位: 分钟
 
   // 好友列表弹窗状态
-  const [isBuddyListOpen, setIsBuddyListOpen] = useState(false);
   const [isStudyRoomOpen, setIsStudyRoomOpen] = useState(false);
 
   // 🎉 结算弹窗状态
@@ -605,15 +603,8 @@ export default function Study() {
         {/* 顶部导航栏 - Header */}
         <StudyHeader
           totalStudyTime={totalStudyTime}
-          onBuddyListOpen={() => setIsBuddyListOpen(true)}
-          onStudyRoomOpen={() => setIsStudyRoomOpen(true)}
+          onBuddyListOpen={() => setIsStudyRoomOpen(true)}
           onPointsClick={() => setShowPointsModal(true)}
-        />
-
-        {/* 自习伙伴列表 - Modal 弹窗 */}
-        <StudyBuddiesList
-          isOpen={isBuddyListOpen}
-          onClose={() => setIsBuddyListOpen(false)}
         />
 
         <StudyRoom
