@@ -15,7 +15,13 @@
       "Bash(python3:*)",
       "Bash(python:*)",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run dev)",
+      "Read(//tmp/**)",
+      "Read(//e/tmp/**)",
+      "Bash(test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
