@@ -32,7 +32,8 @@ async function startChannel() {
     const channelEnv = {
       ...process.env,
       ENABLE_GATEWAY_CHAT_BRIDGE: process.env.ENABLE_GATEWAY_CHAT_BRIDGE ?? 'true',
-      ENABLE_CLI_AGENT_BRIDGE: process.env.ENABLE_CLI_AGENT_BRIDGE ?? 'false'
+      ENABLE_CLI_AGENT_BRIDGE: process.env.ENABLE_CLI_AGENT_BRIDGE ?? 'false',
+      GATEWAY_CHAT_DELIVER: process.env.GATEWAY_CHAT_DELIVER ?? 'true'
     };
 
     channelProcess = spawn('node', ['index.js'], {
@@ -41,6 +42,10 @@ async function startChannel() {
       detached: false,
       env: channelEnv
     });
+
+    console.log(
+      `[TRIXManager] spawn cwd=${CHANNEL_PATH} gatewayBridge=${channelEnv.ENABLE_GATEWAY_CHAT_BRIDGE} cliBridge=${channelEnv.ENABLE_CLI_AGENT_BRIDGE} deliver=${channelEnv.GATEWAY_CHAT_DELIVER}`
+    );
 
     const timeout = setTimeout(() => {
       if (!isRunning && channelProcess && !channelProcess.killed) {
@@ -54,6 +59,13 @@ async function startChannel() {
 
     channelProcess.stdout.on('data', (buffer) => {
       const text = buffer.toString();
+      text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .forEach((line) => {
+          console.log(`[TRIX Channel] ${line}`);
+        });
       if (text.includes('running') || text.includes('start')) {
         if (!isRunning) {
           isRunning = true;
