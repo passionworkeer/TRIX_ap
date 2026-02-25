@@ -14,10 +14,10 @@ interface ConnectionOptions {
   reconnect?: boolean; // 是否自动重连
   reconnectDelay?: number; // 重连延迟（ms）
   reconnectAttempts?: number; // 最大重连次数
-  onMessage?: (data: any) => void;
+  onMessage?: (data: unknown) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
 }
 
 interface ConnectionState {
@@ -29,7 +29,7 @@ interface ConnectionState {
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   reconnectAttempts: number;
   options: ConnectionOptions;
-  listeners: Map<string, Set<(data: any) => void>>;
+  listeners: Map<string, Set<(data: unknown) => void>>;
 }
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'error';
@@ -198,7 +198,7 @@ class ConnectionManager {
   /**
    * 发送消息
    */
-  send(id: string, data: any): boolean {
+  send(id: string, data: unknown): boolean {
     const state = this.connections.get(id);
     if (!state || !state.isConnected || !state.socket) {
       console.warn(`[ConnectionManager] 无法发送消息，连接未就绪: ${id}`);
@@ -248,7 +248,7 @@ class ConnectionManager {
   /**
    * 添加事件监听器
    */
-  on(id: string, event: string, callback: (data: any) => void): void {
+  on(id: string, event: string, callback: (data: unknown) => void): void {
     const state = this.connections.get(id);
     if (!state) {
       console.warn(`[ConnectionManager] 连接不存在: ${id}`);
@@ -264,7 +264,7 @@ class ConnectionManager {
   /**
    * 移除事件监听器
    */
-  off(id: string, event: string, callback: (data: any) => void): void {
+  off(id: string, event: string, callback: (data: unknown) => void): void {
     const state = this.connections.get(id);
     if (!state) return;
 
@@ -287,7 +287,7 @@ class ConnectionManager {
   /**
    * 触发事件
    */
-  private emit(id: string, event: string, data: any): void {
+  private emit(id: string, event: string, data: unknown): void {
     const state = this.connections.get(id);
     if (!state) return;
 
