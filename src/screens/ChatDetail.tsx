@@ -102,7 +102,7 @@ const ChatDetail: React.FC = () => {
     type: string;
     size?: number;
     category: 'image' | 'video';
-    metadata?: any;
+    metadata?: Record<string, unknown>;
   }
 
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);

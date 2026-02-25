@@ -51,7 +51,7 @@ class StorageService {
   /**
    * 设置值
    */
-  async set(key: StorageKey, value: any, options: StorageOptions = {}): Promise<void> {
+  async set(key: StorageKey, value: unknown, options: StorageOptions = {}): Promise<void> {
     const { useCache = true, persistent = true } = options;
 
     // 写入缓存

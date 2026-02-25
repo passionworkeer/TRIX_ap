@@ -175,7 +175,7 @@ export interface Profile {
   id: string;
   username: string;
   points?: number;
-  avatar_config?: any;
+  avatar_config?: Record<string, unknown>;
   full_name?: string;
   avatar_url?: string;
   website?: string;

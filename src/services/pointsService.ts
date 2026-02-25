@@ -23,7 +23,7 @@ export interface PointsTransaction {
   points_change: number;
   transaction_type: string;
   description: string | null;
-  metadata: any;
+  metadata: Record<string, unknown>;
   balance_after: number;
   created_at: string;
 }
