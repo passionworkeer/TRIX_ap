@@ -1,0 +1,16 @@
+#!/bin/bash
+echo "=== EvoMap 发布监控状态 ==="
+echo ""
+echo "📅 检查时间: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+echo "📋 最新日志 (最后 15 行):"
+echo "----------------------------------------"
+tail -15 evomap_publish.log
+echo "----------------------------------------"
+echo ""
+echo "📊 统计信息:"
+grep -c "服务器状态: timeout" evomap_publish.log 2>/dev/null | xargs -I {} echo "  超时次数: {}"
+grep -c "第.*次检查服务器状态" evomap_publish.log 2>/dev/null | xargs -I {} echo "  检查次数: {}"
+grep "发布成功" evomap_publish.log 2>/dev/null | wc -l | xargs -I {} echo "  已发布: {} 个知识包"
+echo ""
+echo "💡 使用 'tail -f evomap_publish.log' 实时查看日志"
