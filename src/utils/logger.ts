@@ -40,7 +40,7 @@ const getColor = (key: keyof typeof colors): string => {
 /**
  * 基础日志函数
  */
-const log = (level: LogLevel, prefix: string, color: string, ...args: any[]) => {
+const log = (level: LogLevel, prefix: string, color: string, ...args: unknown[]) => {
   if (!isDev) return;
 
   if (typeof window !== 'undefined') {
@@ -54,34 +54,45 @@ const log = (level: LogLevel, prefix: string, color: string, ...args: any[]) => 
 };
 
 /**
+ * 创建模块日志工具
+ */
+const createModuleLogger = (moduleName: string) => ({
+  log: (...args: unknown[]) => logger.log(moduleName, ...args),
+  info: (...args: unknown[]) => logger.info(moduleName, ...args),
+  warn: (...args: unknown[]) => logger.warn(moduleName, ...args),
+  error: (...args: unknown[]) => logger.error(moduleName, ...args),
+  success: (...args: unknown[]) => logger.success(moduleName, ...args),
+});
+
+/**
  * 日志工具对象
  */
 export const logger = {
   /**
    * 普通日志
    */
-  log: (prefix: string, ...args: any[]) => {
+  log: (prefix: string, ...args: unknown[]) => {
     log('log', prefix, getColor('log'), ...args);
   },
 
   /**
    * 信息日志
    */
-  info: (prefix: string, ...args: any[]) => {
+  info: (prefix: string, ...args: unknown[]) => {
     log('info', prefix, getColor('info'), ...args);
   },
 
   /**
    * 警告日志
    */
-  warn: (prefix: string, ...args: any[]) => {
+  warn: (prefix: string, ...args: unknown[]) => {
     log('warn', prefix, getColor('warn'), ...args);
   },
 
   /**
    * 错误日志（生产环境也会输出）
    */
-  error: (prefix: string, ...args: any[]) => {
+  error: (prefix: string, ...args: unknown[]) => {
     // 错误日志总是输出
     log('error', prefix, getColor('error'), ...args);
   },
@@ -89,7 +100,7 @@ export const logger = {
   /**
    * 成功日志
    */
-  success: (prefix: string, ...args: any[]) => {
+  success: (prefix: string, ...args: unknown[]) => {
     if (!isDev) return;
     log('info', prefix, getColor('success'), ...args);
   },
@@ -97,90 +108,42 @@ export const logger = {
   /**
    * 便捷方法：Study模块日志
    */
-  study: {
-    log: (...args: any[]) => logger.log('Study', ...args),
-    info: (...args: any[]) => logger.info('Study', ...args),
-    warn: (...args: any[]) => logger.warn('Study', ...args),
-    error: (...args: any[]) => logger.error('Study', ...args),
-    success: (...args: any[]) => logger.success('Study', ...args),
-  },
+  study: createModuleLogger('Study'),
 
   /**
    * 便捷方法：Chat模块日志
    */
-  chat: {
-    log: (...args: any[]) => logger.log('Chat', ...args),
-    info: (...args: any[]) => logger.info('Chat', ...args),
-    warn: (...args: any[]) => logger.warn('Chat', ...args),
-    error: (...args: any[]) => logger.error('Chat', ...args),
-    success: (...args: any[]) => logger.success('Chat', ...args),
-  },
+  chat: createModuleLogger('Chat'),
 
   /**
    * 便捷方法：WebSocket模块日志
    */
-  websocket: {
-    log: (...args: any[]) => logger.log('WebSocket', ...args),
-    info: (...args: any[]) => logger.info('WebSocket', ...args),
-    warn: (...args: any[]) => logger.warn('WebSocket', ...args),
-    error: (...args: any[]) => logger.error('WebSocket', ...args),
-    success: (...args: any[]) => logger.success('WebSocket', ...args),
-  },
+  websocket: createModuleLogger('WebSocket'),
 
   /**
    * 便捷方法：Auth模块日志
    */
-  auth: {
-    log: (...args: any[]) => logger.log('Auth', ...args),
-    info: (...args: any[]) => logger.info('Auth', ...args),
-    warn: (...args: any[]) => logger.warn('Auth', ...args),
-    error: (...args: any[]) => logger.error('Auth', ...args),
-    success: (...args: any[]) => logger.success('Auth', ...args),
-  },
+  auth: createModuleLogger('Auth'),
 
   /**
    * 便捷方法：Points模块日志
    */
-  points: {
-    log: (...args: any[]) => logger.log('Points', ...args),
-    info: (...args: any[]) => logger.info('Points', ...args),
-    warn: (...args: any[]) => logger.warn('Points', ...args),
-    error: (...args: any[]) => logger.error('Points', ...args),
-    success: (...args: any[]) => logger.success('Points', ...args),
-  },
+  points: createModuleLogger('Points'),
 
   /**
    * 便捷方法：Clawbot模块日志
    */
-  clawbot: {
-    log: (...args: any[]) => logger.log('Clawbot', ...args),
-    info: (...args: any[]) => logger.info('Clawbot', ...args),
-    warn: (...args: any[]) => logger.warn('Clawbot', ...args),
-    error: (...args: any[]) => logger.error('Clawbot', ...args),
-    success: (...args: any[]) => logger.success('Clawbot', ...args),
-  },
+  clawbot: createModuleLogger('Clawbot'),
 
   /**
    * 便捷方法：Database模块日志
    */
-  database: {
-    log: (...args: any[]) => logger.log('Database', ...args),
-    info: (...args: any[]) => logger.info('Database', ...args),
-    warn: (...args: any[]) => logger.warn('Database', ...args),
-    error: (...args: any[]) => logger.error('Database', ...args),
-    success: (...args: any[]) => logger.success('Database', ...args),
-  },
+  database: createModuleLogger('Database'),
 
   /**
    * 便捷方法：Media模块日志
    */
-  media: {
-    log: (...args: any[]) => logger.log('Media', ...args),
-    info: (...args: any[]) => logger.info('Media', ...args),
-    warn: (...args: any[]) => logger.warn('Media', ...args),
-    error: (...args: any[]) => logger.error('Media', ...args),
-    success: (...args: any[]) => logger.success('Media', ...args),
-  },
+  media: createModuleLogger('Media'),
 };
 
 export default logger;
