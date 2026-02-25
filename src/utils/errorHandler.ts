@@ -334,3 +334,37 @@ export const ErrorFactory = {
   permissionDeniedError: (message?: string) =>
     new AppError(ErrorType.PERMISSION_DENIED, message),
 };
+
+/**
+ * 类型守卫：检查错误是否具有 message 属性
+ *
+ * 使用方式：
+ * ```ts
+ * try {
+ *   await someOperation();
+ * } catch (error: unknown) {
+ *   if (hasErrorMessage(error)) {
+ *     console.error(error.message);
+ *   }
+ * }
+ * ```
+ */
+export function hasErrorMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  );
+}
+
+/**
+ * 安全获取错误消息
+ * 如果错误没有 message 属性，返回默认消息
+ */
+export function getErrorMessage(error: unknown, defaultMessage = '操作失败，请稍后重试'): string {
+  if (hasErrorMessage(error)) {
+    return error.message;
+  }
+  return defaultMessage;
+}

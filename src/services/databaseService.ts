@@ -376,7 +376,7 @@ export async function sendFriendRequest(account: string): Promise<void> {
     if (notifyError) {
       throw new Error('发送好友请求失败');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleGlobalError(error, '发送好友请求失败');
     throw error;
   }
@@ -448,7 +448,7 @@ export async function acceptFriendRequest(notificationId: string): Promise<void>
       is_read: false,
       created_at: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleGlobalError(error, '接受好友请求失败');
     throw error;
   }
@@ -484,7 +484,7 @@ export async function rejectFriendRequest(notificationId: string): Promise<void>
         created_at: new Date().toISOString(),
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleGlobalError(error, '拒绝好友请求失败');
     throw error;
   }
@@ -719,7 +719,7 @@ export async function sendMessage(
     await updateUnreadCount(receiverId, senderId, text);
 
     return data?.id || null;
-  } catch (error: any) {
+  } catch (error: unknown) {
     handleGlobalError(error, '发送消息失败');
     return null;
   }
@@ -792,7 +792,7 @@ export async function sendMessageWithMedia(
     await updateUnreadCount(receiverId, senderId, previewText);
 
     return data?.id || null;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('发送媒体消息失败:', error);
     return null;
   }

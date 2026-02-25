@@ -13,6 +13,7 @@ import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
 import { formatRelative } from '../utils/dateFormat';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { getErrorMessage } from '../utils/errorHandler';
 
 const BG_IMAGE = IMAGES.BACKGROUND;
 
@@ -118,8 +119,8 @@ const Chat: React.FC = () => {
       await addFriend(username);
       await loadFriends();
       await loadRecommendedUsers();
-    } catch (error: any) {
-      showError(error.message || '添加失败');
+    } catch (error: unknown) {
+      showError(getErrorMessage(error, '添加失败'));
     }
   };
 

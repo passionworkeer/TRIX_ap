@@ -8,6 +8,7 @@ import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
+import { getErrorMessage } from '../utils/errorHandler';
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
@@ -125,8 +126,8 @@ const Pairing: React.FC = () => {
       }
 
       toast.error('无效的二维码内容');
-    } catch (error: any) {
-      toast.error(error?.message || '配对失败，请重试');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, '配对失败，请重试'));
     } finally {
       setLoading(false);
     }
@@ -147,8 +148,8 @@ const Pairing: React.FC = () => {
       } else {
         toast.error('配对码无效或已过期');
       }
-    } catch (error: any) {
-      toast.error(error?.message || '配对失败');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, '配对失败'));
     } finally {
       setLoading(false);
     }

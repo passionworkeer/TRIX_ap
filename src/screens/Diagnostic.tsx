@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface DiagnosticResult {
   wsUrl?: string;
@@ -54,8 +55,8 @@ const Diagnostic: React.FC = () => {
         setResults(prev => ({ ...prev, connectionTest: { success: false, message: 'Connection Failed', error: 'WS Error' } }));
         setTesting(false);
       };
-    } catch (e: any) {
-      setResults(prev => ({ ...prev, connectionTest: { success: false, message: 'Error', error: e.message } }));
+    } catch (e: unknown) {
+      setResults(prev => ({ ...prev, connectionTest: { success: false, message: 'Error', error: getErrorMessage(e, "Error") } }));
       setTesting(false);
     }
   };
