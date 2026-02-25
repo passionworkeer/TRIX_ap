@@ -18,7 +18,7 @@ interface StorageOptions {
 
 class StorageService {
   private cache = new Map<StorageKey, any>();
-  private pendingGets = new Map<StorageKey, Promise<any>>();
+  private pendingGets = new Map<StorageKey, Promise<unknown>>();
 
   /**
    * 获取存储的值

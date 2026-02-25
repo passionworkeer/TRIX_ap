@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Zap, Trophy, TrendingUp, Clock, X, Loader2 } from 'lucide-react';
-import { getUserPointsStats, getPointsHistory, PointsTransaction } from '../../../services/pointsService';
+import { getUserPointsStats, getPointsHistory, PointsTransaction, UserPointsStats } from '../../../services/pointsService';
 
 interface PointsModalProps {
   show: boolean;
@@ -15,7 +15,7 @@ interface PointsModalProps {
  */
 export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId }) => {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<UserPointsStats | null>(null);
   const [history, setHistory] = useState<PointsTransaction[]>([]);
 
   useEffect(() => {
