@@ -332,7 +332,7 @@ export default function Study() {
   }, [isTimer, location.state?.duration]);
 
   useEffect(() => {
-    let interval: any = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     
     if (isTimer && isActive && timeLeft > 0) {
       interval = setInterval(() => {
