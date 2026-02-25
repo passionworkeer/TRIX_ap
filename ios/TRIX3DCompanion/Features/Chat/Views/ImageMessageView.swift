@@ -1,0 +1,334 @@
+//
+//  ImageMessageView.swift
+//  TRIX3DCompanion
+//
+//  Image message component with zoom functionality
+//
+
+import SwiftUI
+
+// MARK: - Image Message View
+
+/// Image message component with async loading and zoom preview
+struct ImageMessageView: View {
+
+    // MARK: - Properties
+
+    let imageURL: String
+    let isCurrentUser: Bool
+
+    @State private var isShowingFullScreen = false
+    @State private var isLoading = true
+    @State private var loadError: Error?
+
+    // MARK: - Body
+
+    var body: some View {
+        ZStack {
+            // Image content
+            if let url = URL(string: imageURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        loadingPlaceholder
+
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 200, height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .onTapGesture {
+                                isShowingFullScreen = true
+                            }
+                            .onAppear {
+                                isLoading = false
+                            }
+
+                    case .failure(let error):
+                        errorPlaceholder(error)
+
+                    @unknown default:
+                        loadingPlaceholder
+                    }
+                }
+            } else {
+                errorPlaceholder(URLError(.badURL))
+            }
+
+            // Loading indicator
+            if isLoading {
+                loadingOverlay
+            }
+        }
+        .sheet(isPresented: $isShowingFullScreen) {
+            ImageViewer(
+                imageURL: imageURL,
+                isPresented: $isShowingFullScreen
+            )
+        }
+    }
+
+    // MARK: - View Components
+
+    /// Loading placeholder
+    private var loadingPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(isCurrentUser ? Color.white.opacity(0.3) : Color.gray.opacity(0.2))
+            .frame(width: 200, height: 200)
+            .overlay {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: isCurrentUser ? .white : .primary))
+
+                    Text("Loading...")
+                        .font(.caption)
+                        .foregroundColor(isCurrentUser ? .white : .secondary)
+                }
+            }
+    }
+
+    /// Error placeholder
+    private var errorPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(isCurrentUser ? Color.white.opacity(0.3) : Color.gray.opacity(0.2))
+            .frame(width: 200, height: 200)
+            .overlay {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(isCurrentUser ? .white : .secondary)
+
+                    Text("Failed to load")
+                        .font(.caption)
+                        .foregroundColor(isCurrentUser ? .white : .secondary)
+                }
+            }
+    }
+
+    /// Loading overlay
+    private var loadingOverlay: some View {
+        ProgressView()
+            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            .scaleEffect(1.5)
+    }
+}
+
+// MARK: - Image Viewer
+
+/// Full-screen image viewer with zoom and dismiss
+struct ImageViewer: View {
+
+    // MARK: - Properties
+
+    let imageURL: String
+    @Binding var isPresented: Bool
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    // MARK: - Body
+
+    var body: some View {
+        ZStack {
+            // Background
+            Color.black.ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }
+
+            // Image
+            if let url = URL(string: imageURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .scaleEffect(scale)
+                            .offset(offset)
+                            .gesture(
+                                SimultaneousGesture(
+                                    magnificationGesture,
+                                    dragGesture
+                                )
+                            )
+                            .onTapGesture(count: 2) {
+                                withAnimation(.spring()) {
+                                    if scale > 1.0 {
+                                        scale = 1.0
+                                        offset = .zero
+                                    } else {
+                                        scale = 2.0
+                                    }
+                                }
+                            }
+
+                    case .failure:
+                        errorView
+
+                    default:
+                        loadingView
+                    }
+                }
+            } else {
+                errorView
+            }
+
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .shadow(radius: 4)
+                    }
+                    .padding()
+                }
+
+                Spacer()
+            }
+        }
+        .transition(.opacity)
+    }
+
+    // MARK: - View Components
+
+    /// Loading view
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                .scaleEffect(1.5)
+
+            Text("Loading image...")
+                .font(.headline)
+                .foregroundColor(.white)
+        }
+    }
+
+    /// Error view
+    private var errorView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 60))
+                .foregroundColor(.white)
+
+            Text("Failed to load image")
+                .font(.headline)
+                .foregroundColor(.white)
+        }
+    }
+
+    // MARK: - Gestures
+
+    /// Magnification gesture for zooming
+    private var magnificationGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let newScale = lastScale * value
+                scale = min(max(newScale, 0.5), 4.0) // Limit zoom range
+            }
+            .onEnded { _ in
+                lastScale = scale
+
+                // Reset if too small
+                if scale < 1.0 {
+                    withAnimation(.spring()) {
+                        scale = 1.0
+                        offset = .zero
+                        lastScale = 1.0
+                        lastOffset = .zero
+                    }
+                }
+            }
+    }
+
+    /// Drag gesture for panning
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                // Only allow dragging when zoomed in
+                if scale > 1.0 {
+                    offset = CGSize(
+                        width: lastOffset.width + value.translation.width,
+                        height: lastOffset.height + value.translation.height
+                    )
+                }
+            }
+            .onEnded { _ in
+                lastOffset = offset
+            }
+    }
+}
+
+// MARK: - Preview
+
+#Preview("Image Message") {
+    ScrollView {
+        VStack(spacing: 20) {
+            // User image message
+            ImageMessageView(
+                imageURL: "https://picsum.photos/400/400?random=1",
+                isCurrentUser: true
+            )
+
+            // Friend image message
+            ImageMessageView(
+                imageURL: "https://picsum.photos/400/400?random=2",
+                isCurrentUser: false
+            )
+
+            // Loading state
+            ImageMessageView(
+                imageURL: "https://example.com/loading.jpg",
+                isCurrentUser: true
+            )
+
+            // Error state
+            ImageMessageView(
+                imageURL: "invalid-url",
+                isCurrentUser: false
+            )
+        }
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Image Viewer") {
+    ImageViewer(
+        imageURL: "https://picsum.photos/800/800?random=3",
+        isPresented: .constant(true)
+    )
+}
+
+#Preview("Dark Mode") {
+    ScrollView {
+        VStack(spacing: 20) {
+            ImageMessageView(
+                imageURL: "https://picsum.photos/400/400?random=4",
+                isCurrentUser: true
+            )
+
+            ImageMessageView(
+                imageURL: "https://picsum.photos/400/400?random=5",
+                isCurrentUser: false
+            )
+        }
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+    .preferredColorScheme(.dark)
+}
