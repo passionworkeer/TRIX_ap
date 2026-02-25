@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import clawbotChannelBridge, {
   CHANNEL_PROTOCOL_MISMATCH,
   type ClawbotChannelMessage,
+  type SocketEvents,
+  type ErrorPayload,
 } from '../services/ClawbotChannelBridge';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import {
@@ -78,12 +80,15 @@ const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
 const THINKING_MAX_MS = 25000;
 
-const resolveChannelErrorMessage = (error: any): string => {
-  if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
-    return CHANNEL_PROTOCOL_MISMATCH_MESSAGE;
+const resolveChannelErrorMessage = (error: unknown): string => {
+  if (typeof error === 'object' && error !== null) {
+    const err = error as { code?: string; message?: string };
+    if (err.code === CHANNEL_PROTOCOL_MISMATCH) {
+      return CHANNEL_PROTOCOL_MISMATCH_MESSAGE;
+    }
+    return err.message || '连接错误';
   }
-
-  return error?.message || '连接错误';
+  return '连接错误';
 };
 
 export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ children }) => {
@@ -330,7 +335,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         setStatus('RECONNECTING');
       });
 
-      clawbotChannelBridge.on('paired', (data: any) => {
+      clawbotChannelBridge.on('paired', (data: SocketEvents['paired']) => {
         setPairingStatus('paired');
         setDeviceId(data.deviceId || '');
         setLastError(null);
@@ -343,14 +348,14 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         enterIdle();
       });
 
-      clawbotChannelBridge.on('bot_offline', (data: any) => {
+      clawbotChannelBridge.on('bot_offline', (data: SocketEvents['bot_offline']) => {
         toast.error(data.message || 'Clawbot 已离线', {
           duration: 5000,
           id: `bot_offline_${data.timestamp}`,
         });
       });
 
-      clawbotChannelBridge.on('bot_online', (data: any) => {
+      clawbotChannelBridge.on('bot_online', (data: SocketEvents['bot_online']) => {
         toast.success(data.message || 'Clawbot 已重新连接', {
           duration: 3000,
           id: `bot_online_${data.timestamp}`,
@@ -379,7 +384,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         }
       });
 
-      clawbotChannelBridge.on('error', (error: any) => {
+      clawbotChannelBridge.on('error', (error: ErrorPayload) => {
         console.error('[ClawbotChannel] 错误:', error);
         const message = resolveChannelErrorMessage(error);
         setStatus('ERROR');
@@ -421,7 +426,17 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             return;
           }
 
-          const missedMessages: ClawbotChannelMessage[] = result.messages.map((msg: any) => ({
+          type MissedMessageResponse = {
+            message_id?: string;
+            timestamp: number;
+            content: string;
+            content_type?: string;
+            media_url?: string;
+            media_mime_type?: string;
+            sender: 'user' | 'bot';
+          };
+
+          const missedMessages: ClawbotChannelMessage[] = result.messages.map((msg: MissedMessageResponse) => ({
             id: msg.message_id || `msg_${msg.timestamp}`,
             content: msg.content,
             contentType: msg.content_type || 'text',
