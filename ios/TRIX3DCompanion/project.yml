@@ -1,0 +1,103 @@
+name: TRIX3DCompanion
+options:
+  bundleIdPrefix: com.trix3d
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: NO
+    INFOPLIST_FILE: Resources/Info.plist
+
+targets:
+  TRIX3DCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Features
+      - path: Shared
+      - path: Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion
+        INFOPLIST_FILE: Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        ENABLE_PREVIEWS: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+
+schemes:
+  TRIX3DCompanion:
+    build:
+      targets:
+        TRIX3DCompanion: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+packages:
+  Supabase:
+    url: https://github.com/supabase-community/supabase-swift.git
+    from: "1.0.0"
+  Alamofire:
+    url: https://github.com/Alamofire/Alamofire.git
+    from: "5.8.0"
+  Starscream:
+    url: https://github.com/daltoniam/Starscream.git
+    from: "4.0.0"
+  Kingfisher:
+    url: https://github.com/onevcat/Kingfisher.git
+    from: "7.10.0"
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess.git
+    from: "4.2.0"
+  SQLite:
+    url: https://github.com/stephencelis/SQLite.swift.git
+    from: "0.14.0"
+  CodeScanner:
+    url: https://github.com/twostraws/CodeScanner.git
+    from: "2.0.0"
+
+targetDependencies:
+  - target: TRIX3DCompanion
+    package: Supabase
+  - target: TRIX3DCompanion
+    package: Alamofire
+  - target: TRIX3DCompanion
+    package: Starscream
+  - target: TRIX3DCompanion
+    package: Kingfisher
+  - target: TRIX3DCompanion
+    package: KeychainAccess
+  - target: TRIX3DCompanion
+    package: SQLite
+  - target: TRIX3DCompanion
+    package: CodeScanner
+
+entitlements:
+  path: TRIX3DCompanion.entitlements
+  properties:
+    aps-environment: development
+    com.apple.developer.applesignin:
+      - Default

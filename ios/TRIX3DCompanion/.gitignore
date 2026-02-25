@@ -1,0 +1,123 @@
+# Xcode
+#
+# Xcode workspace - use a file pattern that embraces your project folder structure
+*.xcworkspace
+
+# Xcode user data
+*.xcuserstate
+*.xcuserdatad
+xcuserdata/
+
+# Xcode automatic schemes
+*.xcscheme
+!default.xcscheme
+
+# Xcode build outputs
+build/
+DerivedData/
+*.build/
+
+# CocoaPods
+#
+# We recommend against adding the Pods directory to your .gitignore. However
+# you should judge for yourself, the typical beginner has been adding Pods
+# for convenience, but it's not recommended for production.
+Pods/
+*.pod
+*.xcodeproj
+
+# Carthage
+#
+# Add this line if you want to avoid checking in source code from Carthage dependencies.
+Carthage/Build
+Carthage/Dependencies
+
+# Swift Package Manager
+#
+# Add this line if you want to have the Swift Package Manager dependencies in source control.
+# Swift Package Manager generates its own folder, called .swiftpm, and its own file, Package.resolved
+.swiftpm/
+Package.resolved
+
+# CocoaPods
+#
+# We recommend against adding the Pods directory to your .gitignore. However
+# you should judge for yourself, the typical beginner has been adding Pods
+# for convenience, but it's not recommended for production.
+# Pods/
+# Add this line if you want to avoid checking in source code from the dependencies.
+# vendor/
+
+# Fastlane
+#
+# It is recommended to not store the screenshots in the git repo. Instead, use Fastlane to re-generate the
+# screenshots whenever they are needed.
+# For more information about the recommended setup visit:
+# https://docs.fastlane.tools/best-practices/source-control/
+
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+**/fastlane/ReadMe.md
+
+# Bundle artifact
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Archives
+*.archive
+
+# Code Signing
+#
+# In most projects, these files should not be checked in. We recommend
+# commenting them out or using a file like .gitignore to exclude them.
+# For the most reliable way to handle code signing, create a dedicated
+# Code Signing file in your project (not in a parent directory).
+# See the Apple documentation for more information:
+# https://developer.apple.com/support/code-signing/
+
+# -- Generated files --
+*.mobileprovision
+
+# -- Other --
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Mac OS X
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.dbp
+Profile
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test results
+test-results/
