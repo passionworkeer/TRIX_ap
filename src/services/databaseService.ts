@@ -32,21 +32,22 @@ function resolveClawbotHistoryStorageKey(userId: string): string {
   return `${CLAWBOT_HISTORY_STORAGE_KEY_PREFIX}:${userId}`;
 }
 
-function normalizeClawbotHistoryMessage(raw: any): ClawbotHistoryMessage | null {
+function normalizeClawbotHistoryMessage(raw: unknown): ClawbotHistoryMessage | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
 
-  const id = typeof raw.id === 'string' ? raw.id.trim() : '';
-  const content = typeof raw.content === 'string' ? raw.content : '';
-  const contentType = raw.contentType;
-  const sender = raw.sender;
-  const timestamp = Number(raw.timestamp);
+  const obj = raw as Record<string, unknown>;
+  const id = typeof obj.id === 'string' ? obj.id.trim() : '';
+  const content = typeof obj.content === 'string' ? obj.content : '';
+  const contentType = obj.contentType;
+  const sender = obj.sender;
+  const timestamp = Number(obj.timestamp);
 
   if (!id || !Number.isFinite(timestamp)) {
     return null;
   }
-  if (!['text', 'image', 'video', 'file', 'mixed'].includes(contentType)) {
+  if (!['text', 'image', 'video', 'file', 'mixed'].includes(contentType as string)) {
     return null;
   }
   if (sender !== 'user' && sender !== 'bot') {
@@ -56,16 +57,16 @@ function normalizeClawbotHistoryMessage(raw: any): ClawbotHistoryMessage | null 
   return {
     id,
     content,
-    contentType,
-    mediaUrl: typeof raw.mediaUrl === 'string' ? raw.mediaUrl : undefined,
+    contentType: contentType as 'text' | 'image' | 'video' | 'file' | 'mixed',
+    mediaUrl: typeof obj.mediaUrl === 'string' ? obj.mediaUrl : undefined,
     mediaMimeType:
-      typeof raw.mediaMimeType === 'string'
-        ? raw.mediaMimeType
-        : typeof raw.media_mime_type === 'string'
-          ? raw.media_mime_type
+      typeof obj.mediaMimeType === 'string'
+        ? obj.mediaMimeType
+        : typeof obj.media_mime_type === 'string'
+          ? obj.media_mime_type
           : undefined,
     timestamp,
-    sender,
+    sender: sender as 'user' | 'bot',
   };
 }
 
@@ -190,8 +191,8 @@ async function getProfilesByIds(userIds: string[]): Promise<Record<string, Profi
   }
 
   const profileMap: Record<string, ProfileLite> = {};
-  data.forEach((profile: any) => {
-    profileMap[profile.id] = profile as ProfileLite;
+  data.forEach((profile: ProfileLite) => {
+    profileMap[profile.id] = profile;
   });
   return profileMap;
 }
@@ -571,7 +572,13 @@ export async function updateFriendStudyStatus(
   try {
     const userId = await getCurrentUserId();
 
-    const updateData: any = {
+    type FriendStudyUpdateData = {
+      is_studying: boolean;
+      updated_at: string;
+      study_time?: number;
+    };
+
+    const updateData: FriendStudyUpdateData = {
       is_studying: isStudying,
       updated_at: new Date().toISOString()
     };
