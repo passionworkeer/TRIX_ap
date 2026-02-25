@@ -4,6 +4,85 @@
 
 ---
 
+## 📅 2026-02-25 - TypeScript 类型安全重构
+
+### 背景
+代码审查发现 47 处 `any` 类型使用，存在类型安全隐患。同时 Logger 工具存在大量重复代码。
+
+### 目标
+消除所有 `any` 类型，提升类型安全性，重构重复代码，并确保所有功能不受影响。
+
+### 完成内容
+
+#### 1. Logger 重构 (批次 1)
+- 使用工厂函数 `createModuleLogger` 消除 80+ 行重复代码
+- 将 `any[]` 改为 `unknown[]` 提升类型安全
+- 保持向后兼容性，所有模块日志正常输出
+
+#### 2. 错误类型改进 (批次 2)
+- 添加 `hasErrorMessage()` 和 `getErrorMessage()` 类型守卫函数
+- 将 11 个组件中的 `catch (error: any)` 改为 `catch (error: unknown)`
+- 确保错误信息安全访问
+
+#### 3. Socket 事件类型定义 (批次 3)
+- 定义 `SocketEvents` 接口规范事件格式
+- 定义 `ErrorPayload` 接口规范错误格式
+- 定义 `EventCallback<T>` 泛型支持多种事件
+- 消除 ClawbotChannelBridge 中的 7 处 `any` 类型
+
+#### 4. databaseService 类型改进 (批次 4)
+- `normalizeClawbotHistoryMessage(raw: any)` 改为 `raw: unknown`
+- 添加内联 `FriendStudyUpdateData` 类型
+- 修复 3 处 `any` 类型
+
+#### 5. ConnectionManager 类型改进 (批次 5)
+- 回调函数参数从 `any` 改为 `unknown`
+- 监听器 Map 类型改进
+- 修复 7 处 `any` 类型
+
+#### 6. ClawbotChannelContext 类型改进 (批次 6)
+- 导入并使用 SocketEvents 和 ErrorPayload 类型
+- 添加内联 `MissedMessageResponse` 类型
+- 修复 6 处 `any` 类型
+
+#### 7. 剩余类型修复 (批次 7)
+- StorageService: `value: any` → `value: unknown`
+- pointsService: `metadata: any` → `metadata: Record<string, unknown>`
+- ChatDetail: `metadata?: any` → `metadata?: Record<string, unknown>`
+- supabase: `avatar_config?: any` → `avatar_config?: Record<string, unknown>`
+- Study: `let interval: any` → `let interval: ReturnType<typeof setInterval> | null`
+
+#### 8. E2E 测试类型改进
+- 将 `browser: any` 改为 `Browser` 类型
+- 将 `page: any` 改为 `Page` 类型
+- 从 `@playwright/test` 导入类型
+
+### 测试覆盖
+- ✅ 115 个单元测试全部通过
+- ✅ 11 个 E2E 测试全部通过
+- ✅ 类型检查无错误
+- ✅ 0 个 `any` 类型残留
+
+### Git 提交记录
+- edc2252: refactor: 重构 Logger 工具消除重复代码
+- b56f7cc: refactor: React 错误类型 any 改为 unknown
+- befab11: refactor: 定义 Socket 事件类型消除 any
+- 7d165dc: refactor: databaseService 类型改进消除 any
+- 239fd9d: refactor: ConnectionManager 类型改进消除 any
+- 0432d17: refactor: ClawbotChannelContext 类型改进消除 any
+- b577390: refactor: 修复剩余 5 处 any 类型
+- 734d202: test: 添加 Playwright E2E 测试
+- 8efb883: test: 添加完整的 E2E 测试套件
+- 7151e15: test: E2E测试类型改进 - 移除any类型
+
+### 质量提升
+- 类型安全性显著提升
+- 代码重复率降低
+- 测试覆盖率提升
+- 为后续大文件拆分奠定基础
+
+---
+
 ## 📅 2026-02-11 - Clawbot 集成优化
 
 ### 背景
