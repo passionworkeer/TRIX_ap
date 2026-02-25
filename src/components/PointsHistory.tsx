@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, History } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface PointTransaction {
   id: string;
@@ -67,7 +68,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
         setTransactions(page === 1 ? data : [...transactions, ...data]);
         setHasMore(data.length === 20);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('加载积分历史失败:', error);
       toast.error('加载失败，请重试');
     } finally {

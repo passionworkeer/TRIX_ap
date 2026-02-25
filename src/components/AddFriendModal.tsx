@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import GlassPanel from './GlassPanel';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface AddFriendModalProps {
   isOpen: boolean;
@@ -27,8 +28,8 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
       await onSend(account.trim());
       setSuccess('好友请求已发送！');
       setAccount('');
-    } catch (e: any) {
-      setError(e.message || '发送失败');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, '发送失败'));
     } finally {
       setLoading(false);
     }

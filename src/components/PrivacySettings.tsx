@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface PrivacySettingsState {
   allow_stranger_search: boolean;
@@ -94,7 +95,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
             allow_study_invites: Boolean(data.allow_study_invites)
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('加载设置失败:', error);
         toast.error('加载设置失败，请重试');
       } finally {
@@ -167,7 +168,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
 
       toast.success('设置已保存');
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('保存设置失败:', error);
       toast.error('保存失败，请重试');
     } finally {

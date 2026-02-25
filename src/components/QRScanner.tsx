@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -69,21 +70,24 @@ const QRScanner: React.FC<QRScannerProps> = ({
 
         setIsScanning(true);
         setError(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[QRScanner] 启动失败:', err);
-        
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+
+        // 类型守卫：检查错误是否具有 name 和 message 属性
+        const error = err as { name?: string; message?: string };
+
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
           setCameraPermission('denied');
           setError('相机权限被拒绝，请在设置中允许访问相机');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
           setError('未检测到相机设备');
-        } else if (err.message && err.message.includes('getUserMedia')) {
+        } else if (error.message && error.message.includes('getUserMedia')) {
           setError('需要使用 HTTPS 访问才能使用相机功能');
         } else {
-          setError('启动相机失败：' + err.message);
+          setError('启动相机失败：' + getErrorMessage(err, '未知错误'));
         }
-        
-        onScanError?.(err.message);
+
+        onScanError?.(getErrorMessage(err, '扫描失败'));
       }
     };
 

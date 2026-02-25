@@ -10,6 +10,7 @@ import {
 } from '../services/databaseService';
 import type { Notification } from '../config/supabase';
 import Avatar from './Avatar';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -68,8 +69,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
       }
 
       await loadNotifications();
-    } catch (error: any) {
-      toast.error(error?.message || '处理好友请求失败');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, '处理好友请求失败'));
     } finally {
       setProcessingId(null);
     }

@@ -329,7 +329,7 @@ export async function uploadFile(
 
     return result;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Upload] Error:', error);
     throw error;
   }
@@ -353,7 +353,7 @@ export async function deleteFile(path: string): Promise<void> {
       console.error('[Delete] Error:', error);
       throw new Error(`删除失败: ${error.message}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Delete] Error:', error);
     throw error;
   }

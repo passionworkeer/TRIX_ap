@@ -7,6 +7,7 @@ import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useCamera } from '../hooks/useCamera';
 import { uploadFile } from '../services/uploadService';
+import { getErrorMessage } from '../utils/errorHandler';
 import {
   PAIRING_REQUIRED_TOAST_MESSAGE,
   PAIRING_REQUIRED_TOAST_OPTIONS
@@ -173,8 +174,8 @@ const Snapshot: React.FC = () => {
           source: 'snapshot',
         },
       });
-    } catch (error: any) {
-      toast.error(error?.message || '上传失败，请重试');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, '上传失败，请重试'));
     } finally {
       setUploading(false);
     }

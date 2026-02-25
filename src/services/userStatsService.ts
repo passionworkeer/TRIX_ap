@@ -74,7 +74,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
       nextLevelPoints,
       pointsToNextLevel
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('获取用户统计数据失败:', error);
     throw error;
   }
@@ -123,7 +123,7 @@ export async function getWeeklyInteractions(userId: string): Promise<number> {
     }
 
     return count || 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('获取本周互动次数失败:', error);
     return 0;
   }

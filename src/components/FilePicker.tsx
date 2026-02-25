@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { ACCEPTED_IMAGE_TYPES, ACCEPTED_VIDEO_TYPES } from '../services/uploadService';
 import { useNotification } from '../hooks/useNotification';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface FilePreview {
   file: File;
@@ -66,8 +67,8 @@ export const FilePicker: React.FC<FilePickerProps> = ({
 
     try {
       await onFileSelect(file);
-    } catch (error: any) {
-      showError(error?.message || '上传失败，请重试');
+    } catch (error: unknown) {
+      showError(getErrorMessage(error, '上传失败，请重试'));
       clearPreview();
     }
   };

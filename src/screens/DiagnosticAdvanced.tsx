@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { getErrorMessage } from '../utils/errorHandler';
 
 export default function DiagnosticAdvanced() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -77,8 +78,8 @@ export default function DiagnosticAdvanced() {
             setTestResult('success');
             setTimeout(() => ws.close(), 1000);
           }
-        } catch (error: any) {
-          log(` 消息解析失败: ${error.message}`);
+        } catch (error: unknown) {
+          log(` 消息解析失败: ${getErrorMessage(error, "Error")}`);
         }
       };
 
@@ -87,8 +88,8 @@ export default function DiagnosticAdvanced() {
         log(' WebSocket 错误!');
         setTestResult('failed');
       };
-    } catch (error: any) {
-      log(` 创建 WebSocket 失败: ${error.message}`);
+    } catch (error: unknown) {
+      log(` 创建 WebSocket 失败: ${getErrorMessage(error, "Error")}`);
       setTestResult('failed');
     }
   };
