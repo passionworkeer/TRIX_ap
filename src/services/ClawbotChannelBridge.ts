@@ -37,7 +37,96 @@ export interface PairingData {
   expiresIn: number;
 }
 
-type EventCallback = (data: any) => void;
+/**
+ * Socket 事件类型定义
+ */
+export interface SocketEvents {
+  // 连接事件
+  connect: void;
+  disconnect: void;
+  reconnecting: { attempt: number };
+
+  // 配对事件
+  pairing_success: { deviceId: string; deviceName: string };
+  unpaired: void;
+
+  // 消息事件
+  bot_message: {
+    content: string;
+    contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed';
+    mediaUrl?: string;
+    mediaMimeType?: string;
+    timestamp: number;
+  };
+  message_sent: { messageId: string; timestamp: number };
+
+  // Bot 状态事件
+  bot_online: { deviceId: string; message: string; timestamp: number };
+  bot_offline: { deviceId: string; message: string; timestamp: number };
+
+  // 自习室事件
+  study_room_state: StudyRoomStateEvent;
+
+  // 错误事件
+  error: ErrorPayload;
+}
+
+/**
+ * Socket 事件名称类型
+ */
+export type SocketEventName = keyof SocketEvents;
+
+/**
+ * Socket 事件 Payload 类型映射
+ */
+export type SocketEventPayload<T extends SocketEventName> = SocketEvents[T];
+
+/**
+ * 错误载荷类型
+ */
+export interface ErrorPayload {
+  code?: string;
+  message: string;
+}
+
+/**
+ * Socket.IO 响应类型
+ */
+export interface SocketResponse {
+  success: boolean;
+  paired?: boolean;
+  error?: string;
+  deviceId?: string;
+  deviceName?: string;
+  message?: string;
+}
+
+/**
+ * 错误对象类型（用于 Socket.IO 错误处理）
+ */
+export interface SocketError {
+  code?: string;
+  message: string;
+  description?: string;
+  context?: unknown;
+}
+
+/**
+ * Socket 事件回调类型（使用泛型支持不同事件类型）
+ */
+type EventCallback<T = unknown> = (data: T) => void;
+
+/**
+ * 类型守卫：检查是否为 SocketResponse
+ */
+function isSocketResponse(data: unknown): data is SocketResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'success' in data &&
+    typeof (data as SocketResponse).success === 'boolean'
+  );
+}
 
 export const CHANNEL_PROTOCOL_MISMATCH = 'CHANNEL_PROTOCOL_MISMATCH';
 
@@ -90,7 +179,7 @@ class ClawbotChannelBridge {
   /**
    * Emit event
    */
-  private emit(event: string, data?: any): void {
+  private emit<T extends SocketEventName>(event: T, data?: SocketEventPayload<T>): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => {
@@ -275,7 +364,7 @@ class ClawbotChannelBridge {
     });
 
     // 閿欒
-    this.socket.on('error', (err: any) => {
+    this.socket.on('error', (err: unknown) => {
       console.error('[ClawbotChannel] 閿欒:', err);
       this.emit('error', this.toErrorPayload(err, '杩炴帴閿欒'));
     });
@@ -288,11 +377,12 @@ class ClawbotChannelBridge {
     });
   }
 
-  private toErrorPayload(error: any, fallbackMessage: string): { code?: string; message: string } {
+  private toErrorPayload(error: unknown, fallbackMessage: string): ErrorPayload {
     if (error && typeof error === 'object') {
+      const err = error as Partial<SocketError>;
       return {
-        code: error.code,
-        message: error.message || fallbackMessage
+        code: err.code,
+        message: err.message || fallbackMessage
       };
     }
 
@@ -332,7 +422,7 @@ class ClawbotChannelBridge {
         });
       }, timeoutMs);
 
-      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: any) => {
+      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: unknown) => {
         if (settled) {
           return;
         }
@@ -340,14 +430,7 @@ class ClawbotChannelBridge {
         clearTimeout(timeout);
         settled = true;
 
-        const hasExpectedShape = Boolean(
-          response &&
-          typeof response === 'object' &&
-          (Object.prototype.hasOwnProperty.call(response, 'success') ||
-            Object.prototype.hasOwnProperty.call(response, 'paired'))
-        );
-
-        if (!hasExpectedShape) {
+        if (!isSocketResponse(response)) {
           reject({
             code: CHANNEL_PROTOCOL_MISMATCH,
             message: 'Channel protocol probe failed: ACK payload format is invalid.'
@@ -387,7 +470,7 @@ class ClawbotChannelBridge {
       // UI 层应监听 'sync_missed_messages' 事件并从 Supabase 拉取最新消息
       console.log('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.connected = false;
       this.stopHeartbeat();
       this.emit('error', this.toErrorPayload(error, 'Channel protocol mismatch'));
@@ -452,10 +535,10 @@ class ClawbotChannelBridge {
         reject(new Error('check_pairing_status timeout'));
       }, 8000);
 
-      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: any) => {
+      this.socket.emit('check_pairing_status', { userId: this.userId }, (response: unknown) => {
         clearTimeout(timeout);
 
-        if (!response?.success) {
+        if (!isSocketResponse(response) || !response.success) {
           this.paired = false;
           this.deviceId = null;
           localStorage.removeItem('clawbot_paired');
@@ -465,7 +548,7 @@ class ClawbotChannelBridge {
         }
 
         const data = response.data || response;
-        const paired = Boolean(data?.paired);
+        const paired = Boolean((data as { paired?: boolean })?.paired);
 
         if (paired) {
           this.paired = true;
@@ -509,7 +592,12 @@ class ClawbotChannelBridge {
         return;
       }
 
-      this.socket.emit('pair_with_code', { code: code.toUpperCase(), userId: this.userId }, (response: any) => {
+      this.socket.emit('pair_with_code', { code: code.toUpperCase(), userId: this.userId }, (response: unknown) => {
+        if (!isSocketResponse(response)) {
+          reject(new Error('Invalid response from server'));
+          return;
+        }
+
         if (response.success) {
           resolve({
             success: true,
@@ -538,7 +626,12 @@ class ClawbotChannelBridge {
         return;
       }
 
-      this.socket.emit('pair_with_token', { token, userId: this.userId }, (response: any) => {
+      this.socket.emit('pair_with_token', { token, userId: this.userId }, (response: unknown) => {
+        if (!isSocketResponse(response)) {
+          reject(new Error('Invalid response from server'));
+          return;
+        }
+
         if (response.success) {
           resolve({
             success: true,
