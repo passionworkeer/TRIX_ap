@@ -1,10 +1,10 @@
-import { test, expect, chromium } from '@playwright/test';
+import { test, expect, chromium, type Browser, type Page } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:5173';
 
 test.describe('TRIX 3D Companion - 完整 E2E 测试套件', () => {
-  let browser: any;
-  let page: any;
+  let browser: Browser;
+  let page: Page;
   const consoleErrors: string[] = [];
 
   test.beforeEach(async () => {
