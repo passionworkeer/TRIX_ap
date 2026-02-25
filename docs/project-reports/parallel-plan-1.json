@@ -1,0 +1,827 @@
+{
+  "meta": {
+    "title": "TRIX 3D Companion - 并行执行计划 1",
+    "version": "1.0",
+    "created_at": "2026-02-25",
+    "author": "架构师 Agent",
+    "project_phase": "MVP 后期优化阶段",
+    "overall_completion": 0.92
+  },
+  "project_status": {
+    "core_features_completion": "92%",
+    "code_quality": "75%",
+    "security_score": "60%",
+    "test_coverage": "10%",
+    "documentation_completeness": "80%"
+  },
+  "current_functionality": {
+    "completed_features": [
+      {
+        "name": "三层布局 + 沉浸式首页",
+        "completion": 100,
+        "status": "completed"
+      },
+      {
+        "name": "AI 对话 (WebSocket)",
+        "completion": 95,
+        "status": "needs_security_fix"
+      },
+      {
+        "name": "扫码配对",
+        "completion": 100,
+        "status": "completed"
+      },
+      {
+        "name": "好友系统",
+        "completion": 90,
+        "status": "needs_improvement"
+      },
+      {
+        "name": "实时聊天",
+        "completion": 90,
+        "status": "needs_improvement"
+      },
+      {
+        "name": "学习计时器 (番茄钟)",
+        "completion": 95,
+        "status": "needs_optimization"
+      },
+      {
+        "name": "双向自习 (Study Room V2)",
+        "completion": 70,
+        "status": "in_development"
+      },
+      {
+        "name": "结算弹窗",
+        "completion": 100,
+        "status": "completed"
+      },
+      {
+        "name": "TTS 语音",
+        "completion": 95,
+        "status": "needs_optimization"
+      },
+      {
+        "name": "地图功能",
+        "completion": 60,
+        "status": "using_mock"
+      },
+      {
+        "name": "通知系统",
+        "completion": 85,
+        "status": "needs_improvement"
+      }
+    ],
+    "database_tables": 13,
+    "frontend_files": 91,
+    "backend_files": 12,
+    "documentation_files": 15
+  },
+  "p0_tasks": [
+    {
+      "id": "P0-1",
+      "name": "Socket 握手 JWT 鉴权",
+      "priority": "critical",
+      "category": "security",
+      "estimated_hours": 4,
+      "description": "在 Clawbot Channel Server 的 WebSocket 连接建立时，强制验证 Supabase JWT Token，防止身份伪造攻击",
+      "user_value": [
+        "安全性: 防止恶意用户冒充他人身份",
+        "信任: 保障用户数据隐私和通信安全"
+      ],
+      "technical_solution": {
+        "file": "server/clawbot-channel/server.js",
+        "implementation": "io.use() 中间件验证 JWT Token",
+        "code_reference": "使用 Supabase auth.getUser() 验证 Token"
+      },
+      "dependencies": [],
+      "risks": [
+        {
+          "type": "技术风险",
+          "level": "中",
+          "description": "需测试多种 Token 过期场景"
+        }
+      ],
+      "acceptance_criteria": [
+        "Socket 连接必须提供有效 JWT Token",
+        "Token 过期时拒绝连接",
+        "验证失败时返回明确错误信息"
+      ]
+    },
+    {
+      "id": "P0-2",
+      "name": "Webhook 鉴权空值检查",
+      "priority": "critical",
+      "category": "security",
+      "estimated_hours": 1,
+      "description": "修复 Webhook 回调鉴权逻辑，当 CLAWBOT_WEBHOOK_SECRET 未配置时拒绝处理请求",
+      "user_value": [
+        "防止伪造 Bot 回调注入恶意消息"
+      ],
+      "technical_solution": {
+        "file": "server/clawbot-channel/server.js",
+        "implementation": "启动时强制校验配置",
+        "code_reference": "if (!process.env.CLAWBOT_WEBHOOK_SECRET) throw Error"
+      },
+      "dependencies": ["P0-3"],
+      "risks": [
+        {
+          "type": "技术风险",
+          "level": "低",
+          "description": "简单的空值检查，风险很低"
+        }
+      ],
+      "acceptance_criteria": [
+        "启动时缺少密钥配置则抛出错误",
+        "Webhook 请求验证签名",
+        "无效签名返回 401"
+      ]
+    },
+    {
+      "id": "P0-3",
+      "name": "轮换泄露密钥 + Git 清理",
+      "priority": "critical",
+      "category": "security",
+      "estimated_hours": 2,
+      "description": "轮换已暴露在 Git 仓库中的敏感密钥，并从 Git 历史中彻底清理",
+      "user_value": [
+        "消除安全风险",
+        "符合合规要求"
+      ],
+      "technical_solution": {
+        "tools": ["git-filter-repo"],
+        "implementation": "清理 .env 和 data/ 目录历史",
+        "affected_secrets": [
+          "CLAWBOT_WEBHOOK_SECRET",
+          "OSS_ACCESS_KEY_ID",
+          "OSS_ACCESS_KEY_SECRET",
+          "VITE_GATEWAY_AUTH_TOKEN"
+        ]
+      },
+      "dependencies": [],
+      "risks": [
+        {
+          "type": "技术风险",
+          "level": "高",
+          "description": "需谨慎操作 Git 历史，可能破坏仓库"
+        }
+      ],
+      "acceptance_criteria": [
+        "所有泄露密钥已轮换",
+        "Git 历史中无敏感信息",
+        ".gitignore 已更新"
+      ]
+    },
+    {
+      "id": "P0-4",
+      "name": "SQLite 数据文件迁移",
+      "priority": "critical",
+      "category": "security",
+      "estimated_hours": 1,
+      "description": "将运行时数据库文件从版本控制中移除，并迁移到项目外部目录",
+      "user_value": [
+        "防止用户/设备数据泄露",
+        "避免环境间数据串扰"
+      ],
+      "technical_solution": {
+        "file": "server/clawbot-channel/server.js",
+        "implementation": "迁移到用户目录 ~/.trix-companion/data",
+        "code_reference": "使用 path.join(os.homedir(), '.trix-companion', 'data')"
+      },
+      "dependencies": ["P0-3"],
+      "risks": [
+        {
+          "type": "技术风险",
+          "level": "低",
+          "description": "简单的路径迁移"
+        }
+      ],
+      "acceptance_criteria": [
+        "数据库文件不在版本控制中",
+        "数据文件存储在用户目录",
+        "自动创建目录结构"
+      ]
+    },
+    {
+      "id": "P0-5",
+      "name": "自习室 V2 房间状态同步",
+      "priority": "critical",
+      "category": "feature",
+      "estimated_hours": 24,
+      "description": "完成自习室 V2 的核心功能 - 房间状态实时同步，包括 StudyRoomContext 状态管理、本地计时器与房间状态联动、房主控制权限控制、断线降级策略",
+      "user_value": [
+        "多人同时自习，状态实时同步",
+        "房主可统一控制专注/休息",
+        "良好的离线体验"
+      ],
+      "technical_solution": {
+        "new_files": [
+          "src/contexts/StudyRoomContext.tsx"
+        ],
+        "modified_files": [
+          "src/screens/Study.tsx",
+          "src/components/StudyRoom.tsx",
+          "src/components/StudyBuddiesList.tsx",
+          "src/features/study/components/TimerView.tsx"
+        ],
+        "implementation_phases": [
+          {
+            "phase": 1,
+            "name": "状态管理层搭建",
+            "duration_hours": 8,
+            "tasks": [
+              "创建 StudyRoomContext",
+              "实现状态管理逻辑",
+              "封装房间操作方法",
+              "添加 WebSocket 事件监听"
+            ]
+          },
+          {
+            "phase": 2,
+            "name": "UI 组件集成",
+            "duration_hours": 8,
+            "tasks": [
+              "添加房间状态指示器",
+              "添加邀请功能按钮",
+              "添加房间码复制功能",
+              "添加一键加入按钮"
+            ]
+          },
+          {
+            "phase": 3,
+            "name": "本地计时器联动",
+            "duration_hours": 4,
+            "tasks": [
+              "修改 handleStartFocus 检查权限",
+              "修改 handleStopFocus 同步状态",
+              "添加 WebSocket 事件驱动控制",
+              "实现断线降级策略"
+            ]
+          },
+          {
+            "phase": 4,
+            "name": "数据持久化与清理",
+            "duration_hours": 4,
+            "tasks": [
+              "添加 current_room_code 字段",
+              "实现 Supabase 数据同步",
+              "处理 beforeunload 事件",
+              "添加房间状态恢复逻辑"
+            ]
+          }
+        ]
+      },
+      "dependencies": ["P0-1"],
+      "risks": [
+        {
+          "type": "技术风险",
+          "level": "中",
+          "description": "需处理多种竞态条件"
+        }
+      ],
+      "acceptance_criteria": [
+        "用户可以创建房间并邀请好友",
+        "可以通过房间码或好友列表加入房间",
+        "房主控制状态时所有成员计时器同步",
+        "非房主无法独立控制计时器",
+        "网络断开时本地计时器继续运行",
+        "重连后状态自动同步",
+        "刷新页面后房间状态恢复",
+        "关闭浏览器后自动清理房间状态"
+      ]
+    }
+  ],
+  "p1_tasks": [
+    {
+      "id": "P1-1",
+      "name": "配对状态原子化流程",
+      "priority": "high",
+      "category": "feature",
+      "estimated_hours": 2,
+      "dependencies": ["P0-1"],
+      "description": "确保配对流程的原子性，避免中间状态"
+    },
+    {
+      "id": "P1-2",
+      "name": "消息确认链路修复",
+      "priority": "high",
+      "category": "feature",
+      "estimated_hours": 2,
+      "dependencies": [],
+      "description": "修复消息发送确认机制"
+    },
+    {
+      "id": "P1-3",
+      "name": "sendMessage Promise 化",
+      "priority": "high",
+      "category": "refactor",
+      "estimated_hours": 2,
+      "dependencies": [],
+      "description": "将 sendMessage 改造为 Promise 接口"
+    },
+    {
+      "id": "P1-4",
+      "name": "OSS 接口鉴权",
+      "priority": "high",
+      "category": "security",
+      "estimated_hours": 3,
+      "dependencies": ["P0-1"],
+      "description": "为 OSS 接口添加适当的鉴权机制"
+    },
+    {
+      "id": "P1-5",
+      "name": "数据库脚本统一",
+      "priority": "high",
+      "category": "maintenance",
+      "estimated_hours": 3,
+      "dependencies": [],
+      "description": "统一数据库迁移脚本管理"
+    },
+    {
+      "id": "P1-6",
+      "name": "测试基础设施修复",
+      "priority": "high",
+      "category": "testing",
+      "estimated_hours": 8,
+      "dependencies": [],
+      "description": "修复 Vitest 配置和后端测试运行器，建立测试 CI/CD"
+    },
+    {
+      "id": "P1-7",
+      "name": "自习室 V2 邀请功能",
+      "priority": "high",
+      "category": "feature",
+      "estimated_hours": 16,
+      "dependencies": ["P0-5"],
+      "description": "实现房间成员邀请功能"
+    },
+    {
+      "id": "P1-8",
+      "name": "自习室 V2 房间码复制",
+      "priority": "high",
+      "category": "feature",
+      "estimated_hours": 4,
+      "dependencies": ["P0-5"],
+      "description": "实现房间码一键复制功能"
+    }
+  ],
+  "p2_tasks": [
+    {
+      "id": "P2-1",
+      "name": "配对接口限流",
+      "priority": "medium",
+      "category": "security",
+      "estimated_hours": 2,
+      "dependencies": ["P1-4"]
+    },
+    {
+      "id": "P2-2",
+      "name": "QR 配对密钥优化",
+      "priority": "medium",
+      "category": "optimization",
+      "estimated_hours": 2,
+      "dependencies": []
+    },
+    {
+      "id": "P2-3",
+      "name": "前端包体积优化",
+      "priority": "medium",
+      "category": "performance",
+      "estimated_hours": 4,
+      "dependencies": [],
+      "target": "从 1204 KB 优化到 < 800 KB"
+    },
+    {
+      "id": "P2-4",
+      "name": "PWA 离线支持",
+      "priority": "medium",
+      "category": "feature",
+      "estimated_hours": 24,
+      "dependencies": []
+    },
+    {
+      "id": "P2-5",
+      "name": "推送通知 (Web Push)",
+      "priority": "medium",
+      "category": "feature",
+      "estimated_hours": 24,
+      "dependencies": ["P2-4"]
+    },
+    {
+      "id": "P2-6",
+      "name": "专注度分析 (AI)",
+      "priority": "medium",
+      "category": "ai_feature",
+      "estimated_hours": 40,
+      "dependencies": ["P1-6"],
+      "description": "基于学习行为数据生成专注度评分和趋势分析"
+    },
+    {
+      "id": "P2-7",
+      "name": "学习报告生成 (AI)",
+      "priority": "medium",
+      "category": "ai_feature",
+      "estimated_hours": 40,
+      "dependencies": ["P2-6"],
+      "description": "自动生成周报和月报，提供可操作建议"
+    },
+    {
+      "id": "P2-8",
+      "name": "AI 目标设定与追踪",
+      "priority": "medium",
+      "category": "ai_feature",
+      "estimated_hours": 40,
+      "dependencies": ["P2-6"],
+      "description": "AI 辅助目标设定、追踪和调整"
+    }
+  ],
+  "technical_debt": {
+    "must_refactor": [
+      {
+        "item": "硬编码 API URL",
+        "location": "ClawbotChannelContext.tsx",
+        "severity": "high",
+        "solution": "提取到配置文件"
+      },
+      {
+        "item": "中文注释乱码",
+        "location": "databaseService.ts 多处",
+        "severity": "low",
+        "solution": "统一 UTF-8"
+      },
+      {
+        "item": "localStorage 滥用",
+        "location": "Clawbot 历史存储",
+        "severity": "medium",
+        "solution": "迁移到 IndexedDB"
+      },
+      {
+        "item": "轮询 + Realtime 冗余",
+        "location": "Study.tsx",
+        "severity": "medium",
+        "solution": "统一使用 Realtime"
+      }
+    ],
+    "performance_optimization": [
+      {
+        "item": "前端包体积",
+        "location": "dist/assets/index-*.js",
+        "current": "1204 KB",
+        "target": "< 800 KB"
+      },
+      {
+        "item": "WebSocket 延迟",
+        "location": "ClawbotChannelBridge",
+        "current": "< 500ms",
+        "target": "< 200ms"
+      },
+      {
+        "item": "数据库查询",
+        "location": "study_sessions",
+        "current": "无索引",
+        "target": "添加复合索引"
+      },
+      {
+        "item": "图片加载",
+        "location": "Avatar 组件",
+        "current": "无优化",
+        "target": "懒加载 + WebP"
+      }
+    ],
+    "test_coverage": [
+      {
+        "type": "单元测试",
+        "current": "10%",
+        "target": "80%",
+        "key_files": ["services/", "components/"]
+      },
+      {
+        "type": "集成测试",
+        "current": "0%",
+        "target": "50%",
+        "key_files": ["API", "DB"]
+      },
+      {
+        "type": "E2E 测试",
+        "current": "Smoke",
+        "target": "核心流程",
+        "key_files": ["配对", "聊天", "学习"]
+      },
+      {
+        "type": "安全测试",
+        "current": "0%",
+        "target": "100%",
+        "key_files": ["鉴权", "输入验证"]
+      }
+    ]
+  },
+  "implementation_roadmap": [
+    {
+      "phase": 1,
+      "name": "安全修复 (Week 1)",
+      "tasks": ["P0-3", "P0-4", "P0-2", "P0-1"],
+      "schedule": {
+        "Day 1-2": "P0-3 密钥轮换 + Git 清理",
+        "Day 3": "P0-4 SQLite 数据迁移",
+        "Day 4": "P0-2 Webhook 鉴权修复",
+        "Day 5": "P0-1 Socket JWT 鉴权"
+      },
+      "acceptance_criteria": [
+        "所有 P0 安全问题已修复",
+        "无敏感信息泄露风险",
+        "现有功能正常运行"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "核心功能完善 (Week 2-3)",
+      "tasks": ["P0-5", "P1-1", "P1-2", "P1-3", "P1-4"],
+      "schedule": {
+        "Week 2": "P0-5 自习室 V2 房间状态同步 (Phase 1-4)",
+        "Week 3": "P1-1 到 P1-4 功能修复"
+      },
+      "acceptance_criteria": [
+        "自习室 V2 多人同步功能可用",
+        "消息发送失败正确处理",
+        "OSS 接口安全"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "质量提升 (Week 4)",
+      "tasks": ["P1-6", "P2-3", "P2-1"],
+      "schedule": {
+        "Week 4": "测试基础设施修复 + 前端包体积优化 + 配对接口限流"
+      },
+      "acceptance_criteria": [
+        "单元测试覆盖率 > 50%",
+        "核心流程 E2E 测试通过",
+        "前端性能达标"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "功能迭代 (Week 5+)",
+      "tasks": ["P2-4", "P2-5", "P2-6", "P2-7", "P2-8", "P1-7", "P1-8"],
+      "schedule": {
+        "Week 5-6": "PWA 离线支持 + Web Push 通知 + 初步 AI 功能",
+        "Week 7+": "高级 AI 功能 + 自习室 V2 增强"
+      },
+      "acceptance_criteria": [
+        "PWA 功能可用",
+        "AI 基础功能上线",
+        "自习室邀请功能完成"
+      ]
+    }
+  ],
+  "resource_estimation": {
+    "total_p0_hours": 32,
+    "total_p1_hours": 40,
+    "total_p2_hours": 176,
+    "total_hours": 248,
+    "estimated_weeks": 7,
+    "team_structure": {
+      "frontend_developer": {
+        "allocation": "60%",
+        "focus_areas": ["UI 组件", "状态管理", "性能优化"]
+      },
+      "backend_developer": {
+        "allocation": "30%",
+        "focus_areas": ["API 安全", "WebSocket 服务", "数据库优化"]
+      },
+      "qa_engineer": {
+        "allocation": "10%",
+        "focus_areas": ["测试框架", "E2E 测试", "安全测试"]
+      }
+    }
+  },
+  "risk_assessment": {
+    "technical_risks": [
+      {
+        "risk": "Socket 鉴权导致现有连接中断",
+        "impact": "high",
+        "probability": "medium",
+        "mitigation": "渐进式部署，后向兼容"
+      },
+      {
+        "risk": "Git 历史清理导致仓库损坏",
+        "impact": "high",
+        "probability": "low",
+        "mitigation": "完整备份，先在副本测试"
+      },
+      {
+        "risk": "房间状态同步竞态条件",
+        "impact": "medium",
+        "probability": "medium",
+        "mitigation": "使用版本号乐观锁"
+      },
+      {
+        "risk": "AI 功能 API 成本超支",
+        "impact": "high",
+        "probability": "medium",
+        "mitigation": "设置请求限额，基础版无 AI"
+      }
+    ],
+    "time_risks": [
+      {
+        "risk": "P0 安全问题修复延迟",
+        "impact": "high",
+        "mitigation": "优先处理，每日进度同步"
+      },
+      {
+        "risk": "测试基础设施修复复杂",
+        "impact": "medium",
+        "mitigation": "预留额外 50% 时间"
+      },
+      {
+        "risk": "AI 功能迭代周期长",
+        "impact": "medium",
+        "mitigation": "MVP 定义最小可用功能"
+      }
+    ],
+    "resource_risks": [
+      {
+        "risk": "密钥轮换需要外部协调",
+        "impact": "high",
+        "mitigation": "提前沟通，准备备用方案"
+      },
+      {
+        "risk": "AI 服务商选择不确定",
+        "impact": "medium",
+        "mitigation": "评估多个供应商，准备降级方案"
+      }
+    ]
+  },
+  "success_metrics": {
+    "technical_metrics": [
+      {
+        "metric": "测试覆盖率",
+        "target": "> 80%",
+        "measurement": "Vitest + Playwright"
+      },
+      {
+        "metric": "API 响应时间",
+        "target": "< 500ms (p95)",
+        "measurement": "日志监控"
+      },
+      {
+        "metric": "前端性能",
+        "target": "LCP < 2.5s",
+        "measurement": "Lighthouse"
+      },
+      {
+        "metric": "错误率",
+        "target": "< 0.1%",
+        "measurement": "错误跟踪"
+      },
+      {
+        "metric": "数据库查询时间",
+        "target": "< 100ms (p95)",
+        "measurement": "慢查询日志"
+      }
+    ],
+    "business_metrics": [
+      {
+        "metric": "DAU 留存率",
+        "baseline": "35%",
+        "target": "45%",
+        "measurement_period": "30 天"
+      },
+      {
+        "metric": "平均学习时长",
+        "baseline": "25min",
+        "target": "35min",
+        "measurement_period": "7 天"
+      },
+      {
+        "metric": "Premium 功能使用率",
+        "baseline": "-",
+        "target": "15%",
+        "measurement_period": "30 天"
+      },
+      {
+        "metric": "用户满意度",
+        "baseline": "-",
+        "target": "4.2/5",
+        "measurement_period": "问卷调研"
+      },
+      {
+        "metric": "AI 报告打开率",
+        "baseline": "-",
+        "target": "60%",
+        "measurement_period": "埋点统计"
+      }
+    ],
+    "quality_metrics": [
+      {
+        "metric": "P0 安全问题",
+        "target": 0,
+        "verification": "安全审计"
+      },
+      {
+        "metric": "P1 功能缺陷",
+        "target": "< 3",
+        "verification": "Bug 跟踪"
+      },
+      {
+        "metric": "文档完整性",
+        "target": "100%",
+        "verification": "文档审查"
+      }
+    ]
+  },
+  "next_actions": {
+    "immediate": [
+      "确认 P0 安全问题修复优先级",
+      "备份当前 Git 仓库",
+      "准备密钥轮换方案",
+      "通知相关方维护窗口"
+    ],
+    "this_week": [
+      "完成 P0-3: 密钥轮换 + Git 清理",
+      "完成 P0-4: SQLite 数据迁移",
+      "开始 P0-2: Webhook 鉴权修复"
+    ],
+    "acceptance_checkpoints": [
+      "无敏感信息在 Git 仓库中",
+      "数据库文件在版本控制外",
+      "Socket 连接验证 JWT",
+      "Webhook 拒绝空配置"
+    ]
+  },
+  "related_documents": [
+    {
+      "name": "docs/FEATURES.md",
+      "description": "现有功能文档"
+    },
+    {
+      "name": "docs/study-room-v2-upgrade-blueprint.md",
+      "description": "自习室 V2 详细蓝图"
+    },
+    {
+      "name": "docs/project-reports/AI_COMPANION_SYSTEM_DECISION.md",
+      "description": "AI companion 系统决策"
+    },
+    {
+      "name": "docs/project-reports/PROJECT_AUDIT_P0123_2026-02-22.md",
+      "description": "项目审计报告"
+    },
+    {
+      "name": "docs/project-reports/SECURITY_AUDIT_MVP_2026-02-22.md",
+      "description": "安全审计报告"
+    },
+    {
+      "name": "docs/project-reports/NEXT_FEATURES_PLAN.md",
+      "description": "下一步功能计划"
+    }
+  ],
+  "memory_records": {
+    "entities_to_create": [
+      {
+        "name": "TRIX_3D_Companion_Project",
+        "entityType": "project",
+        "observations": [
+          "项目阶段: MVP 后期优化阶段 (92% 完成度)",
+          "技术栈: React 19 + TypeScript + Vite 6 + Supabase",
+          "核心功能: AI对话、社交、学习计时、语音交互、扫码配对",
+          "P0 安全问题: Socket握手鉴权、Webhook鉴权、密钥泄露、数据库文件暴露",
+          "下一步重点: 安全修复 → 自习室V2 → 测试基础设施 → AI功能"
+        ]
+      },
+      {
+        "name": "Study_Room_V2_Architecture",
+        "entityType": "feature_architecture",
+        "observations": [
+          "核心组件: StudyRoomContext 状态管理",
+          "通信方式: Socket.IO WebSocket 实时推送",
+          "降级策略: 断线时本地计时器独立运行",
+          "权限控制: 房主可控制房间状态，成员跟随",
+          "数据同步: WebSocket + Supabase 双写"
+        ]
+      },
+      {
+        "name": "Security_Improvement_Plan_2026",
+        "entityType": "security_plan",
+        "observations": [
+          "P0-1: Socket 握手 JWT 鉴权 (4h)",
+          "P0-2: Webhook 鉴权空值检查 (1h)",
+          "P0-3: 轮换泄露密钥 + Git 清理 (2h)",
+          "P0-4: SQLite 数据文件迁移 (1h)",
+          "当前安全评分: 60/100 (中等风险)"
+        ]
+      }
+    ],
+    "relations_to_create": [
+      {
+        "from": "TRIX_3D_Companion_Project",
+        "relationType": "has_critical_feature",
+        "to": "Study_Room_V2_Architecture"
+      },
+      {
+        "from": "TRIX_3D_Companion_Project",
+        "relationType": "requires_immediate_action",
+        "to": "Security_Improvement_Plan_2026"
+      }
+    ]
+  }
+}
