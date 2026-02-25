@@ -50,9 +50,11 @@ final class DatabaseManager {
 
     private let sessionId = Expression<String>("id")
     private let sessionUserId = Expression<String>("user_id")
-    private let sessionDuration = Expression<Int>("duration_minutes")
+    private let sessionSubject = Expression<String?>("subject")
+    private let sessionDuration = Expression<Int>("duration")
     private let sessionStartedAt = Expression<Date>("started_at")
-    private let sessionCompletedAt = Expression<Date?>("completed_at")
+    private let sessionEndedAt = Expression<Date?>("ended_at")
+    private let sessionNotes = Expression<String?>("notes")
     private let sessionEarnedPoints = Expression<Int?>("earned_points")
     private let sessionIsCompleted = Expression<Bool>("is_completed")
     private let sessionSynced = Expression<Bool>("synced")
@@ -158,9 +160,11 @@ final class DatabaseManager {
             try db?.run(studySessionsTable.create(ifNotExists: true) { t in
                 t.column(sessionId, primaryKey: true)
                 t.column(sessionUserId)
+                t.column(sessionSubject)
                 t.column(sessionDuration)
                 t.column(sessionStartedAt)
-                t.column(sessionCompletedAt)
+                t.column(sessionEndedAt)
+                t.column(sessionNotes)
                 t.column(sessionEarnedPoints)
                 t.column(sessionIsCompleted, defaultValue: false)
                 t.column(sessionSynced, defaultValue: false)
@@ -349,8 +353,8 @@ final class DatabaseManager {
             roomId <- room.id,
             roomName <- room.name,
             roomType <- room.type.rawValue,
-            roomLastMessage <- room.lastMessage?.content,
-            roomLastMessageAt <- room.lastMessage?.createdAt,
+            roomLastMessage <- room.lastMessage?.text,
+            roomLastMessageAt <- room.lastMessage?.timestamp,
             roomUnreadCount <- room.unreadCount,
             roomUpdatedAt <- room.updatedAt
         )
@@ -386,7 +390,7 @@ final class DatabaseManager {
                 id: row[roomId],
                 name: row[roomName],
                 type: ChatRoomType(rawValue: row[roomType]) ?? .ai,
-                participants: [], // 需要从服务器获取
+                participants: nil, // 需要从服务器获取
                 lastMessage: nil, // 简化处理
                 unreadCount: row[roomUnreadCount],
                 createdAt: Date(), // 简化处理
@@ -434,9 +438,11 @@ final class DatabaseManager {
         let insert = studySessionsTable.insert(or: .replace,
             sessionId <- session.id,
             sessionUserId <- session.userId,
-            sessionDuration <- session.durationMinutes,
+            sessionSubject <- session.subject,
+            sessionDuration <- session.duration,
             sessionStartedAt <- session.startedAt,
-            sessionCompletedAt <- session.completedAt,
+            sessionEndedAt <- session.endedAt,
+            sessionNotes <- session.notes,
             sessionEarnedPoints <- session.earnedPoints,
             sessionIsCompleted <- session.isCompleted,
             sessionSynced <- false
@@ -458,11 +464,14 @@ final class DatabaseManager {
             let session = StudySession(
                 id: row[sessionId],
                 userId: row[sessionUserId],
-                durationMinutes: row[sessionDuration],
+                subject: row[sessionSubject],
+                duration: row[sessionDuration],
                 startedAt: row[sessionStartedAt],
-                completedAt: row[sessionCompletedAt],
+                endedAt: row[sessionEndedAt],
+                notes: row[sessionNotes],
                 earnedPoints: row[sessionEarnedPoints],
-                isCompleted: row[sessionIsCompleted]
+                isCompleted: row[sessionIsCompleted],
+                createdAt: row[sessionStartedAt]
             )
             sessions.append(session)
         }
