@@ -63,9 +63,9 @@ struct ContentView: View {
     private var backgroundView: some View {
         LinearGradient(
             colors: [
-                Color.purple.opacity(0.3),
-                Color.pink.opacity(0.2),
-                Color.blue.opacity(0.1)
+                Color.brandPurple.opacity(0.3),
+                Color.brandPink.opacity(0.2),
+                Color.info.opacity(0.1)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -190,8 +190,8 @@ struct ContentViewWithLoading: View {
     private var backgroundView: some View {
         LinearGradient(
             colors: [
-                Color.purple.opacity(0.3),
-                Color.pink.opacity(0.2)
+                Color.brandPurple.opacity(0.3),
+                Color.brandPink.opacity(0.2)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -206,8 +206,8 @@ struct ContentViewWithLoading: View {
                 .tint(.white)
 
             Text("Loading...")
-                .font(.headline)
-                .foregroundColor(.white)
+                .font(.headlineStyle)
+                .foregroundStyle(.white)
         }
         .padding(40)
         .background(.ultraThinMaterial)
