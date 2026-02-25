@@ -15,11 +15,13 @@ struct ChatListView: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var chatService: ChatService
 
     // MARK: - State
 
     @State private var searchText = ""
     @State private var isSearching = false
+    @State private var selectedConversation: ChatConversation?
 
     // MARK: - Sample Data
 
@@ -132,11 +134,10 @@ struct ChatListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(filteredConversations) { conversation in
-                    ConversationRow(conversation: conversation)
-                        .onTapGesture {
-                            openConversation(conversation)
-                        }
-                        .contentShape(Rectangle())
+                    NavigationLink(destination: ChatDetailView(conversation: conversation)) {
+                        ConversationRow(conversation: conversation)
+                    }
+                    .buttonStyle(.plain)
 
                     if conversation.id != filteredConversations.last?.id {
                         Divider()
@@ -187,11 +188,6 @@ struct ChatListView: View {
     private func createNewChat() {
         // TODO: Implement new chat creation
         print("Create new chat")
-    }
-
-    private func openConversation(_ conversation: ChatConversation) {
-        // TODO: Implement conversation opening
-        print("Open conversation: \(conversation.name)")
     }
 }
 
@@ -295,6 +291,7 @@ struct ChatConversation: Identifiable {
 #Preview("Chat List") {
     ChatListView()
         .environmentObject(AppState.shared)
+        .environmentObject(ChatService.shared)
 }
 
 #Preview("Conversation Row") {
