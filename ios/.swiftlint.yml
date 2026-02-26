@@ -1,0 +1,106 @@
+# SwiftLint Configuration for TRIX 3D Companion
+
+# 规则配置
+disabled_rules:
+  - trailing_whitespace
+
+# 优化规则
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - explicit_init
+  - first_where
+  - sorted_last_then_by
+  - redundant_nil_coalescing
+  - contains_over_first_not_nil
+  - fallthrough
+  - fatal_error_message
+  - multiline_parameters
+  - unneeded_parentheses_in_closure_argument
+  - redundant_void_return
+  - operator_usage_whitespace
+  - closure_end_indentation
+
+# 排除文件/目录
+excluded:
+  - .build
+  - DerivedData
+  - Packages
+  - TRIX3DCompanion.xcodeproj
+  - TRIX3DCompanion.xcworkspace
+  - "**/*.xcodeproj"
+  - "**/*.xcworkspace"
+  - "**/DerivedData/**"
+  - "**/.build/**"
+
+# 自定义规则配置
+custom_rules:
+  # 打印语句规则
+  print_debug:
+    name: "Debug Print"
+    regex: "print\\("
+    capture_named_group: 1
+    message: "使用 SecureLogger 替代 print()"
+    severity: warning
+
+  # 日志脱敏规则
+  sensitive_logging:
+    name: "Sensitive Data Logging"
+    regex: "(password|token|secret|key)\\s*="
+    message: "确保日志不包含敏感信息"
+    severity: warning
+
+# 行长度限制
+line_length:
+  warning: 120
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+# 函数长度限制
+function_body_length:
+  warning: 50
+  error: 100
+
+# 类型长度限制
+type_body_length:
+  warning: 300
+  error: 500
+
+# 文件长度限制
+file_length:
+  warning: 500
+  error: 800
+  ignore_comment_only_lines: true
+
+# 类型名称规则
+type_name:
+  min_length: 3
+  max_length: 50
+  excluded:
+    - ID
+    - URL
+    - JSON
+    - API
+
+# 标识符名称规则
+identifier_name:
+  min_length: 1
+  max_length: 60
+  excluded:
+    - id
+    - x
+    - y
+    - z
+
+# 闭合源规则
+closure_signature_spacing:
+  min_empty_closure_lines: 1
+  max_empty_closure_lines: 1
+
+# 多行参数规则
+multiline_parameters:
+  min_arrow_binding_space: 2
+
+# 报告类型
+reporter: "xcode"
