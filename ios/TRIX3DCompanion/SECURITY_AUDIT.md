@@ -333,7 +333,7 @@ All privacy permissions are properly justified with clear descriptions.
 | ID | Issue | Severity | Recommendation | Status |
 |----|-------|----------|----------------|--------|
 | M-001 | Common password list too small | Medium | Expand to 10,000+ entries | ✅ **COMPLETED** (2026-02-26) - Expanded to 500+ entries |
-| M-002 | UserDefaults for pairing state | Medium | Move to Keychain | Pending |
+| M-002 | UserDefaults for pairing state | Medium | Move to Keychain | ✅ **COMPLETED** (2026-02-26) - Migrated to Keychain with data migration support |
 | M-003 | No certificate pinning | Medium | Implement for API endpoints | Pending |
 | M-004 | Device ID uses UUID | Medium | Consider cryptographic random | Pending |
 
@@ -356,14 +356,12 @@ All privacy permissions are properly justified with clear descriptions.
    - Includes: numeric sequences, keyboard patterns, common words, names, gaming terms, sports teams
    - Updated test coverage in SecurityAuditTests.swift
 
-2. **Move Pairing State to Keychain**
-   ```swift
-   // Change from UserDefaults
-   UserDefaults.standard.set(true, forKey: "clawbot_paired")
-
-   // To Keychain
-   try keychain.set("true", key: "clawbot_paired")
-   ```
+2. ~~**Move Pairing State to Keychain**~~ ✅ **COMPLETED (2026-02-26)**
+   - Migrated `clawbot_paired` and `clawbot_device_id` from UserDefaults to Keychain
+   - Updated `PairingService` to use `KeychainManager` instead of `UserDefaultsManager`
+   - Updated `WebSocketManager` to save/remove paired devices via `KeychainManager`
+   - Implemented `migratePairingDataFromUserDefaults()` for one-time data migration
+   - Added comprehensive error handling with `SecureLogger`
 
 3. **Implement Certificate Pinning**
    ```swift

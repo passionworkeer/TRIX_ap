@@ -647,8 +647,13 @@ final class WebSocketManager: NSObject {
             }
 
         case "unpaired":
-            UserDefaults.standard.removeObject(forKey: "clawbot_paired")
-            UserDefaults.standard.removeObject(forKey: "clawbot_device_id")
+            // Remove from Keychain (secure storage)
+            do {
+                try KeychainManager.shared.removePairedDevice()
+                SecureLogger.shared.info("Paired device removed from Keychain")
+            } catch {
+                SecureLogger.shared.error("Failed to remove paired device from Keychain: \(error.localizedDescription)")
+            }
             emit(.unpaired)
 
         case "bot_message":
