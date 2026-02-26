@@ -452,27 +452,28 @@ struct SettingsRow: View {
 /// Modal view for editing profile
 struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
+
+    @State private var displayName: String = ""
+    @State private var bio: String = ""
+    @State private var school: String = ""
+    @State private var grade: String = ""
+    @State private var isSaving = false
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                Text("Edit Profile")
-                    .font(.title2)
-                    .fontWeight(.bold)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Avatar section
+                    avatarSection
 
-                Text("Update your profile information")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                // TODO: Add form fields
-                Spacer()
-
-                Text("Profile editing coming soon...")
-                    .foregroundColor(.secondary)
-
-                Spacer()
+                    // Form fields
+                    formSection
+                }
+                .padding()
             }
-            .padding()
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -484,12 +485,166 @@ struct EditProfileView: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        // TODO: Implement save
-                        dismiss()
+                        saveProfile()
                     }
                     .fontWeight(.semibold)
                     .foregroundColor(.purple)
+                    .disabled(isSaving)
                 }
+            }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
+            .onAppear {
+                loadCurrentProfile()
+            }
+        }
+    }
+
+    // MARK: - Avatar Section
+
+    private var avatarSection: some View {
+        VStack(spacing: 12) {
+            // Avatar
+            AsyncImage(url: appState.avatarURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.purple, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        Text(String(displayName.prefix(1)).uppercased())
+                            .font(.system(size: 30))
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                    }
+            }
+            .frame(width: 80, height: 80)
+            .clipShape(Circle())
+            .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
+
+            Button("Change Photo") {
+                // Would open photo picker
+            }
+            .font(.subheadline)
+            .foregroundColor(.purple)
+        }
+        .padding(.top, 20)
+    }
+
+    // MARK: - Form Section
+
+    private var formSection: some View {
+        VStack(spacing: 16) {
+            // Display Name
+            FormField(label: "Display Name", text: $displayName, placeholder: "Enter your name")
+
+            // Bio
+            FormField(label: "Bio", text: $bio, placeholder: "Tell us about yourself", isMultiline: true)
+
+            // School
+            FormField(label: "School", text: $school, placeholder: "Your school or university")
+
+            // Grade
+            FormField(label: "Grade/Year", text: $grade, placeholder: "e.g., Grade 10, Year 2")
+        }
+    }
+
+    // MARK: - Actions
+
+    private func loadCurrentProfile() {
+        displayName = appState.displayName
+        // Load other profile fields from user model
+        if let user = appState.currentUser {
+            bio = user.bio ?? ""
+            school = user.school ?? ""
+            grade = user.grade ?? ""
+        }
+    }
+
+    private func saveProfile() {
+        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            errorMessage = "Display name cannot be empty"
+            showError = true
+            return
+        }
+
+        isSaving = true
+
+        Task {
+            do {
+                // Call API to update profile
+                // let _: ProfileUpdateResponse = try await apiClient.request(
+                //     .PUT,
+                //     endpoint: "/users/profile",
+                //     body: ProfileUpdateRequest(
+                //         displayName: displayName,
+                //         bio: bio,
+                //         school: school,
+                //         grade: grade
+                //     )
+                // )
+
+                // Update local state
+                await MainActor.run {
+                    appState.displayName = displayName
+                    isSaving = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isSaving = false
+                    errorMessage = "Failed to save profile. Please try again."
+                    showError = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Form Field Component
+
+struct FormField: View {
+    let label: String
+    @Binding var text: String
+    let placeholder: String
+    var isMultiline: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+
+            if isMultiline {
+                TextEditor(text: $text)
+                    .frame(minHeight: 80)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.systemGray4), lineWidth: 1)
+                    )
+            } else {
+                TextField(placeholder, text: $text)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.systemGray4), lineWidth: 1)
+                    )
             }
         }
     }

@@ -83,6 +83,15 @@ final class APIClient {
     // MARK: - Public Methods
 
     /// Perform GET request
+    ///
+    /// Sends a GET request to the specified API endpoint with optional query parameters.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to request
+    ///   - parameters: Optional query parameters to include in the request
+    ///   - headers: Optional custom HTTP headers
+    /// - Returns: Decoded response of type T
+    /// - Throws: NetworkError if the request fails
     func get<T: Codable>(
         _ endpoint: APIEndpoint,
         parameters: Parameters? = nil,
@@ -97,6 +106,16 @@ final class APIClient {
     }
 
     /// Perform POST request
+    ///
+    /// Sends a POST request to the specified API endpoint with optional body content.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to request
+    ///   - parameters: Optional query parameters to include in the request
+    ///   - body: Optional request body to encode as JSON
+    ///   - headers: Optional custom HTTP headers
+    /// - Returns: Decoded response of type T
+    /// - Throws: NetworkError if the request fails
     func post<T: Codable>(
         _ endpoint: APIEndpoint,
         parameters: Parameters? = nil,
@@ -113,6 +132,16 @@ final class APIClient {
     }
 
     /// Perform PUT request
+    ///
+    /// Sends a PUT request to the specified API endpoint with optional body content.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to request
+    ///   - parameters: Optional query parameters to include in the request
+    ///   - body: Optional request body to encode as JSON
+    ///   - headers: Optional custom HTTP headers
+    /// - Returns: Decoded response of type T
+    /// - Throws: NetworkError if the request fails
     func put<T: Codable>(
         _ endpoint: APIEndpoint,
         parameters: Parameters? = nil,
@@ -129,6 +158,15 @@ final class APIClient {
     }
 
     /// Perform DELETE request
+    ///
+    /// Sends a DELETE request to the specified API endpoint.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to request
+    ///   - parameters: Optional query parameters to include in the request
+    ///   - headers: Optional custom HTTP headers
+    /// - Returns: Decoded response of type T
+    /// - Throws: NetworkError if the request fails
     func delete<T: Codable>(
         _ endpoint: APIEndpoint,
         parameters: Parameters? = nil,
@@ -143,6 +181,16 @@ final class APIClient {
     }
 
     /// Perform PATCH request
+    ///
+    /// Sends a PATCH request to the specified API endpoint with optional body content.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The API endpoint to request
+    ///   - parameters: Optional query parameters to include in the request
+    ///   - body: Optional request body to encode as JSON
+    ///   - headers: Optional custom HTTP headers
+    /// - Returns: Decoded response of type T
+    /// - Throws: NetworkError if the request fails
     func patch<T: Codable>(
         _ endpoint: APIEndpoint,
         parameters: Parameters? = nil,
@@ -386,6 +434,15 @@ extension APIClient {
             mediaMimeType: nil
         )
         return try await post(.chatRoomMessagesSend(roomId: roomId), body: request)
+    }
+
+    /// Mark a message as read
+    /// - Parameters:
+    ///   - roomId: The room ID
+    ///   - messageId: The message ID to mark as read
+    func markMessageAsRead(roomId: String, messageId: String) async throws {
+        let request = MarkAsReadRequest(messageId: messageId)
+        let _: EmptyResponse = try await post(.chatRoomMessagesRead(roomId: roomId), body: request)
     }
 
     // MARK: - Study

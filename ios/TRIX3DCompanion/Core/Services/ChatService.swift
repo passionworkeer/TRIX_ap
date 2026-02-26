@@ -410,10 +410,19 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             }
         }
 
-        // TODO: Implement API call to mark as read on server
-        // This would require adding an API endpoint for read status
-
-        return .success(())
+        // Call API to mark as read on server
+        do {
+            try await apiClient.markMessageAsRead(roomId: roomId, messageId: messageId)
+            return .success(())
+        } catch let error as NetworkError {
+            let chatError = mapNetworkError(error)
+            lastError = chatError
+            return .failure(chatError)
+        } catch {
+            let chatError = ChatError.unknown(underlying: error)
+            lastError = chatError
+            return .failure(chatError)
+        }
     }
 
     /// Mark all messages in a room as read

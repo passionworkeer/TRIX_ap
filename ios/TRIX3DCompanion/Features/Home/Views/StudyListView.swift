@@ -413,30 +413,38 @@ struct StatBox: View {
 /// Modal view for creating a new study room
 struct CreateStudyRoomView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
+
+    @State private var roomName: String = ""
+    @State private var subject: String = ""
+    @State private var description: String = ""
+    @State private var maxParticipants: Int = 10
+    @State private var duration: Int = 60
+    @State private var isPrivate: Bool = false
+    @State private var isCreating = false
+    @State private var showError = false
+    @State private var errorMessage = ""
+
+    private let subjects = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Computer Science", "Other"]
+    private let durations = [30, 45, 60, 90, 120, 180]
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                // Form content
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Create Study Room")
-                        .font(.title2)
-                        .fontWeight(.bold)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    headerSection
 
-                    Text("Set up a new study room and invite others to join")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    // Form fields
+                    formSection
+
+                    // Settings section
+                    settingsSection
+
+                    // Create button
+                    createButton
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-
-                // TODO: Add form fields
-                Spacer()
-
-                Text("Form fields coming soon...")
-                    .foregroundColor(.secondary)
-
-                Spacer()
             }
             .navigationTitle("New Room")
             .navigationBarTitleDisplayMode(.inline)
@@ -446,14 +454,194 @@ struct CreateStudyRoomView: View {
                         dismiss()
                     }
                 }
+            }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
+        }
+    }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create") {
-                        // TODO: Implement room creation
-                        dismiss()
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Create Study Room")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("Set up a new study room and invite others to join")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Form Section
+
+    private var formSection: some View {
+        VStack(spacing: 16) {
+            // Room Name
+            FormField(
+                label: "Room Name",
+                text: $roomName,
+                placeholder: "e.g., Calculus Study Group"
+            )
+
+            // Subject Picker
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Subject")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Picker("Subject", selection: $subject) {
+                    ForEach(subjects, id: \.self) { subject in
+                        Text(subject).tag(subject)
                     }
-                    .fontWeight(.semibold)
-                    .foregroundColor(.purple)
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(.systemGray4), lineWidth: 1)
+                )
+            }
+
+            // Description
+            FormField(
+                label: "Description (optional)",
+                text: $description,
+                placeholder: "What will you be studying?",
+                isMultiline: true
+            )
+        }
+    }
+
+    // MARK: - Settings Section
+
+    private var settingsSection: some View {
+        VStack(spacing: 16) {
+            // Max Participants
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Max Participants: \(maxParticipants)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Slider(value: Binding(
+                    get: { Double(maxParticipants) },
+                    set: { maxParticipants = Int($0) }
+                ), in: 2...50, step: 1)
+                .tint(.purple)
+            }
+
+            // Duration Picker
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Session Duration")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Picker("Duration", selection: $duration) {
+                    ForEach(durations, id: \.self) { dur in
+                        Text("\(dur) min").tag(dur)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            // Private Room Toggle
+            Toggle(isOn: $isPrivate) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Private Room")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Text("Only invited users can join")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .tint(.purple)
+            .padding()
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    // MARK: - Actions
+
+    private var createButton: some View {
+        Button(action: createRoom) {
+            HStack {
+                if isCreating {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Create Room")
+                }
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+                LinearGradient(
+                    colors: [.purple, .pink],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .disabled(isCreating || !isFormValid)
+        .opacity(isFormValid ? 1 : 0.6)
+    }
+
+    private var isFormValid: Bool {
+        !roomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !subject.isEmpty
+    }
+
+    private func createRoom() {
+        guard isFormValid else { return }
+
+        isCreating = true
+
+        Task {
+            do {
+                // Call API to create room
+                // let response: CreateRoomResponse = try await apiClient.request(
+                //     .POST,
+                //     endpoint: "/study/rooms",
+                //     body: CreateRoomRequest(
+                //         name: roomName,
+                //         subject: subject,
+                //         description: description,
+                //         maxParticipants: maxParticipants,
+                //         duration: duration,
+                //         isPrivate: isPrivate
+                //     )
+                // )
+
+                // Simulate API call
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+
+                await MainActor.run {
+                    isCreating = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isCreating = false
+                    errorMessage = "Failed to create room. Please try again."
+                    showError = true
                 }
             }
         }
