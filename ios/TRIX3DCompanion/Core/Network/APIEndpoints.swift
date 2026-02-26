@@ -7,16 +7,49 @@
 
 import Foundation
 
+/// Configuration for API security settings
+/// IMPORTANT: Production builds MUST use HTTPS/WSS
+enum APISecurityConfig {
+    /// Force HTTPS in production (always true - security requirement)
+    /// Setting this to false in production is a security violation
+    static let forceHTTPSInProduction: Bool = true
+
+    /// Allow insecure connections in development only
+    /// WARNING: Never set to true in production builds
+    #if DEBUG
+    static let allowInsecureInDev: Bool = true
+    #else
+    static let allowInsecureInDev: Bool = false
+    #endif
+}
+
 /// Base URL for the API
 enum APIBaseURL {
-    static let development = "http://47.243.55.130:8765"
-    static let production = "https://api.trix3d.com" // To be configured
+    // MARK: - Production (Always HTTPS - Security Requirement)
+    /// Production API base URL - MUST use HTTPS
+    static let production = "https://api.trix3d.com"
+
+    // MARK: - Development
+    /// Development API base URL - uses HTTPS when security is enabled
+    /// For local development, use http://localhost:8765 or configure your dev server with HTTPS
+    static let development: String = {
+        #if DEBUG
+        if APISecurityConfig.allowInsecureInDev {
+            // Only for local development convenience - NOT for production use
+            return "http://47.243.55.130:8765"
+        }
+        #endif
+        // Default to HTTPS for security
+        return "https://api.trix3d.com"
+    }()
 
     /// Current base URL based on build configuration
+    /// Production builds ALWAYS use HTTPS
     static var current: String {
         #if DEBUG
         return development
         #else
+        // Production - enforce HTTPS regardless of configuration
         return production
         #endif
     }
@@ -24,13 +57,30 @@ enum APIBaseURL {
 
 /// WebSocket URL
 enum WebSocketURL {
-    static let development = "ws://47.243.55.130:8765"
-    static let production = "wss://api.trix3d.com" // To be configured
+    // MARK: - Production (Always WSS - Security Requirement)
+    /// Production WebSocket URL - MUST use WSS (WebSocket Secure)
+    static let production = "wss://api.trix3d.com"
 
+    // MARK: - Development
+    /// Development WebSocket URL - uses WSS when security is enabled
+    static let development: String = {
+        #if DEBUG
+        if APISecurityConfig.allowInsecureInDev {
+            // Only for local development convenience - NOT for production use
+            return "ws://47.243.55.130:8765"
+        }
+        #endif
+        // Default to WSS for security
+        return "wss://api.trix3d.com"
+    }()
+
+    /// Current WebSocket URL based on build configuration
+    /// Production builds ALWAYS use WSS
     static var current: String {
         #if DEBUG
         return development
         #else
+        // Production - enforce WSS regardless of configuration
         return production
         #endif
     }
@@ -60,7 +110,10 @@ enum APIEndpoint {
 
     // MARK: - Study
     case studySessions
-    case studySession(id: String)
+    /// Update a study session (PUT /study/sessions/:id)
+    case updateStudySession(id: String)
+    /// Delete a study session (DELETE /study/sessions/:id)
+    case deleteStudySession(id: String)
     case studyStats
 
     // MARK: - Study Room
@@ -117,7 +170,8 @@ enum APIEndpoint {
 
         // Study
         case .studySessions: return "/study/sessions"
-        case .studySession(let id): return "/study/sessions/\(id)"
+        case .updateStudySession(let id): return "/study/sessions/\(id)"
+        case .deleteStudySession(let id): return "/study/sessions/\(id)"
         case .studyStats: return "/study/stats"
 
         // Study Room
@@ -164,7 +218,7 @@ enum APIEndpoint {
              .upload, .uploadBase64, .chatRoomMessagesSend:
             return .post
 
-        case .userUpdateProfile, .studySession(let id), .pairingDevice:
+        case .userUpdateProfile, .updateStudySession, .pairingDevice:
             // For update operations
             return .put
 
@@ -177,7 +231,7 @@ enum APIEndpoint {
              .snapshots, .snapshot:
             return .get
 
-        case .studySession(_):
+        case .deleteStudySession:
             // For delete operations
             return .delete
         }

@@ -52,6 +52,9 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     /// 照片捕获的continuation
     private var photoContinuation: CheckedContinuation<UIImage, Error>?
 
+    /// 超时任务，用于在成功时取消
+    private var timeoutTask: Task<Void, Never>?
+
     /// 权限状态
     private var permissionStatus: AVAuthorizationStatus = .notDetermined
 
@@ -245,17 +248,24 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
 
             photoOutput.capturePhoto(with: settings, delegate: self)
 
-            // 设置超时 (10秒)
-            Task {
+            // 设置超时任务 (10秒) - 保存引用以便在成功时取消
+            // 修复：防止 continuation 被调用两次导致崩溃
+            self.timeoutTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
-                if let cont = self.photoContinuation {
-                    self.photoContinuation = nil
-                    let error = CameraError.captureFailed(NSError(
-                        domain: "CameraService",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "Capture timeout"]
-                    ))
-                    cont.resume(throwing: error)
+
+                // 只有在任务未被取消且 continuation 仍然存在时才处理超时
+                guard !Task.isCancelled else { return }
+
+                await MainActor.run {
+                    if let cont = self?.photoContinuation {
+                        self?.photoContinuation = nil
+                        let error = CameraError.captureFailed(NSError(
+                            domain: "CameraService",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Capture timeout"]
+                        ))
+                        cont.resume(throwing: error)
+                    }
                 }
             }
         }
@@ -352,6 +362,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         // 处理错误
         if let error = error {
             Task { @MainActor in
+                // 修复：先取消超时任务，防止双重 continuation 调用
+                self.timeoutTask?.cancel()
+                self.timeoutTask = nil
+
                 self.photoContinuation?.resume(throwing: CameraError.captureFailed(error))
                 self.photoContinuation = nil
                 self.lastError = .captureFailed(error)
@@ -362,6 +376,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         // 获取图像数据
         guard let imageData = photo.fileDataRepresentation() else {
             Task { @MainActor in
+                // 修复：先取消超时任务，防止双重 continuation 调用
+                self.timeoutTask?.cancel()
+                self.timeoutTask = nil
+
                 self.photoContinuation?.resume(throwing: CameraError.captureFailed(
                     NSError(
                         domain: "CameraService",
@@ -382,6 +400,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         // 创建 UIImage
         guard let image = UIImage(data: imageData) else {
             Task { @MainActor in
+                // 修复：先取消超时任务，防止双重 continuation 调用
+                self.timeoutTask?.cancel()
+                self.timeoutTask = nil
+
                 self.photoContinuation?.resume(throwing: CameraError.captureFailed(
                     NSError(
                         domain: "CameraService",
@@ -401,6 +423,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
 
         // 返回成功结果
         Task { @MainActor in
+            // 修复：先取消超时任务，防止双重 continuation 调用
+            self.timeoutTask?.cancel()
+            self.timeoutTask = nil
+
             self.photoContinuation?.resume(returning: image)
             self.photoContinuation = nil
         }
