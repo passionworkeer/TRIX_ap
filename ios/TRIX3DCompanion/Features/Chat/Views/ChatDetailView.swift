@@ -122,7 +122,7 @@ struct ChatDetailView: View {
                         loadMoreButton
                     }
 
-                    // Messages
+                    // Messages (with pagination support)
                     ForEach(chatService.messages) { message in
                         MessageCell(
                             message: message,

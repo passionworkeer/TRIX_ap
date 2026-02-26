@@ -67,6 +67,9 @@ final class MapViewModel: ObservableObject {
     /// Search radius in meters
     private let searchRadius: Double = 5000
 
+    /// Clustering distance in meters (for coordinate aggregation)
+    private let clusteringDistance: Double = 50 // 50m clustering distance
+
     // MARK: - Initialization
 
     /// Initialize MapViewModel

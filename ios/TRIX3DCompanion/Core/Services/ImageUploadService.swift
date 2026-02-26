@@ -182,21 +182,45 @@ final class ImageUploadService: ObservableObject {
         }
     }
 
-    /// 上传多张图片
+    /// 上传多张图片（并发上传）
     /// - Parameters:
     ///   - images: 图片数组
     ///   - quality: 压缩质量
-    /// - Returns: 上传结果数组
+    /// - Returns: 上传结果数组（保持原始顺序）
     func uploadImages(_ images: [UIImage], quality: CGFloat? = nil) async -> [UploadResult] {
-        var results: [UploadResult] = []
+        guard !images.isEmpty else { return [] }
 
-        for (index, image) in images.enumerated() {
-            let result = await uploadImage(image, quality: quality)
-            results.append(result)
-            uploadProgress = Double(index + 1) / Double(images.count)
+        // 初始化结果数组（按原始索引顺序）
+        var results: [UploadResult?] = Array(repeating: nil, count: images.count)
+
+        // 使用 TaskGroup 进行并发上传（最多3个并发）
+        await withTaskGroup(of: (Int, UploadResult).self) { group in
+            for (index, image) in images.enumerated() {
+                // 限制并发数为3
+                if index >= 3 {
+                    // 等待至少一个任务完成
+                    if let (completedIndex, result) = await group.next() {
+                        results[completedIndex] = result
+                        uploadProgress = Double(completedIndex + 1) / Double(images.count)
+                    }
+                }
+
+                // 添加新的上传任务
+                group.addTask {
+                    let result = await self.uploadImage(image, quality: quality)
+                    return (index, result)
+                }
+            }
+
+            // 收集剩余的结果
+            await group.waitForAll()
+            for await (index, result) in group {
+                results[index] = result
+            }
         }
 
-        return results
+        // 转换为非可选类型
+        return results.compactMap { $0 }
     }
 
     /// 压缩图片
