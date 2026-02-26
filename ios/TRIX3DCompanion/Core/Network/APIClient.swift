@@ -140,12 +140,12 @@ final class APIClient {
         let url = baseURL + endpoint.path
         var requestHeaders = headers ?? HTTPHeaders()
 
-        // Add authorization header if required
-        if endpoint.requiresAuth {
-            if let token = AuthManager.shared.accessToken {
-                requestHeaders.add(.authorization(bearerToken: token))
-            }
-        }
+        // NOTE: Authorization header is now handled automatically by AuthInterceptor
+        // We no longer manually add it here to avoid conflicts with the interceptor
+        // The interceptor will:
+        // 1. Add Bearer token to requests automatically via adapt()
+        // 2. Handle 401 responses by refreshing the token via retry()
+        // 3. Retry the request with the new token
 
         // Add content type for body requests
         if body != nil {
@@ -153,7 +153,7 @@ final class APIClient {
         }
 
         // Build request
-        let request =AF.request(
+        let request = AF.request(
             url,
             method: Alamofire.HTTPMethod(rawValue: method.rawValue),
             parameters: parameters,
@@ -216,6 +216,7 @@ final class APIClient {
 // MARK: - Auth Manager (Token Management)
 
 /// Manager for authentication tokens
+/// Note: This is a local wrapper. For full token management, use AuthService
 final class AuthManager {
     static let shared = AuthManager()
 
@@ -224,23 +225,23 @@ final class AuthManager {
     private init() {}
 
     var accessToken: String? {
-        get { keychain.get(key: "accessToken") }
+        get { keychain.getAccessToken() }
         set {
             if let value = newValue {
-                keychain.set(key: "accessToken", value: value)
+                try? keychain.saveAccessToken(value)
             } else {
-                keychain.delete(key: "accessToken")
+                try? keychain.deleteAccessToken()
             }
         }
     }
 
     var refreshToken: String? {
-        get { keychain.get(key: "refreshToken") }
+        get { keychain.getRefreshToken() }
         set {
             if let value = newValue {
-                keychain.set(key: "refreshToken", value: value)
+                try? keychain.saveRefreshToken(value)
             } else {
-                keychain.delete(key: "refreshToken")
+                try? keychain.deleteRefreshToken()
             }
         }
     }
@@ -252,65 +253,6 @@ final class AuthManager {
     func clearTokens() {
         accessToken = nil
         refreshToken = nil
-    }
-}
-
-// MARK: - Keychain Manager
-
-/// Simple keychain wrapper for storing sensitive data
-final class KeychainManager {
-    static let shared = KeychainManager()
-
-    private let serviceName = "com.trix3d.companion"
-
-    private init() {}
-
-    func set(key: String, value: String) {
-        guard let data = value.data(using: .utf8) else { return }
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data
-        ]
-
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
-
-        // Add new item
-        SecItemAdd(query as CFDictionary, nil)
-    }
-
-    func get(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-
-        return value
-    }
-
-    func delete(key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key
-        ]
-
-        SecItemDelete(query as CFDictionary)
     }
 }
 
