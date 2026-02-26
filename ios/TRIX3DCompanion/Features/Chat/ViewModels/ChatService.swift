@@ -258,7 +258,20 @@ final class ChatService: ObservableObject {
 
     /// Mark messages as read
     func markAsRead() {
-        // TODO: Implement mark as read API call
+        guard let conversationId = currentConversation?.id else { return }
+
+        Task {
+            do {
+                // Find the last unread message
+                let lastMessage = messages.last
+                try await apiClient.markMessageAsRead(
+                    roomId: conversationId,
+                    messageId: lastMessage?.id ?? ""
+                )
+            } catch {
+                SecureLogger.shared.error("Failed to mark messages as read: \(error)")
+            }
+        }
     }
 
     // MARK: - Private Methods

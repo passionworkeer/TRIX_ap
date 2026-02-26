@@ -107,6 +107,7 @@ enum APIEndpoint {
     case chatRoom(id: String)
     case chatRoomMessages(roomId: String)
     case chatRoomMessagesSend(roomId: String)
+    case chatRoomMessagesRead(roomId: String)
 
     // MARK: - Study
     case studySessions
@@ -179,6 +180,7 @@ enum APIEndpoint {
         case .chatRoom(let id): return "/chat/rooms/\(id)"
         case .chatRoomMessages(let roomId): return "/chat/rooms/\(roomId)/messages"
         case .chatRoomMessagesSend(let roomId): return "/chat/rooms/\(roomId)/messages"
+        case .chatRoomMessagesRead(let roomId): return "/chat/rooms/\(roomId)/messages/read"
 
         // Study
         case .studySessions: return "/study/sessions"
@@ -398,6 +400,10 @@ struct SendMessageRequest: Codable {
     let contentType: MessageType
     let mediaUrl: String?
     let mediaMimeType: String?
+}
+
+struct MarkAsReadRequest: Codable {
+    let messageId: String
 }
 
 // MARK: - Study

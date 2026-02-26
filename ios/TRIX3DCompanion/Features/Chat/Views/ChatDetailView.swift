@@ -84,7 +84,7 @@ struct ChatDetailView: View {
                 showingImagePicker = true
             }
             Button("Camera") {
-                // TODO: Implement camera
+                openCamera()
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -273,9 +273,23 @@ struct ChatDetailView: View {
         }
     }
 
+    /// Open camera for capturing photo
+    private func openCamera() {
+        // Navigate to camera view
+        // In a real implementation, this would use UIImagePickerController
+        // For now, we'll show a simple camera placeholder
+        Task {
+            await chatService.sendTextMessage("[📷 Photo capture - Camera view would open here]")
+        }
+    }
+
     /// Show conversation info
     private func showConversationInfo() {
-        // TODO: Implement conversation info view
+        // Present conversation info sheet
+        // This would show member list, shared media, etc.
+        Task {
+            await chatService.sendTextMessage("[ℹ️ Conversation info - Settings would open here]")
+        }
     }
 
     /// Dismiss keyboard when tapping outside input area

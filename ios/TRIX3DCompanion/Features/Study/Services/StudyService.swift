@@ -93,80 +93,168 @@ final class StudyService: StudyServiceProtocol {
 
     /// 加入学习房间
     func joinRoom(_ roomCode: String) async throws {
-        // TODO: Implement API call
-        // For now, simulate success
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        do {
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/join"
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     /// 离开学习房间
     func leaveRoom(_ roomCode: String) async throws {
-        // TODO: Implement API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/leave"
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     // MARK: - Session Management
 
     /// 开始专注会话
     func startFocusSession(roomCode: String, duration: Int) async throws {
-        // TODO: Implement API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let request = StartSessionRequest(duration: duration)
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/sessions/start",
+                body: request
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     /// 暂停会话
     func pauseSession(roomCode: String) async throws {
-        // TODO: Implement API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/sessions/pause"
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     /// 恢复会话
     func resumeSession(roomCode: String) async throws {
-        // TODO: Implement API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/sessions/resume"
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     /// 结束会话
     func endSession(roomCode: String) async throws {
-        // TODO: Implement API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let _: EmptyResponse = try await apiClient.request(
+                .POST,
+                endpoint: "/study/rooms/\(roomCode)/sessions/end"
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     // MARK: - Statistics
 
     /// 获取学习统计
     func getStudyStats(timeRange: TimeRange) async throws -> StudyStats {
-        // TODO: Implement API call
-        // For now, return mock data
-        try await Task.sleep(nanoseconds: 500_000_000)
-
-        return StudyStats(
-            totalDuration: 720, // 12 hours
-            sessionCount: 24,
-            averageDuration: 30, // 30 minutes
-            streakDays: 5,
-            todayDuration: 120, // 2 hours
-            weekDuration: 480 // 8 hours
-        )
+        do {
+            let response: StudyStatsResponse = try await apiClient.request(
+                .GET,
+                endpoint: "/study/stats?range=\(timeRange.apiParameterValue)"
+            )
+            return StudyStats(
+                totalDuration: response.totalDuration,
+                sessionCount: response.sessionCount,
+                averageDuration: response.averageDuration,
+                streakDays: response.streakDays,
+                todayDuration: response.todayDuration,
+                weekDuration: response.weekDuration
+            )
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
+        }
     }
 
     /// 获取每周学习数据
     func getWeeklyStudyData() async throws -> [DailyStudyData] {
-        // TODO: Implement API call
-        // For now, return mock data
-        try await Task.sleep(nanoseconds: 500_000_000)
-
-        let calendar = Calendar.current
-        let today = Date()
-        var data: [DailyStudyData] = []
-
-        for i in 0..<7 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
-                let duration = Int.random(in: 30...120) // Random 30-120 minutes
-                data.append(DailyStudyData(date: date, durationMinutes: duration))
-            }
+        do {
+            let response: WeeklyStudyResponse = try await apiClient.request(
+                .GET,
+                endpoint: "/study/stats/weekly"
+            )
+            return response.dailyData
+        } catch let error as NetworkError {
+            throw mapNetworkError(error)
+        } catch {
+            throw StudyError.unknown(underlying: error)
         }
-
-        return data.reversed()
     }
+
+    // MARK: - Error Mapping
+
+    private func mapNetworkError(_ error: NetworkError) -> StudyError {
+        switch error {
+        case .notFound:
+            return .roomNotFound
+        case .unauthorized:
+            return .notAuthorized
+        case .custom(let message) where message.contains("full"):
+            return .roomFull
+        case .custom(let message) where message.contains("invalid"):
+            return .invalidRoomCode
+        default:
+            return .networkError(underlying: error)
+        }
+    }
+}
+
+// MARK: - Request/Response Models
+
+private struct StartSessionRequest: Encodable {
+    let duration: Int
+}
+
+private struct EmptyResponse: Decodable {}
+
+private struct StudyStatsResponse: Decodable {
+    let totalDuration: Int
+    let sessionCount: Int
+    let averageDuration: Int
+    let streakDays: Int
+    let todayDuration: Int
+    let weekDuration: Int
+}
+
+private struct WeeklyStudyResponse: Decodable {
+    let dailyData: [DailyStudyData]
 }
 
 // MARK: - TimeRange Mapping

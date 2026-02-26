@@ -468,22 +468,85 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
         var syncedCount = 0
         var failedCount = 0
 
-        // Get unsynced messages from cache/database
-        // This is a simplified implementation
+        // 1. Fetch pending messages from local storage (messages not yet synced)
+        let pendingMessages = try databaseManager.getPendingMessages()
 
-        // TODO: Implement actual message sync logic
-        // 1. Fetch pending messages from local storage
-        // 2. Send to server
-        // 3. Handle conflicts
-        // 4. Update local status
+        // 2. Send each pending message to server
+        for message in pendingMessages {
+            do {
+                let _: SyncedMessageResponse = try await apiClient.request(
+                    .POST,
+                    endpoint: "/messages/sync",
+                    body: MessageSyncRequest(
+                        id: message.id,
+                        roomId: message.roomId ?? "",
+                        content: message.text ?? "",
+                        timestamp: message.timestamp
+                    )
+                )
+
+                // Mark as synced in local database
+                try databaseManager.markMessageSynced(message.id)
+                syncedCount += 1
+            } catch {
+                failedCount += 1
+                SecureLogger.shared.error("Failed to sync message \(message.id): \(error)")
+            }
+        }
+
+        // 3. Pull new messages from server
+        do {
+            let serverMessages: [ServerMessageResponse] = try await apiClient.request(
+                .GET,
+                endpoint: "/messages/sync?since=\(lastSyncDate?.ISO8601Format() ?? "")"
+            )
+
+            // 4. Handle conflicts - for each server message, check if local version exists
+            for serverMessage in serverMessages {
+                if let localMessage = try databaseManager.getMessage(id: serverMessage.id) {
+                    // Apply conflict resolution strategy
+                    switch conflictResolution {
+                    case .serverWins:
+                        try databaseManager.updateMessage(
+                            id: serverMessage.id,
+                            content: serverMessage.content,
+                            timestamp: serverMessage.timestamp
+                        )
+                    case .mostRecent:
+                        if serverMessage.timestamp > localMessage.timestamp {
+                            try databaseManager.updateMessage(
+                                id: serverMessage.id,
+                                content: serverMessage.content,
+                                timestamp: serverMessage.timestamp
+                            )
+                        }
+                    case .clientWins:
+                        // Keep local version, do nothing
+                        break
+                    case .manual:
+                        // Mark for manual resolution
+                        try databaseManager.markMessageConflict(
+                            id: serverMessage.id,
+                            serverContent: serverMessage.content
+                        )
+                    }
+                } else {
+                    // No conflict - insert new message from server
+                    try databaseManager.insertMessage(from: serverMessage)
+                    syncedCount += 1
+                }
+            }
+        } catch {
+            SecureLogger.shared.error("Failed to pull messages from server: \(error)")
+        }
 
         return SyncResult(
-            status: .success,
+            status: failedCount == 0 ? .success : (syncedCount > 0 ? .partial : .failed),
             syncedItems: syncedCount,
             failedItems: failedCount,
             conflicts: 0,
             timestamp: Date(),
-            error: nil
+            error: failedCount > 0 ? .clientError(underlying: NSError(domain: "Sync", code: -1)) : nil
         )
     }
 
@@ -496,8 +559,19 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
 
         for session in unsyncedSessions {
             do {
-                // TODO: Implement API call to sync session
-                // let result = try await apiClient.syncStudySession(session)
+                // Sync session with server
+                let _: SyncSessionResponse = try await apiClient.request(
+                    .POST,
+                    endpoint: "/study/sessions/sync",
+                    body: SessionSyncRequest(
+                        id: session.id,
+                        roomCode: session.roomCode,
+                        startTime: session.startTime,
+                        endTime: session.endTime,
+                        duration: session.duration,
+                        status: session.status
+                    )
+                )
 
                 // Mark as synced
                 try databaseManager.markStudySessionSynced(session.id)
@@ -505,6 +579,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
 
             } catch {
                 failedCount += 1
+                SecureLogger.shared.error("Failed to sync session \(session.id): \(error)")
             }
         }
 
@@ -536,14 +611,64 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     }
 
     private func syncPoints() async throws -> SyncResult {
-        // TODO: Implement points sync
+        var syncedCount = 0
+        var failedCount = 0
+
+        // 1. Get pending point transactions from local database
+        let pendingTransactions = try databaseManager.getPendingPointTransactions()
+
+        // 2. Sync pending transactions to server
+        for transaction in pendingTransactions {
+            do {
+                let response: PointTransactionResponse = try await apiClient.request(
+                    .POST,
+                    endpoint: "/points/sync",
+                    body: PointTransactionRequest(
+                        id: transaction.id,
+                        type: transaction.type,
+                        amount: transaction.amount,
+                        reason: transaction.reason,
+                        timestamp: transaction.timestamp
+                    )
+                )
+
+                // Mark as synced and update local balance
+                try databaseManager.markPointTransactionSynced(transaction.id)
+                try databaseManager.updateUserPoints(response.newBalance)
+                syncedCount += 1
+            } catch {
+                failedCount += 1
+                SecureLogger.shared.error("Failed to sync point transaction \(transaction.id): \(error)")
+            }
+        }
+
+        // 3. Pull latest points from server to ensure consistency
+        do {
+            let serverPoints: ServerPointsResponse = try await apiClient.request(
+                .GET,
+                endpoint: "/points/sync?since=\(lastSyncDate?.ISO8601Format() ?? "")"
+            )
+
+            // Update local points balance
+            try databaseManager.updateUserPoints(serverPoints.balance)
+
+            // Record any new transactions received from server
+            for serverTransaction in serverTransactions {
+                if try databaseManager.getPointTransaction(id: serverTransaction.id) == nil {
+                    try databaseManager.insertPointTransaction(from: serverTransaction)
+                }
+            }
+        } catch {
+            SecureLogger.shared.error("Failed to pull points from server: \(error)")
+        }
+
         return SyncResult(
-            status: .success,
-            syncedItems: 0,
-            failedItems: 0,
+            status: failedCount == 0 ? .success : (syncedCount > 0 ? .partial : .failed),
+            syncedItems: syncedCount,
+            failedItems: failedCount,
             conflicts: 0,
             timestamp: Date(),
-            error: nil
+            error: failedCount > 0 ? .clientError(underlying: NSError(domain: "Sync", code: -1)) : nil
         )
     }
 
