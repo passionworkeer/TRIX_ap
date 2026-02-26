@@ -23,6 +23,11 @@ final class KeychainManager {
         static let userId = "com.trix3d.userId"
         static let deviceId = "com.trix3d.deviceId"
         static let biometricEnabled = "com.trix3d.biometricEnabled"
+
+        // Pairing state keys (migrated from UserDefaults for enhanced security)
+        static let pairedDeviceId = "com.trix3d.pairedDeviceId"
+        static let pairedDeviceName = "com.trix3d.pairedDeviceName"
+        static let isPaired = "com.trix3d.isPaired"
     }
 
     // MARK: - Initialization
@@ -214,6 +219,80 @@ final class KeychainManager {
             return false
         }
         return true
+    }
+
+    // MARK: - Pairing State Management
+
+    /// Save paired device information
+    /// - Parameters:
+    ///   - deviceId: Paired device ID
+    ///   - deviceName: Paired device name
+    func savePairedDevice(deviceId: String, deviceName: String) throws {
+        try keychain.set(deviceId, key: Key.pairedDeviceId)
+        try keychain.set(deviceName, key: Key.pairedDeviceName)
+        try keychain.set("true", key: Key.isPaired)
+        SecureLogger.shared.info("Paired device saved to Keychain: \(deviceName)")
+    }
+
+    /// Get paired device ID
+    /// - Returns: Paired device ID, or nil if not paired
+    func getPairedDeviceId() -> String? {
+        return try? keychain.get(Key.pairedDeviceId)
+    }
+
+    /// Get paired device name
+    /// - Returns: Paired device name, or nil if not paired
+    func getPairedDeviceName() -> String? {
+        return try? keychain.get(Key.pairedDeviceName)
+    }
+
+    /// Check if device is currently paired
+    /// - Returns: True if paired, false otherwise
+    func isDevicePaired() -> Bool {
+        let isPaired = (try? keychain.get(Key.isPaired)) == "true"
+        let hasDeviceId = getPairedDeviceId() != nil
+        return isPaired && hasDeviceId
+    }
+
+    /// Remove paired device information
+    func removePairedDevice() throws {
+        try keychain.remove(Key.pairedDeviceId)
+        try keychain.remove(Key.pairedDeviceName)
+        try keychain.remove(Key.isPaired)
+        SecureLogger.shared.info("Paired device removed from Keychain")
+    }
+
+    /// Migrate pairing data from UserDefaults to Keychain (one-time migration)
+    /// - Returns: True if migration was performed, false if no data to migrate
+    @discardableResult
+    func migratePairingDataFromUserDefaults() -> Bool {
+        let oldPairedKey = "clawbot_paired"
+        let oldDeviceIdKey = "clawbot_device_id"
+
+        // Check if there's data in UserDefaults to migrate
+        let isPairedInDefaults = UserDefaults.standard.bool(forKey: oldPairedKey)
+        let deviceIdInDefaults = UserDefaults.standard.string(forKey: oldDeviceIdKey)
+
+        // Only migrate if there's data in UserDefaults and nothing in Keychain yet
+        if isPairedInDefaults, let deviceId = deviceIdInDefaults, !isDevicePaired() {
+            let deviceName = "Migrated Device" // Default name for migrated devices
+
+            do {
+                try savePairedDevice(deviceId: deviceId, deviceName: deviceName)
+
+                // Clear old UserDefaults data
+                UserDefaults.standard.removeObject(forKey: oldPairedKey)
+                UserDefaults.standard.removeObject(forKey: oldDeviceIdKey)
+
+                SecureLogger.shared.info("Successfully migrated pairing data from UserDefaults to Keychain")
+                return true
+            } catch {
+                SecureLogger.shared.error("Failed to migrate pairing data: \(error.localizedDescription)")
+                return false
+            }
+        }
+
+        return false
     }
 
     // MARK: - Debug Helpers

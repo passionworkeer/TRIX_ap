@@ -127,7 +127,7 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
 
     private let apiClient: APIClient
     private let webSocketManager: WebSocketManager
-    private let userDefaultsManager: UserDefaultsManager
+    private let keychainManager: KeychainManager
 
     // MARK: - Private Properties
 
@@ -146,15 +146,15 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
     /// - Parameters:
     ///   - apiClient: API client instance (defaults to shared)
     ///   - webSocketManager: WebSocket manager instance (defaults to shared)
-    ///   - userDefaultsManager: UserDefaults manager instance (defaults to shared)
+    ///   - keychainManager: Keychain manager instance (defaults to shared)
     init(
         apiClient: APIClient = .shared,
         webSocketManager: WebSocketManager = .shared,
-        userDefaultsManager: UserDefaultsManager = .shared
+        keychainManager: KeychainManager = .shared
     ) {
         self.apiClient = apiClient
         self.webSocketManager = webSocketManager
-        self.userDefaultsManager = userDefaultsManager
+        self.keychainManager = keychainManager
 
         // Restore pairing state
         restorePairingState()
@@ -332,8 +332,12 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
             // Send unpair request via WebSocket
             webSocketManager.unpair()
 
-            // Remove from local storage
-            userDefaultsManager.removePairedDevice()
+            // Remove from Keychain (secure storage)
+            do {
+                try keychainManager.removePairedDevice()
+            } catch {
+                SecureLogger.shared.error("Failed to remove paired device from Keychain: \(error.localizedDescription)")
+            }
 
             // Update state
             pairingState = .unpaired
@@ -405,10 +409,14 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
 
     // MARK: - State Management
 
-    /// Restore pairing state from UserDefaults
+    /// Restore pairing state from Keychain
     private func restorePairingState() {
-        if let deviceId = userDefaultsManager.getPairedDeviceId(),
-           let deviceName = userDefaultsManager.getPairedDeviceName() {
+        // Migrate data from UserDefaults if needed
+        keychainManager.migratePairingDataFromUserDefaults()
+
+        // Restore from Keychain
+        if let deviceId = keychainManager.getPairedDeviceId(),
+           let deviceName = keychainManager.getPairedDeviceName() {
             pairingState = .paired(deviceId: deviceId, deviceName: deviceName)
         } else {
             pairingState = .unpaired
@@ -425,7 +433,13 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
             }
 
             self.pairingState = .paired(deviceId: deviceId, deviceName: deviceName)
-            self.userDefaultsManager.savePairedDevice(deviceId: deviceId, deviceName: deviceName)
+
+            // Save to Keychain (secure storage)
+            do {
+                try self.keychainManager.savePairedDevice(deviceId: deviceId, deviceName: deviceName)
+            } catch {
+                SecureLogger.shared.error("Failed to save paired device to Keychain: \(error.localizedDescription)")
+            }
 
             // Fetch paired devices list
             Task {
@@ -438,7 +452,14 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
             guard let self = self else { return }
 
             self.pairingState = .unpaired
-            self.userDefaultsManager.removePairedDevice()
+
+            // Remove from Keychain
+            do {
+                try self.keychainManager.removePairedDevice()
+            } catch {
+                SecureLogger.shared.error("Failed to remove paired device from Keychain: \(error.localizedDescription)")
+            }
+
             self.pairedDevices.removeAll()
         }
     }
