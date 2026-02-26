@@ -103,7 +103,7 @@ extension ErrorView {
 // MARK: - Previews
 #Preview("Network error with retry") {
     ErrorView.networkError {
-        print("Retry tapped")
+        SecureLogger.shared.debug("Retry tapped")
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(
@@ -132,7 +132,7 @@ extension ErrorView {
 
 #Preview("Dark mode") {
     ErrorView.networkError {
-        print("Retry tapped")
+        SecureLogger.shared.debug("Retry tapped")
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(

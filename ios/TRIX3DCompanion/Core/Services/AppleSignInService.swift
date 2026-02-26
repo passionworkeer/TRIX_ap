@@ -91,7 +91,7 @@ final class AppleSignInService: NSObject, AppleSignInServiceProtocol {
 
             return state
         } catch {
-            print("Error checking Apple credential state: \(error)")
+            SecureLogger.shared.error("Error checking Apple credential state: \(error)")
             return .notFound
         }
     }

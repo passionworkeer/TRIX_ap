@@ -235,7 +235,7 @@ struct StudyListView: View {
     // MARK: - Actions
 
     private func joinRoom(_ room: StudyRoom) {
-        print("Join room: \(room.name)")
+        SecureLogger.shared.debug("Join room: \(room.name)")
     }
 }
 

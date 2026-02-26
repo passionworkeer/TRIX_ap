@@ -526,7 +526,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         guard let error = result as? WebSocketError else { return }
 
         // Log or handle the error
-        print("WebSocket message error: \(error.message)")
+        SecureLogger.shared.error("WebSocket message error: \(error.message)")
 
         lastError = .networkError(underlying: error)
     }

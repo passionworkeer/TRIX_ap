@@ -27,7 +27,7 @@ protocol WeChatSDKProtocol {
 enum WeChatSDK: WeChatSDKProtocol {
     static func registerApp(_ appID: String, universalLink: String?) {
         // TODO: Replace with actual WeChat SDK call: WXApi.registerApp(appID, universalLink: universalLink)
-        print("WeChatSDK: Register app with ID \(appID)")
+        SecureLogger.shared.debug("WeChatSDK: Register app with ID \(appID)")
     }
 
     static func isWXAppInstalled() -> Bool {
@@ -37,13 +37,13 @@ enum WeChatSDK: WeChatSDKProtocol {
 
     static func sendReq(_ req: Any) -> Bool {
         // TODO: Replace with actual WeChat SDK call: WXApi.send(req)
-        print("WeChatSDK: Send request")
+        SecureLogger.shared.debug("WeChatSDK: Send request")
         return true
     }
 
     static func handleOpen(_ url: URL) -> Bool {
         // TODO: Replace with actual WeChat SDK call: WXApi.handleOpen(url, delegate: delegate)
-        print("WeChatSDK: Handle open URL: \(url)")
+        SecureLogger.shared.debug("WeChatSDK: Handle open URL: \(url)")
         return true
     }
 
@@ -196,7 +196,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     /// Register WeChat app
     private func registerWeChatApp() {
         guard Self.weChatAppID != "YOUR_WECHAT_APP_ID" else {
-            print("WeChatSignInService: App ID not configured")
+            SecureLogger.shared.warning("WeChatSignInService: App ID not configured")
             return
         }
 
@@ -210,7 +210,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
         // This should create a SendAuthReq and send it via WXApi.send()
 
         // Placeholder: Simulate auth request
-        print("WeChatSignInService: Sending auth request")
+        SecureLogger.shared.debug("WeChatSignInService: Sending auth request")
 
         // In actual implementation:
         // let request = SendAuthReq()

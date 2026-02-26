@@ -131,10 +131,10 @@ final class AppState: ObservableObject {
             switch result {
             case .success(let user):
                 currentUser = user
-                print("Session refreshed successfully for user: \(user.username)")
+                SecureLogger.shared.authEvent("Session refreshed for user: \(user.username)")
 
             case .failure(let error):
-                print("Failed to refresh session: \(error.localizedDescription)")
+                SecureLogger.shared.error("Failed to refresh session: \(error.localizedDescription)")
                 // If refresh fails with unauthorized, logout
                 if case AuthError.invalidCredentials = error {
                     await logout()
@@ -142,7 +142,7 @@ final class AppState: ObservableObject {
             }
 
         } catch {
-            print("Unexpected error refreshing session: \(error.localizedDescription)")
+            SecureLogger.shared.error("Unexpected error refreshing session: \(error.localizedDescription)")
         }
 
         isLoading = false
@@ -164,7 +164,7 @@ final class AppState: ObservableObject {
         isLoading = false
         loadingMessage = nil
 
-        print("User logged out successfully")
+        SecureLogger.shared.authEvent("User logged out successfully")
     }
 
     // MARK: - Public Methods - User Preferences

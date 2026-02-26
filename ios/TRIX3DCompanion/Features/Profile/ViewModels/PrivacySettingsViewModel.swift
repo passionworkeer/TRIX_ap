@@ -253,7 +253,7 @@ final class PrivacySettingsViewModel: ObservableObject {
             // Settings synced successfully
         } catch {
             // Handle error silently for now
-            print("Failed to sync privacy settings: \(error)")
+            SecureLogger.shared.error("Failed to sync privacy settings: \(error)")
         }
     }
 }

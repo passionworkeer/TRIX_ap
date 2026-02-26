@@ -206,7 +206,7 @@ final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
 
         pathMonitor.start(queue: queue)
 
-        print("Network monitoring started")
+        SecureLogger.shared.info("Network monitoring started")
     }
 
     /// Stop monitoring network status
@@ -216,7 +216,7 @@ final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
         pathMonitor.cancel()
         isMonitoring = false
 
-        print("Network monitoring stopped")
+        SecureLogger.shared.info("Network monitoring stopped")
     }
 
     /// Get current network status
@@ -294,11 +294,11 @@ final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
 
             // Log significant changes
             if newStatus.isConnected != currentStatus.isConnected {
-                print("Network connection changed: \(newStatus.isConnected ? "Connected" : "Disconnected")")
+                SecureLogger.shared.info("Network connection changed: \(newStatus.isConnected ? "Connected" : "Disconnected")")
             }
 
             if newStatus.connectionType != currentStatus.connectionType {
-                print("Connection type changed: \(newStatus.connectionType.displayName)")
+                SecureLogger.shared.info("Connection type changed: \(newStatus.connectionType.displayName)")
             }
         }
     }

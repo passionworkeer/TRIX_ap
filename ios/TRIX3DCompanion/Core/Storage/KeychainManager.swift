@@ -226,11 +226,11 @@ final class KeychainManager {
 
     /// 打印所有存储的键（仅用于调试）
     func printAllKeys() {
-        print("=== Keychain Keys ===")
+        SecureLogger.shared.debug("=== Keychain Keys ===")
         for key in keychain.allKeys() {
-            print("- \(key)")
+            SecureLogger.shared.debug("- \(key)")
         }
-        print("====================")
+        SecureLogger.shared.debug("====================")
     }
     #endif
 }

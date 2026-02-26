@@ -50,7 +50,7 @@ struct AuthRootView: View {
         .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
             if isLoggedIn {
                 // Authentication successful - parent view will handle dismissal
-                print("User logged in successfully")
+                SecureLogger.shared.authEvent("User logged in successfully")
             }
         }
     }
@@ -87,7 +87,7 @@ struct AuthRootViewTab: View {
         .ignoresSafeArea()
         .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
             if isLoggedIn {
-                print("User logged in successfully")
+                SecureLogger.shared.authEvent("User logged in successfully")
             }
         }
     }
@@ -148,7 +148,7 @@ struct AuthRootViewCard: View {
         }
         .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
             if isLoggedIn {
-                print("User logged in successfully")
+                SecureLogger.shared.authEvent("User logged in successfully")
             }
         }
     }

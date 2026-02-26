@@ -94,9 +94,9 @@ final class DatabaseManager {
             db = try Connection(dbPath)
             // 启用外键约束
             try db?.run("PRAGMA foreign_keys = ON")
-            print("Database opened at: \(dbPath)")
+            SecureLogger.shared.debug("Database opened at: \(dbPath)")
         } catch {
-            print("Failed to open database: \(error)")
+            SecureLogger.shared.error("Failed to open database: \(error)")
         }
     }
 
@@ -133,7 +133,7 @@ final class DatabaseManager {
             try db?.run(messagesTable.createIndex(messageRoomId, ifNotExists: true))
             try db?.run(messagesTable.createIndex(messageCreatedAt, ifNotExists: true))
         } catch {
-            print("Failed to create messages table: \(error)")
+            SecureLogger.shared.error("Failed to create messages table: \(error)")
         }
     }
 
@@ -151,7 +151,7 @@ final class DatabaseManager {
                 t.unique(roomId)
             })
         } catch {
-            print("Failed to create chat_rooms table: \(error)")
+            SecureLogger.shared.error("Failed to create chat_rooms table: \(error)")
         }
     }
 
@@ -175,7 +175,7 @@ final class DatabaseManager {
             // 创建索引用于查询未同步的会话
             try db?.run(studySessionsTable.createIndex(sessionSynced, ifNotExists: true))
         } catch {
-            print("Failed to create study_sessions table: \(error)")
+            SecureLogger.shared.error("Failed to create study_sessions table: \(error)")
         }
     }
 
@@ -194,7 +194,7 @@ final class DatabaseManager {
 
             try db?.run(pointsHistoryTable.createIndex(transactionCreatedAt, ifNotExists: true))
         } catch {
-            print("Failed to create points_history table: \(error)")
+            SecureLogger.shared.error("Failed to create points_history table: \(error)")
         }
     }
 

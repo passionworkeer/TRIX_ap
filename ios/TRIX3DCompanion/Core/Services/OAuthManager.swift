@@ -530,7 +530,7 @@ final class OAuthManager: NSObject, OAuthManagerProtocol {
             let data = try JSONEncoder().encode(token)
             try keychainManager.save(key: TokenKey.key(for: provider), data: data)
         } catch {
-            print("Failed to save OAuth token: \(error)")
+            SecureLogger.shared.error("Failed to save OAuth token: \(error)")
         }
     }
 

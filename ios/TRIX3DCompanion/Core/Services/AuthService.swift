@@ -258,7 +258,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             try await apiClient.logout()
         } catch {
             // Continue with local logout even if API call fails
-            print("Logout API call failed: \(error.localizedDescription)")
+            SecureLogger.shared.warning("Logout API call failed: \(error.localizedDescription)")
         }
 
         // Clear local session

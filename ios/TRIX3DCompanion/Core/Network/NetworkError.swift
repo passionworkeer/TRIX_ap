@@ -47,7 +47,7 @@ enum NetworkError: Error, LocalizedError {
         case .noConnection:
             return "No internet connection. Please check your network settings."
         case .timeout:
-            return "Request timed out. Please try again."
+            return "Request timed out. The server is taking too long to respond. Please try again later."
         case .serverError(let statusCode, let message):
             return message ?? "Server error (Status: \(statusCode))"
         case .decodingError(let underlying):

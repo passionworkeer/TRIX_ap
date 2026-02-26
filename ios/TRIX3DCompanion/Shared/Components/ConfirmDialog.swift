@@ -241,18 +241,18 @@ struct ConfirmDialogPreviewWrapper: View {
                 switch showDialog {
                 case .delete:
                     ConfirmDialog.delete(item: "Model") {
-                        print("Delete confirmed")
+                        SecureLogger.shared.debug("Delete confirmed")
                         isShowing = false
                     } onCancel: {
-                        print("Delete cancelled")
+                        SecureLogger.shared.debug("Delete cancelled")
                         isShowing = false
                     }
                 case .signOut:
                     ConfirmDialog.signOut {
-                        print("Sign out confirmed")
+                        SecureLogger.shared.debug("Sign out confirmed")
                         isShowing = false
                     } onCancel: {
-                        print("Sign out cancelled")
+                        SecureLogger.shared.debug("Sign out cancelled")
                         isShowing = false
                     }
                 case .custom:
@@ -261,10 +261,10 @@ struct ConfirmDialogPreviewWrapper: View {
                         message: "Would you like to upload your 3D model to the cloud? This may take a few minutes.",
                         confirmText: "Upload"
                     ) {
-                        print("Upload confirmed")
+                        SecureLogger.shared.debug("Upload confirmed")
                         isShowing = false
                     } onCancel: {
-                        print("Upload cancelled")
+                        SecureLogger.shared.debug("Upload cancelled")
                         isShowing = false
                     }
                 case .none:
@@ -290,9 +290,9 @@ struct ConfirmDialogPreviewWrapper: View {
         Color.black.ignoresSafeArea()
 
         ConfirmDialog.delete(item: "Project") {
-            print("Deleted")
+            SecureLogger.shared.debug("Deleted")
         } onCancel: {
-            print("Cancelled")
+            SecureLogger.shared.debug("Cancelled")
         }
     }
 }

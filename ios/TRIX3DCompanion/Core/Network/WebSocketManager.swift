@@ -457,7 +457,7 @@ final class WebSocketManager: NSObject {
 
     private func emitEvent(_ event: String, payload: Encodable?) {
         guard isConnected else {
-            print("[WebSocket] Not connected, cannot emit event: \(event)")
+            SecureLogger.shared.warning("Not connected, cannot emit event: \(event)")
             return
         }
 
@@ -585,7 +585,7 @@ final class WebSocketManager: NSObject {
     private func sendPing() {
         // Check if timed out without receiving pong for over 60 seconds
         if Date().timeIntervalSince(lastPongTime) > 60 {
-            print("[WebSocket] Pong timeout, reconnecting...")
+            SecureLogger.shared.warning("[WebSocket] Pong timeout, reconnecting...")
             socket?.disconnect()
             socket?.connect()
             return
@@ -598,7 +598,7 @@ final class WebSocketManager: NSObject {
 
     private func startReconnecting() {
         guard reconnectAttempts < maxReconnectAttempts else {
-            print("[WebSocket] Max reconnection attempts reached")
+            SecureLogger.shared.error("[WebSocket] Max reconnection attempts reached")
             emit(.error(WebSocketError(code: "MAX_RECONNECT", message: "Max reconnection attempts reached")))
             return
         }

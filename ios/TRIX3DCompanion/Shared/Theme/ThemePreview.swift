@@ -210,7 +210,7 @@ struct ThemePreviewView: View {
             // 按钮
             VStack(spacing: 12) {
                 Button("主要按钮") {
-                    print("Primary button tapped")
+                    SecureLogger.shared.debug("Primary button tapped")
                 }
                 .font(.button)
                 .foregroundStyle(.white)
@@ -220,7 +220,7 @@ struct ThemePreviewView: View {
                 .cornerRadius(12)
 
                 Button("次要按钮") {
-                    print("Secondary button tapped")
+                    SecureLogger.shared.debug("Secondary button tapped")
                 }
                 .font(.button)
                 .foregroundStyle(.brandPurple)
