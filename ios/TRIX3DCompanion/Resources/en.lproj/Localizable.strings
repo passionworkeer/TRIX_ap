@@ -1,0 +1,148 @@
+/*
+  Localizable.strings - English (Base)
+  TRIX 3D Companion
+*/
+
+// MARK: - Navigation
+"nav.home" = "Home";
+"nav.chat" = "Chat";
+"nav.study" = "Study";
+"nav.profile" = "Profile";
+"nav.settings" = "Settings";
+
+// MARK: - Common Actions
+"action.send" = "Send";
+"action.cancel" = "Cancel";
+"action.confirm" = "Confirm";
+"action.delete" = "Delete";
+"action.edit" = "Edit";
+"action.back" = "Back";
+"action.close" = "Close";
+"action.retry" = "Retry";
+"action.refresh" = "Refresh";
+"action.save" = "Save";
+"action.share" = "Share";
+"action.login" = "Login";
+"action.logout" = "Logout";
+"action.register" = "Register";
+"action.signup" = "Sign Up";
+
+// MARK: - Auth
+"auth.login.title" = "Welcome Back";
+"auth.login.subtitle" = "Sign in to continue";
+"auth.register.title" = "Create Account";
+"auth.register.subtitle" = "Join TRIX 3D Companion";
+"auth.email.placeholder" = "Email";
+"auth.password.placeholder" = "Password";
+"auth.username.placeholder" = "Username";
+"auth.forgot.password" = "Forgot Password?";
+"auth.no.account" = "Don't have an account?";
+"auth.has.account" = "Already have an account?";
+
+// MARK: - Chat
+"chat.title" = "Messages";
+"chat.placeholder" = "Type a message...";
+"chat.send" = "Send";
+"chat.voice.message" = "Voice Message";
+"chat.image" = "Image";
+"chat.today" = "Today";
+"chat.yesterday" = "Yesterday";
+"chat Typing" = "is typing...";
+"chat.delivered" = "Delivered";
+"chat.read" = "Read";
+
+// MARK: - Study
+"study.title" = "Study Room";
+"study.timer" = "Study Timer";
+"study.start" = "Start Studying";
+"study.pause" = "Pause";
+"study.resume" = "Resume";
+"study.stop" = "Stop";
+"study.session.complete" = "Session Complete!";
+"study.points.earned" = "Points Earned: %@";
+"study.streak" = "Study Streak";
+"study.total.time" = "Total Time";
+"study.today.time" = "Today's Time";
+
+// MARK: - Map & Location
+"map.title" = "Explore";
+"map.my.location" = "My Location";
+"map.share.location" = "Share Location";
+"map.no.location" = "Unable to get location";
+"map.no.share" = "No location to share";
+
+// MARK: - Camera & Photos
+"camera.title" = "Camera";
+"camera.take.photo" = "Take Photo";
+"camera.select.photo" = "Select from Library";
+"camera.front" = "Front Camera";
+"camera.back" = "Back Camera";
+"camera.unknown" = "Unknown";
+"camera.no.photo" = "No photo to save";
+
+// MARK: - Profile
+"profile.title" = "Profile";
+"profile.edit.profile" = "Edit Profile";
+"profile.points" = "Points";
+"profile.premium" = "Premium";
+"profile.settings" = "Settings";
+"profile.privacy" = "Privacy";
+"profile.notifications" = "Notifications";
+"profile.about" = "About";
+"profile.help" = "Help & Support";
+"profile.terms" = "Terms of Service";
+"profile.privacy.policy" = "Privacy Policy";
+
+// MARK: - Points & Store
+"store.title" = "Store";
+"store.points" = "Points";
+"store.purchase" = "Purchase";
+"store.premium" = "Premium Membership";
+"store.restore" = "Restore Purchases";
+"points.history" = "Points History";
+"points.earned" = "Earned";
+"points.spent" = "Spent";
+
+// MARK: - Errors
+"error.network" = "Network Error";
+"error.server" = "Server Error";
+"error.unknown" = "Unknown Error";
+"error.timeout" = "Request Timeout";
+"error.permission" = "Permission Denied";
+"error.login.failed" = "Login Failed";
+"error.register.failed" = "Registration Failed";
+
+// MARK: - Empty States
+"empty.messages" = "No messages yet";
+"empty.friends" = "No friends yet";
+"empty.study.sessions" = "No study sessions";
+"empty.notifications" = "No notifications";
+"empty.points" = "No points yet";
+
+// MARK: - Loading States
+"loading" = "Loading...";
+"loading.messages" = "Loading messages...";
+"loading.profile" = "Loading profile...";
+
+// MARK: - Notifications
+"notification.study.reminder" = "Study Reminder";
+"notification.study.message" = "Time to start your study session!";
+"notification.points.title" = "Points Earned";
+"notification.chat.title" = "New Message";
+
+// MARK: - Accessibility
+"a11y.home" = "Home tab";
+"a11y.chat" = "Chat tab";
+"a11y.study" = "Study tab";
+"a11y.profile" = "Profile tab";
+"a11y.send.button" = "Send message button";
+"a11y.voice.record" = "Voice record button";
+"a11y.back.button" = "Back button";
+
+// MARK: - Pairing
+"pairing.title" = "Find Friends";
+"pairing.scan" = "Scan QR Code";
+"pairing.share" = "Share Code";
+"pairing.code" = "Pairing Code";
+"pairing.success" = "Pairing Successful!";
+"pairing.failed" = "Pairing Failed";

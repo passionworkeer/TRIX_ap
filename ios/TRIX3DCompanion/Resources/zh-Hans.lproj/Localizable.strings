@@ -1,0 +1,148 @@
+/*
+  Localizable.strings - 简体中文 (Simplified Chinese)
+  TRIX 3D Companion
+*/
+
+// MARK: - Navigation
+"nav.home" = "首页";
+"nav.chat" = "聊天";
+"nav.study" = "学习";
+"nav.profile" = "我的";
+"nav.settings" = "设置";
+
+// MARK: - Common Actions
+"action.send" = "发送";
+"action.cancel" = "取消";
+"action.confirm" = "确认";
+"action.delete" = "删除";
+"action.edit" = "编辑";
+"action.back" = "返回";
+"action.close" = "关闭";
+"action.retry" = "重试";
+"action.refresh" = "刷新";
+"action.save" = "保存";
+"action.share" = "分享";
+"action.login" = "登录";
+"action.logout" = "退出登录";
+"action.register" = "注册";
+"action.signup" = "注册";
+
+// MARK: - Auth
+"auth.login.title" = "欢迎回来";
+"auth.login.subtitle" = "登录以继续";
+"auth.register.title" = "创建账号";
+"auth.register.subtitle" = "加入 TRIX 3D Companion";
+"auth.email.placeholder" = "邮箱";
+"auth.password.placeholder" = "密码";
+"auth.username.placeholder" = "用户名";
+"auth.forgot.password" = "忘记密码？";
+"auth.no.account" = "还没有账号？";
+"auth.has.account" = "已有账号？";
+
+// MARK: - Chat
+"chat.title" = "消息";
+"chat.placeholder" = "输入消息...";
+"chat.send" = "发送";
+"chat.voice.message" = "语音消息";
+"chat.image" = "图片";
+"chat.today" = "今天";
+"chat.yesterday" = "昨天";
+"chat Typing" = "正在输入...";
+"chat.delivered" = "已送达";
+"chat.read" = "已读";
+
+// MARK: - Study
+"study.title" = "学习室";
+"study.timer" = "学习计时器";
+"study.start" = "开始学习";
+"study.pause" = "暂停";
+"study.resume" = "继续";
+"study.stop" = "停止";
+"study.session.complete" = "学习完成！";
+"study.points.earned" = "获得积分：%@";
+"study.streak" = "连续学习";
+"study.total.time" = "总时长";
+"study.today.time" = "今日时长";
+
+// MARK: - Map & Location
+"map.title" = "探索";
+"map.my.location" = "我的位置";
+"map.share.location" = "分享位置";
+"map.no.location" = "无法获取位置";
+"map.no.share" = "没有可分享的位置";
+
+// MARK: - Camera & Photos
+"camera.title" = "相机";
+"camera.take.photo" = "拍照";
+"camera.select.photo" = "从相册选择";
+"camera.front" = "前置相机";
+"camera.back" = "后置相机";
+"camera.unknown" = "未知";
+"camera.no.photo" = "没有可保存的照片";
+
+// MARK: - Profile
+"profile.title" = "我的";
+"profile.edit.profile" = "编辑资料";
+"profile.points" = "积分";
+"profile.premium" = "高级会员";
+"profile.settings" = "设置";
+"profile.privacy" = "隐私";
+"profile.notifications" = "通知";
+"profile.about" = "关于";
+"profile.help" = "帮助与支持";
+"profile.terms" = "服务条款";
+"profile.privacy.policy" = "隐私政策";
+
+// MARK: - Points & Store
+"store.title" = "商城";
+"store.points" = "积分";
+"store.purchase" = "购买";
+"store.premium" = "高级会员";
+"store.restore" = "恢复购买";
+"points.history" = "积分记录";
+"points.earned" = "获得";
+"points.spent" = "消费";
+
+// MARK: - Errors
+"error.network" = "网络错误";
+"error.server" = "服务器错误";
+"error.unknown" = "未知错误";
+"error.timeout" = "请求超时";
+"error.permission" = "权限被拒绝";
+"error.login.failed" = "登录失败";
+"error.register.failed" = "注册失败";
+
+// MARK: - Empty States
+"empty.messages" = "暂无消息";
+"empty.friends" = "暂无好友";
+"empty.study.sessions" = "暂无学习记录";
+"empty.notifications" = "暂无通知";
+"empty.points" = "暂无积分";
+
+// MARK: - Loading States
+"loading" = "加载中...";
+"loading.messages" = "消息加载中...";
+"loading.profile" = "资料加载中...";
+
+// MARK: - Notifications
+"notification.study.reminder" = "学习提醒";
+"notification.study.message" = "是时候开始学习了！";
+"notification.points.title" = "获得积分";
+"notification.chat.title" = "新消息";
+
+// MARK: - Accessibility
+"a11y.home" = "首页标签";
+"a11y.chat" = "聊天标签";
+"a11y.study" = "学习标签";
+"a11y.profile" = "我的标签";
+"a11y.send.button" = "发送消息按钮";
+"a11y.voice.record" = "语音录制按钮";
+"a11y.back.button" = "返回按钮";
+
+// MARK: - Pairing
+"pairing.title" = "寻找好友";
+"pairing.scan" = "扫描二维码";
+"pairing.share" = "分享二维码";
+"pairing.code" = "配对码";
+"pairing.success" = "配对成功！";
+"pairing.failed" = "配对失败";
