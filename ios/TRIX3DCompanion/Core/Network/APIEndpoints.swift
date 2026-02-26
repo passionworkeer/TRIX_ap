@@ -150,6 +150,13 @@ enum APIEndpoint {
     case notificationPreferences
     case notificationSettings
 
+    // MARK: - Payments
+    case purchasePoints
+    case verifyReceipt
+    case getOrders
+    case getOrder(id: String)
+    case cancelOrder(id: String)
+
     // MARK: - Path
     var path: String {
         switch self {
@@ -216,6 +223,13 @@ enum APIEndpoint {
         case .deviceToken: return "/notifications/device-token"
         case .notificationPreferences: return "/notifications/preferences"
         case .notificationSettings: return "/notifications/settings"
+
+        // Payments
+        case .purchasePoints: return "/payments/purchase-points"
+        case .verifyReceipt: return "/payments/verify-receipt"
+        case .getOrders: return "/payments/orders"
+        case .getOrder(let id): return "/payments/orders/\(id)"
+        case .cancelOrder(let id): return "/payments/orders/\(id)/cancel"
         }
     }
 
@@ -231,6 +245,10 @@ enum APIEndpoint {
 
         case .userUpdateProfile, .updateStudySession, .pairingDevice:
             // For update operations
+            return .put
+
+        case .cancelOrder:
+            // For update operations (cancel)
             return .put
 
         case .userProfile, .authMe, .userStats, .userSettings,
@@ -482,6 +500,15 @@ enum TransactionType: String, Codable {
     case adminAdjust = "admin_adjust"
 }
 
+enum PaymentStatus: String, Codable {
+    case pending = "pending"
+    case processing = "processing"
+    case completed = "completed"
+    case failed = "failed"
+    case cancelled = "cancelled"
+    case refunded = "refunded"
+}
+
 // MARK: - Upload
 struct UploadResponse: Codable {
     let url: String
@@ -498,6 +525,60 @@ struct APIResponse<T: Codable>: Codable {
 
 struct PaginatedResponse<T: Codable>: Codable {
     let data: [T]
+    let total: Int
+    let page: Int
+    let limit: Int
+}
+
+// MARK: - Payment Verification
+
+/// Receipt verification request
+struct ReceiptVerificationRequest: Codable {
+    let transactionId: String
+    let productId: String
+    let receiptData: String?
+    let bundleIdentifier: String
+    let appVersion: String
+    let purchaseDate: String?
+    let expirationDate: String?
+}
+
+/// Receipt verification response
+struct ReceiptVerificationResponse: Codable {
+    let orderId: String
+    let status: PaymentStatus
+    let pointsAdded: Int?
+    let totalPoints: Int?
+    let subscriptionStatus: SubscriptionInfo?
+    let verified: Bool
+    let message: String?
+}
+
+/// Subscription information
+struct SubscriptionInfo: Codable {
+    let isActive: Bool
+    let tier: String?
+    let expiresAt: Date?
+    let willAutoRenew: Bool
+}
+
+/// Order details response
+struct OrderDetailsResponse: Codable {
+    let id: String
+    let userId: String
+    let productId: String
+    let amount: Double
+    let currency: String
+    let status: PaymentStatus
+    let transactionId: String?
+    let points: Int?
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+/// Orders list response
+struct OrdersListResponse: Codable {
+    let orders: [OrderDetailsResponse]
     let total: Int
     let page: Int
     let limit: Int

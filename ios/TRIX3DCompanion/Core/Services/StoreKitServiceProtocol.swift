@@ -198,6 +198,41 @@ protocol StoreKitServiceProtocol: ObservableObject {
     /// - Returns: Array of past transactions
     func getTransactionHistory() async -> [TransactionInfo]
 
+    /// Get receipt data for server verification
+    /// - Returns: Receipt data as base64 encoded string
+    ///
+    /// Collects all verified transactions and creates a JSON payload
+    /// for secure transmission to the backend verification service.
+    /// The backend will verify using App Store Server API.
+    ///
+    /// - Important: Sensitive data is not logged to protect user privacy.
+    func getReceiptData() -> String?
+
+    /// Get latest transaction ID for verification
+    /// - Parameter productId: Product identifier
+    /// - Returns: Transaction ID or nil
+    ///
+    /// Retrieves the most recent verified transaction ID for a specific product.
+    /// Used to validate purchases with the backend server.
+    ///
+    /// - Important: Transaction IDs are sensitive and should not be logged.
+    func getLatestTransactionId(for productId: String) -> String?
+
+    /// Get transaction info for verification
+    /// - Parameter transactionId: Transaction ID to retrieve
+    /// - Returns: Transaction info or nil if not found
+    func getTransactionInfo(transactionId: String) -> TransactionInfo?
+
+    /// Prepare verification payload for backend
+    /// - Parameters:
+    ///   - transaction: The transaction to validate
+    ///   - productId: Product identifier
+    /// - Returns: Verification payload or nil if validation fails
+    func prepareVerificationPayload(
+        transaction: Transaction,
+        productId: String
+    ) -> [String: Any]?
+
     /// Clear error state
     func clearError()
 }
