@@ -3,6 +3,7 @@
 //  TRIX3DCompanion
 //
 //  Global application state management
+//  Optimized for fast launch performance
 //
 
 import SwiftUI
@@ -89,7 +90,7 @@ final class AppState: ObservableObject {
     // MARK: - Dependencies
 
     private let authService: AuthService
-    private let networkMonitor: NWPathMonitor
+    private var networkMonitor: NWPathMonitor?
     private let networkQueue = DispatchQueue(label: "NetworkMonitor")
 
     // MARK: - Private Properties
@@ -104,15 +105,102 @@ final class AppState: ObservableObject {
         authService: AuthService = .shared
     ) {
         self.authService = authService
-        self.networkMonitor = NWPathMonitor()
 
+        // Setup with minimal initialization for fast launch
+        setupMinimalState()
+
+        // Check initial login state (fast path)
+        self.isLoggedIn = authService.isLoggedIn
+        self.currentUser = authService.currentUser
+    }
+
+    // MARK: - Setup
+
+    /// Minimal initialization for fast launch
+    private func setupMinimalState() {
+        // Only load critical preferences synchronously
+        let defaults = UserDefaults.standard
+
+        // Load dark mode preference
+        if #available(iOS 16.0, *) {
+            isDarkMode = defaults.bool(forKey: "isDarkMode")
+        }
+
+        // Load last selected tab
+        if let tabRawValue = defaults.string(forKey: "selectedTab"),
+           let tab = MainTab(rawValue: tabRawValue) {
+            selectedTab = tab
+        }
+
+        // Defer heavy setup to after first frame
+        DeferredInitializationManager.shared.register { [weak self] in
+            await self?.setupDeferredServices()
+        }
+    }
+
+    /// Full setup to run after first frame is rendered
+    @MainActor
+    private func setupDeferredServices() async {
         setupNetworkMonitoring()
         setupAuthObservers()
         loadUserPreferences()
+    }
 
-        // Check initial login state
-        self.isLoggedIn = authService.isLoggedIn
-        self.currentUser = authService.currentUser
+    // MARK: - Legacy Setup Methods (now deferred)
+
+    private func setupNetworkMonitoring() {
+        networkMonitor = NWPathMonitor()
+        networkMonitor?.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                self?.isNetworkAvailable = path.status == .satisfied
+                self?.networkStatus = path.status == .satisfied ? .connected : .disconnected
+            }
+        }
+
+        networkMonitor?.start(queue: networkQueue)
+    }
+
+    private func setupAuthObservers() {
+        // Observe login state changes
+        authService.$isLoggedIn
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isLoggedIn in
+                self?.isLoggedIn = isLoggedIn
+                if isLoggedIn {
+                    self?.currentUser = self?.authService.currentUser
+                } else {
+                    self?.currentUser = nil
+                }
+            }
+            .store(in: &cancellables)
+
+        // Observe user changes
+        authService.$currentUser
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] user in
+                self?.currentUser = user
+            }
+            .store(in: &cancellables)
+    }
+
+    private func loadUserPreferences() {
+        let defaults = UserDefaults.standard
+
+        // Load dark mode preference
+        if #available(iOS 16.0, *) {
+            isDarkMode = defaults.bool(forKey: "isDarkMode")
+        } else {
+            isDarkMode = false
+        }
+
+        // Load push notification preference
+        isPushNotificationEnabled = defaults.bool(forKey: "isPushNotificationEnabled")
+
+        // Load last selected tab
+        if let tabRawValue = defaults.string(forKey: "selectedTab"),
+           let tab = MainTab(rawValue: tabRawValue) {
+            selectedTab = tab
+        }
     }
 
     // MARK: - Public Methods - Session Management
@@ -188,64 +276,11 @@ final class AppState: ObservableObject {
 
     // MARK: - Private Methods - Setup
 
-    /// Setup network monitoring
-    private func setupNetworkMonitoring() {
-        networkMonitor.pathUpdateHandler = { [weak self] path in
-            Task { @MainActor in
-                self?.isNetworkAvailable = path.status == .satisfied
-                self?.networkStatus = path.status == .satisfied ? .connected : .disconnected
-            }
-        }
+    // Note: setupNetworkMonitoring, setupAuthObservers, loadUserPreferences
+    // are now handled by setupDeferredServices for better launch performance
 
-        networkMonitor.start(queue: networkQueue)
-    }
+    // MARK: - Private Methods - Persistence
 
-    /// Setup authentication state observers
-    private func setupAuthObservers() {
-        // Observe login state changes
-        authService.$isLoggedIn
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isLoggedIn in
-                self?.isLoggedIn = isLoggedIn
-                if isLoggedIn {
-                    self?.currentUser = self?.authService.currentUser
-                } else {
-                    self?.currentUser = nil
-                }
-            }
-            .store(in: &cancellables)
-
-        // Observe user changes
-        authService.$currentUser
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] user in
-                self?.currentUser = user
-            }
-            .store(in: &cancellables)
-    }
-
-    /// Load user preferences from UserDefaults
-    private func loadUserPreferences() {
-        let defaults = UserDefaults.standard
-
-        // Load dark mode preference
-        if #available(iOS 16.0, *) {
-            isDarkMode = defaults.bool(forKey: "isDarkMode")
-        } else {
-            isDarkMode = false
-        }
-
-        // Load push notification preference
-        isPushNotificationEnabled = defaults.bool(forKey: "isPushNotificationEnabled")
-
-        // Load last selected tab
-        if let tabRawValue = defaults.string(forKey: "selectedTab"),
-           let tab = MainTab(rawValue: tabRawValue) {
-            selectedTab = tab
-        }
-    }
-
-    /// Save user preferences to UserDefaults
     private func saveUserPreferences() {
         let defaults = UserDefaults.standard
 
@@ -258,7 +293,7 @@ final class AppState: ObservableObject {
 
     /// Cleanup resources when app state is deallocated
     deinit {
-        networkMonitor.cancel()
+        networkMonitor?.cancel()
         cancellables.removeAll()
     }
 }

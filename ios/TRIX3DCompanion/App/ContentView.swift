@@ -3,6 +3,7 @@
 //  TRIX3DCompanion
 //
 //  Root view that manages authentication state and navigation
+//  Optimized for fast launch performance
 //
 
 import SwiftUI
@@ -23,12 +24,13 @@ struct ContentView: View {
     // MARK: - State
 
     @State private var isAnimating = false
+    @State private var hasCompletedInitialLoad = false
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // Background gradient
+            // Background gradient - simplified for performance
             backgroundView
 
             // Main content with conditional rendering
@@ -36,18 +38,18 @@ struct ContentView: View {
                 if authService.isLoggedIn {
                     MainTabView()
                         .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .scale(scale: 1.05).combined(with: .opacity)
+                            insertion: .opacity,
+                            removal: .opacity
                         ))
                 } else {
                     AuthRootView()
                         .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .top).combined(with: .opacity)
+                            insertion: .opacity,
+                            removal: .opacity
                         ))
                 }
             }
-            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: authService.isLoggedIn)
+            .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
         }
         .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
             handleAuthStateChange(isLoggedIn: isLoggedIn)
@@ -59,7 +61,7 @@ struct ContentView: View {
 
     // MARK: - View Components
 
-    /// Background gradient view
+    /// Background gradient view - optimized for performance
     private var backgroundView: some View {
         LinearGradient(
             colors: [
@@ -71,42 +73,6 @@ struct ContentView: View {
             endPoint: .bottomTrailing
         )
         .ignoresSafeArea()
-        .overlay {
-            // Subtle animated background pattern
-            if authService.isLoggedIn {
-                Color.clear
-            } else {
-                // Show pattern for auth screens
-                backgroundPattern
-            }
-        }
-    }
-
-    /// Background pattern overlay
-    private var backgroundPattern: some View {
-        Canvas { context, size in
-            // Draw subtle circles pattern
-            for i in stride(from: 0, to: 10, by: 1) {
-                for j in stride(from: 0, to: 10, by: 1) {
-                    let x = CGFloat(i) * size.width / 10
-                    let y = CGFloat(j) * size.height / 10
-                    let circleSize: CGFloat = 2
-
-                    context.fill(
-                        Path { path in
-                            path.addEllipse(in: CGRect(
-                                x: x - circleSize / 2,
-                                y: y - circleSize / 2,
-                                width: circleSize,
-                                height: circleSize
-                            ))
-                        },
-                        with: .color(.white.opacity(0.1))
-                    )
-                }
-            }
-        }
-        .ignoresSafeArea()
     }
 
     // MARK: - Event Handlers
@@ -114,7 +80,7 @@ struct ContentView: View {
     /// Handle authentication state changes
     private func handleAuthStateChange(isLoggedIn: Bool) {
         if isLoggedIn {
-            // User logged in - refresh session data
+            // User logged in - refresh session data asynchronously
             Task {
                 await appState.refreshSession()
             }
@@ -130,11 +96,21 @@ struct ContentView: View {
 
     /// Handle initial setup when view appears
     private func handleInitialSetup() {
-        // Refresh session if already logged in
+        // End initial view phase tracking
+        AppLaunchOptimizer.shared.endPhase(.initialView)
+
+        // Refresh session if already logged in - deferred
         if authService.isLoggedIn {
             Task {
                 await appState.refreshSession()
             }
+        }
+
+        // Mark launch complete after first frame
+        Task {
+            // Wait for first frame to render
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            _ = AppLaunchOptimizer.shared.completeLaunch()
         }
     }
 }
@@ -166,20 +142,14 @@ struct ContentViewWithLoading: View {
                 loadingView
             } else if authService.isLoggedIn {
                 MainTabView()
-                    .transition(.asymmetric(
-                        insertion: .scale.combined(with: .opacity),
-                        removal: .identity
-                    ))
+                    .transition(.opacity)
             } else {
                 AuthRootView()
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .identity
-                    ))
+                    .transition(.opacity)
             }
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isLoading)
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: authService.isLoggedIn)
+        .animation(.easeInOut(duration: 0.3), value: isLoading)
+        .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
         .task {
             await initializeApp()
         }
@@ -217,6 +187,9 @@ struct ContentViewWithLoading: View {
     // MARK: - Initialization
 
     private func initializeApp() async {
+        // Track this phase
+        AppLaunchOptimizer.shared.startPhase(.dataLoad)
+
         // Simulate initial loading
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
@@ -224,6 +197,8 @@ struct ContentViewWithLoading: View {
         if authService.isLoggedIn {
             await appState.refreshSession()
         }
+
+        AppLaunchOptimizer.shared.endPhase(.dataLoad)
 
         withAnimation {
             isLoading = false
