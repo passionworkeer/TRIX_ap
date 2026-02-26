@@ -207,6 +207,18 @@ final class WebSocketManager: NSObject {
     // Event listeners
     private var eventListeners: [String: [EventCallback]] = [:]
 
+    // MARK: - Message deduplication and ordering
+    private var receivedMessageIds: Set<String> = []
+    private let maxMessageIdsCache = 1000
+    private var pendingMessages: [String: (timestamp: Date, data: Any)] = [:]
+    private let messageDeduplicationLock = NSLock()
+
+    // MARK: - Malicious message filtering
+    private let maxMessageLength = 10000 // 10KB
+    private let maxMessagesPerSecond = 50
+    private var messageTimestamps: [Date] = []
+    private let rateLimitLock = NSLock()
+
     // MARK: - Types
     typealias EventCallback = (Any) -> Void
 
@@ -627,6 +639,12 @@ final class WebSocketManager: NSObject {
     // MARK: - Event Handling
 
     private func handleEvent(_ eventName: String, data: Any?) {
+        // Validate message before processing
+        guard validateMessage(eventName, data: data) else {
+            SecureLogger.shared.warning("[WebSocket] Message validation failed for event: \(eventName)")
+            return
+        }
+
         switch eventName {
         case "connect":
             isConnected = true
@@ -792,6 +810,27 @@ extension WebSocketManager: WebSocketDelegate {
             return
         }
 
+        // Rate limiting check
+        if !checkRateLimit() {
+            SecureLogger.shared.warning("[WebSocket] Rate limit exceeded, discarding message")
+            return
+        }
+
+        // Message length validation
+        if text.count > maxMessageLength {
+            SecureLogger.shared.warning("[WebSocket] Message too long, discarding")
+            return
+        }
+
+        // Extract message ID for deduplication
+        let messageId = extractMessageId(from: jsonArray)
+
+        // Deduplication check
+        if let id = messageId, !shouldProcessMessage(id: id) {
+            SecureLogger.shared.debug("[WebSocket] Duplicate message detected: \(id)")
+            return
+        }
+
         let eventData = jsonArray[1]
 
         // Handle ACK responses
@@ -802,6 +841,120 @@ extension WebSocketManager: WebSocketDelegate {
         }
 
         handleEvent(eventName, data: eventData)
+    }
+
+    // MARK: - Message Deduplication
+
+    /// Extract message ID from message array
+    private func extractMessageId(from jsonArray: [Any]) -> String? {
+        guard let dict = jsonArray[1] as? [String: Any] else { return nil }
+        return dict["messageId"] as? String
+    }
+
+    /// Check if message should be processed (deduplication)
+    private func shouldProcessMessage(id: String) -> Bool {
+        messageDeduplicationLock.lock()
+        defer { messageDeduplicationLock.unlock() }
+
+        if receivedMessageIds.contains(id) {
+            return false
+        }
+
+        // Add to processed set
+        receivedMessageIds.insert(id)
+
+        // Maintain cache size
+        if receivedMessageIds.count > maxMessageIdsCache {
+            // Remove oldest entries (simple approach: clear half)
+            let toRemove = receivedMessageIds.prefix(receivedMessageIds.count / 2)
+            receivedMessageIds.subtract(toRemove)
+        }
+
+        return true
+    }
+
+    /// Clear deduplication cache
+    func clearDeduplicationCache() {
+        messageDeduplicationLock.lock()
+        defer { messageDeduplicationLock.unlock() }
+        receivedMessageIds.removeAll()
+    }
+
+    // MARK: - Rate Limiting
+
+    /// Check if message rate is within limits
+    private func checkRateLimit() -> Bool {
+        rateLimitLock.lock()
+        defer { rateLimitLock.unlock() }
+
+        let now = Date()
+        let oneSecondAgo = now.addingTimeInterval(-1)
+
+        // Remove old timestamps
+        messageTimestamps = messageTimestamps.filter { $0 > oneSecondAgo }
+
+        // Check limit
+        if messageTimestamps.count >= maxMessagesPerSecond {
+            return false
+        }
+
+        // Add current timestamp
+        messageTimestamps.append(now)
+        return true
+    }
+
+    // MARK: - Message Validation
+
+    /// Validate incoming message for malicious content
+    private func validateMessage(_ eventName: String, data: Any?) -> Bool {
+        // Validate event name
+        let allowedEvents: Set<String> = [
+            "connect", "disconnect", "pong", "error", "connect_error",
+            "pairing_success", "unpaired", "bot_message", "message_sent",
+            "bot_online", "bot_offline", "study_room_state"
+        ]
+
+        if !allowedEvents.contains(eventName) {
+            SecureLogger.shared.warning("[WebSocket] Unknown event: \(eventName)")
+            return false
+        }
+
+        // Validate data structure
+        if let dict = data as? [String: Any] {
+            // Check for suspicious content patterns
+            if let content = dict["content"] as? String {
+                // Check for injection attempts
+                if containsSuspiciousPattern(content) {
+                    SecureLogger.shared.error("[WebSocket] Suspicious content detected")
+                    return false
+                }
+            }
+        }
+
+        return true
+    }
+
+    /// Check for suspicious patterns in content
+    private func containsSuspiciousPattern(_ content: String) -> Bool {
+        let suspiciousPatterns = [
+            "<script",
+            "javascript:",
+            "onerror=",
+            "onclick=",
+            "eval(",
+            "document.cookie",
+            "{{__",
+            "{% raw",
+            "INSERT INTO",
+            "DELETE FROM",
+            "DROP TABLE",
+            "--",
+            "; DROP",
+            "<iframe"
+        ]
+
+        let lowercased = content.lowercased()
+        return suspiciousPatterns.contains { lowercased.contains($0.lowercased()) }
     }
 
     private func handleAckResponse(_ ackId: String, data: Any) {

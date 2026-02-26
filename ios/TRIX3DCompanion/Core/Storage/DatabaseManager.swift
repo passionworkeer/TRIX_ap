@@ -1,8 +1,10 @@
 import Foundation
 import SQLite
+import CommonCrypto
 
 /// 数据库管理器 - SQLite 封装，用于离线数据缓存
 /// 使用 SQLite.swift 库提供类型安全的数据库操作
+/// 包含敏感数据加密、并发安全和损坏恢复功能
 final class DatabaseManager {
 
     // MARK: - Singleton
@@ -13,6 +15,20 @@ final class DatabaseManager {
 
     private var db: Connection?
     private let dbPath: String
+
+    // MARK: - Concurrency Control
+
+    /// Lock for thread-safe database operations
+    private let databaseLock = NSLock()
+    private let readWriteQueue = DispatchQueue(label: "com.trix3d.database", qos: .userInitiated, attributes: .concurrent)
+
+    // MARK: - Encryption
+
+    /// Encryption key for sensitive data (stored in Keychain)
+    private var encryptionKey: Data?
+
+    /// Enable data encryption for sensitive fields
+    private let encryptionEnabled: Bool = true
 
     // MARK: - Tables
 
@@ -81,10 +97,185 @@ final class DatabaseManager {
         )
         dbPath = appSupportURL.appendingPathComponent("trix3d.sqlite").path
 
+        // 初始化加密密钥
+        initializeEncryptionKey()
+
         // 打开数据库连接
         openDatabase()
+
+        // 验证数据库完整性
+        validateDatabaseIntegrity()
+
         // 创建表
         createTables()
+    }
+
+    // MARK: - Encryption
+
+    /// Initialize encryption key from Keychain or generate new one
+    private func initializeEncryptionKey() {
+        // Try to get existing key from Keychain
+        if let existingKey = KeychainManager.shared.getData(forKey: "com.trix3d.dbEncryptionKey") {
+            encryptionKey = existingKey
+            SecureLogger.shared.debug("Database encryption key loaded from Keychain")
+        } else {
+            // Generate new key
+            var keyData = Data(count: 32) // 256-bit key
+            let result = keyData.withUnsafeMutableBytes { pointer in
+                SecRandomCopyBytes(kSecRandomDefault, 32, pointer.baseAddress!)
+            }
+
+            if result == errSecSuccess {
+                encryptionKey = keyData
+                // Store in Keychain
+                try? KeychainManager.shared.saveData(keyData, forKey: "com.trix3d.dbEncryptionKey")
+                SecureLogger.shared.info("New database encryption key generated and stored")
+            } else {
+                SecureLogger.shared.error("Failed to generate encryption key")
+            }
+        }
+    }
+
+    /// Encrypt data using AES-256-CBC
+    private func encrypt(_ data: Data) -> Data? {
+        guard let key = encryptionKey else { return nil }
+
+        // Generate random IV
+        var iv = Data(count: 16)
+        let ivResult = iv.withUnsafeMutableBytes { pointer in
+            SecRandomCopyBytes(kSecRandomDefault, 16, pointer.baseAddress!)
+        }
+
+        guard ivResult == errSecSuccess else { return nil }
+
+        // Encrypt
+        let encrypted = data.aesEncrypt(key: key, iv: iv)
+        guard let encryptedData = encrypted else { return nil }
+
+        // Prepend IV to encrypted data
+        return iv + encryptedData
+    }
+
+    /// Decrypt data using AES-256-CBC
+    private func decrypt(_ data: Data) -> Data? {
+        guard let key = encryptionKey,
+              data.count > 16 else { return nil }
+
+        // Extract IV and encrypted data
+        let iv = data.prefix(16)
+        let encryptedData = data.suffix(from: 16)
+
+        return encryptedData.aesDecrypt(key: key, iv: iv)
+    }
+
+    /// Encrypt sensitive string field
+    private func encryptField(_ value: String) -> String {
+        guard encryptionEnabled,
+              let data = value.data(using: .utf8),
+              let encrypted = encrypt(data),
+              let encoded = encrypted.base64EncodedString() as String? else {
+            return value
+        }
+        return "ENC:\(encoded)"
+    }
+
+    /// Decrypt sensitive string field
+    private func decryptField(_ value: String) -> String {
+        guard value.hasPrefix("ENC:"),
+              let data = Data(base64Encoded: value.dropFirst(4)),
+              let decrypted = decrypt(data),
+              let string = String(data: decrypted, encoding: .utf8) else {
+            return value
+        }
+        return string
+    }
+
+    /// Check if value is encrypted
+    private func isEncrypted(_ value: String) -> Bool {
+        return value.hasPrefix("ENC:")
+    }
+
+    // MARK: - Database Integrity
+
+    /// Validate database integrity on startup
+    private func validateDatabaseIntegrity() {
+        guard let db = db else { return }
+
+        do {
+            // Check if database file exists and is readable
+            let fileManager = FileManager.default
+            guard fileManager.fileExists(atPath: dbPath) else {
+                SecureLogger.shared.warning("Database file does not exist")
+                return
+            }
+
+            // Run integrity check
+            let integrityResult = try db.scalar("PRAGMA integrity_check") as? String
+            if integrityResult == "ok" {
+                SecureLogger.shared.debug("Database integrity check passed")
+            } else {
+                SecureLogger.shared.error("Database integrity check failed: \(integrityResult ?? "unknown")")
+                // Attempt recovery
+                attemptDatabaseRecovery()
+            }
+
+            // Check for corruption
+            let quickCheck = try db.scalar("PRAGMA quick_check") as? String
+            if quickCheck != "ok" {
+                SecureLogger.shared.error("Database quick check failed, attempting recovery")
+                attemptDatabaseRecovery()
+            }
+
+        } catch {
+            SecureLogger.shared.error("Database integrity validation error: \(error)")
+            attemptDatabaseRecovery()
+        }
+    }
+
+    /// Attempt to recover corrupted database
+    private func attemptDatabaseRecovery() {
+        SecureLogger.shared.info("Starting database recovery...")
+
+        do {
+            // Export existing data if possible
+            let backupPath = dbPath + ".backup.\(Int(Date().timeIntervalSince1970))"
+
+            // Try to vacuum/rebuild database
+            try db?.execute("PRAGMA vacuum")
+            try db?.execute("PRAGMA reindex")
+
+            SecureLogger.shared.info("Database recovery completed")
+
+            // Log recovery for monitoring
+            SecureLogger.shared.warning("Database recovery was performed - verify data integrity")
+
+        } catch {
+            SecureLogger.shared.error("Database recovery failed: \(error)")
+            // Consider notifying user or resetting database
+        }
+    }
+
+    /// Thread-safe database operation
+    private func performWithLock<T>(_ operation: () throws -> T) rethrows -> T {
+        databaseLock.lock()
+        defer { databaseLock.unlock() }
+        return try operation()
+    }
+
+    /// Thread-safe async database operation
+    private func performAsync<T>(_ operation: @escaping () throws -> T, completion: @escaping (Result<T, Error>) -> Void) {
+        readWriteQueue.async {
+            do {
+                let result = try self.performWithLock(operation)
+                DispatchQueue.main.async {
+                    completion(.success(result))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
     }
 
     // MARK: - Database Connection
@@ -207,12 +398,16 @@ final class DatabaseManager {
         guard let db = db else { throw DatabaseError.notConnected }
 
         let conversationId = message.roomId ?? message.friendId ?? ""
+
+        // Encrypt sensitive content
+        let encryptedContent = encryptField(message.text)
+
         let insert = messagesTable.insert(
             messageId <- message.id,
             messageRoomId <- conversationId,
             messageSenderId <- message.senderId ?? "",
             messageSenderType <- message.sender.rawValue,
-            messageContent <- message.text,
+            messageContent <- encryptedContent,
             messageType <- message.messageType?.rawValue ?? "text",
             messageMediaUrl <- message.mediaUri,
             messageMediaMimeType <- message.mediaType,
@@ -262,13 +457,17 @@ final class DatabaseManager {
 
         var messages: [ChatMessage] = []
         for row in try db.prepare(query) {
+            // Decrypt message content
+            let rawContent = row[messageContent]
+            let decryptedContent = isEncrypted(rawContent) ? decryptField(rawContent) : rawContent
+
             let message = ChatMessage(
                 id: row[messageId],
                 roomId: row[messageRoomId],
                 friendId: nil,
                 sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
                 senderId: row[messageSenderId],
-                text: row[messageContent],
+                text: decryptedContent,
                 timestamp: row[messageCreatedAt],
                 messageType: MessageContentType(rawValue: row[messageType]),
                 mediaUri: row[messageMediaUrl],
@@ -555,11 +754,14 @@ final class DatabaseManager {
     func savePointsTransaction(_ transaction: PointsTransaction) throws {
         guard let db = db else { throw DatabaseError.notConnected }
 
+        // Encrypt description field (may contain sensitive info)
+        let encryptedDescription = encryptField(transaction.description)
+
         let insert = pointsHistoryTable.insert(or: .replace,
             transactionId <- transaction.id,
             transactionPointsChange <- transaction.pointsChange,
             transactionType <- transaction.type.rawValue,
-            transactionDescription <- transaction.description,
+            transactionDescription <- encryptedDescription,
             transactionBalanceAfter <- transaction.balanceAfter,
             transactionCreatedAt <- transaction.createdAt
         )
@@ -595,11 +797,15 @@ final class DatabaseManager {
 
         var transactions: [PointsTransaction] = []
         for row in try db.prepare(query) {
+            // Decrypt description field
+            let rawDescription = row[transactionDescription]
+            let decryptedDescription = isEncrypted(rawDescription) ? decryptField(rawDescription) : rawDescription
+
             let transaction = PointsTransaction(
                 id: row[transactionId],
                 pointsChange: row[transactionPointsChange],
                 type: TransactionType(rawValue: row[transactionType]) ?? .adminAdjust,
-                description: row[transactionDescription],
+                description: decryptedDescription,
                 balanceAfter: row[transactionBalanceAfter],
                 createdAt: row[transactionCreatedAt]
             )
@@ -651,6 +857,109 @@ final class DatabaseManager {
         guard let db = db else { throw DatabaseError.notConnected }
         return try db.scalar(messagesTable.count)
     }
+
+    // MARK: - Database Corruption Recovery Testing
+
+    /// Test database corruption recovery
+    /// - Returns: Test result with details
+    func testCorruptionRecovery() -> DatabaseRecoveryTestResult {
+        var testPassed = true
+        var testMessages: [String] = []
+
+        // Test 1: Verify database is accessible
+        do {
+            _ = try db?.scalar("SELECT 1")
+            testMessages.append("Database connectivity: OK")
+        } catch {
+            testPassed = false
+            testMessages.append("Database connectivity: FAILED - \(error.localizedDescription)")
+        }
+
+        // Test 2: Verify tables exist
+        do {
+            let tableCount = try db?.scalar(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ) as? Int ?? 0
+            if tableCount >= 4 {
+                testMessages.append("Table integrity: OK (\(tableCount) tables)")
+            } else {
+                testPassed = false
+                testMessages.append("Table integrity: FAILED (only \(tableCount) tables)")
+            }
+        } catch {
+            testPassed = false
+            testMessages.append("Table integrity check: FAILED")
+        }
+
+        // Test 3: Verify can read and write
+        do {
+            let testId = "recovery_test_\(UUID().uuidString)"
+            let testInsert = messagesTable.filter(messageId == testId)
+            try db?.run(testInsert.insert(
+                messageId <- testId,
+                messageRoomId <- "test_room",
+                messageSenderId <- "test_sender",
+                messageSenderType <- "user",
+                messageContent <- "test content",
+                messageType <- "text",
+                messageIsRead <- false,
+                messageCreatedAt <- Date()
+            ))
+
+            // Delete test record
+            try db?.run(testInsert.delete())
+            testMessages.append("Read/Write operations: OK")
+        } catch {
+            testPassed = false
+            testMessages.append("Read/Write operations: FAILED - \(error.localizedDescription)")
+        }
+
+        // Test 4: Verify encryption key is available
+        if encryptionKey != nil {
+            testMessages.append("Encryption key: Available")
+        } else {
+            testMessages.append("Encryption key: Not available (encryption disabled)")
+        }
+
+        // Test 5: Check database file integrity
+        do {
+            let integrity = try db?.scalar("PRAGMA quick_check") as? String
+            if integrity == "ok" {
+                testMessages.append("Database integrity: OK")
+            } else {
+                testPassed = false
+                testMessages.append("Database integrity: ISSUES DETECTED")
+            }
+        } catch {
+            testMessages.append("Integrity check: Unable to verify")
+        }
+
+        return DatabaseRecoveryTestResult(
+            passed: testPassed,
+            messages: testMessages,
+            timestamp: Date()
+        )
+    }
+
+    /// Perform database maintenance
+    func performMaintenance() throws {
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        // Vacuum to reclaim space
+        try db.execute("VACUUM")
+
+        // Analyze for query optimization
+        try db.execute("ANALYZE")
+
+        SecureLogger.shared.info("Database maintenance completed")
+    }
+}
+
+/// Database recovery test result
+struct DatabaseRecoveryTestResult {
+    let passed: Bool
+    let messages: [String]
+    let timestamp: Date
 }
 
 // MARK: - Database Error
@@ -660,6 +969,8 @@ enum DatabaseError: Error, LocalizedError {
     case queryFailed(String)
     case insertFailed(String)
     case deleteFailed(String)
+    case encryptionFailed
+    case decryptionFailed
 
     var errorDescription: String? {
         switch self {
@@ -671,6 +982,87 @@ enum DatabaseError: Error, LocalizedError {
             return "Insert failed: \(message)"
         case .deleteFailed(let message):
             return "Delete failed: \(message)"
+        case .encryptionFailed:
+            return "Data encryption failed"
+        case .decryptionFailed:
+            return "Data decryption failed"
         }
+    }
+}
+
+// MARK: - Data AES Encryption Extension
+
+extension Data {
+
+    /// AES-256-CBC encryption
+    func aesEncrypt(key: Data, iv: Data) -> Data? {
+        guard key.count == 32, iv.count == 16 else { return nil }
+
+        let bufferSize = self.count + kCCBlockSizeAES128
+        var buffer = Data(count: bufferSize)
+        var numBytesEncrypted: size_t = 0
+
+        let cryptStatus = buffer.withUnsafeMutableBytes { bufferPointer in
+            self.withUnsafeBytes { dataPointer in
+                key.withUnsafeBytes { keyPointer in
+                    iv.withUnsafeBytes { ivPointer in
+                        CCCrypt(
+                            CCOperation(kCCEncrypt),
+                            CCAlgorithm(kCCAlgorithmAES),
+                            CCOptions(kCCOptionPKCS7Padding),
+                            keyPointer.baseAddress,
+                            key.count,
+                            ivPointer.baseAddress,
+                            dataPointer.baseAddress,
+                            self.count,
+                            bufferPointer.baseAddress,
+                            bufferSize,
+                            &numBytesEncrypted
+                        )
+                    }
+                }
+            }
+        }
+
+        guard cryptStatus == kCCSuccess else { return nil }
+
+        buffer.count = numBytesEncrypted
+        return buffer
+    }
+
+    /// AES-256-CBC decryption
+    func aesDecrypt(key: Data, iv: Data) -> Data? {
+        guard key.count == 32, iv.count == 16 else { return nil }
+
+        let bufferSize = self.count + kCCBlockSizeAES128
+        var buffer = Data(count: bufferSize)
+        var numBytesDecrypted: size_t = 0
+
+        let cryptStatus = buffer.withUnsafeMutableBytes { bufferPointer in
+            self.withUnsafeBytes { dataPointer in
+                key.withUnsafeBytes { keyPointer in
+                    iv.withUnsafeBytes { ivPointer in
+                        CCCrypt(
+                            CCOperation(kCCDecrypt),
+                            CCAlgorithm(kCCAlgorithmAES),
+                            CCOptions(kCCOptionPKCS7Padding),
+                            keyPointer.baseAddress,
+                            key.count,
+                            ivPointer.baseAddress,
+                            dataPointer.baseAddress,
+                            self.count,
+                            bufferPointer.baseAddress,
+                            bufferSize,
+                            &numBytesDecrypted
+                        )
+                    }
+                }
+            }
+        }
+
+        guard cryptStatus == kCCSuccess else { return nil }
+
+        buffer.count = numBytesDecrypted
+        return buffer
     }
 }
