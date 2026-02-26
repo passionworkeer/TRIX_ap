@@ -374,19 +374,56 @@ final class SecurityAuditTests: XCTestCase {
     func testCommonPasswordBlacklist() throws {
         let validator = InputValidator.shared
 
-        // Test that common passwords are rejected
+        // Test that common passwords from the expanded blacklist are rejected
         let commonPasswords = [
+            // Top 20 most common
             "password",
             "12345678",
             "qwerty",
-            "abc123"
+            "abc123",
+            // Keyboard patterns
+            "qwertyuiop",
+            "asdfgh",
+            "zxcvbnm",
+            "12345678910",
+            // Sports teams
+            "chelsea",
+            "liverpool",
+            "barcelona",
+            "manchester",
+            // Gaming terms
+            "pokemon",
+            "minecraft",
+            "fortnite",
+            // Simple patterns
+            "aaaaaa",
+            "abcabc",
+            "qwerty1",
+            "password1"
         ]
 
         for password in commonPasswords {
             let result = validator.validatePassword(password)
             XCTAssertFalse(
                 result.isSuccess,
-                "Common password '\(password)' should be rejected"
+                "Common password '\(password)' should be rejected by the expanded blacklist"
+            )
+        }
+
+        // Verify that strong passwords are still accepted
+        let strongPasswords = [
+            "MyStr0ng!Passw0rd",
+            "C0mplex!ty123!",
+            "Un!que@ndSecure1",
+            "N0t@Common$Pass",
+            "D!ff1cult#2Guess"
+        ]
+
+        for password in strongPasswords {
+            let result = validator.validatePassword(password)
+            XCTAssertTrue(
+                result.isSuccess,
+                "Strong password '\(password)' should be accepted"
             )
         }
     }

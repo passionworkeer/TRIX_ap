@@ -40,15 +40,32 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
 
+  TRIX3DCompanionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion.tests
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: TRIX3DCompanion
+    dependencies:
+      - target: TRIX3DCompanion
+
 schemes:
   TRIX3DCompanion:
     build:
       targets:
         TRIX3DCompanion: all
+        TRIX3DCompanionTests: all
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - TRIX3DCompanionTests
     profile:
       config: Release
     analyze:
