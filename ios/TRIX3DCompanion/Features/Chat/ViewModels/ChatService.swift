@@ -98,7 +98,7 @@ final class ChatService: ObservableObject {
         } catch {
             isConnected = false
             connectionStatus = "Connection failed"
-            print("Chat connection failed: \(error.localizedDescription)")
+            SecureLogger.shared.error("Chat connection failed: \(error.localizedDescription)")
         }
     }
 
@@ -167,7 +167,7 @@ final class ChatService: ObservableObject {
 
         } catch {
             isLoading = false
-            print("Failed to load messages: \(error.localizedDescription)")
+            SecureLogger.shared.error("Failed to load messages: \(error.localizedDescription)")
         }
     }
 

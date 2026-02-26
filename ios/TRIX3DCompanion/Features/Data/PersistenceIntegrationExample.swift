@@ -89,7 +89,7 @@ struct NetworkAwareDataView: View {
     private func syncData() async {
         do {
             let result = try await syncService.sync(type: .messages, priority: .high)
-            print("Sync result: \(result.syncedItems) synced, \(result.failedItems) failed")
+            SecureLogger.shared.debug("Sync result: \(result.syncedItems) synced, \(result.failedItems) failed")
 
             // Reload data after sync
             messages = try await cacheService.getMessages(for: "room_123")
@@ -191,9 +191,9 @@ final class OfflineStudyTracker: ObservableObject {
     private func syncPendingSessions() async {
         do {
             let result = try await syncService.sync(type: .studySessions, priority: .high)
-            print("Synced \(result.syncedItems) study sessions")
+            SecureLogger.shared.info("Synced \(result.syncedItems) study sessions")
         } catch {
-            print("Sync failed: \(error)")
+            SecureLogger.shared.error("Sync failed: \(error)")
         }
     }
 
@@ -478,9 +478,9 @@ struct SyncDashboardView: View {
         Task {
             do {
                 let result = try await syncService.syncAll(priority: .normal)
-                print("Sync complete: \(result.syncedItems) synced")
+                SecureLogger.shared.info("Sync complete: \(result.syncedItems) synced")
             } catch {
-                print("Sync failed: \(error)")
+                SecureLogger.shared.error("Sync failed: \(error)")
             }
         }
     }

@@ -378,6 +378,6 @@ struct RegisterView: View {
 
 #Preview {
     RegisterView {
-        print("Switch to login")
+        SecureLogger.shared.debug("Switch to login")
     }
 }

@@ -175,7 +175,7 @@ final class PushNotificationService: NSObject, ObservableObject, PushNotificatio
             handleNotificationType(payload, isForeground: isForeground)
 
         } catch {
-            print("Failed to parse push notification: \(error)")
+            SecureLogger.shared.error("Failed to parse push notification: \(error)")
         }
     }
 
@@ -250,9 +250,9 @@ final class PushNotificationService: NSObject, ObservableObject, PushNotificatio
 
         do {
             try await uploadDeviceToken(tokenInfo)
-            print("Device token uploaded successfully")
+            SecureLogger.shared.info("Device token uploaded successfully")
         } catch {
-            print("Failed to upload device token: \(error)")
+            SecureLogger.shared.error("Failed to upload device token: \(error)")
             // Don't update lastError here as this is background operation
         }
     }

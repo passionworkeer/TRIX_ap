@@ -189,7 +189,7 @@ struct VoiceMessageIntegrationExample: View {
                     handleRecordingComplete(audioURL)
                 },
                 onCancelled: {
-                    print("Recording cancelled")
+                    SecureLogger.shared.debug("Recording cancelled")
                 }
             )
         }
@@ -255,7 +255,7 @@ struct VoiceMessageIntegrationExample: View {
 
     private func uploadVoiceMessage(_ url: URL) async {
         // TODO: Implement upload to server
-        print("Uploading voice message: \(url)")
+        SecureLogger.shared.debug("Uploading voice message: \(url)")
     }
 }
 

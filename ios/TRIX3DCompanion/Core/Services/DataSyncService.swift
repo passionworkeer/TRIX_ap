@@ -590,7 +590,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
                 _ = try await syncAll(priority: priority)
             } catch {
                 // Log error but don't crash
-                print("Auto-sync failed: \(error)")
+                SecureLogger.shared.error("Auto-sync failed: \(error)")
             }
         }
     }

@@ -187,7 +187,7 @@ struct ChatListView: View {
 
     private func createNewChat() {
         // TODO: Implement new chat creation
-        print("Create new chat")
+        SecureLogger.shared.debug("Create new chat")
     }
 }
 

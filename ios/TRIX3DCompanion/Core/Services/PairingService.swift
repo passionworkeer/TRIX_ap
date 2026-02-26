@@ -457,13 +457,13 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
         // Additional logic when state changes
         switch state {
         case .paired(let deviceId, let deviceName):
-            print("[PairingService] Successfully paired to device: \(deviceName) (\(deviceId))")
+            SecureLogger.shared.info("Successfully paired to device: \(deviceName) (\(deviceId))")
         case .unpaired:
-            print("[PairingService] Device unpaired")
+            SecureLogger.shared.info("Device unpaired")
         case .pairing:
-            print("[PairingService] Pairing in progress...")
+            SecureLogger.shared.debug("Pairing in progress...")
         case .unpairing:
-            print("[PairingService] Unpairing in progress...")
+            SecureLogger.shared.debug("Unpairing in progress...")
         }
     }
 

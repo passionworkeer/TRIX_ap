@@ -191,7 +191,7 @@ struct GlassPanelContainer<Content: View>: View {
                 .foregroundColor(.secondary)
 
             Button("Learn More") {
-                print("Learn more tapped")
+                SecureLogger.shared.debug("Learn more tapped")
             }
             .buttonStyle(.borderedProminent)
         }

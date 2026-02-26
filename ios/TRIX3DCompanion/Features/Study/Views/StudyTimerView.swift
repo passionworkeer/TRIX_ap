@@ -425,7 +425,7 @@ struct StudyTimerView: View {
                 }
             } catch {
                 // Handle error
-                print("Error starting session: \(error)")
+                SecureLogger.shared.error("Error starting session: \(error)")
             }
         }
     }
@@ -440,7 +440,7 @@ struct StudyTimerView: View {
                 }
             } catch {
                 // Handle error
-                print("Error pausing session: \(error)")
+                SecureLogger.shared.error("Error pausing session: \(error)")
             }
         }
     }
@@ -455,7 +455,7 @@ struct StudyTimerView: View {
                 }
             } catch {
                 // Handle error
-                print("Error resuming session: \(error)")
+                SecureLogger.shared.error("Error resuming session: \(error)")
             }
         }
     }
@@ -472,7 +472,7 @@ struct StudyTimerView: View {
                 }
             } catch {
                 // Handle error
-                print("Error ending session: \(error)")
+                SecureLogger.shared.error("Error ending session: \(error)")
             }
         }
     }

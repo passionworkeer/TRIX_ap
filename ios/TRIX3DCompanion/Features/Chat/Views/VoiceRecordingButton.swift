@@ -178,7 +178,7 @@ class VoiceRecordingViewModel: ObservableObject {
         } catch {
             errorMessage = "开始录音失败: \(error.localizedDescription)"
             recordingState = .idle
-            print("Recording error: \(error)")
+            SecureLogger.shared.error("Recording error: \(error)")
         }
     }
 
@@ -298,7 +298,7 @@ class VoiceRecordingViewModel: ObservableObject {
                     try FileManager.default.removeItem(at: url)
                 }
             } catch {
-                print("Error cleaning up recording: \(error)")
+                SecureLogger.shared.error("Error cleaning up recording: \(error)")
             }
         }
     }
@@ -563,10 +563,10 @@ struct VoiceRecordingButton: View {
 #Preview("Recording Button") {
     VoiceRecordingButton(
         onRecordingComplete: { url in
-            print("Recording complete: \(url)")
+            SecureLogger.shared.debug("Recording complete: \(url)")
         },
         onCancelled: {
-            print("Recording cancelled")
+            SecureLogger.shared.debug("Recording cancelled")
         }
     )
 }

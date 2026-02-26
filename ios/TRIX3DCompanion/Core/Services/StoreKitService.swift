@@ -120,7 +120,7 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
             await notifyBackendOfPurchase(transaction: transaction)
 
         case .none:
-            print("Unknown product purchased: \(productId)")
+            SecureLogger.shared.warning("Unknown product purchased: \(productId)")
         }
     }
 

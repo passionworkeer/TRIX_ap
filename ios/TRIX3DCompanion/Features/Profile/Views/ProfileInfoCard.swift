@@ -236,8 +236,8 @@ struct ProfileInfoCard: View {
             email: "student@trix3d.com",
             bio: "Learning 3D modeling and animation",
             isStudying: true,
-            onAvatarTap: { print("Avatar tapped") },
-            onEditTap: { print("Edit tapped") }
+            onAvatarTap: { SecureLogger.shared.debug("Avatar tapped") },
+            onEditTap: { SecureLogger.shared.debug("Edit tapped") }
         )
         .padding()
 

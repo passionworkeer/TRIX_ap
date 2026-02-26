@@ -486,7 +486,7 @@ final class OfflineCacheService: ObservableObject, OfflineCacheServiceProtocol {
                 let size = try await getCurrentSize(type: type)
                 total += size
             } catch {
-                print("Failed to calculate size for \(type.rawValue): \(error)")
+                SecureLogger.shared.error("Failed to calculate size for \(type.rawValue): \(error)")
             }
         }
 

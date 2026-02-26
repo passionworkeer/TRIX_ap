@@ -48,6 +48,12 @@ struct ChatDetailView: View {
             inputArea
         }
         .background(backgroundGradient)
+        .gesture(
+            TapGesture()
+                .onEnded { _ in
+                    dismissKeyboard()
+                }
+        )
         .navigationTitle(conversation.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -270,6 +276,16 @@ struct ChatDetailView: View {
     /// Show conversation info
     private func showConversationInfo() {
         // TODO: Implement conversation info view
+    }
+
+    /// Dismiss keyboard when tapping outside input area
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
 

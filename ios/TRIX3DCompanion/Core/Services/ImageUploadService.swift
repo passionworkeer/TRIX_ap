@@ -73,6 +73,36 @@ enum UploadError: Error, LocalizedError {
 /// 上传结果类型
 typealias UploadResult = Result<String, UploadError>
 
+// MARK: - Image Upload Status
+
+/// 单个图片的上传状态
+struct ImageUploadStatus: Identifiable {
+    let id: String
+    let index: Int
+    var state: UploadState
+    var progress: Double
+    var url: String?
+    var error: UploadError?
+    var retryCount: Int
+
+    enum UploadState {
+        case pending
+        case uploading
+        case completed
+        case failed
+    }
+
+    init(index: Int) {
+        self.id = UUID().uuidString
+        self.index = index
+        self.state = .pending
+        self.progress = 0.0
+        self.url = nil
+        self.error = nil
+        self.retryCount = 0
+    }
+}
+
 // MARK: - Image Upload Service
 
 /// 图片上传服务
@@ -94,7 +124,13 @@ final class ImageUploadService: ObservableObject {
     /// 最后的错误
     @Published private(set) var lastError: UploadError?
 
+    /// 每个图片的上传状态
+    @Published private(set) var uploadStatuses: [ImageUploadStatus] = []
+
     // MARK: - Configuration
+
+    /// 最大重试次数
+    private let maxRetryCount: Int = 3
 
     /// 最大文件大小 (5MB)
     private let maxFileSize: Int = 5 * 1024 * 1024
@@ -190,6 +226,9 @@ final class ImageUploadService: ObservableObject {
     func uploadImages(_ images: [UIImage], quality: CGFloat? = nil) async -> [UploadResult] {
         guard !images.isEmpty else { return [] }
 
+        // 初始化上传状态跟踪
+        uploadStatuses = images.enumerated().map { ImageUploadStatus(index: $0.offset) }
+
         // 初始化结果数组（按原始索引顺序）
         var results: [UploadResult?] = Array(repeating: nil, count: images.count)
 
@@ -201,8 +240,25 @@ final class ImageUploadService: ObservableObject {
                     // 等待至少一个任务完成
                     if let (completedIndex, result) = await group.next() {
                         results[completedIndex] = result
+                        // 更新状态
+                        if completedIndex < self.uploadStatuses.count {
+                            switch result {
+                            case .success(let url):
+                                self.uploadStatuses[completedIndex].state = .completed
+                                self.uploadStatuses[completedIndex].url = url
+                                self.uploadStatuses[completedIndex].progress = 1.0
+                            case .failure(let error):
+                                self.uploadStatuses[completedIndex].state = .failed
+                                self.uploadStatuses[completedIndex].error = error
+                            }
+                        }
                         uploadProgress = Double(completedIndex + 1) / Double(images.count)
                     }
+                }
+
+                // 更新状态为上传中
+                if index < uploadStatuses.count {
+                    uploadStatuses[index].state = .uploading
                 }
 
                 // 添加新的上传任务
@@ -216,6 +272,18 @@ final class ImageUploadService: ObservableObject {
             await group.waitForAll()
             for await (index, result) in group {
                 results[index] = result
+                // 更新状态
+                if index < self.uploadStatuses.count {
+                    switch result {
+                    case .success(let url):
+                        self.uploadStatuses[index].state = .completed
+                        self.uploadStatuses[index].url = url
+                        self.uploadStatuses[index].progress = 1.0
+                    case .failure(let error):
+                        self.uploadStatuses[index].state = .failed
+                        self.uploadStatuses[index].error = error
+                    }
+                }
             }
         }
 
@@ -251,6 +319,84 @@ final class ImageUploadService: ObservableObject {
         formatter.allowedUnits = [.useKB, .useMB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: Int64(data.count))
+    }
+
+    // MARK: - Retry Support
+
+    /// 重试所有失败的上传
+    /// - Parameter images: 原始图片数组
+    /// - Parameter quality: 压缩质量
+    /// - Returns: 重试结果数组
+    func retryFailedUploads(with images: [UIImage], quality: CGFloat? = nil) async -> [UploadResult] {
+        // 获取失败的上传索引
+        let failedIndices = uploadStatuses.enumerated()
+            .filter { $0.element.state == .failed && $0.element.retryCount < maxRetryCount }
+            .map { $0.offset }
+
+        guard !failedIndices.isEmpty else {
+            return []
+        }
+
+        // 重置失败的状态
+        for index in failedIndices {
+            uploadStatuses[index].state = .pending
+            uploadStatuses[index].progress = 0.0
+            uploadStatuses[index].error = nil
+        }
+
+        // 重新上传失败的图片
+        var results: [UploadResult?] = Array(repeating: nil, count: images.count)
+
+        await withTaskGroup(of: (Int, UploadResult).self) { group in
+            for index in failedIndices {
+                if index >= 3 {
+                    if let (completedIndex, result) = await group.next() {
+                        results[completedIndex] = result
+                    }
+                }
+
+                group.addTask {
+                    let result = await self.uploadImage(images[index], quality: quality)
+                    return (index, result)
+                }
+            }
+
+            await group.waitForAll()
+            for await (index, result) in group {
+                results[index] = result
+                // 更新状态
+                if index < self.uploadStatuses.count {
+                    switch result {
+                    case .success(let url):
+                        self.uploadStatuses[index].state = .completed
+                        self.uploadStatuses[index].url = url
+                    case .failure(let error):
+                        self.uploadStatuses[index].state = .failed
+                        self.uploadStatuses[index].error = error
+                        self.uploadStatuses[index].retryCount += 1
+                    }
+                }
+            }
+        }
+
+        return results.compactMap { $0 }
+    }
+
+    /// 获取失败的上传数量
+    var failedUploadCount: Int {
+        uploadStatuses.filter { $0.state == .failed }.count
+    }
+
+    /// 获取成功的上传数量
+    var successfulUploadCount: Int {
+        uploadStatuses.filter { $0.state == .completed }.count
+    }
+
+    /// 清除所有上传状态
+    func clearUploadStatuses() {
+        uploadStatuses.removeAll()
+        uploadProgress = 0.0
+        lastError = nil
     }
 
     // MARK: - Private Helpers

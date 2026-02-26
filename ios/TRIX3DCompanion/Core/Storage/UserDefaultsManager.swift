@@ -63,7 +63,7 @@ final class UserDefaultsManager {
             let data = try encoder.encode(user)
             defaults.set(data, forKey: Key.cachedUser)
         } catch {
-            print("Failed to cache user: \(error)")
+            SecureLogger.shared.error("Failed to cache user: \(error)")
         }
     }
 
@@ -78,7 +78,7 @@ final class UserDefaultsManager {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode(User.self, from: data)
         } catch {
-            print("Failed to decode cached user: \(error)")
+            SecureLogger.shared.error("Failed to decode cached user: \(error)")
             return nil
         }
     }
@@ -279,7 +279,7 @@ final class UserDefaultsManager {
             defaults.set(data, forKey: Key.cachedChatRooms)
             updateLastSyncTime()
         } catch {
-            print("Failed to cache chat rooms: \(error)")
+            SecureLogger.shared.error("Failed to cache chat rooms: \(error)")
         }
     }
 
@@ -294,7 +294,7 @@ final class UserDefaultsManager {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode([ChatRoom].self, from: data)
         } catch {
-            print("Failed to decode cached chat rooms: \(error)")
+            SecureLogger.shared.error("Failed to decode cached chat rooms: \(error)")
             return nil
         }
     }
@@ -307,7 +307,7 @@ final class UserDefaultsManager {
             let data = try encoder.encode(stats)
             defaults.set(data, forKey: Key.cachedStudyStats)
         } catch {
-            print("Failed to cache study stats: \(error)")
+            SecureLogger.shared.error("Failed to cache study stats: \(error)")
         }
     }
 
@@ -320,7 +320,7 @@ final class UserDefaultsManager {
         do {
             return try JSONDecoder().decode(StudyStats.self, from: data)
         } catch {
-            print("Failed to decode cached study stats: \(error)")
+            SecureLogger.shared.error("Failed to decode cached study stats: \(error)")
             return nil
         }
     }
@@ -332,7 +332,7 @@ final class UserDefaultsManager {
             let data = try JSONEncoder().encode(stats)
             defaults.set(data, forKey: Key.cachedPointsStats)
         } catch {
-            print("Failed to cache points stats: \(error)")
+            SecureLogger.shared.error("Failed to cache points stats: \(error)")
         }
     }
 
@@ -345,7 +345,7 @@ final class UserDefaultsManager {
         do {
             return try JSONDecoder().decode(UserPointsStats.self, from: data)
         } catch {
-            print("Failed to decode cached points stats: \(error)")
+            SecureLogger.shared.error("Failed to decode cached points stats: \(error)")
             return nil
         }
     }

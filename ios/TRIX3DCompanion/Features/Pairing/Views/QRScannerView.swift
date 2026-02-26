@@ -389,7 +389,7 @@ struct QRScannerView: View {
                 device.unlockForConfiguration()
                 isTorchOn.toggle()
             } catch {
-                print("Failed to toggle torch: \(error)")
+                SecureLogger.shared.error("Failed to toggle torch: \(error)")
             }
         }
     }
@@ -435,7 +435,7 @@ struct QRScannerView: View {
             }
 
         case .failure(let error):
-            print("Scan error: \(error)")
+            SecureLogger.shared.error("Scan error: \(error)")
 
             // Resume scanning
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -450,10 +450,10 @@ struct QRScannerView: View {
 #Preview("QR Scanner") {
     QRScannerView(
         onCodeScanned: { code in
-            print("Scanned: \(code)")
+            SecureLogger.shared.debug("Scanned: \(code)")
         },
         onDismiss: {
-            print("Dismissed")
+            SecureLogger.shared.debug("Dismissed")
         }
     )
 }

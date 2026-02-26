@@ -440,6 +440,6 @@ struct LoginView: View {
 
 #Preview {
     LoginView {
-        print("Switch to register")
+        SecureLogger.shared.debug("Switch to register")
     }
 }
