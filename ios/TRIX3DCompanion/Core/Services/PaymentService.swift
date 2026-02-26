@@ -228,12 +228,18 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 receiptData: receiptData
             )
 
-            // Call backend API - using custom endpoint construction
-            // In production, this should be a proper APIEndpoint case
-            let response: PointsPurchaseResponse = try await apiClient.post(
-                .authMe, // Placeholder - replace with proper payment endpoint
-                body: request
+            // Call backend API to verify receipt
+            let verificationRequest = ReceiptVerificationRequest(
+                transactionId: transactionId,
+                productId: productId,
+                receiptData: receiptData,
+                bundleIdentifier: Bundle.main.bundleIdentifier ?? "unknown",
+                appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+                purchaseDate: ISO8601DateFormatter().string(from: Date()),
+                expirationDate: nil
             )
+
+            let response: ReceiptVerificationResponse = try await apiClient.verifyReceipt(verificationRequest)
 
             // Create order from response
             let order = Order(
@@ -243,10 +249,10 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 productType: productType,
                 amount: price,
                 currency: "CNY",
-                status: .completed,
+                status: response.status,
                 paymentMethod: .applePay,
                 transactionId: transactionId,
-                points: points,
+                points: response.pointsAdded,
                 createdAt: Date(),
                 updatedAt: Date()
             )
@@ -283,10 +289,27 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
         // Fetch from server
         do {
-            let order: Order = try await apiClient.get(.paymentOrder(orderId: orderId))
+            let response: OrderDetailsResponse = try await apiClient.getOrder(orderId: orderId)
+
+            let order = Order(
+                id: response.id,
+                userId: response.userId,
+                productId: response.productId,
+                productType: StoreProductConfiguration.productType(for: response.productId) ?? .points,
+                amount: response.amount,
+                currency: response.currency,
+                status: response.status,
+                paymentMethod: .applePay,
+                transactionId: response.transactionId,
+                points: response.points,
+                createdAt: response.createdAt,
+                updatedAt: response.updatedAt
+            )
+
             cachedOrders[orderId] = order
             return order
         } catch {
+            SecureLogger.shared.error("Failed to fetch order: \(orderId)")
             return nil
         }
     }
@@ -315,11 +338,9 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         }
 
         do {
-            let _: EmptyResponse = try await apiClient.post(.paymentCancel(orderId: orderId))
+            try await apiClient.cancelOrder(orderId: orderId)
 
-            // Update local order
-            var updatedOrder = order
-            // Create cancelled version (would need mutable order)
+            // Remove from cache and update arrays
             cachedOrders.removeValue(forKey: orderId)
             updateOrdersArrays()
 
@@ -347,15 +368,29 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     /// Load order history from server
     private func loadOrderHistory() async {
         do {
-            // Note: Replace with proper payment orders endpoint when available
-            // Using placeholder endpoint for now
-            let response: PaginatedResponse<Order> = try await apiClient.get(.authMe)
-            for order in response.data {
+            let response: OrdersListResponse = try await apiClient.getOrders()
+
+            for orderResponse in response.orders {
+                let order = Order(
+                    id: orderResponse.id,
+                    userId: orderResponse.userId,
+                    productId: orderResponse.productId,
+                    productType: StoreProductConfiguration.productType(for: orderResponse.productId) ?? .points,
+                    amount: orderResponse.amount,
+                    currency: orderResponse.currency,
+                    status: orderResponse.status,
+                    paymentMethod: .applePay,
+                    transactionId: orderResponse.transactionId,
+                    points: orderResponse.points,
+                    createdAt: orderResponse.createdAt,
+                    updatedAt: orderResponse.updatedAt
+                )
                 cachedOrders[order.id] = order
             }
             updateOrdersArrays()
         } catch {
             // Silently fail - orders will be loaded when needed
+            SecureLogger.shared.warning("Failed to load order history from server")
         }
     }
 
@@ -464,24 +499,3 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         }
     }
 }
-
-// MARK: - API Endpoints Extension
-
-// Note: Add these endpoints to APIEndpoints.swift when backend API is ready:
-//
-// enum APIEndpoint {
-//     case paymentVerify
-//     case paymentOrder(id: String)
-//     case paymentOrders
-//     case paymentCancel(id: String)
-//
-//     var path: String {
-//         switch self {
-//         case .paymentVerify: return "/payment/verify"
-//         case .paymentOrder(let id): return "/payment/orders/\(id)"
-//         case .paymentOrders: return "/payment/orders"
-//         case .paymentCancel(let id): return "/payment/orders/\(id)/cancel"
-//         default: break
-//         }
-//     }
-// }

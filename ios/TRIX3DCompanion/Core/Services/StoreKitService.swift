@@ -434,17 +434,213 @@ extension StoreKitService {
 
     /// Get receipt data for server verification
     /// - Returns: Receipt data as base64 encoded string
+    ///
+    /// For StoreKit 2, we collect transaction information and encode it
+    /// for secure transmission to the backend verification service.
+    /// The backend will verify using App Store Server API.
+    ///
+    /// - Important: This method collects all verified transactions and
+    /// creates a JSON payload for server-side verification. Sensitive data
+    /// is not logged to protect user privacy.
     func getReceiptData() -> String? {
-        // For StoreKit 2, we use the transaction ID
-        // The backend will verify using App Store Server API
-        return nil
+        // For StoreKit 2, we create a structured receipt payload
+        // containing verified transaction information for backend verification
+        var transactions: [[String: Any]] = []
+
+        // Collect transactions from Transaction.entitledTransactionSequence
+        // This needs to be async, so we'll use a task continuation
+        let semaphore = DispatchSemaphore(value: 0)
+
+        Task {
+            for await result in Transaction.entitledTransactionSequence {
+                do {
+                    let transaction = try checkVerified(result)
+
+                    // Create a dictionary with transaction data
+                    // NOTE: We don't include sensitive account info in logs
+                    var txData: [String: Any] = [
+                        "id": transaction.id.description,
+                        "productId": transaction.productID,
+                        "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
+                        "quantity": transaction.quantity
+                    ]
+
+                    // Include optional fields if present
+                    if let expirationDate = transaction.expirationDate {
+                        txData["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
+                    }
+
+                    if let offerID = transaction.offerID {
+                        txData["offerID"] = offerID
+                    }
+
+                    if let offerType = transaction.offerType {
+                        txData["offerType"] = offerType.rawValue
+                    }
+
+                    transactions.append(txData)
+
+                } catch {
+                    // Skip unverified transactions
+                    SecureLogger.shared.warning("Skipping unverified transaction during receipt collection")
+                    continue
+                }
+            }
+
+            semaphore.signal()
+        }
+
+        // Wait for collection to complete (with timeout)
+        _ = semaphore.wait(timeout: .now() + 5)
+
+        guard !transactions.isEmpty else {
+            SecureLogger.shared.warning("No verified transactions found for receipt")
+            return nil
+        }
+
+        // Create receipt payload
+        let receiptPayload: [String: Any] = [
+            "version": "2.0",
+            "bundleIdentifier": Bundle.main.bundleIdentifier ?? "unknown",
+            "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "transactions": transactions
+        ]
+
+        // Convert to JSON and base64 encode
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: receiptPayload, options: [.prettyPrinted])
+            return jsonData.base64EncodedString()
+        } catch {
+            SecureLogger.shared.error("Failed to encode receipt data: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     /// Get latest transaction ID for verification
     /// - Parameter productId: Product identifier
     /// - Returns: Transaction ID or nil
+    ///
+    /// Retrieves the most recent verified transaction ID for a specific product.
+    /// This is used to validate purchases with the backend server.
+    ///
+    /// - Important: Transaction IDs are sensitive data and should never be
+    /// logged in production builds.
     func getLatestTransactionId(for productId: String) -> String? {
-        // Get latest transaction for this product
-        return nil
+        var latestTransactionId: String?
+        let semaphore = DispatchSemaphore(value: 0)
+
+        Task {
+            var latestDate: Date?
+
+            for await result in Transaction.entitledTransactionSequence {
+                do {
+                    let transaction = try checkVerified(result)
+
+                    // Only consider transactions for the requested product
+                    if transaction.productID == productId {
+                        // Update if this is the latest transaction
+                        if latestDate == nil || transaction.purchaseDate > latestDate! {
+                            latestDate = transaction.purchaseDate
+                            latestTransactionId = transaction.id.description
+                        }
+                    }
+                } catch {
+                    // Skip unverified transactions
+                    continue
+                }
+            }
+
+            semaphore.signal()
+        }
+
+        // Wait for collection to complete (with timeout)
+        _ = semaphore.wait(timeout: .now() + 5)
+
+        // Return the latest transaction ID (without logging for security)
+        return latestTransactionId
+    }
+
+    /// Get transaction info for verification
+    /// - Parameter transactionId: Transaction ID to retrieve
+    /// - Returns: Transaction info or nil if not found
+    ///
+    /// Retrieves detailed transaction information for backend verification.
+    /// This method searches through all entitled transactions to find
+    /// the matching transaction ID.
+    ///
+    /// - Important: This is a synchronous wrapper around an async operation.
+    /// Use with caution and ensure proper timeout handling.
+    func getTransactionInfo(transactionId: String) -> TransactionInfo? {
+        var foundTransaction: TransactionInfo?
+        let semaphore = DispatchSemaphore(value: 0)
+
+        Task {
+            for await result in Transaction.entitledTransactionSequence {
+                do {
+                    let transaction = try checkVerified(result)
+
+                    // Check if this is the transaction we're looking for
+                    if transaction.id.description == transactionId {
+                        foundTransaction = convertToTransactionInfo(transaction: transaction)
+                        break
+                    }
+                } catch {
+                    // Skip unverified transactions
+                    continue
+                }
+            }
+
+            semaphore.signal()
+        }
+
+        // Wait for search to complete (with timeout)
+        _ = semaphore.wait(timeout: .now() + 5)
+
+        return foundTransaction
+    }
+
+    /// Validate transaction and prepare verification payload for backend
+    /// - Parameters:
+    ///   - transaction: The transaction to validate
+    ///   - productId: Product identifier
+    /// - Returns: Verification payload or nil if validation fails
+    ///
+    /// Creates a secure payload for backend verification that includes
+    /// transaction details without exposing sensitive information.
+    func prepareVerificationPayload(
+        transaction: Transaction,
+        productId: String
+    ) -> [String: Any]? {
+        // Verify the transaction is for the expected product
+        guard transaction.productID == productId else {
+            SecureLogger.shared.warning("Product ID mismatch in transaction verification")
+            return nil
+        }
+
+        // Create verification payload
+        let payload: [String: Any] = [
+            "transactionId": transaction.id.description,
+            "productId": transaction.productID,
+            "quantity": transaction.quantity,
+            "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
+            "bundleIdentifier": Bundle.main.bundleIdentifier ?? "unknown",
+            "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        ]
+
+        // Add optional fields
+        var mutablePayload = payload
+        if let expirationDate = transaction.expirationDate {
+            mutablePayload["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
+        }
+
+        if let offerID = transaction.offerID {
+            mutablePayload["offerID"] = offerID
+        }
+
+        if let offerType = transaction.offerType {
+            mutablePayload["offerType"] = offerType.rawValue
+        }
+
+        return mutablePayload
     }
 }
