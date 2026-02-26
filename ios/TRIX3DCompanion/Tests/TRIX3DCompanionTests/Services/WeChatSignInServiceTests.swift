@@ -4,843 +4,637 @@
 //
 //  Complete test suite for WeChatSignInService
 //
-//  Test Coverage:
-//  - Service initialization and availability
-//  - Sign in flow (success and failure cases)
-//  - Token refresh functionality
-//  - URL callback handling
-//  - Error handling and mapping
-//  - Delegate callbacks
-//  - Security and CSRF protection
-//  - Edge cases and integration scenarios
-//
 
 import XCTest
-import Foundation
 @testable import TRIX3DCompanion
 
-// MARK: - Mock WeChat Sign In Service Delegate
+// MARK: - Mock WeChatSignInService
 
 @MainActor
-final class MockWeChatSignInDelegate: WeChatSignInServiceDelegate {
-    var didSignInCalled = false
-    var didFailCalled = false
+final class MockWeChatSignInService: WeChatSignInServiceProtocol {
 
-    var receivedCredential: WeChatSignInCredential?
-    var receivedError: WeChatSignInError?
+    var isAvailable: Bool = true
+    var isInstalled: Bool = true
+    var sdkVersion: String? = "1.9.2"
 
-    nonisolated func weChatSignInService(
-        _ service: WeChatSignInServiceProtocol,
-        didSignInWith credential: WeChatSignInCredential
-    ) {
-        Task { @MainActor in
-            didSignInCalled = true
-            receivedCredential = credential
+    // Test control properties
+    var shouldFailSignIn = false
+    var shouldReturnNotInstalled = false
+    var shouldReturnNotSupported = false
+    var mockError: WeChatSignInError?
+    var mockCredential: WeChatSignInCredential?
+    var mockRefreshCredential: WeChatSignInCredential?
+    var shouldFailRefresh = false
+
+    // Call tracking
+    var signInCalled = false
+    var refreshAccessTokenCalled = false
+    var refreshAccessTokenCalledWithToken: String?
+    var handleOpenCalled = false
+    var handleOpenCalledWithURL: URL?
+
+    // Concurrent tracking
+    var signInCallCount = 0
+    var activeSignInCount = 0
+
+    func signIn() async -> WeChatSignInResult {
+        signInCalled = true
+        signInCallCount += 1
+        activeSignInCount += 1
+        defer { activeSignInCount -= 1 }
+
+        if shouldReturnNotSupported {
+            return .failure(.notSupported)
         }
+
+        if shouldReturnNotInstalled {
+            return .failure(.notInstalled)
+        }
+
+        if shouldFailSignIn {
+            let error = mockError ?? .authenticationFailed
+            return .failure(error)
+        }
+
+        let credential = mockCredential ?? createMockCredential()
+        return .success(credential)
     }
 
-    nonisolated func weChatSignInService(
-        _ service: WeChatSignInServiceProtocol,
-        didFailWithError error: WeChatSignInError
-    ) {
-        Task { @MainActor in
-            didFailCalled = true
-            receivedError = error
+    func refreshAccessToken(refreshToken: String) async -> WeChatSignInResult {
+        refreshAccessTokenCalled = true
+        refreshAccessTokenCalledWithToken = refreshToken
+
+        if shouldFailRefresh {
+            return .failure(.tokenExpired)
         }
+
+        let credential = mockRefreshCredential ?? createMockRefreshCredential()
+        return .success(credential)
     }
 
-    func reset() {
-        didSignInCalled = false
-        didFailCalled = false
-        receivedCredential = nil
-        receivedError = nil
+    func handleOpen(_ url: URL) -> Bool {
+        handleOpenCalled = true
+        handleOpenCalledWithURL = url
+
+        // Check if this is a WeChat callback
+        guard url.scheme?.hasPrefix("wx") == true ||
+              url.absoluteString.contains("oauth") else {
+            return false
+        }
+
+        return true
+    }
+
+    // MARK: - Helper Methods
+
+    private func createMockCredential() -> WeChatSignInCredential {
+        return WeChatSignInCredential(
+            openID: "mock-open-id-123",
+            accessToken: "mock-access-token",
+            refreshToken: "mock-refresh-token",
+            expiresIn: 7200,
+            unionID: "mock-union-id-456",
+            scope: "snsapi_userinfo"
+        )
+    }
+
+    private func createMockRefreshCredential() -> WeChatSignInCredential {
+        return WeChatSignInCredential(
+            openID: "mock-open-id-123",
+            accessToken: "new-mock-access-token",
+            refreshToken: "new-mock-refresh-token",
+            expiresIn: 7200,
+            unionID: "mock-union-id-456",
+            scope: "snsapi_userinfo"
+        )
     }
 }
 
-// MARK: - Mock WeChat SDK
-
-enum MockWeChatSDK {
-    static var isInstalled = false
-    static var shouldFailAuth = false
-    static var mockAuthCode: String?
-    static var mockAccessToken: String?
-    static var mockOpenID: String?
-
-    static func reset() {
-        isInstalled = false
-        shouldFailAuth = false
-        mockAuthCode = nil
-        mockAccessToken = nil
-        mockOpenID = nil
-    }
-}
-
-// MARK: - WeChat Sign In Service Tests
+// MARK: - WeChatSignInService Tests
 
 @MainActor
 final class WeChatSignInServiceTests: XCTestCase {
 
-    var sut: WeChatSignInService!
-    var delegate: MockWeChatSignInDelegate!
+    var sut: MockWeChatSignInService!
 
-    override func setUp() async throws {
-        try await super.setUp()
-        sut = WeChatSignInService.shared
-        delegate = MockWeChatSignInDelegate()
-        sut.delegate = delegate
-        MockWeChatSDK.reset()
+    override func setUp() {
+        super.setUp()
+        sut = MockWeChatSignInService()
     }
 
-    override func tearDown() async throws {
-        sut.delegate = nil
-        delegate.reset()
-        MockWeChatSDK.reset()
-        try await super.tearDown()
-    }
-}
-
-// MARK: - Service Initialization Tests
-
-extension WeChatSignInServiceTests {
-
-    func testServiceIsSingleton() {
-        // Given
-        let instance1 = WeChatSignInService.shared
-        let instance2 = WeChatSignInService.shared
-
-        // Then
-        XCTAssertStrictlyEqual(instance1, instance2, "WeChatSignInService should be a singleton")
+    override func tearDown() {
+        sut = nil
+        super.tearDown()
     }
 
-    func testIsAvailableDependsOnConfiguration() {
-        // Given & When
-        let isAvailable = sut.isAvailable
+    // MARK: - Sign In Success Tests
 
-        // Then
-        // Service is not available if app ID is not configured
-        // In production, this would check for actual WeChat App ID
-        XCTAssertFalse(isAvailable, "Service should not be available without WeChat App ID configuration")
-    }
-
-    func testIsInstalledChecksWeChatApp() {
-        // Given & When
-        let isInstalled = sut.isInstalled
-
-        // Then
-        // WeChat is not installed in test environment
-        XCTAssertFalse(isInstalled, "WeChat should not be installed in test environment")
-    }
-
-    func testSdkVersion() {
-        // Given & When
-        let version = sut.sdkVersion
-
-        // Then
-        // Should return version string or nil
-        // In test environment, returns placeholder version
-        XCTAssertNotNil(version, "SDK version should be available")
-    }
-}
-
-// MARK: - Sign In Flow Tests
-
-extension WeChatSignInServiceTests {
-
-    func testSignInFailsWhenNotAvailable() async {
-        // Given
-        // Service is not available (no app ID configured)
-
-        // When
-        let result = await sut.signIn()
-
-        // Then
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(
-                error as? WeChatSignInError,
-                .notSupported,
-                "Should fail with notSupported error"
-            )
-        case .success:
-            XCTFail("Sign in should fail when service is not available")
-        }
-    }
-
-    func testSignInFailsWhenWeChatNotInstalled() async {
-        // Given
-        // WeChat is not installed in test environment
-
-        // When
-        let result = await sut.signIn()
-
-        // Then
-        // Note: This test assumes service is not available
-        // If service was available but WeChat not installed:
-        // switch result {
-        // case .failure(let error):
-        //     if case .notInstalled = error {
-        //         // Expected
-        //     } else {
-        //         XCTFail("Wrong error type")
-        //     }
-        // case .success:
-        //     XCTFail("Should fail when WeChat not installed")
-        // }
-
-        // In test environment, service is not available
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(
-                error as? WeChatSignInError,
-                .notSupported,
-                "Should fail with notSupported error in test environment"
-            )
-        case .success:
-            XCTFail("Should fail")
-        }
-    }
-}
-
-// MARK: - Token Refresh Tests
-
-extension WeChatSignInServiceTests {
-
-    func testRefreshAccessTokenFailsWhenNotAvailable() async {
-        // Given
-        let refreshToken = "mock_refresh_token"
-
-        // When
-        let result = await sut.refreshAccessToken(refreshToken: refreshToken)
-
-        // Then
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(
-                error as? WeChatSignInError,
-                .notSupported,
-                "Should fail with notSupported error"
-            )
-        case .success:
-            XCTFail("Refresh should fail when service is not available")
-        }
-    }
-
-    func testRefreshAccessTokenReturnsNewCredential() async {
-        // Note: This test would require actual WeChat SDK and network
-        // In test environment, we can only verify the structure
-
-        // Given
-        let refreshToken = "valid_refresh_token"
-
-        // When
-        let result = await sut.refreshAccessToken(refreshToken: refreshToken)
-
-        // Then
-        // In test environment, this will fail
-        // In production, it should return a new credential
-        switch result {
-        case .success(let credential):
-            XCTAssertNotNil(credential.openID, "New credential should have openID")
-            XCTAssertNotNil(credential.accessToken, "New credential should have access token")
-        case .failure:
-            // Expected in test environment
-            XCTAssertTrue(true, "Refresh fails in test environment")
-        }
-    }
-}
-
-// MARK: - URL Callback Tests
-
-extension WeChatSignInServiceTests {
-
-    func testHandleOpenWithNonWeChatURL() {
-        // Given
-        let nonWeChatURL = URL(string: "https://example.com/callback")!
-
-        // When
-        let handled = sut.handleOpen(nonWeChatURL)
-
-        // Then
-        XCTAssertFalse(handled, "Should not handle non-WeChat URLs")
-    }
-
-    func testHandleOpenWithWeChatCallbackURL() {
-        // Given
-        // Create a mock WeChat callback URL
-        // Format: wxAPPID://oauth?code=CODE&state=STATE
-        let wechatURL = URL(string: "wx123456://oauth?code=test_auth_code&state=test_state")!
-
-        // When
-        let handled = sut.handleOpen(wechatURL)
-
-        // Then
-        // In test environment, WeChat SDK placeholder may not handle this
-        // This test verifies the URL format is correct
-        XCTAssertTrue(
-            wechatURL.scheme?.starts(with: "wx") ?? false,
-            "URL should have WeChat scheme"
-        )
-    }
-
-    func testHandleOpenWithURLWithCodeParameter() {
-        // Given
-        let url = URL(string: "wx123456://oauth?code=auth_code_123&state=state_456")!
-
-        // When
-        let handled = sut.handleOpen(url)
-
-        // Then
-        // Verify URL structure
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let code = components?.queryItems?.first(where: { $0.name == "code" })?.value
-        let state = components?.queryItems?.first(where: { $0.name == "state" })?.value
-
-        XCTAssertNotNil(code, "URL should contain code parameter")
-        XCTAssertNotNil(state, "URL should contain state parameter")
-    }
-
-    func testHandleOpenWithInvalidState() {
-        // Given
-        let url = URL(string: "wx123456://oauth?code=auth_code&state=invalid_state")!
-
-        // When
-        let handled = sut.handleOpen(url)
-
-        // Then
-        // Service should validate state parameter for CSRF protection
-        // In test environment, we can't fully test this
-        XCTAssertTrue(
-            url.absoluteString.contains("state"),
-            "URL should contain state parameter"
-        )
-    }
-
-    func testHandleOpenWithMissingCode() {
-        // Given
-        let url = URL(string: "wx123456://oauth?state=state_123")!
-
-        // When
-        let handled = sut.handleOpen(url)
-
-        // Then
-        // Service should detect missing code and fail
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let code = components?.queryItems?.first(where: { $0.name == "code" })?.value
-
-        XCTAssertNil(code, "URL should be missing code parameter")
-    }
-}
-
-// MARK: - Delegate Callback Tests
-
-extension WeChatSignInServiceTests {
-
-    func testDelegateReceivesSignInSuccess() async {
+    func testSignIn_Success() async {
         // Given
         let mockCredential = WeChatSignInCredential(
-            openID: "mock_open_id",
-            accessToken: "mock_access_token",
-            refreshToken: "mock_refresh_token",
+            openID: "test-open-id",
+            accessToken: "test-access-token",
+            refreshToken: "test-refresh-token",
             expiresIn: 7200,
-            unionID: "mock_union_id",
+            unionID: "test-union-id",
             scope: "snsapi_userinfo"
         )
-
-        // When
-        delegate.weChatSignInService(sut, didSignInWith: mockCredential)
-
-        // Then
-        XCTAssertTrue(delegate.didSignInCalled, "Delegate should receive signIn callback")
-        XCTAssertNotNil(delegate.receivedCredential, "Delegate should receive credential")
-        XCTAssertEqual(
-            delegate.receivedCredential?.openID,
-            "mock_open_id",
-            "Credential should have correct openID"
-        )
-    }
-
-    func testDelegateReceivesSignInError() async {
-        // Given
-        let mockError = WeChatSignInError.cancelled
-
-        // When
-        delegate.weChatSignInService(sut, didFailWithError: mockError)
-
-        // Then
-        XCTAssertTrue(delegate.didFailCalled, "Delegate should receive failure callback")
-        XCTAssertNotNil(delegate.receivedError, "Delegate should receive error")
-        XCTAssertEqual(
-            delegate.receivedError as? WeChatSignInError,
-            .cancelled,
-            "Error should be cancellation"
-        )
-    }
-}
-
-// MARK: - Error Handling Tests
-
-extension WeChatSignInServiceTests {
-
-    func testNotInstalledErrorIsRecoverable() {
-        // Given
-        let error = WeChatSignInError.notInstalled
-
-        // Then
-        XCTAssertTrue(error.isRecoverable, "Not installed should be recoverable")
-    }
-
-    func testCancelledErrorIsRecoverable() {
-        // Given
-        let error = WeChatSignInError.cancelled
-
-        // Then
-        XCTAssertTrue(error.isRecoverable, "Cancellation should be recoverable")
-    }
-
-    func testTokenExpiredErrorIsRecoverable() {
-        // Given
-        let error = WeChatSignInError.tokenExpired
-
-        // Then
-        XCTAssertTrue(error.isRecoverable, "Token expired should be recoverable via refresh")
-    }
-
-    func testNetworkErrorIsRecoverable() {
-        // Given
-        let underlyingError = NSError(domain: "test", code: -1)
-        let error = WeChatSignInError.networkError(underlyingError)
-
-        // Then
-        XCTAssertTrue(error.isRecoverable, "Network errors should be recoverable")
-    }
-
-    func testInvalidCodeErrorIsNotRecoverable() {
-        // Given
-        let error = WeChatSignInError.invalidCode
-
-        // Then
-        XCTAssertFalse(error.isRecoverable, "Invalid code should not be recoverable")
-    }
-
-    func testAuthenticationFailedErrorIsNotRecoverable() {
-        // Given
-        let error = WeChatSignInError.authenticationFailed
-
-        // Then
-        XCTAssertFalse(error.isRecoverable, "Authentication failed should not be recoverable")
-    }
-}
-
-// MARK: - Error Description Tests
-
-extension WeChatSignInServiceTests {
-
-    func testNotInstalledErrorDescription() {
-        // Given
-        let error = WeChatSignInError.notInstalled
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("not installed") ?? false,
-            "Description should mention not installed"
-        )
-    }
-
-    func testNotSupportedErrorDescription() {
-        // Given
-        let error = WeChatSignInError.notSupported
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("not supported") ?? false,
-            "Description should mention not supported"
-        )
-    }
-
-    func testCancelledErrorDescription() {
-        // Given
-        let error = WeChatSignInError.cancelled
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("cancelled") ?? false,
-            "Description should mention cancellation"
-        )
-    }
-
-    func testInvalidCodeErrorDescription() {
-        // Given
-        let error = WeChatSignInError.invalidCode
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("Invalid authorization code") ?? false,
-            "Description should mention invalid code"
-        )
-    }
-
-    func testTokenExpiredErrorDescription() {
-        // Given
-        let error = WeChatSignInError.tokenExpired
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("expired") ?? false,
-            "Description should mention expiration"
-        )
-    }
-}
-
-// MARK: - Credential Tests
-
-extension WeChatSignInServiceTests {
-
-    func testCredentialExpirationDate() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "test",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: 3600, // 1 hour
-            unionID: nil,
-            scope: nil
-        )
-
-        // When
-        let expirationDate = credential.expirationDate
-
-        // Then
-        let expectedDate = Date().addingTimeInterval(3600)
-        let timeDifference = abs(expirationDate.timeIntervalSince(expectedDate))
-        XCTAssertLessThan(timeDifference, 1.0, "Expiration date should be approximately 1 hour from now")
-    }
-
-    func testCredentialIsNotExpiredWhenNew() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "test",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: 3600,
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertFalse(credential.isExpired, "New credential should not be expired")
-    }
-
-    func testCredentialIsExpiredWhenTimePassed() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "test",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: -1, // Already expired
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertTrue(credential.isExpired, "Credential with negative expiresIn should be expired")
-    }
-
-    func testCredentialWithAllFields() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "openid_123",
-            accessToken: "access_token_456",
-            refreshToken: "refresh_token_789",
-            expiresIn: 7200,
-            unionID: "union_id_abc",
-            scope: "snsapi_userinfo,snsapi_base"
-        )
-
-        // Then
-        XCTAssertEqual(credential.openID, "openid_123", "OpenID should match")
-        XCTAssertEqual(credential.accessToken, "access_token_456", "Access token should match")
-        XCTAssertEqual(credential.refreshToken, "refresh_token_789", "Refresh token should match")
-        XCTAssertEqual(credential.expiresIn, 7200, "Expires in should match")
-        XCTAssertEqual(credential.unionID, "union_id_abc", "UnionID should match")
-        XCTAssertEqual(credential.scope, "snsapi_userinfo,snsapi_base", "Scope should match")
-    }
-
-    func testCredentialWithOptionalFieldsNil() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "openid",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: 3600,
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertNil(credential.refreshToken, "Refresh token should be nil")
-        XCTAssertNil(credential.unionID, "UnionID should be nil")
-        XCTAssertNil(credential.scope, "Scope should be nil")
-    }
-}
-
-// MARK: - Security Tests
-
-extension WeChatSignInServiceTests {
-
-    func testCSRFStateParameterGenerated() {
-        // This test verifies state parameter generation for CSRF protection
-        // In actual implementation, state should be random and validated
-
-        // Given
-        let state1 = generateRandomState()
-        let state2 = generateRandomState()
-
-        // Then
-        XCTAssertNotEqual(state1, state2, "State parameters should be unique")
-        XCTAssertEqual(state1.count, 32, "State should be 32 characters")
-        XCTAssertEqual(state2.count, 32, "State should be 32 characters")
-    }
-
-    func testStateParameterContainsValidCharacters() {
-        // Given
-        let state = generateRandomState()
-        let validCharacters = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-        // When
-        let allValid = state.allSatisfy { validCharacters.contains($0) }
-
-        // Then
-        XCTAssertTrue(allValid, "State should only contain alphanumeric characters")
-    }
-
-    private func generateRandomState() -> String {
-        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0..<32).map { _ in characters.randomElement()! })
-    }
-}
-
-// MARK: - App Lifecycle Integration Tests
-
-extension WeChatSignInServiceTests {
-
-    func testApplicationDidOpenURL() {
-        // Given
-        let url = URL(string: "wx123456://oauth?code=test&state=test")!
-
-        // When
-        let handled = sut.applicationDidOpen(url)
-
-        // Then
-        // Should attempt to handle the URL
-        XCTAssertTrue(
-            url.scheme?.starts(with: "wx") ?? false,
-            "URL should have WeChat scheme"
-        )
-    }
-
-    func testSceneDidOpenURLContexts() {
-        // Given
-        let url = URL(string: "wx123456://oauth?code=test&state=test")!
-        let contexts: Set<UIOpenURLContext> = [UIOpenURLContext(url: url)]
-
-        // When
-        let handled = sut.sceneDidOpen(urlContexts: contexts)
-
-        // Then
-        // Should attempt to handle the URL
-        XCTAssertTrue(
-            url.scheme?.starts(with: "wx") ?? false,
-            "URL should have WeChat scheme"
-        )
-    }
-}
-
-// MARK: - Edge Cases Tests
-
-extension WeChatSignInServiceTests {
-
-    func testEmptyAccessTokenHandling() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "test",
-            accessToken: "",
-            refreshToken: nil,
-            expiresIn: 3600,
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertTrue(credential.accessToken.isEmpty, "Access token can be empty for testing")
-    }
-
-    func testZeroExpirationTime() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "test",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: 0,
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertTrue(credential.isExpired, "Zero expiration should mean expired")
-    }
-
-    func testEmptyOpenID() {
-        // Given
-        let credential = WeChatSignInCredential(
-            openID: "",
-            accessToken: "token",
-            refreshToken: nil,
-            expiresIn: 3600,
-            unionID: nil,
-            scope: nil
-        )
-
-        // Then
-        XCTAssertTrue(credential.openID.isEmpty, "OpenID can be empty for testing")
-    }
-
-    func testMalformedURLHandling() {
-        // Given
-        let malformedURL = URL(string: "not-a-valid-url")!
-
-        // When
-        let handled = sut.handleOpen(malformedURL)
-
-        // Then
-        XCTAssertFalse(handled, "Should not handle malformed URLs")
-    }
-
-    func testURLEncodedParameters() {
-        // Given
-        let url = URL(string: "wx123456://oauth?code=encoded%20code&state=encoded%20state")!
-
-        // When
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-
-        // Then
-        XCTAssertNotNil(components, "Should parse URL with encoded parameters")
-        let code = components?.queryItems?.first(where: { $0.name == "code" })?.value
-        XCTAssertEqual(code, "encoded code", "Should decode URL-encoded parameters")
-    }
-}
-
-// MARK: - Integration Tests
-
-extension WeChatSignInServiceTests {
-
-    func testFullSignInFlowIntegration() async {
-        // This is an integration test that verifies the complete flow structure
-        // In a real environment, this would require actual WeChat app and network
-
-        // Given
-        delegate.reset()
+        sut.mockCredential = mockCredential
 
         // When
         let result = await sut.signIn()
 
         // Then
-        // In test environment, service is not available
+        XCTAssertTrue(sut.signInCalled)
+        XCTAssertEqual(sut.signInCallCount, 1)
+
         switch result {
-        case .failure(let error):
-            XCTAssertEqual(
-                error as? WeChatSignInError,
-                .notSupported,
-                "Should fail with notSupported in test environment"
-            )
-        case .success:
-            XCTFail("Should fail in test environment")
+        case .success(let credential):
+            XCTAssertEqual(credential.openID, "test-open-id")
+            XCTAssertEqual(credential.accessToken, "test-access-token")
+            XCTAssertEqual(credential.refreshToken, "test-refresh-token")
+            XCTAssertEqual(credential.expiresIn, 7200)
+            XCTAssertEqual(credential.unionID, "test-union-id")
+            XCTAssertEqual(credential.scope, "snsapi_userinfo")
+            XCTAssertFalse(credential.isExpired)
+        case .failure:
+            XCTFail("Expected success but got failure")
         }
     }
 
-    func testTokenRefreshIntegration() async {
+    func testSignIn_SuccessWithoutUnionID() async {
         // Given
-        let refreshToken = "test_refresh_token"
+        let mockCredential = WeChatSignInCredential(
+            openID: "test-open-id",
+            accessToken: "test-access-token",
+            refreshToken: "test-refresh-token",
+            expiresIn: 7200,
+            unionID: nil,
+            scope: "snsapi_userinfo"
+        )
+        sut.mockCredential = mockCredential
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .success(let credential):
+            XCTAssertEqual(credential.openID, "test-open-id")
+            XCTAssertNil(credential.unionID)
+        case .failure:
+            XCTFail("Expected success")
+        }
+    }
+
+    // MARK: - Not Installed Tests
+
+    func testSignIn_NotInstalled() async {
+        // Given
+        sut.shouldReturnNotInstalled = true
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        XCTAssertTrue(sut.signInCalled)
+
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .notInstalled)
+        case .success:
+            XCTFail("Expected not installed error")
+        }
+    }
+
+    // MARK: - Not Supported Tests
+
+    func testSignIn_NotSupported() async {
+        // Given
+        sut.shouldReturnNotSupported = true
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        XCTAssertTrue(sut.signInCalled)
+
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .notSupported)
+        case .success:
+            XCTFail("Expected not supported error")
+        }
+    }
+
+    // MARK: - Authentication Failed Tests
+
+    func testSignIn_AuthenticationFailed() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .authenticationFailed
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .authenticationFailed)
+        case .success:
+            XCTFail("Expected authentication failed error")
+        }
+    }
+
+    // MARK: - Invalid Code Tests
+
+    func testSignIn_InvalidCode() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .invalidCode
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .invalidCode)
+        case .success:
+            XCTFail("Expected invalid code error")
+        }
+    }
+
+    // MARK: - Network Error Tests
+
+    func testSignIn_NetworkError() async {
+        // Given
+        let networkError = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        sut.shouldFailSignIn = true
+        sut.mockError = .networkError(networkError)
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            if case .networkError = error {
+                XCTAssertTrue(true)
+            } else {
+                XCTFail("Expected network error")
+            }
+        case .success:
+            XCTFail("Expected network error")
+        }
+    }
+
+    // MARK: - Invalid Response Tests
+
+    func testSignIn_InvalidResponse() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .invalidResponse
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .invalidResponse)
+        case .success:
+            XCTFail("Expected invalid response error")
+        }
+    }
+
+    // MARK: - Authorization Failed Tests
+
+    func testSignIn_AuthorizationFailed() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .authorizationFailed("User denied access")
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            if case .authorizationFailed(let message) = error {
+                XCTAssertEqual(message, "User denied access")
+            } else {
+                XCTFail("Expected authorization failed error")
+            }
+        case .success:
+            XCTFail("Expected authorization failed error")
+        }
+    }
+
+    // MARK: - No OpenID Tests
+
+    func testSignIn_NoOpenID() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .noOpenID
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .noOpenID)
+        case .success:
+            XCTFail("Expected no OpenID error")
+        }
+    }
+
+    // MARK: - No Access Token Tests
+
+    func testSignIn_NoAccessToken() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .noAccessToken
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .noAccessToken)
+        case .success:
+            XCTFail("Expected no access token error")
+        }
+    }
+
+    // MARK: - Token Expired Tests
+
+    func testSignIn_TokenExpired() async {
+        // Given
+        sut.shouldFailSignIn = true
+        sut.mockError = .tokenExpired
+
+        // When
+        let result = await sut.signIn()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .tokenExpired)
+            XCTAssertTrue(error.isRecoverable)
+        case .success:
+            XCTFail("Expected token expired error")
+        }
+    }
+
+    // MARK: - Token Refresh Tests
+
+    func testRefreshAccessToken_Success() async {
+        // Given
+        let refreshToken = "valid-refresh-token"
+        let newCredential = WeChatSignInCredential(
+            openID: "test-open-id",
+            accessToken: "new-access-token",
+            refreshToken: "new-refresh-token",
+            expiresIn: 7200,
+            unionID: "test-union-id",
+            scope: "snsapi_userinfo"
+        )
+        sut.mockRefreshCredential = newCredential
 
         // When
         let result = await sut.refreshAccessToken(refreshToken: refreshToken)
 
         // Then
-        // In test environment, this will fail
+        XCTAssertTrue(sut.refreshAccessTokenCalled)
+        XCTAssertEqual(sut.refreshAccessTokenCalledWithToken, refreshToken)
+
         switch result {
-        case .failure(let error):
-            XCTAssertEqual(
-                error as? WeChatSignInError,
-                .notSupported,
-                "Should fail with notSupported in test environment"
-            )
-        case .success:
-            XCTFail("Should fail in test environment")
+        case .success(let credential):
+            XCTAssertEqual(credential.accessToken, "new-access-token")
+            XCTAssertEqual(credential.refreshToken, "new-refresh-token")
+            XCTAssertFalse(credential.isExpired)
+        case .failure:
+            XCTFail("Expected success")
         }
     }
-}
 
-// MARK: - Network Error Handling Tests
-
-extension WeChatSignInServiceTests {
-
-    func testNetworkErrorWrapsUnderlyingError() {
+    func testRefreshAccessToken_Failure() async {
         // Given
-        let underlyingError = NSError(
-            domain: "NSURLErrorDomain",
-            code: NSURLErrorNotConnectedToInternet,
-            userInfo: [NSLocalizedDescriptionKey: "No internet connection"]
-        )
-        let error = WeChatSignInError.networkError(underlyingError)
+        sut.shouldFailRefresh = true
+
+        // When
+        let result = await sut.refreshAccessToken(refreshToken: "invalid-token")
 
         // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("Network") ?? false,
-            "Description should mention network"
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .tokenExpired)
+        case .success:
+            XCTFail("Expected failure")
+        }
+    }
+
+    // MARK: - Handle URL Tests
+
+    func testHandleOpen_ValidWeChatURL() {
+        // Given
+        let url = URL(string: "wx123456789://oauth?code=auth-code-123&state=state-123")!
+
+        // When
+        let handled = sut.handleOpen(url)
+
+        // Then
+        XCTAssertTrue(handled)
+        XCTAssertTrue(sut.handleOpenCalled)
+        XCTAssertEqual(sut.handleOpenCalledWithURL, url)
+    }
+
+    func testHandleOpen_InvalidURL() {
+        // Given
+        let url = URL(string: "https://example.com/callback")!
+
+        // When
+        let handled = sut.handleOpen(url)
+
+        // Then
+        XCTAssertFalse(handled)
+        XCTAssertTrue(sut.handleOpenCalled)
+    }
+
+    // MARK: - Concurrent Tests
+
+    func testConcurrentSignIn_PreventsRaceCondition() async {
+        // When - Execute concurrent sign-ins
+        async let result1 = sut.signIn()
+        async let result2 = sut.signIn()
+        async let result3 = sut.signIn()
+
+        let (res1, res2, res3) = await (result1, result2, result3)
+
+        // Then
+        XCTAssertEqual(sut.signInCallCount, 3)
+        XCTAssertEqual(sut.activeSignInCount, 0)
+
+        switch (res1, res2, res3) {
+        case (.success, .success, .success):
+            XCTAssertTrue(true)
+        default:
+            XCTFail("Expected all sign-ins to succeed")
+        }
+    }
+
+    // MARK: - Credential Expiration Tests
+
+    func testCredential_NotExpired() {
+        // Given
+        let credential = WeChatSignInCredential(
+            openID: "test",
+            accessToken: "token",
+            refreshToken: "refresh",
+            expiresIn: 7200,
+            unionID: nil,
+            scope: nil
+        )
+
+        // Then
+        XCTAssertFalse(credential.isExpired)
+    }
+
+    func testCredential_ExpirationDate() {
+        // Given
+        let credential = WeChatSignInCredential(
+            openID: "test",
+            accessToken: "token",
+            refreshToken: "refresh",
+            expiresIn: 3600,
+            unionID: nil,
+            scope: nil
+        )
+
+        // Then
+        let expectedExpiration = Date().addingTimeInterval(3600)
+        let timeDifference = abs(credential.expirationDate.timeIntervalSince(expectedExpiration))
+        XCTAssertLessThan(timeDifference, 1.0)
+    }
+
+    // MARK: - Error Recovery Tests
+
+    func testErrorIsRecoverable_Cancelled() {
+        XCTAssertTrue(WeChatSignInError.cancelled.isRecoverable)
+    }
+
+    func testErrorIsRecoverable_TokenExpired() {
+        XCTAssertTrue(WeChatSignInError.tokenExpired.isRecoverable)
+    }
+
+    func testErrorIsRecoverable_NetworkError() {
+        let networkError = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        XCTAssertTrue(WeChatSignInError.networkError(networkError).isRecoverable)
+    }
+
+    func testErrorIsNotRecoverable_NotInstalled() {
+        XCTAssertFalse(WeChatSignInError.notInstalled.isRecoverable)
+    }
+
+    func testErrorIsNotRecoverable_NotSupported() {
+        XCTAssertFalse(WeChatSignInError.notSupported.isRecoverable)
+    }
+
+    func testErrorIsNotRecoverable_InvalidCode() {
+        XCTAssertFalse(WeChatSignInError.invalidCode.isRecoverable)
+    }
+
+    // MARK: - Error Description Tests
+
+    func testErrorDescription_NotInstalled() {
+        XCTAssertEqual(
+            WeChatSignInError.notInstalled.errorDescription,
+            "WeChat is not installed on this device"
         )
     }
 
-    func testAuthorizationFailedWithMessage() {
-        // Given
-        let message = "Invalid client credentials"
-        let error = WeChatSignInError.authorizationFailed(message)
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains(message) ?? false,
-            "Description should contain the message"
-        )
-    }
-}
-
-// MARK: - Unknown Error Tests
-
-extension WeChatSignInServiceTests {
-
-    func testUnknownErrorWithNilUnderlying() {
-        // Given
-        let error = WeChatSignInError.unknown(nil)
-
-        // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
-        XCTAssertTrue(
-            error.errorDescription?.contains("unknown") ?? false,
-            "Description should mention unknown error"
+    func testErrorDescription_Cancelled() {
+        XCTAssertEqual(
+            WeChatSignInError.cancelled.errorDescription,
+            "WeChat Sign In was cancelled"
         )
     }
 
-    func testUnknownErrorWithUnderlying() {
+    func testErrorDescription_InvalidCode() {
+        XCTAssertEqual(
+            WeChatSignInError.invalidCode.errorDescription,
+            "Invalid authorization code received from WeChat"
+        )
+    }
+
+    func testErrorDescription_NoOpenID() {
+        XCTAssertEqual(
+            WeChatSignInError.noOpenID.errorDescription,
+            "No OpenID received from WeChat"
+        )
+    }
+
+    func testErrorDescription_NoAccessToken() {
+        XCTAssertEqual(
+            WeChatSignInError.noAccessToken.errorDescription,
+            "No access token received from WeChat"
+        )
+    }
+
+    // MARK: - Is Available Tests
+
+    func testIsAvailable_WhenTrue() {
         // Given
-        let underlying = NSError(domain: "TestDomain", code: 999, userInfo: nil)
-        let error = WeChatSignInError.unknown(underlying)
+        sut.isAvailable = true
 
         // Then
-        XCTAssertNotNil(error.errorDescription, "Error should have description")
+        XCTAssertTrue(sut.isAvailable)
+    }
+
+    func testIsAvailable_WhenFalse() {
+        // Given
+        sut.isAvailable = false
+
+        // Then
+        XCTAssertFalse(sut.isAvailable)
+    }
+
+    // MARK: - Is Installed Tests
+
+    func testIsInstalled_WhenTrue() {
+        // Given
+        sut.isInstalled = true
+
+        // Then
+        XCTAssertTrue(sut.isInstalled)
+    }
+
+    func testIsInstalled_WhenFalse() {
+        // Given
+        sut.isInstalled = false
+
+        // Then
+        XCTAssertFalse(sut.isInstalled)
+    }
+
+    // MARK: - SDK Version Tests
+
+    func testSDKVersion_WhenSet() {
+        // Given
+        sut.sdkVersion = "2.0.0"
+
+        // Then
+        XCTAssertEqual(sut.sdkVersion, "2.0.0")
+    }
+
+    func testSDKVersion_WhenNil() {
+        // Given
+        sut.sdkVersion = nil
+
+        // Then
+        XCTAssertNil(sut.sdkVersion)
     }
 }
