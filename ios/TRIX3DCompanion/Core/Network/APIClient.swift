@@ -19,17 +19,25 @@ final class APIClient {
     private let baseURL: String
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let authInterceptor: AuthInterceptor
 
     // MARK: - Initialization
     private init() {
         self.baseURL = APIBaseURL.current
+
+        // Create auth interceptor for automatic token management
+        self.authInterceptor = AuthInterceptor()
 
         // Configure session with interceptors
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
 
-        self.session = Session(configuration: configuration)
+        // Add AuthInterceptor to handle automatic token refresh on 401 responses
+        self.session = Session(
+            configuration: configuration,
+            interceptor: authInterceptor
+        )
 
         // Configure decoder
         self.decoder = JSONDecoder()

@@ -488,7 +488,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             // Update session via API
             let updateRequest = CreateStudySessionRequest(durationMinutes: duration)
             let updatedSession: StudySession = try await apiClient.put(
-                .studySession(id: session.id),
+                .updateStudySession(id: session.id),
                 body: updateRequest
             )
 
