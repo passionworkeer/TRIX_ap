@@ -3,8 +3,29 @@ import Security
 import KeychainAccess
 
 /// Keychain 管理器 - 安全存储敏感数据
-/// 使用 KeychainAccess 库简化 Keychain 操作
-/// 包含越狱检测、数据验证和边界测试功能
+///
+/// 使用 KeychainAccess 库简化 Keychain 操作，提供以下安全特性：
+/// - 数据加密存储
+/// - 越狱检测
+/// - 数据大小验证
+/// - 线程安全的写操作
+/// - 设备配对状态管理
+///
+/// ## 使用示例
+/// ```swift
+/// // 保存 access token
+/// try? KeychainManager.shared.saveAccessToken("your_token_here")
+///
+/// // 获取 access token
+/// if let token = KeychainManager.shared.getAccessToken() {
+///     print("Token found: \(token)")
+/// }
+///
+/// // 检查会话有效性
+/// if KeychainManager.shared.hasValidSession() {
+///     print("User is logged in")
+/// }
+/// ```
 final class KeychainManager {
 
     // MARK: - Singleton
