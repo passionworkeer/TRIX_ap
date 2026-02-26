@@ -78,12 +78,14 @@ struct GlassPanelContainer<Content: View>: View {
     var shadowOpacity: Double = 0.1
     var shadowRadius: CGFloat = 10
     var padding: CGFloat = 16
+    var backgroundColor: Color? = nil
 
     init(
         cornerRadius: CGFloat = 16,
         shadowOpacity: Double = 0.1,
         shadowRadius: CGFloat = 10,
         padding: CGFloat = 16,
+        backgroundColor: Color? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
@@ -91,6 +93,7 @@ struct GlassPanelContainer<Content: View>: View {
         self.shadowOpacity = shadowOpacity
         self.shadowRadius = shadowRadius
         self.padding = padding
+        self.backgroundColor = backgroundColor
     }
 
     var body: some View {
@@ -98,7 +101,13 @@ struct GlassPanelContainer<Content: View>: View {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.ultraThinMaterial)
+                    .fill(backgroundColor != nil ? .ultraThinMaterial.opacity(0.95) : .ultraThinMaterial)
+                    .overlay(
+                        backgroundColor.map { color in
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(color)
+                        }
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)

@@ -228,9 +228,10 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 receiptData: receiptData
             )
 
-            // Call backend API
+            // Call backend API - using custom endpoint construction
+            // In production, this should be a proper APIEndpoint case
             let response: PointsPurchaseResponse = try await apiClient.post(
-                .paymentVerify,
+                .authMe, // Placeholder - replace with proper payment endpoint
                 body: request
             )
 
@@ -346,7 +347,9 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     /// Load order history from server
     private func loadOrderHistory() async {
         do {
-            let response: PaginatedResponse<Order> = try await apiClient.get(.paymentOrders)
+            // Note: Replace with proper payment orders endpoint when available
+            // Using placeholder endpoint for now
+            let response: PaginatedResponse<Order> = try await apiClient.get(.authMe)
             for order in response.data {
                 cachedOrders[order.id] = order
             }
@@ -464,30 +467,21 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
 // MARK: - API Endpoints Extension
 
-extension APIEndpoint {
-    /// Payment verification endpoint
-    static var paymentVerify: APIEndpoint {
-        .custom(path: "/payment/verify", method: .post)
-    }
-
-    /// Get order details
-    static func paymentOrder(orderId: String) -> APIEndpoint {
-        .custom(path: "/payment/orders/\(orderId)", method: .get)
-    }
-
-    /// Get orders list
-    static var paymentOrders: APIEndpoint {
-        .custom(path: "/payment/orders", method: .get)
-    }
-
-    /// Cancel order
-    static func paymentCancel(orderId: String) -> APIEndpoint {
-        .custom(path: "/payment/orders/\(orderId)/cancel", method: .post)
-    }
-
-    /// Custom endpoint
-    static func custom(path: String, method: HTTPMethod) -> APIEndpoint {
-        let endpoint = APIEndpoint.authMe // placeholder
-        return endpoint
-    }
-}
+// Note: Add these endpoints to APIEndpoints.swift when backend API is ready:
+//
+// enum APIEndpoint {
+//     case paymentVerify
+//     case paymentOrder(id: String)
+//     case paymentOrders
+//     case paymentCancel(id: String)
+//
+//     var path: String {
+//         switch self {
+//         case .paymentVerify: return "/payment/verify"
+//         case .paymentOrder(let id): return "/payment/orders/\(id)"
+//         case .paymentOrders: return "/payment/orders"
+//         case .paymentCancel(let id): return "/payment/orders/\(id)/cancel"
+//         default: break
+//         }
+//     }
+// }
