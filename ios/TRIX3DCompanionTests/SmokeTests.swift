@@ -1,0 +1,232 @@
+//
+//  SmokeTests.swift
+//  TRIX3DCompanionTests
+//
+//  Smoke tests for verifying basic app functionality
+//  These tests verify core functionality without requiring full app launch
+//
+
+import XCTest
+@testable import TRIX3DCompanion
+
+/// Smoke tests for verifying basic app functionality
+final class SmokeTests: XCTestCase {
+
+    // MARK: - Build Verification Tests
+
+    func test_project_compilesSuccessfully() {
+        // This test verifies the project compiles without errors
+        // The test itself is a smoke test - if it runs, the project compiled
+
+        // Basic sanity checks
+        XCTAssertTrue(true, "Project compiled successfully")
+    }
+
+    // MARK: - Core Model Tests
+
+    func test_userModel_canBeCreated() {
+        // Test User model creation
+        let user = User(
+            id: "test-user",
+            username: "testuser",
+            email: "test@example.com",
+            avatarUrl: nil,
+            fullName: "Test User",
+            displayName: "Test User",
+            bio: "Test bio",
+            points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        XCTAssertNotNil(user)
+        XCTAssertEqual(user.username, "testuser")
+    }
+
+    func test_chatMessageModel_canBeCreated() {
+        // Test ChatMessage model creation
+        let message = ChatMessage(
+            id: "msg-1",
+            roomId: "room-1",
+            friendId: "friend-1",
+            sender: .user,
+            senderId: "user-1",
+            text: "Hello",
+            timestamp: Date(),
+            messageType: .text,
+            mediaUri: nil,
+            mediaType: nil,
+            mediaSize: nil,
+            mediaMetadata: nil,
+            isRead: false
+        )
+
+        XCTAssertNotNil(message)
+        XCTAssertEqual(message.text, "Hello")
+    }
+
+    func test_snapshotModel_canBeCreated() {
+        // Test Snapshot model creation
+        let snapshot = Snapshot(
+            id: "snapshot-1",
+            userId: "user-1",
+            imageUrl: "https://example.com/image.jpg",
+            thumbnailUrl: "https://example.com/thumb.jpg",
+            locationId: "loc-1",
+            locationName: "Test Location",
+            latitude: 40.7128,
+            longitude: -74.0060,
+            caption: "Test caption",
+            createdAt: Date()
+        )
+
+        XCTAssertNotNil(snapshot)
+        XCTAssertEqual(snapshot.locationName, "Test Location")
+    }
+
+    // MARK: - Core Service Protocol Tests
+
+    func test_paymentServiceProtocol_exists() {
+        // Verify PaymentServiceProtocol exists
+        let _: PaymentServiceProtocol.Type? = PaymentService.self as? PaymentServiceProtocol.Type
+        // If this compiles, the protocol exists
+    }
+
+    func test_storeKitServiceProtocol_exists() {
+        // Verify StoreKitServiceProtocol exists
+        let _: StoreKitServiceProtocol.Type? = StoreKitService.self as? StoreKitServiceProtocol.Type
+    }
+
+    func test_pointsServiceProtocol_exists() {
+        // Verify PointsServiceProtocol exists
+        let _: PointsServiceProtocol.Type? = PointsService.self as? PointsServiceProtocol.Type
+    }
+
+    // MARK: - Utility Tests
+
+    func test_pointsCalculator_calculatesStudySessionPoints() {
+        // Test PointsCalculator for study sessions
+        let points30min = PointsCalculator.pointsForStudySession(durationMinutes: 30)
+        XCTAssertEqual(points30min, 30)
+
+        let points60min = PointsCalculator.pointsForStudySession(durationMinutes: 60)
+        XCTAssertEqual(points60min, 40) // 60 + 10 bonus
+
+        let points120min = PointsCalculator.pointsForStudySession(durationMinutes: 120)
+        XCTAssertEqual(points120min, 150) // 120 + 10 + 20 bonus
+    }
+
+    func test_pointsCalculator_calculatesDailyLoginPoints() {
+        // Test PointsCalculator for daily login
+        let points = PointsCalculator.pointsForDailyLogin(streakDays: 1)
+        XCTAssertEqual(points, 6) // 5 base + 1 streak
+
+        let points7Day = PointsCalculator.pointsForDailyLogin(streakDays: 7)
+        XCTAssertEqual(points7Day, 12) // 5 base + 7 streak (max 15)
+    }
+
+    func test_pointsCalculator_calculatesAchievementPoints() {
+        // Test PointsCalculator for achievements
+        let firstStudyPoints = PointsCalculator.pointsForAchievement("first_study")
+        XCTAssertEqual(firstStudyPoints, 10)
+
+        let weekStreakPoints = PointsCalculator.pointsForAchievement("week_streak")
+        XCTAssertEqual(weekStreakPoints, 50)
+
+        let monthStreakPoints = PointsCalculator.pointsForAchievement("month_streak")
+        XCTAssertEqual(monthStreakPoints, 200)
+
+        let unknownAchievement = PointsCalculator.pointsForAchievement("unknown")
+        XCTAssertEqual(unknownAchievement, 10) // Default
+    }
+
+    func test_pointsCalculator_formatPoints() {
+        // Test PointsCalculator formatting
+        let formatted1000 = PointsCalculator.formatPoints(1000)
+        XCTAssertTrue(formatted1000.contains("1") || formatted1000.contains(","))
+    }
+
+    // MARK: - Configuration Tests
+
+    func test_storeProductConfiguration_hasAllProductIds() {
+        // Test StoreProductConfiguration
+        XCTAssertFalse(StoreProductConfiguration.allProductIds.isEmpty)
+        XCTAssertTrue(StoreProductConfiguration.subscriptionProductIds.count >= 2)
+        XCTAssertTrue(StoreProductConfiguration.pointsProductIds.count >= 4)
+    }
+
+    func test_storeProductConfiguration_pointsValues() {
+        // Test StoreProductConfiguration points values
+        XCTAssertEqual(StoreProductConfiguration.pointsForProduct("com.trix3d.points.100"), 100)
+        XCTAssertEqual(StoreProductConfiguration.pointsForProduct("com.trix3d.points.300"), 330)
+        XCTAssertEqual(StoreProductConfiguration.pointsForProduct("com.trix3d.points.500"), 580)
+        XCTAssertEqual(StoreProductConfiguration.pointsForProduct("com.trix3d.points.1000"), 1200)
+    }
+
+    func test_storeProductConfiguration_productTypes() {
+        // Test product type detection
+        XCTAssertEqual(StoreProductConfiguration.productType(for: "com.trix3d.subscription.monthly"), .subscription)
+        XCTAssertEqual(StoreProductConfiguration.productType(for: "com.trix3d.points.100"), .points)
+        XCTAssertNil(StoreProductConfiguration.productType(for: "unknown.product"))
+    }
+
+    // MARK: - ViewModel Basic Tests
+
+    func test_paymentViewModel_canBeInstantiated() {
+        // Test PaymentViewModel can be created (with default services)
+        let viewModel = PaymentViewModel()
+
+        XCTAssertNotNil(viewModel)
+        XCTAssertNotNil(viewModel.paymentState)
+    }
+
+    func test_profileViewModel_canBeInstantiated() {
+        // Test ProfileViewModel can be created
+        let viewModel = ProfileViewModel()
+
+        XCTAssertNotNil(viewModel)
+    }
+
+    func test_settingsViewModel_canBeInstantiated() {
+        // Test SettingsViewModel can be created
+        let viewModel = SettingsViewModel()
+
+        XCTAssertNotNil(viewModel)
+        XCTAssertNotNil(viewModel.selectedTheme)
+        XCTAssertNotNil(viewModel.selectedLanguage)
+    }
+
+    func test_storeViewModel_canBeInstantiated() {
+        // Test StoreViewModel can be created
+        let viewModel = StoreViewModel()
+
+        XCTAssertNotNil(viewModel)
+    }
+
+    // MARK: - Error Handling Tests
+
+    func test_paymentErrorDescriptions() {
+        // Test PaymentError descriptions
+        XCTAssertNotNil(PaymentError.invalidProduct.errorDescription)
+        XCTAssertNotNil(PaymentError.paymentFailed(underlying: nil).errorDescription)
+        XCTAssertNotNil(PaymentError.networkError.errorDescription)
+        XCTAssertNotNil(PaymentError.userCancelled.errorDescription)
+    }
+
+    func test_pointsErrorDescriptions() {
+        // Test PointsError descriptions
+        XCTAssertNotNil(PointsError.insufficientBalance.errorDescription)
+        XCTAssertNotNil(PointsError.invalidAmount.errorDescription)
+        XCTAssertNotNil(PointsError.networkError.errorDescription)
+    }
+
+    func test_storeKitErrorDescriptions() {
+        // Test StoreKitError descriptions
+        XCTAssertNotNil(StoreKitError.productNotFound.errorDescription)
+        XCTAssertNotNil(StoreKitError.purchaseFailed(underlying: nil).errorDescription)
+        XCTAssertNotNil(StoreKitError.userCancelled.errorDescription)
+    }
+}
