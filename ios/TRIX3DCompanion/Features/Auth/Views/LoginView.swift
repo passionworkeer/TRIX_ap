@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     // MARK: - Environment
@@ -15,6 +16,7 @@ struct LoginView: View {
     // MARK: - Observed Objects
 
     @StateObject private var authService = AuthService.shared
+    @StateObject private var oauthManager = OAuthManager.shared
 
     // MARK: - State
 
@@ -22,6 +24,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isOAuthLoading = false
 
     // MARK: - Focus State
 
@@ -54,6 +57,12 @@ struct LoginView: View {
 
                     // Login button
                     loginButton
+
+                    // OAuth divider
+                    oauthDividerView
+
+                    // OAuth sign-in options
+                    oauthSignInView
 
                     // Switch to register
                     switchToRegisterLink
@@ -197,6 +206,84 @@ struct LoginView: View {
         }
     }
 
+    private var oauthDividerView: some View {
+        HStack(spacing: 16) {
+            VStack { Divider().background(Color.white.opacity(0.3)) }
+
+            Text("OR")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+
+            VStack { Divider().background(Color.white.opacity(0.3)) }
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var oauthSignInView: some View {
+        VStack(spacing: 12) {
+            // Apple Sign In
+            if oauthManager.isProviderAvailable(.apple) {
+                appleSignInButton
+            }
+
+            // WeChat Sign In
+            if oauthManager.isProviderAvailable(.wechat) {
+                weChatSignInButton
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private var appleSignInButton: some View {
+        Button {
+            Task {
+                await handleAppleSignIn()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "applelogo")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white)
+
+                Text("Sign in with Apple")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+        }
+        .disabled(isOAuthLoading || authService.isLoading)
+        .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
+    }
+
+    private var weChatSignInButton: some View {
+        Button {
+            Task {
+                await handleWeChatSignIn()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "message.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white)
+
+                Text("Sign in with WeChat")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.green)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+        .disabled(isOAuthLoading || authService.isLoading)
+        .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
+    }
+
     private var loadingOverlay: some View {
         ZStack {
             Color.black.opacity(0.3)
@@ -293,6 +380,49 @@ struct LoginView: View {
 
         // Attempt login
         let result = await authService.login(email: email, password: password)
+
+        switch result {
+        case .success:
+            // Dismiss will be handled by parent view
+            break
+
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+            showingError = true
+        }
+    }
+
+    private func handleAppleSignIn() async {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            errorMessage = "Unable to present Apple Sign In"
+            showingError = true
+            return
+        }
+
+        isOAuthLoading = true
+
+        let result = await oauthManager.signIn(with: .apple, presentationAnchor: window)
+
+        isOAuthLoading = false
+
+        switch result {
+        case .success:
+            // Dismiss will be handled by parent view
+            break
+
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+            showingError = true
+        }
+    }
+
+    private func handleWeChatSignIn() async {
+        isOAuthLoading = true
+
+        let result = await oauthManager.signIn(with: .wechat, presentationAnchor: nil)
+
+        isOAuthLoading = false
 
         switch result {
         case .success:

@@ -145,6 +145,11 @@ enum APIEndpoint {
     case snapshots
     case snapshot(id: String)
 
+    // MARK: - Notifications
+    case deviceToken
+    case notificationPreferences
+    case notificationSettings
+
     // MARK: - Path
     var path: String {
         switch self {
@@ -206,6 +211,11 @@ enum APIEndpoint {
         case .locationShare: return "/locations/share"
         case .snapshots: return "/snapshots"
         case .snapshot(let id): return "/snapshots/\(id)"
+
+        // Notifications
+        case .deviceToken: return "/notifications/device-token"
+        case .notificationPreferences: return "/notifications/preferences"
+        case .notificationSettings: return "/notifications/settings"
         }
     }
 
@@ -215,7 +225,8 @@ enum APIEndpoint {
         case .authLogin, .authRegister, .authLogout, .authRefresh,
              .userAvatar, .pairingRequest, .pairingConfirm,
              .studyRoomCreate, .studyRoomJoin, .studyRoomLeave,
-             .upload, .uploadBase64, .chatRoomMessagesSend:
+             .upload, .uploadBase64, .chatRoomMessagesSend,
+             .deviceToken:
             return .post
 
         case .userUpdateProfile, .updateStudySession, .pairingDevice:
@@ -228,7 +239,8 @@ enum APIEndpoint {
              .pairingStatus, .pairingDevices,
              .points, .pointsHistory,
              .locations, .location, .locationNearby, .locationShare,
-             .snapshots, .snapshot:
+             .snapshots, .snapshot,
+             .notificationPreferences, .notificationSettings:
             return .get
 
         case .deleteStudySession:
