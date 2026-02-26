@@ -45,19 +45,37 @@
 
     <!-- Privacy Permissions -->
     <key>NSCameraUsageDescription</key>
-    <string>需要相机权限来扫描二维码和拍照</string>
+    <string>TRIX 3D Companion uses the camera to capture study snapshots and scan QR codes for quick pairing with friends.</string>
 
     <key>NSMicrophoneUsageDescription</key>
-    <string>需要麦克风权限来录制语音消息</string>
+    <string>TRIX 3D Companion uses the microphone to record voice messages for sharing with your study partners.</string>
 
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>需要位置权限来显示地图和位置分享</string>
+    <string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
+
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
 
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>需要相册权限来保存和选择照片</string>
+    <string>TRIX 3D Companion accesses your photo library to let you share photos with study partners and save snapshots.</string>
 
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>需要保存照片到相册的权限</string>
+    <string>TRIX 3D Companion needs permission to save your study snapshots and photos to your photo library.</string>
+
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>TRIX 3D Companion uses speech recognition to transcribe voice messages for accessibility features.</string>
+
+    <key>NSAppleMusicUsageDescription</key>
+    <string>TRIX 3D Companion does not access Apple Music. This permission is not used.</string>
+
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>TRIX 3D Companion uses Bluetooth to discover nearby study partners for quick pairing.</string>
+
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>TRIX 3D Companion uses Bluetooth to connect with nearby study partners.</string>
+
+    <key>NSFaceIDUsageDescription</key>
+    <string>TRIX 3D Companion uses Face ID for secure and convenient authentication to protect your account.</string>
 
     <!-- Background Modes -->
     <key>UIBackgroundModes</key>
