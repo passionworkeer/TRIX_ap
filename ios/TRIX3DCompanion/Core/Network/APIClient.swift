@@ -2,13 +2,18 @@
 //  APIClient.swift
 //  TRIX3DCompanion
 //
-//  HTTP client based on Alamofire
+//  HTTP client based on Alamofire with security enhancements
 //
 
 import Foundation
 import Alamofire
 
 /// API Client for making HTTP requests
+/// Features:
+/// - SSL Pinning
+/// - Request retry with exponential backoff
+/// - Request deduplication
+/// - Security headers validation
 final class APIClient {
 
     // MARK: - Singleton
@@ -21,22 +26,45 @@ final class APIClient {
     private let encoder: JSONEncoder
     private let authInterceptor: AuthInterceptor
 
+    // Security managers
+    private let sslPinningManager: SSLPinningManager
+    private let retryManager: RequestRetryManager
+    private let deduplicator: RequestDeduplicator
+    private let headersValidator: SecurityHeadersValidator
+
     // MARK: - Initialization
     private init() {
         self.baseURL = APIBaseURL.current
 
+        // Initialize security managers
+        self.sslPinningManager = SSLPinningManager.shared
+        self.retryManager = RequestRetryManager.shared
+        self.deduplicator = RequestDeduplicator.shared
+        self.headersValidator = SecurityHeadersValidator.shared
+
         // Create auth interceptor for automatic token management
         self.authInterceptor = AuthInterceptor()
 
-        // Configure session with interceptors
+        // Configure session with security features
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
 
-        // Add AuthInterceptor to handle automatic token refresh on 401 responses
+        // Create composite interceptor
+        let compositeInterceptor = Interceptor(
+            adapters: [authInterceptor, deduplicator],
+            retriers: [authInterceptor, retryManager]
+        )
+
+        // Create session with SSL pinning
+        let serverTrustManager = ServerTrustManager(
+            allHosts: sslPinningManager.makeServerTrustEvaluator()
+        )
+
         self.session = Session(
             configuration: configuration,
-            interceptor: authInterceptor
+            interceptor: compositeInterceptor,
+            serverTrustManager: serverTrustManager
         )
 
         // Configure decoder
@@ -48,6 +76,8 @@ final class APIClient {
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
         self.encoder.keyEncodingStrategy = .convertToSnakeCase
+
+        SecureLogger.shared.info("APIClient initialized with security features")
     }
 
     // MARK: - Public Methods
@@ -128,6 +158,32 @@ final class APIClient {
         )
     }
 
+    // MARK: - Security Configuration
+
+    /// Update retry policy
+    /// - Parameter policy: New retry policy
+    func updateRetryPolicy(_ policy: RequestRetryManager.RetryPolicy) {
+        retryManager.updatePolicy(policy)
+    }
+
+    /// Update SSL pinning mode
+    /// - Parameter mode: New pinning mode
+    func updateSSLPinningMode(_ mode: SSLPinningManager.PinningMode) {
+        sslPinningManager.configure(mode: mode)
+    }
+
+    /// Enable or disable request deduplication
+    /// - Parameter enabled: Whether to enable deduplication
+    func setDeduplicationEnabled(_ enabled: Bool) {
+        deduplicator.setEnabled(enabled)
+    }
+
+    /// Update security headers validation mode
+    /// - Parameter mode: New validation mode
+    func updateSecurityHeadersMode(_ mode: SecurityHeadersValidator.ValidationMode) {
+        headersValidator.updateMode(mode)
+    }
+
     // MARK: - Private Methods
 
     private func performRequest<T: Codable>(
@@ -161,9 +217,20 @@ final class APIClient {
             headers: requestHeaders
         )
 
-        // Execute request
+        // Execute request with security validation
         return try await withCheckedThrowingContinuation { continuation in
-            request.responseDecodable(of: T.self, decoder: decoder) { response in
+            request.responseDecodable(of: T.self, decoder: decoder) { [weak self] response in
+                guard let self = self else {
+                    continuation.resume(throwing: NetworkError.unknown(nil))
+                    return
+                }
+
+                // Validate security headers if response is successful
+                if let httpResponse = response.response,
+                   case .success = response.result {
+                    self.headersValidator.validateAndLog(httpResponse)
+                }
+
                 switch response.result {
                 case .success(let value):
                     continuation.resume(returning: value)
@@ -373,6 +440,46 @@ extension APIClient {
 
     func shareLocation(_ request: ShareLocationRequest) async throws -> ShareLocationResponse {
         return try await post(.locationShare, body: request)
+    }
+
+    // MARK: - Payments
+
+    /// Purchase points using in-app purchase
+    /// - Parameter request: Points purchase request
+    /// - Returns: Points purchase response
+    func purchasePoints(_ request: PointsPurchaseRequest) async throws -> PointsPurchaseResponse {
+        return try await post(.purchasePoints, body: request)
+    }
+
+    /// Verify receipt with backend
+    /// - Parameter request: Receipt verification request
+    /// - Returns: Receipt verification response
+    func verifyReceipt(_ request: ReceiptVerificationRequest) async throws -> ReceiptVerificationResponse {
+        return try await post(.verifyReceipt, body: request)
+    }
+
+    /// Get order history
+    /// - Parameters:
+    ///   - page: Page number
+    ///   - limit: Items per page
+    /// - Returns: Orders list response
+    func getOrders(page: Int = 1, limit: Int = 20) async throws -> OrdersListResponse {
+        let params: Parameters = ["page": page, "limit": limit]
+        return try await get(.getOrders, parameters: params)
+    }
+
+    /// Get order details
+    /// - Parameter orderId: Order ID
+    /// - Returns: Order details response
+    func getOrder(orderId: String) async throws -> OrderDetailsResponse {
+        return try await get(.getOrder(id: orderId))
+    }
+
+    /// Cancel pending order
+    /// - Parameter orderId: Order ID to cancel
+    /// - Returns: Empty response on success
+    func cancelOrder(orderId: String) async throws {
+        let _: EmptyResponse = try await put(.cancelOrder(id: orderId))
     }
 }
 
