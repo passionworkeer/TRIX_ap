@@ -4,6 +4,7 @@ import KeychainAccess
 
 /// Keychain 管理器 - 安全存储敏感数据
 /// 使用 KeychainAccess 库简化 Keychain 操作
+/// 包含越狱检测、数据验证和边界测试功能
 final class KeychainManager {
 
     // MARK: - Singleton
@@ -13,6 +14,17 @@ final class KeychainManager {
     // MARK: - Properties
 
     private let keychain: Keychain
+
+    // MARK: - Security Configuration
+
+    /// Maximum data size in bytes (100KB limit for security)
+    private let maxDataSize = 100 * 1024
+
+    /// Enable security validation
+    private let securityValidationEnabled: Bool
+
+    /// Lock for concurrent write operations
+    private let writeLock = NSLock()
 
     // MARK: - Keys
 
@@ -35,9 +47,93 @@ final class KeychainManager {
     private init() {
         // 使用 bundle identifier 作为 service
         let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.trix3d.companion"
+
+        // Enable security validation in production
+        #if DEBUG
+        self.securityValidationEnabled = true
+        #else
+        self.securityValidationEnabled = true
+        #endif
+
         keychain = Keychain(service: bundleIdentifier)
             .synchronizable(false) // 不同步到 iCloud
             .accessibility(.whenUnlockedThisDeviceOnly) // 仅在设备解锁时可访问
+
+        // Run security validation on initialization
+        if securityValidationEnabled {
+            validateOnInitialization()
+        }
+    }
+
+    // MARK: - Security Validation
+
+    /// Validate security on initialization
+    private func validateOnInitialization() {
+        // Check for jailbreak
+        let jailbreakResult = JailbreakDetector.shared.check()
+        if jailbreakResult.isJailbroken {
+            SecureLogger.shared.warning(
+                "KeychainManager: Device is jailbroken (\(jailbreakResult.confidence.rawValue) confidence)"
+            )
+        }
+
+        // Run quick integrity check
+        let validator = KeychainSecurityValidator.shared
+        let result = validator.validateSecurity()
+
+        if !result.isValid {
+            for issue in result.issues {
+                if issue.severity == .critical || issue.severity == .high {
+                    SecureLogger.shared.error(
+                        "KeychainManager security issue: \(issue.description)"
+                    )
+                }
+            }
+        }
+    }
+
+    /// Validate data size before saving
+    /// - Parameter data: Data to validate
+    /// - Returns: True if data is within allowed size
+    private func validateDataSize(_ data: Data) -> Bool {
+        return data.count <= maxDataSize
+    }
+
+    /// Validate data size for string
+    /// - Parameter string: String to validate
+    /// - Returns: True if string is within allowed size
+    private func validateStringSize(_ string: String) -> Bool {
+        return string.utf8.count <= maxDataSize
+    }
+
+    /// Thread-safe save with validation
+    /// - Parameters:
+    ///   - value: String value to save
+    ///   - key: Key to save under
+    private func safeSave(_ value: String, key: String) throws {
+        guard validateStringSize(value) else {
+            throw KeychainError.dataTooLarge(maxSize: maxDataSize, actualSize: value.utf8.count)
+        }
+
+        writeLock.lock()
+        defer { writeLock.unlock() }
+
+        try keychain.set(value, key: key)
+    }
+
+    /// Thread-safe save with validation for data
+    /// - Parameters:
+    ///   - data: Data to save
+    ///   - key: Key to save under
+    private func safeSaveData(_ data: Data, key: String) throws {
+        guard validateDataSize(data) else {
+            throw KeychainError.dataTooLarge(maxSize: maxDataSize, actualSize: data.count)
+        }
+
+        writeLock.lock()
+        defer { writeLock.unlock() }
+
+        try keychain.set(data, key: key)
     }
 
     // MARK: - Token Management
@@ -126,17 +222,36 @@ final class KeychainManager {
         try? keychain.get(Key.deviceId)
     }
 
-    /// 获取或创建设备 ID
-    /// - Returns: 设备 ID
+    /// Get or create device ID with cryptographic security
+    /// - Returns: Cryptographically secure device ID
     func getOrCreateDeviceId() -> String {
         if let existingId = getDeviceId() {
             return existingId
         }
 
-        // 生成新的 UUID 作为设备 ID
-        let newDeviceId = UUID().uuidString
+        // Generate cryptographically secure random ID
+        let newDeviceId = generateSecureDeviceId()
         try? saveDeviceId(newDeviceId)
+        SecureLogger.shared.info("Generated new cryptographically secure device ID")
         return newDeviceId
+    }
+
+    /// Generate cryptographically secure device ID using SecRandomCopyBytes
+    /// - Returns: 32-byte hex encoded random string with prefix
+    private func generateSecureDeviceId() -> String {
+        // Generate 32 bytes of cryptographically secure random data
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+
+        if status == errSecSuccess {
+            // Convert to hex string
+            let hexString = randomBytes.map { String(format: "%02x", $0) }.joined()
+            return "trix_\(hexString)"
+        } else {
+            // Fallback: Use UUID (less secure but functional)
+            SecureLogger.shared.warning("SecRandomCopyBytes failed, falling back to UUID")
+            return "trix_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        }
     }
 
     // MARK: - Biometric Settings

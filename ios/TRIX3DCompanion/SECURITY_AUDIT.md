@@ -334,8 +334,8 @@ All privacy permissions are properly justified with clear descriptions.
 |----|-------|----------|----------------|--------|
 | M-001 | Common password list too small | Medium | Expand to 10,000+ entries | ✅ **COMPLETED** (2026-02-26) - Expanded to 500+ entries |
 | M-002 | UserDefaults for pairing state | Medium | Move to Keychain | ✅ **COMPLETED** (2026-02-26) - Migrated to Keychain with data migration support |
-| M-003 | No certificate pinning | Medium | Implement for API endpoints | Pending |
-| M-004 | Device ID uses UUID | Medium | Consider cryptographic random | Pending |
+| M-003 | No certificate pinning | Medium | Implement for API endpoints | ✅ **COMPLETED** (2026-02-26) - Implemented SSL pinning, retry, deduplication, security headers |
+| M-004 | Device ID uses UUID | Medium | Consider cryptographic random | ✅ **COMPLETED** (2026-02-26) - Uses SecRandomCopyBytes for cryptographic random generation |
 
 ### Low Priority Issues
 

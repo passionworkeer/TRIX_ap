@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Security
 import Starscream
 
 // MARK: - WebSocket Events
@@ -440,19 +441,23 @@ final class WebSocketManager: NSObject {
 
     // MARK: - Private Methods
 
+    /// Get or create device ID using KeychainManager with cryptographic security
     private func getOrCreateDeviceId() -> String {
-        let key = "clawbot_channel_device_id"
-        if let existingId = UserDefaults.standard.string(forKey: key) {
-            return existingId
-        }
-
-        let newId = "app_\(UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: ""))_\(Int(Date().timeIntervalSince1970))"
-        UserDefaults.standard.set(newId, forKey: key)
-        return newId
+        return KeychainManager.shared.getOrCreateDeviceId()
     }
 
+    /// Generate message ID using cryptographically secure random
     private func generateMessageId() -> String {
-        return "\(Int(Date().timeIntervalSince1970))-\(UUID().uuidString.prefix(9))"
+        var randomBytes = [UInt8](repeating: 0, count: 8)
+        let status = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+
+        if status == errSecSuccess {
+            let hexString = randomBytes.map { String(format: "%02x", $0) }.joined()
+            return "\(Int(Date().timeIntervalSince1970))-\(hexString)"
+        } else {
+            // Fallback
+            return "\(Int(Date().timeIntervalSince1970))-\(UUID().uuidString.prefix(9))"
+        }
     }
 
     private func emitEvent(_ event: String, payload: Encodable?) {
