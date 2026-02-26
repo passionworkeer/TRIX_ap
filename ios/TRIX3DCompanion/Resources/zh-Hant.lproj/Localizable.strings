@@ -1,0 +1,148 @@
+/*
+  Localizable.strings - 繁體中文 (Traditional Chinese)
+  TRIX 3D Companion
+*/
+
+// MARK: - Navigation
+"nav.home" = "首頁";
+"nav.chat" = "聊天";
+"nav.study" = "學習";
+"nav.profile" = "我的";
+"nav.settings" = "設定";
+
+// MARK: - Common Actions
+"action.send" = "傳送";
+"action.cancel" = "取消";
+"action.confirm" = "確認";
+"action.delete" = "刪除";
+"action.edit" = "編輯";
+"action.back" = "返回";
+"action.close" = "關閉";
+"action.retry" = "重試";
+"action.refresh" = "重新整理";
+"action.save" = "儲存";
+"action.share" = "分享";
+"action.login" = "登入";
+"action.logout" = "登出";
+"action.register" = "註冊";
+"action.signup" = "註冊";
+
+// MARK: - Auth
+"auth.login.title" = "歡迎回來";
+"auth.login.subtitle" = "登入以繼續";
+"auth.register.title" = "建立帳戶";
+"auth.register.subtitle" = "加入 TRIX 3D Companion";
+"auth.email.placeholder" = "電子郵件";
+"auth.password.placeholder" = "密碼";
+"auth.username.placeholder" = "使用者名稱";
+"auth.forgot.password" = "忘記密碼？";
+"auth.no.account" = "還沒有帳戶？";
+"auth.has.account" = "已經有帳戶？";
+
+// MARK: - Chat
+"chat.title" = "訊息";
+"chat.placeholder" = "輸入訊息...";
+"chat.send" = "傳送";
+"chat.voice.message" = "語音訊息";
+"chat.image" = "圖片";
+"chat.today" = "今天";
+"chat.yesterday" = "昨天";
+"chat Typing" = "正在輸入...";
+"chat.delivered" = "已送達";
+"chat.read" = "已讀";
+
+// MARK: - Study
+"study.title" = "學習室";
+"study.timer" = "學習計時器";
+"study.start" = "開始學習";
+"study.pause" = "暫停";
+"study.resume" = "繼續";
+"study.stop" = "停止";
+"study.session.complete" = "學習完成！";
+"study.points.earned" = "獲得積分：%@";
+"study.streak" = "連續學習";
+"study.total.time" = "總時長";
+"study.today.time" = "今日時長";
+
+// MARK: - Map & Location
+"map.title" = "探索";
+"map.my.location" = "我的位置";
+"map.share.location" = "分享位置";
+"map.no.location" = "無法取得位置";
+"map.no.share" = "沒有可分享的位置";
+
+// MARK: - Camera & Photos
+"camera.title" = "相機";
+"camera.take.photo" = "拍照";
+"camera.select.photo" = "從相簿選擇";
+"camera.front" = "前鏡頭";
+"camera.back" = "後鏡頭";
+"camera.unknown" = "未知";
+"camera.no.photo" = "沒有可儲存的照片";
+
+// MARK: - Profile
+"profile.title" = "我的";
+"profile.edit.profile" = "編輯資料";
+"profile.points" = "積分";
+"profile.premium" = "高級會員";
+"profile.settings" = "設定";
+"profile.privacy" = "隱私";
+"profile.notifications" = "通知";
+"profile.about" = "關於";
+"profile.help" = "幫助與支援";
+"profile.terms" = "服務條款";
+"profile.privacy.policy" = "隱私政策";
+
+// MARK: - Points & Store
+"store.title" = "商城";
+"store.points" = "積分";
+"store.purchase" = "購買";
+"store.premium" = "高級會員";
+"store.restore" = "復原購買";
+"points.history" = "積分記錄";
+"points.earned" = "獲得";
+"points.spent" = "消費";
+
+// MARK: - Errors
+"error.network" = "網路錯誤";
+"error.server" = "伺服器錯誤";
+"error.unknown" = "未知錯誤";
+"error.timeout" = "請求逾時";
+"error.permission" = "權限被拒絕";
+"error.login.failed" = "登入失敗";
+"error.register.failed" = "註冊失敗";
+
+// MARK: - Empty States
+"empty.messages" = "暫無訊息";
+"empty.friends" = "暫無好友";
+"empty.study.sessions" = "暫無學習記錄";
+"empty.notifications" = "暫無通知";
+"empty.points" = "暫無積分";
+
+// MARK: - Loading States
+"loading" = "載入中...";
+"loading.messages" = "訊息載入中...";
+"loading.profile" = "資料載入中...";
+
+// MARK: - Notifications
+"notification.study.reminder" = "學習提醒";
+"notification.study.message" = "是時候開始學習了！";
+"notification.points.title" = "獲得積分";
+"notification.chat.title" = "新訊息";
+
+// MARK: - Accessibility
+"a11y.home" = "首頁標籤";
+"a11y.chat" = "聊天標籤";
+"a11y.study" = "學習標籤";
+"a11y.profile" = "我的標籤";
+"a11y.send.button" = "傳送訊息按鈕";
+"a11y.voice.record" = "語音錄製按鈕";
+"a11y.back.button" = "返回按鈕";
+
+// MARK: - Pairing
+"pairing.title" = "尋找好友";
+"pairing.scan" = "掃描 QR Code";
+"pairing.share" = "分享 QR Code";
+"pairing.code" = "配對碼";
+"pairing.success" = "配對成功！";
+"pairing.failed" = "配對失敗";
