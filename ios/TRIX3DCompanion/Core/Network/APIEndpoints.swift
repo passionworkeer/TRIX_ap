@@ -87,6 +87,8 @@ enum APIEndpoint {
     // MARK: - Locations
     case locations
     case location(id: String)
+    case locationNearby(radius: Double)
+    case locationShare
     case snapshots
     case snapshot(id: String)
 
@@ -146,6 +148,8 @@ enum APIEndpoint {
         // Locations
         case .locations: return "/locations"
         case .location(let id): return "/locations/\(id)"
+        case .locationNearby(let radius): return "/locations/nearby?radius=\(Int(radius))"
+        case .locationShare: return "/locations/share"
         case .snapshots: return "/snapshots"
         case .snapshot(let id): return "/snapshots/\(id)"
         }
@@ -169,7 +173,8 @@ enum APIEndpoint {
              .studySessions, .studyStats, .studyRoomState,
              .pairingStatus, .pairingDevices,
              .points, .pointsHistory,
-             .locations, .location, .snapshots, .snapshot:
+             .locations, .location, .locationNearby, .locationShare,
+             .snapshots, .snapshot:
             return .get
 
         case .studySession(_):

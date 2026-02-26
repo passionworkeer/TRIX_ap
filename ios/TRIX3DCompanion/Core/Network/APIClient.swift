@@ -405,6 +405,25 @@ extension APIClient {
         let response: PaginatedResponse<PointsTransaction> = try await get(.pointsHistory, parameters: params)
         return response.data
     }
+
+    // MARK: - Locations
+
+    func getLocations() async throws -> [Location] {
+        let response: PaginatedResponse<Location> = try await get(.locations)
+        return response.data
+    }
+
+    func getLocation(id: String) async throws -> Location {
+        return try await get(.location(id: id))
+    }
+
+    func getNearbyLocations(radius: Double) async throws -> [Location] {
+        return try await get(.locationNearby(radius: radius))
+    }
+
+    func shareLocation(_ request: ShareLocationRequest) async throws -> ShareLocationResponse {
+        return try await post(.locationShare, body: request)
+    }
 }
 
 // MARK: - Empty Response
