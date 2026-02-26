@@ -141,7 +141,7 @@ final class KeychainManager {
     /// 保存 Access Token
     /// - Parameter token: Access Token 字符串
     func saveAccessToken(_ token: String) throws {
-        try keychain.set(token, key: Key.accessToken)
+        try safeSave(token, key: Key.accessToken)
     }
 
     /// 获取 Access Token
@@ -152,13 +152,15 @@ final class KeychainManager {
 
     /// 删除 Access Token
     func deleteAccessToken() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
         try keychain.remove(Key.accessToken)
     }
 
     /// 保存 Refresh Token
     /// - Parameter token: Refresh Token 字符串
     func saveRefreshToken(_ token: String) throws {
-        try keychain.set(token, key: Key.refreshToken)
+        try safeSave(token, key: Key.refreshToken)
     }
 
     /// 获取 Refresh Token
@@ -169,13 +171,15 @@ final class KeychainManager {
 
     /// 删除 Refresh Token
     func deleteRefreshToken() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
         try keychain.remove(Key.refreshToken)
     }
 
     /// 保存 Session Token
     /// - Parameter token: Session Token 字符串
     func saveSessionToken(_ token: String) throws {
-        try keychain.set(token, key: Key.sessionToken)
+        try safeSave(token, key: Key.sessionToken)
     }
 
     /// 获取 Session Token
@@ -186,6 +190,8 @@ final class KeychainManager {
 
     /// 删除 Session Token
     func deleteSessionToken() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
         try keychain.remove(Key.sessionToken)
     }
 
@@ -194,7 +200,7 @@ final class KeychainManager {
     /// 保存用户 ID
     /// - Parameter userId: 用户 ID
     func saveUserId(_ userId: String) throws {
-        try keychain.set(userId, key: Key.userId)
+        try safeSave(userId, key: Key.userId)
     }
 
     /// 获取用户 ID
@@ -205,6 +211,8 @@ final class KeychainManager {
 
     /// 删除用户 ID
     func deleteUserId() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
         try keychain.remove(Key.userId)
     }
 
@@ -213,7 +221,7 @@ final class KeychainManager {
     /// 保存设备 ID
     /// - Parameter deviceId: 设备 ID
     func saveDeviceId(_ deviceId: String) throws {
-        try keychain.set(deviceId, key: Key.deviceId)
+        try safeSave(deviceId, key: Key.deviceId)
     }
 
     /// 获取设备 ID
@@ -259,7 +267,7 @@ final class KeychainManager {
     /// 保存生物识别启用状态
     /// - Parameter enabled: 是否启用
     func saveBiometricEnabled(_ enabled: Bool) throws {
-        try keychain.set(enabled ? "true" : "false", key: Key.biometricEnabled)
+        try safeSave(enabled ? "true" : "false", key: Key.biometricEnabled)
     }
 
     /// 获取生物识别启用状态
@@ -275,7 +283,7 @@ final class KeychainManager {
     ///   - data: 要保存的数据
     ///   - key: 键名
     func saveData(_ data: Data, forKey key: String) throws {
-        try keychain.set(data, key: key)
+        try safeSaveData(data, key: key)
     }
 
     /// 获取数据
@@ -290,7 +298,7 @@ final class KeychainManager {
     ///   - string: 要保存的字符串
     ///   - key: 键名
     func saveString(_ string: String, forKey key: String) throws {
-        try keychain.set(string, key: key)
+        try safeSave(string, key: key)
     }
 
     /// 获取字符串
@@ -343,9 +351,9 @@ final class KeychainManager {
     ///   - deviceId: Paired device ID
     ///   - deviceName: Paired device name
     func savePairedDevice(deviceId: String, deviceName: String) throws {
-        try keychain.set(deviceId, key: Key.pairedDeviceId)
-        try keychain.set(deviceName, key: Key.pairedDeviceName)
-        try keychain.set("true", key: Key.isPaired)
+        try safeSave(deviceId, key: Key.pairedDeviceId)
+        try safeSave(deviceName, key: Key.pairedDeviceName)
+        try safeSave("true", key: Key.isPaired)
         SecureLogger.shared.info("Paired device saved to Keychain: \(deviceName)")
     }
 
@@ -371,6 +379,8 @@ final class KeychainManager {
 
     /// Remove paired device information
     func removePairedDevice() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
         try keychain.remove(Key.pairedDeviceId)
         try keychain.remove(Key.pairedDeviceName)
         try keychain.remove(Key.isPaired)
@@ -427,4 +437,27 @@ final class KeychainManager {
         SecureLogger.shared.debug("====================")
     }
     #endif
+}
+
+// MARK: - Keychain Errors
+
+/// Keychain specific errors
+enum KeychainError: Error, LocalizedError {
+    case dataTooLarge(maxSize: Int, actualSize: Int)
+    case jailbreakDetected
+    case securityValidationFailed
+    case concurrentWriteConflict
+
+    var errorDescription: String? {
+        switch self {
+        case .dataTooLarge(let maxSize, let actualSize):
+            return "Data too large: \(actualSize) bytes exceeds maximum of \(maxSize) bytes"
+        case .jailbreakDetected:
+            return "Device is jailbroken - security cannot be guaranteed"
+        case .securityValidationFailed:
+            return "Keychain security validation failed"
+        case .concurrentWriteConflict:
+            return "Concurrent write operation detected"
+        }
+    }
 }
