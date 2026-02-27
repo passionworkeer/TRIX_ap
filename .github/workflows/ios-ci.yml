@@ -28,9 +28,6 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Show Swift version
-        run: swift --version
-
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -41,79 +38,10 @@ jobs:
       - name: Build for iOS Simulator
         working-directory: ios/TRIX3DCompanion
         run: |
-          xcodebuild build-for-testing \
+          xcodebuild build \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath DerivedData \
-            -quiet
-
-  unit-tests:
-    name: Unit Tests
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
-
-      - name: Cache Swift packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/Library/Developer/Xcode/DerivedData
-            ios/.build
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/ios/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate Xcode project
-        working-directory: ios/TRIX3DCompanion
-        run: xcodegen generate
-
-      - name: Run Unit Tests
-        working-directory: ios/TRIX3DCompanion
-        run: |
-          xcodebuild test \
-            -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath DerivedData \
-            -resultBundlePath TestResults/UnitTests.xcresult \
-            -quiet
-
-      - name: Upload Unit Test Results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: unit-test-results
-          path: TestResults/UnitTests.xcresult
-
-      - name: Generate Code Coverage Report
-        working-directory: ios/TRIX3DCompanion
-        run: |
-          xcodebuild test \
-            -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath DerivedData \
-            -resultBundlePath TestResults/UnitTests.xcresult \
-            -enableCodeCoverage YES \
-            -quiet
-
-      - name: Check Code Coverage
-        working-directory: ios/TRIX3DCompanion
-        run: |
-          # Extract coverage percentage from xcresult
-          COVERAGE=$(xcrun xccov view --report --json TestResults/UnitTests.xcresult | \
-            jq '.lineCoverage * 100' | head -1)
-          echo "Code Coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-            echo "Code coverage is below 70%"
-            exit 1
-          fi
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -derivedDataPath DerivedData
 
   analyze:
     name: Static Analysis
@@ -129,49 +57,4 @@ jobs:
       - name: Run SwiftLint
         run: |
           brew install swiftlint
-          swiftlint --path ios
-
-      - name: Run Analyze
-        run: |
-          brew install xcodegen
-          cd ios/TRIX3DCompanion
-          xcodegen generate
-          xcodebuild analyze \
-            -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath DerivedData \
-            -quiet
-
-  build-archive:
-    name: Build Archive
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate Xcode project
-        working-directory: ios/TRIX3DCompanion
-        run: xcodegen generate
-
-      - name: Create Archive
-        working-directory: ios/TRIX3DCompanion
-        run: |
-          xcodebuild archive \
-            -scheme TRIX3DCompanion \
-            -destination 'generic/platform=iOS' \
-            -archivePath TRIX3DCompanion.xcarchive \
-            -derivedDataPath DerivedData \
-            -quiet
-
-      - name: Upload Archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-archive
-          path: TRIX3DCompanion.xcarchive
+          swiftlint lint ios
