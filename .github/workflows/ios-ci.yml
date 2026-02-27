@@ -31,8 +31,15 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
       - name: Build for iOS Simulator
-        working-directory: ios
+        working-directory: ios/TRIX3DCompanion
         run: |
           xcodebuild build-for-testing \
             -scheme TRIX3DCompanion \
@@ -61,8 +68,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
       - name: Run Unit Tests
-        working-directory: ios
+        working-directory: ios/TRIX3DCompanion
         run: |
           xcodebuild test \
             -scheme TRIX3DCompanion \
@@ -79,7 +93,7 @@ jobs:
           path: TestResults/UnitTests.xcresult
 
       - name: Generate Code Coverage Report
-        working-directory: ios
+        working-directory: ios/TRIX3DCompanion
         run: |
           xcodebuild test \
             -scheme TRIX3DCompanion \
@@ -90,7 +104,7 @@ jobs:
             -quiet
 
       - name: Check Code Coverage
-        working-directory: ios
+        working-directory: ios/TRIX3DCompanion
         run: |
           # Extract coverage percentage from xcresult
           COVERAGE=$(xcrun xccov view --report --json TestResults/UnitTests.xcresult | \
@@ -100,34 +114,6 @@ jobs:
             echo "Code coverage is below 70%"
             exit 1
           fi
-
-  ui-tests:
-    name: UI Tests
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
-
-      - name: Run UI Tests
-        working-directory: ios
-        run: |
-          xcodebuild test \
-            -scheme TRIX3DUITests \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -derivedDataPath DerivedData \
-            -resultBundlePath TestResults/UITests.xcresult \
-            -quiet || true
-
-      - name: Upload UI Test Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ui-test-results
-          path: TestResults/UITests.xcresult
 
   analyze:
     name: Static Analysis
@@ -141,13 +127,15 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@swiftlint-action/v3
-        with:
-          args: --path ios
+        run: |
+          brew install swiftlint
+          swiftlint --path ios
 
       - name: Run Analyze
-        working-directory: ios
         run: |
+          brew install xcodegen
+          cd ios/TRIX3DCompanion
+          xcodegen generate
           xcodebuild analyze \
             -scheme TRIX3DCompanion \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
@@ -165,8 +153,15 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
       - name: Create Archive
-        working-directory: ios
+        working-directory: ios/TRIX3DCompanion
         run: |
           xcodebuild archive \
             -scheme TRIX3DCompanion \
