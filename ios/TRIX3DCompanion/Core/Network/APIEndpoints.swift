@@ -104,6 +104,7 @@ enum APIEndpoint {
 
     // MARK: - Chat
     case chatRooms
+    case chatRoomCreate
     case chatRoom(id: String)
     case chatRoomMessages(roomId: String)
     case chatRoomMessagesSend(roomId: String)
@@ -133,6 +134,8 @@ enum APIEndpoint {
     // MARK: - Points
     case points
     case pointsHistory
+    case pointsAdd
+    case pointsDeduct
 
     // MARK: - Upload
     case upload
@@ -192,6 +195,7 @@ enum APIEndpoint {
 
         // Chat
         case .chatRooms: return "/chat/rooms"
+        case .chatRoomCreate: return "/chat/rooms"
         case .chatRoom(let id): return "/chat/rooms/\(id)"
         case .chatRoomMessages(let roomId): return "/chat/rooms/\(roomId)/messages"
         case .chatRoomMessagesSend(let roomId): return "/chat/rooms/\(roomId)/messages"
@@ -223,6 +227,8 @@ enum APIEndpoint {
         // Points
         case .points: return "/points"
         case .pointsHistory: return "/points/history"
+        case .pointsAdd: return "/points/add"
+        case .pointsDeduct: return "/points/deduct"
 
         // Upload
         case .upload: return "/upload"
@@ -281,8 +287,9 @@ enum APIEndpoint {
         case .authLogin, .authRegister, .authLogout, .authRefresh,
              .userAvatar, .pairingRequest, .pairingConfirm,
              .studyRoomCreate, .studyRoomJoin, .studyRoomLeave,
-             .upload, .uploadBase64, .chatRoomMessagesSend,
-             .deviceToken, .purchasePoints, .verifyReceipt, .restorePurchases:
+             .upload, .uploadBase64, .chatRoomMessagesSend, .chatRoomCreate,
+             .deviceToken, .purchasePoints, .verifyReceipt, .restorePurchases,
+             .pointsAdd, .pointsDeduct:
             return .post
 
         // Update operations - PUT methods
@@ -442,6 +449,12 @@ struct SendMessageRequest: Codable {
 
 struct MarkAsReadRequest: Codable {
     let messageId: String
+}
+
+/// Request to create a new chat room
+struct CreateChatRoomRequest: Codable {
+    let name: String
+    let type: ChatRoomType
 }
 
 // MARK: - Study

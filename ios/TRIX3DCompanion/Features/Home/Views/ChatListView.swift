@@ -231,15 +231,28 @@ struct ChatListView: View {
 
         SecureLogger.shared.info("Created new chat: \(trimmedName)")
 
-        // TODO: Integrate with ChatService API to persist on server
-        // Task {
-        //     do {
-        //         let room = try await chatService.createChatRoom(name: trimmedName, type: .group)
-        //         // Update with server-generated ID and details
-        //     } catch {
-        //         SecureLogger.shared.error("Failed to create chat room: \(error)")
-        //     }
-        // }
+        // Sync with server
+        Task {
+            do {
+                let room = try await chatService.createChatRoom(name: trimmedName, type: .group)
+                // Update with server-generated ID
+                if let index = conversations.firstIndex(where: { $0.id == newConversation.id }) {
+                    conversations[index] = ChatConversation(
+                        id: room.id,
+                        name: room.name,
+                        lastMessage: newConversation.lastMessage,
+                        time: newConversation.time,
+                        unreadCount: newConversation.unreadCount,
+                        avatarColor: newConversation.avatarColor,
+                        isOnline: newConversation.isOnline
+                    )
+                }
+                SecureLogger.shared.info("Chat room synced with server: \(room.id)")
+            } catch {
+                // Keep local conversation even if sync fails
+                SecureLogger.shared.error("Failed to sync chat room with server: \(error)")
+            }
+        }
     }
 
     /// Cancel creating new chat

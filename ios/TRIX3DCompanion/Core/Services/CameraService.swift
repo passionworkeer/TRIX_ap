@@ -40,6 +40,11 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     /// AVCaptureSession 实例
     private let captureSession: AVCaptureSession
 
+    /// Exposed capture session for preview layer
+    var previewCaptureSession: AVCaptureSession {
+        return captureSession
+    }
+
     /// 照片输出
     private let photoOutput: AVCapturePhotoOutput
 

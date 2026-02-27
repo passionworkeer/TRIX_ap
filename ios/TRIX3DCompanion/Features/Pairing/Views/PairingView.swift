@@ -281,22 +281,33 @@ struct PairingView: View {
                             )
                     }
 
-                    // QR Code placeholder (would use actual QR library)
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white)
-                        .frame(height: 200)
-                        .overlay(
-                            VStack(spacing: 12) {
-                                Image(systemName: "qrcode")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.black)
+                    // QR Code generated from pairing code
+                    if let qrImage = generateQRCode(from: code) {
+                        Image(uiImage: qrImage)
+                            .interpolation(.none)
+                            .resizable()
+                            .frame(width: 200, height: 200)
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+                    } else {
+                        // Fallback placeholder if QR generation fails
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white)
+                            .frame(height: 200)
+                            .overlay(
+                                VStack(spacing: 12) {
+                                    Image(systemName: "qrcode")
+                                        .font(.system(size: 60))
+                                        .foregroundColor(.black)
 
-                                Text("QR Code")
-                                    .font(.caption)
-                                    .foregroundColor(.textSecondary)
-                            }
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+                                    Text("QR Code Generation Failed")
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
+                                }
+                            )
+                            .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+                    }
 
                     // Expiration timer
                     if let remainingTime = pairingService.pairingCodeRemainingTime {
@@ -724,6 +735,31 @@ struct PairingView: View {
         case .web:
             return "Web"
         }
+    }
+
+    /// Generate QR code image from string
+    /// - Parameter string: The string to encode in the QR code
+    /// - Returns: UIImage of the QR code, or nil if generation fails
+    private func generateQRCode(from string: String) -> UIImage? {
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+
+        guard let data = string.data(using: .utf8) else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("H", forKey: "inputCorrectionLevel")
+
+        guard let outputImage = filter.outputImage else { return nil }
+
+        // Scale up the image for better quality
+        let transform = CGAffineTransform(scaleX: 10, y: 10)
+        let scaledImage = outputImage.transformed(by: transform)
+
+        // Convert to UIImage
+        guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cgImage)
     }
 }
 

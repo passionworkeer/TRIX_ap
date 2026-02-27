@@ -185,6 +185,57 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         }
     }
 
+    /// Create a new chat room
+    /// - Parameters:
+    ///   - name: The name of the chat room
+    ///   - type: The type of room (ai, group, or private)
+    /// - Returns: ChatResult containing the created chat room
+    func createChatRoom(name: String, type: ChatRoomType) async -> ChatResult<ChatRoom> {
+        // Verify authentication
+        guard authService.isLoggedIn else {
+            let error = ChatError.notAuthenticated
+            lastError = error
+            return .failure(error)
+        }
+
+        // Validate input
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            let error = ChatError.invalidMessageContent
+            lastError = error
+            return .failure(error)
+        }
+
+        isLoadingRooms = true
+        lastError = nil
+
+        do {
+            // Create request body
+            let request = CreateChatRoomRequest(name: trimmedName, type: type)
+
+            // Call API
+            let room: ChatRoom = try await apiClient.post(.chatRoomCreate, body: request)
+
+            // Add to local cache
+            chatRooms.insert(room, at: 0)
+            isLoadingRooms = false
+
+            SecureLogger.shared.info("Created chat room: \(room.id)")
+            return .success(room)
+
+        } catch let error as NetworkError {
+            isLoadingRooms = false
+            let chatError = mapNetworkError(error)
+            lastError = chatError
+            return .failure(chatError)
+        } catch {
+            isLoadingRooms = false
+            let chatError = ChatError.unknown(underlying: error)
+            lastError = chatError
+            return .failure(chatError)
+        }
+    }
+
     // MARK: - Public Methods - Messages
 
     /// Fetch messages for a specific room with pagination support
