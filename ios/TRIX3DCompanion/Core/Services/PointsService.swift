@@ -255,10 +255,9 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
                 metadata: metadata
             )
 
-            // Call API - using placeholder endpoint
-            // Note: Replace with proper points add endpoint when available
+            // Call API to add points
             let response: PointsResponse = try await apiClient.post(
-                .authMe,
+                .pointsAdd,
                 body: request
             )
 
@@ -326,10 +325,9 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
                 metadata: metadata
             )
 
-            // Call API - using placeholder endpoint
-            // Note: Replace with proper points deduct endpoint when available
+            // Call API to deduct points
             let response: PointsResponse = try await apiClient.post(
-                .authMe,
+                .pointsDeduct,
                 body: request
             )
 
@@ -457,20 +455,3 @@ struct DeductPointsRequest: Codable {
     let description: String
     let metadata: [String: String]?
 }
-
-// MARK: - Note on API Endpoints
-
-// The following endpoints need to be added to APIEndpoints.swift when backend is ready:
-//
-// enum APIEndpoint {
-//     case pointsAdd
-//     case pointsDeduct
-//
-//     var path: String {
-//         switch self {
-//         case .pointsAdd: return "/points/add"
-//         case .pointsDeduct: return "/points/deduct"
-//         default: break
-//         }
-//     }
-// }
