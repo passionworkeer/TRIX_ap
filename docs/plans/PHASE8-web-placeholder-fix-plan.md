@@ -259,36 +259,27 @@
 
 #### 3.1 类型定义 (0.5h)
 
-- [ ] **T3.1.1** 打开或创建 `src/types/location.ts` 文件
-- [ ] **T3.1.2** 定义 `UserLocation` 接口
-  ```typescript
-  export interface UserLocation {
-    userId: string;
-    latitude: number;
-    longitude: number;
-    updatedAt: string;
-  }
-  ```
-
-- [ ] **T3.1.3** 定义 `LocationShareSettings` 接口
+- [x] **T3.1.1** 打开或创建 `src/types/location.ts` 文件
+- [x] **T3.1.2** 定义 `UserLocation` 接口
+- [x] **T3.1.3** 定义 `LocationShareSettings` 接口
 
 #### 3.2 位置服务 (1.5h)
 
-- [ ] **T3.2.1** 创建 `src/services/locationService.ts` 文件
-- [ ] **T3.2.2** 实现 `getFriendsLocations()` 方法
-- [ ] **T3.2.3** 实现 `updateMyLocation(latitude, longitude)` 方法
-- [ ] **T3.2.4** 实现 `getLocationShareSettings()` 方法
-- [ ] **T3.2.5** 实现 `updateLocationShareSettings(settings)` 方法
-- [ ] **T3.2.6** 实现位置权限检查
+- [x] **T3.2.1** 创建 `src/services/locationService.ts` 文件
+- [x] **T3.2.2** 实现 `getFriendsLocations()` 方法
+- [x] **T3.2.3** 实现 `updateMyLocation(latitude, longitude)` 方法
+- [x] **T3.2.4** 实现 `getLocationShareSettings()` 方法
+- [x] **T3.2.5** 实现 `updateLocationShareSettings(settings)` 方法
+- [x] **T3.2.6** 实现位置权限检查
 
 #### 3.3 地图组件修改 (2h)
 
-- [ ] **T3.3.1** 打开 `src/screens/SnapMapScreen.tsx`
-- [ ] **T3.3.2** 导入 `locationService`
-- [ ] **T3.3.3** 定位 `mockFriends` 变量 (约第 46 行)
-- [ ] **T3.3.4** 替换为调用 `locationService.getFriendsLocations()`
-- [ ] **T3.3.5** 添加 loading 状态处理
-- [ ] **T3.3.6** 添加错误处理
+- [x] **T3.3.1** 打开 `src/screens/SnapMapScreen.tsx`
+- [x] **T3.3.2** 导入 `locationService`
+- [x] **T3.3.3** 定位 `mockFriends` 变量 (约第 46 行)
+- [x] **T3.3.4** 替换为调用 `locationService.getFriendsLocations()`
+- [x] **T3.3.5** 添加 loading 状态处理
+- [x] **T3.3.6** 添加错误处理
 
 #### 3.4 位置更新 (1h)
 
@@ -304,10 +295,10 @@
 
 #### 3.6 单元测试 - locationService.test.ts (1h)
 
-- [ ] **T3.6.1** 创建 `src/services/locationService.test.ts` 文件
-- [ ] **T3.6.2** 添加 `getFriendsLocations` 测试
-- [ ] **T3.6.3** 添加 `updateMyLocation` 测试
-- [ ] **T3.6.4** 添加 `getLocationShareSettings` 测试
+- [x] **T3.6.1** 创建 `src/services/locationService.test.ts` 文件
+- [x] **T3.6.2** 添加 `getFriendsLocations` 测试
+- [x] **T3.6.3** 添加 `updateMyLocation` 测试
+- [x] **T3.6.4** 添加 `getLocationShareSettings` 测试
 
 #### 3.7 组件测试 - SnapMapScreen.test.tsx (0.5h)
 
@@ -316,10 +307,10 @@
 
 #### 3.8 安全审计 (0.5h)
 
-- [ ] **T3.8.1** 验证只显示授权好友位置
-- [ ] **T3.8.2** 验证位置数据脱敏处理
-- [ ] **T3.8.3** 验证位置更新频率限制
-- [ ] **T3.8.4** 验证 HTTPS 传输
+- [x] **T3.8.1** 验证只显示授权好友位置
+- [x] **T3.8.2** 验证位置数据脱敏处理
+- [x] **T3.8.3** 验证位置更新频率限制
+- [x] **T3.8.4** 验证 HTTPS 传输
 
 ---
 
