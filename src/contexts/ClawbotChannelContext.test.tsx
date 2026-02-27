@@ -463,20 +463,19 @@ describe('ClawbotChannelContext', () => {
 
     it('should throw error when not paired', async () => {
       vi.mocked(clawbotChannelBridge.isPaired).mockReturnValue(false);
+      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
 
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
-      let error: Error | null = null;
+      // Click send button (the error is caught in the handler)
       await act(async () => {
-        try {
-          await getByTestId('send-btn').click();
-        } catch (e) {
-          error = e as Error;
-        }
+        getByTestId('send-btn').click();
       });
 
-      expect(error).toBeTruthy();
-      expect(error?.message).toContain('未配对');
+      // The error should be set in lastError
+      await waitFor(() => {
+        expect(getByTestId('last-error').textContent).toContain('未配对');
+      });
     });
 
     it('should add message to state on send', async () => {
