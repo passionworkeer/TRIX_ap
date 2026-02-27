@@ -442,56 +442,46 @@ extension StoreKitService {
     /// - Important: This method collects all verified transactions and
     /// creates a JSON payload for server-side verification. Sensitive data
     /// is not logged to protect user privacy.
-    func getReceiptData() -> String? {
+    func getReceiptData() async -> String? {
         // For StoreKit 2, we create a structured receipt payload
         // containing verified transaction information for backend verification
         var transactions: [[String: Any]] = []
 
         // Collect transactions from Transaction.entitledTransactionSequence
-        // This needs to be async, so we'll use a task continuation
-        let semaphore = DispatchSemaphore(value: 0)
+        for await result in Transaction.entitledTransactionSequence {
+            do {
+                let transaction = try checkVerified(result)
 
-        Task {
-            for await result in Transaction.entitledTransactionSequence {
-                do {
-                    let transaction = try checkVerified(result)
+                // Create a dictionary with transaction data
+                // NOTE: We don't include sensitive account info in logs
+                var txData: [String: Any] = [
+                    "id": transaction.id.description,
+                    "productId": transaction.productID,
+                    "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
+                    "quantity": transaction.quantity
+                ]
 
-                    // Create a dictionary with transaction data
-                    // NOTE: We don't include sensitive account info in logs
-                    var txData: [String: Any] = [
-                        "id": transaction.id.description,
-                        "productId": transaction.productID,
-                        "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
-                        "quantity": transaction.quantity
-                    ]
-
-                    // Include optional fields if present
-                    if let expirationDate = transaction.expirationDate {
-                        txData["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
-                    }
-
-                    if let offerID = transaction.offerID {
-                        txData["offerID"] = offerID
-                    }
-
-                    if let offerType = transaction.offerType {
-                        txData["offerType"] = offerType.rawValue
-                    }
-
-                    transactions.append(txData)
-
-                } catch {
-                    // Skip unverified transactions
-                    SecureLogger.shared.warning("Skipping unverified transaction during receipt collection")
-                    continue
+                // Include optional fields if present
+                if let expirationDate = transaction.expirationDate {
+                    txData["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
                 }
+
+                if let offerID = transaction.offerID {
+                    txData["offerID"] = offerID
+                }
+
+                if let offerType = transaction.offerType {
+                    txData["offerType"] = offerType.rawValue
+                }
+
+                transactions.append(txData)
+
+            } catch {
+                // Skip unverified transactions
+                SecureLogger.shared.warning("Skipping unverified transaction during receipt collection")
+                continue
             }
-
-            semaphore.signal()
         }
-
-        // Wait for collection to complete (with timeout)
-        _ = semaphore.wait(timeout: .now() + 5)
 
         guard !transactions.isEmpty else {
             SecureLogger.shared.warning("No verified transactions found for receipt")
@@ -525,36 +515,27 @@ extension StoreKitService {
     ///
     /// - Important: Transaction IDs are sensitive data and should never be
     /// logged in production builds.
-    func getLatestTransactionId(for productId: String) -> String? {
+    func getLatestTransactionId(for productId: String) async -> String? {
         var latestTransactionId: String?
-        let semaphore = DispatchSemaphore(value: 0)
+        var latestDate: Date?
 
-        Task {
-            var latestDate: Date?
+        for await result in Transaction.entitledTransactionSequence {
+            do {
+                let transaction = try checkVerified(result)
 
-            for await result in Transaction.entitledTransactionSequence {
-                do {
-                    let transaction = try checkVerified(result)
-
-                    // Only consider transactions for the requested product
-                    if transaction.productID == productId {
-                        // Update if this is the latest transaction
-                        if latestDate == nil || transaction.purchaseDate > latestDate! {
-                            latestDate = transaction.purchaseDate
-                            latestTransactionId = transaction.id.description
-                        }
+                // Only consider transactions for the requested product
+                if transaction.productID == productId {
+                    // Update if this is the latest transaction
+                    if latestDate == nil || transaction.purchaseDate > latestDate! {
+                        latestDate = transaction.purchaseDate
+                        latestTransactionId = transaction.id.description
                     }
-                } catch {
-                    // Skip unverified transactions
-                    continue
                 }
+            } catch {
+                // Skip unverified transactions
+                continue
             }
-
-            semaphore.signal()
         }
-
-        // Wait for collection to complete (with timeout)
-        _ = semaphore.wait(timeout: .now() + 5)
 
         // Return the latest transaction ID (without logging for security)
         return latestTransactionId
@@ -567,36 +548,22 @@ extension StoreKitService {
     /// Retrieves detailed transaction information for backend verification.
     /// This method searches through all entitled transactions to find
     /// the matching transaction ID.
-    ///
-    /// - Important: This is a synchronous wrapper around an async operation.
-    /// Use with caution and ensure proper timeout handling.
-    func getTransactionInfo(transactionId: String) -> TransactionInfo? {
-        var foundTransaction: TransactionInfo?
-        let semaphore = DispatchSemaphore(value: 0)
+    func getTransactionInfo(transactionId: String) async -> TransactionInfo? {
+        for await result in Transaction.entitledTransactionSequence {
+            do {
+                let transaction = try checkVerified(result)
 
-        Task {
-            for await result in Transaction.entitledTransactionSequence {
-                do {
-                    let transaction = try checkVerified(result)
-
-                    // Check if this is the transaction we're looking for
-                    if transaction.id.description == transactionId {
-                        foundTransaction = convertToTransactionInfo(transaction: transaction)
-                        break
-                    }
-                } catch {
-                    // Skip unverified transactions
-                    continue
+                // Check if this is the transaction we're looking for
+                if transaction.id.description == transactionId {
+                    return convertToTransactionInfo(transaction: transaction)
                 }
+            } catch {
+                // Skip unverified transactions
+                continue
             }
-
-            semaphore.signal()
         }
 
-        // Wait for search to complete (with timeout)
-        _ = semaphore.wait(timeout: .now() + 5)
-
-        return foundTransaction
+        return nil
     }
 
     /// Validate transaction and prepare verification payload for backend
