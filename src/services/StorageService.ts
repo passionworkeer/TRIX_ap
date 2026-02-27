@@ -160,7 +160,16 @@ class StorageService {
    * 获取所有键
    */
   async keys(): Promise<StorageKey[]> {
-    const localStorageKeys = Object.keys(localStorage);
+    // Use localStorage.key() iteration instead of Object.keys()
+    // This works better with mocks and is more reliable
+    const localStorageKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null) {
+        localStorageKeys.push(key);
+      }
+    }
+
     const cachedKeys = Array.from(this.cache.keys());
 
     // 合并并去重
@@ -191,7 +200,13 @@ class StorageService {
    */
   private cleanup(): void {
     // 简单的清理策略：删除最旧的 10% 数据
-    const keys = Object.keys(localStorage);
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null) {
+        keys.push(key);
+      }
+    }
     const toRemove = Math.max(1, Math.floor(keys.length * 0.1));
 
     for (let i = 0; i < toRemove; i++) {
