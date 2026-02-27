@@ -41,7 +41,9 @@ jobs:
           xcodebuild build \
             -scheme TRIX3DCompanion \
             -destination 'platform=macOS' \
-            -derivedDataPath DerivedData
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
   analyze:
     name: Static Analysis
