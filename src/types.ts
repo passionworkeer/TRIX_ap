@@ -18,7 +18,8 @@ export enum AppRoutes {
   DIAGNOSTIC = '/diagnostic',  // 🔧 诊断页面
   DIAGNOSTIC_ADV = '/diagnostic-advanced',  // 🔧 高级诊断
   MAP = '/map',
-  POINTS_MALL = '/points-mall'  // 🎁 积分商城
+  POINTS_MALL = '/points-mall',  // 🎁 积分商城
+  WARDROBE = '/wardrobe',        // 👕 衣柜/换装
 }
 
 export interface NavItem {

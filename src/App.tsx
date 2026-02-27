@@ -31,6 +31,7 @@ const Pairing = lazy(() => import('./screens/Pairing'));
 const QRCodePairing = lazy(() => import('./screens/QRCodePairing'));
 const SnapMapScreen = lazy(() => import('./screens/SnapMapScreen'));
 const PointsMall = lazy(() => import('./screens/PointsMall'));
+const Wardrobe = lazy(() => import('./screens/Wardrobe'));
 const Login = lazy(async () => ({ default: (await import('./screens/Auth')).Login }));
 const Register = lazy(async () => ({ default: (await import('./screens/Auth')).Register }));
 
@@ -237,6 +238,7 @@ function AppContent() {
               <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
               <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
               <Route path={AppRoutes.POINTS_MALL} element={<ProtectedRoute><PointsMall /></ProtectedRoute>} />
+              <Route path={AppRoutes.WARDROBE} element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
             </Routes>
           </Suspense>
         </div>
