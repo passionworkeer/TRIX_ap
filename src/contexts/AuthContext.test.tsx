@@ -30,47 +30,44 @@ const mockProfile = {
   bio: 'Hello world'
 };
 
-// Mock Supabase auth methods
-const mockSignInWithPassword = vi.fn();
-const mockSignUp = vi.fn();
-const mockSignOut = vi.fn();
-const mockGetSession = vi.fn();
-const mockGetUser = vi.fn();
-const mockOnAuthStateChange = vi.fn();
-
-// Mock Supabase profile query
-const mockFrom = vi.fn(() => ({
-  select: vi.fn(() => ({
-    eq: vi.fn(() => ({
-      single: vi.fn()
+// Use vi.hoisted to create mocks before vi.mock is called
+const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom } = vi.hoisted(() => ({
+  mockSignInWithPassword: vi.fn(),
+  mockSignUp: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockGetSession: vi.fn(),
+  mockGetUser: vi.fn(),
+  mockOnAuthStateChange: vi.fn(),
+  mockFrom: vi.fn(() => ({
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        single: vi.fn()
+      }))
+    })),
+    update: vi.fn(() => ({
+      eq: vi.fn()
     }))
-  })),
-  update: vi.fn(() => ({
-    eq: vi.fn()
   }))
 }));
 
-// Create mock supabase client
-const createMockSupabase = () => ({
-  auth: {
-    signInWithPassword: mockSignInWithPassword,
-    signUp: mockSignUp,
-    signOut: mockSignOut,
-    getSession: mockGetSession,
-    getUser: mockGetUser,
-    onAuthStateChange: mockOnAuthStateChange
-  },
-  from: mockFrom,
-  channel: vi.fn(() => ({
-    on: vi.fn(() => ({ subscribe: vi.fn() })),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn()
-  }))
-});
-
 // Mock the supabase module
 vi.mock('../config/supabase', () => ({
-  supabase: createMockSupabase(),
+  supabase: {
+    auth: {
+      signInWithPassword: mockSignInWithPassword,
+      signUp: mockSignUp,
+      signOut: mockSignOut,
+      getSession: mockGetSession,
+      getUser: mockGetUser,
+      onAuthStateChange: mockOnAuthStateChange
+    },
+    from: mockFrom,
+    channel: vi.fn(() => ({
+      on: vi.fn(() => ({ subscribe: vi.fn() })),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn()
+    }))
+  },
   Profile: {
     id: '',
     username: '',
@@ -164,20 +161,20 @@ describe('AuthContext', () => {
       mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
       mockSignInWithPassword.mockResolvedValue({ data: { session: null }, error: null });
 
-      // Mock profile fetch
-      const mockSelect = vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: mockProfile, error: null })
-        }))
-      }));
-      mockFrom.mockReturnValue({ select: mockSelect });
-
       let contextSignIn: any;
+      let result: { error: any } | undefined;
 
       const TestComponent = () => {
         const ctx = useAuth();
         contextSignIn = ctx.signIn;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signIn('test@example.com', 'password123').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -187,16 +184,14 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
+        expect(screen.getByTestId('status').textContent).toBe('done');
       });
 
-      await act(async () => {
-        await contextSignIn('test@example.com', 'password123');
-      });
-
-      expect(mockSignInWithPassword).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123'
+      await waitFor(() => {
+        expect(mockSignInWithPassword).toHaveBeenCalledWith({
+          email: 'test@example.com',
+          password: 'password123'
+        });
       });
     });
 
@@ -208,12 +203,17 @@ describe('AuthContext', () => {
       });
 
       let result: { error: any } | undefined;
-      let contextSignIn: any;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignIn = ctx.signIn;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signIn('test@example.com', 'wrong-password').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -223,11 +223,7 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
-      });
-
-      await act(async () => {
-        result = await contextSignIn('test@example.com', 'wrong-password');
+        expect(result).toBeDefined();
       });
 
       expect(result?.error).toBeDefined();
@@ -239,12 +235,17 @@ describe('AuthContext', () => {
       mockSignInWithPassword.mockRejectedValue(new TypeError('Failed to fetch'));
 
       let result: { error: any } | undefined;
-      let contextSignIn: any;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignIn = ctx.signIn;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signIn('test@example.com', 'password123').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -254,11 +255,7 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
-      });
-
-      await act(async () => {
-        result = await contextSignIn('test@example.com', 'password123');
+        expect(result).toBeDefined();
       });
 
       expect(result?.error).toBeDefined();
@@ -272,12 +269,17 @@ describe('AuthContext', () => {
       mockSignUp.mockResolvedValue({ data: { user: mockUser, session: null }, error: null });
 
       let result: { error: any } | undefined;
-      let contextSignUp: any;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignUp = ctx.signUp;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signUp('new@example.com', 'password123', 'newuser').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -287,22 +289,19 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
+        expect(mockSignUp).toHaveBeenCalledWith({
+          email: 'new@example.com',
+          password: 'password123',
+          options: {
+            data: { username: 'newuser' },
+            emailRedirectTo: undefined
+          }
+        });
       });
 
-      await act(async () => {
-        result = await contextSignUp('new@example.com', 'password123', 'newuser');
+      await waitFor(() => {
+        expect(result?.error).toBeNull();
       });
-
-      expect(mockSignUp).toHaveBeenCalledWith({
-        email: 'new@example.com',
-        password: 'password123',
-        options: {
-          data: { username: 'newuser' },
-          emailRedirectTo: undefined
-        }
-      });
-      expect(result?.error).toBeNull();
     });
 
     it('returns error for duplicate email', async () => {
@@ -313,12 +312,17 @@ describe('AuthContext', () => {
       });
 
       let result: { error: any } | undefined;
-      let contextSignUp: any;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignUp = ctx.signUp;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signUp('exists@example.com', 'password123', 'exists').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -328,11 +332,7 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
-      });
-
-      await act(async () => {
-        result = await contextSignUp('exists@example.com', 'password123', 'exists');
+        expect(result).toBeDefined();
       });
 
       expect(result?.error).toBeDefined();
@@ -347,12 +347,17 @@ describe('AuthContext', () => {
       });
 
       let result: { error: any } | undefined;
-      let contextSignUp: any;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignUp = ctx.signUp;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.signUp('test@example.com', '123', 'tester').then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -362,11 +367,7 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
-      });
-
-      await act(async () => {
-        result = await contextSignUp('test@example.com', '123', 'tester');
+        expect(result).toBeDefined();
       });
 
       expect(result?.error).toBeDefined();
@@ -388,17 +389,9 @@ describe('AuthContext', () => {
 
       mockSignOut.mockResolvedValue({ error: null });
 
-      let contextSignOut: any;
-
-      const TestComponent = () => {
-        const ctx = useAuth();
-        contextSignOut = ctx.signOut;
-        return <TestConsumer />;
-      };
-
       render(
         <AuthProvider>
-          <TestComponent />
+          <TestConsumer />
         </AuthProvider>
       );
 
@@ -411,10 +404,12 @@ describe('AuthContext', () => {
 
       // Sign out
       await act(async () => {
-        await contextSignOut();
+        screen.getByTestId('signout-btn').click();
       });
 
-      expect(mockSignOut).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockSignOut).toHaveBeenCalled();
+      });
     });
   });
 
@@ -535,8 +530,13 @@ describe('AuthContext', () => {
       mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
 
       const TestIsAuthenticated = () => {
-        const { user } = useAuth();
-        return <div data-testid="is-authenticated">{user ? 'true' : 'false'}</div>;
+        const { user, loading } = useAuth();
+        return (
+          <div>
+            <div data-testid="loading">{loading ? 'loading' : 'ready'}</div>
+            <div data-testid="is-authenticated">{user ? 'true' : 'false'}</div>
+          </div>
+        );
       };
 
       render(
@@ -571,12 +571,18 @@ describe('AuthContext', () => {
         update: mockUpdate
       });
 
-      let contextUpdateProfile: any;
+      let result: { error: Error | null } | undefined;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextUpdateProfile = ctx.updateProfile;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false && ctx.user) {
+            ctx.updateProfile({ username: 'updated-user' }).then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading, ctx.user]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -586,28 +592,29 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
+        expect(mockUpdate).toHaveBeenCalledWith({ username: 'updated-user' });
       });
 
-      let result: { error: Error | null } | undefined;
-
-      await act(async () => {
-        result = await contextUpdateProfile({ username: 'updated-user' });
+      await waitFor(() => {
+        expect(result?.error).toBeNull();
       });
-
-      expect(result?.error).toBeNull();
-      expect(mockUpdate).toHaveBeenCalledWith({ username: 'updated-user' });
     });
 
     it('returns error when updating profile without user', async () => {
       mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
 
-      let contextUpdateProfile: any;
+      let result: { error: Error | null } | undefined;
 
       const TestComponent = () => {
         const ctx = useAuth();
-        contextUpdateProfile = ctx.updateProfile;
-        return <div>test</div>;
+        React.useEffect(() => {
+          if (ctx.loading === false) {
+            ctx.updateProfile({ username: 'updated-user' }).then((r: any) => {
+              result = r;
+            });
+          }
+        }, [ctx.loading]);
+        return <div data-testid="status">done</div>;
       };
 
       render(
@@ -617,13 +624,7 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('loading').textContent).toBe('ready');
-      });
-
-      let result: { error: Error | null } | undefined;
-
-      await act(async () => {
-        result = await contextUpdateProfile({ username: 'updated-user' });
+        expect(result).toBeDefined();
       });
 
       expect(result?.error).toBeDefined();
