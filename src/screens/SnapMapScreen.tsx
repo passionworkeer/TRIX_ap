@@ -9,7 +9,9 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { getFriends } from '../services/databaseService';
+import { getFriendsLocations } from '../services/locationService';
 import type { FriendLatestMessage } from '../config/supabase';
+import type { FriendLocation } from '../types/location';
 import { IMAGES } from '../constants';
 import PlacePopupContent from '../components/map/PlacePopupContent';
 import FriendPopupContent from '../components/map/FriendPopupContent';
@@ -212,6 +214,7 @@ const SnapMapScreen: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
+  const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
 
@@ -235,11 +238,79 @@ const SnapMapScreen: React.FC = () => {
     loadFriends();
   }, []);
 
+  // 加载好友真实位置
+  useEffect(() => {
+    const loadFriendLocations = async () => {
+      try {
+        const locations = await getFriendsLocations();
+        if (locations.length > 0) {
+          setFriendLocations(locations);
+        }
+      } catch (error) {
+        console.error('加载好友位置失败:', error);
+        // 使用 mock 数据作为备选
+      }
+    };
+    loadFriendLocations();
+  }, []);
+
   // 上海陆家嘴中心坐标
   const center: [number, number] = [31.2304, 121.4737];
 
   // 生成好友标记
   const friendMarkers = useMemo(() => {
+    // 优先使用真实位置数据
+    if (friendLocations.length > 0) {
+      return friendLocations.map((location) => {
+        const status = friendStatuses[location.friendId] || {
+          emoji: '👤',
+          text: location.status === 'online' ? 'Online' : 'Offline',
+        };
+
+        return (
+          <Marker
+            key={location.friendId}
+            position={[location.latitude, location.longitude]}
+            icon={createAvatarIcon({
+              friend_id: location.friendId,
+              avatar_url: location.avatar,
+              name: location.name,
+            } as FriendLatestMessage)}
+          >
+            <Popup>
+              <FriendPopupContent
+                friend={{
+                  friend_id: location.friendId,
+                  avatar_url: location.avatar,
+                  name: location.name,
+                  status: location.status,
+                  statusText: status.text,
+                  emoji: status.emoji,
+                  bio: null,
+                  study_time: 0,
+                  is_studying: location.isStudying,
+                  unread_count: 0,
+                  last_message: null,
+                  last_message_time: null,
+                  user_id: '',
+                }}
+                onMessage={() => {
+                  navigate(`/chat/${location.friendId}`);
+                }}
+                onViewProfile={() => {
+                  navigate(`/profile/${location.friendId}`);
+                }}
+                onInvite={() => {
+                  console.log('邀请', location.name, '一起自习');
+                }}
+              />
+            </Popup>
+          </Marker>
+        );
+      });
+    }
+
+    // 使用模拟位置
     return friends.map((friend, index) => {
       const pos = getOffsetPosition(center[0], center[1], index);
       const status = friendStatuses[friend.friend_id] || {
@@ -278,7 +349,7 @@ const SnapMapScreen: React.FC = () => {
         </Marker>
       );
     });
-  }, [friends, navigate]);
+  }, [friends, friendLocations, navigate]);
 
   // 生成虚拟地点标记
   const placeMarkers = useMemo(() => {
