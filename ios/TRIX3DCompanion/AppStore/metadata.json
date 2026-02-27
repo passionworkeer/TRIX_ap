@@ -1,0 +1,223 @@
+{
+  "app_info": {
+    "bundle_id": "com.trix3d.companion",
+    "app_name": {
+      "en": "TRIX 3D Companion",
+      "zh-Hans": "TRIX 3D 伴侣"
+    },
+    "version": "1.0.0",
+    "build_number": "1"
+  },
+  "app_icons": {
+    "app_store": {
+      "size": "1024x1024",
+      "format": "PNG",
+      "required": true,
+      "description": "App Store 图标，无透明通道",
+      "filename": "AppIcon-1024x1024.png"
+    },
+    "ios_sizes": [
+      {
+        "size": "180x180",
+        "usage": "iPhone App Icon (@3x)",
+        "idiom": "iphone",
+        "scale": "3x",
+        "filename": "AppIcon-180x180.png"
+      },
+      {
+        "size": "120x120",
+        "usage": "iPhone App Icon (@2x)",
+        "idiom": "iphone",
+        "scale": "2x",
+        "filename": "AppIcon-120x120.png"
+      },
+      {
+        "size": "167x167",
+        "usage": "iPad Pro App Icon (@2x)",
+        "idiom": "ipad",
+        "scale": "2x",
+        "filename": "AppIcon-167x167.png"
+      },
+      {
+        "size": "152x152",
+        "usage": "iPad App Icon (@2x)",
+        "idiom": "ipad",
+        "scale": "2x",
+        "filename": "AppIcon-152x152.png"
+      },
+      {
+        "size": "76x76",
+        "usage": "iPad App Icon (@1x)",
+        "idiom": "ipad",
+        "scale": "1x",
+        "filename": "AppIcon-76x76.png"
+      }
+    ]
+  },
+  "screenshots": {
+    "required_devices": [
+      {
+        "device": "6.7-inch (iPhone 14 Pro Max, iPhone 15 Pro Max)",
+        "resolution": "1290x2796",
+        "orientation": "portrait",
+        "min_count": 3,
+        "max_count": 10,
+        "format": "PNG or JPEG",
+        "directory": "Screenshots/6.7inch/"
+      },
+      {
+        "device": "6.5-inch (iPhone 11 Pro Max, iPhone XS Max)",
+        "resolution": "1242x2688",
+        "orientation": "portrait",
+        "min_count": 3,
+        "max_count": 10,
+        "format": "PNG or JPEG",
+        "directory": "Screenshots/6.5inch/"
+      },
+      {
+        "device": "5.5-inch (iPhone 8 Plus, iPhone 7 Plus)",
+        "resolution": "1242x2208",
+        "orientation": "portrait",
+        "min_count": 3,
+        "max_count": 10,
+        "format": "PNG or JPEG",
+        "directory": "Screenshots/5.5inch/"
+      }
+    ],
+    "guidelines": [
+      "必须使用真实设备截图，不能使用模拟器",
+      "必须展示应用的核心功能",
+      "不能包含临时或占位内容",
+      "状态栏必须显示真实信息（时间、电池等）",
+      "建议包含不同场景的截图（主界面、详情页、设置等）"
+    ]
+  },
+  "metadata": {
+    "primary_language": "zh-Hans",
+    "secondary_language": "en",
+    "name": {
+      "max_length": 30,
+      "en": "TRIX 3D Companion",
+      "zh-Hans": "TRIX 3D 伴侣",
+      "note": "显示在主屏幕上的名称"
+    },
+    "subtitle": {
+      "max_length": 30,
+      "en": "Your 3D Printing Assistant",
+      "zh-Hans": "您的 3D 打印助手",
+      "note": "App 名称下方的副标题"
+    },
+    "description": {
+      "max_length": 4000,
+      "en": "TRIX 3D Companion is your ultimate assistant for 3D printing. Connect to your TRIX 3D printer wirelessly, monitor print progress in real-time, and control your printer from anywhere.\n\nKey Features:\n• Real-time print monitoring\n• Wireless printer control\n• Print job management\n• Temperature and status tracking\n• Camera preview support\n\nPerfect for makers, designers, and 3D printing enthusiasts who want to take control of their printing workflow.",
+      "zh-Hans": "TRIX 3D 伴侣是您的 3D 打印终极助手。无线连接您的 TRIX 3D 打印机，实时监控打印进度，随时随地控制您的打印机。\n\n主要功能：\n• 实时打印监控\n• 无线打印机控制\n• 打印任务管理\n• 温度和状态跟踪\n• 摄像头预览支持\n\n非常适合创客、设计师和 3D 打印爱好者，掌控您的打印工作流程。",
+      "note": "应用详细描述，支持 Markdown 格式"
+    },
+    "keywords": {
+      "max_length": 100,
+      "en": "3D printing,printer controller,TRIX,real-time monitor,wireless,maker,3D model",
+      "zh-Hans": "3D打印,打印机控制,TRIX,实时监控,无线,创客,3D模型",
+      "note": "逗号分隔的关键词，用于 App Store 搜索"
+    },
+    "what_new": {
+      "max_length": 4000,
+      "en": "Initial release:\n• Real-time print monitoring\n• Wireless printer control\n• Print job management\n• Temperature tracking\n• Camera preview",
+      "zh-Hans": "首次发布：\n• 实时打印监控\n• 无线打印机控制\n• 打印任务管理\n• 温度跟踪\n• 摄像头预览",
+      "note": "版本更新说明"
+    },
+    "promotional_text": {
+      "max_length": 170,
+      "en": "Control your TRIX 3D printer from anywhere. Monitor prints, adjust settings, and manage your workflow wirelessly.",
+      "zh-Hans": "随时随地控制您的 TRIX 3D 打印机。监控打印、调整设置、无线管理您的工作流程。",
+      "note": "App Store 顶部的宣传文本，可随时更新无需审核"
+    },
+    "support_url": {
+      "en": "https://trix3d.com/support",
+      "zh-Hans": "https://trix3d.com/cn/support",
+      "note": "技术支持页面 URL"
+    },
+    "marketing_url": {
+      "en": "https://trix3d.com",
+      "zh-Hans": "https://trix3d.com/cn",
+      "note": "营销网站 URL"
+    },
+    "privacy_policy_url": {
+      "en": "https://trix3d.com/privacy",
+      "zh-Hans": "https://trix3d.com/cn/privacy",
+      "note": "隐私政策 URL（必需）"
+    }
+  },
+  "age_rating": {
+    "content_warnings": [
+      "No violence",
+      "No adult content",
+      "No gambling",
+      "No profanity"
+    ],
+    "expected_rating": "4+",
+    "note": "应用内容评级，需要在 App Store Connect 中手动配置"
+  },
+  "categories": {
+    "primary": "Utilities",
+    "secondary": "Productivity",
+    "note": "App Store 分类"
+  },
+  "permissions": {
+    "required": [
+      {
+        "permission": "NSCameraUsageDescription",
+        "key": "Privacy - Camera Usage Description",
+        "en": "TRIX 3D Companion needs camera access to preview your 3D prints.",
+        "zh-Hans": "TRIX 3D 伴侣需要摄像头权限以预览您的 3D 打印。",
+        "usage": "Camera preview for print monitoring"
+      },
+      {
+        "permission": "NSLocalNetworkUsageDescription",
+        "key": "Privacy - Local Network Usage Description",
+        "en": "TRIX 3D Companion needs local network access to communicate with your 3D printer.",
+        "zh-Hans": "TRIX 3D 伴侣需要本地网络权限以与您的 3D 打印机通信。",
+        "usage": "Printer communication"
+      },
+      {
+        "permission": "NSBonjourServices",
+        "key": "",
+        "value": ["_trix3d._tcp"],
+        "usage": "Bonjour service discovery for printer"
+      }
+    ],
+    "optional": [
+      {
+        "permission": "NSPhotoLibraryUsageDescription",
+        "key": "Privacy - Photo Library Usage Description",
+        "en": "TRIX 3D Companion needs photo library access to save screenshots.",
+        "zh-Hans": "TRIX 3D 伴侣需要相册权限以保存截图。",
+        "usage": "Save screenshots (future feature)"
+      }
+    ]
+  },
+  "review_information": {
+    "notes": "This app requires a TRIX 3D printer to function. Demo account: demo@trix3d.com / Demo123!",
+    "contact": {
+      "first_name": "TRIX",
+      "last_name": "Support",
+      "email": "support@trix3d.com",
+      "phone": "+86-xxx-xxxx-xxxx"
+    },
+    "demo_account": {
+      "required": true,
+      "username": "demo@trix3d.com",
+      "password": "Demo123!"
+    }
+  },
+  "export_compliance": {
+    "uses_encryption": true,
+    "encryption_type": "Standard TLS/SSL for network communication",
+    "exempt": false,
+    "note": "需要在 App Store Connect 中回答加密使用情况"
+  },
+  "localization": {
+    "supported_languages": ["en", "zh-Hans"],
+    "default_language": "zh-Hans",
+    "note": "所有元数据需要提供中英文两个版本"
+  }
+}
