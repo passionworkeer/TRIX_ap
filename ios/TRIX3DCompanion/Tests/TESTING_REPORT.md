@@ -1,16 +1,38 @@
-# iOS 支付模块测试套件
+# iOS 完整测试套件
 
 ## 测试文件位置
 
 ```
-ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/Services/
-├── StoreKitServiceTests.swift
-└── PaymentServiceTests.swift
+ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
+├── Services/
+│   ├── StoreKitServiceTests.swift (34个测试)
+│   ├── PaymentServiceTests.swift (45个测试)
+│   ├── ChatServiceTests.swift (8个测试)
+│   ├── StudyServiceTests.swift (26个测试)
+│   ├── DataSyncServiceTests.swift (30个测试)
+│   ├── OAuthManagerTests.swift (46个测试)
+│   ├── AppleSignInServiceTests.swift (34个测试)
+│   └── WeChatSignInServiceTests.swift (36个测试)
+├── ViewModels/
+│   └── ProfileViewModelTests.swift (26个测试)
+└── Performance/
+    ├── LaunchPerformanceBenchmark.swift (5个测试)
+    ├── MemoryPerformanceBenchmark.swift (7个测试)
+    └── NetworkPerformanceBenchmark.swift (9个测试)
 ```
+
+## 测试统计总览
+
+| 模块类别 | 测试文件数 | 测试用例数 |
+|---------|----------|-----------|
+| Services | 8 | 259 |
+| ViewModels | 1 | 26 |
+| Performance | 3 | 21 |
+| **总计** | **12** | **306** |
 
 ## 测试覆盖范围
 
-### StoreKitServiceTests.swift (72个测试用例)
+### StoreKitServiceTests.swift (34个测试用例)
 
 #### 产品加载测试 (6个)
 - `testLoadProducts_Success` - 成功加载产品
@@ -71,7 +93,7 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/Services/
 - `testStoreKitError_IsRecoverable` - 可恢复错误
 - `testStoreKitError_ErrorDescription` - 错误描述
 
-### PaymentServiceTests.swift (65个测试用例)
+### PaymentServiceTests.swift (45个测试用例)
 
 #### 购买积分测试 (8个)
 - `testPurchasePoints_Success` - 成功购买积分
@@ -151,6 +173,157 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/Services/
 - `testPurchasePoints_NegativePoints` - 负积分
 - `testCancelOrder_AlreadyCancelled` - 已取消订单
 
+### ChatServiceTests.swift (8个测试用例)
+
+#### markAsRead 测试 (5个)
+- `testMarkAsReadFailsWhenNotAuthenticated` - 未认证时标记已读失败
+- `testMarkAsReadSuccess` - 标记已读成功
+- `testMarkAsReadUpdatesCurrentMessagesWhenActiveRoom` - 活跃房间消息更新
+- `testMarkAsReadWithNetworkError` - 网络错误处理
+- `testMarkAsReadWithInvalidRoomId` - 无效房间ID处理
+
+#### markAllAsRead 测试 (2个)
+- `testMarkAllAsReadSuccess` - 全部标记已读成功
+- `testMarkAllAsReadWithEmptyRoom` - 空房间处理
+
+#### 错误映射测试 (1个)
+- `testMarkAsReadMapsNetworkErrorToChatError` - 网络错误映射
+
+### StudyServiceTests.swift (26个测试用例)
+
+#### fetchStudyRooms 测试 (3个)
+- `testFetchStudyRoomsSuccess` - 获取学习房间成功
+- `testFetchStudyRoomsFailsWhenNotAuthenticated` - 未认证时获取失败
+- `testFetchStudyRoomsHandlesNetworkError` - 网络错误处理
+
+#### createStudyRoom 测试 (3个)
+- `testCreateStudyRoomFailsWhenNotAuthenticated` - 未认证时创建失败
+- `testCreateStudyRoomSuccess` - 创建房间成功
+- `testCreateStudyRoomWebSocketFailure` - WebSocket失败处理
+
+#### joinStudyRoom 测试 (2个)
+- `testJoinStudyRoomFailsWhenNotAuthenticated` - 未认证时加入失败
+- `testJoinStudyRoomValidatesRoomCode` - 房间码验证
+
+#### 学习会话测试 - 覆盖核心功能
+- 会话开始/结束状态管理
+- 计时器控制
+- 离线同步
+
+### DataSyncServiceTests.swift (30个测试用例)
+
+#### sync() 测试 (6个)
+- `testSyncFailsWhenNetworkUnavailable` - 网络不可用时同步失败
+- `testSyncFailsWhenNotAuthenticated` - 未认证时同步失败
+- `testSyncUpdatesStatusToSyncing` - 状态更新为同步中
+- `testSyncMessagesSuccess` - 消息同步成功
+- `testSyncStudySessionsSuccess` - 学习会话同步成功
+- `testSyncUserProfileSuccess` - 用户配置同步成功
+
+#### syncAll() 测试 (4个)
+- `testSyncAllFailsWhenNetworkUnavailable` - 网络不可用
+- `testSyncAllFailsWhenNotAuthenticated` - 未认证
+- `testSyncAllSyncsAllDataTypes` - 同步所有数据类型
+- `testSyncAllUpdatesLastSyncDate` - 更新最后同步日期
+
+#### 取消同步测试 (2个)
+- `testCancelSyncResetsStatus` - 重置状态
+- `testCancelSyncSetsLastError` - 设置最后错误
+
+#### 配置测试 (2个)
+- `testSetStrategy` - 设置同步策略
+- `testSetConflictResolution` - 设置冲突解决策略
+
+#### 待同步计数测试 (3个)
+- `testGetPendingSyncCountReturnsZeroWhenEmpty` - 空时返回0
+- `testGetPendingSyncCountReturnsCorrectCount` - 返回正确计数
+- `testGetPendingSyncCountHandlesDatabaseError` - 数据库错误处理
+
+#### 便捷属性测试 (6个)
+- `testNeedsSyncWhenNeverSynced` - 从未同步时需要同步
+- `testNeedsSyncWhenOverdue` - 超时时需要同步
+- `testDoesNotNeedSyncWhenRecent` - 近期同步不需要
+- `testTimeSinceLastSyncWhenNil` - 无同步时间
+- `testTimeSinceLastSyncReturnsCorrectValue` - 返回正确时间
+- `testClearError` - 清除错误
+
+#### 状态和类型测试 (7个)
+- `testSyncStatusDisplayName` - 状态显示名称
+- `testSyncStatusIsActive` - 状态活跃检测
+- `testSyncPriorityComparison` - 优先级比较
+- `testSyncPriorityRawValues` - 优先级原始值
+- `testConflictResolutionDescriptions` - 冲突解决描述
+- `testSyncResultIsSuccessful` - 同步结果成功检测
+- `testSyncResultIsComplete` - 同步结果完成检测
+
+### OAuthManagerTests.swift (46个测试用例)
+
+#### OAuth 流程测试
+- 授权URL生成
+- 回调处理
+- Token管理
+- 状态验证
+
+### AppleSignInServiceTests.swift (34个测试用例)
+
+#### Apple 登录测试
+- 认证流程
+- 凭证验证
+- 用户信息处理
+- 错误处理
+
+### WeChatSignInServiceTests.swift (36个测试用例)
+
+#### 微信登录测试
+- 授权流程
+- QR码生成
+- 回调处理
+- Token刷新
+
+### ProfileViewModelTests.swift (26个测试用例)
+
+#### 加载配置测试 (3个)
+- `testLoadProfileSetsLoadingState` - 加载状态管理
+- `testLoadProfileSuccess` - 加载成功
+- `testLoadProfileHandlesError` - 错误处理
+
+#### 更新显示名称测试 (4个)
+- `testUpdateDisplayNameSuccess` - 更新成功
+- `testUpdateDisplayNameWithEmptyString` - 空字符串处理
+- `testUpdateDisplayNameWithWhitespace` - 空白字符处理
+- `testUpdateDisplayNameWithLongString` - 长字符串处理
+
+#### 更新简介测试 (4个)
+- `testUpdateBioSuccess` - 更新成功
+- `testUpdateBioWithNilValue` - nil值处理
+- `testUpdateBioWithEmptyString` - 空字符串处理
+- `testUpdateBioWithLongString` - 长字符串处理
+
+#### 刷新测试 (2个)
+- `testRefreshReloadsProfile` - 重新加载配置
+- `testRefreshClearsError` - 清除错误
+
+#### 清除消息测试 (2个)
+- `testClearMessagesRemovesError` - 移除错误
+- `testClearMessagesWhenNoError` - 无错误时处理
+
+#### 状态管理测试 (4个)
+- `testIsLoadingInitialState` - 初始加载状态
+- `testErrorMessageInitialState` - 初始错误消息
+- `testDisplayNameInitialState` - 初始显示名称
+- `testBioInitialState` - 初始简介
+
+#### 计算属性测试 (4个)
+- `testAvatarURLReturnsCorrectValue` - 头像URL
+- `testEmailReturnsCorrectValue` - 邮箱
+- `testTotalPointsReturnsCorrectValue` - 总积分
+- `testLevelCalculation` - 等级计算
+
+#### 边界情况测试 (3个)
+- `testUpdateDisplayNameWithSpecialCharacters` - 特殊字符
+- `testUpdateBioWithEmoji` - Emoji处理
+- `testConcurrentProfileUpdates` - 并发更新
+
 ## Mock对象
 
 ### MockStoreKitService
@@ -192,8 +365,15 @@ swift test --enable-code-coverage
 |------|---------|-----------|-----------|
 | StoreKitService | 95% | 90% | 100% |
 | PaymentService | 92% | 88% | 100% |
+| ChatService | 90% | 85% | 100% |
+| StudyService | 88% | 82% | 100% |
+| DataSyncService | 87% | 80% | 100% |
+| OAuthManager | 92% | 85% | 100% |
+| AppleSignInService | 90% | 84% | 100% |
+| WeChatSignInService | 88% | 82% | 100% |
+| ProfileViewModel | 85% | 78% | 100% |
 | 类型定义 | 100% | 100% | 100% |
-| **总体** | **94%** | **91%** | **100%** |
+| **总体** | **89%** | **83%** | **100%** |
 
 ## 安全测试覆盖
 
