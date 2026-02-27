@@ -206,7 +206,7 @@ protocol StoreKitServiceProtocol: ObservableObject {
     /// The backend will verify using App Store Server API.
     ///
     /// - Important: Sensitive data is not logged to protect user privacy.
-    func getReceiptData() -> String?
+    func getReceiptData() async -> String?
 
     /// Get latest transaction ID for verification
     /// - Parameter productId: Product identifier
@@ -216,12 +216,12 @@ protocol StoreKitServiceProtocol: ObservableObject {
     /// Used to validate purchases with the backend server.
     ///
     /// - Important: Transaction IDs are sensitive and should not be logged.
-    func getLatestTransactionId(for productId: String) -> String?
+    func getLatestTransactionId(for productId: String) async -> String?
 
     /// Get transaction info for verification
     /// - Parameter transactionId: Transaction ID to retrieve
     /// - Returns: Transaction info or nil if not found
-    func getTransactionInfo(transactionId: String) -> TransactionInfo?
+    func getTransactionInfo(transactionId: String) async -> TransactionInfo?
 
     /// Prepare verification payload for backend
     /// - Parameters:
