@@ -50,6 +50,10 @@
 "chat Typing" = "正在输入...";
 "chat.delivered" = "已送达";
 "chat.read" = "已读";
+"chat.load.earlier" = "加载更早的消息";
+"chat.attach.media" = "添加附件";
+"chat.photo.library" = "相册";
+"chat.conversation.info" = "会话信息";
 
 // MARK: - Study
 "study.title" = "学习室";
@@ -63,6 +67,28 @@
 "study.streak" = "连续学习";
 "study.total.time" = "总时长";
 "study.today.time" = "今日时长";
+"study.active.rooms" = "活跃房间";
+"study.my.sessions" = "我的会话";
+"study.scheduled.sessions" = "已安排的学习会话";
+"study.no.upcoming" = "暂无即将开始的学习会话";
+"study.create.session" = "创建会话";
+"study.join.room" = "加入房间";
+"study.room.active" = "活跃";
+"study.participants" = "参与者";
+"study.host" = "主持人";
+"study.create.room" = "创建学习房间";
+"study.create.room.description" = "创建一个新的学习房间并邀请其他人加入";
+"study.room.name" = "房间名称";
+"study.subject" = "学科";
+"study.description" = "描述";
+"study.max.participants" = "最大参与人数";
+"study.session.duration" = "会话时长";
+"study.private.room" = "私密房间";
+"study.private.room.description" = "只有被邀请的用户才能加入";
+"study.create.button" = "创建房间";
+"study.create.failed" = "创建房间失败，请重试";
+"study.your.time" = "你的时长";
+"study.total.studying" = "总学习人数";
 
 // MARK: - Map & Location
 "map.title" = "探索";
@@ -79,6 +105,11 @@
 "camera.back" = "后置相机";
 "camera.unknown" = "未知";
 "camera.no.photo" = "没有可保存的照片";
+"camera.permission.denied" = "需要相机权限才能拍照";
+"camera.permission.title" = "相机权限";
+"camera.sample.image" = "选择示例图片";
+"camera.placeholder.title" = "图片选择器";
+"camera.placeholder.description" = "这是图片选择器的占位符。在生产环境中，将使用 PHPickerViewController 或 UIImagePickerController。";
 
 // MARK: - Profile
 "profile.title" = "我的";
@@ -92,6 +123,21 @@
 "profile.help" = "帮助与支持";
 "profile.terms" = "服务条款";
 "profile.privacy.policy" = "隐私政策";
+"profile.display.name" = "显示名称";
+"profile.bio" = "个人简介";
+"profile.school" = "学校";
+"profile.grade" = "年级";
+"profile.change.photo" = "更换头像";
+"profile.stats" = "统计数据";
+"profile.achievements" = "成就";
+"profile.total.points" = "总积分";
+"profile.study.time" = "学习时长";
+"profile.level" = "等级";
+"profile.currently.studying" = "正在学习";
+"profile.idle" = "空闲";
+"profile.log.out" = "退出登录";
+"profile.save.failed" = "保存失败，请重试";
+"profile.name.empty" = "显示名称不能为空";
 
 // MARK: - Points & Store
 "store.title" = "商城";
