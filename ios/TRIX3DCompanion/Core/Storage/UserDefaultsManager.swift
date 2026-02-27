@@ -401,6 +401,21 @@ final class UserDefaultsManager {
         defaults.object(forKey: key) as? T
     }
 
+    /// 保存任意 Data 类型
+    /// - Parameters:
+    ///   - data: Data 对象
+    ///   - key: 键名
+    func setData(_ data: Data, forKey key: String) {
+        defaults.set(data, forKey: key)
+    }
+
+    /// 获取 Data 类型
+    /// - Parameter key: 键名
+    /// - Returns: Data 对象
+    func getData(forKey key: String) -> Data? {
+        defaults.data(forKey: key)
+    }
+
     /// 删除指定键的值
     /// - Parameter key: 键名
     func remove(forKey key: String) {
