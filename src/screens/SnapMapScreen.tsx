@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -218,6 +218,7 @@ const SnapMapScreen: React.FC = () => {
   const { t } = useTranslation();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
+  const [prevFriendLocations, setPrevFriendLocations] = useState<FriendLocation[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'all'>('all');
@@ -225,6 +226,9 @@ const SnapMapScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [locationSettingsOpen, setLocationSettingsOpen] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationVisibility, setLocationVisibility] = useState<'everyone' | 'friends_only' | 'nobody'>('friends_only');
 
   // 使用 t 避免未使用变量警告
   console.debug('[SnapMapScreen] Translation loaded:', t('map.virtualSpace'));
@@ -252,6 +256,8 @@ const SnapMapScreen: React.FC = () => {
       try {
         const locations = await getFriendsLocations();
         if (locations.length > 0) {
+          // T3.4.2: 保存旧位置用于动画
+          setPrevFriendLocations(friendLocations);
           setFriendLocations(locations);
         }
       } catch (error) {
@@ -269,6 +275,21 @@ const SnapMapScreen: React.FC = () => {
     }, 30000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // T3.5: 加载位置共享设置
+  useEffect(() => {
+    const loadLocationSettings = async () => {
+      try {
+        const { getLocationShareSettings } = await import('../services/locationService');
+        const settings = await getLocationShareSettings();
+        setLocationEnabled(settings.enabled);
+        setLocationVisibility(settings.visibility as 'everyone' | 'friends_only' | 'nobody');
+      } catch (error) {
+        console.error('加载位置设置失败:', error);
+      }
+    };
+    loadLocationSettings();
   }, []);
 
   // 加载真实地点数据
@@ -326,6 +347,45 @@ const SnapMapScreen: React.FC = () => {
       console.error('搜索失败:', error);
       // 本地搜索作为备选
       const filtered = places.filter(p =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        p.description.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredPlaces(filtered);
+    }
+  };
+
+  // T3.5: 位置共享设置切换
+  const handleLocationSettingsToggle = async () => {
+    try {
+      const { updateLocationShareSettings } = await import('../services/locationService');
+      await updateLocationShareSettings({
+        enabled: locationEnabled,
+        visibility: locationVisibility,
+      });
+    } catch (error) {
+      console.error('更新位置设置失败:', error);
+    }
+  };
+
+  // T4.5.3: 高亮搜索结果
+  const highlightText = (text: string, query: string): React.ReactNode => {
+    if (!query.trim()) return text;
+
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <span key={i} style={{ backgroundColor: '#fef08a', fontWeight: 600 }}>
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.description.toLowerCase().includes(query.toLowerCase())
       );
@@ -436,6 +496,9 @@ const SnapMapScreen: React.FC = () => {
     if (filteredPlaces.length > 0) {
       return filteredPlaces.map((place) => {
         const isFavorite = favoritePlaces.has(place.id);
+        // T4.5.3: 高亮搜索结果
+        const highlightedName = searchQuery ? highlightText(place.name, searchQuery) : place.name;
+        const highlightedDesc = searchQuery ? highlightText(place.description, searchQuery) : place.description;
 
         return (
           <Marker
@@ -445,10 +508,10 @@ const SnapMapScreen: React.FC = () => {
             <Popup>
               <PlacePopupContent
                 place={{
-                  name: place.name,
+                  name: highlightedName as any,
                   type: place.category,
                   emoji: place.emoji,
-                  description: place.description,
+                  description: highlightedDesc as any,
                   openHours: place.openHours,
                 }}
                 isFavorite={isFavorite}
@@ -710,6 +773,101 @@ const SnapMapScreen: React.FC = () => {
             正在刷新好友位置...
           </div>
         )}
+
+        {/* T3.5: 位置共享设置 */}
+        <button
+          onClick={() => setLocationSettingsOpen(!locationSettingsOpen)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '12px',
+            border: 'none',
+            background: locationEnabled ? 'rgba(34, 197, 94, 0.9)' : 'rgba(156, 163, 175, 0.9)',
+            color: 'white',
+            fontSize: '12px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          {locationEnabled ? '📍 位置已开启' : '📍 位置已关闭'}
+        </button>
+      </div>
+
+      {/* T3.5: 位置设置面板 */}
+      {locationSettingsOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '220px',
+            left: '16px',
+            right: '16px',
+            zIndex: 1000,
+            padding: '16px',
+            borderRadius: '16px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          }}
+        >
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#333' }}>位置共享设置</h3>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <input
+              type="checkbox"
+              checked={locationEnabled}
+              onChange={(e) => {
+                setLocationEnabled(e.target.checked);
+                handleLocationSettingsToggle();
+              }}
+            />
+            <span style={{ fontSize: '13px', color: '#333' }}>开启位置共享</span>
+          </div>
+
+          {locationEnabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#666' }}>可见范围：</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {(['everyone', 'friends_only', 'nobody'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => {
+                      setLocationVisibility(v);
+                      handleLocationSettingsToggle();
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: locationVisibility === v ? '#6366f1' : '#e5e7eb',
+                      color: locationVisibility === v ? 'white' : '#333',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {v === 'everyone' ? '所有人' : v === 'friends_only' ? '仅好友' : '关闭'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => setLocationSettingsOpen(false)}
+            style={{
+              marginTop: '12px',
+              width: '100%',
+              padding: '8px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#f3f4f6',
+              color: '#333',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            关闭
+          </button>
+        </div>
+      )}
       </div>
 
       {/* 标准 2D 地图容器 */}
