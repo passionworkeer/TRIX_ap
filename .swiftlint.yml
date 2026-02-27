@@ -10,7 +10,6 @@ opt_in_rules:
   - closure_spacing
   - explicit_init
   - first_where
-  - sorted_last_then_by
   - redundant_nil_coalescing
   - contains_over_first_not_nil
   - fallthrough
@@ -92,15 +91,6 @@ identifier_name:
     - x
     - y
     - z
-
-# 闭合源规则
-closure_signature_spacing:
-  min_empty_closure_lines: 1
-  max_empty_closure_lines: 1
-
-# 多行参数规则
-multiline_parameters:
-  min_arrow_binding_space: 2
 
 # 报告类型
 reporter: "xcode"
