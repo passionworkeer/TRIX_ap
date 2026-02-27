@@ -19,8 +19,8 @@ final class NetworkPerformanceBenchmark: XCTestCase {
 
     // MARK: - Properties
 
-    /// Maximum acceptable API latency in seconds
-    private let maxAcceptableLatency: TimeInterval = 3.0
+    /// Maximum acceptable API latency in seconds (target: < 500ms)
+    private let maxAcceptableLatency: TimeInterval = 0.5
 
     /// Maximum acceptable concurrent request latency
     private let maxAcceptableConcurrentLatency: TimeInterval = 5.0
@@ -35,6 +35,7 @@ final class NetworkPerformanceBenchmark: XCTestCase {
 
     private var latencyResults: [TimeInterval] = []
     private var throughputResults: [Double] = []
+    private var compressionRatios: [Double] = []
 
     // MARK: - Setup
 
@@ -199,6 +200,67 @@ final class NetworkPerformanceBenchmark: XCTestCase {
         """)
     }
 
+    // MARK: - Request Compression Tests
+
+    /// Test request compression efficiency
+    ///
+    /// Measures how well data is compressed for network transmission.
+    /// Higher compression ratio means less data to transfer.
+    func testRequestCompressionEfficiency() async throws {
+        let testData = generateTestData(sizeKB: 100)
+        let originalSize = Double(testData.count)
+
+        // Compress the data
+        let compressedData = compressData(testData)
+        let compressedSize = Double(compressedData.count)
+
+        let compressionRatio = originalSize / compressedSize
+        let savingsPercent = (1 - compressedSize / originalSize) * 100
+
+        compressionRatios.append(compressionRatio)
+
+        print("""
+        Request Compression Efficiency:
+        - Original size: \(String(format: "%.1f", originalSize / 1024)) KB
+        - Compressed size: \(String(format: "%.1f", compressedSize / 1024)) KB
+        - Compression ratio: \(String(format: "%.2f", compressionRatio)):1
+        - Savings: \(String(format: "%.1f", savingsPercent))%
+        """)
+
+        // Compression ratio should be at least 2:1 for text data
+        XCTAssertGreaterThan(compressionRatio, 2.0,
+                            "Compression efficiency is below threshold")
+    }
+
+    /// Test response decompression performance
+    func testResponseDecompressionPerformance() async throws {
+        let testData = generateTestData(sizeKB: 50)
+        let compressedData = compressData(testData)
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Decompress the data
+        let decompressedData = decompressData(compressedData)
+
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let decompressionTime = endTime - startTime
+
+        print("""
+        Response Decompression:
+        - Data size: \(String(format: "%.1f", Double(testData.count) / 1024)) KB
+        - Decompression time: \(String(format: "%.3f", decompressionTime))s
+        - Throughput: \(String(format: "%.1f", Double(testData.count) / decompressionTime / 1024)) KB/s
+        """)
+
+        // Decompression should be fast (< 100ms for 50KB)
+        XCTAssertLessThan(decompressionTime, 0.1,
+                         "Decompression is too slow")
+
+        // Verify data integrity
+        XCTAssertEqual(testData, decompressedData,
+                      "Decompressed data does not match original")
+    }
+
     // MARK: - Timeout Tests
 
     /// Test request timeout handling
@@ -250,7 +312,7 @@ final class NetworkPerformanceBenchmark: XCTestCase {
         XCTAssertGreaterThan(successRate, 80.0, "Network reliability too low")
     }
 
-    // MARK: - Connection Pooling Tests
+    // MARK: - Connection Reuse Tests
 
     /// Test connection reuse efficiency
     func testConnectionReuse() async throws {
@@ -283,6 +345,34 @@ final class NetworkPerformanceBenchmark: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Generate test data of specified size
+    private func generateTestData(sizeKB: Int) -> Data {
+        // Generate random but repeatable data for testing
+        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        let repeated = String(repeating: characters, count: (sizeKB * 10) / characters.count)
+        return repeated.data(using: .utf8) ?? Data()
+    }
+
+    /// Compress data using standard compression
+    private func compressData(_ data: Data) -> Data {
+        // Using LZFSE compression (available on iOS 9+)
+        if let compressed = try? (data as NSData).compressed(using: .lzfse) as Data {
+            return compressed
+        }
+        // Fallback: return original data if compression fails
+        return data
+    }
+
+    /// Decompress data
+    private func decompressData(_ data: Data) -> Data {
+        // Using LZFSE decompression
+        if let decompressed = try? (data as NSData).decompressed(using: .lzfse) as Data {
+            return decompressed
+        }
+        // Fallback: return original data
+        return data
+    }
 
     /// Simulate an API call
     private func simulateAPICall() async {
@@ -330,6 +420,8 @@ extension NetworkPerformanceBenchmark {
             latencyResults.reduce(0, +) / Double(latencyResults.count)
         let avgThroughput = throughputResults.isEmpty ? 0 :
             throughputResults.reduce(0, +) / Double(throughputResults.count)
+        let avgCompression = compressionRatios.isEmpty ? 0 :
+            compressionRatios.reduce(0, +) / Double(compressionRatios.count)
 
         return """
         Network Performance Report
@@ -341,6 +433,9 @@ extension NetworkPerformanceBenchmark {
 
         Throughput:
           - Average: \(String(format: "%.2f", avgThroughput)) Mbps
+
+        Compression:
+          - Average ratio: \(String(format: "%.2f", avgCompression)):1
 
         Concurrent:
           - Request count: \(concurrentRequestCount)

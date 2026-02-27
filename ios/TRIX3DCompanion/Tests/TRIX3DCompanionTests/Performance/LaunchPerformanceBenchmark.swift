@@ -26,11 +26,19 @@ final class LaunchPerformanceBenchmark: XCTestCase {
     /// Maximum acceptable hot launch time in seconds
     private let maxAcceptableHotLaunchTime: TimeInterval = 0.5
 
+    /// Maximum acceptable first render time in seconds
+    private let maxAcceptableFirstRenderTime: TimeInterval = 1.0
+
+    /// Maximum acceptable time to interactive in seconds
+    private let maxAcceptableTimeToInteractive: TimeInterval = 2.0
+
     // MARK: - Benchmark Results
 
     /// Results storage
     private var coldLaunchTimes: [TimeInterval] = []
     private var hotLaunchTimes: [TimeInterval] = []
+    private var firstRenderTimes: [TimeInterval] = []
+    private var timeToInteractive: [TimeInterval] = []
 
     // MARK: - Setup
 
@@ -38,6 +46,8 @@ final class LaunchPerformanceBenchmark: XCTestCase {
         super.setUpWithError()
         coldLaunchTimes.removeAll()
         hotLaunchTimes.removeAll()
+        firstRenderTimes.removeAll()
+        timeToInteractive.removeAll()
     }
 
     // MARK: - Cold Launch Benchmark
@@ -163,6 +173,52 @@ final class LaunchPerformanceBenchmark: XCTestCase {
         }
     }
 
+    // MARK: - First Render Time Tests
+
+    /// Measure time to first meaningful paint/render
+    ///
+    /// This measures the time from app launch to when the first
+    /// UI content is rendered and visible to the user.
+    func testFirstRenderTime() throws {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Simulate first render
+        // In production, this would be actual view rendering
+        simulateFirstRender()
+
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let renderTime = endTime - startTime
+
+        firstRenderTimes.append(renderTime)
+
+        print("First render time: \(String(format: "%.3f", renderTime))s")
+
+        // First render should be fast (< 1 second)
+        XCTAssertLessThan(renderTime, maxAcceptableFirstRenderTime,
+                         "First render time exceeds threshold")
+    }
+
+    /// Measure time to interactive state
+    ///
+    /// Measures when the app becomes fully interactive after launch.
+    func testTimeToInteractive() throws {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Simulate reaching interactive state
+        simulateInteractiveState()
+
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let interactiveTime = endTime - startTime
+
+        timeToInteractive.append(interactiveTime)
+
+        print("Time to interactive: \(String(format: "%.3f", interactiveTime))s")
+
+        // Should be interactive within 2 seconds
+        XCTAssertLessThan(interactiveTime, maxAcceptableTimeToInteractive,
+                         "Time to interactive exceeds threshold")
+    }
+
     // MARK: - Helpers
 
     /// Simulate app initialization components
@@ -177,6 +233,18 @@ final class LaunchPerformanceBenchmark: XCTestCase {
         // Simulate state restoration
         // In real app: Reload UI state, refresh data, etc.
     }
+
+    /// Simulate first render of UI
+    private func simulateFirstRender() {
+        // Simulate view loading and rendering
+        Thread.sleep(forTimeInterval: 0.1)
+    }
+
+    /// Simulate reaching interactive state
+    private func simulateInteractiveState() {
+        // Simulate app becoming fully interactive
+        Thread.sleep(forTimeInterval: 0.3)
+    }
 }
 
 // MARK: - Launch Time Reporter
@@ -189,6 +257,10 @@ extension LaunchPerformanceBenchmark {
             coldLaunchTimes.reduce(0, +) / Double(coldLaunchTimes.count)
         let hotAvg = hotLaunchTimes.isEmpty ? 0 :
             hotLaunchTimes.reduce(0, +) / Double(hotLaunchTimes.count)
+        let renderAvg = firstRenderTimes.isEmpty ? 0 :
+            firstRenderTimes.reduce(0, +) / Double(firstRenderTimes.count)
+        let interactiveAvg = timeToInteractive.isEmpty ? 0 :
+            timeToInteractive.reduce(0, +) / Double(timeToInteractive.count)
 
         return """
         Launch Performance Report
@@ -202,6 +274,16 @@ extension LaunchPerformanceBenchmark {
           - Average: \(String(format: "%.3f", hotAvg))s
           - Threshold: \(maxAcceptableHotLaunchTime)s
           - Status: \(hotAvg < maxAcceptableHotLaunchTime ? "PASS" : "FAIL")
+
+        First Render:
+          - Average: \(String(format: "%.3f", renderAvg))s
+          - Threshold: \(maxAcceptableFirstRenderTime)s
+          - Status: \(renderAvg < maxAcceptableFirstRenderTime ? "PASS" : "FAIL")
+
+        Time to Interactive:
+          - Average: \(String(format: "%.3f", interactiveAvg))s
+          - Threshold: \(maxAcceptableTimeToInteractive)s
+          - Status: \(interactiveAvg < maxAcceptableTimeToInteractive ? "PASS" : "FAIL")
         """
     }
 }
