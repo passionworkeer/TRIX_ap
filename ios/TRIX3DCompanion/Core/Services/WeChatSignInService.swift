@@ -8,7 +8,84 @@
 import Foundation
 import UIKit
 
-// MARK: - WeChat SDK Protocol (Placeholder)
+// MARK: - WeChat Configuration
+
+/// Configuration structure for WeChat Sign In credentials
+/// Credentials should be configured via:
+/// 1. Environment variables (recommended for CI/CD)
+/// 2. Info.plist keys (recommended for local development)
+/// 3. Default placeholder values (for development only)
+struct WeChatConfiguration {
+    /// WeChat App ID
+    /// Priority: Info.plist > Environment Variable > Default
+    static var appID: String {
+        // First try Info.plist
+        if let appID = Bundle.main.object(forInfoDictionaryKey: "WECHAT_APP_ID") as? String,
+           !appID.isEmpty {
+            return appID
+        }
+        // Then try environment variable
+        if let appID = ProcessInfo.processInfo.environment["WECHAT_APP_ID"],
+           !appID.isEmpty {
+            return appID
+        }
+        // Fall back to default (not configured)
+        return WeChatConfiguration.placeholderAppID
+    }
+
+    /// WeChat App Secret
+    /// Priority: Info.plist > Environment Variable > Default
+    /// NOTE: App Secret should ONLY be stored in environment variables for security
+    static var appSecret: String {
+        // Only try environment variable for secret (more secure)
+        if let secret = ProcessInfo.processInfo.environment["WECHAT_APP_SECRET"],
+           !secret.isEmpty {
+            return secret
+        }
+        // Fall back to default (not configured)
+        return WeChatConfiguration.placeholderAppSecret
+    }
+
+    /// Universal Link for WeChat callback
+    static var universalLink: String {
+        // First try Info.plist
+        if let link = Bundle.main.object(forInfoDictionaryKey: "WECHAT_UNIVERSAL_LINK") as? String,
+           !link.isEmpty {
+            return link
+        }
+        // Fall back to default
+        return WeChatConfiguration.defaultUniversalLink
+    }
+
+    /// Placeholder App ID (returned when not configured)
+    static let placeholderAppID = "YOUR_WECHAT_APP_ID"
+
+    /// Placeholder App Secret (returned when not configured)
+    static let placeholderAppSecret = "YOUR_WECHAT_APP_SECRET"
+
+    /// Default Universal Link
+    static let defaultUniversalLink = "https://api.trix3d.com/wechat/"
+
+    /// Check if WeChat is properly configured
+    static var isConfigured: Bool {
+        return appID != placeholderAppID && appSecret != placeholderAppSecret
+    }
+
+    /// Log configuration warning if not properly configured
+    static func validateConfiguration() {
+        if !isConfigured {
+            SecureLogger.shared.warning(
+                "WeChatSignInService: WeChat is not configured. " +
+                "Please set WECHAT_APP_ID and WECHAT_APP_SECRET environment variables " +
+                "or add WECHAT_APP_ID to Info.plist. " +
+                "WeChat Sign In will be disabled until properly configured."
+            )
+        } else {
+            // Log that configuration is present (without exposing the actual values)
+            SecureLogger.shared.debug("WeChatSignInService: Configuration validated successfully")
+        }
+    }
+}
 
 /// Protocol for WeChat SDK interaction
 /// NOTE: This is a placeholder for the actual WeChat SDK (WXApi)
@@ -103,30 +180,10 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
 
     // MARK: - Configuration
 
-    /// WeChat App ID
-    /// REPLACE THIS WITH YOUR ACTUAL WECHAT APP ID
-    private static let weChatAppID = "YOUR_WECHAT_APP_ID"
-
-    /// WeChat App Secret
-    /// REPLACE THIS WITH YOUR ACTUAL WECHAT APP SECRET
-    private static let weChatAppSecret = "YOUR_WECHAT_APP_SECRET"
-
-    /// Universal Link for WeChat callback
-    private static let universalLink = "https://api.trix3d.com/wechat/"
-
-    // MARK: - Singleton
-
-    static let shared = WeChatSignInService()
-
-    // MARK: - Properties
-
     /// Whether WeChat SDK is available
     var isAvailable: Bool {
         // Check if WeChat SDK is properly configured
-        guard Self.weChatAppID != "YOUR_WECHAT_APP_ID" else {
-            return false
-        }
-        return true
+        return WeChatConfiguration.isConfigured
     }
 
     /// Whether WeChat app is installed
@@ -157,6 +214,8 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
 
     private override init() {
         super.init()
+        // Validate configuration on initialization
+        WeChatConfiguration.validateConfiguration()
         registerWeChatApp()
     }
 
@@ -218,7 +277,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     /// - Returns: True if the URL was handled successfully
     func handleOpen(_ url: URL) -> Bool {
         // Check if this is a WeChat callback
-        guard url.scheme == Self.weChatAppID || url.absoluteString.hasPrefix("wx") else {
+        guard url.scheme == WeChatConfiguration.appID || url.absoluteString.hasPrefix("wx") else {
             return false
         }
 
@@ -237,12 +296,13 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
 
     /// Register WeChat app
     private func registerWeChatApp() {
-        guard Self.weChatAppID != "YOUR_WECHAT_APP_ID" else {
-            SecureLogger.shared.warning("WeChatSignInService: App ID not configured")
+        // Configuration is validated in init(), just register if configured
+        guard WeChatConfiguration.isConfigured else {
+            SecureLogger.shared.warning("WeChatSignInService: App ID not configured, skipping registration")
             return
         }
 
-        WeChatSDK.registerApp(Self.weChatAppID, universalLink: Self.universalLink)
+        WeChatSDK.registerApp(WeChatConfiguration.appID, universalLink: WeChatConfiguration.universalLink)
     }
 
     /// Send WeChat authorization request
@@ -258,7 +318,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
 
         // Build redirect URI - use universal link as callback
         // Note: This redirect_uri must be registered in WeChat Open Platform console
-        let redirectURI = Self.universalLink
+        let redirectURI = WeChatConfiguration.universalLink
 
         // URL encode the redirect URI
         guard let encodedRedirectURI = redirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
@@ -267,7 +327,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
         }
 
         // Build OAuth authorization URL
-        let oauthURLString = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=\(Self.weChatAppID)&redirect_uri=\(encodedRedirectURI)&response_type=code&scope=snsapi_userinfo&state=\(authState)#wechat_redirect"
+        let oauthURLString = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=\(WeChatConfiguration.appID)&redirect_uri=\(encodedRedirectURI)&response_type=code&scope=snsapi_userinfo&state=\(authState)#wechat_redirect"
 
         guard let oauthURL = URL(string: oauthURLString) else {
             SecureLogger.shared.error("WeChatSignInService: Failed to create OAuth URL")
@@ -341,8 +401,8 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
             // Call WeChat token endpoint
             let tokenURL = "https://api.weixin.qq.com/sns/oauth2/access_token"
             let parameters: [String: Any] = [
-                "appid": Self.weChatAppID,
-                "secret": Self.weChatAppSecret,
+                "appid": WeChatConfiguration.appID,
+                "secret": WeChatConfiguration.appSecret,
                 "code": code,
                 "grant_type": "authorization_code"
             ]
@@ -408,7 +468,7 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     private func performTokenRefresh(_ refreshToken: String) async throws -> WeChatSignInCredential {
         let tokenURL = "https://api.weixin.qq.com/sns/oauth2/refresh_token"
         let parameters: [String: Any] = [
-            "appid": Self.weChatAppID,
+            "appid": WeChatConfiguration.appID,
             "grant_type": "refresh_token",
             "refresh_token": refreshToken
         ]
