@@ -538,6 +538,18 @@ extension APIClient {
     func cancelOrder(orderId: String) async throws {
         let _: EmptyResponse = try await put(.cancelOrder(id: orderId))
     }
+
+    /// Get current subscription status
+    /// - Returns: Subscription status response
+    func getSubscription() async throws -> SubscriptionStatusResponse {
+        return try await get(.getSubscription)
+    }
+
+    /// Restore previous purchases
+    /// - Returns: Restore purchases response with restored orders
+    func restorePurchases() async throws -> RestorePurchasesResponse {
+        return try await post(.restorePurchases)
+    }
 }
 
 // MARK: - Empty Response

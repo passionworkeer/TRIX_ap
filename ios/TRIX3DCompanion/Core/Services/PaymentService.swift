@@ -363,6 +363,84 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         lastError = nil
     }
 
+    /// Get current subscription status
+    /// - Returns: Subscription status information
+    func getSubscription() async -> SubscriptionStatus {
+        do {
+            let response: SubscriptionStatusResponse = try await apiClient.getSubscription()
+
+            return SubscriptionStatus(
+                isActive: response.isActive,
+                tier: response.tier,
+                productId: response.productId,
+                expiresAt: response.expiresAt,
+                willAutoRenew: response.willAutoRenew,
+                startedAt: response.startedAt,
+                updatedAt: response.updatedAt
+            )
+        } catch {
+            SecureLogger.shared.error("Failed to get subscription status: \(error)")
+            // Return inactive status on error
+            return SubscriptionStatus(
+                isActive: false,
+                tier: nil,
+                productId: nil,
+                expiresAt: nil,
+                willAutoRenew: false,
+                startedAt: nil,
+                updatedAt: nil
+            )
+        }
+    }
+
+    /// Restore previous purchases
+    /// - Returns: Result with restored orders or error
+    func restorePurchases() async -> Result<[Order], PaymentError> {
+        lastError = nil
+
+        do {
+            let response: RestorePurchasesResponse = try await apiClient.restorePurchases()
+
+            // Process restored orders
+            var restoredOrders: [Order] = []
+            for orderResponse in response.restoredOrders {
+                let order = Order(
+                    id: orderResponse.id,
+                    userId: orderResponse.userId,
+                    productId: orderResponse.productId,
+                    productType: StoreProductConfiguration.productType(for: orderResponse.productId) ?? .points,
+                    amount: orderResponse.amount,
+                    currency: orderResponse.currency,
+                    status: orderResponse.status,
+                    paymentMethod: .applePay,
+                    transactionId: orderResponse.transactionId,
+                    points: orderResponse.points,
+                    createdAt: orderResponse.createdAt,
+                    updatedAt: orderResponse.updatedAt
+                )
+                cachedOrders[order.id] = order
+                restoredOrders.append(order)
+            }
+
+            updateOrdersArrays()
+
+            // Refresh points after restore
+            await pointsService.refreshPoints()
+
+            return .success(restoredOrders)
+
+        } catch let error as NetworkError {
+            let paymentError = mapNetworkError(error)
+            lastError = paymentError
+            return .failure(paymentError)
+
+        } catch {
+            let paymentError = PaymentError.unknown(error)
+            lastError = paymentError
+            return .failure(paymentError)
+        }
+    }
+
     // MARK: - Private Methods
 
     /// Load order history from server
