@@ -116,17 +116,31 @@ describe('mallService', () => {
         error: null
       });
 
+      // Create a mock query object that supports chainable .eq() and .order()
+      // The order() result should also support .eq() for category filtering
+      const resolvedValue = { data: [], error: null };
+
+      const mockOrderedQuery: any = {
+        eq: vi.fn().mockReturnThis(),
+      };
+      // Make it thenable (Promise-like)
+      mockOrderedQuery.then = (resolve: any) => Promise.resolve(resolvedValue).then(resolve);
+
+      const mockQuery: any = {
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnValue(mockOrderedQuery)
+      };
+
       vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [], error: null })
-          })
-        })
+        select: vi.fn().mockReturnValue(mockQuery)
       } as any);
 
       await getMallItemsByCategory('clothing');
 
       expect(supabase.from).toHaveBeenCalledWith('mall_items');
+      // First eq call is for is_active, second is for category (on ordered query)
+      expect(mockQuery.eq).toHaveBeenCalledWith('is_active', true);
+      expect(mockOrderedQuery.eq).toHaveBeenCalledWith('category', 'clothing');
     });
   });
 
@@ -153,10 +167,13 @@ describe('mallService', () => {
         error: null
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
+      // First call: mall_items - returns error (item not found)
+      vi.mocked(supabase.from).mockReturnValueOnce({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } })
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } })
+            })
           })
         })
       } as any);
@@ -174,23 +191,27 @@ describe('mallService', () => {
       });
 
       const mockItem = { id: 'item-1', name: 'Hat', description: 'Hat', image_url: 'hat.png', price: 100, category: 'clothing' };
-      const mockPoints = { balance: 50 };
+      const mockPoints = { balance: 50, total_spent: 0 };
 
-      vi.mocked(supabase.from)
-        .mockReturnValueOnce({
-          select: vi.fn().mockReturnValue({
+      // First call: mall_items - returns item
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({ data: mockItem, error: null })
             })
           })
-        } as any)
-        .mockReturnValueOnce({
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: mockPoints, error: null })
-            })
+        })
+      } as any);
+
+      // Second call: user_points - returns insufficient balance
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: mockPoints, error: null })
           })
-        } as any);
+        })
+      } as any);
 
       const result = await purchaseItem({ itemId: 'item-1' });
 
@@ -207,26 +228,58 @@ describe('mallService', () => {
       const mockItem = { id: 'item-1', name: 'Hat', description: 'Hat', image_url: 'hat.png', price: 100, category: 'clothing' };
       const mockPoints = { balance: 200, total_spent: 0 };
 
-      vi.mocked(supabase.from)
-        .mockReturnValueOnce({
-          select: vi.fn().mockReturnValue({
+      // First call: mall_items - returns item
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({ data: mockItem, error: null })
             })
           })
-        } as any)
-        .mockReturnValueOnce({
-          select: vi.fn().mockReturnValue({
+        })
+      } as any);
+
+      // Second call: user_points - returns sufficient balance
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: mockPoints, error: null })
+          })
+        })
+      } as any);
+
+      // Third call: user_purchased_items - check if already owned
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: mockPoints, error: null })
+              single: vi.fn().mockResolvedValue({ data: null, error: null })
             })
           })
-        } as any);
+        })
+      } as any);
+
+      // Fourth call: user_points - deduct points
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null })
+        })
+      } as any);
+
+      // Fifth call: user_purchased_items - insert purchase record
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      } as any);
+
+      // Sixth call: points_transactions - insert transaction
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      } as any);
 
       await purchaseItem({ itemId: 'item-1' });
 
-      // Verify that owned items are checked
-      expect(supabase.from).toHaveBeenCalledWith('user_purchased_items');
+      // Verify that owned items are checked (third call)
+      expect(supabase.from).toHaveBeenNthCalledWith(3, 'user_purchased_items');
     });
   });
 

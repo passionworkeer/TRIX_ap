@@ -9,11 +9,12 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: [
-      'node_modules/',
-      'tests/smoke/',
-      'server/',
-      'archive/',
-      'openclaw-skills/'
+      'node_modules/**',
+      'tests/smoke/**',
+      'server/**',
+      'archive/**',
+      'openclaw-skills/**',
+      'src/e2e/**'
     ],
     coverage: {
       provider: 'v8',

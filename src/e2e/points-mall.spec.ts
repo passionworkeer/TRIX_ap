@@ -16,13 +16,32 @@ test.describe('Points Mall E2E Tests', () => {
     // Navigate to the app
     await page.goto('/');
 
-    // Mock authentication state
+    // Mock Supabase auth session
     await page.evaluate(() => {
-      localStorage.setItem('auth_token', 'test-token');
+      // Mock a valid Supabase session in localStorage
+      const mockSession = {
+        access_token: 'test-token',
+        refresh_token: 'test-refresh-token',
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        token_type: 'bearer',
+        user: {
+          id: 'test-user-id',
+          email: 'test@example.com',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email_confirmed_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: {}
+        }
+      };
+      localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSession));
     });
 
-    // Navigate to points mall
-    await page.goto('/mall');
+    // Navigate to points mall (correct route is /points-mall)
+    await page.goto('/points-mall');
   });
 
   test('T1.10.1: should enter points mall page successfully', async ({ page }) => {
