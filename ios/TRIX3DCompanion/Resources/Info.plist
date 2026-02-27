@@ -96,5 +96,15 @@
         <string>weixin</string>
         <string>wechat</string>
     </array>
+
+    <!-- WeChat Configuration -->
+    <!-- NOTE: For security, WECHAT_APP_ID should be set here or via environment variables -->
+    <!-- Do not commit actual App IDs to version control - use .env files or CI/CD secrets -->
+    <key>WECHAT_APP_ID</key>
+    <string>YOUR_WECHAT_APP_ID</string>
+
+    <!-- WeChat Universal Link (optional, can be set via Info.plist or uses default) -->
+    <key>WECHAT_UNIVERSAL_LINK</key>
+    <string>https://api.trix3d.com/wechat/</string>
 </dict>
 </plist>
