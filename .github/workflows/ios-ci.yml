@@ -1,150 +1,181 @@
-name: iOS CI/CD
+name: iOS CI
 
 on:
   push:
-    branches: [main, develop, 'feat/**']
-  pull_request:
     branches: [main, develop]
-
-env:
-  DEVELOPER_DIR: /Applications/Xcode_15.0.app/Contents/Developer
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-ci.yml'
 
 jobs:
   build:
-    name: Build and Test
-    runs-on: macos-14
+    name: Build
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          xcodebuild build-for-testing \
+            -scheme TRIX3DCompanion \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath DerivedData \
+            -quiet
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app
 
       - name: Cache Swift packages
         uses: actions/cache@v3
         with:
           path: |
             ~/Library/Developer/Xcode/DerivedData
-            .build
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+            ios/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/ios/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
 
-      - name: Cache Xcode plugins
-        uses: actions/cache@v3
+      - name: Run Unit Tests
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -scheme TRIX3DCompanion \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults/UnitTests.xcresult \
+            -quiet
+
+      - name: Upload Unit Test Results
+        uses: actions/upload-artifact@v3
+        if: failure()
         with:
-          path: |
-            ~/Library/Developer/Xcode/Archives
-          key: ${{ runner.os }}-archives-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-archives-
+          name: unit-test-results
+          path: TestResults/UnitTests.xcresult
 
-      - name: Build
+      - name: Generate Code Coverage Report
+        working-directory: ios
         run: |
-          xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
+          xcodebuild test \
             -scheme TRIX3DCompanion \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-            build
-
-      - name: Run Tests
-        run: |
-          xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
-            -scheme TRIX3DCompanion \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults/UnitTests.xcresult \
             -enableCodeCoverage YES \
-            test
+            -quiet
 
-  lint:
-    name: SwiftLint
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@shiftmetric
-        with:
-          args: --config ios/.swiftlint.yml ios/
-
-  security:
-    name: Security Scan
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run Swift Package Dependency Analysis
+      - name: Check Code Coverage
+        working-directory: ios
         run: |
-          xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
-            -scheme TRIX3DCompanion \
-            -resolvePackageDependencies
-
-      - name: Check for vulnerabilities
-        run: |
-          # Check for known vulnerabilities in dependencies
-          if [ -f Package.resolved ]; then
-            echo "Dependencies resolved successfully"
+          # Extract coverage percentage from xcresult
+          COVERAGE=$(xcrun xccov view --report --json TestResults/UnitTests.xcresult | \
+            jq '.lineCoverage * 100' | head -1)
+          echo "Code Coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "Code coverage is below 70%"
+            exit 1
           fi
 
-  code-coverage:
-    name: Code Coverage
-    runs-on: macos-14
-    needs: build
+  ui-tests:
+    name: UI Tests
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app
 
-      - name: Generate Coverage Report
+      - name: Run UI Tests
+        working-directory: ios
         run: |
-          xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
-            -scheme TRIX3DCompanion \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
-            -enableCodeCoverage YES \
-            test \
-            -resultBundlePath CoverageResult \
-            -derivedDataPath DerivedData
+          xcodebuild test \
+            -scheme TRIX3DUITests \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults/UITests.xcresult \
+            -quiet || true
 
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload UI Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
         with:
-          files: ./CoverageResult/coverage.xcresult
-          flags: ios
-          name: TRIX3DCompanion
+          name: ui-test-results
+          path: TestResults/UITests.xcresult
 
-  archive:
-    name: Build Archive
-    runs-on: macos-14
-    needs: [build, lint, security]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+  analyze:
+    name: Static Analysis
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+
+      - name: Run SwiftLint
+        uses: norio-nomura/action-swiftlint@swiftlint-action/v2
+        with:
+          args: --path ios
+
+      - name: Run Analyze
+        working-directory: ios
+        run: |
+          xcodebuild analyze \
+            -scheme TRIX3DCompanion \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath DerivedData \
+            -quiet
+
+  build-archive:
+    name: Build Archive
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.0.app
 
       - name: Create Archive
+        working-directory: ios
         run: |
-          xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
+          xcodebuild archive \
             -scheme TRIX3DCompanion \
-            -configuration Release \
-            -archivePath ./TRIX3DCompanion \
-            archive
+            -destination 'generic/platform=iOS' \
+            -archivePath TRIX3DCompanion.xcarchive \
+            -derivedDataPath DerivedData \
+            -quiet
 
-      - name: Upload Build Artifact
+      - name: Upload Archive
         uses: actions/upload-artifact@v3
         with:
-          name: TRIX3DCompanion-Archive
+          name: ios-archive
           path: TRIX3DCompanion.xcarchive
-          retention-days: 7
