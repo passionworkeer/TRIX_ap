@@ -328,6 +328,8 @@ describe('ClawbotChannelContext', () => {
 
   describe('pairing', () => {
     it('should handle successful pairing with code', async () => {
+      // Make sure bridge is connected
+      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
       vi.mocked(clawbotChannelBridge.pairWithCode).mockResolvedValueOnce({
         success: true,
         status: 'paired',
@@ -343,6 +345,8 @@ describe('ClawbotChannelContext', () => {
     });
 
     it('should set pairingStatus to paired on successful pairing', async () => {
+      // Make sure bridge is connected
+      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
       vi.mocked(clawbotChannelBridge.pairWithCode).mockResolvedValueOnce({
         success: true,
         status: 'paired',
