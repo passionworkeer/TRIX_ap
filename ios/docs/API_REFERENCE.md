@@ -1,8 +1,9 @@
 # TRIX3DCompanion API Reference
 
 > Generated: 2026-02-27
-> Version: 1.0
+> Version: 1.1
 > Project: TRIX3DCompanion iOS App
+> Last Updated: 2026-02-27
 
 ---
 
@@ -816,6 +817,190 @@ func setUserProperties(_ properties: [String: Any])
 
 ---
 
+## Additional Services
+
+### PairingService
+
+Manages device pairing and connections.
+
+```swift
+final class PairingService
+```
+
+#### Methods
+
+##### generatePairingCode()
+```swift
+func generatePairingCode() async throws -> PairingCode
+```
+- **Returns**: Time-limited pairing code
+- **Throws**: `PairingError` on failure
+
+##### confirmPairing(code:)
+```swift
+func confirmPairing(code: String) async throws -> PairedDevice
+```
+- **Parameters**:
+  - `code`: Pairing code to confirm
+- **Returns**: Paired device information
+
+##### getPairedDevices()
+```swift
+func getPairedDevices() async throws -> [PairedDevice]
+```
+- **Returns**: List of paired devices
+
+##### unpairDevice(_:)
+```swift
+func unpairDevice(_ deviceId: String) async throws
+```
+- Removes device pairing
+
+### ImageUploadService
+
+Handles image upload and management.
+
+```swift
+final class ImageUploadService
+```
+
+#### Methods
+
+##### uploadImage(_:compressionQuality:)
+```swift
+func uploadImage(_ image: UIImage, compressionQuality: CGFloat = 0.8) async throws -> ImageUploadResponse
+```
+- **Parameters**:
+  - `image`: Image to upload
+  - `compressionQuality`: JPEG compression (0.0-1.0)
+- **Returns**: Upload response with image URL
+
+##### uploadBase64(_:)
+```swift
+func uploadBase64(_ base64String: String) async throws -> ImageUploadResponse
+```
+- Uploads base64 encoded image
+
+### CameraService
+
+Manages camera capture and permissions.
+
+```swift
+final class CameraService
+```
+
+#### Methods
+
+##### requestPermission()
+```swift
+func requestPermission() async -> Bool
+```
+- **Returns**: Permission granted status
+
+##### capturePhoto() async throws -> UIImage
+```swift
+func capturePhoto() async throws -> UIImage
+```
+- **Returns**: Captured photo
+- **Throws**: `CameraError` on failure
+
+### DataExportService
+
+Handles data export for users.
+
+```swift
+final class DataExportService
+```
+
+#### Methods
+
+##### exportUserData() async throws -> URL
+```swift
+func exportUserData() async throws -> URL
+```
+- **Returns**: URL to exported data file (JSON format)
+- **Throws**: `ExportError` on failure
+
+##### exportStudyData() async throws -> URL
+```swift
+func exportStudyData() async throws -> URL
+```
+- Exports study sessions and statistics
+
+### PushNotificationService
+
+Manages push notification registration and handling.
+
+```swift
+final class PushNotificationService
+```
+
+#### Methods
+
+##### registerForNotifications() async throws
+```swift
+func registerForNotifications() async throws
+```
+- Registers device for push notifications
+
+##### updateDeviceToken(_:)
+```swift
+func updateDeviceToken(_ token: String) async throws
+```
+- Updates device token on server
+
+### LocalNotificationService
+
+Handles local notification scheduling.
+
+```swift
+final class LocalNotificationService
+```
+
+#### Methods
+
+##### scheduleNotification(_:at:)
+```swift
+func scheduleNotification(_ content: UNNotificationContent, at date: Date) async throws
+```
+- Schedules local notification
+
+##### cancelAllNotifications()
+```swift
+func cancelAllNotifications()
+```
+- Cancels all pending notifications
+
+### PointsService
+
+Manages user points and rewards.
+
+```swift
+final class PointsService
+```
+
+#### Methods
+
+##### getPointsBalance() async throws -> Int
+```swift
+func getPointsBalance() async throws -> Int
+```
+- **Returns**: Current points balance
+
+##### getPointsHistory() async throws -> [PointsTransaction]
+```swift
+func getPointsHistory() async throws -> [PointsTransaction]
+```
+- **Returns**: Transaction history
+
+##### earnPoints(_:reason:)
+```swift
+func earnPoints(_ amount: Int, reason: String) async throws
+```
+- Adds points to user balance
+
+---
+
 ## Error Types
 
 ### NetworkError
@@ -870,7 +1055,39 @@ enum LocationError: Error {
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2026-02-27 | Updated test coverage (89%), added BatteryPerformanceBenchmark, updated API endpoints |
 | 1.0 | 2026-02-27 | Initial API Reference |
+
+---
+
+## API Endpoints Overview
+
+### Base URLs
+
+| Environment | URL | Protocol |
+|-------------|-----|----------|
+| Production | `https://api.trix3d.com` | HTTPS (Required) |
+| Development | `http://47.243.55.130:8765` | HTTP (Debug Only) |
+| WebSocket Production | `wss://api.trix3d.com` | WSS (Required) |
+| WebSocket Development | `ws://47.243.55.130:8765` | WS (Debug Only) |
+
+**Security Note**: Production builds ALWAYS enforce HTTPS/WSS protocols.
+
+### API Endpoint Categories
+
+| Category | Endpoints | Description |
+|----------|-----------|-------------|
+| Authentication | 5 | Login, register, logout, refresh, me |
+| User | 5 | Profile, avatar, stats, settings |
+| Chat | 5 | Rooms, messages, read status |
+| Study | 8 | Sessions, rooms, stats |
+| Pairing | 5 | Device pairing and management |
+| Points | 2 | Points balance and history |
+| Upload | 2 | File upload (multipart, base64) |
+| Locations | 6 | Location sharing and nearby |
+| Notifications | 3 | Device token, preferences, settings |
+| Payments | 7 | Purchases, orders, subscription |
+| **Total** | **48** | All REST API endpoints |
 
 ---
 

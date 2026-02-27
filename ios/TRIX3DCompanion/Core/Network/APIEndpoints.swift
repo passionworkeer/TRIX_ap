@@ -152,11 +152,26 @@ enum APIEndpoint {
     case notificationSettings
 
     // MARK: - Payments
+    //
+    // Payment API endpoints for in-app purchases and subscription management
+    // All payment endpoints require authentication
+    //
+    // Endpoints:
+    //   - purchasePoints: Purchase points packages via in-app purchase
+    //   - verifyReceipt: Verify App Store receipt with backend
+    //   - getOrders: Get user's order history (paginated)
+    //   - getOrder: Get specific order details by ID
+    //   - cancelOrder: Cancel pending order
+    //   - getSubscription: Get current subscription status
+    //   - restorePurchases: Restore previous purchases
+    //
     case purchasePoints
     case verifyReceipt
     case getOrders
     case getOrder(id: String)
     case cancelOrder(id: String)
+    case getSubscription
+    case restorePurchases
 
     // MARK: - Path
     var path: String {
@@ -227,32 +242,54 @@ enum APIEndpoint {
         case .notificationSettings: return "/notifications/settings"
 
         // Payments
-        case .purchasePoints: return "/payments/purchase-points"
-        case .verifyReceipt: return "/payments/verify-receipt"
-        case .getOrders: return "/payments/orders"
-        case .getOrder(let id): return "/payments/orders/\(id)"
-        case .cancelOrder(let id): return "/payments/orders/\(id)/cancel"
+        // All payment endpoints use /payments prefix for consistency
+        case .purchasePoints:
+            // POST /payments/purchase-points
+            // Purchase points package via in-app purchase
+            return "/payments/purchase-points"
+        case .verifyReceipt:
+            // POST /payments/verify-receipt
+            // Verify App Store receipt with backend server
+            return "/payments/verify-receipt"
+        case .getOrders:
+            // GET /payments/orders?page={page}&limit={limit}
+            // Get user's order history with pagination
+            return "/payments/orders"
+        case .getOrder(let id):
+            // GET /payments/orders/{id}
+            // Get specific order details by order ID
+            return "/payments/orders/\(id)"
+        case .cancelOrder(let id):
+            // PUT /payments/orders/{id}/cancel
+            // Cancel a pending order
+            return "/payments/orders/\(id)/cancel"
+        case .getSubscription:
+            // GET /payments/subscription
+            // Get current subscription status and details
+            return "/payments/subscription"
+        case .restorePurchases:
+            // POST /payments/restore
+            // Restore previous purchases from App Store
+            return "/payments/restore"
         }
     }
 
     // MARK: - HTTP Method
     var method: HTTPMethod {
         switch self {
+        // Auth - POST methods
         case .authLogin, .authRegister, .authLogout, .authRefresh,
              .userAvatar, .pairingRequest, .pairingConfirm,
              .studyRoomCreate, .studyRoomJoin, .studyRoomLeave,
              .upload, .uploadBase64, .chatRoomMessagesSend,
-             .deviceToken:
+             .deviceToken, .purchasePoints, .verifyReceipt, .restorePurchases:
             return .post
 
-        case .userUpdateProfile, .updateStudySession, .pairingDevice:
-            // For update operations
+        // Update operations - PUT methods
+        case .userUpdateProfile, .updateStudySession, .pairingDevice, .cancelOrder:
             return .put
 
-        case .cancelOrder:
-            // For update operations (cancel)
-            return .put
-
+        // Read operations - GET methods
         case .userProfile, .authMe, .userStats, .userSettings,
              .chatRooms, .chatRoom, .chatRoomMessages,
              .studySessions, .studyStats, .studyRoomState,
@@ -260,11 +297,12 @@ enum APIEndpoint {
              .points, .pointsHistory,
              .locations, .location, .locationNearby, .locationShare,
              .snapshots, .snapshot,
-             .notificationPreferences, .notificationSettings:
+             .notificationPreferences, .notificationSettings,
+             .getOrders, .getOrder, .getSubscription:
             return .get
 
+        // Delete operations - DELETE methods
         case .deleteStudySession:
-            // For delete operations
             return .delete
         }
     }
@@ -588,4 +626,24 @@ struct OrdersListResponse: Codable {
     let total: Int
     let page: Int
     let limit: Int
+}
+
+// MARK: - Subscription Management
+
+/// Subscription status response
+struct SubscriptionStatusResponse: Codable {
+    let isActive: Bool
+    let tier: String?
+    let productId: String?
+    let expiresAt: Date?
+    let willAutoRenew: Bool
+    let startedAt: Date?
+    let updatedAt: Date?
+}
+
+/// Restore purchases response
+struct RestorePurchasesResponse: Codable {
+    let restoredOrders: [OrderDetailsResponse]
+    let totalRestored: Int
+    let message: String?
 }

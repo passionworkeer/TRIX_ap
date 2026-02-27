@@ -159,6 +159,19 @@ struct PointsTransaction: Identifiable, Codable {
     let createdAt: Date
 }
 
+// MARK: - Subscription Types
+
+/// Subscription status information
+struct SubscriptionStatus: Equatable {
+    let isActive: Bool
+    let tier: String?
+    let productId: String?
+    let expiresAt: Date?
+    let willAutoRenew: Bool
+    let startedAt: Date?
+    let updatedAt: Date?
+}
+
 // MARK: - Payment Service Protocol
 
 /// Protocol defining payment service interface
@@ -217,6 +230,14 @@ protocol PaymentServiceProtocol: ObservableObject {
     /// - Parameter orderId: Order ID to cancel
     /// - Returns: Result indicating success or failure
     func cancelOrder(orderId: String) async -> Result<Void, PaymentError>
+
+    /// Get current subscription status
+    /// - Returns: Subscription status information
+    func getSubscription() async -> SubscriptionStatus
+
+    /// Restore previous purchases
+    /// - Returns: Result with restored orders or error
+    func restorePurchases() async -> Result<[Order], PaymentError>
 
     /// Clear error state
     func clearError()

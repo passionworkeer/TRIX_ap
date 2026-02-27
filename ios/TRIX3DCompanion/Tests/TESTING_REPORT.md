@@ -19,9 +19,10 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 │   ├── StoreUITests.swift (15个测试)
 │   └── PairingUITests.swift (25个测试)
 └── Performance/
-    ├── LaunchPerformanceBenchmark.swift (5个测试)
+    ├── LaunchPerformanceBenchmark.swift (7个测试)
     ├── MemoryPerformanceBenchmark.swift (7个测试)
-    └── NetworkPerformanceBenchmark.swift (9个测试)
+    ├── NetworkPerformanceBenchmark.swift (11个测试)
+    └── BatteryPerformanceBenchmark.swift (11个测试)
 ```
 
 ## 测试统计总览
@@ -31,8 +32,8 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 | Services | 8 | 259 |
 | ViewModels | 1 | 26 |
 | UI | 2 | 40 |
-| Performance | 3 | 21 |
-| **总计** | **14** | **346** |
+| Performance | 4 | 36 |
+| **总计** | **15** | **361** |
 
 ## 测试覆盖范围
 
@@ -410,6 +411,84 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 - `testPairingErrorTypes_AllErrorCases` - 所有配对错误类型
 - `testMockService_ResetState_ClearsAll` - Mock服务重置
 
+### LaunchPerformanceBenchmark.swift (7个测试用例)
+
+#### 冷启动测试 (2个)
+- `testColdLaunchTime` - 冷启动时间测量
+- `testColdLaunchPerformanceThreshold` - 冷启动阈值验证 (< 2秒)
+
+#### 热启动测试 (2个)
+- `testHotLaunchTime` - 热启动时间测量
+- `testHotLaunchPerformanceThreshold` - 热启动阈值验证 (< 0.5秒)
+
+#### UI启动测试 (1个)
+- `testUILaunchMeasurement` - UI启动测量 (iOS 13+)
+
+#### 渲染时间测试 (2个)
+- `testFirstRenderTime` - 首次渲染时间 (< 1秒)
+- `testTimeToInteractive` - 可交互时间 (< 2秒)
+
+### MemoryPerformanceBenchmark.swift (7个测试用例)
+
+#### 内存使用测试 (3个)
+- `testCurrentMemoryUsage` - 当前内存使用
+- `testPeakMemoryUsage` - 峰值内存使用 (< 200MB)
+- `testMemoryGrowthOverTime` - 内存增长趋势
+
+#### 内存泄漏检测 (2个)
+- `testMemoryLeakDetection` - 内存泄漏检测
+- `testReferenceCycleDetection` - 引用循环检测
+
+#### 内存压力测试 (2个)
+- `testMemoryWarningHandling` - 内存警告处理
+- `testLargeDataSetHandling` - 大数据集处理
+
+### NetworkPerformanceBenchmark.swift (11个测试用例)
+
+#### API延迟测试 (2个)
+- `testAPILatency` - API延迟测量
+- `testAPILatencyThreshold` - API延迟阈值 (< 500ms)
+
+#### 并发请求测试 (2个)
+- `testConcurrentRequests` - 并发请求处理
+- `testRequestQueueBehavior` - 请求队列行为
+
+#### 吞吐量测试 (2个)
+- `testDownloadThroughput` - 下载吞吐量
+- `testUploadThroughput` - 上传吞吐量
+
+#### 压缩测试 (2个)
+- `testRequestCompressionEfficiency` - 请求压缩效率
+- `testResponseDecompressionPerformance` - 响应解压性能
+
+#### 错误处理测试 (3个)
+- `testRequestTimeout` - 请求超时
+- `testNetworkErrorRecovery` - 网络错误恢复
+- `testConnectionReuse` - 连接复用效率
+
+### BatteryPerformanceBenchmark.swift (11个测试用例)
+
+#### 电池电量测试 (2个)
+- `testCurrentBatteryLevel` - 当前电池电量
+- `testBatteryDrainDuringOperations` - 操作期间电池消耗
+
+#### 位置服务测试 (2个)
+- `testLocationServiceBatteryImpact` - 位置服务电池影响
+- `testSignificantLocationChangeMonitoring` - 重大位置变化监控
+
+#### 网络请求测试 (2个)
+- `testNetworkRequestBatteryImpact` - 网络请求电池影响
+- `testBackgroundNetworkRequests` - 后台网络请求
+
+#### 后台任务测试 (2个)
+- `testBackgroundTaskBatteryImpact` - 后台任务电池影响
+- `testBackgroundRefreshBatteryImpact` - 后台刷新电池影响
+
+#### 电池状态测试 (3个)
+- `testLowBatteryBehavior` - 低电量行为
+- `testBatteryStateChangeNotifications` - 电池状态变化通知
+- `testPowerSavingModeActivation` - 省电模式激活
+
 ## Mock对象
 
 ### MockStoreKitService
@@ -535,3 +614,70 @@ xcrun xccov view --report TestResults.xcresult > coverage_report.txt
 - 当接口变更时，同步更新Mock对象
 - 确保Mock行为与真实实现一致
 - 添加调用跟踪以便调试
+
+## 性能测试目标达标情况
+
+### 启动性能指标
+
+| 指标 | 目标值 | 测试覆盖 | 状态 |
+|------|--------|---------|------|
+| 冷启动时间 | < 2秒 | testColdLaunchPerformanceThreshold | ✅ 已覆盖 |
+| 热启动时间 | < 0.5秒 | testHotLaunchPerformanceThreshold | ✅ 已覆盖 |
+| 首次渲染时间 | < 1秒 | testFirstRenderTime | ✅ 已覆盖 |
+| 可交互时间 | < 2秒 | testTimeToInteractive | ✅ 已覆盖 |
+
+### 内存性能指标
+
+| 指标 | 目标值 | 测试覆盖 | 状态 |
+|------|--------|---------|------|
+| 峰值内存 | < 200MB | testPeakMemoryUsage | ✅ 已覆盖 |
+| 内存泄漏 | < 10MB增长 | testMemoryLeakDetection | ✅ 已覆盖 |
+| 内存增长率 | < 20% | testMemoryGrowthOverTime | ✅ 已覆盖 |
+| 引用循环 | 无泄漏 | testReferenceCycleDetection | ✅ 已覆盖 |
+
+### 网络性能指标
+
+| 指标 | 目标值 | 测试覆盖 | 状态 |
+|------|--------|---------|------|
+| API延迟 | < 500ms | testAPILatencyThreshold | ✅ 已覆盖 |
+| 并发请求 | < 5秒 (5个) | testConcurrentRequests | ✅ 已覆盖 |
+| 压缩效率 | > 2:1 | testRequestCompressionEfficiency | ✅ 已覆盖 |
+| 连接复用 | 有效 | testConnectionReuse | ✅ 已覆盖 |
+
+### 电池性能指标
+
+| 指标 | 测试覆盖 | 状态 |
+|------|---------|------|
+| 电池状态监控 | testCurrentBatteryLevel | ✅ 已覆盖 |
+| 位置服务影响 | testLocationServiceBatteryImpact | ✅ 已覆盖 |
+| 网络请求影响 | testNetworkRequestBatteryImpact | ✅ 已覆盖 |
+| 后台任务影响 | testBackgroundTaskBatteryImpact | ✅ 已覆盖 |
+| 低电量处理 | testLowBatteryBehavior | ✅ 已覆盖 |
+| 省电模式 | testPowerSavingModeActivation | ✅ 已覆盖 |
+
+### 性能测试报告生成
+
+每个性能基准测试类都包含 `generateReport()` 方法，可生成详细报告：
+
+```swift
+// 启动性能报告
+let launchReport = LaunchPerformanceBenchmark().generateReport()
+
+// 内存性能报告
+let memoryReport = MemoryPerformanceBenchmark().generateReport()
+
+// 网络性能报告
+let networkReport = NetworkPerformanceBenchmark().generateReport()
+
+// 电池性能报告
+let batteryReport = BatteryPerformanceBenchmark().generateReport()
+```
+
+## 测试更新日志
+
+### 2026-02-27
+- 添加 BatteryPerformanceBenchmark.swift (11个测试)
+- 更新 LaunchPerformanceBenchmark.swift 测试计数 (5 → 7)
+- 更新 NetworkPerformanceBenchmark.swift 测试计数 (9 → 11)
+- 更新测试统计总览 (346 → 361个测试)
+- 添加性能测试目标达标情况表
