@@ -11,6 +11,7 @@ on:
     paths:
       - 'ios/**'
       - '.github/workflows/ios-ci.yml'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -35,7 +36,7 @@ jobs:
         run: |
           xcodebuild build-for-testing \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -quiet
 
@@ -48,7 +49,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Cache Swift packages
         uses: actions/cache@v3
@@ -65,13 +66,13 @@ jobs:
         run: |
           xcodebuild test \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults/UnitTests.xcresult \
             -quiet
 
       - name: Upload Unit Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: unit-test-results
@@ -82,7 +83,7 @@ jobs:
         run: |
           xcodebuild test \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults/UnitTests.xcresult \
             -enableCodeCoverage YES \
@@ -109,20 +110,20 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Run UI Tests
         working-directory: ios
         run: |
           xcodebuild test \
             -scheme TRIX3DUITests \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults/UITests.xcresult \
             -quiet || true
 
       - name: Upload UI Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ui-test-results
@@ -137,10 +138,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@swiftlint-action/v2
+        uses: norio-nomura/action-swiftlint@swiftlint-action/v3
         with:
           args: --path ios
 
@@ -149,7 +150,7 @@ jobs:
         run: |
           xcodebuild analyze \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -quiet
 
@@ -162,7 +163,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Create Archive
         working-directory: ios
@@ -175,7 +176,7 @@ jobs:
             -quiet
 
       - name: Upload Archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ios-archive
           path: TRIX3DCompanion.xcarchive
