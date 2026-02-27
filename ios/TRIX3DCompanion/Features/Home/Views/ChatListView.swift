@@ -22,6 +22,9 @@ struct ChatListView: View {
     @State private var searchText = ""
     @State private var isSearching = false
     @State private var selectedConversation: ChatConversation?
+    @State private var showingCreateChat = false
+    @State private var newChatName = ""
+    @State private var conversations: [ChatConversation] = []
 
     // MARK: - Sample Data
 
@@ -64,6 +67,13 @@ struct ChatListView: View {
         )
     ]
 
+    // MARK: - Lifecycle
+
+    init() {
+        // Initialize with sample data
+        _conversations = State(initialValue: sampleConversations)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -90,6 +100,9 @@ struct ChatListView: View {
                             .foregroundColor(.purple)
                     }
                 }
+            }
+            .sheet(isPresented: $showingCreateChat) {
+                createChatSheet
             }
         }
     }
@@ -122,9 +135,9 @@ struct ChatListView: View {
     /// Filtered conversations based on search
     private var filteredConversations: [ChatConversation] {
         if searchText.isEmpty {
-            return sampleConversations
+            return conversations
         }
-        return sampleConversations.filter { conversation in
+        return conversations.filter { conversation in
             conversation.name.localizedCaseInsensitiveContains(searchText)
         }
     }
@@ -186,8 +199,95 @@ struct ChatListView: View {
     // MARK: - Actions
 
     private func createNewChat() {
-        // TODO: Implement new chat creation
-        SecureLogger.shared.debug("Create new chat")
+        showingCreateChat = true
+    }
+
+    /// Create a new chat conversation
+    private func handleCreateChat() {
+        let trimmedName = newChatName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        // Generate random avatar color
+        let colors: [Color] = [.blue, .purple, .green, .orange, .pink, .red, .yellow, .cyan]
+        let randomColor = colors.randomElement() ?? .purple
+
+        // Create new conversation
+        let newConversation = ChatConversation(
+            id: UUID().uuidString,
+            name: trimmedName,
+            lastMessage: "New conversation",
+            time: "Just now",
+            unreadCount: 0,
+            avatarColor: randomColor,
+            isOnline: false
+        )
+
+        // Add to conversations list
+        conversations.insert(newConversation, at: 0)
+
+        // Reset form and dismiss
+        newChatName = ""
+        showingCreateChat = false
+
+        SecureLogger.shared.info("Created new chat: \(trimmedName)")
+
+        // TODO: Integrate with ChatService API to persist on server
+        // Task {
+        //     do {
+        //         let room = try await chatService.createChatRoom(name: trimmedName, type: .group)
+        //         // Update with server-generated ID and details
+        //     } catch {
+        //         SecureLogger.shared.error("Failed to create chat room: \(error)")
+        //     }
+        // }
+    }
+
+    /// Cancel creating new chat
+    private func cancelCreateChat() {
+        newChatName = ""
+        showingCreateChat = false
+    }
+
+    // MARK: - Create Chat Sheet
+
+    private var createChatSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Chat Details")) {
+                    TextField("Chat name", text: $newChatName)
+                        .textContentType(.name)
+                        .autocapitalization(.words)
+                        .disableAutocorrection(false)
+
+                    Text("Enter a name for your new chat conversation.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Section {
+                    Button(action: handleCreateChat) {
+                        HStack {
+                            Spacer()
+                            Text("Create Chat")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                    .disabled(newChatName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .navigationTitle("New Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        cancelCreateChat()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -276,7 +376,7 @@ struct ConversationRow: View {
 
 // MARK: - Chat Conversation Model
 
-struct ChatConversation: Identifiable {
+struct ChatConversation: Identifiable, Equatable {
     let id: String
     let name: String
     let lastMessage: String
