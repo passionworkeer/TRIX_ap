@@ -1,0 +1,668 @@
+{
+  "version": "1.0",
+  "description": "Backend integration examples for APNs push notifications",
+  "note": "These are example implementations - adapt to your specific backend architecture",
+
+  "python_example": {
+    "language": "Python 3.8+",
+    "library": "apns2",
+    "installation": "pip install apns2",
+    "full_example": "See below",
+
+    "client_setup": {
+      "token_based": {
+        "description": "Recommended - no certificate expiration",
+        "code": [
+          "from apns2.client import APNsClient",
+          "from apns2.payload import Payload",
+          "",
+          "# Initialize client with .p8 key",
+          "client = APNsClient(",
+          "    key='/path/to/AuthKey_ABC12DEF34.p8',",
+          "    key_id='ABC12DEF34',",
+          "    team_id='XYZ12ABC34',",
+          "    topic='com.trix3d.companion',",
+          "    use_sandbox=False  # True for development",
+          ")"
+        ]
+      },
+
+      "certificate_based": {
+        "description": "Legacy approach - requires annual renewal",
+        "code": [
+          "from apns2.client import APNsClient",
+          "from apns2.payload import Payload",
+          "",
+          "# Initialize client with .pem certificate",
+          "client = APNsClient(",
+          "    certificate_path='/path/to/apns_prod.pem',",
+          "    use_sandbox=False  # True for development",
+          ")"
+        ]
+      }
+    },
+
+    "send_notification": {
+      "simple": {
+        "description": "Send simple notification",
+        "code": [
+          "payload = Payload(",
+          "    alert='You have a new message!',",
+          "    sound='default',",
+          "    badge=1",
+          ")",
+          "",
+          "client.send_notification(",
+          "    device_token='user_device_token_here',",
+          "    payload=payload",
+          ")"
+        ]
+      },
+
+      "rich": {
+        "description": "Send rich notification with custom data",
+        "code": [
+          "payload = Payload(",
+          "    alert={",
+          "        'title': 'New Message',",
+          "        'subtitle': 'From Alice',",
+          "        'body': 'Hey, want to study together?'",
+          "    },",
+          "    sound='default',",
+          "    badge=3,",
+          "    custom={",
+          "        'data': {",
+          "            'type': 'new_message',",
+          "            'message_id': 'msg_123456',",
+          "            'conversation_id': 'conv_789'",
+          "        }",
+          "    }",
+          ")",
+          "",
+          "client.send_notification(",
+          "    device_token='user_device_token_here',",
+          "    payload=payload",
+          ")"
+        ]
+      },
+
+      "silent": {
+        "description": "Send silent notification for background sync",
+        "code": [
+          "payload = Payload(",
+          "    content_available=True,",
+          "    custom={",
+          "        'data': {",
+          "            'action': 'sync_messages',",
+          "            'timestamp': '2026-02-27T12:00:00Z'",
+          "        }",
+          "    }",
+          ")",
+          "",
+          "client.send_notification(",
+          "    device_token='user_device_token_here',",
+          "    payload=payload,",
+          "    priority=5  # Low priority for silent notifications",
+          ")"
+        ]
+      }
+    },
+
+    "error_handling": {
+      "description": "Handle APNs errors",
+      "code": [
+        "from apns2.errors import APNsException, Unregistered",
+        "",
+        "try:",
+        "    response = client.send_notification(device_token, payload)",
+        "    print(f'Notification sent: {response}')",
+        "",
+        "except Unregistered:",
+        "    # Device token is invalid - remove from database",
+        "    print('Device token unregistered - removing from database')",
+        "    remove_device_token(device_token)",
+        "",
+        "except APNsException as e:",
+        "    # Other APNs error",
+        "    print(f'APNs error: {e}')",
+        "    log_error(e)"
+      ]
+    },
+
+    "batch_sending": {
+      "description": "Send notifications to multiple devices",
+      "code": [
+        "notifications = [",
+        "    ('device_token_1', payload1),",
+        "    ('device_token_2', payload2),",
+        "    ('device_token_3', payload3),",
+        "]",
+        "",
+        "responses = client.send_notification_batch(",
+        "    notifications=notifications,",
+        "    topic='com.trix3d.companion'",
+        ")",
+        "",
+        "for token, response in responses.items():",
+        "    print(f'{token}: {response}')"
+      ]
+    }
+  },
+
+  "nodejs_example": {
+    "language": "Node.js 14+",
+    "library": "apn",
+    "installation": "npm install apn",
+    "full_example": "See below",
+
+    "client_setup": {
+      "token_based": {
+        "description": "Recommended - no certificate expiration",
+        "code": [
+          "const apn = require('apn');",
+          "",
+          "const options = {",
+          "  token: {",
+          "    key: '/path/to/AuthKey_ABC12DEF34.p8',",
+          "    keyId: 'ABC12DEF34',",
+          "    teamId: 'XYZ12ABC34'",
+          "  },",
+          "  production: false  // true for production",
+          "};",
+          "",
+          "const apnProvider = new apn.Provider(options);"
+        ]
+      },
+
+      "certificate_based": {
+        "description": "Legacy approach - requires annual renewal",
+        "code": [
+          "const apn = require('apn');",
+          "",
+          "const options = {",
+          "  cert: '/path/to/apns_prod_cert.pem',",
+          "  key: '/path/to/apns_prod_key.pem',",
+          "  production: false  // true for production",
+          "};",
+          "",
+          "const apnProvider = new apn.Provider(options);"
+        ]
+      }
+    },
+
+    "send_notification": {
+      "simple": {
+        "description": "Send simple notification",
+        "code": [
+          "const deviceToken = 'user_device_token_here';",
+          "",
+          "const notification = new apn.Notification();",
+          "notification.alert = 'You have a new message!';",
+          "notification.sound = 'default';",
+          "notification.badge = 1;",
+          "notification.topic = 'com.trix3d.companion';",
+          "",
+          "apnProvider.send(notification, deviceToken)",
+          "  .then(result => {",
+          "    console.log('Notification sent:', result);",
+          "  })",
+          "  .catch(error => {",
+          "    console.error('Error:', error);",
+          "  });"
+        ]
+      },
+
+      "rich": {
+        "description": "Send rich notification with custom data",
+        "code": [
+          "const notification = new apn.Notification();",
+          "notification.alert = {",
+          "  title: 'New Message',",
+          "  subtitle: 'From Alice',",
+          "  body: 'Hey, want to study together?'",
+          "};",
+          "notification.sound = 'default';",
+          "notification.badge = 3;",
+          "notification.topic = 'com.trix3d.companion';",
+          "notification.payload = {",
+          "  data: {",
+          "    type: 'new_message',",
+          "    message_id: 'msg_123456',",
+          "    conversation_id: 'conv_789'",
+          "  }",
+          "};",
+          "",
+          "apnProvider.send(notification, deviceToken)",
+          "  .then(result => {",
+          "    console.log('Sent:', result);",
+          "  });"
+        ]
+      },
+
+      "silent": {
+        "description": "Send silent notification",
+        "code": [
+          "const notification = new apn.Notification();",
+          "notification.contentAvailable = true;",
+          "notification.topic = 'com.trix3d.companion';",
+          "notification.priority = 5;",
+          "notification.payload = {",
+          "  data: {",
+          "    action: 'sync_messages',",
+          "    timestamp: new Date().toISOString()",
+          "  }",
+          "};",
+          "",
+          "apnProvider.send(notification, deviceToken);"
+        ]
+      }
+    },
+
+    "error_handling": {
+      "description": "Handle APNs errors",
+      "code": [
+        "apnProvider.send(notification, deviceToken)",
+        "  .then(result => {",
+        "    const failed = result.failed;",
+        "",
+        "    if (failed.length > 0) {",
+        "      failed.forEach(failure => {",
+        "        console.error('Error:', failure.error);",
+        "",
+        "        // Check if device token is invalid",
+        "        if (failure.error.reason === 'Unregistered') {",
+        "          console.log('Removing invalid token');",
+        "          removeDeviceToken(deviceToken);",
+        "        }",
+        "      });",
+        "    }",
+        "",
+        "    const sent = result.sent;",
+        "    console.log(`Sent ${sent.length} notifications`);",
+        "  })",
+        "  .catch(error => {",
+        "    console.error('Connection error:', error);",
+        "  });"
+      ]
+    }
+  },
+
+  "java_example": {
+    "language": "Java 11+",
+    "library": "Pushy",
+    "installation": "Maven: com.turo:pushy:0.15.0",
+    "full_example": "See below",
+
+    "maven_dependency": {
+      "code": [
+        "<dependency>",
+        "    <groupId>com.turo</groupId>",
+        "    <artifactId>pushy</artifactId>",
+        "    <version>0.15.0</version>",
+        "</dependency>"
+      ]
+    },
+
+    "client_setup": {
+      "token_based": {
+        "description": "Recommended - no certificate expiration",
+        "code": [
+          "import com.turo.pushy.apns.ApnsClient;",
+          "import com.turo.pushy.apns.ApnsClientBuilder;",
+          "import com.turo.pushy.apns.PushNotificationResponse;",
+          "import com.turo.pushy.apns.util.ApnsPayloadBuilder;",
+          "import com.turo.pushy.apns.util.SimpleApnsPushNotification;",
+          "",
+          "// Build client with .p8 key",
+          "ApnsClient apnsClient = new ApnsClientBuilder()",
+          "    .setApnsServer(ApnsClientBuilder.PRODUCTION_APNS_HOST)",
+          "    .setSigningKey(",
+          "        ApnsSigningKey.loadFromPkcs8File(",
+          "            new File(\"/path/to/AuthKey_ABC12DEF34.p8\"),",
+          "            \"XYZ12ABC34\",  // Team ID",
+          "            \"ABC12DEF34\"   // Key ID",
+          "        )",
+          "    )",
+          "    .build();"
+        ]
+      },
+
+      "certificate_based": {
+        "description": "Legacy approach - requires annual renewal",
+        "code": [
+          "ApnsClient apnsClient = new ApnsClientBuilder()",
+          "    .setApnsServer(ApnsClientBuilder.PRODUCTION_APNS_HOST)",
+          "    .setClientCredentials(",
+          "        new File(\"/path/to/apns_prod.p12\"),",
+          "        \"password\"  // P12 password",
+          "    )",
+          "    .build();"
+        ]
+      }
+    },
+
+    "send_notification": {
+      "simple": {
+        "description": "Send simple notification",
+        "code": [
+          "// Build payload",
+          "ApnsPayloadBuilder payloadBuilder = new ApnsPayloadBuilder();",
+          "payloadBuilder.setAlertBody(\"You have a new message!\");",
+          "payloadBuilder.setSound(\"default\");",
+          "payloadBuilder.setBadgeNumber(1);",
+          "",
+          "String payload = payloadBuilder.buildWithDefaultMaximumLength();",
+          "",
+          "// Create notification",
+          "SimpleApnsPushNotification notification = new SimpleApnsPushNotification(",
+          "    deviceToken,",
+          "    \"com.trix3d.companion\",  // Topic",
+          "    payload",
+          ");",
+          "",
+          "// Send notification",
+          "Future<PushNotificationResponse<SimpleApnsPushNotification>> future =",
+          "    apnsClient.sendNotification(notification);",
+          "",
+          "// Wait for response",
+          "PushNotificationResponse<SimpleApnsPushNotification> response = future.get();",
+          "",
+          "if (response.isAccepted()) {",
+          "    System.out.println(\"Notification accepted by APNs\");",
+          "} else {",
+          "    System.out.println(\"Notification rejected: \" + response.getRejectionReason());",
+          "}"
+        ]
+      }
+    }
+  },
+
+  "go_example": {
+    "language": "Go 1.16+",
+    "library": "apns2",
+    "installation": "go get github.com/sideshow/apns2",
+    "full_example": "See below",
+
+    "client_setup": {
+      "token_based": {
+        "description": "Recommended - no certificate expiration",
+        "code": [
+          "package main",
+          "",
+          "import (",
+          "    \"github.com/sideshow/apns2\"",
+          "    \"github.com/sideshow/apns2/certificate\"",
+          "    \"github.com/sideshow/apns2/token\"",
+          ")",
+          "",
+          "func main() {",
+          "    // Load .p8 key",
+          "    authKey, err := token.AuthKeyFromFile(\"/path/to/AuthKey_ABC12DEF34.p8\")",
+          "    if err != nil {",
+          "        log.Fatal(err)",
+          "    }",
+          "",
+          "    // Create token",
+          "    token := &token.Token{",
+          "        AuthKey: authKey,",
+          "        KeyID:   \"ABC12DEF34\",",
+          "        TeamID:  \"XYZ12ABC34\",",
+          "    }",
+          "",
+          "    // Create client",
+          "    client := apns2.NewTokenClient(token).Production()",
+          "}"
+        ]
+      },
+
+      "certificate_based": {
+        "description": "Legacy approach - requires annual renewal",
+        "code": [
+          "// Load .pem certificate",
+          "cert, err := certificate.FromPemFile(\"/path/to/apns_prod.pem\", \"\")",
+          "if err != nil {",
+          "    log.Fatal(err)",
+          "}",
+          "",
+          "// Create client",
+          "client := apns2.NewClient(cert).Production()"
+        ]
+      }
+    },
+
+    "send_notification": {
+      "simple": {
+        "description": "Send simple notification",
+        "code": [
+          "// Create notification",
+          "notification := &apns2.Notification{",
+          "    DeviceToken: deviceToken,",
+          "    Topic:       \"com.trix3d.companion\",",
+          "    Payload: []byte(`{",
+          "        \"aps\": {",
+          "            \"alert\": \"You have a new message!\",",
+          "            \"sound\": \"default\",",
+          "            \"badge\": 1",
+          "        }",
+          "    }`),",
+          "}",
+          "",
+          "// Send notification",
+          "res, err := client.Push(notification)",
+          "if err != nil {",
+          "    log.Fatal(err)",
+          "}",
+          "",
+          "fmt.Printf(\"Status: %v\\n\", res.StatusCode)",
+          "fmt.Printf(\"APNs ID: %v\\n\", res.ApnsID)"
+        ]
+      }
+    }
+  },
+
+  "database_schema": {
+    "description": "Example database schema for device tokens",
+    "sql": {
+      "postgresql": [
+        "CREATE TABLE device_tokens (",
+        "    id SERIAL PRIMARY KEY,",
+        "    user_id INTEGER NOT NULL REFERENCES users(id),",
+        "    device_token VARCHAR(64) UNIQUE NOT NULL,",
+        "    platform VARCHAR(10) NOT NULL DEFAULT 'ios',",
+        "    app_version VARCHAR(20),",
+        "    os_version VARCHAR(20),",
+        "    device_model VARCHAR(50),",
+        "    is_active BOOLEAN DEFAULT true,",
+        "    last_used_at TIMESTAMP,",
+        "    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,",
+        "    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,",
+        "    INDEX idx_user_id (user_id),",
+        "    INDEX idx_device_token (device_token)",
+        ");"
+      ],
+
+      "mongodb": [
+        "{",
+        "  \"collection\": \"device_tokens\",",
+        "  \"schema\": {",
+        "    \"user_id\": \"ObjectId (required)\",",
+        "    \"device_token\": \"String (required, unique)\",",
+        "    \"platform\": \"String (default: 'ios')\",",
+        "    \"app_version\": \"String\",",
+        "    \"os_version\": \"String\",",
+        "    \"device_model\": \"String\",",
+        "    \"is_active\": \"Boolean (default: true)\",",
+        "    \"last_used_at\": \"Date\",",
+        "    \"created_at\": \"Date\",",
+        "    \"updated_at\": \"Date\"",
+        "  },",
+        "  \"indexes\": [",
+        "    {\"user_id\": 1},",
+        "    {\"device_token\": 1}",
+        "  ]",
+        "}"
+      ]
+    }
+  },
+
+  "api_endpoints": {
+    "description": "Example REST API endpoints for notification management",
+
+    "register_device_token": {
+      "method": "POST",
+      "path": "/api/v1/devices/register",
+      "request_body": {
+        "device_token": "abc123def456...",
+        "platform": "ios",
+        "app_version": "1.0.0",
+        "os_version": "17.0",
+        "device_model": "iPhone15,3"
+      },
+      "response": {
+        "success": true,
+        "message": "Device token registered successfully"
+      },
+      "implementation_notes": [
+        "Validate device token format (64 hex characters for iOS)",
+        "Check if token already exists for this user",
+        "Update last_used_at timestamp",
+        "Deactivate old tokens if user has too many"
+      ]
+    },
+
+    "unregister_device_token": {
+      "method": "POST",
+      "path": "/api/v1/devices/unregister",
+      "request_body": {
+        "device_token": "abc123def456..."
+      },
+      "response": {
+        "success": true,
+        "message": "Device token unregistered successfully"
+      },
+      "implementation_notes": [
+        "Mark token as inactive (soft delete)",
+        "Don't hard delete - keep for analytics"
+      ]
+    },
+
+    "send_notification": {
+      "method": "POST",
+      "path": "/api/v1/notifications/send",
+      "request_body": {
+        "user_id": "user_123",
+        "notification_type": "new_message",
+        "payload_data": {
+          "sender_name": "Alice",
+          "message_preview": "Hey!",
+          "message_id": "msg_456"
+        }
+      },
+      "response": {
+        "success": true,
+        "notification_id": "notif_789",
+        "sent_at": "2026-02-27T12:00:00Z"
+      },
+      "implementation_notes": [
+        "Get all active device tokens for user",
+        "Build notification payload from template",
+        "Send to APNs for each device token",
+        "Handle errors (remove invalid tokens)",
+        "Log notification for analytics"
+      ]
+    },
+
+    "send_batch_notifications": {
+      "method": "POST",
+      "path": "/api/v1/notifications/batch",
+      "request_body": {
+        "notifications": [
+          {
+            "user_id": "user_123",
+            "type": "new_message",
+            "data": {}
+          },
+          {
+            "user_id": "user_456",
+            "type": "friend_request",
+            "data": {}
+          }
+        ]
+      },
+      "response": {
+        "success": true,
+        "sent_count": 2,
+        "failed_count": 0
+      },
+      "implementation_notes": [
+        "Batch API for efficiency",
+        "Use background job queue for large batches",
+        "Rate limit to avoid overwhelming APNs"
+      ]
+    }
+  },
+
+  "best_practices": {
+    "security": [
+      "Store APNs keys/certificates in secure secret management system",
+      "Never commit keys/certificates to version control",
+      "Use environment variables or secret injection",
+      "Rotate keys if compromised",
+      "Validate device tokens before storing"
+    ],
+
+    "performance": [
+      "Use connection pooling for APNs clients",
+      "Send batch notifications when possible",
+      "Implement retry logic with exponential backoff",
+      "Use async/non-blocking operations",
+      "Cache APNs client instances"
+    ],
+
+    "reliability": [
+      "Handle all APNs error codes appropriately",
+      "Remove invalid device tokens from database",
+      "Implement dead letter queue for failed notifications",
+      "Monitor certificate expiration",
+      "Set up alerts for high failure rates"
+    ],
+
+    "scalability": [
+      "Use message queue (RabbitMQ, SQS) for notification jobs",
+      "Implement worker processes to send notifications",
+      "Shard notification data by user or region",
+      "Use caching for frequently accessed notification templates",
+      "Implement rate limiting per user"
+    ]
+  },
+
+  "monitoring": {
+    "metrics_to_track": [
+      "notifications_sent_total",
+      "notifications_delivered_total",
+      "notifications_failed_total",
+      "notification_latency_ms",
+      "device_tokens_registered",
+      "device_tokens_invalidated",
+      "certificate_expiration_days"
+    ],
+
+    "alerting_rules": [
+      {
+        "name": "high_failure_rate",
+        "condition": "failure_rate > 10% in 5 minutes",
+        "action": "Alert backend team"
+      },
+      {
+        "name": "certificate_expiring",
+        "condition": "days_until_expiration < 30",
+        "action": "Email DevOps team"
+      },
+      {
+        "name": "apns_unavailable",
+        "condition": "5 consecutive connection failures",
+        "action": "Check Apple System Status"
+      }
+    ]
+  }
+}

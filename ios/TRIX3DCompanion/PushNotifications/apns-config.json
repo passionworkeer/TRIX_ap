@@ -1,0 +1,706 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-02-27",
+  "app_info": {
+    "bundle_id": "com.trix3d.companion",
+    "app_name": "TRIX 3D Companion",
+    "team_id": "YOUR_TEAM_ID_HERE"
+  },
+
+  "environments": {
+    "development": {
+      "name": "Development (Sandbox)",
+      "description": "For testing during development",
+      "apns_server": "api.sandbox.push.apple.com",
+      "apns_port": 443,
+      "certificate_config": {
+        "type": "certificate",
+        "certificate_path": "/path/to/apns_dev.pem",
+        "note": "Use .pem file generated from aps_development.cer",
+        "expiration_check": "Certificates expire after 1 year - set calendar reminder"
+      },
+      "token_config": {
+        "type": "token",
+        "key_path": "/path/to/AuthKey_XXXXXXXXXX.p8",
+        "key_id": "YOUR_KEY_ID_HERE",
+        "team_id": "YOUR_TEAM_ID_HERE",
+        "note": "Token-based authentication is preferred - no expiration"
+      },
+      "topic": "com.trix3d.companion",
+      "push_type": "alert"
+    },
+
+    "production": {
+      "name": "Production",
+      "description": "For App Store distribution",
+      "apns_server": "api.push.apple.com",
+      "apns_port": 443,
+      "certificate_config": {
+        "type": "certificate",
+        "certificate_path": "/path/to/apns_prod.pem",
+        "note": "Use .pem file generated from aps_production.cer",
+        "expiration_check": "Certificates expire after 1 year - set calendar reminder"
+      },
+      "token_config": {
+        "type": "token",
+        "key_path": "/path/to/AuthKey_XXXXXXXXXX.p8",
+        "key_id": "YOUR_KEY_ID_HERE",
+        "team_id": "YOUR_TEAM_ID_HERE",
+        "note": "Token-based authentication is preferred - no expiration"
+      },
+      "topic": "com.trix3d.companion",
+      "push_type": "alert"
+    }
+  },
+
+  "notification_types": {
+    "alert": {
+      "description": "Standard alert notification",
+      "apns_push_type": "alert",
+      "priority": 10,
+      "example_payload": {
+        "aps": {
+          "alert": {
+            "title": "Notification Title",
+            "body": "Notification body text",
+            "sound": "default"
+          },
+          "badge": 1
+        }
+      }
+    },
+
+    "background": {
+      "description": "Silent notification for background sync",
+      "apns_push_type": "background",
+      "priority": 5,
+      "example_payload": {
+        "aps": {
+          "content-available": 1
+        },
+        "data": {
+          "action": "sync_messages",
+          "timestamp": "2026-02-27T12:00:00Z"
+        }
+      }
+    },
+
+    "voip": {
+      "description": "VoIP notification for voice/video calls",
+      "apns_push_type": "voip",
+      "priority": 10,
+      "note": "Requires special VoIP entitlement from Apple",
+      "example_payload": {
+        "aps": {
+          "alert": {
+            "title": "Incoming Call",
+            "body": "Alice is calling"
+          },
+          "sound": "ringtone.caf"
+        },
+        "data": {
+          "call_id": "call_123456",
+          "caller_id": "user_alice",
+          "call_type": "video"
+        }
+      }
+    },
+
+    "complication": {
+      "description": "WatchOS complication update",
+      "apns_push_type": "complication",
+      "priority": 5,
+      "note": "For Apple Watch complications - not used in current version"
+    },
+
+    "fileprovider": {
+      "description": "File provider notification",
+      "apns_push_type": "fileprovider",
+      "priority": 5,
+      "note": "For file provider extensions - not used in current version"
+    },
+
+    "location": {
+      "description": "Location-triggered notification",
+      "apns_push_type": "location",
+      "priority": 10,
+      "example_payload": {
+        "aps": {
+          "alert": {
+            "title": "Nearby Study Spot",
+            "body": "A friend is studying nearby"
+          },
+          "sound": "default"
+        },
+        "data": {
+          "type": "location_share",
+          "latitude": 39.9042,
+          "longitude": 116.4074
+        }
+      }
+    }
+  },
+
+  "payload_templates": {
+    "new_message": {
+      "description": "New message notification",
+      "category": "MESSAGE",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "New Message",
+            "subtitle": "From ${sender_name}",
+            "body": "${message_preview}"
+          },
+          "sound": "default",
+          "badge": "${badge_count}",
+          "thread-id": "${conversation_id}"
+        },
+        "data": {
+          "type": "new_message",
+          "message_id": "${message_id}",
+          "conversation_id": "${conversation_id}",
+          "sender_id": "${sender_id}",
+          "timestamp": "${timestamp}"
+        }
+      }
+    },
+
+    "friend_request": {
+      "description": "Friend request notification",
+      "category": "FRIEND_REQUEST",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "Friend Request",
+            "body": "${user_name} wants to connect with you"
+          },
+          "sound": "default",
+          "badge": "${badge_count}",
+          "category": "FRIEND_REQUEST",
+          "mutable-content": 1
+        },
+        "media-url": "${user_avatar_url}",
+        "data": {
+          "type": "friend_request",
+          "request_id": "${request_id}",
+          "user_id": "${user_id}",
+          "user_name": "${user_name}"
+        }
+      }
+    },
+
+    "study_invitation": {
+      "description": "Study group invitation",
+      "category": "INVITATION",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "Study Invitation",
+            "subtitle": "From ${inviter_name}",
+            "body": "You've been invited to join '${group_name}'"
+          },
+          "sound": "default",
+          "badge": "${badge_count}",
+          "category": "INVITATION",
+          "mutable-content": 1
+        },
+        "media-url": "${group_image_url}",
+        "data": {
+          "type": "study_invitation",
+          "group_id": "${group_id}",
+          "group_name": "${group_name}",
+          "inviter_id": "${inviter_id}",
+          "inviter_name": "${inviter_name}"
+        }
+      }
+    },
+
+    "location_share": {
+      "description": "Friend location share",
+      "category": "LOCATION",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "Friend Nearby",
+            "body": "${user_name} is at ${location_name}"
+          },
+          "sound": "default",
+          "badge": "${badge_count}"
+        },
+        "data": {
+          "type": "location_share",
+          "user_id": "${user_id}",
+          "user_name": "${user_name}",
+          "latitude": "${latitude}",
+          "longitude": "${longitude}",
+          "location_name": "${location_name}",
+          "timestamp": "${timestamp}"
+        }
+      }
+    },
+
+    "study_reminder": {
+      "description": "Study session reminder",
+      "category": "REMINDER",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "Study Reminder",
+            "body": "Your study session '${session_name}' starts in 15 minutes"
+          },
+          "sound": "default",
+          "badge": "${badge_count}"
+        },
+        "data": {
+          "type": "study_reminder",
+          "session_id": "${session_id}",
+          "session_name": "${session_name}",
+          "start_time": "${start_time}",
+          "group_id": "${group_id}"
+        }
+      }
+    },
+
+    "achievement": {
+      "description": "Achievement unlocked",
+      "category": "ACHIEVEMENT",
+      "payload": {
+        "aps": {
+          "alert": {
+            "title": "Achievement Unlocked! 🎉",
+            "body": "You've earned '${achievement_name}'"
+          },
+          "sound": "achievement.caf",
+          "badge": "${badge_count}",
+          "mutable-content": 1
+        },
+        "media-url": "${achievement_icon_url}",
+        "data": {
+          "type": "achievement",
+          "achievement_id": "${achievement_id}",
+          "achievement_name": "${achievement_name}",
+          "achievement_description": "${achievement_description}",
+          "points": "${points}"
+        }
+      }
+    },
+
+    "silent_sync": {
+      "description": "Silent background sync",
+      "category": null,
+      "payload": {
+        "aps": {
+          "content-available": 1
+        },
+        "data": {
+          "action": "sync_${sync_type}",
+          "timestamp": "${timestamp}",
+          "payload": "${additional_data}"
+        }
+      }
+    }
+  },
+
+  "notification_categories": {
+    "MESSAGE": {
+      "description": "Message notification category",
+      "actions": [
+        {
+          "identifier": "REPLY",
+          "title": "Reply",
+          "options": ["foreground", "authenticationRequired"]
+        },
+        {
+          "identifier": "MARK_READ",
+          "title": "Mark as Read",
+          "options": []
+        }
+      ],
+      "options": ["customDismissAction"]
+    },
+
+    "FRIEND_REQUEST": {
+      "description": "Friend request category",
+      "actions": [
+        {
+          "identifier": "ACCEPT",
+          "title": "Accept",
+          "options": ["foreground"]
+        },
+        {
+          "identifier": "DECLINE",
+          "title": "Decline",
+          "options": []
+        }
+      ],
+      "options": ["customDismissAction"]
+    },
+
+    "INVITATION": {
+      "description": "Invitation category",
+      "actions": [
+        {
+          "identifier": "ACCEPT",
+          "title": "Accept",
+          "options": ["foreground"]
+        },
+        {
+          "identifier": "DECLINE",
+          "title": "Decline",
+          "options": []
+        },
+        {
+          "identifier": "VIEW_DETAILS",
+          "title": "View Details",
+          "options": ["foreground"]
+        }
+      ],
+      "options": ["customDismissAction"]
+    },
+
+    "LOCATION": {
+      "description": "Location share category",
+      "actions": [
+        {
+          "identifier": "VIEW_MAP",
+          "title": "View on Map",
+          "options": ["foreground"]
+        },
+        {
+          "identifier": "SHARE_LOCATION",
+          "title": "Share My Location",
+          "options": ["foreground"]
+        }
+      ],
+      "options": []
+    },
+
+    "REMINDER": {
+      "description": "Reminder category",
+      "actions": [
+        {
+          "identifier": "JOIN",
+          "title": "Join Now",
+          "options": ["foreground"]
+        },
+        {
+          "identifier": "SNOOZE",
+          "title": "Snooze 5 min",
+          "options": []
+        }
+      ],
+      "options": []
+    },
+
+    "ACHIEVEMENT": {
+      "description": "Achievement category",
+      "actions": [
+        {
+          "identifier": "VIEW",
+          "title": "View Achievement",
+          "options": ["foreground"]
+        },
+        {
+          "identifier": "SHARE",
+          "title": "Share",
+          "options": ["foreground"]
+        }
+      ],
+      "options": []
+    }
+  },
+
+  "backend_integration": {
+    "library_recommendations": {
+      "python": {
+        "name": "apns2",
+        "install": "pip install apns2",
+        "github": "https://github.com/Pr0Ger/APNS2",
+        "features": [
+          "HTTP/2 support",
+          "Token-based authentication",
+          "Certificate-based authentication",
+          "Batch sending",
+          "Error handling"
+        ]
+      },
+
+      "nodejs": {
+        "name": "apn",
+        "install": "npm install apn",
+        "github": "https://github.com/node-apn/node-apn",
+        "features": [
+          "HTTP/2 support",
+          "Token-based authentication",
+          "Certificate-based authentication",
+          "Queue management",
+          "Error handling"
+        ]
+      },
+
+      "java": {
+        "name": "pushy",
+        "install": "Maven: com.turo:pushy",
+        "github": "https://github.com/jchambers/pushy",
+        "features": [
+          "HTTP/2 support",
+          "Token-based authentication",
+          "Certificate-based authentication",
+          "Async sending",
+          "Connection pooling"
+        ]
+      },
+
+      "go": {
+        "name": "apns2",
+        "install": "go get github.com/sideshow/apns2",
+        "github": "https://github.com/sideshow/apns2",
+        "features": [
+          "HTTP/2 support",
+          "Token-based authentication",
+          "Certificate-based authentication",
+          "High performance",
+          "Error handling"
+        ]
+      }
+    },
+
+    "api_endpoints": {
+      "device_token_registration": {
+        "endpoint": "POST /api/v1/devices/register",
+        "request_body": {
+          "device_token": "user_device_token_here",
+          "platform": "ios",
+          "app_version": "1.0.0",
+          "os_version": "17.0"
+        },
+        "response": {
+          "success": true,
+          "message": "Device token registered successfully"
+        }
+      },
+
+      "send_notification": {
+        "endpoint": "POST /api/v1/notifications/send",
+        "request_body": {
+          "user_id": "target_user_id",
+          "notification_type": "new_message",
+          "payload_data": {
+            "sender_name": "Alice",
+            "message_preview": "Hey! Are you free to study?",
+            "message_id": "msg_123456",
+            "conversation_id": "conv_789"
+          }
+        },
+        "response": {
+          "success": true,
+          "message_id": "notification_123456",
+          "sent_at": "2026-02-27T12:00:00Z"
+        }
+      }
+    }
+  },
+
+  "rate_limiting": {
+    "description": "APNs rate limits and recommendations",
+    "apns_limits": {
+      "note": "Apple doesn't publish exact rate limits, but excessive sending may be throttled"
+    },
+    "recommendations": {
+      "per_user": "Max 10-20 notifications per hour per user",
+      "batch_sending": "Use batch APIs for multiple notifications",
+      "cooldown": "Implement cooldown period for similar notifications",
+      "prioritization": "Prioritize critical notifications over marketing"
+    }
+  },
+
+  "security": {
+    "certificate_storage": {
+      "development": {
+        "method": "Environment variable or local file",
+        "path": "/path/to/certificates/apns_dev.pem",
+        "note": "Never commit to version control - add to .gitignore"
+      },
+      "production": {
+        "method": "Secret management system (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault)",
+        "note": "Use encrypted storage with access logging"
+      }
+    },
+
+    "token_storage": {
+      "method": "Secret management system",
+      "note": "APNs .p8 keys should be stored securely and rotated if compromised"
+    },
+
+    "device_token_validation": {
+      "format": "64 hexadecimal characters",
+      "example": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+      "validation_regex": "^[0-9a-fA-F]{64}$"
+    },
+
+    "data_privacy": {
+      "pii_in_payload": "Avoid sending PII in notification payload",
+      "encryption": "Consider encrypting sensitive data in notification payload",
+      "user_consent": "Ensure users have opted-in to receive notifications"
+    }
+  },
+
+  "monitoring": {
+    "metrics": {
+      "delivery": [
+        "notifications_sent_total",
+        "notifications_delivered_total",
+        "notifications_failed_total",
+        "delivery_latency_ms"
+      ],
+      "engagement": [
+        "notification_open_rate",
+        "action_button_tap_rate",
+        "conversion_rate"
+      ],
+      "technical": [
+        "device_tokens_registered",
+        "device_tokens_invalidated",
+        "certificate_expiration_days",
+        "apns_response_time_ms"
+      ]
+    },
+
+    "alerting": {
+      "certificate_expiration": {
+        "warning_days": 30,
+        "critical_days": 7,
+        "action": "Email DevOps team to rotate certificate"
+      },
+      "high_failure_rate": {
+        "threshold": "> 10% failure rate in 5 minutes",
+        "action": "Alert backend team"
+      },
+      "apns_unavailable": {
+        "threshold": "> 5 consecutive connection failures",
+        "action": "Check Apple System Status and alert team"
+      }
+    }
+  },
+
+  "testing": {
+    "tools": [
+      {
+        "name": "Pusher",
+        "platform": "macOS",
+        "url": "https://github.com/noodlewerk/NWPusher",
+        "features": "GUI-based testing, supports sandbox and production"
+      },
+      {
+        "name": "Knuff",
+        "platform": "macOS",
+        "url": "https://github.com/KnuffApp/Knuff",
+        "features": "Open-source, supports token and certificate auth"
+      },
+      {
+        "name": "curl + HTTP/2",
+        "platform": "Command line",
+        "url": "https://curl.se/",
+        "features": "Command-line testing, requires HTTP/2 support"
+      }
+    ],
+
+    "test_scenarios": [
+      "App in foreground - notification displayed",
+      "App in background - notification displayed",
+      "App terminated - notification displayed",
+      "Tapping notification opens app",
+      "Action button triggers correct action",
+      "Badge count updates correctly",
+      "Sound plays correctly",
+      "Silent notification triggers background sync",
+      "Rich notification displays media",
+      "Notification grouping works correctly",
+      "Critical alerts work (if entitled)"
+    ]
+  },
+
+  "troubleshooting": {
+    "common_issues": [
+      {
+        "issue": "Not receiving notifications",
+        "causes": [
+          "Wrong environment (sandbox vs production)",
+          "Invalid or expired device token",
+          "Invalid or expired certificate",
+          "Firewall blocking APNs ports"
+        ],
+        "solution": "Check environment, verify certificate, test connectivity"
+      },
+      {
+        "issue": "Device token not received",
+        "causes": [
+          "App not properly signed",
+          "Using simulator instead of real device",
+          "Network connectivity issues"
+        ],
+        "solution": "Use real device, check signing & capabilities"
+      },
+      {
+        "issue": "Certificate errors",
+        "causes": [
+          "Certificate expired",
+          "Wrong certificate format",
+          "Private key passphrase issue"
+        ],
+        "solution": "Verify certificate expiration, regenerate if needed"
+      },
+      {
+        "issue": "Silent notifications not working",
+        "causes": [
+          "UIBackgroundModes not configured",
+          "App killed by system",
+          "User disabled background app refresh"
+        ],
+        "solution": "Verify Info.plist, check device settings"
+      }
+    ]
+  },
+
+  "compliance": {
+    "gdpr": {
+      "requirements": [
+        "Obtain explicit consent for notifications",
+        "Allow easy opt-out",
+        "Provide clear explanation of notification usage"
+      ]
+    },
+    "ccpa": {
+      "requirements": [
+        "Honor 'Do Not Sell' requests",
+        "Provide notification preferences in app"
+      ]
+    },
+    "pipl": {
+      "requirements": [
+        "Store notification data on China servers if required",
+        "Obtain consent for cross-border data transfer"
+      ]
+    },
+    "app_store_review": {
+      "requirements": [
+        "Explain why notifications are needed",
+        "Don't request on first launch",
+        "Provide value to user",
+        "Honor user preferences immediately"
+      ]
+    }
+  },
+
+  "notes": [
+    "APNs certificates expire after 1 year - set calendar reminders",
+    "Token-based authentication is preferred over certificates (no expiration)",
+    "Always test on physical device (not simulator)",
+    "Use sandbox environment for development, production for App Store",
+    "Monitor certificate expiration and rotate proactively",
+    "Never commit certificates to version control",
+    "Implement proper error handling for APNs responses",
+    "Respect user notification preferences and rate limits"
+  ]
+}

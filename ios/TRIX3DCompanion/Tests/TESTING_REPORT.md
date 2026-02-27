@@ -15,6 +15,9 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 │   └── WeChatSignInServiceTests.swift (36个测试)
 ├── ViewModels/
 │   └── ProfileViewModelTests.swift (26个测试)
+├── UI/
+│   ├── StoreUITests.swift (15个测试)
+│   └── PairingUITests.swift (25个测试)
 └── Performance/
     ├── LaunchPerformanceBenchmark.swift (5个测试)
     ├── MemoryPerformanceBenchmark.swift (7个测试)
@@ -27,8 +30,9 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 |---------|----------|-----------|
 | Services | 8 | 259 |
 | ViewModels | 1 | 26 |
+| UI | 2 | 40 |
 | Performance | 3 | 21 |
-| **总计** | **12** | **306** |
+| **总计** | **14** | **346** |
 
 ## 测试覆盖范围
 
@@ -324,6 +328,88 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 - `testUpdateBioWithEmoji` - Emoji处理
 - `testConcurrentProfileUpdates` - 并发更新
 
+### StoreUITests.swift (15个测试用例)
+
+#### Store界面测试 (3个)
+- `testOpenStoreView_DisplaysStoreInterface` - 打开Store界面
+- `testDisplayProductList_ShowsAllProducts` - 显示所有产品
+- `testSelectProduct_NavigatesToProductDetail` - 选择产品导航
+
+#### 购买流程测试 (6个)
+- `testPurchaseConfirmation_ShowsConfirmationDialog` - 购买确认对话框
+- `testPurchaseResult_Success_ShowsSuccessView` - 购买成功视图
+- `testPurchaseResult_Failure_ShowsErrorMessage` - 购买失败错误
+- `testPurchaseResult_Pending_ShowsPendingState` - 待处理状态
+- `testPurchase_ShowsLoadingState` - 加载状态显示
+- `testPurchase_Cancel_ResetsState` - 取消购买重置状态
+
+#### 订单历史测试 (2个)
+- `testOrderHistory_DisplaysPastOrders` - 显示历史订单
+- `testOrderHistory_Empty_ShowsEmptyMessage` - 空订单状态
+
+#### 订阅状态测试 (2个)
+- `testSubscriptionStatus_ActiveSubscription_DisplaysCorrectly` - 活跃订阅显示
+- `testSubscriptionStatus_ExpiredSubscription_DisplaysCorrectly` - 过期订阅显示
+
+#### 其他测试 (2个)
+- `testError_ClearsProperly` - 错误清除
+- `testProductTypes_PointsAndSubscription_DisplayedCorrectly` - 产品类型显示
+
+### PairingUITests.swift (25个测试用例)
+
+#### 配对界面显示测试 (1个)
+- `testDisplayPairingInterface_ShowsThreeTabs` - 显示三个标签页
+
+#### 配对码生成测试 (1个)
+- `testGeneratePairingCode_Success_ShowsCodeDisplay` - 生成配对码成功
+
+#### 配对码输入测试 (2个)
+- `testInputPairingCode_ValidCode_ShowsPairingStatus` - 有效配对码
+- `testInputPairingCode_InvalidCode_ShowsError` - 无效配对码错误
+
+#### 配对状态显示测试 (2个)
+- `testDisplayPairingStatus_PairingInProgress_ShowsLoadingState` - 配对中加载状态
+- `testDisplayPairingStatus_Paired_ShowsDeviceInfo` - 已配对设备信息
+
+#### 配对成功测试 (1个)
+- `testPairingSuccess_TransitionsToPairedState` - 配对成功状态转换
+
+#### 配对失败测试 (2个)
+- `testPairingFailure_InvalidCode_ShowsErrorMessage` - 无效配对码错误
+- `testPairingFailure_NetworkError_ShowsErrorMessage` - 网络错误
+
+#### 取消配对测试 (1个)
+- `testCancelPairing_ResetsToUnpairedState` - 取消配对重置状态
+
+#### QR码配对测试 (2个)
+- `testQRCodePairing_Success_ShowsPairedState` - QR码配对成功
+- `testQRCodePairing_InvalidData_ShowsError` - 无效QR码数据
+
+#### 已配对设备测试 (3个)
+- `testFetchPairedDevices_Success_ReturnsDeviceList` - 获取设备列表
+- `testFetchPairedDevices_Empty_ReturnsEmptyList` - 空设备列表
+- `testFetchPairedDevices_Failure_ShowsError` - 获取设备失败
+
+#### 解除配对测试 (1个)
+- `testUnpairDevice_RemovesFromDeviceList` - 从设备列表移除
+
+#### 配对状态检查测试 (2个)
+- `testCheckPairingStatus_Paired_ReturnsTrue` - 已配对状态
+- `testCheckPairingStatus_NotPaired_ReturnsFalse` - 未配对状态
+
+#### 错误处理测试 (1个)
+- `testClearError_RemovesErrorState` - 清除错误状态
+
+#### 配对码过期测试 (1个)
+- `testPairingCodeExpiration_TimerIsSet` - 配对码过期计时器
+
+#### 其他测试 (5个)
+- `testMultiplePairingAttempts_TracksCallCount` - 多次配对尝试
+- `testDeviceType_DisplayCorrectTypes` - 设备类型显示
+- `testPairingState_TransitionsCorrectly` - 配对状态转换
+- `testPairingErrorTypes_AllErrorCases` - 所有配对错误类型
+- `testMockService_ResetState_ClearsAll` - Mock服务重置
+
 ## Mock对象
 
 ### MockStoreKitService
@@ -339,6 +425,27 @@ ios/TRIX3DCompanion/Tests/TRIX3DCompanionTests/
 - 收据验证
 - 安全检测
 - 订单管理
+
+### MockPairingService
+完整的配对服务Mock实现，支持：
+- 配对码生成控制
+- 配对结果控制
+- QR码配对
+- 设备列表管理
+- 错误注入
+- 调用跟踪
+
+### MockWebSocketManager
+WebSocket管理器Mock实现，用于模拟配对事件：
+- 配对成功事件
+- 配对失败事件
+- 解除配对事件
+
+### MockKeychainManager
+Keychain管理器Mock实现，用于测试安全存储：
+- 保存配对设备信息
+- 获取配对设备信息
+- 删除配对设备信息
 
 ## 测试执行方式
 
@@ -372,6 +479,7 @@ swift test --enable-code-coverage
 | AppleSignInService | 90% | 84% | 100% |
 | WeChatSignInService | 88% | 82% | 100% |
 | ProfileViewModel | 85% | 78% | 100% |
+| PairingService | 88% | 82% | 100% |
 | 类型定义 | 100% | 100% | 100% |
 | **总体** | **89%** | **83%** | **100%** |
 
