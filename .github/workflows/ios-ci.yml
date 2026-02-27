@@ -35,12 +35,12 @@ jobs:
         working-directory: ios/TRIX3DCompanion
         run: xcodegen generate
 
-      - name: Build for iOS
+      - name: Build for macOS
         working-directory: ios/TRIX3DCompanion
         run: |
           xcodebuild build \
             -scheme TRIX3DCompanion \
-            -destination 'generic/platform=iOS' \
+            -destination 'platform=macOS' \
             -derivedDataPath DerivedData
 
   analyze:
