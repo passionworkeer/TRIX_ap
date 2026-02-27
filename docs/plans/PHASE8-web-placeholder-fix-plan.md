@@ -64,7 +64,7 @@
 
 #### 1.3 商城页面组件 (3h)
 
-- [ ] **T1.3.1** 创建 `src/screens/PointsMall.tsx` 文件
+- [x] **T1.3.1** 创建 `src/screens/PointsMall.tsx` 文件
 - [ ] **T1.3.2** 实现页面布局结构
 - [ ] **T1.3.3** 实现积分余额显示组件
 - [ ] **T1.3.4** 实现分类筛选标签栏
@@ -391,7 +391,7 @@
 - [ ] T1.2.4 purchaseItem
 - [ ] T1.2.5 getUserPointsBalance
 - [ ] T1.2.6 getPurchaseHistory
-- [ ] T1.3.1 创建 PointsMall.tsx
+- [x] T1.3.1 创建 PointsMall.tsx
 - [ ] T1.3.2 页面布局
 - [ ] T1.3.3 积分余额显示
 - [ ] T1.3.4 分类筛选
