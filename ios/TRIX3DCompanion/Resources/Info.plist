@@ -89,5 +89,12 @@
     <array>
         <string>applinks:api.trix3d.com</string>
     </array>
+
+    <!-- URL Schemes for WeChat and other apps -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>weixin</string>
+        <string>wechat</string>
+    </array>
 </dict>
 </plist>
