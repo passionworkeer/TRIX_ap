@@ -386,12 +386,6 @@ const SnapMapScreen: React.FC = () => {
       </>
     );
   };
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.description.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredPlaces(filtered);
-    }
-  };
 
   // 上海陆家嘴中心坐标
   const center: [number, number] = [31.2304, 121.4737];
@@ -868,7 +862,6 @@ const SnapMapScreen: React.FC = () => {
           </button>
         </div>
       )}
-      </div>
 
       {/* 标准 2D 地图容器 */}
       <MapContainer
