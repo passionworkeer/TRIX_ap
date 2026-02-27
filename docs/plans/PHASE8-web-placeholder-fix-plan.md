@@ -51,16 +51,16 @@
 
 #### 1.2 商城服务 (2h)
 
-- [ ] **T1.2.1** 创建 `src/services/mallService.ts` 文件
-- [ ] **T1.2.2** 实现 `getMallItems()` 方法
+- [x] **T1.2.1** 创建 `src/services/mallService.ts` 文件
+- [x] **T1.2.2** 实现 `getMallItems()` 方法
   ```typescript
   export async function getMallItems(): Promise<MallItem[]>
   ```
 
-- [ ] **T1.2.3** 实现 `getMallItemsByCategory(category)` 方法
-- [ ] **T1.2.4** 实现 `purchaseItem(itemId)` 方法
-- [ ] **T1.2.5** 实现 `getUserPointsBalance()` 方法
-- [ ] **T1.2.6** 实现 `getPurchaseHistory()` 方法
+- [x] **T1.2.3** 实现 `getMallItemsByCategory(category)` 方法
+- [x] **T1.2.4** 实现 `purchaseItem(itemId)` 方法
+- [x] **T1.2.5** 实现 `getUserPointsBalance()` 方法
+- [x] **T1.2.6** 实现 `getPurchaseHistory()` 方法
 
 #### 1.3 商城页面组件 (3h)
 
@@ -382,9 +382,12 @@
 - [ ] T1.1.2 定义 MallCategory
 - [ ] T1.1.3 定义 MallItem
 - [ ] T1.1.4 定义请求/响应接口
-- [ ] T1.2.1 创建 mallService.ts
-- [ ] T1.2.2 getMallItems
-- [ ] T1.2.3 getMallItemsByCategory
+- [x] T1.2.1 创建 mallService.ts
+- [x] T1.2.2 getMallItems
+- [x] T1.2.3 getMallItemsByCategory
+- [x] T1.2.4 purchaseItem
+- [x] T1.2.5 getUserPointsBalance
+- [x] T1.2.6 getPurchaseHistory
 - [ ] T1.2.4 purchaseItem
 - [ ] T1.2.5 getUserPointsBalance
 - [ ] T1.2.6 getPurchaseHistory
