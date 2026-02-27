@@ -128,6 +128,7 @@ enum ExportError: Error, LocalizedError {
     case encodingFailed
     case fileWriteFailed(underlying: Error)
     case cancelled
+    case messageFetchFailed(underlying: Error?)
     case unknown(underlying: Error?)
 
     var errorDescription: String? {
@@ -148,6 +149,8 @@ enum ExportError: Error, LocalizedError {
             return "Failed to write file: \(error.localizedDescription)"
         case .cancelled:
             return "Export cancelled by user"
+        case .messageFetchFailed(let error):
+            return "Failed to fetch messages: \(error?.localizedDescription ?? "Unknown error")"
         case .unknown(let error):
             return error?.localizedDescription ?? "Unknown export error"
         }
@@ -207,6 +210,7 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
     private let databaseManager: DatabaseManager
     private let authService: AuthService
     private let fileManager: FileManager
+    private let chatService: ChatService
 
     // MARK: - Private Properties
 
@@ -229,12 +233,14 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
     init(
         offlineCache: OfflineCacheService = .shared,
         databaseManager: DatabaseManager = .shared,
-        authService: AuthService = .shared
+        authService: AuthService = .shared,
+        chatService: ChatService = .shared
     ) {
         self.offlineCache = offlineCache
         self.databaseManager = databaseManager
         self.authService = authService
         self.fileManager = FileManager.default
+        self.chatService = chatService
     }
 
     // MARK: - Public Methods - Export Operations
@@ -368,15 +374,14 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
 
         switch type {
         case .allData:
-            // Gather all data
-            messages = try databaseManager.getMessages(roomId: "", limit: 1000)
+            // Gather all data including messages via ChatService
+            messages = try await fetchAllMessages()
             studySessions = try databaseManager.getUnsyncedStudySessions()
             pointsHistory = try databaseManager.getPointsHistory(limit: 1000)
 
         case .messages, .chatHistory:
-            // Gather messages
-            // TODO: Implement proper message retrieval
-            break
+            // Gather messages using ChatService with pagination support
+            messages = try await fetchAllMessages()
 
         case .studyRecords, .learningProgress:
             // Gather study sessions
@@ -395,6 +400,101 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
             exportDate: Date(),
             version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         )
+    }
+
+    // MARK: - Private Methods - Message Retrieval
+
+    /// Fetch all messages from all chat rooms with pagination support
+    /// - Returns: Array of all chat messages
+    /// - Throws: ExportError if message retrieval fails
+    private func fetchAllMessages() async throws -> [ChatMessage] {
+        // First, fetch all chat rooms
+        let roomsResult = await chatService.fetchChatRooms()
+
+        switch roomsResult {
+        case .success(let chatRooms):
+            // If no rooms, return empty array
+            guard !chatRooms.isEmpty else {
+                return []
+            }
+
+            // Fetch messages from each room with pagination
+            var allMessages: [ChatMessage] = []
+            let maxMessagesPerRoom = 1000 // Limit per room to prevent excessive export
+
+            for room in chatRooms {
+                let roomMessages = try await fetchMessagesForRoom(
+                    roomId: room.id,
+                    maxMessages: maxMessagesPerRoom
+                )
+                allMessages.append(contentsOf: roomMessages)
+            }
+
+            // Sort all messages by timestamp (newest first)
+            return allMessages.sorted { $0.timestamp > $1.timestamp }
+
+        case .failure(let error):
+            // If chat service fails, fall back to local database
+            // This provides offline capability
+            do {
+                return try databaseManager.getMessages(roomId: "", limit: 1000)
+            } catch {
+                throw ExportError.messageFetchFailed(underlying: error)
+            }
+        }
+    }
+
+    /// Fetch all messages for a specific room using pagination
+    /// - Parameters:
+    ///   - roomId: The room ID to fetch messages from
+    ///   - maxMessages: Maximum number of messages to fetch per room
+    /// - Returns: Array of chat messages
+    private func fetchMessagesForRoom(roomId: String, maxMessages: Int) async throws -> [ChatMessage] {
+        var allRoomMessages: [ChatMessage] = []
+        var lastMessageDate: Date? = nil
+        let pageSize = 50
+
+        // Keep fetching until we have all messages or reach the limit
+        while allRoomMessages.count < maxMessages {
+            let result = await chatService.fetchMessages(roomId: roomId, before: lastMessageDate)
+
+            switch result {
+            case .success(let messages):
+                guard !messages.isEmpty else {
+                    // No more messages in this room
+                    return allRoomMessages
+                }
+
+                // Add new messages
+                allRoomMessages.append(contentsOf: messages)
+
+                // Update the last message date for next pagination
+                if let oldestMessage = messages.last {
+                    lastMessageDate = oldestMessage.timestamp
+                }
+
+                // If we received fewer messages than page size, we're done
+                if messages.count < pageSize {
+                    return allRoomMessages
+                }
+
+            case .failure:
+                // If fetch fails, return what we have so far
+                // This allows partial export to succeed
+                if allRoomMessages.isEmpty {
+                    // Try local cache as fallback
+                    do {
+                        return try databaseManager.getMessages(roomId: roomId, limit: maxMessages)
+                    } catch {
+                        throw ExportError.messageFetchFailed(underlying: error)
+                    }
+                }
+                // Return partial results if we have some messages
+                return allRoomMessages
+            }
+        }
+
+        return allRoomMessages
     }
 
     private func encodeData(_ data: ExportableData, format: ExportFormat) throws -> Data {

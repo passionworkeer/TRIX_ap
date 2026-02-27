@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 // MARK: - WeChat SDK Protocol (Placeholder)
 
@@ -31,14 +32,55 @@ enum WeChatSDK: WeChatSDKProtocol {
     }
 
     static func isWXAppInstalled() -> Bool {
-        // TODO: Replace with actual WeChat SDK call: WXApi.isWXAppInstalled()
-        return false
+        // Use URL Scheme to check if WeChat is installed
+        guard let url = URL(string: "weixin://") else {
+            SecureLogger.shared.warning("WeChatSDK: Invalid WeChat URL scheme")
+            return false
+        }
+
+        // Security check: canOpenURL requires the scheme to be declared in Info.plist
+        // Note: iOS 9+ requires LSApplicationQueriesSchemes to include "weixin"
+        guard UIApplication.shared.canOpenURL(url) else {
+            SecureLogger.shared.debug("WeChatSDK: WeChat app is not installed")
+            return false
+        }
+
+        SecureLogger.shared.debug("WeChatSDK: WeChat app is installed")
+        return true
     }
 
     static func sendReq(_ req: Any) -> Bool {
-        // TODO: Replace with actual WeChat SDK call: WXApi.send(req)
-        SecureLogger.shared.debug("WeChatSDK: Send request")
-        return true
+        // Use UIApplication to open WeChat
+        // Note: In actual implementation, this would send a SendAuthReq through WXApi
+        // For now, we open WeChat app using URL scheme for authorization flow
+        guard let authURL = URL(string: "weixin://") else {
+            SecureLogger.shared.warning("WeChatSDK: Invalid WeChat authorization URL")
+            return false
+        }
+
+        // Security check: verify URL can be opened
+        guard UIApplication.shared.canOpenURL(authURL) else {
+            SecureLogger.shared.error("WeChatSDK: Cannot open WeChat URL - app may not be installed")
+            return false
+        }
+
+        do {
+            // Open WeChat app with options to handle the URL
+            try UIApplication.shared.open(
+                authURL,
+                options: [:]
+            ) { success in
+                if success {
+                    SecureLogger.shared.debug("WeChatSDK: Successfully opened WeChat app")
+                } else {
+                    SecureLogger.shared.warning("WeChatSDK: Failed to open WeChat app")
+                }
+            }
+            return true
+        } catch {
+            SecureLogger.shared.error("WeChatSDK: Error opening WeChat: \(error.localizedDescription)")
+            return false
+        }
     }
 
     static func handleOpen(_ url: URL) -> Bool {
@@ -206,19 +248,54 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     /// Send WeChat authorization request
     /// - Returns: True if request was sent successfully
     private func sendAuthRequest() -> Bool {
-        // TODO: Replace with actual WeChat SDK auth request
-        // This should create a SendAuthReq and send it via WXApi.send()
+        // Build WeChat OAuth authorization URL
+        // Format: https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=ENCODED_URI&response_type=code&scope=snsapi_userinfo&state=STATE#wechat_redirect
 
-        // Placeholder: Simulate auth request
-        SecureLogger.shared.debug("WeChatSignInService: Sending auth request")
+        guard let authState = authState else {
+            SecureLogger.shared.error("WeChatSignInService: Auth state is missing")
+            return false
+        }
 
-        // In actual implementation:
-        // let request = SendAuthReq()
-        // request.scope = "snsapi_userinfo"
-        // request.state = authState
-        // return WeChatSDK.sendReq(request)
+        // Build redirect URI - use universal link as callback
+        // Note: This redirect_uri must be registered in WeChat Open Platform console
+        let redirectURI = Self.universalLink
 
-        return true
+        // URL encode the redirect URI
+        guard let encodedRedirectURI = redirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            SecureLogger.shared.error("WeChatSignInService: Failed to encode redirect URI")
+            return false
+        }
+
+        // Build OAuth authorization URL
+        let oauthURLString = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=\(Self.weChatAppID)&redirect_uri=\(encodedRedirectURI)&response_type=code&scope=snsapi_userinfo&state=\(authState)#wechat_redirect"
+
+        guard let oauthURL = URL(string: oauthURLString) else {
+            SecureLogger.shared.error("WeChatSignInService: Failed to create OAuth URL")
+            return false
+        }
+
+        // Verify URL can be opened
+        guard UIApplication.shared.canOpenURL(oauthURL) else {
+            SecureLogger.shared.error("WeChatSignInService: Cannot open OAuth URL")
+            return false
+        }
+
+        // Open WeChat authorization page
+        SecureLogger.shared.debug("WeChatSignInService: Opening WeChat OAuth authorization page")
+
+        do {
+            try UIApplication.shared.open(oauthURL, options: [.universalLinksOnly: false]) { [weak self] success in
+                if success {
+                    SecureLogger.shared.debug("WeChatSignInService: Successfully opened WeChat authorization page")
+                } else {
+                    SecureLogger.shared.warning("WeChatSignInService: Failed to open WeChat authorization page")
+                }
+            }
+            return true
+        } catch {
+            SecureLogger.shared.error("WeChatSignInService: Error opening OAuth URL: \(error.localizedDescription)")
+            return false
+        }
     }
 
     /// Parse WeChat callback URL
