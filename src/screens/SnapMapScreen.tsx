@@ -10,10 +10,11 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { getFriends } from '../services/databaseService';
 import { getFriendsLocations } from '../services/locationService';
-import { getNearbyPlaces } from '../services/placeService';
+import { getNearbyPlaces, searchPlaces } from '../services/placeService';
 import type { FriendLatestMessage } from '../config/supabase';
 import type { FriendLocation } from '../types/location';
-import type { Place } from '../types/place';
+import type { Place, PlaceCategory } from '../types/place';
+import { PLACE_CATEGORY_LABELS } from '../types/place';
 import { IMAGES } from '../constants';
 import PlacePopupContent from '../components/map/PlacePopupContent';
 import FriendPopupContent from '../components/map/FriendPopupContent';
@@ -218,8 +219,12 @@ const SnapMapScreen: React.FC = () => {
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
   // 使用 t 避免未使用变量警告
   console.debug('[SnapMapScreen] Translation loaded:', t('map.virtualSpace'));
@@ -255,6 +260,15 @@ const SnapMapScreen: React.FC = () => {
       }
     };
     loadFriendLocations();
+
+    // T3.4.1: 定时刷新好友位置 (每30秒)
+    const interval = setInterval(() => {
+      loadFriendLocations();
+      setRefreshing(true);
+      setTimeout(() => setRefreshing(false), 1000);
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // 加载真实地点数据
@@ -269,6 +283,7 @@ const SnapMapScreen: React.FC = () => {
         });
         if (nearbyPlaces.length > 0) {
           setPlaces(nearbyPlaces);
+          setFilteredPlaces(nearbyPlaces);
         }
       } catch (error) {
         console.error('加载地点失败:', error);
@@ -277,6 +292,46 @@ const SnapMapScreen: React.FC = () => {
     };
     loadPlaces();
   }, []);
+
+  // T4.4: 分类筛选
+  useEffect(() => {
+    if (selectedCategory === 'all') {
+      setFilteredPlaces(places);
+    } else {
+      setFilteredPlaces(places.filter(p => p.category === selectedCategory));
+    }
+  }, [places, selectedCategory]);
+
+  // T4.5: 搜索地点
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredPlaces(selectedCategory === 'all' ? places : places.filter(p => p.category === selectedCategory));
+      return;
+    }
+
+    try {
+      const searchResults = await searchPlaces({ query, category: selectedCategory === 'all' ? undefined : selectedCategory });
+      if (searchResults.length > 0) {
+        setFilteredPlaces(searchResults);
+      } else {
+        // 本地搜索
+        const filtered = places.filter(p =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.description.toLowerCase().includes(query.toLowerCase())
+        );
+        setFilteredPlaces(filtered);
+      }
+    } catch (error) {
+      console.error('搜索失败:', error);
+      // 本地搜索作为备选
+      const filtered = places.filter(p =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        p.description.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredPlaces(filtered);
+    }
+  };
 
   // 上海陆家嘴中心坐标
   const center: [number, number] = [31.2304, 121.4737];
@@ -378,8 +433,8 @@ const SnapMapScreen: React.FC = () => {
   // 生成地点标记
   const placeMarkers = useMemo(() => {
     // 优先使用真实地点数据
-    if (places.length > 0) {
-      return places.map((place) => {
+    if (filteredPlaces.length > 0) {
+      return filteredPlaces.map((place) => {
         const isFavorite = favoritePlaces.has(place.id);
 
         return (
@@ -445,7 +500,7 @@ const SnapMapScreen: React.FC = () => {
         </Marker>
       );
     });
-  }, [places, favoritePlaces]);
+  }, [filteredPlaces, favoritePlaces]);
 
   // 生成热力圈标记
   const heatMarkers = useMemo(() => {
@@ -561,6 +616,102 @@ const SnapMapScreen: React.FC = () => {
         <div style={{ width: '40px' }} />
       </div>
 
+      {/* T4.4 & T4.5: 搜索和筛选栏 */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '110px',
+          left: '16px',
+          right: '16px',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}
+      >
+        {/* 搜索框 */}
+        <input
+          type="text"
+          placeholder="搜索地点..."
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'rgba(255, 255, 255, 0.95)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+            fontSize: '14px',
+            outline: 'none',
+          }}
+        />
+
+        {/* 分类筛选 */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            paddingBottom: '4px',
+          }}
+        >
+          <button
+            onClick={() => setSelectedCategory('all')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '16px',
+              border: 'none',
+              background: selectedCategory === 'all' ? '#6366f1' : 'rgba(255, 255, 255, 0.9)',
+              color: selectedCategory === 'all' ? 'white' : '#333',
+              fontSize: '12px',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            全部
+          </button>
+          {(['dining', 'entertainment', 'study', 'shopping', 'park'] as PlaceCategory[]).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '16px',
+                border: 'none',
+                background: selectedCategory === cat ? '#6366f1' : 'rgba(255, 255, 255, 0.9)',
+                color: selectedCategory === cat ? 'white' : '#333',
+                fontSize: '12px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              {PLACE_CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+
+        {/* T3.4.3: 刷新指示器 */}
+        {refreshing && (
+          <div
+            style={{
+              padding: '6px 12px',
+              borderRadius: '12px',
+              background: 'rgba(99, 102, 241, 0.9)',
+              color: 'white',
+              fontSize: '12px',
+              textAlign: 'center',
+            }}
+          >
+            正在刷新好友位置...
+          </div>
+        )}
+      </div>
+
       {/* 标准 2D 地图容器 */}
       <MapContainer
         center={center}
@@ -627,7 +778,7 @@ const SnapMapScreen: React.FC = () => {
             }}
           />
           <span style={{ color: '#333', fontSize: '13px', fontWeight: 500 }}>
-            {mockPlaces.length} 热门地点
+            {filteredPlaces.length > 0 ? filteredPlaces.length : mockPlaces.length} 热门地点
           </span>
         </div>
 
