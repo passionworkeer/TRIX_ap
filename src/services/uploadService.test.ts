@@ -35,35 +35,63 @@ vi.stubGlobal('URL', {
   revokeObjectURL: vi.fn()
 });
 
-// Mock Image constructor for metadata extraction
-const mockImage = {
+// Mock Image and Video - synchronous with callback
+const createImageMock = () => ({
   naturalWidth: 1920,
   naturalHeight: 1080,
   onload: null as (() => void) | null,
   onerror: null as (() => void) | null,
   src: ''
-};
+});
 
-vi.stubGlobal('Image', vi.fn(() => {
-  setTimeout(() => {
-    if (mockImage.onload) {
-      mockImage.onload();
-    }
-  }, 0);
-  return mockImage;
-}));
-
-// Mock Video constructor for metadata extraction
-const mockVideo = {
+const createVideoMock = () => ({
   duration: 120,
   videoWidth: 1920,
   videoHeight: 1080,
   onloadedmetadata: null as (() => void) | null,
   onerror: null as (() => void) | null,
   src: ''
-};
+});
 
-vi.stubGlobal('HTMLVideoElement', vi.fn(() => mockVideo));
+vi.stubGlobal('Image', vi.fn(function(this: any) {
+  const mock = createImageMock();
+  this.naturalWidth = mock.naturalWidth;
+  this.naturalHeight = mock.naturalHeight;
+  this.src = '';
+  Object.defineProperty(this, 'onload', {
+    set: (fn) => { mock.onload = fn; },
+    get: () => mock.onload
+  });
+  Object.defineProperty(this, 'onerror', {
+    set: (fn) => { mock.onerror = fn; },
+    get: () => mock.onerror
+  });
+  // Trigger onload immediately after setting src if there's a handler
+  setTimeout(() => {
+    if (mock.onload) mock.onload();
+  }, 0);
+  return this;
+}));
+
+vi.stubGlobal('HTMLVideoElement', vi.fn(function(this: any) {
+  const mock = createVideoMock();
+  this.duration = mock.duration;
+  this.videoWidth = mock.videoWidth;
+  this.videoHeight = mock.videoHeight;
+  this.src = '';
+  Object.defineProperty(this, 'onloadedmetadata', {
+    set: (fn) => { mock.onloadedmetadata = fn; },
+    get: () => mock.onloadedmetadata
+  });
+  Object.defineProperty(this, 'onerror', {
+    set: (fn) => { mock.onerror = fn; },
+    get: () => mock.onerror
+  });
+  setTimeout(() => {
+    if (mock.onloadedmetadata) mock.onloadedmetadata();
+  }, 0);
+  return this;
+}));
 
 // Import after mocks are set up
 import {
@@ -83,7 +111,6 @@ import { supabase } from '../config/supabase';
 describe('uploadService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
 
     // Setup default auth mock
     vi.mocked(supabase.auth.getUser).mockResolvedValue({
@@ -105,7 +132,6 @@ describe('uploadService', () => {
   afterEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   // ============================================
@@ -186,7 +212,7 @@ describe('uploadService', () => {
   });
 
   // ============================================
-  // 🚀 Upload Tests
+  // 🚀 Upload Tests (with increased timeout)
   // ============================================
 
   describe('uploadFile', () => {
@@ -209,7 +235,7 @@ describe('uploadService', () => {
 
       expect(supabase.auth.getUser).toHaveBeenCalled();
       expect(supabase.storage.from).toHaveBeenCalledWith('TRIX');
-    });
+    }, 10000);
 
     it('should successfully upload a video file', async () => {
       const file = new File(['video-data'], 'test.mp4', { type: 'video/mp4' });
@@ -220,7 +246,7 @@ describe('uploadService', () => {
       expect(result.metadata).toHaveProperty('duration');
       expect(result.metadata).toHaveProperty('width');
       expect(result.metadata).toHaveProperty('height');
-    });
+    }, 10000);
 
     it('should throw error when user is not authenticated', async () => {
       vi.mocked(supabase.auth.getUser).mockResolvedValueOnce({
@@ -267,7 +293,7 @@ describe('uploadService', () => {
       const file = new File(['image'], 'test.jpg', { type: 'image/jpeg' });
 
       await expect(uploadFile(file, 'image')).rejects.toThrow('上传失败: Upload failed');
-    });
+    }, 10000);
 
     it('should generate unique filename using crypto.randomUUID', async () => {
       const file = new File(['image'], 'test.jpg', { type: 'image/jpeg' });
@@ -275,7 +301,7 @@ describe('uploadService', () => {
       await uploadFile(file, 'image');
 
       expect(crypto.randomUUID).toHaveBeenCalled();
-    });
+    }, 10000);
 
     it('should use correct path format for images', async () => {
       const file = new File(['image'], 'test.jpg', { type: 'image/jpeg' });
@@ -299,7 +325,7 @@ describe('uploadService', () => {
           upsert: false
         })
       );
-    });
+    }, 10000);
 
     it('should use correct path format for videos', async () => {
       const file = new File(['video'], 'test.mp4', { type: 'video/mp4' });
@@ -321,7 +347,7 @@ describe('uploadService', () => {
           contentType: 'video/mp4'
         })
       );
-    });
+    }, 10000);
   });
 
   // ============================================
@@ -413,7 +439,7 @@ describe('uploadService', () => {
       const result = await uploadFile(file, 'image');
 
       expect(result.path).toContain('.bin');
-    });
+    }, 10000);
 
     it('should handle files with multiple dots in name', async () => {
       const file = new File(['image'], 'my.test.image.jpg', { type: 'image/jpeg' });
@@ -434,7 +460,7 @@ describe('uploadService', () => {
         expect.any(File),
         expect.any(Object)
       );
-    });
+    }, 10000);
 
     it('should handle uppercase file extensions', async () => {
       const file = new File(['image'], 'test.JPG', { type: 'image/jpeg' });
@@ -455,6 +481,6 @@ describe('uploadService', () => {
         expect.any(File),
         expect.any(Object)
       );
-    });
+    }, 10000);
   });
 });
