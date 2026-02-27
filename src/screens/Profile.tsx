@@ -54,8 +54,8 @@ const Profile: React.FC = () => {
   };
 
   const handleOutfitChange = (outfitName: string) => {
-    // 装备更换功能
-    toast.success(t('profile.outfitEquipped', { name: outfitName }));
+    // 打开衣柜页面进行换装
+    navigate(AppRoutes.WARDROBE);
   };
 
   const handleDarkModeToggle = () => {
@@ -115,8 +115,8 @@ const Profile: React.FC = () => {
   };
 
   const handleViewAllOutfits = () => {
-    // 打开衣柜模态框（暂时使用 toast 提示）
-    toast('衣柜功能开发中，敬请期待！', { icon: '👔' });
+    // 打开衣柜页面
+    navigate(AppRoutes.WARDROBE);
   };
 
   const BG_IMAGE = IMAGES.BACKGROUND;

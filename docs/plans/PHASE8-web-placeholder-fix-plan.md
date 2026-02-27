@@ -154,13 +154,13 @@
 
 #### 2.1 类型定义 (1h)
 
-- [ ] **T2.1.1** 创建 `src/types/wardrobe.ts` 文件
-- [ ] **T2.1.2** 定义 `OutfitCategory` 枚举
+- [x] **T2.1.1** 创建 `src/types/wardrobe.ts` 文件
+- [x] **T2.1.2** 定义 `OutfitCategory` 枚举
   ```typescript
   export type OutfitCategory = 'hat' | 'cape' | 'wand' | 'background';
   ```
 
-- [ ] **T2.1.3** 定义 `Outfit` 接口
+- [x] **T2.1.3** 定义 `Outfit` 接口
   ```typescript
   export interface Outfit {
     id: string;
@@ -173,79 +173,79 @@
   }
   ```
 
-- [ ] **T2.1.4** 定义 `EquipRequest` 接口
-- [ ] **T2.1.5** 定义 `UserOutfits` 接口
+- [x] **T2.1.4** 定义 `EquipRequest` 接口
+- [x] **T2.1.5** 定义 `UserOutfits` 接口
 
 #### 2.2 衣柜服务 (1.5h)
 
-- [ ] **T2.2.1** 创建 `src/services/wardrobeService.ts` 文件
-- [ ] **T2.2.2** 实现 `getUserOutfits()` 方法
-- [ ] **T2.2.3** 实现 `getOutfitsByCategory(category)` 方法
-- [ ] **T2.2.4** 实现 `equipOutfit(outfitId)` 方法
-- [ ] **T2.2.5** 实现 `unequipOutfit(outfitId)` 方法
-- [ ] **T2.2.6** 实现 `getEquippedOutfits()` 方法
+- [x] **T2.2.1** 创建 `src/services/wardrobeService.ts` 文件
+- [x] **T2.2.2** 实现 `getUserOutfits()` 方法
+- [x] **T2.2.3** 实现 `getOutfitsByCategory(category)` 方法
+- [x] **T2.2.4** 实现 `equipOutfit(outfitId)` 方法
+- [x] **T2.2.5** 实现 `unequipOutfit(outfitId)` 方法
+- [x] **T2.2.6** 实现 `getEquippedOutfits()` 方法
 
 #### 2.3 衣柜页面组件 (2.5h)
 
-- [ ] **T2.3.1** 创建 `src/screens/Wardrobe.tsx` 文件
-- [ ] **T2.3.2** 实现页面布局结构
-- [ ] **T2.3.3** 实现分类标签栏 (帽子/披风/魔杖/背景)
-- [ ] **T2.3.4** 实现服装网格列表
-- [ ] **T2.3.5** 实现已装备状态显示
+- [x] **T2.3.1** 创建 `src/screens/Wardrobe.tsx` 文件
+- [x] **T2.3.2** 实现页面布局结构
+- [x] **T2.3.3** 实现分类标签栏 (帽子/披风/魔杖/背景)
+- [x] **T2.3.4** 实现服装网格列表
+- [x] **T2.3.5** 实现已装备状态显示
 
 #### 2.4 服装卡片组件 (1h)
 
-- [ ] **T2.4.1** 创建 `src/components/OutfitCard.tsx` 文件
-- [ ] **T2.4.2** 实现服装图片显示
-- [ ] **T2.4.3** 实现服装名称显示
-- [ ] **T2.4.4** 实现已拥有/未拥有状态
-- [ ] **T2.4.5** 实现已装备标识
-- [ ] **T2.4.6** 实现装备/卸下按钮
+- [x] **T2.4.1** 创建 `src/components/OutfitCard.tsx` 文件
+- [x] **T2.4.2** 实现服装图片显示
+- [x] **T2.4.3** 实现服装名称显示
+- [x] **T2.4.4** 实现已拥有/未拥有状态
+- [x] **T2.4.5** 实现已装备标识
+- [x] **T2.4.6** 实现装备/卸下按钮
 
 #### 2.5 换装预览 (1h)
 
-- [ ] **T2.5.1** 创建 `src/components/OutfitPreview.tsx` 文件
-- [ ] **T2.5.2** 实现组合预览 (显示多个装备)
-- [ ] **T2.5.3** 实现选中效果
-- [ ] **T2.5.4** 实现预览与实际装备同步
+- [x] **T2.5.1** 创建 `src/components/OutfitPreview.tsx` 文件
+- [x] **T2.5.2** 实现组合预览 (显示多个装备)
+- [x] **T2.5.3** 实现选中效果
+- [x] **T2.5.4** 实现预览与实际装备同步
 
 #### 2.6 路由配置 (0.5h)
 
-- [ ] **T2.6.1** 打开 `src/types.ts`
-- [ ] **T2.6.2** 添加 `WARDROBE` 路由常量
-- [ ] **T2.6.3** 打开 `src/App.tsx`
-- [ ] **T2.6.4** 添加 Wardrobe 路由
+- [x] **T2.6.1** 打开 `src/types.ts`
+- [x] **T2.6.2** 添加 `WARDROBE` 路由常量
+- [x] **T2.6.3** 打开 `src/App.tsx`
+- [x] **T2.6.4** 添加 Wardrobe 路由
 
 #### 2.7 Profile 跳转修改 (0.5h)
 
-- [ ] **T2.7.1** 打开 `src/screens/Profile.tsx`
-- [ ] **T2.7.2** 定位 `handleOutfitChange` 函数 (第 57 行)
-- [ ] **T2.7.3** 修改为实际装备逻辑调用 `wardrobeService.equipOutfit()`
-- [ ] **T2.7.4** 定位 `handleViewAllOutfits` 函数 (第 118 行)
-- [ ] **T2.7.5** 修改为使用 `navigate(AppRoutes.WARDROBE)`
+- [x] **T2.7.1** 打开 `src/screens/Profile.tsx`
+- [x] **T2.7.2** 定位 `handleOutfitChange` 函数 (第 57 行)
+- [x] **T2.7.3** 修改为实际装备逻辑调用 `wardrobeService.equipOutfit()`
+- [x] **T2.7.4** 定位 `handleViewAllOutfits` 函数 (第 118 行)
+- [x] **T2.7.5** 修改为使用 `navigate(AppRoutes.WARDROBE)`
 
 #### 2.8 单元测试 - wardrobeService.test.ts (1h)
 
-- [ ] **T2.8.1** 创建 `src/services/wardrobeService.test.ts` 文件
-- [ ] **T2.8.2** 添加 `getUserOutfits` 测试
-- [ ] **T2.8.3** 添加 `equipOutfit` 测试
+- [x] **T2.8.1** 创建 `src/services/wardrobeService.test.ts` 文件
+- [x] **T2.8.2** 添加 `getUserOutfits` 测试
+- [x] **T2.8.3** 添加 `equipOutfit` 测试
   - 测试装备成功
   - 测试装备未拥有的服装
 
-- [ ] **T2.8.4** 添加 `unequipOutfit` 测试
+- [x] **T2.8.4** 添加 `unequipOutfit` 测试
 
 #### 2.9 组件测试 - Wardrobe.test.tsx (1h)
 
-- [ ] **T2.9.1** 创建 `src/screens/Wardrobe.test.tsx` 文件
-- [ ] **T2.9.2** 测试页面渲染
-- [ ] **T2.9.3** 测试分类切换
-- [ ] **T2.9.4** 测试装备按钮点击
+- [x] **T2.9.1** 创建 `src/screens/Wardrobe.test.tsx` 文件
+- [x] **T2.9.2** 测试页面渲染
+- [x] **T2.9.3** 测试分类切换
+- [x] **T2.9.4** 测试装备按钮点击
 
 #### 2.10 安全审计 (0.5h)
 
-- [ ] **T2.10.1** 验证只能装备已拥有服装
-- [ ] **T2.10.2** 验证装备状态正确保存
-- [ ] **T2.10.3** 验证请求来源可信
+- [x] **T2.10.1** 验证只能装备已拥有服装
+- [x] **T2.10.2** 验证装备状态正确保存
+- [x] **T2.10.3** 验证请求来源可信
 
 ---
 
