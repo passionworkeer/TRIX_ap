@@ -24,8 +24,15 @@ targets:
       - path: App
       - path: Core
       - path: Features
+        excludes:
+          - "**/README.md"
       - path: Shared
+        excludes:
+          - "**/README.md"
       - path: Resources
+        excludes:
+          - "**/README.md"
+          - "**/.gitkeep"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion
