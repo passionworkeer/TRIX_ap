@@ -118,8 +118,8 @@ struct StudyListView: View {
     /// Segmented control for filtering
     private var segmentControl: some View {
         Picker("", selection: $selectedSegment) {
-            Text("Active Rooms").tag(0)
-            Text("My Sessions").tag(1)
+            Text("study.active.rooms".localized).tag(0)
+            Text("study.my.sessions".localized).tag(1)
         }
         .pickerStyle(.segmented)
     }
@@ -145,7 +145,7 @@ struct StudyListView: View {
     /// Upcoming sessions section
     private var upcomingSessionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Scheduled Sessions")
+            Text("study.scheduled.sessions".localized)
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -165,21 +165,21 @@ struct StudyListView: View {
     private var statsHeader: some View {
         HStack(spacing: 16) {
             StatBox(
-                title: "Active Rooms",
+                title: "study.active.rooms".localized,
                 value: "\(activeRooms.count)",
                 icon: "door.left.hand.open",
                 color: .purple
             )
 
             StatBox(
-                title: "Total Studying",
+                title: "study.total.studying".localized,
                 value: "\(activeRooms.reduce(0) { $0 + $1.participants })",
                 icon: "person.2.fill",
                 color: .blue
             )
 
             StatBox(
-                title: "Your Time",
+                title: "study.your.time".localized,
                 value: appState.formattedStudyTime,
                 icon: "clock.fill",
                 color: .green
@@ -194,7 +194,7 @@ struct StudyListView: View {
                 .font(.system(size: 50))
                 .foregroundColor(.purple.opacity(0.3))
 
-            Text("No upcoming sessions")
+            Text("study.no.upcoming".localized)
                 .font(.headline)
                 .foregroundColor(.secondary)
 
@@ -204,7 +204,7 @@ struct StudyListView: View {
                 .multilineTextAlignment(.center)
 
             Button(action: { isCreatingRoom = true }) {
-                Text("Create Session")
+                Text("study.create.session".localized)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -267,7 +267,7 @@ struct StudyRoomCard: View {
                         .fill(.green)
                         .frame(width: 8, height: 8)
 
-                    Text("Active")
+                    Text("study.room.active".localized)
                         .font(.caption2)
                         .fontWeight(.semibold)
                 }
@@ -300,7 +300,7 @@ struct StudyRoomCard: View {
             Button(action: {}) {
                 HStack {
                     Image(systemName: "arrow.right.circle.fill")
-                    Text("Join Room")
+                    Text("study.join.room".localized)
                 }
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -446,11 +446,11 @@ struct CreateStudyRoomView: View {
                 }
                 .padding()
             }
-            .navigationTitle("New Room")
+            .navigationTitle("study.create.room".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button("action.cancel".localized) {
                         dismiss()
                     }
                 }
@@ -467,11 +467,11 @@ struct CreateStudyRoomView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Create Study Room")
+            Text("study.create.room".localized)
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Set up a new study room and invite others to join")
+            Text("study.create.room.description".localized)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -484,14 +484,14 @@ struct CreateStudyRoomView: View {
         VStack(spacing: 16) {
             // Room Name
             FormField(
-                label: "Room Name",
+                label: "study.room.name".localized,
                 text: $roomName,
                 placeholder: "e.g., Calculus Study Group"
             )
 
             // Subject Picker
             VStack(alignment: .leading, spacing: 8) {
-                Text("Subject")
+                Text("study.subject".localized)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
@@ -514,7 +514,7 @@ struct CreateStudyRoomView: View {
 
             // Description
             FormField(
-                label: "Description (optional)",
+                label: "study.description".localized + " (\("action.cancel".localized.lowercased()))",
                 text: $description,
                 placeholder: "What will you be studying?",
                 isMultiline: true
@@ -528,7 +528,7 @@ struct CreateStudyRoomView: View {
         VStack(spacing: 16) {
             // Max Participants
             VStack(alignment: .leading, spacing: 8) {
-                Text("Max Participants: \(maxParticipants)")
+                Text("study.max.participants".localized + ": \(maxParticipants)")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
@@ -542,7 +542,7 @@ struct CreateStudyRoomView: View {
 
             // Duration Picker
             VStack(alignment: .leading, spacing: 8) {
-                Text("Session Duration")
+                Text("study.session.duration".localized)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
@@ -558,11 +558,11 @@ struct CreateStudyRoomView: View {
             // Private Room Toggle
             Toggle(isOn: $isPrivate) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Private Room")
+                    Text("study.private.room".localized)
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    Text("Only invited users can join")
+                    Text("study.private.room.description".localized)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -584,7 +584,7 @@ struct CreateStudyRoomView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else {
                     Image(systemName: "plus.circle.fill")
-                    Text("Create Room")
+                    Text("study.create.button".localized)
                 }
             }
             .font(.headline)

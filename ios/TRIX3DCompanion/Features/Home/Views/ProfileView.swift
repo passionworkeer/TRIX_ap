@@ -137,28 +137,28 @@ struct ProfileView: View {
     /// Statistics section
     private var statsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Statistics")
+            Text("profile.stats".localized)
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
 
             HStack(spacing: 12) {
                 ProfileStatCard(
-                    title: "Total Points",
+                    title: "profile.total.points".localized,
                     value: "\(appState.userPoints)",
                     icon: "star.fill",
                     color: .yellow
                 )
 
                 ProfileStatCard(
-                    title: "Study Time",
+                    title: "profile.study.time".localized,
                     value: appState.formattedStudyTime,
                     icon: "clock.fill",
                     color: .blue
                 )
 
                 ProfileStatCard(
-                    title: "Level",
+                    title: "profile.level".localized,
                     value: "\(levelFromPoints(appState.userPoints))",
                     icon: "trophy.fill",
                     color: .purple
@@ -170,7 +170,7 @@ struct ProfileView: View {
     /// Achievements section
     private var achievementsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Achievements")
+            Text("profile.achievements".localized)
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
@@ -213,7 +213,7 @@ struct ProfileView: View {
     /// Settings section
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Settings")
+            Text("profile.settings".localized)
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
@@ -276,7 +276,7 @@ struct ProfileView: View {
         Button(action: handleLogout) {
             HStack {
                 Image(systemName: "arrow.right.square.fill")
-                Text("Log Out")
+                Text("profile.log.out".localized)
                     .fontWeight(.semibold)
             }
             .font(.subheadline)
@@ -474,7 +474,7 @@ struct EditProfileView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Edit Profile")
+            .navigationTitle("profile.edit.profile".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -532,7 +532,7 @@ struct EditProfileView: View {
             .clipShape(Circle())
             .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
 
-            Button("Change Photo") {
+            Button("profile.change.photo".localized) {
                 // Would open photo picker
             }
             .font(.subheadline)
@@ -546,16 +546,16 @@ struct EditProfileView: View {
     private var formSection: some View {
         VStack(spacing: 16) {
             // Display Name
-            FormField(label: "Display Name", text: $displayName, placeholder: "Enter your name")
+            FormField(label: "profile.display.name".localized, text: $displayName, placeholder: "auth.username.placeholder".localized)
 
             // Bio
-            FormField(label: "Bio", text: $bio, placeholder: "Tell us about yourself", isMultiline: true)
+            FormField(label: "profile.bio".localized, text: $bio, placeholder: "Tell us about yourself", isMultiline: true)
 
             // School
-            FormField(label: "School", text: $school, placeholder: "Your school or university")
+            FormField(label: "profile.school".localized, text: $school, placeholder: "Your school or university")
 
             // Grade
-            FormField(label: "Grade/Year", text: $grade, placeholder: "e.g., Grade 10, Year 2")
+            FormField(label: "profile.grade".localized, text: $grade, placeholder: "e.g., Grade 10, Year 2")
         }
     }
 

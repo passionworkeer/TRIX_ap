@@ -50,6 +50,10 @@
 "chat Typing" = "is typing...";
 "chat.delivered" = "Delivered";
 "chat.read" = "Read";
+"chat.load.earlier" = "Load Earlier Messages";
+"chat.attach.media" = "Attach Media";
+"chat.photo.library" = "Photo Library";
+"chat.conversation.info" = "Conversation Info";
 
 // MARK: - Study
 "study.title" = "Study Room";
@@ -63,6 +67,28 @@
 "study.streak" = "Study Streak";
 "study.total.time" = "Total Time";
 "study.today.time" = "Today's Time";
+"study.active.rooms" = "Active Rooms";
+"study.my.sessions" = "My Sessions";
+"study.scheduled.sessions" = "Scheduled Sessions";
+"study.no.upcoming" = "No upcoming sessions";
+"study.create.session" = "Create Session";
+"study.join.room" = "Join Room";
+"study.room.active" = "Active";
+"study.participants" = "Participants";
+"study.host" = "Host";
+"study.create.room" = "Create Study Room";
+"study.create.room.description" = "Set up a new study room and invite others to join";
+"study.room.name" = "Room Name";
+"study.subject" = "Subject";
+"study.description" = "Description";
+"study.max.participants" = "Max Participants";
+"study.session.duration" = "Session Duration";
+"study.private.room" = "Private Room";
+"study.private.room.description" = "Only invited users can join";
+"study.create.button" = "Create Room";
+"study.create.failed" = "Failed to create room. Please try again.";
+"study.your.time" = "Your Time";
+"study.total.studying" = "Total Studying";
 
 // MARK: - Map & Location
 "map.title" = "Explore";
@@ -79,6 +105,11 @@
 "camera.back" = "Back Camera";
 "camera.unknown" = "Unknown";
 "camera.no.photo" = "No photo to save";
+"camera.permission.denied" = "Camera permission required to take photos";
+"camera.permission.title" = "Camera Permission";
+"camera.sample.image" = "Select Sample Image";
+"camera.placeholder.title" = "Image Picker";
+"camera.placeholder.description" = "This is a placeholder for the image picker. In production, this would use PHPickerViewController or UIImagePickerController.";
 
 // MARK: - Profile
 "profile.title" = "Profile";
@@ -92,6 +123,21 @@
 "profile.help" = "Help & Support";
 "profile.terms" = "Terms of Service";
 "profile.privacy.policy" = "Privacy Policy";
+"profile.display.name" = "Display Name";
+"profile.bio" = "Bio";
+"profile.school" = "School";
+"profile.grade" = "Grade/Year";
+"profile.change.photo" = "Change Photo";
+"profile.stats" = "Statistics";
+"profile.achievements" = "Achievements";
+"profile.total.points" = "Total Points";
+"profile.study.time" = "Study Time";
+"profile.level" = "Level";
+"profile.currently.studying" = "Currently Studying";
+"profile.idle" = "Idle";
+"profile.log.out" = "Log Out";
+"profile.save.failed" = "Failed to save profile. Please try again.";
+"profile.name.empty" = "Display name cannot be empty";
 
 // MARK: - Points & Store
 "store.title" = "Store";

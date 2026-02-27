@@ -87,6 +87,8 @@ struct VoiceMessageIntegrationExample: View {
     @State private var messages: [ChatMessage] = []
     @State private var messageText = ""
     @State private var showRecordingUI = false
+    @State private var uploadProgress: Double = 0.0
+    @State private var lastUploadError: String?
 
     @FocusState private var isInputFocused: Bool
 
@@ -254,8 +256,108 @@ struct VoiceMessageIntegrationExample: View {
     }
 
     private func uploadVoiceMessage(_ url: URL) async {
-        // TODO: Implement upload to server
         SecureLogger.shared.debug("Uploading voice message: \(url)")
+
+        do {
+            // Read audio file data
+            let audioData = try Data(contentsOf: url)
+
+            // Validate file size (max 10MB for voice messages)
+            let maxFileSize = 10 * 1024 * 1024
+            guard audioData.count <= maxFileSize else {
+                SecureLogger.shared.error("Voice message file too large: \(audioData.count) bytes")
+                await MainActor.run {
+                    // Show error to user
+                    lastUploadError = "语音消息文件过大，请重新录制"
+                }
+                return
+            }
+
+            // Convert to Base64
+            let base64String = audioData.base64EncodedString()
+
+            // Generate filename
+            let filename = generateVoiceFilename()
+
+            // Create upload request
+            let request = VoiceUploadRequest(
+                audio: base64String,
+                filename: filename,
+                mimeType: "audio/mp4"
+            )
+
+            // Update upload progress
+            await MainActor.run {
+                uploadProgress = 0.3
+            }
+
+            // Upload via API
+            let response: UploadResponse = try await APIClient.shared.post(
+                .uploadBase64,
+                body: request
+            )
+
+            // Update progress
+            await MainActor.run {
+                uploadProgress = 1.0
+                SecureLogger.shared.info("Voice message uploaded successfully: \(response.url)")
+
+                // Update message with server URL if needed
+                updateMessageWithServerURL(response.url)
+            }
+
+        } catch let error as NetworkError {
+            SecureLogger.shared.error("Network error uploading voice message: \(error.localizedDescription)")
+            await handleUploadError(error)
+
+        } catch {
+            SecureLogger.shared.error("Failed to upload voice message: \(error.localizedDescription)")
+            await MainActor.run {
+                lastUploadError = "上传失败，请重试"
+            }
+        }
+    }
+
+    // MARK: - Upload Helpers
+
+    private func generateVoiceFilename() -> String {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let uuid = UUID().uuidString.prefix(8)
+        return "voice_\(timestamp)_\(uuid).m4a"
+    }
+
+    private func handleUploadError(_ error: NetworkError) async {
+        await MainActor.run {
+            switch error {
+            case .noConnection, .timeout:
+                lastUploadError = "网络连接失败，请检查网络后重试"
+            case .unauthorized:
+                lastUploadError = "登录已过期，请重新登录"
+            case .serverError(let statusCode, let message):
+                lastUploadError = message ?? "服务器错误 (\(statusCode))"
+            default:
+                lastUploadError = "上传失败，请重试"
+            }
+        }
+    }
+
+    private func updateMessageWithServerURL(_ serverURL: String) {
+        // Find the last voice message and update its audioURL to the server URL
+        if let lastIndex = messages.lastIndex(where: { !$0.isIncoming && $0.type == .voice }) {
+            let oldMessage = messages[lastIndex]
+            let updatedMessage = ChatMessage(
+                id: oldMessage.id,
+                type: oldMessage.type,
+                text: oldMessage.text,
+                imageURL: oldMessage.imageURL,
+                audioURL: URL(string: serverURL), // Update to server URL
+                duration: oldMessage.duration,
+                isIncoming: oldMessage.isIncoming,
+                timestamp: oldMessage.timestamp,
+                senderName: oldMessage.senderName
+            )
+            messages[lastIndex] = updatedMessage
+        }
     }
 }
 
@@ -338,6 +440,26 @@ struct MessageRow: View {
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+// MARK: - Voice Upload Request
+
+/// Voice message upload request (reusing the same API endpoint as image upload)
+struct VoiceUploadRequest: Codable {
+    /// Base64 encoded audio data
+    let audio: String
+
+    /// File name
+    let filename: String
+
+    /// MIME type
+    let mimeType: String
+
+    enum CodingKeys: String, CodingKey {
+        case audio
+        case filename
+        case mimeType = "mime_type"
     }
 }
 

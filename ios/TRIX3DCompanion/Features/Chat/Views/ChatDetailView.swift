@@ -22,6 +22,7 @@ struct ChatDetailView: View {
     @State private var messageText: String = ""
     @State private var showingImagePicker = false
     @State private var showingAttachmentOptions = false
+    @State private var showingCamera = false
     @State private var scrollToBottom = false
 
     // MARK: - Focus State
@@ -79,14 +80,23 @@ struct ChatDetailView: View {
                 }
             }
         }
-        .confirmationDialog("Attach Media", isPresented: $showingAttachmentOptions) {
-            Button("Photo Library") {
+        .confirmationDialog("chat.attach.media".localized, isPresented: $showingAttachmentOptions) {
+            Button("chat.photo.library".localized) {
                 showingImagePicker = true
             }
-            Button("Camera") {
+            Button("camera.take.photo".localized) {
                 openCamera()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("action.cancel".localized, role: .cancel) {}
+        }
+        .sheet(isPresented: $showingCamera) {
+            CameraView { image, imageURL in
+                if let url = imageURL {
+                    Task {
+                        await chatService.sendImageMessage(url)
+                    }
+                }
+            }
         }
     }
 
@@ -275,12 +285,7 @@ struct ChatDetailView: View {
 
     /// Open camera for capturing photo
     private func openCamera() {
-        // Navigate to camera view
-        // In a real implementation, this would use UIImagePickerController
-        // For now, we'll show a simple camera placeholder
-        Task {
-            await chatService.sendTextMessage("[📷 Photo capture - Camera view would open here]")
-        }
+        showingCamera = true
     }
 
     /// Show conversation info
@@ -318,17 +323,17 @@ struct ImagePicker: View {
                     .font(.system(size: 60))
                     .foregroundColor(.purple)
 
-                Text("Image Picker")
+                Text("camera.placeholder.title".localized)
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("This is a placeholder for the image picker. In production, this would use PHPickerViewController or UIImagePickerController.")
+                Text("camera.placeholder.description".localized)
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding()
 
-                Button("Select Sample Image") {
+                Button("camera.sample.image".localized) {
                     // Use a sample image URL
                     onImageSelected("https://picsum.photos/400/400?random=\(Int.random(in: 1...1000))")
                     dismiss()
@@ -336,11 +341,11 @@ struct ImagePicker: View {
                 .buttonStyle(.borderedProminent)
             }
             .padding()
-            .navigationTitle("Select Photo")
+            .navigationTitle("camera.select.photo".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button("action.cancel".localized) {
                         dismiss()
                     }
                 }
