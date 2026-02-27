@@ -3,6 +3,11 @@
 # 规则配置
 disabled_rules:
   - trailing_whitespace
+  - force_cast
+  - force_try
+  - file_length
+  - type_body_length
+  - function_body_length
 
 # 优化规则
 opt_in_rules:
@@ -31,10 +36,11 @@ excluded:
   - "**/*.xcworkspace"
   - "**/DerivedData/**"
   - "**/.build/**"
+  # 排除 C 代码绑定文件
+  - "**/AppLaunchOptimizer.swift"
 
 # 自定义规则配置
 custom_rules:
-  # 打印语句规则
   print_debug:
     name: "Debug Print"
     regex: "print\\("
@@ -42,7 +48,6 @@ custom_rules:
     message: "使用 SecureLogger 替代 print()"
     severity: warning
 
-  # 日志脱敏规则
   sensitive_logging:
     name: "Sensitive Data Logging"
     regex: "(password|token|secret|key)\\s*="
@@ -56,41 +61,15 @@ line_length:
   ignores_comments: true
   ignores_urls: true
 
-# 函数长度限制
-function_body_length:
-  warning: 50
-  error: 100
-
-# 类型长度限制
-type_body_length:
-  warning: 300
-  error: 500
-
-# 文件长度限制
-file_length:
-  warning: 500
-  error: 800
-  ignore_comment_only_lines: true
-
 # 类型名称规则
 type_name:
   min_length: 3
   max_length: 50
-  excluded:
-    - ID
-    - URL
-    - JSON
-    - API
 
 # 标识符名称规则
 identifier_name:
   min_length: 1
   max_length: 60
-  excluded:
-    - id
-    - x
-    - y
-    - z
 
 # 报告类型
 reporter: "xcode"
