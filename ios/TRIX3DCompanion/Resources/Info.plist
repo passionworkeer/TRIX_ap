@@ -84,6 +84,18 @@
         <string>remote-notification</string>
     </array>
 
+    <!-- Push Notification Configuration -->
+    <!-- Note: Push Notifications capability must be enabled in Xcode project settings -->
+    <!-- This requires Apple Developer Program membership and proper provisioning profile -->
+
+    <!-- Notification Categories (defined in apns-config.json) -->
+    <!-- Categories are registered programmatically in AppDelegate.swift -->
+
+    <!-- Critical Alerts (requires special entitlement from Apple) -->
+    <!-- Uncomment if critical alerts are approved by Apple -->
+    <!-- <key>com.apple.developer.usernotifications.critical-alerts</key>
+    <true/> -->
+
     <!-- Associated Domains for Apple Sign In -->
     <key>com.apple.developer.associated-domains</key>
     <array>

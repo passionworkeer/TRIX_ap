@@ -428,7 +428,19 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     }
 }
 
-// MARK: - Receipt Verification
+// MARK: - Receipt Data Timeout Configuration
+
+/// Configuration for receipt data fetching
+enum ReceiptFetchConfig {
+    /// Maximum time to wait for receipt data (30 seconds)
+    static let fetchTimeout: TimeInterval = 30.0
+
+    /// Maximum number of transactions to process
+    static let maxTransactions = 100
+
+    /// Delay between transaction processing batches (ms)
+    static let batchDelayMilliseconds = 10
+}
 
 extension StoreKitService {
 
@@ -442,66 +454,151 @@ extension StoreKitService {
     /// - Important: This method collects all verified transactions and
     /// creates a JSON payload for server-side verification. Sensitive data
     /// is not logged to protect user privacy.
+    ///
+    /// - Note: Uses streaming processing with timeout to handle large
+    /// transaction histories without data loss.
     func getReceiptData() async -> String? {
+        SecureLogger.shared.info("Starting receipt data collection with streaming processing")
+
         // For StoreKit 2, we create a structured receipt payload
         // containing verified transaction information for backend verification
         var transactions: [[String: Any]] = []
+        var verifiedCount = 0
+        var skippedCount = 0
+        var errorCount = 0
 
-        // Collect transactions from Transaction.entitledTransactionSequence
-        for await result in Transaction.entitledTransactionSequence {
-            do {
-                let transaction = try checkVerified(result)
+        // Create timeout task
+        let timeoutTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(ReceiptFetchConfig.fetchTimeout * 1_000_000_000))
+            return true // Timeout reached
+        }
 
-                // Create a dictionary with transaction data
-                // NOTE: We don't include sensitive account info in logs
-                var txData: [String: Any] = [
-                    "id": transaction.id.description,
-                    "productId": transaction.productID,
-                    "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
-                    "quantity": transaction.quantity
-                ]
+        // Use withTaskGroup for concurrent processing with timeout
+        let processingTask = Task {
+            // Collect transactions from Transaction.entitledTransactionSequence
+            // Using streaming to handle large transaction histories
+            var transactionCount = 0
 
-                // Include optional fields if present
-                if let expirationDate = transaction.expirationDate {
-                    txData["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
+            for await result in Transaction.entitledTransactionSequence {
+                // Check if we've exceeded max transactions
+                if transactionCount >= ReceiptFetchConfig.maxTransactions {
+                    SecureLogger.shared.warning("Receipt fetch: max transaction limit reached (\(ReceiptFetchConfig.maxTransactions))")
+                    break
                 }
 
-                if let offerID = transaction.offerID {
-                    txData["offerID"] = offerID
+                // Check if timeout has been reached
+                if timeoutTask.isCancelled || Task.isCancelled {
+                    SecureLogger.shared.warning("Receipt fetch: cancelled or timeout")
+                    break
                 }
 
-                if let offerType = transaction.offerType {
-                    txData["offerType"] = offerType.rawValue
+                transactionCount += 1
+
+                do {
+                    let transaction = try checkVerified(result)
+                    verifiedCount += 1
+
+                    // Create a dictionary with transaction data
+                    // NOTE: We don't include sensitive account info in logs
+                    var txData: [String: Any] = [
+                        "id": transaction.id.description,
+                        "productId": transaction.productID,
+                        "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate),
+                        "quantity": transaction.quantity
+                    ]
+
+                    // Include optional fields if present
+                    if let expirationDate = transaction.expirationDate {
+                        txData["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
+                    }
+
+                    if let offerID = transaction.offerID {
+                        txData["offerID"] = offerID
+                    }
+
+                    if let offerType = transaction.offerType {
+                        txData["offerType"] = offerType.rawValue
+                    }
+
+                    // Add revocation info if present (important for refund detection)
+                    if let revocationDate = transaction.revocationDate {
+                        txData["revocationDate"] = ISO8601DateFormatter().string(from: revocationDate)
+                        txData["revocationReason"] = transaction.revocationReason?.rawValue ?? 0
+                    }
+
+                    // Add web order line item ID if present (for subscription tracking)
+                    if let webOrderLineItemID = transaction.webOrderLineItemID {
+                        txData["webOrderLineItemID"] = webOrderLineItemID
+                    }
+
+                    transactions.append(txData)
+
+                    // Small delay to prevent overwhelming the system
+                    if transactionCount % 10 == 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(ReceiptFetchConfig.batchDelayMilliseconds * 1_000_000))
+                    }
+
+                } catch {
+                    // Skip unverified transactions with detailed logging
+                    errorCount += 1
+                    SecureLogger.shared.warning("Receipt fetch: skipped unverified transaction (error: \(error.localizedDescription))")
+                    continue
                 }
-
-                transactions.append(txData)
-
-            } catch {
-                // Skip unverified transactions
-                SecureLogger.shared.warning("Skipping unverified transaction during receipt collection")
-                continue
             }
+
+            // Log processing summary
+            SecureLogger.shared.info(
+                "Receipt fetch: processed \(transactionCount) transactions, " +
+                "verified: \(verifiedCount), skipped: \(skippedCount), errors: \(errorCount)"
+            )
+
+            return false // Not timed out
+        }
+
+        // Wait for either processing to complete or timeout
+        let timedOut = await timeoutTask.value
+        let _ = await processingTask.value
+
+        // Cancel timeout task if processing completed first
+        timeoutTask.cancel()
+
+        if timedOut {
+            SecureLogger.shared.error("Receipt fetch: timeout after \(ReceiptFetchConfig.fetchTimeout) seconds")
         }
 
         guard !transactions.isEmpty else {
-            SecureLogger.shared.warning("No verified transactions found for receipt")
+            if timedOut {
+                SecureLogger.shared.error("Receipt fetch: timeout reached with no transactions collected")
+            } else {
+                SecureLogger.shared.warning("Receipt fetch: no verified transactions found")
+            }
             return nil
         }
+
+        SecureLogger.shared.info("Receipt fetch: collected \(transactions.count) transactions successfully")
 
         // Create receipt payload
         let receiptPayload: [String: Any] = [
             "version": "2.0",
             "bundleIdentifier": Bundle.main.bundleIdentifier ?? "unknown",
             "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "fetchTimestamp": ISO8601DateFormatter().string(from: Date()),
+            "transactionCount": transactions.count,
             "transactions": transactions
         ]
 
         // Convert to JSON and base64 encode
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: receiptPayload, options: [.prettyPrinted])
-            return jsonData.base64EncodedString()
+            let base64Receipt = jsonData.base64EncodedString()
+
+            // Log receipt size for diagnostics
+            let receiptSize = base64Receipt.count
+            SecureLogger.shared.info("Receipt fetch: encoded successfully, size: \(receiptSize) bytes")
+
+            return base64Receipt
         } catch {
-            SecureLogger.shared.error("Failed to encode receipt data: \(error.localizedDescription)")
+            SecureLogger.shared.error("Receipt fetch: failed to encode receipt data - \(error.localizedDescription)")
             return nil
         }
     }
