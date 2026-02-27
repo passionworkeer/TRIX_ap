@@ -30,6 +30,7 @@ const DiagnosticAdvanced = lazy(() => import('./screens/DiagnosticAdvanced'));
 const Pairing = lazy(() => import('./screens/Pairing'));
 const QRCodePairing = lazy(() => import('./screens/QRCodePairing'));
 const SnapMapScreen = lazy(() => import('./screens/SnapMapScreen'));
+const PointsMall = lazy(() => import('./screens/PointsMall'));
 const Login = lazy(async () => ({ default: (await import('./screens/Auth')).Login }));
 const Register = lazy(async () => ({ default: (await import('./screens/Auth')).Register }));
 
@@ -235,6 +236,7 @@ function AppContent() {
               <Route path="/snapmap" element={<Navigate to={AppRoutes.MAP} replace />} />
               <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />
               <Route path={AppRoutes.DIAGNOSTIC_ADV} element={<ProtectedRoute><DiagnosticAdvanced /></ProtectedRoute>} />
+              <Route path={AppRoutes.POINTS_MALL} element={<ProtectedRoute><PointsMall /></ProtectedRoute>} />
             </Routes>
           </Suspense>
         </div>
