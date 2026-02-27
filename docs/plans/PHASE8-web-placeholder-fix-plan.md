@@ -322,28 +322,24 @@
 
 #### 4.1 类型定义 (0.5h)
 
-- [ ] **T4.1.1** 创建 `src/types/place.ts` 文件
-- [ ] **T4.1.2** 定义 `PlaceCategory` 枚举
-  ```typescript
-  export type PlaceCategory = 'dining' | 'entertainment' | 'study' | 'shopping' | 'park';
-  ```
-
-- [ ] **T4.1.3** 定义 `Place` 接口
+- [x] **T4.1.1** 创建 `src/types/place.ts` 文件
+- [x] **T4.1.2** 定义 `PlaceCategory` 枚举
+- [x] **T4.1.3** 定义 `Place` 接口
 
 #### 4.2 地点服务 (1h)
 
-- [ ] **T4.2.1** 创建 `src/services/placeService.ts` 文件
-- [ ] **T4.2.2** 实现 `getNearbyPlaces(lat, lng, radius)` 方法
-- [ ] **T4.2.3** 实现 `searchPlaces(query)` 方法
-- [ ] **T4.2.4** 实现 `getPlacesByCategory(category)` 方法
+- [x] **T4.2.1** 创建 `src/services/placeService.ts` 文件
+- [x] **T4.2.2** 实现 `getNearbyPlaces(lat, lng, radius)` 方法
+- [x] **T4.2.3** 实现 `searchPlaces(query)` 方法
+- [x] **T4.2.4** 实现 `getPlacesByCategory(category)` 方法
 
 #### 4.3 地图组件修改 (1.5h)
 
-- [ ] **T4.3.1** 打开 `src/screens/SnapMapScreen.tsx`
-- [ ] **T4.3.2** 导入 `placeService`
-- [ ] **T4.3.3** 定位 `mockPlaces` 变量 (约第 89 行)
-- [ ] **T4.3.4** 替换为调用 `placeService.getNearbyPlaces()`
-- [ ] **T4.3.5** 添加 loading 状态处理
+- [x] **T4.3.1** 打开 `src/screens/SnapMapScreen.tsx`
+- [x] **T4.3.2** 导入 `placeService`
+- [x] **T4.3.3** 定位 `mockPlaces` 变量 (约第 89 行)
+- [x] **T4.3.4** 替换为调用 `placeService.getNearbyPlaces()`
+- [x] **T4.3.5** 添加 loading 状态处理
 
 #### 4.4 地点筛选 (1h)
 
@@ -359,9 +355,9 @@
 
 #### 4.6 单元测试 - placeService.test.ts (0.5h)
 
-- [ ] **T4.6.1** 创建 `src/services/placeService.test.ts` 文件
-- [ ] **T4.6.2** 添加 `getNearbyPlaces` 测试
-- [ ] **T4.6.3** 添加 `searchPlaces` 测试
+- [x] **T4.6.1** 创建 `src/services/placeService.test.ts` 文件
+- [x] **T4.6.2** 添加 `getNearbyPlaces` 测试
+- [x] **T4.6.3** 添加 `searchPlaces` 测试
 
 ---
 
