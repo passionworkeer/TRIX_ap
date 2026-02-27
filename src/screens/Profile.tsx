@@ -50,8 +50,7 @@ const Profile: React.FC = () => {
   const interactionCount = profile?.interaction_count || 0;
 
   const handleGetMoreOutfits = () => {
-    // 装备获取功能开发中
-    toast('完成任务和活动即可解锁新装备！', { icon: '🎁' });
+    navigate(AppRoutes.POINTS_MALL);
   };
 
   const handleOutfitChange = (outfitName: string) => {

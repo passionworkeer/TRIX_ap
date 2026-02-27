@@ -89,21 +89,21 @@
 
 #### 1.6 路由配置 (0.5h)
 
-- [ ] **T1.6.1** 打开 `src/types.ts`
-- [ ] **T1.6.2** 添加 `POINTS_MALL` 路由常量
+- [x] **T1.6.1** 打开 `src/types.ts`
+- [x] **T1.6.2** 添加 `POINTS_MALL` 路由常量
   ```typescript
   POINTS_MALL = '/mall'
   ```
 
-- [ ] **T1.6.3** 打开 `src/App.tsx`
-- [ ] **T1.6.4** 添加 PointsMall 路由
+- [x] **T1.6.3** 打开 `src/App.tsx`
+- [x] **T1.6.4** 添加 PointsMall 路由
 
 #### 1.7 Profile 跳转修改 (0.5h)
 
-- [ ] **T1.7.1** 打开 `src/screens/Profile.tsx`
-- [ ] **T1.7.2** 定位 `handleGetMoreOutfits` 函数 (第 52 行)
-- [ ] **T1.7.3** 修改为使用 `navigate(AppRoutes.POINTS_MALL)`
-- [ ] **T1.7.4** 添加必要的 import
+- [x] **T1.7.1** 打开 `src/screens/Profile.tsx`
+- [x] **T1.7.2** 定位 `handleGetMoreOutfits` 函数 (第 52 行)
+- [x] **T1.7.3** 修改为使用 `navigate(AppRoutes.POINTS_MALL)`
+- [x] **T1.7.4** 添加必要的 import
 
 #### 1.8 单元测试 - mallService.test.ts (1.5h)
 
@@ -407,14 +407,14 @@
 - [ ] T1.5.2 弹窗 UI
 - [ ] T1.5.3 积分不足提示
 - [ ] T1.5.4 确认逻辑
-- [ ] T1.6.1 打开 types.ts
-- [ ] T1.6.2 添加路由常量
-- [ ] T1.6.3 打开 App.tsx
-- [ ] T1.6.4 添加路由
-- [ ] T1.7.1 打开 Profile.tsx
-- [ ] T1.7.2 定位 handleGetMoreOutfits
-- [ ] T1.7.3 修改为 navigate
-- [ ] T1.7.4 添加 import
+- [x] T1.6.1 打开 types.ts
+- [x] T1.6.2 添加路由常量
+- [x] T1.6.3 打开 App.tsx
+- [x] T1.6.4 添加路由
+- [x] T1.7.1 打开 Profile.tsx
+- [x] T1.7.2 定位 handleGetMoreOutfits
+- [x] T1.7.3 修改为 navigate
+- [x] T1.7.4 添加 import
 - [ ] T1.8.1 创建 mallService.test.ts
 - [ ] T1.8.2 测试 getMallItems
 - [ ] T1.8.3 测试分类筛选
