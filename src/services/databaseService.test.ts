@@ -801,6 +801,13 @@ describe('databaseService', () => {
     });
 
     it('should respect limit parameter', async () => {
+      // Mock getCurrentUserId function - it's defined inside databaseService.ts
+      // We need to mock supabase.auth.getSession instead
+      vi.mocked(mockSupabase.auth.getSession).mockResolvedValue({
+        data: { session: { user: { id: 'test-user-id' } } },
+        error: null,
+      });
+
       vi.mocked(mockSupabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -815,10 +822,10 @@ describe('databaseService', () => {
       } as any);
 
       const { getStudySessions } = await import('../services/databaseService');
-      await getStudySessions(10);
+      const result = await getStudySessions(10);
 
-      // Should not throw
-      expect(true).toBe(true);
+      // Should not throw and should return empty array
+      expect(result).toEqual([]);
     });
   });
 
@@ -872,11 +879,23 @@ describe('databaseService', () => {
     });
 
     it('should return sum of today study durations', async () => {
+      // Mock getCurrentUserId function - it's defined inside databaseService.ts
+      // We need to mock supabase.auth.getSession instead
+      vi.mocked(mockSupabase.auth.getSession).mockResolvedValue({
+        data: { session: { user: { id: 'test-user-id' } } },
+        error: null,
+      });
+
+      // Mock return data with some durations (6300 = 105 minutes)
       vi.mocked(mockSupabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             gte: vi.fn().mockResolvedValue({
-              data: [],
+              data: [
+                { duration: 1800 }, // 30 min
+                { duration: 2400 }, // 40 min
+                { duration: 2100 }, // 35 min
+              ],
               error: null,
             }),
           }),
@@ -886,8 +905,8 @@ describe('databaseService', () => {
       const { getTodayStudyTime } = await import('../services/databaseService');
       const result = await getTodayStudyTime();
 
-      // Returns 0 when no data
-      expect(result).toBe(0);
+      // Should return sum of durations (6300 seconds)
+      expect(result).toBe(6300);
     });
   });
 
