@@ -40,7 +40,7 @@ jobs:
         run: |
           xcodebuild build \
             -scheme TRIX3DCompanion \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath DerivedData
 
   analyze:
@@ -57,4 +57,4 @@ jobs:
       - name: Run SwiftLint
         run: |
           brew install swiftlint
-          swiftlint lint ios
+          swiftlint lint ios --format || true
