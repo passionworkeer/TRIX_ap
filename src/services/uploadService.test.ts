@@ -3,22 +3,20 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock supabase - must be before any imports
-const mockSupabase = {
-  auth: {
-    getUser: vi.fn()
-  },
-  storage: {
-    from: vi.fn(() => ({
-      upload: vi.fn(),
-      remove: vi.fn(),
-      getPublicUrl: vi.fn()
-    }))
-  }
-};
-
+// Mock supabase
 vi.mock('../config/supabase', () => ({
-  supabase: mockSupabase
+  supabase: {
+    auth: {
+      getUser: vi.fn()
+    },
+    storage: {
+      from: vi.fn(() => ({
+        upload: vi.fn(),
+        remove: vi.fn(),
+        getPublicUrl: vi.fn()
+      }))
+    }
+  }
 }));
 
 // Mock browser-image-compression
@@ -37,6 +35,36 @@ vi.stubGlobal('URL', {
   revokeObjectURL: vi.fn()
 });
 
+// Mock Image constructor for metadata extraction
+const mockImage = {
+  naturalWidth: 1920,
+  naturalHeight: 1080,
+  onload: null as (() => void) | null,
+  onerror: null as (() => void) | null,
+  src: ''
+};
+
+vi.stubGlobal('Image', vi.fn(() => {
+  setTimeout(() => {
+    if (mockImage.onload) {
+      mockImage.onload();
+    }
+  }, 0);
+  return mockImage;
+}));
+
+// Mock Video constructor for metadata extraction
+const mockVideo = {
+  duration: 120,
+  videoWidth: 1920,
+  videoHeight: 1080,
+  onloadedmetadata: null as (() => void) | null,
+  onerror: null as (() => void) | null,
+  src: ''
+};
+
+vi.stubGlobal('HTMLVideoElement', vi.fn(() => mockVideo));
+
 // Import after mocks are set up
 import {
   uploadFile,
@@ -49,12 +77,16 @@ import {
   MAX_FILE_SIZE
 } from './uploadService';
 
+// Get reference to mocked functions
+import { supabase } from '../config/supabase';
+
 describe('uploadService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
 
     // Setup default auth mock
-    mockSupabase.auth.getUser.mockResolvedValue({
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
       data: { user: { id: 'user-123' } },
       error: null
     });
@@ -67,12 +99,13 @@ describe('uploadService', () => {
         data: { publicUrl: 'https://example.com/public-url' }
       })
     };
-    mockSupabase.storage.from.mockReturnValue(mockStorage);
+    vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
   });
 
   afterEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   // ============================================
@@ -174,8 +207,8 @@ describe('uploadService', () => {
         })
       });
 
-      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
-      expect(mockSupabase.storage.from).toHaveBeenCalledWith('TRIX');
+      expect(supabase.auth.getUser).toHaveBeenCalled();
+      expect(supabase.storage.from).toHaveBeenCalledWith('TRIX');
     });
 
     it('should successfully upload a video file', async () => {
@@ -190,7 +223,7 @@ describe('uploadService', () => {
     });
 
     it('should throw error when user is not authenticated', async () => {
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
+      vi.mocked(supabase.auth.getUser).mockResolvedValueOnce({
         data: { user: null },
         error: null
       });
@@ -229,7 +262,7 @@ describe('uploadService', () => {
         remove: vi.fn(),
         getPublicUrl: vi.fn()
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       const file = new File(['image'], 'test.jpg', { type: 'image/jpeg' });
 
@@ -253,7 +286,7 @@ describe('uploadService', () => {
           data: { publicUrl: 'https://example.com/public-url' }
         })
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await uploadFile(file, 'image');
 
@@ -277,7 +310,7 @@ describe('uploadService', () => {
           data: { publicUrl: 'https://example.com/public-url' }
         })
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await uploadFile(file, 'video');
 
@@ -302,7 +335,7 @@ describe('uploadService', () => {
         remove: vi.fn().mockResolvedValue({ data: null, error: null }),
         getPublicUrl: vi.fn()
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await deleteFile('user-id/images/test.jpg');
 
@@ -318,7 +351,7 @@ describe('uploadService', () => {
         }),
         getPublicUrl: vi.fn()
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await expect(deleteFile('user-id/images/test.jpg')).rejects.toThrow('删除失败: Delete failed');
     });
@@ -329,7 +362,7 @@ describe('uploadService', () => {
         remove: vi.fn().mockRejectedValue(new Error('Network error')),
         getPublicUrl: vi.fn()
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await expect(deleteFile('user-id/images/test.jpg')).rejects.toThrow();
     });
@@ -375,7 +408,7 @@ describe('uploadService', () => {
           data: { publicUrl: 'https://example.com/public-url' }
         })
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       const result = await uploadFile(file, 'image');
 
@@ -391,7 +424,7 @@ describe('uploadService', () => {
           data: { publicUrl: 'https://example.com/public-url' }
         })
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await uploadFile(file, 'image');
 
@@ -412,7 +445,7 @@ describe('uploadService', () => {
           data: { publicUrl: 'https://example.com/public-url' }
         })
       };
-      mockSupabase.storage.from.mockReturnValue(mockStorage);
+      vi.mocked(supabase.storage.from).mockReturnValue(mockStorage as any);
 
       await uploadFile(file, 'image');
 
