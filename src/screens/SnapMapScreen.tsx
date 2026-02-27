@@ -10,8 +10,10 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { getFriends } from '../services/databaseService';
 import { getFriendsLocations } from '../services/locationService';
+import { getNearbyPlaces } from '../services/placeService';
 import type { FriendLatestMessage } from '../config/supabase';
 import type { FriendLocation } from '../types/location';
+import type { Place } from '../types/place';
 import { IMAGES } from '../constants';
 import PlacePopupContent from '../components/map/PlacePopupContent';
 import FriendPopupContent from '../components/map/FriendPopupContent';
@@ -215,6 +217,7 @@ const SnapMapScreen: React.FC = () => {
   const { t } = useTranslation();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
+  const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set());
 
@@ -252,6 +255,27 @@ const SnapMapScreen: React.FC = () => {
       }
     };
     loadFriendLocations();
+  }, []);
+
+  // 加载真实地点数据
+  useEffect(() => {
+    const loadPlaces = async () => {
+      try {
+        // 上海陆家嘴中心坐标
+        const nearbyPlaces = await getNearbyPlaces({
+          latitude: 31.2304,
+          longitude: 121.4737,
+          radius: 10000, // 10km
+        });
+        if (nearbyPlaces.length > 0) {
+          setPlaces(nearbyPlaces);
+        }
+      } catch (error) {
+        console.error('加载地点失败:', error);
+        // 使用 mock 数据作为备选
+      }
+    };
+    loadPlaces();
   }, []);
 
   // 上海陆家嘴中心坐标
@@ -351,8 +375,47 @@ const SnapMapScreen: React.FC = () => {
     });
   }, [friends, friendLocations, navigate]);
 
-  // 生成虚拟地点标记
+  // 生成地点标记
   const placeMarkers = useMemo(() => {
+    // 优先使用真实地点数据
+    if (places.length > 0) {
+      return places.map((place) => {
+        const isFavorite = favoritePlaces.has(place.id);
+
+        return (
+          <Marker
+            key={place.id}
+            position={[place.latitude, place.longitude]}
+          >
+            <Popup>
+              <PlacePopupContent
+                place={{
+                  name: place.name,
+                  type: place.category,
+                  emoji: place.emoji,
+                  description: place.description,
+                  openHours: place.openHours,
+                }}
+                isFavorite={isFavorite}
+                onFavorite={() => {
+                  setFavoritePlaces(prev => {
+                    const newFavorites = new Set(prev);
+                    if (newFavorites.has(place.id)) {
+                      newFavorites.delete(place.id);
+                    } else {
+                      newFavorites.add(place.id);
+                    }
+                    return newFavorites;
+                  });
+                }}
+              />
+            </Popup>
+          </Marker>
+        );
+      });
+    }
+
+    // 使用 mock 数据
     return mockPlaces.map((place, index) => {
       const pos = getOffsetPosition(center[0], center[1], index + 10); // 偏移10位避免重叠
       const isFavorite = favoritePlaces.has(place.name);
@@ -382,7 +445,7 @@ const SnapMapScreen: React.FC = () => {
         </Marker>
       );
     });
-  }, [favoritePlaces]);
+  }, [places, favoritePlaces]);
 
   // 生成热力圈标记
   const heatMarkers = useMemo(() => {
