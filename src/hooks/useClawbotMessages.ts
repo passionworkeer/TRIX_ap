@@ -35,7 +35,7 @@ interface UseClawbotMessagesReturn {
  * 管理消息列表的增删改查和持久化
  */
 export function useClawbotMessages(options: UseClawbotMessagesOptions = {}): UseClawbotMessagesReturn {
-  const { userId, loadHistory, saveMessage, deleteMessage } = options;
+  const { userId, loadHistory, saveMessage } = options;
 
   const [messages, setMessages] = useState<ClawbotChannelMessage[]>([]);
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);

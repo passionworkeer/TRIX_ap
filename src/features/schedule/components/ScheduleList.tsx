@@ -27,6 +27,7 @@ import {
   type ScheduleGroup,
 } from '../store/scheduleStore';
 import { useScheduleNotification } from '../hooks/useScheduleNotification';
+import { usePerformanceTracking } from '../../../utils/performance';
 import ScheduleForm from './ScheduleForm';
 import type { Schedule } from '../../../types/workbench';
 
@@ -223,6 +224,9 @@ const GroupHeader: React.FC<{ group: ScheduleGroup; count: number }> = ({ group,
 };
 
 const ScheduleList: React.FC = () => {
+  // Track component render performance
+  usePerformanceTracking('ScheduleList');
+
   const { showError, showSuccess } = useNotification();
   const {
     isLoading,

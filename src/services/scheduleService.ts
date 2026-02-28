@@ -6,6 +6,7 @@
 
 import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
+import { perfMonitor } from '../utils/performance';
 import type {
   Schedule,
   CreateScheduleInput,
@@ -54,7 +55,11 @@ function mapRecordToSchedule(record: ScheduleRecord): Schedule {
  * @returns 日程列表
  */
 export async function getSchedules(): Promise<Schedule[]> {
+  const measure = perfMonitor.measureAPICall('getSchedules');
+
   try {
+    measure.start();
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -77,6 +82,8 @@ export async function getSchedules(): Promise<Schedule[]> {
   } catch (error) {
     logger.error('[ScheduleService] Error in getSchedules:', error);
     throw error;
+  } finally {
+    measure.end();
   }
 }
 

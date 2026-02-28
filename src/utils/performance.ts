@@ -2,6 +2,324 @@
  * Performance utilities for optimization
  */
 
+import React from 'react';
+
+// ============================================
+// Performance Monitoring Types
+// ============================================
+
+/**
+ * Performance metric entry
+ */
+export interface PerformanceMetric {
+  name: string;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  metadata?: Record<string, unknown>;
+  category: 'render' | 'api' | 'interaction' | 'custom';
+}
+
+/**
+ * Aggregated performance statistics
+ */
+export interface PerformanceStats {
+  count: number;
+  totalDuration: number;
+  avgDuration: number;
+  minDuration: number;
+  maxDuration: number;
+}
+
+// ============================================
+// Performance Monitor Class
+// ============================================
+
+/**
+ * Performance monitoring utility class
+ * Only active in development mode to avoid production overhead
+ */
+class PerformanceMonitorImpl {
+  private metrics: Map<string, PerformanceMetric[]> = new Map();
+  private activeMeasures: Map<string, PerformanceMetric> = new Map();
+  private readonly isDev: boolean;
+
+  constructor() {
+    this.isDev = import.meta.env.DEV;
+  }
+
+  /**
+   * Start measuring a performance metric
+   */
+  startMeasure(name: string, metadata?: Record<string, unknown>, category: PerformanceMetric['category'] = 'custom'): void {
+    if (!this.isDev) return;
+
+    const metric: PerformanceMetric = {
+      name,
+      startTime: performance.now(),
+      metadata,
+      category,
+    };
+
+    this.activeMeasures.set(name, metric);
+  }
+
+  /**
+   * End measuring and record the metric
+   * @returns Duration in milliseconds or null if not started
+   */
+  endMeasure(name: string): number | null {
+    if (!this.isDev) return null;
+
+    const metric = this.activeMeasures.get(name);
+    if (!metric) {
+      console.warn(`[Performance] No active measurement found for: ${name}`);
+      return null;
+    }
+
+    const endTime = performance.now();
+    const duration = endTime - metric.startTime;
+
+    const completedMetric: PerformanceMetric = {
+      ...metric,
+      endTime,
+      duration,
+    };
+
+    // Store in metrics history
+    const existingMetrics = this.metrics.get(name) || [];
+    existingMetrics.push(completedMetric);
+    this.metrics.set(name, existingMetrics);
+
+    // Clean up active measure
+    this.activeMeasures.delete(name);
+
+    // Log to console
+    console.log(
+      `[Performance] ${name}: ${duration.toFixed(2)}ms`,
+      metric.metadata || ''
+    );
+
+    return duration;
+  }
+
+  /**
+   * Measure a synchronous operation
+   */
+  measure<T>(name: string, fn: () => T, metadata?: Record<string, unknown>): T {
+    this.startMeasure(name, metadata);
+    try {
+      return fn();
+    } finally {
+      this.endMeasure(name);
+    }
+  }
+
+  /**
+   * Measure an async operation
+   */
+  async measureAsync<T>(
+    name: string,
+    fn: () => Promise<T>,
+    metadata?: Record<string, unknown>
+  ): Promise<T> {
+    this.startMeasure(name, metadata);
+    try {
+      return await fn();
+    } finally {
+      this.endMeasure(name);
+    }
+  }
+
+  /**
+   * Create a render timing profiler callback for React.Profiler
+   */
+  createRenderProfilerCallback(componentName: string) {
+    return (id: string, phase: 'mount' | 'update', actualDuration: number, baseDuration: number, startTime: number, commitTime: number) => {
+      if (!this.isDev) return;
+
+      const metric: PerformanceMetric = {
+        name: `render:${componentName}`,
+        startTime,
+        endTime: startTime + actualDuration,
+        duration: actualDuration,
+        metadata: {
+          id,
+          phase,
+          baseDuration,
+          commitTime,
+        },
+        category: 'render',
+      };
+
+      const existingMetrics = this.metrics.get(`render:${componentName}`) || [];
+      existingMetrics.push(metric);
+      this.metrics.set(`render:${componentName}`, existingMetrics);
+
+      // Only log slow renders (>16ms = 60fps frame time)
+      if (actualDuration > 16) {
+        console.warn(
+          `[Performance] Slow render: ${componentName} took ${actualDuration.toFixed(2)}ms`,
+          { id, phase, baseDuration }
+        );
+      }
+    };
+  }
+
+  /**
+   * Get statistics for a specific metric
+   */
+  getStats(name: string): PerformanceStats | null {
+    const metrics = this.metrics.get(name);
+    if (!metrics || metrics.length === 0) return null;
+
+    const durations = metrics.map(m => m.duration || 0);
+    const totalDuration = durations.reduce((sum, d) => sum + d, 0);
+
+    return {
+      count: metrics.length,
+      totalDuration,
+      avgDuration: totalDuration / metrics.length,
+      minDuration: Math.min(...durations),
+      maxDuration: Math.max(...durations),
+    };
+  }
+
+  /**
+   * Get all statistics
+   */
+  getAllStats(): Map<string, PerformanceStats> {
+    const stats = new Map<string, PerformanceStats>();
+
+    for (const [name] of this.metrics) {
+      const stat = this.getStats(name);
+      if (stat) {
+        stats.set(name, stat);
+      }
+    }
+
+    return stats;
+  }
+
+  /**
+   * Clear all metrics
+   */
+  clear(): void {
+    this.metrics.clear();
+    this.activeMeasures.clear();
+  }
+
+  /**
+   * Clear metrics for a specific name
+   */
+  clearMetric(name: string): void {
+    this.metrics.delete(name);
+  }
+
+  /**
+   * Get all metrics for a specific name
+   */
+  getMetrics(name: string): PerformanceMetric[] {
+    return this.metrics.get(name) || [];
+  }
+
+  /**
+   * Get all metric names
+   */
+  getMetricNames(): string[] {
+    return Array.from(this.metrics.keys());
+  }
+
+  /**
+   * Measure component render - returns start/end functions
+   */
+  measureComponentRender(componentName: string): { start: () => void; end: () => number | null } {
+    return {
+      start: () => this.startMeasure(`render:${componentName}`, undefined, 'render'),
+      end: () => this.endMeasure(`render:${componentName}`) || 0,
+    };
+  }
+
+  /**
+   * Measure API call - returns start/end functions
+   */
+  measureAPICall(apiName: string): { start: () => void; end: () => number | null } {
+    return {
+      start: () => this.startMeasure(`api:${apiName}`, undefined, 'api'),
+      end: () => this.endMeasure(`api:${apiName}`) || 0,
+    };
+  }
+
+  /**
+   * Measure user interaction - returns start/end functions
+   */
+  measureInteraction(interactionName: string): { start: () => void; end: () => number | null } {
+    return {
+      start: () => this.startMeasure(`interaction:${interactionName}`, undefined, 'interaction'),
+      end: () => this.endMeasure(`interaction:${interactionName}`) || 0,
+    };
+  }
+}
+
+// Singleton instance
+export const perfMonitor = new PerformanceMonitorImpl();
+
+// ============================================
+// React Hooks for Performance Tracking
+// ============================================
+
+/**
+ * Hook to track component render performance
+ * Automatically tracks mount and update renders
+ */
+export function usePerformanceTracking(componentName: string): void {
+  React.useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    const measure = perfMonitor.measureComponentRender(componentName);
+    measure.start();
+
+    return () => {
+      measure.end();
+    };
+  }, [componentName]);
+}
+
+/**
+ * Hook to track component with React.Profiler
+ * Returns a callback for React.Profiler onRender prop
+ */
+export function useRenderProfiler(
+  componentName: string,
+  _props?: Record<string, unknown>
+): (id: string, phase: 'mount' | 'update', actualDuration: number, baseDuration: number) => void {
+  const handleRender = React.useCallback(
+    (
+      _id: string,
+      phase: 'mount' | 'update',
+      actualDuration: number,
+      baseDuration: number
+    ) => {
+      if (!import.meta.env.DEV) return;
+
+      // Log slow renders
+      if (actualDuration > 16) {
+        console.warn(
+          `[Performance] Slow render: ${componentName}`,
+          { phase, actualDuration, baseDuration }
+        );
+      }
+    },
+    [componentName]
+  );
+
+  return handleRender;
+}
+
+// ============================================
+// Existing Utilities (SimpleCache, debounce, etc.)
+// ============================================
+
 /**
  * Simple in-memory cache with TTL
  */

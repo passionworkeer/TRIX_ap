@@ -32,6 +32,161 @@
     "delete": "Delete",
     "close": "Close"
   },
+  "workbench": {
+    "title": "Workbench",
+    "subtitle": "Quick Access",
+    "hint": "Swipe to see more",
+    "snapshot": "Snapshot",
+    "location": "Location",
+    "schedule": "Schedule",
+    "todo": "Todo"
+  },
+  "todo": {
+    "title": "Todos",
+    "add": "Add Todo",
+    "edit": "Edit Todo",
+    "delete": "Delete Todo",
+    "completed": "Completed",
+    "active": "Active",
+    "priority": {
+      "high": "High Priority",
+      "medium": "Medium Priority",
+      "low": "Low Priority",
+      "short": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "sort": {
+      "priority": "Priority",
+      "due_date": "Due Date",
+      "created_at": "Created"
+    },
+    "form": {
+      "title": "Title",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDate": "Due Date",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "titlePlaceholder": "Enter todo title...",
+      "descriptionPlaceholder": "Add description (optional)...",
+      "selectDate": "Select Date"
+    },
+    "empty": "No todos yet",
+    "noResults": "No matching todos",
+    "statusUpdated": "Status updated",
+    "deleted": "Deleted",
+    "updated": "Updated",
+    "added": "Added",
+    "dueDate": {
+      "expired": "Expired",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "daysLeft": "In {{days}} days",
+      "quickOptions": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "nextWeek": "Next Week"
+      }
+    },
+    "validation": {
+      "titleRequired": "Please enter a title",
+      "titleTooLong": "Title cannot exceed 200 characters"
+    },
+    "notification": {
+      "markComplete": "Mark as completed",
+      "markIncomplete": "Mark as incomplete"
+    }
+  },
+  "schedule": {
+    "title": "Schedule",
+    "add": "Add Schedule",
+    "edit": "Edit Schedule",
+    "delete": "Delete",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "thisWeek": "This Week",
+    "earlier": "Earlier",
+    "filter": {
+      "all": "All",
+      "today": "Today",
+      "upcoming": "This Week"
+    },
+    "reminder": {
+      "15min": "15 min before",
+      "30min": "30 min before",
+      "1hour": "1 hour before",
+      "2hours": "2 hours before",
+      "1day": "1 day before",
+      "none": "No reminder",
+      "minutes": "{{minutes}} min before"
+    },
+    "form": {
+      "title": "Title",
+      "description": "Description",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "location": "Location",
+      "reminder": "Reminder",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "titlePlaceholder": "Enter schedule title...",
+      "descriptionPlaceholder": "Add description (optional)...",
+      "locationPlaceholder": "Enter location (optional)...",
+      "endTimeOptional": "(Optional)",
+      "quickTime": {
+        "now": "Now",
+        "nextHour": "Next hour",
+        "today9am": "Today 9AM",
+        "today2pm": "Today 2PM",
+        "today6pm": "Today 6PM"
+      }
+    },
+    "empty": "No schedules yet",
+    "noResults": "No matching schedules",
+    "deleted": "Deleted",
+    "updated": "Updated",
+    "added": "Added",
+    "validation": {
+      "titleRequired": "Please enter a title",
+      "titleTooLong": "Title cannot exceed 200 characters",
+      "startTimeRequired": "Please select start time",
+      "endTimeRequired": "Please select complete end time",
+      "endTimeAfterStart": "End time must be after start time"
+    },
+    "notification": {
+      "enabled": "Notifications enabled",
+      "enable": "Enable notifications"
+    }
+  },
+  "location": {
+    "title": "Select Location",
+    "searchPlaceholder": "Search location...",
+    "currentLocation": "Current Location",
+    "share": "Share Location",
+    "shareButton": "Share Location",
+    "sharing": "Sharing...",
+    "namePlaceholder": "Name this location",
+    "nameLabel": "Location Name",
+    "nameInputPlaceholder": "Enter location name...",
+    "copiedToClipboard": "Location link copied to clipboard",
+    "shared": "Location shared successfully",
+    "selectPrompt": "Tap on map to select a location",
+    "myLocation": "My Location",
+    "locationAcquired": "Location acquired",
+    "error": {
+      "selectFirst": "Please select a location first",
+      "getLocation": "Failed to get location",
+      "shareFailed": "Failed to share location"
+    }
+  },
   "profile": {
     "title": "Profile",
     "darkMode": "Dark Mode",

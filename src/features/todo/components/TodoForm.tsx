@@ -4,18 +4,19 @@
  * 用于创建和编辑待办事项的表单
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ChevronDown, Check, X, Flag, Save } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNotification } from '../../../hooks/useNotification';
 import { useTodoStore } from '../store/todoStore';
 import type { Todo, TodoPriority, CreateTodoInput, UpdateTodoInput } from '../../../types/workbench';
 
 // 优先级配置
-const priorityOptions: { value: TodoPriority; label: string; color: string }[] = [
-  { value: 'high', label: '高优先级', color: 'rose' },
-  { value: 'medium', label: '中优先级', color: 'orange' },
-  { value: 'low', label: '低优先级', color: 'emerald' },
+const priorityOptions: { value: TodoPriority; color: string }[] = [
+  { value: 'high', color: 'rose' },
+  { value: 'medium', color: 'orange' },
+  { value: 'low', color: 'emerald' },
 ];
 
 interface TodoFormProps {
@@ -38,6 +39,7 @@ interface FormState {
 }
 
 const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const { showError } = useNotification();
   const { addTodo, updateTodo } = useTodoStore();
   const isEditing = Boolean(todo);
@@ -72,14 +74,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
     const errors: FormState['errors'] = {};
 
     if (!form.title.trim()) {
-      errors.title = '请输入标题';
+      errors.title = t('todo.validation.titleRequired');
     } else if (form.title.length > 200) {
-      errors.title = '标题不能超过200个字符';
+      errors.title = t('todo.validation.titleTooLong');
     }
 
     setForm((prev) => ({ ...prev, errors }));
     return Object.keys(errors).length === 0;
-  }, [form.title]);
+  }, [form.title, t]);
 
   // Handle input change
   const handleChange = useCallback(
@@ -143,7 +145,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
         }
         onSuccess();
       } catch (err) {
-        showError(err instanceof Error ? err.message : '保存失败');
+        showError(err instanceof Error ? err.message : t('common.error'));
       } finally {
         setIsSubmitting(false);
       }
@@ -160,14 +162,15 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
       addTodo,
       onSuccess,
       showError,
+      t,
     ]
   );
 
   // Get priority display info
   const selectedPriority = priorityOptions.find((p) => p.value === form.priority);
 
-  // Generate quick date options
-  const getQuickDateOptions = (): { label: string; value: string }[] => {
+  // Generate quick date options with i18n
+  const getQuickDateOptions = useCallback((): { label: string; value: string }[] => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -175,11 +178,17 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
     nextWeek.setDate(nextWeek.getDate() + 7);
 
     return [
-      { label: '今天', value: today.toISOString().split('T')[0] ?? '' },
-      { label: '明天', value: tomorrow.toISOString().split('T')[0] ?? '' },
-      { label: '下周', value: nextWeek.toISOString().split('T')[0] ?? '' },
+      { label: t('todo.dueDate.quickOptions.today'), value: today.toISOString().split('T')[0] ?? '' },
+      { label: t('todo.dueDate.quickOptions.tomorrow'), value: tomorrow.toISOString().split('T')[0] ?? '' },
+      { label: t('todo.dueDate.quickOptions.nextWeek'), value: nextWeek.toISOString().split('T')[0] ?? '' },
     ];
-  };
+  }, [t]);
+
+  // Priority options with i18n labels
+  const priorityOptionsWithLabels = useMemo(() => priorityOptions.map(p => ({
+    ...p,
+    label: t(`todo.priority.${p.value}`),
+  })), [t]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -203,12 +212,12 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <h3 className="text-sm font-medium tracking-wide text-white/90">
-            {isEditing ? '编辑待办' : '添加待办'}
+            {isEditing ? t('todo.edit') : t('todo.add')}
           </h3>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-white/50 transition hover:bg-white/10 hover:text-white"
-            aria-label="关闭"
+            aria-label={t('common.close')}
           >
             <X size={16} />
           </button>
@@ -222,14 +231,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
               htmlFor="todo-title"
               className="mb-2 block text-xs font-medium tracking-wide text-white/50"
             >
-              标题 <span className="text-rose-400">*</span>
+              {t('todo.form.title')} <span className="text-rose-400">*</span>
             </label>
             <input
               id="todo-title"
               type="text"
               value={form.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="输入待办事项..."
+              placeholder={t('todo.form.titlePlaceholder')}
               className={`w-full rounded-xl border bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:ring-1 ${
                 form.errors.title
                   ? 'border-rose-400/50 focus:border-rose-400 focus:ring-rose-400/20'
@@ -248,13 +257,13 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
               htmlFor="todo-description"
               className="mb-2 block text-xs font-medium tracking-wide text-white/50"
             >
-              描述
+              {t('todo.form.description')}
             </label>
             <textarea
               id="todo-description"
               value={form.description}
               onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="添加描述（可选）..."
+              placeholder={t('todo.form.descriptionPlaceholder')}
               rows={3}
               className="w-full resize-none rounded-xl border border-white/15 bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-white/35 focus:ring-1 focus:ring-cyan-500/20"
             />
@@ -265,7 +274,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
             {/* Priority */}
             <div className="flex-1">
               <label className="mb-2 block text-xs font-medium tracking-wide text-white/50">
-                优先级
+                {t('todo.form.priority')}
               </label>
               <div className="relative">
                 <button
@@ -287,7 +296,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
                             : 'text-emerald-400'
                       }
                     />
-                    <span>{selectedPriority?.label}</span>
+                    <span>{t(`todo.priority.${form.priority}`)}</span>
                   </div>
                   <ChevronDown size={14} className="text-white/40" />
                 </button>
@@ -304,7 +313,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
                       exit={{ opacity: 0, y: -4 }}
                       className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur-xl"
                     >
-                      {priorityOptions.map((option) => (
+                      {priorityOptionsWithLabels.map((option) => (
                         <button
                           key={option.value}
                           type="button"
@@ -340,7 +349,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
             {/* Due Date */}
             <div className="flex-1">
               <label className="mb-2 block text-xs font-medium tracking-wide text-white/50">
-                截止日期
+                {t('todo.form.dueDate')}
               </label>
               <div className="relative">
                 <button
@@ -353,7 +362,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
                 >
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-white/50" />
-                    <span>{form.dueDate ? new Date(form.dueDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : '选择日期'}</span>
+                    <span>{form.dueDate ? new Date(form.dueDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : t('todo.form.selectDate')}</span>
                   </div>
                   {form.dueDate ? (
                     <X

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface FocusStartAnimationProps {
   /** 是否显示 */
@@ -43,6 +43,7 @@ export function FocusStartAnimation({ show, duration, onComplete }: FocusStartAn
     } else {
       setVisible(false);
     }
+    return undefined;
   }, [show, onComplete]);
 
   if (!visible) return null;

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Trophy, Music, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { X, Trophy, Music, Volume2 } from 'lucide-react';
 import Avatar from '../../../components/Avatar';
 import { MusicSelector } from './MusicSelector';
-import { useAudioPlayer, MusicTrack } from '../../../hooks/useAudioPlayer';
+import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { DynamicBackground } from '../../../components/DynamicBackground';
 
 interface TimerViewProps {
@@ -53,7 +53,8 @@ const TimerView: React.FC<TimerViewProps> = ({
 }) => {
   const [showMusicSelector, setShowMusicSelector] = useState(false);
 
-  const { isPlaying, currentTrack, isLoading, toggle, volume, setVolume } = audioPlayer || {};
+  // Audio player - unused but reserved for future use
+  void _audio; // Acknowledge for TypeScript
   return (
     <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
       {/* 背景层：z-index: 0 */}

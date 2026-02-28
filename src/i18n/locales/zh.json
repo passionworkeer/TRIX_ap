@@ -32,6 +32,161 @@
     "delete": "删除",
     "close": "关闭"
   },
+  "workbench": {
+    "title": "工作台",
+    "subtitle": "快捷功能入口",
+    "hint": "左右滑动查看更多",
+    "snapshot": "快拍",
+    "location": "位置",
+    "schedule": "日程",
+    "todo": "待办"
+  },
+  "todo": {
+    "title": "待办事项",
+    "add": "添加待办",
+    "edit": "编辑待办",
+    "delete": "删除待办",
+    "completed": "已完成",
+    "active": "进行中",
+    "priority": {
+      "high": "高优先级",
+      "medium": "中优先级",
+      "low": "低优先级",
+      "short": {
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      }
+    },
+    "filter": {
+      "all": "全部",
+      "active": "进行中",
+      "completed": "已完成"
+    },
+    "sort": {
+      "priority": "优先级",
+      "due_date": "截止日期",
+      "created_at": "创建时间"
+    },
+    "form": {
+      "title": "标题",
+      "description": "描述",
+      "priority": "优先级",
+      "dueDate": "截止日期",
+      "submit": "提交",
+      "cancel": "取消",
+      "titlePlaceholder": "输入待办事项...",
+      "descriptionPlaceholder": "添加描述（可选）...",
+      "selectDate": "选择日期"
+    },
+    "empty": "暂无待办事项",
+    "noResults": "没有符合条件的待办",
+    "statusUpdated": "状态已更新",
+    "deleted": "已删除",
+    "updated": "已更新",
+    "added": "已添加",
+    "dueDate": {
+      "expired": "已过期",
+      "today": "今天",
+      "tomorrow": "明天",
+      "daysLeft": "{{days}}天后",
+      "quickOptions": {
+        "today": "今天",
+        "tomorrow": "明天",
+        "nextWeek": "下周"
+      }
+    },
+    "validation": {
+      "titleRequired": "请输入标题",
+      "titleTooLong": "标题不能超过200个字符"
+    },
+    "notification": {
+      "markComplete": "标记为已完成",
+      "markIncomplete": "标记为未完成"
+    }
+  },
+  "schedule": {
+    "title": "日程安排",
+    "add": "添加日程",
+    "edit": "编辑日程",
+    "delete": "删除",
+    "today": "今天",
+    "tomorrow": "明天",
+    "thisWeek": "本周",
+    "earlier": "更早",
+    "filter": {
+      "all": "全部",
+      "today": "今天",
+      "upcoming": "本周"
+    },
+    "reminder": {
+      "15min": "15分钟前",
+      "30min": "30分钟前",
+      "1hour": "1小时前",
+      "2hours": "2小时前",
+      "1day": "1天前",
+      "none": "不提醒",
+      "minutes": "{{minutes}}分钟前提醒"
+    },
+    "form": {
+      "title": "标题",
+      "description": "描述",
+      "startTime": "开始时间",
+      "endTime": "结束时间",
+      "location": "地点",
+      "reminder": "提醒",
+      "submit": "提交",
+      "cancel": "取消",
+      "titlePlaceholder": "输入日程标题...",
+      "descriptionPlaceholder": "添加描述（可选）...",
+      "locationPlaceholder": "输入地点（可选）...",
+      "endTimeOptional": "(可选)",
+      "quickTime": {
+        "now": "现在",
+        "nextHour": "下一个整点",
+        "today9am": "今天 09:00",
+        "today2pm": "今天 14:00",
+        "today6pm": "今天 18:00"
+      }
+    },
+    "empty": "暂无日程安排",
+    "noResults": "没有符合条件的日程",
+    "deleted": "已删除",
+    "updated": "已更新",
+    "added": "已添加",
+    "validation": {
+      "titleRequired": "请输入标题",
+      "titleTooLong": "标题不能超过200个字符",
+      "startTimeRequired": "请选择开始时间",
+      "endTimeRequired": "请选择完整的结束时间",
+      "endTimeAfterStart": "结束时间必须晚于开始时间"
+    },
+    "notification": {
+      "enabled": "通知已开启",
+      "enable": "开启通知"
+    }
+  },
+  "location": {
+    "title": "选择位置",
+    "searchPlaceholder": "搜索位置...",
+    "currentLocation": "当前位置",
+    "share": "分享位置",
+    "shareButton": "分享位置",
+    "sharing": "分享中...",
+    "namePlaceholder": "为这个位置命名",
+    "nameLabel": "位置名称",
+    "nameInputPlaceholder": "输入位置名称...",
+    "copiedToClipboard": "位置链接已复制到剪贴板",
+    "shared": "位置分享成功",
+    "selectPrompt": "点击地图选择位置",
+    "myLocation": "我的位置",
+    "locationAcquired": "已获取位置",
+    "error": {
+      "selectFirst": "请先选择一个位置",
+      "getLocation": "获取位置失败",
+      "shareFailed": "分享位置失败"
+    }
+  },
   "profile": {
     "title": "个人中心",
     "darkMode": "深色模式",

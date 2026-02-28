@@ -14,7 +14,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
-import toast from 'react-hot-toast';
 import { useConfirmModal } from '../hooks/useConfirmModal';
 
 const Profile: React.FC = () => {
@@ -53,7 +52,7 @@ const Profile: React.FC = () => {
     navigate(AppRoutes.POINTS_MALL);
   };
 
-  const handleOutfitChange = (outfitName: string) => {
+  const handleOutfitChange = (_outfitName: string) => {
     // 打开衣柜页面进行换装
     navigate(AppRoutes.WARDROBE);
   };
@@ -97,7 +96,7 @@ const Profile: React.FC = () => {
     navigate(AppRoutes.LOGIN, { replace: true });
   };
 
-  const handleStatClick = async (statName: string, value: number) => {
+  const handleStatClick = async (_statName: string, _value: number) => {
     // 打开统计详情对话框并加载数据
     setIsStatsDialogOpen(true);
     setStatsLoading(true);
