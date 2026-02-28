@@ -3,11 +3,9 @@
  */
 import { supabase } from '../config/supabase';
 import type {
-  UserLocation,
   LocationShareSettings,
   FriendLocation,
   LocationUpdateRequest,
-  DEFAULT_LOCATION_SETTINGS,
 } from '../types/location';
 
 /**
