@@ -385,6 +385,64 @@ ALTER TABLE study_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE study_room_members ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
+-- 10. 待办事项表 (todos) - Workbench 功能
+-- ============================================
+CREATE TABLE IF NOT EXISTS todos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  completed BOOLEAN DEFAULT FALSE,
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+  due_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  sync_status TEXT DEFAULT 'synced' CHECK (sync_status IN ('synced', 'pending', 'conflict'))
+);
+
+-- 索引
+CREATE INDEX idx_todos_user_id ON todos(user_id);
+CREATE INDEX idx_todos_due_date ON todos(due_date);
+CREATE INDEX idx_todos_completed ON todos(completed);
+
+-- ============================================
+-- 11. 日程表 (schedules) - Workbench 功能
+-- ============================================
+CREATE TABLE IF NOT EXISTS schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ,
+  location TEXT,
+  reminder_minutes_before INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  sync_status TEXT DEFAULT 'synced' CHECK (sync_status IN ('synced', 'pending', 'conflict'))
+);
+
+-- 索引
+CREATE INDEX idx_schedules_user_id ON schedules(user_id);
+CREATE INDEX idx_schedules_start_time ON schedules(start_time);
+
+-- 启用 RLS
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
+
+-- Todos 表策略
+CREATE POLICY "Todos are viewable by owner" ON todos FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Todos can be created by owner" ON todos FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Todos can be updated by owner" ON todos FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Todos can be deleted by owner" ON todos FOR DELETE USING (auth.uid() = user_id);
+
+-- Schedules 表策略
+CREATE POLICY "Schedules are viewable by owner" ON schedules FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Schedules can be created by owner" ON schedules FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Schedules can be updated by owner" ON schedules FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Schedules can be deleted by owner" ON schedules FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
 -- 14. 创建 RLS 策略（允许所有操作，后续可以根据需求细化）
 -- ============================================
 
@@ -438,6 +496,8 @@ CREATE POLICY "Study room members can be managed by anyone" ON study_room_member
 -- 7. study_sessions - 学习记录表
 -- 8. study_rooms - 自习室表
 -- 9. study_room_members - 自习室成员表
+-- 10. todos - 待办事项表（Workbench 功能）
+-- 11. schedules - 日程表（Workbench 功能）
 --
 -- 🔧 创建的视图：
 -- - friend_latest_messages - 好友最新消息视图
