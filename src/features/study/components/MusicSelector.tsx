@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Music, Volume2, VolumeX, X, Loader2 } from 'lucide-react';
-import { MUSIC_TRACKS, MusicTrack, useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { MUSIC_TRACKS, MusicTrack, useAudioPlayer } from '../../../hooks/useAudioPlayer';
 
 interface MusicSelectorProps {
   /** 是否显示 */

@@ -3,6 +3,22 @@
  */
 import type { Outfit } from '../types/wardrobe';
 import { OUTFIT_CATEGORY_ICONS } from '../types/wardrobe';
+import { IMAGES } from '../constants';
+
+// Get fallback image based on outfit category
+const getFallbackImage = (category: Outfit['category']): string => {
+  switch (category) {
+    case 'hat':
+      return IMAGES.CLOTHES_HAT;
+    case 'cape':
+      return IMAGES.CLOTHES_CAPE;
+    case 'wand':
+      return IMAGES.CLOTHES_WAND;
+    case 'background':
+    default:
+      return IMAGES.CLOTHES_HAT; // Default fallback
+  }
+};
 
 interface OutfitPreviewProps {
   outfits: Outfit[];
@@ -40,8 +56,7 @@ const OutfitPreview: React.FC<OutfitPreviewProps> = ({ outfits }) => {
                 alt={outfit.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    'https://via.placeholder.com/56?text=Outfit';
+                  (e.target as HTMLImageElement).src = getFallbackImage(outfit.category);
                 }}
               />
             </div>
