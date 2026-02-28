@@ -1,0 +1,151 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import type { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
+
+export type BotState = 'IDLE' | 'THINKING' | 'SPEAKING';
+
+interface UseBotStateMachineOptions {
+  /** 是否启用语音模式 */
+  voiceEnabled?: boolean;
+  /** 最新机器人消息 */
+  latestBotMessage?: ClawbotChannelMessage | null;
+  /** 机器人状态变化回调 */
+  onStateChange?: (state: BotState) => void;
+}
+
+interface UseBotStateMachineReturn {
+  /** 当前状态 */
+  botState: BotState;
+  /** 进入空闲状态 */
+  enterIdle: () => void;
+  /** 进入思考状态 */
+  enterThinking: () => void;
+  /** 进入说话状态（带超时） */
+  enterSpeakingWithTimeout: (message: ClawbotChannelMessage) => void;
+  /** 处理机器人消息状态 */
+  handleBotMessageState: (message: ClawbotChannelMessage) => void;
+  /** 清理所有超时 */
+  cleanup: () => void;
+}
+
+const SPEAKING_MIN_MS = 1200;
+const SPEAKING_MAX_MS = 12000;
+const SPEAKING_BASE_MS = 800;
+const SPEAKING_PER_CHAR_MS = 45;
+const THINKING_MAX_MS = 25000;
+
+/**
+ * useBotStateMachine - 机器人状态机 Hook
+ *
+ * 管理 Clawbot 的状态转换：IDLE → THINKING → SPEAKING → IDLE
+ */
+export function useBotStateMachine(options: UseBotStateMachineOptions = {}): UseBotStateMachineReturn {
+  const { voiceEnabled = false, latestBotMessage, onStateChange } = options;
+
+  const [botState, setBotState] = useState<BotState>('IDLE');
+  const [idleEnteredAt, setIdleEnteredAt] = useState<number>(() => Date.now());
+
+  const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeVoiceMessageIdRef = useRef<string | null>(null);
+  const pendingVoiceMessageIdRef = useRef<string | null>(null);
+
+  // 通知状态变化
+  useEffect(() => {
+    onStateChange?.(botState);
+  }, [botState, onStateChange]);
+
+  const clearSpeakingTimeout = useCallback(() => {
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearThinkingTimeout = useCallback(() => {
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const cleanup = useCallback(() => {
+    clearSpeakingTimeout();
+    clearThinkingTimeout();
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const enterIdle = useCallback(() => {
+    clearSpeakingTimeout();
+    clearThinkingTimeout();
+    setBotState('IDLE');
+    setIdleEnteredAt(Date.now());
+    activeVoiceMessageIdRef.current = null;
+    pendingVoiceMessageIdRef.current = null;
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+
+  const enterThinking = useCallback(() => {
+    clearSpeakingTimeout();
+    clearThinkingTimeout();
+    setBotState('THINKING');
+    thinkingTimeoutRef.current = setTimeout(() => {
+      thinkingTimeoutRef.current = null;
+      enterIdle();
+    }, THINKING_MAX_MS);
+  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle]);
+
+  const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
+    clearSpeakingTimeout();
+    clearThinkingTimeout();
+    setBotState('SPEAKING');
+
+    const contentLength = message.content.length;
+    const durationMs = Math.min(
+      Math.max(SPEAKING_BASE_MS + contentLength * SPEAKING_PER_CHAR_MS, SPEAKING_MIN_MS),
+      SPEAKING_MAX_MS
+    );
+
+    speakingTimeoutRef.current = setTimeout(() => {
+      speakingTimeoutRef.current = null;
+      setBotState('IDLE');
+      setIdleEnteredAt(Date.now());
+    }, durationMs);
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+
+  const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
+    if (voiceEnabled) {
+      enterThinking();
+      const messageId = message.id || `bot-${message.timestamp}`;
+      activeVoiceMessageIdRef.current = messageId;
+      pendingVoiceMessageIdRef.current = messageId;
+      return;
+    }
+
+    enterSpeakingWithTimeout(message);
+  }, [voiceEnabled, enterThinking, enterSpeakingWithTimeout]);
+
+  // 语音模式切换时处理
+  useEffect(() => {
+    if (voiceEnabled) return;
+    if (botState !== 'THINKING' || !latestBotMessage) return;
+
+    const latestMessageId = latestBotMessage.id || `bot-${latestBotMessage.timestamp}`;
+    if (pendingVoiceMessageIdRef.current !== latestMessageId) return;
+
+    enterSpeakingWithTimeout(latestBotMessage);
+  }, [botState, enterSpeakingWithTimeout, latestBotMessage, voiceEnabled]);
+
+  return {
+    botState,
+    enterIdle,
+    enterThinking,
+    enterSpeakingWithTimeout,
+    handleBotMessageState,
+    cleanup
+  };
+}
