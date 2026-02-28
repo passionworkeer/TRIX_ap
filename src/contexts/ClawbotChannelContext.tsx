@@ -19,7 +19,7 @@ import {
   deleteClawbotMessage,
   loadClawbotMessageHistory,
   saveClawbotMessage,
-} from '../services/databaseService';
+} from '../services/clawbotHistoryService';
 import { useAuth } from './AuthContext';
 import { useVoiceSettings } from './VoiceSettingsContext';
 

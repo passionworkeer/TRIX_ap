@@ -56,7 +56,7 @@ vi.mock('../services/ClawbotChannelBridge', () => {
   };
 });
 
-vi.mock('../services/databaseService', () => ({
+vi.mock('../services/clawbotHistoryService', () => ({
   loadClawbotMessageHistory: vi.fn().mockResolvedValue([]),
   saveClawbotMessage: vi.fn().mockResolvedValue(undefined),
   deleteClawbotMessage: vi.fn().mockResolvedValue(undefined),
@@ -90,7 +90,7 @@ import {
   loadClawbotMessageHistory,
   saveClawbotMessage,
   deleteClawbotMessage,
-} from '../services/databaseService';
+} from '../services/clawbotHistoryService';
 import toast from 'react-hot-toast';
 
 // Test helper component to access context
