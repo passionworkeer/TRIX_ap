@@ -8,6 +8,7 @@ import MailPanel from '../components/MailPanel';
 import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
 import HomeBotBubble from '../components/HomeBotBubble';
+import WorkbenchModal from '../components/WorkbenchModal';
 import {
   PAIRING_REQUIRED_TOAST_ID,
   PAIRING_REQUIRED_TOAST_MESSAGE,
@@ -28,6 +29,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
+  const [showWorkbench, setShowWorkbench] = useState(false);
 
   const handleOpenTrixBot = (event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
@@ -51,11 +53,42 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
     });
   };
 
+  // Handle background click to show workbench
+  const handleBackgroundClick = () => {
+    setShowWorkbench(true);
+    // Also call the parent handler if provided
+    onBackgroundClick?.();
+  };
+
+  // Handle workbench card clicks
+  const handleWorkbenchCardClick = (itemId: string) => {
+    switch (itemId) {
+      case 'snapshot':
+        console.log('Open snapshot');
+        // TODO: Open snapshot modal/camera
+        break;
+      case 'location':
+        console.log('Open location picker');
+        // TODO: Open location picker
+        break;
+      case 'schedule':
+        console.log('Open schedule');
+        // TODO: Open schedule manager
+        break;
+      case 'todo':
+        console.log('Open todo');
+        // TODO: Open todo list
+        break;
+      default:
+        console.log('Unknown workbench action:', itemId);
+    }
+  };
+
   return (
     <div
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
-      onClick={onBackgroundClick}
+      onClick={handleBackgroundClick}
     >
       {isDev && (
         <div className="fixed top-3 left-3 z-[110] pointer-events-none">
@@ -72,6 +105,12 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />
       <NotificationPanel isOpen={showNotificationPanel} onClose={() => setShowNotificationPanel(false)} />
       <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />
+
+      <WorkbenchModal
+        isOpen={showWorkbench}
+        onClose={() => setShowWorkbench(false)}
+        onCardClick={handleWorkbenchCardClick}
+      />
     </div>
   );
 };
