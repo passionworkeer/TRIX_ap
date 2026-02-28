@@ -23,6 +23,16 @@ import {
 import { useAuth } from './AuthContext';
 import { useVoiceSettings } from './VoiceSettingsContext';
 
+/**
+ * 生成安全的随机字符串
+ * 使用 crypto.getRandomValues 替代 Math.random()
+ */
+function generateSecureRandomString(length: number): string {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
+}
+
 export type ConnectionStatus =
   | 'DISCONNECTED'
   | 'CONNECTING'
@@ -79,6 +89,7 @@ const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
 const THINKING_MAX_MS = 25000;
+const MAX_MESSAGES = 500;
 
 const resolveChannelErrorMessage = (error: unknown): string => {
   if (typeof error === 'object' && error !== null) {
@@ -127,8 +138,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       if (exists) {
         return prev;
       }
-      const next = [...prev, { ...message, id: messageId }];
+      let next = [...prev, { ...message, id: messageId }];
       next.sort((a, b) => a.timestamp - b.timestamp);
+      // 如果超过上限，移除最旧的消息
+      if (next.length > MAX_MESSAGES) {
+        next = next.slice(-MAX_MESSAGES);
+      }
       return next;
     });
   }, [toPersistedMessageId]);
@@ -453,8 +468,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             const newMessages = missedMessages
               .map((message) => ({ ...message, id: toPersistedMessageId(message) }))
               .filter((message) => !existingIds.has(message.id || toPersistedMessageId(message)));
-            const next = [...prev, ...newMessages];
+            let next = [...prev, ...newMessages];
             next.sort((a, b) => a.timestamp - b.timestamp);
+            // 如果超过上限，移除最旧的消息
+            if (next.length > MAX_MESSAGES) {
+              next = next.slice(-MAX_MESSAGES);
+            }
             return next;
           });
 
@@ -597,7 +616,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
 
     const optimisticUserMessage: ClawbotChannelMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      id: `${Date.now()}-${generateSecureRandomString(11)}`,
       content,
       contentType,
       mediaUrl,
