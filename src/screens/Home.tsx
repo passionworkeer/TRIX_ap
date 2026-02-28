@@ -1,10 +1,9 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
-import { getUnreadMailCount, getUnreadNotificationCount } from '../services/databaseService';
 import MailPanel from '../components/MailPanel';
 import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
@@ -29,17 +28,6 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
-
-  useEffect(() => {
-    const updateCounts = async () => {
-      await getUnreadMailCount();
-      await getUnreadNotificationCount();
-    };
-
-    updateCounts();
-    const interval = setInterval(updateCounts, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleOpenTrixBot = (event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
