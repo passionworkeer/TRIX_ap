@@ -13,6 +13,7 @@ import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotCha
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { useNotification } from './hooks/useNotification';
 import { useImmersiveVoice } from './hooks/useImmersiveVoice';
+import { ResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
 import {
   PAIRING_REQUIRED_TOAST_MESSAGE,
@@ -102,6 +103,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 };
 
 function AppContent() {
+  // 资源预加载 - 提升首屏体验
+  ResourcePreloader();
+
   const isDev = import.meta.env.DEV;
   const location = useLocation();
   const navigate = useNavigate();

@@ -30,6 +30,12 @@ export default defineConfig(({ mode }) => {
           },
           chunkSizeWarningLimit: 1000,
           sourcemap: false,
+          // 性能优化
+          cssCodeSplit: true,
+          modulePreload: {
+            polyfill: true,
+          },
+          reportCompressedSize: true,
         }
       : undefined,
     server: {
@@ -41,6 +47,10 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+    },
+    // 优化依赖预构建
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
     },
   };
 });

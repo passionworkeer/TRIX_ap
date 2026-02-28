@@ -51,10 +51,10 @@ const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
               disabled={disabled}
               aria-checked={selectedDuration === time}
               role="radio"
-              className={`flex-1 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+              className={`flex-1 min-h-[44px] px-4 rounded-full text-sm font-semibold transition-all touch-manipulation ${
                 selectedDuration === time
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-white text-slate-900 shadow-lg scale-105"
+                  : "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
               } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {time}m
@@ -75,10 +75,10 @@ const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
           <button
             onClick={onStartFocus}
             disabled={disabled}
-            className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg hover:scale-105 active:scale-90 transition-all border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             aria-label={`开始专注 ${selectedDuration} 分钟`}
           >
-            <Play fill="white" size={18} className="ml-0.5 text-white" />
+            <Play fill="white" size={22} className="ml-0.5 text-white" />
           </button>
         </div>
       </div>

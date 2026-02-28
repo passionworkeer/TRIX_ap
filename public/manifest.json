@@ -1,0 +1,44 @@
+{
+  "name": "TRIX 3D Companion",
+  "short_name": "TRIX",
+  "description": "AI 伴侣应用 - 随时陪伴，沉浸学习",
+  "theme_color": "#8b5cf6",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "开始专注",
+      "short_name": "专注",
+      "description": "快速开始专注学习",
+      "url": "/study",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "聊天",
+      "short_name": "聊天",
+      "description": "与 OpenClaw 对话",
+      "url": "/chat",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}
