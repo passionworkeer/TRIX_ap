@@ -157,6 +157,7 @@ class ClawbotChannelBridge {
   // Reconnect
   private reconnectAttempts: number = 0;
   private registerTimeout: ReturnType<typeof setTimeout> | null = null;
+  private visibilityChangeHandler: (() => void) | null = null;
 
   // Event listeners
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
@@ -279,9 +280,14 @@ class ClawbotChannelBridge {
 
     this.setupEventHandlers();
 
-    // 鉁?淇 1: 绉诲姩绔墠鍚庡彴鍒囨崲寮哄埗杩炴帴妫€娴?
-    // 瑙ｅ喅 iOS Safari 绛夌Щ鍔ㄧ娴忚鍣ㄥ喕缁?JS 绾跨▼瀵艰嚧鐨?鍋囨"闂
-    document.addEventListener('visibilitychange', () => {
+    // 移动端前后台切换强制连接检测
+    // 解决 iOS Safari 等移动端浏览器冻结 JS 线程导致的"假死"问题
+    // 清理旧的监听器（如果有）
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+    }
+
+    this.visibilityChangeHandler = () => {
       if (document.visibilityState === 'visible') {
         console.log('[ClawbotChannel] 🎉 App 切回前台，检查连接...');
         // 强制重置心跳时间，防止刚接收就被判定超时断开
@@ -292,7 +298,8 @@ class ClawbotChannelBridge {
           this.socket.connect();
         }
       }
-    });
+    };
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
   }
 
   /**
@@ -887,6 +894,13 @@ class ClawbotChannelBridge {
    */
   disconnect(): void {
     this.stopHeartbeat();
+
+    // 清理 visibilitychange 监听器，防止内存泄漏
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
