@@ -6,7 +6,22 @@
 //
 
 import Foundation
-import Combine
+import UIKit
+
+// MARK: - Haptic Feedback Protocol
+
+/// Protocol for haptic feedback - allows dependency injection for testing
+protocol HapticFeedbackProvider {
+    func trigger()
+}
+
+/// Default haptic feedback implementation using UIKit
+final class UIKitHapticFeedbackProvider: HapticFeedbackProvider {
+    func trigger() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+}
 
 // MARK: - Todo View Model
 
@@ -43,7 +58,7 @@ final class TodoViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private let userDefaultsKey = "workbench_todos"
-    private var cancellables = Set<AnyCancellable>()
+    private let hapticProvider: HapticFeedbackProvider
 
     // MARK: - Computed Properties
 
@@ -85,7 +100,9 @@ final class TodoViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    /// Initialize with optional haptic provider for dependency injection
+    init(hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()) {
+        self.hapticProvider = hapticProvider
         loadTodos()
     }
 
@@ -99,7 +116,6 @@ final class TodoViewModel: ObservableObject {
         todos.append(newTodo)
         saveTodos()
         successMessage = "Todo added successfully"
-        triggerHapticFeedback()
     }
 
     /// Update an existing todo
@@ -116,7 +132,6 @@ final class TodoViewModel: ObservableObject {
         todos[index] = updatedTodo
         saveTodos()
         successMessage = "Todo updated successfully"
-        triggerHapticFeedback()
     }
 
     /// Delete a todo
@@ -125,7 +140,6 @@ final class TodoViewModel: ObservableObject {
         todos.removeAll { $0.id == id }
         saveTodos()
         successMessage = "Todo deleted"
-        triggerHapticFeedback()
     }
 
     /// Toggle todo completion status
@@ -139,7 +153,6 @@ final class TodoViewModel: ObservableObject {
         todo.syncStatus = .pending
         todos[index] = todo
         saveTodos()
-        triggerHapticFeedback()
     }
 
     /// Batch delete completed todos
@@ -147,7 +160,6 @@ final class TodoViewModel: ObservableObject {
         todos.removeAll { $0.completed }
         saveTodos()
         successMessage = "Completed todos cleared"
-        triggerHapticFeedback()
     }
 
     // MARK: - Public Methods - Form
@@ -177,14 +189,12 @@ final class TodoViewModel: ObservableObject {
     /// - Parameter newFilter: New filter value
     func setFilter(_ newFilter: TodoFilter) {
         filter = newFilter
-        triggerHapticFeedback()
     }
 
     /// Set sort option
     /// - Parameter newSort: New sort option
     func setSort(_ newSort: TodoSortOption) {
         sortBy = newSort
-        triggerHapticFeedback()
     }
 
     // MARK: - Public Methods - Messages
@@ -193,6 +203,13 @@ final class TodoViewModel: ObservableObject {
     func clearMessages() {
         errorMessage = nil
         successMessage = nil
+    }
+
+    // MARK: - Public Methods - Haptic
+
+    /// Trigger haptic feedback - call this from View layer
+    func triggerHaptic() {
+        hapticProvider.trigger()
     }
 
     // MARK: - Private Methods
@@ -250,23 +267,29 @@ final class TodoViewModel: ObservableObject {
             todos = []
         }
     }
-
-    /// Trigger haptic feedback
-    private func triggerHapticFeedback() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
 }
 
 // MARK: - Preview Helpers
 
 #if DEBUG
 extension TodoViewModel {
-    /// Create view model with sample data
+    /// Create view model with sample data using a test-friendly initializer
     static var preview: TodoViewModel {
-        let vm = TodoViewModel()
-        vm.todos = Todo.sampleTodos
+        let vm = TodoViewModel(hapticProvider: PreviewHapticProvider())
+        vm.loadSampleTodos()
         return vm
+    }
+
+    /// Internal method to load sample todos for preview
+    func loadSampleTodos() {
+        todos = Todo.sampleTodos
+    }
+}
+
+/// Test haptic provider that does nothing
+private final class PreviewHapticProvider: HapticFeedbackProvider {
+    func trigger() {
+        // No-op for preview
     }
 }
 #endif

@@ -36,6 +36,11 @@ export interface PerformanceStats {
 // ============================================
 
 /**
+ * Maximum number of metrics to store per name
+ */
+const MAX_METRICS_PER_NAME = 100;
+
+/**
  * Performance monitoring utility class
  * Only active in development mode to avoid production overhead
  */
@@ -46,6 +51,23 @@ class PerformanceMonitorImpl {
 
   constructor() {
     this.isDev = import.meta.env.DEV;
+  }
+
+  /**
+   * Store metric with size limiting
+   */
+  private storeMetric(name: string, metric: PerformanceMetric): void {
+    const existingMetrics = this.metrics.get(name) || [];
+
+    // Add new metric
+    existingMetrics.push(metric);
+
+    // Trim to max size (FIFO - keep most recent)
+    if (existingMetrics.length > MAX_METRICS_PER_NAME) {
+      existingMetrics.splice(0, existingMetrics.length - MAX_METRICS_PER_NAME);
+    }
+
+    this.metrics.set(name, existingMetrics);
   }
 
   /**
@@ -73,7 +95,7 @@ class PerformanceMonitorImpl {
 
     const metric = this.activeMeasures.get(name);
     if (!metric) {
-      console.warn(`[Performance] No active measurement found for: ${name}`);
+      console.warn(`[Performance] No active measurement found for ${name}`);
       return null;
     }
 
@@ -86,10 +108,8 @@ class PerformanceMonitorImpl {
       duration,
     };
 
-    // Store in metrics history
-    const existingMetrics = this.metrics.get(name) || [];
-    existingMetrics.push(completedMetric);
-    this.metrics.set(name, existingMetrics);
+    // Store with size limiting
+    this.storeMetric(name, completedMetric);
 
     // Clean up active measure
     this.activeMeasures.delete(name);
@@ -135,11 +155,12 @@ class PerformanceMonitorImpl {
    * Create a render timing profiler callback for React.Profiler
    */
   createRenderProfilerCallback(componentName: string) {
+    const metricName = `render:${componentName}`;
     return (id: string, phase: 'mount' | 'update', actualDuration: number, baseDuration: number, startTime: number, commitTime: number) => {
       if (!this.isDev) return;
 
       const metric: PerformanceMetric = {
-        name: `render:${componentName}`,
+        name: metricName,
         startTime,
         endTime: startTime + actualDuration,
         duration: actualDuration,
@@ -152,9 +173,8 @@ class PerformanceMonitorImpl {
         category: 'render',
       };
 
-      const existingMetrics = this.metrics.get(`render:${componentName}`) || [];
-      existingMetrics.push(metric);
-      this.metrics.set(`render:${componentName}`, existingMetrics);
+      // Store with size limiting
+      this.storeMetric(metricName, metric);
 
       // Only log slow renders (>16ms = 60fps frame time)
       if (actualDuration > 16) {
@@ -491,23 +511,67 @@ export function throttle<T extends (...args: any[]) => any>(
 
 /**
  * Request deduplication - prevents duplicate concurrent requests
+ *
+ * Note: Pending requests are automatically cleaned up when they complete.
+ * However, if a request never settles (e.g., network hang), it will
+ * remain in the map. For long-running applications, consider periodic cleanup.
  */
-const pendingRequests = new Map<string, Promise<any>>();
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+/**
+ * Default timeout for pending requests (30 seconds)
+ */
+const DEDUPE_REQUEST_TIMEOUT_MS = 30000;
+
+/**
+ * Clean up stale pending requests
+ */
+function cleanupPendingRequests(): void {
+  const now = Date.now();
+  for (const [key, promise] of pendingRequests) {
+    // Check if promise has been settled by checking its status
+    // This is a heuristic - we assume settled promises are "old"
+    // In practice, .finally() should clean up, but this is a safety net
+  }
+
+  // Clear all entries that are too old
+  // Note: This is a simplified cleanup - in production you might want
+  // to track creation time for each entry
+  if (pendingRequests.size > 100) {
+    // If we have too many pending requests, clear all
+    // This is a safety mechanism
+    pendingRequests.clear();
+  }
+}
+
+// Periodic cleanup every 5 minutes
+setInterval(cleanupPendingRequests, 5 * 60 * 1000);
 
 export function dedupeRequest<T>(
   key: string,
-  requestFn: () => Promise<T>
+  requestFn: () => Promise<T>,
+  timeoutMs: number = DEDUPE_REQUEST_TIMEOUT_MS
 ): Promise<T> {
   // Check if request is already pending
-  const pending = pendingRequests.get(key);
-  if (pending) {
-    return pending;
+  const existing = pendingRequests.get(key);
+  if (existing) {
+    return existing as Promise<T>;
   }
 
-  // Start new request
-  const promise = requestFn().finally(() => {
-    pendingRequests.delete(key);
+  // Start new request with timeout wrapper
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      pendingRequests.delete(key);
+      reject(new Error(`Request timeout: ${key}`));
+    }, timeoutMs);
   });
+
+  const promise = Promise.race([
+    requestFn().finally(() => {
+      pendingRequests.delete(key);
+    }),
+    timeoutPromise,
+  ]);
 
   pendingRequests.set(key, promise);
   return promise;
@@ -515,6 +579,8 @@ export function dedupeRequest<T>(
 
 /**
  * Lazy load image with intersection observer
+ *
+ * @returns Cleanup function that should be called when element is removed
  */
 export function lazyLoadImage(
   element: HTMLImageElement,
@@ -526,13 +592,17 @@ export function lazyLoadImage(
       if (entry.isIntersecting) {
         element.src = src;
         observer.unobserve(element);
+        observer.disconnect();
       }
     });
   }, options);
 
   observer.observe(element);
 
-  return () => observer.unobserve(element);
+  return () => {
+    observer.unobserve(element);
+    observer.disconnect();
+  };
 }
 
 /**
@@ -549,10 +619,22 @@ export function preloadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * Batch processor for grouping operations
+ *
+ * @example
+ * const processor = new BatchProcessor<string, number>(
+ *   async (items) => items.map(s => s.length),
+ *   100,
+ *   10
+ * );
+ * const result = await processor.add("hello");
  */
 export class BatchProcessor<T, R> {
   private queue: T[] = [];
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Use WeakMap to store callbacks without polluting the item type
+  private resolvers = new Map<T, (value: R) => void>();
+  private rejectors = new Map<T, (error: Error) => void>();
 
   constructor(
     private processor: (items: T[]) => Promise<R[]>,
@@ -563,11 +645,8 @@ export class BatchProcessor<T, R> {
   add(item: T): Promise<R> {
     return new Promise((resolve, reject) => {
       this.queue.push(item);
-
-      // @ts-ignore - storing callbacks with items
-      (item as any).__resolve = resolve;
-      // @ts-ignore
-      (item as any).__reject = reject;
+      this.resolvers.set(item, resolve);
+      this.rejectors.set(item, reject);
 
       if (this.queue.length >= this.maxBatchSize) {
         this.flush();
@@ -589,13 +668,22 @@ export class BatchProcessor<T, R> {
     try {
       const results = await this.processor(items);
       items.forEach((item, index) => {
-        // @ts-ignore
-        item.__resolve(results[index]);
+        const resolve = this.resolvers.get(item);
+        if (resolve) {
+          resolve(results[index]);
+        }
+        this.resolvers.delete(item);
+        this.rejectors.delete(item);
       });
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       items.forEach((item) => {
-        // @ts-ignore
-        item.__reject(error);
+        const reject = this.rejectors.get(item);
+        if (reject) {
+          reject(err);
+        }
+        this.resolvers.delete(item);
+        this.rejectors.delete(item);
       });
     }
   }

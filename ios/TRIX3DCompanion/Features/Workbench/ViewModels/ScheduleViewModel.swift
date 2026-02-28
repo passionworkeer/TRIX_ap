@@ -6,8 +6,23 @@
 //
 
 import Foundation
-import Combine
+import UIKit
 import UserNotifications
+
+// MARK: - Haptic Feedback Protocol
+
+/// Protocol for haptic feedback - allows dependency injection for testing
+protocol HapticFeedbackProvider {
+    func trigger()
+}
+
+/// Default haptic feedback implementation using UIKit
+final class UIKitHapticFeedbackProvider: HapticFeedbackProvider {
+    func trigger() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+}
 
 // MARK: - Schedule View Model
 
@@ -41,11 +56,11 @@ final class ScheduleViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let notificationService: LocalNotificationServiceProtocol
+    private let hapticProvider: HapticFeedbackProvider
 
     // MARK: - Private Properties
 
     private let userDefaultsKey = "workbench_schedules"
-    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Computed Properties
 
@@ -98,8 +113,13 @@ final class ScheduleViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(notificationService: LocalNotificationServiceProtocol = LocalNotificationService.shared) {
+    /// Initialize with optional dependencies for dependency injection
+    init(
+        notificationService: LocalNotificationServiceProtocol = LocalNotificationService.shared,
+        hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()
+    ) {
         self.notificationService = notificationService
+        self.hapticProvider = hapticProvider
         loadSchedules()
     }
 
@@ -119,7 +139,6 @@ final class ScheduleViewModel: ObservableObject {
         }
 
         successMessage = "Schedule added successfully"
-        triggerHapticFeedback()
     }
 
     /// Update an existing schedule
@@ -143,7 +162,6 @@ final class ScheduleViewModel: ObservableObject {
         schedules[index] = updatedSchedule
         saveSchedules()
         successMessage = "Schedule updated successfully"
-        triggerHapticFeedback()
     }
 
     /// Delete a schedule
@@ -153,7 +171,6 @@ final class ScheduleViewModel: ObservableObject {
         schedules.removeAll { $0.id == id }
         saveSchedules()
         successMessage = "Schedule deleted"
-        triggerHapticFeedback()
     }
 
     // MARK: - Public Methods - Form
@@ -183,7 +200,6 @@ final class ScheduleViewModel: ObservableObject {
     /// - Parameter newFilter: New filter value
     func setFilter(_ newFilter: ScheduleFilter) {
         filter = newFilter
-        triggerHapticFeedback()
     }
 
     // MARK: - Public Methods - Messages
@@ -192,6 +208,13 @@ final class ScheduleViewModel: ObservableObject {
     func clearMessages() {
         errorMessage = nil
         successMessage = nil
+    }
+
+    // MARK: - Public Methods - Haptic
+
+    /// Trigger haptic feedback - call this from View layer
+    func triggerHaptic() {
+        hapticProvider.trigger()
     }
 
     // MARK: - Private Methods - Notifications
@@ -265,23 +288,40 @@ final class ScheduleViewModel: ObservableObject {
             schedules = []
         }
     }
-
-    /// Trigger haptic feedback
-    private func triggerHapticFeedback() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
 }
 
 // MARK: - Preview Helpers
 
 #if DEBUG
 extension ScheduleViewModel {
-    /// Create view model with sample data
+    /// Create view model with sample data using a test-friendly initializer
     static var preview: ScheduleViewModel {
-        let vm = ScheduleViewModel()
-        vm.schedules = Schedule.sampleSchedules
+        let vm = ScheduleViewModel(
+            notificationService: PreviewNotificationService(),
+            hapticProvider: PreviewHapticProvider()
+        )
+        vm.loadSampleSchedules()
         return vm
+    }
+
+    /// Internal method to load sample schedules for preview
+    func loadSampleSchedules() {
+        schedules = Schedule.sampleSchedules
+    }
+}
+
+/// Test notification service that does nothing
+private final class PreviewNotificationService: LocalNotificationServiceProtocol {
+    func requestAuthorization() async throws -> Bool { true }
+    func schedule(_ request: LocalNotificationRequest) async throws -> String { "" }
+    func cancelNotification(identifier: String) async throws { }
+    func getPendingNotifications() async throws -> [String] { [] }
+}
+
+/// Test haptic provider that does nothing
+private final class PreviewHapticProvider: HapticFeedbackProvider {
+    func trigger() {
+        // No-op for preview
     }
 }
 #endif

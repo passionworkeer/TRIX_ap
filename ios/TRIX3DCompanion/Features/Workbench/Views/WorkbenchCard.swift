@@ -108,9 +108,10 @@ struct WorkbenchCard: View {
     }
 }
 
-// MARK: - Workbench Card Item
+// MARK: - Workbench Card Item (Reserved for future use)
 
 /// Data model for workbench card items
+/// NOTE: Currently not used - reserved for future dynamic card generation
 struct WorkbenchCardItem: Identifiable {
     let id = UUID()
     let icon: String
