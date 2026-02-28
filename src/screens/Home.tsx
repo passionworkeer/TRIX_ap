@@ -10,6 +10,7 @@ import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
 import HomeBotBubble from '../components/HomeBotBubble';
 import WorkbenchModal from '../components/WorkbenchModal';
+import SnapshotModal from '../components/SnapshotModal';
 import { TodoList, TodoProvider } from '../features/todo';
 import { ScheduleList, ScheduleProvider } from '../features/schedule';
 import { LocationPicker } from '../features/location';
@@ -34,6 +35,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
   const [showWorkbench, setShowWorkbench] = useState(false);
+  const [showSnapshot, setShowSnapshot] = useState(false);
   const [showTodo, setShowTodo] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -73,8 +75,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
 
     switch (itemId) {
       case 'snapshot':
-        // TODO: Open snapshot modal/camera
-        console.log('Open snapshot');
+        setShowSnapshot(true);
         break;
       case 'location':
         setShowLocation(true);
@@ -88,6 +89,31 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       default:
         console.log('Unknown workbench action:', itemId);
     }
+  };
+
+  // Handle image selection from SnapshotModal
+  const handleImageSelect = (imageUri: string) => {
+    setShowSnapshot(false);
+    setShowWorkbench(false);
+
+    if (!isConnected || !isPaired) {
+      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
+        ...PAIRING_REQUIRED_TOAST_OPTIONS,
+        id: PAIRING_REQUIRED_TOAST_ID,
+      });
+      navigate(AppRoutes.PAIRING);
+      return;
+    }
+
+    navigate(AppRoutes.CHAT_DETAIL, {
+      state: {
+        friendId: 'clawbot',
+        name: 'TRIX Bot',
+        avatar: IMAGES.WIZARD_BOY_LOGIN,
+        isBot: true,
+        photoUri: imageUri
+      }
+    });
   };
 
   return (
@@ -116,6 +142,12 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
         isOpen={showWorkbench}
         onClose={() => setShowWorkbench(false)}
         onCardClick={handleWorkbenchCardClick}
+      />
+
+      {/* Snapshot Modal */}
+      <SnapshotModal
+        isOpen={showSnapshot}
+        onImageSelect={handleImageSelect}
       />
 
       {/* Todo Panel */}

@@ -17,6 +17,9 @@ export {
   useScheduleStats,
 } from './store/scheduleStore';
 
+// Hooks
+export { useScheduleNotification } from './hooks';
+
 // Types
 export type {
   Schedule,
