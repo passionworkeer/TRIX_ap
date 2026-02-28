@@ -90,52 +90,6 @@ const mockFriends: FriendLatestMessage[] = [
   },
 ];
 
-// 虚拟地点数据 - 上海热门地标
-const mockPlaces: PlaceInfo[] = [
-  {
-    name: '星巴克咖啡',
-    type: 'dining',
-    emoji: '☕',
-    description: '和朋友聚会喝咖啡',
-    openHours: '07:30 - 22:00',
-  },
-  {
-    name: '海底捞火锅',
-    type: 'dining',
-    emoji: '🍲',
-    description: '热闹的火锅聚餐',
-    openHours: '11:00 - 22:00',
-  },
-  {
-    name: '万达影城',
-    type: 'entertainment',
-    emoji: '🎬',
-    description: '最新电影上映中',
-    openHours: '10:00 - 23:00',
-  },
-  {
-    name: '静安雕塑公园',
-    type: 'park',
-    emoji: '🌳',
-    description: '适合散步和聊天',
-    openHours: '全天开放',
-  },
-  {
-    name: '24小时自习室',
-    type: 'study',
-    emoji: '📚',
-    description: '安静的学习环境',
-    openHours: '24小时',
-  },
-  {
-    name: 'KTV 唱歌',
-    type: 'entertainment',
-    emoji: '🎤',
-    description: '聚会唱K放松',
-    openHours: '12:00 - 02:00',
-  },
-];
-
 // 上海陆家嘴附近的坐标偏移
 const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
   const offsets = [
@@ -149,6 +103,70 @@ const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
   const offset = offsets[index % offsets.length];
   return { lat: baseLat + (offset?.lat ?? 0), lng: baseLng + (offset?.lng ?? 0) };
 };
+
+// 虚拟地点数据 - 上海热门地标（带坐标）
+const mockPlaces: Place[] = [
+  {
+    id: 'place-1',
+    name: '星巴克咖啡',
+    category: 'dining',
+    emoji: '☕',
+    description: '和朋友聚会喝咖啡',
+    openHours: '07:30 - 22:00',
+    latitude: 31.2304 + 0.001,
+    longitude: 121.4737 + 0.002,
+  },
+  {
+    id: 'place-2',
+    name: '海底捞火锅',
+    category: 'dining',
+    emoji: '🍲',
+    description: '热闹的火锅聚餐',
+    openHours: '11:00 - 22:00',
+    latitude: 31.2304 - 0.001,
+    longitude: 121.4737 + 0.003,
+  },
+  {
+    id: 'place-3',
+    name: '万达影城',
+    category: 'entertainment',
+    emoji: '🎬',
+    description: '最新电影上映中',
+    openHours: '10:00 - 23:00',
+    latitude: 31.2304 + 0.002,
+    longitude: 121.4737 - 0.002,
+  },
+  {
+    id: 'place-4',
+    name: '静安雕塑公园',
+    category: 'park',
+    emoji: '🌳',
+    description: '适合散步和聊天',
+    openHours: '全天开放',
+    latitude: 31.2304 - 0.002,
+    longitude: 121.4737 - 0.003,
+  },
+  {
+    id: 'place-5',
+    name: '24小时自习室',
+    category: 'study',
+    emoji: '📚',
+    description: '安静的学习环境',
+    openHours: '24小时',
+    latitude: 31.2304 + 0.003,
+    longitude: 121.4737 + 0.001,
+  },
+  {
+    id: 'place-6',
+    name: 'KTV 唱歌',
+    category: 'entertainment',
+    emoji: '🎤',
+    description: '聚会唱K放松',
+    openHours: '12:00 - 02:00',
+    latitude: 31.2304 - 0.003,
+    longitude: 121.4737 + 0.001,
+  },
+];
 
 // 热力图数据
 interface HeatZone {
@@ -305,10 +323,16 @@ const SnapMapScreen: React.FC = () => {
         if (nearbyPlaces.length > 0) {
           setPlaces(nearbyPlaces);
           setFilteredPlaces(nearbyPlaces);
+        } else {
+          // 使用 mock 数据作为备选（当没有真实数据时）
+          setPlaces(mockPlaces);
+          setFilteredPlaces(mockPlaces);
         }
       } catch (error) {
         console.error('加载地点失败:', error);
         // 使用 mock 数据作为备选
+        setPlaces(mockPlaces);
+        setFilteredPlaces(mockPlaces);
       }
     };
     loadPlaces();
