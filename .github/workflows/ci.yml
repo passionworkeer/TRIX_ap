@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [feature-nanobot-integration]
+    branches: [main, develop]
   pull_request:
-    branches: [feature-nanobot-integration]
+    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   quality:
