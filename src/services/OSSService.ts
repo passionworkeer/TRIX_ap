@@ -76,9 +76,11 @@ class AliyunOSSService {
     filename?: string
   ): Promise<{ url: string; name: string }> {
     try {
-      // 生成唯一文件名
+      // 生成唯一文件名（使用安全的随机数生成器）
       const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
+      const randomArray = new Uint8Array(4);
+      crypto.getRandomValues(randomArray);
+      const random = Array.from(randomArray, b => b.toString(16).padStart(2, '0')).join('');
       const extension = file.type.split('/')[1] || 'jpg';
       const objectName = filename || `trix-uploads/${timestamp}_${random}.${extension}`;
 

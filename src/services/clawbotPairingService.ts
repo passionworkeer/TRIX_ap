@@ -10,6 +10,15 @@ import {
 } from '../types/clawbot';
 
 /**
+ * Generate cryptographically secure random string
+ */
+function generateSecureRandomString(length: number): string {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
+}
+
+/**
  * Clawbot 扫码配对服务
  *
  * 基于 Clawdbot Gateway 集成指南 v1.0.0
@@ -836,7 +845,7 @@ class ClawbotPairingService {
    * 生成唯一请求 ID
    */
   private generateRequestId(): string {
-    return `trix-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return `trix-${Date.now()}-${generateSecureRandomString(11)}`;
   }
 
   /**
@@ -847,7 +856,7 @@ class ClawbotPairingService {
     let deviceId = localStorage.getItem(storageKey);
 
     if (!deviceId) {
-      deviceId = `web-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      deviceId = `web-${Date.now()}-${generateSecureRandomString(15)}`;
       localStorage.setItem(storageKey, deviceId);
     }
 
