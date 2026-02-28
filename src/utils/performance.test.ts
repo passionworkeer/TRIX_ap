@@ -9,6 +9,7 @@ import {
   dedupeRequest,
   withCache,
   requestCache,
+  perfMonitor,
 } from './performance';
 
 describe('performance utilities', () => {
@@ -16,10 +17,98 @@ describe('performance utilities', () => {
     vi.useFakeTimers();
     // Clear global cache before each test
     requestCache.clear();
+    // Clear performance monitor metrics
+    perfMonitor.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // ============================================
+  // Performance Monitor Tests
+  // ============================================
+
+  describe('perfMonitor', () => {
+    it('should start and end measure', () => {
+      perfMonitor.startMeasure('test-metric');
+      const duration = perfMonitor.endMeasure('test-metric');
+
+      expect(duration).not.toBeNull();
+      expect(duration).toBeGreaterThan(0);
+    });
+
+    it('should return null for non-existent measure', () => {
+      const duration = perfMonitor.endMeasure('nonexistent');
+      expect(duration).toBeNull();
+    });
+
+    it('should measure synchronous function', () => {
+      const result = perfMonitor.measure('sync-test', () => 42);
+      expect(result).toBe(42);
+
+      const stats = perfMonitor.getStats('sync-test');
+      expect(stats).not.toBeNull();
+      expect(stats?.count).toBe(1);
+    });
+
+    it('should measure async function', async () => {
+      const result = await perfMonitor.measureAsync('async-test', async () => {
+        return 'async-result';
+      });
+
+      expect(result).toBe('async-result');
+
+      const stats = perfMonitor.getStats('async-test');
+      expect(stats).not.toBeNull();
+      expect(stats?.count).toBe(1);
+    });
+
+    it('should get stats for multiple measurements', () => {
+      perfMonitor.measure('multi-test', () => 1);
+      perfMonitor.measure('multi-test', () => 2);
+      perfMonitor.measure('multi-test', () => 3);
+
+      const stats = perfMonitor.getStats('multi-test');
+      expect(stats).not.toBeNull();
+      expect(stats?.count).toBe(3);
+      expect(stats?.avgDuration).toBeGreaterThan(0);
+    });
+
+    it('should clear metrics', () => {
+      perfMonitor.measure('clear-test', () => 1);
+      perfMonitor.clear();
+
+      const stats = perfMonitor.getStats('clear-test');
+      expect(stats).toBeNull();
+    });
+
+    it('should use component render helper', () => {
+      const measure = perfMonitor.measureComponentRender('TestComponent');
+      measure.start();
+      measure.end();
+
+      const stats = perfMonitor.getStats('render:TestComponent');
+      expect(stats).not.toBeNull();
+    });
+
+    it('should use API call helper', () => {
+      const measure = perfMonitor.measureAPICall('getTodos');
+      measure.start();
+      measure.end();
+
+      const stats = perfMonitor.getStats('api:getTodos');
+      expect(stats).not.toBeNull();
+    });
+
+    it('should use interaction helper', () => {
+      const measure = perfMonitor.measureInteraction('buttonClick');
+      measure.start();
+      measure.end();
+
+      const stats = perfMonitor.getStats('interaction:buttonClick');
+      expect(stats).not.toBeNull();
+    });
   });
 
   // ============================================

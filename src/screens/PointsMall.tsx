@@ -6,19 +6,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ShoppingBag, Sparkles, Loader2 } from 'lucide-react';
 import GlassPanel from '../components/GlassPanel';
 import { getMallItems, getUserPointsBalance, purchaseItem } from '../services/mallService';
 import type { MallItem, MallCategory, PointsBalance } from '../types/mall';
-import { AppRoutes } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { IMAGES } from '../constants';
 import toast from 'react-hot-toast';
 
 const PointsMall: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const { isDark } = useTheme();
 
   // 状态管理

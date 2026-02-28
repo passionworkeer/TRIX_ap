@@ -6,6 +6,7 @@
 
 import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
+import { perfMonitor } from '../utils/performance';
 import type {
   Todo,
   CreateTodoInput,
@@ -52,7 +53,11 @@ function mapRecordToTodo(record: TodoRecord): Todo {
  * @returns 待办事项列表
  */
 export async function getTodos(): Promise<Todo[]> {
+  const measure = perfMonitor.measureAPICall('getTodos');
+
   try {
+    measure.start();
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -75,6 +80,8 @@ export async function getTodos(): Promise<Todo[]> {
   } catch (error) {
     logger.error('[TodoService] Error in getTodos:', error);
     throw error;
+  } finally {
+    measure.end();
   }
 }
 

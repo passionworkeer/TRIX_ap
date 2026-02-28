@@ -1,0 +1,226 @@
+//
+//  Todo.swift
+//  TRIX3DCompanion
+//
+//  Todo data model for workbench feature
+//
+
+import Foundation
+import SwiftUI
+
+// MARK: - Todo Model
+
+/// Todo item model
+struct Todo: Identifiable, Codable, Equatable {
+    let id: UUID
+    var title: String
+    var description: String?
+    var completed: Bool
+    var priority: Priority
+    var dueDate: Date?
+    let createdAt: Date
+    var updatedAt: Date
+    var syncStatus: SyncStatus
+
+    // MARK: - Nested Types
+
+    /// Todo priority level
+    enum Priority: String, Codable, CaseIterable {
+        case low
+        case medium
+        case high
+
+        var displayName: String {
+            switch self {
+            case .low: return "Low"
+            case .medium: return "Medium"
+            case .high: return "High"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .low: return "flag.fill"
+            case .medium: return "flag.fill"
+            case .high: return "flag.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .low: return .green
+            case .medium: return .orange
+            case .high: return .red
+            }
+        }
+    }
+
+    /// Sync status with backend
+    enum SyncStatus: String, Codable {
+        case synced
+        case pending
+        case conflict
+    }
+
+    // MARK: - Coding Keys
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case completed
+        case priority
+        case dueDate = "due_date"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case syncStatus = "sync_status"
+    }
+
+    // MARK: - Initialization
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        description: String? = nil,
+        completed: Bool = false,
+        priority: Priority = .medium,
+        dueDate: Date? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        syncStatus: SyncStatus = .pending
+    ) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.completed = completed
+        self.priority = priority
+        self.dueDate = dueDate
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.syncStatus = syncStatus
+    }
+
+    // MARK: - Computed Properties
+
+    /// Whether todo is overdue
+    var isOverdue: Bool {
+        guard let due = dueDate, !completed else { return false }
+        return due < Date()
+    }
+
+    /// Whether todo is due today
+    var isDueToday: Bool {
+        guard let due = dueDate else { return false }
+        return Calendar.current.isDateInToday(due)
+    }
+
+    /// Formatted due date string
+    var dueDateString: String? {
+        guard let due = dueDate else { return nil }
+        let formatter = DateFormatter()
+        if Calendar.current.isDateInToday(due) {
+            formatter.timeStyle = .short
+            return "Today \(formatter.string(from: due))"
+        } else if Calendar.current.isDateInTomorrow(due) {
+            formatter.timeStyle = .short
+            return "Tomorrow \(formatter.string(from: due))"
+        } else {
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            return formatter.string(from: due)
+        }
+    }
+}
+
+// MARK: - Todo Filter
+
+/// Filter options for todo list
+enum TodoFilter: String, CaseIterable {
+    case all
+    case active
+    case completed
+
+    var displayName: String {
+        switch self {
+        case .all: return "All"
+        case .active: return "Active"
+        case .completed: return "Completed"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .all: return "list.bullet"
+        case .active: return "circle"
+        case .completed: return "checkmark.circle.fill"
+        }
+    }
+}
+
+// MARK: - Todo Sort Option
+
+/// Sort options for todo list
+enum TodoSortOption: String, CaseIterable {
+    case createdAt
+    case dueDate
+    case priority
+    case title
+
+    var displayName: String {
+        switch self {
+        case .createdAt: return "Created Date"
+        case .dueDate: return "Due Date"
+        case .priority: return "Priority"
+        case .title: return "Title"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .createdAt: return "calendar.badge.plus"
+        case .dueDate: return "calendar"
+        case .priority: return "flag"
+        case .title: return "textformat"
+        }
+    }
+}
+
+// MARK: - Preview Helpers
+
+#if DEBUG
+extension Todo {
+    /// Sample todos for preview
+    static var sampleTodos: [Todo] {
+        [
+            Todo(
+                title: "Complete iOS project",
+                description: "Finish the workbench feature implementation",
+                completed: false,
+                priority: .high,
+                dueDate: Date().addingTimeInterval(3600 * 2)
+            ),
+            Todo(
+                title: "Review pull request",
+                description: nil,
+                completed: false,
+                priority: .medium,
+                dueDate: Date().addingTimeInterval(3600 * 24)
+            ),
+            Todo(
+                title: "Update documentation",
+                description: "Add API documentation for new endpoints",
+                completed: true,
+                priority: .low,
+                dueDate: nil
+            ),
+            Todo(
+                title: "Fix login bug",
+                description: "Users cannot login with Apple ID",
+                completed: false,
+                priority: .high,
+                dueDate: Date().addingTimeInterval(-3600) // Overdue
+            )
+        ]
+    }
+}
+#endif

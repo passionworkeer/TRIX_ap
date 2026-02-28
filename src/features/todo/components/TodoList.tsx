@@ -4,7 +4,7 @@
  * 显示待办事项列表，支持过滤、排序、编辑、删除、完成操作
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   Check,
   ChevronDown,
@@ -16,34 +16,19 @@ import {
   Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useNotification } from '../../../hooks/useNotification';
-import { useFilteredTodos, useTodoStore, type TodoFilter, type TodoSort } from '../store/todoStore';
+import { useFilteredTodos, useTodoStore } from '../store/todoStore';
+import { usePerformanceTracking } from '../../../utils/performance';
 import TodoForm from './TodoForm';
 import type { Todo, TodoPriority } from '../../../types/workbench';
 
 // 优先级配置
-const priorityConfig: Record<TodoPriority, { label: string; className: string }> = {
-  high: { label: '高', className: 'bg-rose-500/20 text-rose-300 border-rose-400/30' },
-  medium: { label: '中', className: 'bg-orange-500/20 text-orange-300 border-orange-400/30' },
-  low: { label: '低', className: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' },
+const priorityConfig: Record<TodoPriority, { className: string }> = {
+  high: { className: 'bg-rose-500/20 text-rose-300 border-rose-400/30' },
+  medium: { className: 'bg-orange-500/20 text-orange-300 border-orange-400/30' },
+  low: { className: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' },
 };
-
-// 过滤选项
-const filterOptions: { value: TodoFilter; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'active', label: '进行中' },
-  { value: 'completed', label: '已完成' },
-  { value: 'high', label: '高优先级' },
-  { value: 'medium', label: '中优先级' },
-  { value: 'low', label: '低优先级' },
-];
-
-// 排序选项
-const sortOptions: { value: TodoSort; label: string }[] = [
-  { value: 'priority', label: '优先级' },
-  { value: 'due_date', label: '截止日期' },
-  { value: 'created_at', label: '创建时间' },
-];
 
 interface TodoItemProps {
   todo: Todo;
@@ -53,6 +38,7 @@ interface TodoItemProps {
 }
 
 const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, onEdit }) => {
+  const { t } = useTranslation();
   const [showMenu, setShowMenu] = useState(false);
 
   const handleToggle = useCallback(async () => {
@@ -85,16 +71,16 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
     if (days < 0) {
-      return { text: '已过期', className: 'text-rose-400' };
+      return { text: t('todo.dueDate.expired'), className: 'text-rose-400' };
     }
     if (days === 0) {
-      return { text: '今天', className: 'text-amber-400' };
+      return { text: t('todo.dueDate.today'), className: 'text-amber-400' };
     }
     if (days === 1) {
-      return { text: '明天', className: 'text-amber-400' };
+      return { text: t('todo.dueDate.tomorrow'), className: 'text-amber-400' };
     }
     if (days <= 7) {
-      return { text: `${days}天后`, className: 'text-white/60' };
+      return { text: t('todo.dueDate.daysLeft', { days }), className: 'text-white/60' };
     }
     return { text: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }), className: 'text-white/40' };
   };
@@ -122,7 +108,7 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
             ? 'border-emerald-400 bg-emerald-500/20 text-emerald-400'
             : 'border-white/30 hover:border-white/50'
         }`}
-        aria-label={todo.completed ? '标记为未完成' : '标记为已完成'}
+        aria-label={todo.completed ? t('todo.notification.markIncomplete') : t('todo.notification.markComplete')}
       >
         {todo.completed && <Check size={12} strokeWidth={3} />}
       </button>
@@ -152,7 +138,7 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
               priorityConfig[todo.priority].className
             }`}
           >
-            {priorityConfig[todo.priority].label}
+            {t(`todo.priority.short.${todo.priority}`)}
           </span>
 
           {/* Due Date */}
@@ -170,7 +156,7 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
         <button
           onClick={() => setShowMenu(!showMenu)}
           className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 text-white/40 opacity-0 transition hover:bg-white/10 hover:text-white/70 group-hover:opacity-100"
-          aria-label="更多操作"
+          aria-label={t('common.edit')}
         >
           <MoreVertical size={14} />
         </button>
@@ -190,14 +176,14 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
                   className="flex w-full items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/5 hover:text-white"
                 >
                   <Edit2 size={12} />
-                  编辑
+                  {t('common.edit')}
                 </button>
                 <button
                   onClick={handleDelete}
                   className="flex w-full items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10"
                 >
                   <Trash2 size={12} />
-                  删除
+                  {t('common.delete')}
                 </button>
               </motion.div>
             </>
@@ -211,6 +197,10 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
 TodoItem.displayName = 'TodoItem';
 
 const TodoList: React.FC = () => {
+  // Track component render performance
+  usePerformanceTracking('TodoList');
+  const { t } = useTranslation();
+
   const { showError, showSuccess } = useNotification();
   const {
     isLoading,
@@ -247,24 +237,24 @@ const TodoList: React.FC = () => {
     async (id: string) => {
       try {
         await toggleComplete(id);
-        showSuccess('状态已更新');
+        showSuccess(t('todo.statusUpdated'));
       } catch (err) {
-        showError(err instanceof Error ? err.message : '更新失败');
+        showError(err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [toggleComplete, showSuccess, showError]
+    [toggleComplete, showSuccess, showError, t]
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
       try {
         await deleteTodo(id);
-        showSuccess('已删除');
+        showSuccess(t('todo.deleted'));
       } catch (err) {
-        showError(err instanceof Error ? err.message : '删除失败');
+        showError(err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [deleteTodo, showSuccess, showError]
+    [deleteTodo, showSuccess, showError, t]
   );
 
   const handleEdit = useCallback((todo: Todo) => {
@@ -285,18 +275,34 @@ const TodoList: React.FC = () => {
   const handleFormSuccess = useCallback(() => {
     setShowForm(false);
     setEditingTodo(null);
-    showSuccess(editingTodo ? '已更新' : '已添加');
-  }, [editingTodo, showSuccess]);
+    showSuccess(editingTodo ? t('todo.updated') : t('todo.added'));
+  }, [editingTodo, showSuccess, t]);
+
+  // Get filter and sort options with i18n
+  const filterOptions = useMemo(() => [
+    { value: 'all' as const, label: t('todo.filter.all') },
+    { value: 'active' as const, label: t('todo.filter.active') },
+    { value: 'completed' as const, label: t('todo.filter.completed') },
+    { value: 'high' as const, label: t('todo.priority.high') },
+    { value: 'medium' as const, label: t('todo.priority.medium') },
+    { value: 'low' as const, label: t('todo.priority.low') },
+  ], [t]);
+
+  const sortOptions = useMemo(() => [
+    { value: 'priority' as const, label: t('todo.sort.priority') },
+    { value: 'due_date' as const, label: t('todo.sort.due_date') },
+    { value: 'created_at' as const, label: t('todo.sort.created_at') },
+  ], [t]);
 
   // Get current filter label
-  const currentFilterLabel = filterOptions.find((f) => f.value === filter)?.label ?? '全部';
-  const currentSortLabel = sortOptions.find((s) => s.value === sortBy)?.label ?? '优先级';
+  const currentFilterLabel = filterOptions.find((f) => f.value === filter)?.label ?? t('todo.filter.all');
+  const currentSortLabel = sortOptions.find((s) => s.value === sortBy)?.label ?? t('todo.sort.priority');
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <h2 className="text-sm font-medium tracking-wide text-white/90">待办事项</h2>
+        <h2 className="text-sm font-medium tracking-wide text-white/90">{t('todo.title')}</h2>
         <div className="flex items-center gap-2">
           {/* Filter Button */}
           <div className="relative">
@@ -354,7 +360,7 @@ const TodoList: React.FC = () => {
               }}
               className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white/60 transition hover:bg-white/8 hover:text-white/90"
             >
-              <span>排序: {currentSortLabel}</span>
+              <span>{t('todo.sort.priority')}: {currentSortLabel}</span>
               <ChevronDown size={10} />
             </button>
 
@@ -405,7 +411,7 @@ const TodoList: React.FC = () => {
               <Check size={20} className="text-white/30" />
             </div>
             <p className="text-sm text-white/40">
-              {filter === 'all' ? '暂无待办事项' : '没有符合条件的待办'}
+              {filter === 'all' ? t('todo.empty') : t('todo.noResults')}
             </p>
             {filter === 'all' && (
               <button
@@ -413,7 +419,7 @@ const TodoList: React.FC = () => {
                 className="mt-3 flex items-center gap-1 rounded-full bg-cyan-500/20 px-4 py-1.5 text-xs text-cyan-400 transition hover:bg-cyan-500/30"
               >
                 <Plus size={12} />
-                添加待办
+                {t('todo.add')}
               </button>
             )}
           </div>
@@ -442,7 +448,7 @@ const TodoList: React.FC = () => {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500/80 py-2.5 text-sm font-medium text-white shadow-lg shadow-cyan-900/20 transition hover:bg-cyan-500"
           >
             <Plus size={16} />
-            添加待办
+            {t('todo.add')}
           </button>
         </div>
       )}

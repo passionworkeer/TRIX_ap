@@ -15,6 +15,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useNotification } from '../../../hooks/useNotification';
 import { getCurrentPosition } from '../../../services/locationService';
+import { usePerformanceTracking } from '../../../utils/performance';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -95,6 +96,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   onClose,
   onLocationSelected,
 }) => {
+  // Track component render performance
+  usePerformanceTracking('LocationPicker');
+
   const notification = useNotification();
 
   // State
@@ -249,6 +253,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         document.body.style.overflow = originalOverflow;
       };
     }
+    return undefined;
   }, [isOpen]);
 
   // Map fly effect key - triggers re-render when center changes
