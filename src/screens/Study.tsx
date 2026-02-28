@@ -11,7 +11,10 @@ import StudyHeader from "../features/study/components/StudyHeader";
 import DurationSelector from "../features/study/components/DurationSelector";
 import StudyStats from "../features/study/components/StudyStats";
 import { PointsModal } from "../features/study/components/PointsModal";
+import { FocusStartAnimation } from "../features/study/components/FocusStartAnimation";
 import { rewardStudyCompletion, initializeUserPoints } from "../services/pointsService";
+import { useAudioPlayer } from "../hooks/useAudioPlayer";
+import { DynamicBackground } from "../components/DynamicBackground";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -55,6 +58,12 @@ export default function Study() {
 
   // 💎 积分弹窗状态
   const [showPointsModal, setShowPointsModal] = useState(false);
+
+  // 🎵 背景音乐播放器
+  const audioPlayer = useAudioPlayer();
+
+  // ✨ 专注开始动画状态
+  const [showStartAnimation, setShowStartAnimation] = useState(false);
 
   // 🎯 使用 ref 追踪用户 ID 和自习状态
   const userIdRef = useRef(user?.id);
@@ -378,6 +387,14 @@ export default function Study() {
     hasTriggeredSummaryRef.current = false;
     hasCompletedRef.current = false;
 
+    // 🎯 触发开始动画
+    setShowStartAnimation(true);
+  };
+
+  // 🎬 动画完成后跳转到计时器页面
+  const handleStartAnimationComplete = async () => {
+    setShowStartAnimation(false);
+
     // 更新数据库：标记用户开始自习
     if (user?.id) {
       try {
@@ -386,7 +403,7 @@ export default function Study() {
           .from('profiles')
           .update({ is_studying: true })
           .eq('id', user.id);
-        
+
         if (error) {
           console.error('❌ [Study] 更新 is_studying 失败:', error);
         } else {
@@ -398,11 +415,11 @@ export default function Study() {
         console.error('❌ [Study] 数据库更新异常:', err);
       }
     }
-    
+
     // 🎯 记录开始时间和初始时长
     setFocusStartTime(Date.now());
     setInitialDuration(selectedDuration);
-    
+
     // 跳转到计时器页面
     navigate('/study/timer', {
       state: {
@@ -422,6 +439,7 @@ export default function Study() {
 
     hasTriggeredSummaryRef.current = true; // 🎯 立即标记，防止并发调用
     setIsActive(false); // ⚡ 停止计时器
+    audioPlayer.stop(); // 🎵 停止背景音乐
     setShowSummaryModal(true); // ⚡ 立即显示弹窗，防止异步操作期间重复触发
 
     // 🏅 计算本次专注时长并保存
@@ -568,6 +586,7 @@ export default function Study() {
         userEmail={user?.email}
         onCloseClick={handleCloseButtonClick}
         onStopFocus={handleStopFocus}
+        audioPlayer={audioPlayer}
         summaryModal={
           <SummaryModal
             show={showSummaryModal}
@@ -597,6 +616,14 @@ export default function Study() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50" />
       </div>
+
+      {/* 动态背景效果 */}
+      <DynamicBackground
+        type="both"
+        primaryColor="rgba(139, 92, 246, 0.12)"
+        secondaryColor="rgba(236, 72, 153, 0.12)"
+        particleCount={30}
+      />
 
       {/* 内容层：z-index: 10 */}
       <div className="relative z-10 h-full">
@@ -633,6 +660,13 @@ export default function Study() {
           userId={user.id}
         />
       )}
+
+      {/* ✨ 专注开始动画 */}
+      <FocusStartAnimation
+        show={showStartAnimation}
+        duration={selectedDuration}
+        onComplete={handleStartAnimationComplete}
+      />
     </div>
   );
 }

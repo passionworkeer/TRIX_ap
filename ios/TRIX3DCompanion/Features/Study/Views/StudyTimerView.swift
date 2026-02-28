@@ -28,6 +28,7 @@ struct StudyTimerView: View {
     @State private var breathingScale: CGFloat = 1.0
     @State private var isFocusMode = false
     @State private var notificationPermissionGranted = false
+    @State private var showMusicSelector = false
 
     // MARK: - Dependencies
 
@@ -101,6 +102,9 @@ struct StudyTimerView: View {
 
             Spacer()
 
+            // 音乐控制按钮
+            MusicButton(showMusicSelector: $showMusicSelector)
+
             // Focus mode toggle
             Button(action: { toggleFocusMode() }) {
                 HStack(spacing: 6) {
@@ -128,6 +132,9 @@ struct StudyTimerView: View {
             }
         }
         .padding()
+        .sheet(isPresented: $showMusicSelector) {
+            MusicSelectorView()
+        }
     }
 
     /// 普通模式内容
@@ -299,17 +306,27 @@ struct StudyTimerView: View {
         .padding(.horizontal, 40)
     }
 
-    /// 背景渐变
+    /// 背景渐变 - 使用动态背景效果
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.15),
-                Color.brandPink.opacity(0.1),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack {
+            // 基础渐变
+            LinearGradient(
+                colors: [
+                    Color.brandPurple.opacity(0.15),
+                    Color.brandPink.opacity(0.1),
+                    Color.clear
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // 动态粒子效果
+            ParticleView(
+                particleCount: 25,
+                primaryColor: Color.brandPurple.opacity(0.2),
+                secondaryColor: Color.brandPink.opacity(0.2)
+            )
+        }
     }
 
     // MARK: - Computed Properties

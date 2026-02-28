@@ -3,17 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+
     <!-- 移动端视口优化：防止缩放和黑底闪烁 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- PWA 元数据 -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <!-- 修复移动端黑边：设置状态栏和主题色 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#f2f4f6" />
-    <meta name="msapplication-TileColor" content="#f2f4f6" />
+    <meta name="apple-mobile-web-app-title" content="TRIX" />
+    <meta name="application-name" content="TRIX 3D Companion" />
+    <meta name="theme-color" content="#8b5cf6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#8b5cf6" media="(prefers-color-scheme: dark)" />
+    <meta name="msapplication-TileColor" content="#8b5cf6" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+
+    <!-- SEO 元数据 -->
+    <meta name="description" content="TRIX 3D Companion - AI 伴侣应用，随时陪伴，沉浸学习" />
+    <meta name="keywords" content="AI, 学习, 专注, 伴侣, TRIX" />
+
     <title>TRIX 3D Companion</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
+
+    <!-- 注册 Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('✅ SW registered:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('❌ SW registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
