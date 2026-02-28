@@ -122,7 +122,7 @@ describe('databaseService', () => {
 
   describe('loadClawbotMessageHistory', () => {
     it('should return empty array for empty userId', async () => {
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('');
       expect(result).toEqual([]);
     });
@@ -130,7 +130,7 @@ describe('databaseService', () => {
     it('should return empty array when no data in localStorage', async () => {
       mockLocalStorage.getItem.mockReturnValue(null);
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
       expect(result).toEqual([]);
       expect(mockLocalStorage.getItem).toHaveBeenCalledWith('trix_clawbot_history:user-123');
@@ -139,7 +139,7 @@ describe('databaseService', () => {
     it('should return empty array when data is not valid JSON', async () => {
       mockLocalStorage.getItem.mockReturnValue('invalid-json');
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
       expect(result).toEqual([]);
     });
@@ -147,7 +147,7 @@ describe('databaseService', () => {
     it('should return empty array when data is not an array', async () => {
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify({ key: 'value' }));
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
       expect(result).toEqual([]);
     });
@@ -159,7 +159,7 @@ describe('databaseService', () => {
       ];
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(validMessages));
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
 
       expect(result).toHaveLength(2);
@@ -175,7 +175,7 @@ describe('databaseService', () => {
       ];
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mixedMessages));
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
 
       expect(result).toHaveLength(1);
@@ -190,7 +190,7 @@ describe('databaseService', () => {
       ];
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(messages));
 
-      const { loadClawbotMessageHistory } = await import('../services/databaseService');
+      const { loadClawbotMessageHistory } = await import('../services/clawbotHistoryService');
       const result = await loadClawbotMessageHistory('user-123');
 
       expect(result[0].id).toBe('msg-1');
@@ -201,7 +201,7 @@ describe('databaseService', () => {
 
   describe('saveClawbotMessage', () => {
     it('should return early for empty userId', async () => {
-      const { saveClawbotMessage } = await import('../services/databaseService');
+      const { saveClawbotMessage } = await import('../services/clawbotHistoryService');
       const message = { id: 'msg-1', content: 'Hello', contentType: 'text' as const, sender: 'user' as const, timestamp: 1700000000000 };
 
       await saveClawbotMessage('', message);
@@ -210,7 +210,7 @@ describe('databaseService', () => {
     });
 
     it('should return early for invalid message', async () => {
-      const { saveClawbotMessage } = await import('../services/databaseService');
+      const { saveClawbotMessage } = await import('../services/clawbotHistoryService');
       const invalidMessage = { id: '', content: '', contentType: 'text' as const, sender: 'user' as const, timestamp: 0 };
 
       await saveClawbotMessage('user-123', invalidMessage);
@@ -222,7 +222,7 @@ describe('databaseService', () => {
       mockLocalStorage.getItem.mockReturnValue(null);
       const message = { id: 'msg-1', content: 'Hello', contentType: 'text' as const, sender: 'user' as const, timestamp: 1700000000000 };
 
-      const { saveClawbotMessage } = await import('../services/databaseService');
+      const { saveClawbotMessage } = await import('../services/clawbotHistoryService');
       await saveClawbotMessage('user-123', message);
 
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
@@ -239,7 +239,7 @@ describe('databaseService', () => {
       ];
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(existing));
 
-      const { saveClawbotMessage } = await import('../services/databaseService');
+      const { saveClawbotMessage } = await import('../services/clawbotHistoryService');
       await saveClawbotMessage('user-123', { id: 'msg-1', content: 'Updated', contentType: 'text' as const, sender: 'user' as const, timestamp: 1700000000000 });
 
       const [, value] = mockLocalStorage.setItem.mock.calls[0];
@@ -259,7 +259,7 @@ describe('databaseService', () => {
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(manyMessages));
 
       const message = { id: 'new-msg', content: 'New', contentType: 'text' as const, sender: 'user' as const, timestamp: 1800000000000 };
-      const { saveClawbotMessage } = await import('../services/databaseService');
+      const { saveClawbotMessage } = await import('../services/clawbotHistoryService');
       await saveClawbotMessage('user-123', message);
 
       const [, value] = mockLocalStorage.setItem.mock.calls[0];
@@ -270,7 +270,7 @@ describe('databaseService', () => {
 
   describe('deleteClawbotMessage', () => {
     it('should return early for empty userId or messageId', async () => {
-      const { deleteClawbotMessage } = await import('../services/databaseService');
+      const { deleteClawbotMessage } = await import('../services/clawbotHistoryService');
 
       await deleteClawbotMessage('', 'msg-1');
       await deleteClawbotMessage('user-123', '');
@@ -285,7 +285,7 @@ describe('databaseService', () => {
       ];
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify(existing));
 
-      const { deleteClawbotMessage } = await import('../services/databaseService');
+      const { deleteClawbotMessage } = await import('../services/clawbotHistoryService');
       await deleteClawbotMessage('user-123', 'msg-1');
 
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
