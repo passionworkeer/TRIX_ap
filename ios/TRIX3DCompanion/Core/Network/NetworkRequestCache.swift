@@ -301,6 +301,10 @@ extension NetworkRequestCache {
             }
         }
 
-        return try await task.value as! T
+        let result = try await task.value
+        guard let typedResult = result as? T else {
+            throw NetworkError.typeMismatch("Failed to cast response to expected type")
+        }
+        return typedResult
     }
 }

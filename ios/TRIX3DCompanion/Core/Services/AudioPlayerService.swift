@@ -190,7 +190,7 @@ final class AudioPlayerService: ObservableObject {
             try audioSession?.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try audioSession?.setActive(true)
         } catch {
-            print("Failed to setup audio session: \(error)")
+            SecureLogger.shared.error("Failed to setup audio session: \(error)")
         }
     }
 }

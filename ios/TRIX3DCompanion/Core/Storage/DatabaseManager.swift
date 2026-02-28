@@ -323,6 +323,8 @@ final class DatabaseManager {
             // 创建索引以加速查询
             try db?.run(messagesTable.createIndex(messageRoomId, ifNotExists: true))
             try db?.run(messagesTable.createIndex(messageCreatedAt, ifNotExists: true))
+            // 复合索引：优化按房间+时间分页查询（性能优化）
+            try db?.run(messagesTable.createIndex(messageRoomId, messageCreatedAt, ifNotExists: true))
         } catch {
             SecureLogger.shared.error("Failed to create messages table: \(error)")
         }

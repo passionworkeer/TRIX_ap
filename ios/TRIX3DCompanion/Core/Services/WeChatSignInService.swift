@@ -526,8 +526,8 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     /// Generate random state parameter for CSRF protection
     /// - Returns: Random state string
     private func generateState() -> String {
-        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0..<32).map { _ in characters.randomElement()! })
+        // Use UUID for cryptographically secure random state
+        return UUID().uuidString.replacingOccurrences(of: "-", with: "")
     }
 }
 
