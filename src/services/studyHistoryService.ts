@@ -86,8 +86,8 @@ class StudyHistoryService {
    * 获取今日概要
    */
   async getTodaySummary(userId: string): Promise<DailySummary> {
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
     try {
       const { data, error } = await supabase
@@ -153,11 +153,11 @@ class StudyHistoryService {
       // 找出最佳的一天
       const dailyTotals: Record<string, number> = {};
       sessions.forEach(session => {
-        const date = session.started_at.split('T')[0];
+        const date = session.started_at.slice(0, 10);
         dailyTotals[date] = (dailyTotals[date] || 0) + session.duration_minutes;
       });
 
-      let bestDay = { date: monday.toISOString().split('T')[0], minutes: 0 };
+      let bestDay = { date: monday.toISOString().slice(0, 10), minutes: 0 };
       Object.entries(dailyTotals).forEach(([date, minutes]) => {
         if (minutes > bestDay.minutes) {
           bestDay = { date, minutes };
@@ -168,8 +168,8 @@ class StudyHistoryService {
       const streakDays = Object.keys(dailyTotals).length;
 
       return {
-        weekStart: monday.toISOString().split('T')[0],
-        weekEnd: sunday.toISOString().split('T')[0],
+        weekStart: monday.toISOString().slice(0, 10),
+        weekEnd: sunday.toISOString().slice(0, 10),
         totalMinutes,
         sessionsCount: sessions.length,
         dailyAverage,
@@ -179,12 +179,12 @@ class StudyHistoryService {
     } catch (error) {
       console.error('Failed to get weekly summary:', error);
       return {
-        weekStart: monday.toISOString().split('T')[0],
-        weekEnd: sunday.toISOString().split('T')[0],
+        weekStart: monday.toISOString().slice(0, 10),
+        weekEnd: sunday.toISOString().slice(0, 10),
         totalMinutes: 0,
         sessionsCount: 0,
         dailyAverage: 0,
-        bestDay: { date: monday.toISOString().split('T')[0], minutes: 0 },
+        bestDay: { date: monday.toISOString().slice(0, 10), minutes: 0 },
         streakDays: 0
       };
     }

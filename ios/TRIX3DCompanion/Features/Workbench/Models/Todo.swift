@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 // MARK: - Todo Model
 
@@ -38,19 +37,21 @@ struct Todo: Identifiable, Codable, Equatable {
             }
         }
 
+        /// Returns icon name for priority - using different icons for visual distinction
         var icon: String {
             switch self {
-            case .low: return "flag.fill"
-            case .medium: return "flag.fill"
-            case .high: return "flag.fill"
+            case .low: return "arrow.down.circle"
+            case .medium: return "minus.circle"
+            case .high: return "exclamationmark.circle"
             }
         }
 
-        var color: Color {
+        /// Returns color hex string for priority - Model should not depend on SwiftUI
+        var colorHex: String {
             switch self {
-            case .low: return .green
-            case .medium: return .orange
-            case .high: return .red
+            case .low: return "#10B981"     // green-500
+            case .medium: return "#F97316"   // orange-500
+            case .high: return "#EF4444"     // red-500
             }
         }
     }
@@ -61,6 +62,23 @@ struct Todo: Identifiable, Codable, Equatable {
         case pending
         case conflict
     }
+
+    // MARK: - Static DateFormatters (cached for performance)
+
+    /// Cached date formatter for due date strings
+    private static let _dueDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    /// Cached date formatter for time only
+    private static let _timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     // MARK: - Coding Keys
 
@@ -114,20 +132,18 @@ struct Todo: Identifiable, Codable, Equatable {
         return Calendar.current.isDateInToday(due)
     }
 
-    /// Formatted due date string
+    /// Formatted due date string - uses cached formatters
     var dueDateString: String? {
         guard let due = dueDate else { return nil }
-        let formatter = DateFormatter()
+
         if Calendar.current.isDateInToday(due) {
-            formatter.timeStyle = .short
-            return "Today \(formatter.string(from: due))"
+            let time = Self._timeFormatter.string(from: due)
+            return "Today \(time)"
         } else if Calendar.current.isDateInTomorrow(due) {
-            formatter.timeStyle = .short
-            return "Tomorrow \(formatter.string(from: due))"
+            let time = Self._timeFormatter.string(from: due)
+            return "Tomorrow \(time)"
         } else {
-            formatter.dateStyle = .short
-            formatter.timeStyle = .short
-            return formatter.string(from: due)
+            return Self._dueDateFormatter.string(from: due)
         }
     }
 }

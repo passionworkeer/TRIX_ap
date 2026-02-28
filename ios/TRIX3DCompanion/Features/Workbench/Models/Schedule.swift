@@ -6,7 +6,11 @@
 //
 
 import Foundation
-import SwiftUI
+
+// MARK: - Constants
+
+/// Magic number: 15 minutes in seconds
+private let FIFTEEN_MINUTES_SECONDS: TimeInterval = 900
 
 // MARK: - Schedule Model
 
@@ -31,6 +35,22 @@ struct Schedule: Identifiable, Codable, Equatable {
         case pending
         case conflict
     }
+
+    // MARK: - Static DateFormatters (cached for performance)
+
+    /// Cached date formatter for time only
+    private static let _timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    /// Cached date formatter for date only
+    private static let _dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter
+    }()
 
     // MARK: - Coding Keys
 
@@ -100,7 +120,7 @@ struct Schedule: Identifiable, Codable, Equatable {
             return startTime <= now && now <= end
         }
         // Consider it "now" if within 15 minutes of start
-        return abs(startTime.timeIntervalSinceNow) < 900
+        return abs(startTime.timeIntervalSinceNow) < FIFTEEN_MINUTES_SECONDS
     }
 
     /// Duration in minutes
@@ -109,45 +129,39 @@ struct Schedule: Identifiable, Codable, Equatable {
         return Int(end.timeIntervalSince(startTime) / 60)
     }
 
-    /// Formatted time range string
+    /// Formatted time range string - uses cached formatters
     var timeRangeString: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-
-        let startString = formatter.string(from: startTime)
+        let startString = Self._timeFormatter.string(from: startTime)
 
         if let end = endTime {
-            let endString = formatter.string(from: end)
+            let endString = Self._timeFormatter.string(from: end)
             return "\(startString) - \(endString)"
         }
 
         return startString
     }
 
-    /// Formatted date string
+    /// Formatted date string - uses cached formatters
     var dateString: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-
         if isToday {
             return "Today"
         } else if isTomorrow {
             return "Tomorrow"
         }
 
-        return formatter.string(from: startTime)
+        return Self._dateFormatter.string(from: startTime)
     }
 
-    /// Color based on status
-    var statusColor: Color {
+    /// Color hex based on status - Model should not depend on SwiftUI
+    var statusColorHex: String {
         if isPast {
-            return .gray
+            return "#6B7280"     // gray-500
         } else if isNow {
-            return .green
+            return "#10B981"     // green-500
         } else if isToday {
-            return .blue
+            return "#3B82F6"     // blue-500
         }
-        return .primary
+        return "#8B5CF6"         // violet-500 (default)
     }
 }
 
