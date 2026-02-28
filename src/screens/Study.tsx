@@ -226,23 +226,6 @@ export default function Study() {
     }
   }, [isTimer, fetchCompanionInfo]); // 添加 fetchCompanionInfo 依赖
 
-  // 🔄 定时轮询：每 3 秒检查一次 companion_id（Realtime 的兜底方案）
-  useEffect(() => {
-    if (!isTimer || !user?.id) return;
-
-    console.log('⏰ [Study] 启动定时轮询（3秒间隔）');
-
-    const pollInterval = setInterval(() => {
-      console.log('🔄 [Study] 轮询检查 companion_id...');
-      fetchCompanionInfo();
-    }, 3000); // 3 秒轮询一次
-
-    return () => {
-      console.log('🧹 [Study] 清理定时轮询');
-      clearInterval(pollInterval);
-    };
-  }, [isTimer, fetchCompanionInfo]); // 添加 fetchCompanionInfo 依赖
-
   // 🔔 实时监听 companion_id 变化（作为快速响应）
   useEffect(() => {
     if (!isTimer || !user?.id) return;
