@@ -135,7 +135,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     // 获取用户积分余额
     const { data: pointsData, error: pointsError } = await supabase
       .from('user_points')
-      .select('balance')
+      .select('balance, total_spent')
       .eq('user_id', user.id)
       .single();
 
@@ -148,6 +148,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     }
 
     const currentBalance = pointsData.balance;
+    const currentTotalSpent = pointsData.total_spent || 0;
 
     // 检查积分是否足够
     if (currentBalance < item.price) {
@@ -182,7 +183,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       .from('user_points')
       .update({
         balance: currentBalance - item.price,
-        total_spent: (pointsDataAny.total_spent || 0) + item.price,
+        total_spent: currentTotalSpent + item.price,
       })
       .eq('user_id', user.id);
 
