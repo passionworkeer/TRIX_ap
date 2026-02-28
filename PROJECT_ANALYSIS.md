@@ -204,7 +204,7 @@
 - [ ] 重构 OSS 服务使用服务端签名
 - [ ] 在 Study.tsx 中使用新 hooks（渐进式迁移）
 - [x] ~~拆分 databaseService.ts~~ ✅ 已完成 (5个服务)
-- [ ] 拆分 ClawbotChannelContext
+- [x] ~~拆分 ClawbotChannelContext~~ ✅ 已创建 hooks
 - [ ] 增加组件测试覆盖率到 40%
 
 ### 长期（1-2月）
