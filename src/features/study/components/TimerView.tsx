@@ -53,8 +53,6 @@ const TimerView: React.FC<TimerViewProps> = ({
 }) => {
   const [showMusicSelector, setShowMusicSelector] = useState(false);
 
-  // Audio player - unused but reserved for future use
-  void _audio; // Acknowledge for TypeScript
   return (
     <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
       {/* 背景层：z-index: 0 */}
@@ -101,13 +99,13 @@ const TimerView: React.FC<TimerViewProps> = ({
               className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
               aria-label="背景音乐"
             >
-              {currentTrack && isPlaying ? (
+              {audioPlayer?.currentTrack && audioPlayer?.isPlaying ? (
                 <div className="flex items-center gap-0.5">
                   <div className="w-1 bg-purple-400 rounded-full animate-pulse" style={{ height: '8px' }} />
                   <div className="w-1 bg-purple-400 rounded-full animate-pulse" style={{ height: '12px', animationDelay: '0.1s' }} />
                   <div className="w-1 bg-purple-400 rounded-full animate-pulse" style={{ height: '16px', animationDelay: '0.2s' }} />
                 </div>
-              ) : currentTrack ? (
+              ) : audioPlayer?.currentTrack ? (
                 <Volume2 size={18} className="text-purple-300" />
               ) : (
                 <Music size={18} className="text-white/70" />
