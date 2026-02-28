@@ -203,7 +203,7 @@
 ### 中期（2-4周）
 - [ ] 重构 OSS 服务使用服务端签名
 - [ ] 在 Study.tsx 中使用新 hooks（渐进式迁移）
-- [ ] 拆分 databaseService.ts
+- [x] ~~拆分 databaseService.ts~~ ✅ 已完成 (5个服务)
 - [ ] 拆分 ClawbotChannelContext
 - [ ] 增加组件测试覆盖率到 40%
 
