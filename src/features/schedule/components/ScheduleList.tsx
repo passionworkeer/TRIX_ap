@@ -6,6 +6,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Bell,
   Calendar,
   ChevronDown,
   Clock,
@@ -25,6 +26,7 @@ import {
   type ScheduleFilter,
   type ScheduleGroup,
 } from '../store/scheduleStore';
+import { useScheduleNotification } from '../hooks/useScheduleNotification';
 import ScheduleForm from './ScheduleForm';
 import type { Schedule } from '../../../types/workbench';
 
@@ -226,6 +228,7 @@ const ScheduleList: React.FC = () => {
     isLoading,
     error,
     filter,
+    schedules,
     fetchSchedules,
     deleteSchedule,
     setFilter,
@@ -233,6 +236,15 @@ const ScheduleList: React.FC = () => {
 
   const filteredSchedules = useFilteredSchedules();
   const groupedSchedules = useGroupedSchedules();
+
+  // Setup notification for schedules
+  const { requestPermission, permissionStatus } = useScheduleNotification({
+    schedules,
+    onNotificationClick: (schedule) => {
+      // Navigate to or focus on the schedule
+      console.log('Notification clicked for schedule:', schedule.id);
+    },
+  });
 
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
@@ -323,6 +335,21 @@ const ScheduleList: React.FC = () => {
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <h2 className="text-sm font-medium tracking-wide text-white/90">日程安排</h2>
         <div className="flex items-center gap-2">
+          {/* Notification Permission Button */}
+          {permissionStatus !== 'unsupported' && (
+            <button
+              onClick={() => requestPermission()}
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition ${
+                permissionStatus === 'granted'
+                  ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                  : 'border-white/10 text-white/50 hover:bg-white/5 hover:text-white/70'
+              }`}
+              title={permissionStatus === 'granted' ? '通知已开启' : '开启通知'}
+            >
+              <Bell size={12} />
+            </button>
+          )}
+
           {/* Filter Button */}
           <div className="relative">
             <button
