@@ -172,8 +172,8 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    clawbotChannelBridge.on('study_room_state', handleStudyRoomState);
-    return () => clawbotChannelBridge.off('study_room_state', handleStudyRoomState);
+    clawbotChannelBridge.on('study_room_state', handleStudyRoomState as (data: unknown) => void);
+    return () => clawbotChannelBridge.off('study_room_state', handleStudyRoomState as (data: unknown) => void);
   }, [handleStudyRoomState, isOpen]);
 
   useEffect(() => {

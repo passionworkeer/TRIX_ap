@@ -53,8 +53,9 @@ const Modal: React.FC<ModalProps> = ({
     const focusables = Array.from(
       panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
     );
-    if (focusables.length > 0) {
-      focusables[0].focus();
+    const firstFocusable = focusables[0];
+    if (firstFocusable) {
+      firstFocusable.focus();
     } else {
       panel.focus();
     }
@@ -89,10 +90,10 @@ const Modal: React.FC<ModalProps> = ({
       const last = focusables[focusables.length - 1];
       const activeElement = document.activeElement as HTMLElement | null;
 
-      if (event.shiftKey && activeElement === first) {
+      if (event.shiftKey && activeElement === first && last) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && activeElement === last) {
+      } else if (!event.shiftKey && activeElement === last && first) {
         event.preventDefault();
         first.focus();
       }

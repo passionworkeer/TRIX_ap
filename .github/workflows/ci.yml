@@ -24,10 +24,12 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npm run type-check || echo "Type check has warnings"
+        continue-on-error: true
+        run: npm run type-check
 
       - name: Lint
-        run: npm run lint || echo "Lint has warnings"
+        continue-on-error: true
+        run: npm run lint
 
       - name: Run tests
         run: npm run test:run

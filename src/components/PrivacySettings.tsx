@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
-import { getErrorMessage } from '../utils/errorHandler';
 
 interface PrivacySettingsState {
   allow_stranger_search: boolean;
