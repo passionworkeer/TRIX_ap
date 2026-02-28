@@ -527,14 +527,7 @@ const DEDUPE_REQUEST_TIMEOUT_MS = 30000;
  * Clean up stale pending requests
  */
 function cleanupPendingRequests(): void {
-  const now = Date.now();
-  for (const [key, promise] of pendingRequests) {
-    // Check if promise has been settled by checking its status
-    // This is a heuristic - we assume settled promises are "old"
-    // In practice, .finally() should clean up, but this is a safety net
-  }
-
-  // Clear all entries that are too old
+  // Cleanup stale pending requests
   // Note: This is a simplified cleanup - in production you might want
   // to track creation time for each entry
   if (pendingRequests.size > 100) {
