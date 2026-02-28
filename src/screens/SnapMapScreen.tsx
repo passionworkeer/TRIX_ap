@@ -228,7 +228,6 @@ const SnapMapScreen: React.FC = () => {
   const { t } = useTranslation();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
-  const [prevFriendLocations, setPrevFriendLocations] = useState<FriendLocation[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'all'>('all');
@@ -266,8 +265,6 @@ const SnapMapScreen: React.FC = () => {
       try {
         const locations = await getFriendsLocations();
         if (locations.length > 0) {
-          // T3.4.2: 保存旧位置用于动画
-          setPrevFriendLocations(friendLocations);
           setFriendLocations(locations);
         }
       } catch (error) {
