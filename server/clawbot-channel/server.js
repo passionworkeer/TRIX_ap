@@ -14,12 +14,34 @@ const ossService = require('./services/ossService');
 const ttsService = require('./services/ttsService');
 const { studyRoomService } = require('./services/studyRoomService');
 
+// CORS configuration - support whitelist via CORS_ORIGINS env var
+// Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
+// Empty or unset defaults to '*' (development)
+const parseCorsOrigins = (envValue) => {
+  if (!envValue || typeof envValue !== 'string') {
+    return '*';
+  }
+  const trimmed = envValue.trim();
+  if (!trimmed) {
+    return '*';
+  }
+  // Split by comma and clean up whitespace
+  const origins = trimmed.split(',').map(o => o.trim()).filter(Boolean);
+  if (origins.length === 0) {
+    return '*';
+  }
+  return origins;
+};
+
+const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
+console.log(`[CORS] Allowed origins: ${Array.isArray(CORS_ORIGINS) ? CORS_ORIGINS.join(', ') : CORS_ORIGINS}`);
+
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: CORS_ORIGINS,
     methods: ['GET', 'POST']
   },
   transports: ['websocket', 'polling'],
@@ -316,7 +338,11 @@ const upload = multer({
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: CORS_ORIGINS,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-secret']
+}));
 app.use(express.json());
 
 const apiLimiter = rateLimit({
