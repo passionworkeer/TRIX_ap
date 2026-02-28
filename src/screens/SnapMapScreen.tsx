@@ -36,14 +36,6 @@ interface FriendStatus {
   text: string;
 }
 
-interface PlaceInfo {
-  name: string;
-  type: 'dining' | 'entertainment' | 'study' | 'shopping' | 'park';
-  emoji: string;
-  description: string;
-  openHours?: string;
-}
-
 const friendStatuses: Record<string, FriendStatus> = {
   'clawbot': { emoji: '🤖', text: 'Coding...' },
 };
