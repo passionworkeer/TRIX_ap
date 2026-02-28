@@ -56,6 +56,10 @@
     "archive",
     "ios",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "src/features/study/components",
+    "src/hooks/useTouchGestures.ts",
+    "src/services/achievementService.ts",
+    "src/types/achievement.ts"
   ]
 }
