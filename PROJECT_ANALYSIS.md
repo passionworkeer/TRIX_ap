@@ -193,14 +193,16 @@
 ## 🎯 未来路线图
 
 ### 短期（1周）
-- [ ] 轮换所有泄露的密钥
-- [ ] 修复 Math.random() 为 crypto.getRandomValues
-- [ ] 修正 E2E baseURL 配置
-- [ ] Study 页面移除轮询
+- [x] ~~轮换所有泄露的密钥~~ ⚠️ 需手动操作
+- [x] ~~修复 Math.random() 为 crypto.getRandomValues~~ ✅ 已完成
+- [x] ~~修正 E2E baseURL 配置~~ ✅ 已完成
+- [x] ~~Study 页面移除轮询~~ ✅ 已完成
+- [x] ~~Home 页面移除轮询~~ ✅ 已完成
+- [x] ~~拆分 Study.tsx~~ ✅ 已创建 hooks
 
 ### 中期（2-4周）
 - [ ] 重构 OSS 服务使用服务端签名
-- [ ] 拆分 Study.tsx
+- [ ] 在 Study.tsx 中使用新 hooks（渐进式迁移）
 - [ ] 拆分 databaseService.ts
 - [ ] 拆分 ClawbotChannelContext
 - [ ] 增加组件测试覆盖率到 40%
