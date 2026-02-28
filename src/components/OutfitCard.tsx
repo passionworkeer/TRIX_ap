@@ -35,11 +35,10 @@ const OutfitCard: React.FC<OutfitCardProps> = ({ outfit, onEquipToggle, loading 
   return (
     <div
       className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${
-        outfit.isEquipped ? 'ring-2' : ''
+        outfit.isEquipped ? 'ring-2 ring-indigo-500' : ''
       } ${!outfit.isOwned ? 'opacity-60' : ''}`}
       style={{
         backgroundColor: 'var(--card-bg)',
-        ringColor: outfit.isEquipped ? 'var(--color-primary)' : 'transparent',
       }}
       onClick={handleClick}
     >
