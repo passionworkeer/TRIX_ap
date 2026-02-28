@@ -48,5 +48,14 @@
     // "noPropertyAccessFromIndexSignature": true, // 暂时禁用：会导致大量代码改动
     "allowUnusedLabels": false,
     "allowUnreachableCode": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "scripts",
+    "server",
+    "archive",
+    "ios",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
 }
