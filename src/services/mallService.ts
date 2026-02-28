@@ -148,8 +148,6 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     }
 
     const currentBalance = pointsData.balance;
-    const pointsDataAny = pointsData as any;
-    const currentTotalSpent = pointsDataAny.total_spent || 0;
 
     // 检查积分是否足够
     if (currentBalance < item.price) {

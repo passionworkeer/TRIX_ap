@@ -5,7 +5,7 @@
  * Only visible in development mode
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { perfMonitor, type PerformanceStats } from '../utils/performance';
 
 interface MetricDisplay {
@@ -21,15 +21,15 @@ const categoryColors: Record<string, string> = {
   custom: 'bg-gray-500/20 text-gray-400 border-gray-400/30',
 };
 
-const PerformanceDashboard: React.FC = () => {
+const REFRESH_INTERVAL_MS = 2000;
+
+/**
+ * Inner component - only rendered in DEV mode
+ */
+const PerformanceDashboardInner: React.FC = () => {
   const [metrics, setMetrics] = useState<MetricDisplay[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-
-  // Only show in development mode
-  if (!import.meta.env.DEV) {
-    return null;
-  }
 
   const refreshMetrics = useCallback(() => {
     const allStats = perfMonitor.getAllStats();
@@ -63,7 +63,7 @@ const PerformanceDashboard: React.FC = () => {
     refreshMetrics();
 
     if (autoRefresh) {
-      const interval = setInterval(refreshMetrics, 2000);
+      const interval = setInterval(refreshMetrics, REFRESH_INTERVAL_MS);
       return () => clearInterval(interval);
     }
 
@@ -75,18 +75,20 @@ const PerformanceDashboard: React.FC = () => {
     refreshMetrics();
   }, [refreshMetrics]);
 
-  // Calculate totals
-  const totalRenderTime = metrics
-    .filter((m) => m.category === 'render')
-    .reduce((sum, m) => sum + m.stats.totalDuration, 0);
-
-  const totalApiTime = metrics
-    .filter((m) => m.category === 'api')
-    .reduce((sum, m) => sum + m.stats.totalDuration, 0);
-
-  const totalInteractions = metrics
-    .filter((m) => m.category === 'interaction')
-    .reduce((sum, m) => sum + m.stats.count, 0);
+  // Calculate totals with memoization
+  const { totalRenderTime, totalApiTime, totalInteractions } = useMemo(() => {
+    return {
+      totalRenderTime: metrics
+        .filter((m) => m.category === 'render')
+        .reduce((sum, m) => sum + m.stats.totalDuration, 0),
+      totalApiTime: metrics
+        .filter((m) => m.category === 'api')
+        .reduce((sum, m) => sum + m.stats.totalDuration, 0),
+      totalInteractions: metrics
+        .filter((m) => m.category === 'interaction')
+        .reduce((sum, m) => sum + m.stats.count, 0),
+    };
+  }, [metrics]);
 
   if (!isExpanded) {
     // Collapsed view - small indicator
@@ -94,7 +96,14 @@ const PerformanceDashboard: React.FC = () => {
       <div
         className="fixed bottom-4 left-4 z-50 cursor-pointer rounded-full bg-slate-900/90 px-3 py-1.5 text-xs text-white/70 shadow-lg backdrop-blur-sm border border-white/10"
         onClick={() => setIsExpanded(true)}
-        title="Click to expand performance dashboard"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            setIsExpanded(true);
+          }
+        }}
+        aria-label="Expand performance dashboard"
       >
         <span className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -110,11 +119,20 @@ const PerformanceDashboard: React.FC = () => {
       <div
         className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-3 py-2 cursor-pointer"
         onClick={() => setIsExpanded(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            setIsExpanded(false);
+          }
+        }}
+        aria-label="Collapse performance dashboard"
       >
         <h3 className="text-sm font-medium text-white">Performance Dashboard</h3>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-white/50">
+          <label htmlFor="auto-refresh-checkbox" className="flex items-center gap-1 text-xs text-white/50 cursor-pointer">
             <input
+              id="auto-refresh-checkbox"
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
@@ -124,6 +142,7 @@ const PerformanceDashboard: React.FC = () => {
             Auto
           </label>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               handleClear();
@@ -201,4 +220,21 @@ const PerformanceDashboard: React.FC = () => {
   );
 };
 
-export default React.memo(PerformanceDashboard);
+PerformanceDashboardInner.displayName = 'PerformanceDashboardInner';
+
+/**
+ * PerformanceDashboard - Only renders in development mode
+ * Uses conditional component pattern to avoid hooks rule violation
+ */
+const PerformanceDashboard: React.FC = () => {
+  // Early return at component level - this is safe because we haven't called any hooks yet
+  if (!import.meta.env.DEV) {
+    return null;
+  }
+
+  return <PerformanceDashboardInner />;
+};
+
+PerformanceDashboard.displayName = 'PerformanceDashboard';
+
+export default memo(PerformanceDashboard);

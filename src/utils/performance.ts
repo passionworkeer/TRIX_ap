@@ -270,19 +270,20 @@ export const perfMonitor = new PerformanceMonitorImpl();
 
 /**
  * Hook to track component render performance
- * Automatically tracks mount and update renders
+ * Uses React.Profiler to measure actual render time
+ * @deprecated This hook currently does not work as expected - use withReactProfiler instead
  */
 export function usePerformanceTracking(componentName: string): void {
-  React.useEffect(() => {
-    if (!import.meta.env.DEV) return;
-
-    const measure = perfMonitor.measureComponentRender(componentName);
-    measure.start();
-
-    return () => {
-      measure.end();
-    };
-  }, [componentName]);
+  // This hook cannot accurately measure render time from inside the component
+  // because by the time the effect runs, the render has already completed.
+  // Use React.Profiler on parent component instead.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[Performance] usePerformanceTracking('${componentName}') is deprecated. ` +
+      'Use React.Profiler or perfMonitor.createRenderProfilerCallback() instead.'
+    );
+  }
 }
 
 /**
@@ -321,14 +322,43 @@ export function useRenderProfiler(
 // ============================================
 
 /**
- * Simple in-memory cache with TTL
+ * Simple in-memory cache with TTL and size limit
  */
 export class SimpleCache<T> {
   private cache = new Map<string, { value: T; expires: number }>();
-  private defaultTTL: number;
+  private readonly defaultTTL: number;
+  private readonly maxSize: number;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(defaultTTL: number = 60000) { // Default 1 minute
+  constructor(defaultTTL: number = 60000, maxSize: number = 1000) {
     this.defaultTTL = defaultTTL;
+    this.maxSize = maxSize;
+
+    // Periodic cleanup of expired entries (every 5 minutes)
+    this.cleanupTimer = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
+
+  /**
+   * Clean up expired entries and enforce size limit
+   */
+  private cleanup(): void {
+    const now = Date.now();
+
+    // Remove expired entries
+    for (const [key, entry] of this.cache) {
+      if (now > entry.expires) {
+        this.cache.delete(key);
+      }
+    }
+
+    // Enforce size limit (remove oldest entries if needed)
+    if (this.cache.size > this.maxSize) {
+      const entries = Array.from(this.cache.entries());
+      const toRemove = this.cache.size - this.maxSize;
+      for (let i = 0; i < toRemove; i++) {
+        this.cache.delete(entries[i][0]);
+      }
+    }
   }
 
   get(key: string): T | null {
@@ -344,6 +374,11 @@ export class SimpleCache<T> {
   }
 
   set(key: string, value: T, ttl?: number): void {
+    // Cleanup before setting if we're at capacity
+    if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
+      this.cleanup();
+    }
+
     this.cache.set(key, {
       value,
       expires: Date.now() + (ttl ?? this.defaultTTL),
@@ -373,12 +408,23 @@ export class SimpleCache<T> {
   size(): number {
     return this.cache.size;
   }
+
+  /**
+   * Cleanup timer
+   */
+  destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    this.clear();
+  }
 }
 
 /**
  * Request cache for API calls
  */
-export const requestCache = new SimpleCache<any>(30000); // 30 seconds
+export const requestCache = new SimpleCache<unknown>(30000);
 
 /**
  * Create a cached version of an async function
