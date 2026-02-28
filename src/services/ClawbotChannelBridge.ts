@@ -16,9 +16,18 @@ import type {
   StudyRoomStateEvent
 } from '../types/studyRoom';
 
-// P-#8: Use timestamp + random to generate unique message ID
+/**
+ * Generate cryptographically secure random string
+ */
+function generateSecureRandomString(length: number): string {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
+}
+
+// P-#8: Use timestamp + secure random to generate unique message ID
 function generateMessageId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now()}-${generateSecureRandomString(9)}`;
 }
 
 export interface ClawbotChannelMessage {
@@ -205,7 +214,7 @@ class ClawbotChannelBridge {
   private getOrCreateDeviceId(): string {
     let deviceId = localStorage.getItem('clawbot_channel_device_id');
     if (!deviceId) {
-      deviceId = 'app_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      deviceId = 'app_' + generateSecureRandomString(9) + '_' + Date.now();
       localStorage.setItem('clawbot_channel_device_id', deviceId);
     }
     return deviceId;
