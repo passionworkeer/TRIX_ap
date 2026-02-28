@@ -17,7 +17,7 @@ interface MusicSelectorProps {
  * 用户可以选择自然声音、环境音或轻音乐作为自习背景音
  */
 export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorProps) {
-  const { isPlaying, currentTrack, isLoading, play, pause, toggle, volume, setVolume } = audioPlayer;
+  const { isPlaying, currentTrack, isLoading, play, toggle, volume, setVolume } = audioPlayer;
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'nature' | 'ambient' | 'music'>('all');
 
   if (!isOpen) return null;

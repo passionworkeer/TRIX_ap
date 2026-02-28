@@ -13,7 +13,6 @@ import {
 } from '../services/wardrobeService';
 import type {
   Outfit,
-  OutfitCategory,
   OutfitCategoryFilter,
   UserOutfits,
 } from '../types/wardrobe';
