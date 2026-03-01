@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Payment Types
 
 /// Payment method types
-enum PaymentMethod: String, CaseIterable {
+enum PaymentMethod: String, CaseIterable, Codable {
     case applePay = "apple_pay"
     case wechatPay = "wechat_pay"
     case alipay = "alipay"

@@ -59,20 +59,17 @@ final class KeychainSecurityValidator {
     /// Security configuration
     struct SecurityConfig {
         let maxDataSize: Int  // Maximum data size in bytes
-        let requiredAccessibility: KeychainAccessibility
         let requiresBackupExclusion: Bool
         let requiresDeviceOnly: Bool
 
         static let `default` = SecurityConfig(
             maxDataSize: 10 * 1024, // 10 KB
-            requiredAccessibility: .whenUnlockedThisDeviceOnly,
             requiresBackupExclusion: true,
             requiresDeviceOnly: true
         )
 
         static let strict = SecurityConfig(
             maxDataSize: 4 * 1024, // 4 KB
-            requiredAccessibility: .whenUnlockedThisDeviceOnly,
             requiresBackupExclusion: true,
             requiresDeviceOnly: true
         )

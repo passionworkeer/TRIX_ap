@@ -639,5 +639,5 @@ struct ControlButton: View {
         )
     )
 
-    StudyTimerView(roomState: .constant(sampleRoom))
+    StudyTimerView(roomState: .constant(sampleRoom as StudyRoomState))
 }

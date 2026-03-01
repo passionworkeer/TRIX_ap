@@ -565,28 +565,25 @@ struct StudyRoomSettingsSheet: View {
         sessionState: .focusing,
         members: [
             StudyRoomMember(
-                userId: "user1",
+                odUserId: "user1",
                 displayName: "Alice",
                 avatarUrl: nil,
-                joinedAt: Date(),
-                lastActiveAt: Date(),
-                status: .focusing
+                joinedAt: "2024-01-01T00:00:00Z",
+                isOnline: true
             ),
             StudyRoomMember(
-                userId: "user2",
+                odUserId: "user2",
                 displayName: "Bob",
                 avatarUrl: nil,
-                joinedAt: Date(),
-                lastActiveAt: Date(),
-                status: .online
+                joinedAt: "2024-01-01T00:00:00Z",
+                isOnline: true
             ),
             StudyRoomMember(
-                userId: "user3",
+                odUserId: "user3",
                 displayName: "Charlie",
                 avatarUrl: nil,
-                joinedAt: Date(),
-                lastActiveAt: Date(),
-                status: .resting
+                joinedAt: "2024-01-01T00:00:00Z",
+                isOnline: true
             )
         ],
         maxMembers: 10,

@@ -66,7 +66,7 @@ extension View {
     /// - Returns: Modified view
     func accessible(
         _ label: String,
-        traits: AccessibilityTraits = .none,
+        traits: AccessibilityTraits = [],
         hint: String? = nil
     ) -> some View {
         self.accessibilityElement()
@@ -80,7 +80,7 @@ extension View {
     func accessibleHeading(_ level: HeadingLevel = .level2) -> some View {
         if #available(iOS 17.0, *) {
             self.accessibilityAddTraits(.isHeader)
-                .accessibilityHeading(level)
+                .accessibilityHeading(AccessibilityHeadingLevel(level))
         } else {
             self.accessibilityAddTraits(.isHeader)
         }
@@ -103,6 +103,28 @@ enum HeadingLevel {
     case level6
 }
 
+// MARK: - AccessibilityHeadingLevel Conversion
+
+@available(iOS 17.0, *)
+extension AccessibilityHeadingLevel {
+    init(_ level: HeadingLevel) {
+        switch level {
+        case .level1:
+            self = .h1
+        case .level2:
+            self = .h2
+        case .level3:
+            self = .h3
+        case .level4:
+            self = .h4
+        case .level5:
+            self = .h5
+        case .level6:
+            self = .h6
+        }
+    }
+}
+
 // MARK: - Dynamic Type Support
 
 /// Typography that scales with Dynamic Type
@@ -118,12 +140,8 @@ enum ScaledTypography {
     static let footnote = Font.footnote
     static let caption = Font.caption
     static let caption2 = Font.caption2
-}
 
-/// View modifier for Dynamic Type support
-struct ScalableText: ViewModifier {
-    var style: TextStyle
-
+    /// Text style for scalable text
     enum TextStyle {
         case largeTitle
         case title
@@ -136,6 +154,11 @@ struct ScalableText: ViewModifier {
         case footnote
         case caption
     }
+}
+
+/// View modifier for Dynamic Type support
+struct ScalableText: ViewModifier {
+    var style: ScaledTypography.TextStyle
 
     func body(content: Content) -> some View {
         switch style {
@@ -167,43 +190,16 @@ extension View {
 
     /// Apply scalable text style
     func scalable(_ style: ScaledTypography.TextStyle) -> some View {
-        self.modifier(ScalableText(style: TextStyle(from: style)))
+        self.modifier(ScalableText(style: style))
     }
 }
 
-private extension ScaledText.TextStyle {
-    init(from scaledStyle: ScaledTypography.TextStyle) {
-        switch scaledStyle {
-        case .largeTitle:
-            self = .largeTitle
-        case .title:
-            self = .title
-        case .title2:
-            self = .title2
-        case .title3:
-            self = .title3
-        case .headline:
-            self = .headline
-        case .body:
-            self = .body
-        case .callout:
-            self = .callout
-        case .subheadline:
-            self = .subheadline
-        case .footnote:
-            self = .footnote
-        case .caption:
-            self = .caption
-        }
-    }
-}
+// MARK: - Accessibility Notifications Helper
 
-// MARK: - Accessibility Notifications
-
-extension AccessibilityNotification {
+enum AccessibilityHelper {
     /// Announce important changes to VoiceOver
     static func announce(_ message: String) {
-        AccessibilityNotification.announcement(message).post()
+        UIAccessibility.post(notification: .announcement, argument: message)
     }
 
     /// Announce loading state
@@ -251,7 +247,7 @@ extension View {
         Button(action: {}) {
             Label("发送消息", systemImage: "paperplane.fill")
         }
-        .accessible(AccessibilityLabel.send, traits: .button)
+        .accessible(AccessibilityLabel.send, traits: .isButton)
 
         Text("这是正文内容")
             .font(.body)

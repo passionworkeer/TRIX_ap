@@ -47,7 +47,7 @@ struct AuthRootView: View {
                 ))
             }
         }
-        .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
+        .onChange(of: authService.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
                 // Authentication successful - parent view will handle dismissal
                 SecureLogger.shared.authEvent("User logged in successfully")
@@ -85,7 +85,7 @@ struct AuthRootViewTab: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .ignoresSafeArea()
-        .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
+        .onChange(of: authService.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
                 SecureLogger.shared.authEvent("User logged in successfully")
             }

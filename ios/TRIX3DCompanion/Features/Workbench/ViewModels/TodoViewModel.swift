@@ -8,21 +8,6 @@
 import Foundation
 import UIKit
 
-// MARK: - Haptic Feedback Protocol
-
-/// Protocol for haptic feedback - allows dependency injection for testing
-protocol HapticFeedbackProvider {
-    func trigger()
-}
-
-/// Default haptic feedback implementation using UIKit
-final class UIKitHapticFeedbackProvider: HapticFeedbackProvider {
-    func trigger() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
-}
-
 // MARK: - Todo View Model
 
 /// Todo view model managing todo items state and operations

@@ -76,22 +76,7 @@ struct DeviceStatus: Codable {
     let timestamp: Int
 }
 
-struct StudyRoomStateEvent: Codable {
-    let roomCode: String?
-    let room: StudyRoomState?
-    let action: String?
-    let timestamp: Int
-}
-
-struct StudyRoomState: Codable {
-    let code: String
-    let name: String
-    let hostId: String
-    let members: [StudyRoomMember]
-    let maxMembers: Int
-    let status: String
-    let createdAt: String
-}
+// StudyRoomStateEvent is now defined in Shared/Models/StudyRoom.swift
 
 // NOTE: StudyRoomMember is now defined in APIEndpoints.swift
 

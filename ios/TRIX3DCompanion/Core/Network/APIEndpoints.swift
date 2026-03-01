@@ -3,17 +3,10 @@
 //  TRIX3DCompanion
 //
 //  API endpoint definitions
-//  Common types (User, ChatMessage, etc.) are defined in Shared/Models
+//  Common types (User, ChatMessage, etc.) are defined here
 //
 
 import Foundation
-
-// Re-export types from Shared/Models for API compatibility
-// These typealiases allow code that imports APIEndpoints to use these types
-// while avoiding duplicate definitions
-//
-// NOTE: These types are defined in Shared/Models directory
-// The actual definitions are there, these are just aliases for backward compatibility
 
 /// Configuration for API security settings
 /// IMPORTANT: Production builds MUST use HTTPS/WSS
@@ -319,6 +312,10 @@ enum APIEndpoint {
         // Delete operations - DELETE methods
         case .deleteStudySession:
             return .delete
+
+        // Read operations - GET methods (for chat room messages read)
+        case .chatRoomMessagesRead:
+            return .get
         }
     }
 
@@ -359,6 +356,22 @@ struct User: Codable, Identifiable {
     let totalStudyTime: Int
     let createdAt: Date
     let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case username
+        case email
+        case avatarUrl = "avatar_url"
+        case fullName = "full_name"
+        case displayName = "display_name"
+        case bio
+        case points
+        case isStudying = "is_studying"
+        case companionId = "companion_id"
+        case totalStudyTime = "total_study_time"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 struct UserSession: Codable {
@@ -367,6 +380,14 @@ struct UserSession: Codable {
     let accessToken: String
     let refreshToken: String
     let expiresAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresAt = "expires_at"
+    }
 }
 
 struct ProfileUpdate: Codable {
@@ -374,6 +395,13 @@ struct ProfileUpdate: Codable {
     let fullName: String?
     let displayName: String?
     let bio: String?
+
+    enum CodingKeys: String, CodingKey {
+        case username
+        case fullName = "full_name"
+        case displayName = "display_name"
+        case bio
+    }
 }
 
 struct LoginRequest: Codable {
@@ -393,7 +421,7 @@ struct AuthResponse: Codable {
 }
 
 // MARK: - User
-// User, UserSession, ProfileUpdate are now typealiases to Shared/Models
+// User, UserSession, ProfileUpdate are defined above
 
 struct UserStats: Codable {
     let totalStudyTime: Int
@@ -402,6 +430,15 @@ struct UserStats: Codable {
     let streakDays: Int
     let todayDuration: Int
     let weekDuration: Int
+
+    enum CodingKeys: String, CodingKey {
+        case totalStudyTime = "total_study_time"
+        case sessionCount = "session_count"
+        case averageDuration = "average_duration"
+        case streakDays = "streak_days"
+        case todayDuration = "today_duration"
+        case weekDuration = "week_duration"
+    }
 }
 
 // MARK: - Chat
@@ -422,6 +459,17 @@ struct ChatRoom: Codable, Identifiable {
     let unreadCount: Int
     let createdAt: Date
     let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case type
+        case participants
+        case lastMessage = "last_message"
+        case unreadCount = "unread_count"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 enum MessageSender: String, Codable {
@@ -450,6 +498,20 @@ struct ChatMessage: Codable, Identifiable {
     let mediaDuration: Int?
     let isRead: Bool
     let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case roomId = "room_id"
+        case senderId = "sender_id"
+        case sender
+        case content
+        case type
+        case mediaUrl = "media_url"
+        case mediaMimeType = "media_mime_type"
+        case mediaDuration = "media_duration"
+        case isRead = "is_read"
+        case createdAt = "created_at"
+    }
 }
 
 struct SendMessageRequest: Codable {
@@ -457,10 +519,21 @@ struct SendMessageRequest: Codable {
     let contentType: MessageType
     let mediaUrl: String?
     let mediaMimeType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case contentType = "content_type"
+        case mediaUrl = "media_url"
+        case mediaMimeType = "media_mime_type"
+    }
 }
 
 struct MarkAsReadRequest: Codable {
     let messageId: String
+
+    enum CodingKeys: String, CodingKey {
+        case messageId = "message_id"
+    }
 }
 
 /// Request to create a new chat room
@@ -479,6 +552,16 @@ struct StudySession: Codable, Identifiable {
     let completedAt: Date?
     let earnedPoints: Int?
     let isCompleted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case durationMinutes = "duration_minutes"
+        case startedAt = "started_at"
+        case completedAt = "completed_at"
+        case earnedPoints = "earned_points"
+        case isCompleted = "is_completed"
+    }
 }
 
 struct StudyStats: Codable {
@@ -488,62 +571,34 @@ struct StudyStats: Codable {
     let streakDays: Int
     let todayDuration: Int
     let weekDuration: Int
+
+    enum CodingKeys: String, CodingKey {
+        case totalDuration = "total_duration"
+        case sessionCount = "session_count"
+        case averageDuration = "average_duration"
+        case streakDays = "streak_days"
+        case todayDuration = "today_duration"
+        case weekDuration = "week_duration"
+    }
 }
 
 struct CreateStudySessionRequest: Codable {
     let durationMinutes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case durationMinutes = "duration_minutes"
+    }
 }
 
 // MARK: - Study Room
 
-struct StudyRoomMember: Codable {
-    let odUserId: String
-    let displayName: String
-    let avatarUrl: String?
-    let joinedAt: String
-    let isOnline: Bool
-}
-
-struct StudyRoomState: Codable {
-    let code: String
-    let name: String
-    let hostId: String
-    let members: [StudyRoomMember]
-    let maxMembers: Int
-    let status: String
-    let createdAt: String
-}
+// StudyRoomMember and StudyRoomState are defined in Shared/Models/StudyRoom.swift
+// Import from Shared/Models
 
 // MARK: - Pairing
 
-// Pairing types
-enum DeviceType: String, Codable {
-    case mobile
-    case desktop
-    case tablet
-    case web
-}
-
-struct PairingRequest: Codable {
-    let userId: String
-}
-
-struct PairingResponse: Codable {
-    let requestId: String
-    let code: String?
-    let token: String?
-    let expiresIn: Int
-    let qrUrl: String?
-}
-
-struct PairingStatusResponse: Codable {
-    let success: Bool
-    let paired: Bool
-    let deviceId: String?
-    let deviceName: String?
-    let botOnline: Bool?
-    let pairedAt: String?
-}
+// Pairing types - DeviceType, PairingRequest, PairingResponse, PairingStatusResponse
+// are defined in Shared/Models/Device.swift
 
 // PairedDevice is kept here as API-specific type
 struct PairedDevice: Codable, Identifiable {
@@ -553,16 +608,35 @@ struct PairedDevice: Codable, Identifiable {
     let deviceType: DeviceType
     let pairedAt: Date
     let isOnline: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case deviceId = "device_id"
+        case deviceName = "device_name"
+        case deviceType = "device_type"
+        case pairedAt = "paired_at"
+        case isOnline = "is_online"
+    }
 }
 
 struct PairWithCodeRequest: Codable {
     let code: String
     let userId: String
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case userId = "user_id"
+    }
 }
 
 struct PairWithTokenRequest: Codable {
     let token: String
     let userId: String
+
+    enum CodingKeys: String, CodingKey {
+        case token
+        case userId = "user_id"
+    }
 }
 
 // MARK: - Points
@@ -572,6 +646,14 @@ struct PointsResponse: Codable {
     let todayEarned: Int
     let weekEarned: Int
     let totalTransactions: Int
+
+    enum CodingKeys: String, CodingKey {
+        case totalPoints = "total_points"
+        case level
+        case todayEarned = "today_earned"
+        case weekEarned = "week_earned"
+        case totalTransactions = "total_transactions"
+    }
 }
 
 // MARK: - Points
@@ -593,6 +675,15 @@ struct PointsTransaction: Codable, Identifiable {
     let description: String
     let balanceAfter: Int
     let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case pointsChange = "points_change"
+        case type
+        case description
+        case balanceAfter = "balance_after"
+        case createdAt = "created_at"
+    }
 }
 
 // PaymentStatus is kept here as it's API-specific
@@ -603,6 +694,37 @@ enum PaymentStatus: String, Codable {
     case failed = "failed"
     case cancelled = "cancelled"
     case refunded = "refunded"
+}
+
+/// Order model
+struct Order: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let productId: String
+    let productType: ProductType
+    let amount: Double
+    let currency: String
+    let status: PaymentStatus
+    let paymentMethod: PaymentMethod
+    let transactionId: String?
+    let points: Int?
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case productId = "product_id"
+        case productType = "product_type"
+        case amount
+        case currency
+        case status
+        case paymentMethod = "payment_method"
+        case transactionId = "transaction_id"
+        case points
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 // MARK: - Upload
@@ -637,6 +759,16 @@ struct ReceiptVerificationRequest: Codable {
     let appVersion: String
     let purchaseDate: String?
     let expirationDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "transaction_id"
+        case productId = "product_id"
+        case receiptData = "receipt_data"
+        case bundleIdentifier = "bundle_identifier"
+        case appVersion = "app_version"
+        case purchaseDate = "purchase_date"
+        case expirationDate = "expiration_date"
+    }
 }
 
 /// Receipt verification response
@@ -648,6 +780,16 @@ struct ReceiptVerificationResponse: Codable {
     let subscriptionStatus: SubscriptionInfo?
     let verified: Bool
     let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case orderId = "order_id"
+        case status
+        case pointsAdded = "points_added"
+        case totalPoints = "total_points"
+        case subscriptionStatus = "subscription_status"
+        case verified
+        case message
+    }
 }
 
 /// Subscription information
@@ -656,6 +798,13 @@ struct SubscriptionInfo: Codable {
     let tier: String?
     let expiresAt: Date?
     let willAutoRenew: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case isActive = "is_active"
+        case tier
+        case expiresAt = "expires_at"
+        case willAutoRenew = "will_auto_renew"
+    }
 }
 
 /// Order details response
@@ -670,6 +819,19 @@ struct OrderDetailsResponse: Codable {
     let points: Int?
     let createdAt: Date
     let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case productId = "product_id"
+        case amount
+        case currency
+        case status
+        case transactionId = "transaction_id"
+        case points
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 /// Orders list response
@@ -691,6 +853,16 @@ struct SubscriptionStatusResponse: Codable {
     let willAutoRenew: Bool
     let startedAt: Date?
     let updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case isActive = "is_active"
+        case tier
+        case productId = "product_id"
+        case expiresAt = "expires_at"
+        case willAutoRenew = "will_auto_renew"
+        case startedAt = "started_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 /// Restore purchases response
@@ -698,4 +870,10 @@ struct RestorePurchasesResponse: Codable {
     let restoredOrders: [OrderDetailsResponse]
     let totalRestored: Int
     let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case restoredOrders = "restored_orders"
+        case totalRestored = "total_restored"
+        case message
+    }
 }

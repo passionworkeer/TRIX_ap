@@ -1,8 +1,21 @@
 import Foundation
 
-// Re-export StudyRoomMember from APIEndpoints for consistency
-// Using APIEndpoints.StudyRoomMember as the canonical definition
-typealias StudyRoomMember = APIEndpoints.StudyRoomMember
+/// 学习房间成员
+struct StudyRoomMember: Codable {
+    let odUserId: String
+    let displayName: String
+    let avatarUrl: String?
+    let joinedAt: String
+    let isOnline: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case odUserId = "od_user_id"
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case joinedAt = "joined_at"
+        case isOnline = "is_online"
+    }
+}
 
 /// 学习房间会话状态
 enum StudyRoomSessionState: String, Codable {
