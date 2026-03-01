@@ -16,7 +16,7 @@
 - [x] TASK-001: 扫描无用文件（node_modules, .venv, dist 等） | type: explore | priority: P0 | result: ✓
 - [x] TASK-002: 扫描空目录 | type: explore | priority: P0 | result: ✓
 - [x] TASK-003: 扫描归档目录 | type: explore | priority: P0 | result: ✓
-- [ ] TASK-004: 扫描重复代码 | type: explore | priority: P1
+- [x] TASK-004: 扫描重复代码 | type: explore | priority: P1 | result: ✓
 - [ ] TASK-005: 清理确认后的无用文件 | type: devops | priority: P0
 - [ ] TASK-006: 整理项目根目录结构 | type: devops | priority: P1
 
@@ -73,7 +73,7 @@
 ---
 
 ### 执行中 (In Progress)
-- [ ] TASK-004: 扫描重复代码 | type: explore | priority: P1
+- [ ] TASK-005: 清理确认后的无用文件 | type: devops | priority: P0
 
 ---
 
@@ -83,6 +83,7 @@
 ---
 
 ### 已完成 (Done)
+- [x] TASK-004: 扫描重复代码 | type: explore | note: 发现多处类型重复
 - [x] TASK-003: 扫描归档目录 | type: explore | note: 发现 coverage/archive
 - [x] TASK-002: 扫描空目录 | type: explore | note: 发现 2 个空目录
 - [x] TASK-001: 扫描无用文件 | type: explore | commit: dd50295 | note: 发现可清理 572MB
