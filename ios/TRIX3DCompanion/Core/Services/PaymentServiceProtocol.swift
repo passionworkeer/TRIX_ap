@@ -144,19 +144,7 @@ struct PointsPurchaseResponse: Codable {
     let orderId: String
     let pointsAdded: Int
     let totalPoints: Int
-    let transaction: PointsTransaction?
-}
-
-/// Points transaction
-struct PointsTransaction: Identifiable, Codable {
-    let id: String
-    let userId: String
-    let pointsChange: Int
-    let balanceAfter: Int
-    let type: String
-    let description: String
-    let orderId: String?
-    let createdAt: Date
+    let transaction: APIEndpoints.PointsTransaction?
 }
 
 // MARK: - Subscription Types
