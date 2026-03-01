@@ -42,7 +42,7 @@
 
 - [x] TASK-013: 分析现有测试，确定覆盖缺口 | type: testing | priority: P0 | result: ✓
 - [x] TASK-014: 为 services/* 编写测试 | type: testing | priority: P0 | result: ✓
-- [ ] TASK-015: 为 hooks/* 编写测试 | type: testing | priority: P0
+- [x] TASK-015: 为 hooks/* 编写测试 | type: testing | priority: P0 | result: ✓
 - [ ] TASK-016: 为 utils/* 编写测试 | type: testing | priority: P0
 - [ ] TASK-017: 为 components/* 核心组件编写测试 | type: testing | priority: P1
 - [ ] TASK-018: 编写 Playwright E2E 测试 | type: testing | priority: P0
