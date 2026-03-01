@@ -17,7 +17,7 @@
 - [x] TASK-002: 扫描空目录 | type: explore | priority: P0 | result: ✓
 - [x] TASK-003: 扫描归档目录 | type: explore | priority: P0 | result: ✓
 - [x] TASK-004: 扫描重复代码 | type: explore | priority: P1 | result: ✓
-- [ ] TASK-005: 清理确认后的无用文件 | type: devops | priority: P0
+- [x] TASK-005: 清理确认后的无用文件 | type: devops | priority: P0 | result: ✓
 - [ ] TASK-006: 整理项目根目录结构 | type: devops | priority: P1
 
 ---
@@ -73,7 +73,7 @@
 ---
 
 ### 执行中 (In Progress)
-- [ ] TASK-005: 清理确认后的无用文件 | type: devops | priority: P0
+- [ ] TASK-006: 整理项目根目录结构 | type: devops | priority: P1
 
 ---
 
@@ -83,6 +83,7 @@
 ---
 
 ### 已完成 (Done)
+- [x] TASK-005: 清理无用文件 | type: devops | note: 删除 .venv, dist, coverage, 空目录
 - [x] TASK-004: 扫描重复代码 | type: explore | note: 发现多处类型重复
 - [x] TASK-003: 扫描归档目录 | type: explore | note: 发现 coverage/archive
 - [x] TASK-002: 扫描空目录 | type: explore | note: 发现 2 个空目录

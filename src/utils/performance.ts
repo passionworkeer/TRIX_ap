@@ -376,7 +376,8 @@ export class SimpleCache<T> {
       const entries = Array.from(this.cache.entries());
       const toRemove = this.cache.size - this.maxSize;
       for (let i = 0; i < toRemove; i++) {
-        this.cache.delete(entries[i][0]);
+        const key = entries[i]?.[0];
+        if (key) this.cache.delete(key);
       }
     }
   }
