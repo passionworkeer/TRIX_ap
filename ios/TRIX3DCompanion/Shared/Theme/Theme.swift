@@ -2,9 +2,9 @@ import SwiftUI
 
 /// 主题管理器
 /// 负责管理应用的主题状态和切换
+/// Using ObservableObject for iOS 16 compatibility (Observable macro is iOS 17+)
 @MainActor
-@Observable
-final class ThemeManager {
+final class ThemeManager: ObservableObject {
 
     // MARK: - Singleton
 

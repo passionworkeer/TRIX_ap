@@ -11,7 +11,7 @@ import AVFoundation
 // MARK: - Recording State
 
 /// The current state of voice recording
-enum RecordingState {
+enum VoiceRecordingState {
     case idle
     case preparing
     case recording(progress: Double)
@@ -34,7 +34,7 @@ class VoiceRecordingViewModel: ObservableObject {
 
     // MARK: - Published Properties
 
-    @Published var recordingState: RecordingState = .idle
+    @Published var recordingState: VoiceRecordingState = .idle
     @Published var recordingDuration: TimeInterval = 0
     @Published var hasPermission: Bool = false
     @Published var errorMessage: String?

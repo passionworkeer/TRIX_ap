@@ -35,8 +35,9 @@ enum MainTab: String, CaseIterable {
 
 // MARK: - Network Status
 
-/// Network connection status
-enum NetworkStatus {
+/// Network connection status (App-specific simplified version)
+/// Note: NetworkMonitor has its own NetworkStatus struct with more details
+enum AppNetworkStatus {
     case unknown
     case connected
     case disconnected
@@ -74,7 +75,7 @@ final class AppState: ObservableObject {
     // MARK: - Published Properties - Network
 
     /// Current network connection status
-    @Published private(set) var networkStatus: NetworkStatus = .unknown
+    @Published private(set) var networkStatus: AppNetworkStatus = .unknown
 
     /// Whether network is currently available
     @Published var isNetworkAvailable: Bool = true
