@@ -57,8 +57,10 @@ final class APIClient {
         )
 
         // Create session with SSL pinning
+        // Alamofire 6.x+ API: use evaluators dictionary instead of allHosts
+        let evaluator = sslPinningManager.makeServerTrustEvaluator()
         let serverTrustManager = ServerTrustManager(
-            allHosts: sslPinningManager.makeServerTrustEvaluator()
+            evaluators: [APIBaseURL.current: evaluator]
         )
 
         self.session = Session(

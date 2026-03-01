@@ -140,6 +140,11 @@ extension Color {
     static var disabledText: Color {
         Color(light: Color(hex: "9CA3AF"), dark: Color(hex: "6B7280"))
     }
+
+    // MARK: - Gray Scale Colors (灰度颜色)
+
+    /// 灰度 900 - 用于深色背景
+    static let gray900 = Color(light: Color(hex: "111827"), dark: Color(hex: "F9FAFB"))
 }
 
 // MARK: - Color Initializers

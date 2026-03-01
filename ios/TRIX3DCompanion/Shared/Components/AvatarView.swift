@@ -212,20 +212,20 @@ extension AvatarView {
     VStack(spacing: 24) {
         HStack(spacing: 16) {
             AvatarView.initials(username: "Alice", size: .small)
-            AvatarView.initials(username: "Bob Smith", size: .small, showStatus: true, isOnline: true)
-            AvatarView.initials(username: "Charlie", size: .small, showStatus: true, isOnline: false)
+            AvatarView.initials(username: "Bob Smith", size: .small, isOnline: true, showStatus: true)
+            AvatarView.initials(username: "Charlie", size: .small, isOnline: false, showStatus: true)
         }
 
         HStack(spacing: 16) {
             AvatarView.initials(username: "David Chen", size: .medium)
-            AvatarView.initials(username: "Eve", size: .medium, showStatus: true, isOnline: true)
-            AvatarView.initials(username: "Frank Miller", size: .medium, showStatus: true, isOnline: false)
+            AvatarView.initials(username: "Eve", size: .medium, isOnline: true, showStatus: true)
+            AvatarView.initials(username: "Frank Miller", size: .medium, isOnline: false, showStatus: true)
         }
 
         HStack(spacing: 16) {
             AvatarView.initials(username: "Grace", size: .large)
-            AvatarView.initials(username: "Henry", size: .large, showStatus: true, isOnline: true)
-            AvatarView.initials(username: "Iris", size: .large, showStatus: true, isOnline: false)
+            AvatarView.initials(username: "Henry", size: .large, isOnline: true, showStatus: true)
+            AvatarView.initials(username: "Iris", size: .large, isOnline: false, showStatus: true)
         }
     }
     .padding()
@@ -256,8 +256,8 @@ extension AvatarView {
 
 #Preview("Dark mode") {
     VStack(spacing: 16) {
-        AvatarView.initials(username: "Dark Mode", size: .large, showStatus: true, isOnline: true)
-        AvatarView.initials(username: "Offline", size: .medium, showStatus: true, isOnline: false)
+        AvatarView.initials(username: "Dark Mode", size: .large, isOnline: true, showStatus: true)
+        AvatarView.initials(username: "Offline", size: .medium, isOnline: false, showStatus: true)
     }
     .padding()
     .background(Color.black)

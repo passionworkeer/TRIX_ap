@@ -3,9 +3,17 @@
 //  TRIX3DCompanion
 //
 //  API endpoint definitions
+//  Common types (User, ChatMessage, etc.) are defined in Shared/Models
 //
 
 import Foundation
+
+// Re-export types from Shared/Models for API compatibility
+// These typealiases allow code that imports APIEndpoints to use these types
+// while avoiding duplicate definitions
+//
+// NOTE: These types are defined in Shared/Models directory
+// The actual definitions are there, these are just aliases for backward compatibility
 
 /// Configuration for API security settings
 /// IMPORTANT: Production builds MUST use HTTPS/WSS
@@ -353,30 +361,8 @@ struct AuthResponse: Codable {
     let session: UserSession
 }
 
-struct UserSession: Codable {
-    let id: String
-    let userId: String
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: Date
-}
-
 // MARK: - User
-struct User: Codable, Identifiable {
-    let id: String
-    let username: String
-    let email: String?
-    let avatarUrl: String?
-    let fullName: String?
-    let displayName: String?
-    let bio: String?
-    let points: Int
-    let isStudying: Bool
-    let companionId: String?
-    let totalStudyTime: Int
-    let createdAt: Date
-    let updatedAt: Date
-}
+// User, UserSession, ProfileUpdate are now typealiases to Shared/Models
 
 struct UserStats: Codable {
     let totalStudyTime: Int
@@ -387,58 +373,8 @@ struct UserStats: Codable {
     let weekDuration: Int
 }
 
-struct ProfileUpdate: Codable {
-    let username: String?
-    let fullName: String?
-    let displayName: String?
-    let bio: String?
-}
-
 // MARK: - Chat
-struct ChatRoom: Codable, Identifiable {
-    let id: String
-    let name: String
-    let type: ChatRoomType
-    let participants: [User]
-    let lastMessage: ChatMessage?
-    let unreadCount: Int
-    let createdAt: Date
-    let updatedAt: Date
-}
-
-enum ChatRoomType: String, Codable {
-    case ai
-    case group
-    case privateChat = "private"
-}
-
-struct ChatMessage: Codable, Identifiable {
-    let id: String
-    let roomId: String
-    let senderId: String
-    let sender: MessageSender
-    let content: String
-    let type: MessageType
-    let mediaUrl: String?
-    let mediaMimeType: String?
-    let mediaDuration: Int?
-    let isRead: Bool
-    let createdAt: Date
-}
-
-enum MessageSender: String, Codable {
-    case user
-    case bot
-    case friend
-}
-
-enum MessageType: String, Codable {
-    case text
-    case image
-    case voice
-    case video
-    case file
-}
+// ChatRoom, ChatRoomType, ChatMessage, MessageSender, MessageType are now typealiases
 
 struct SendMessageRequest: Codable {
     let content: String
@@ -458,50 +394,15 @@ struct CreateChatRoomRequest: Codable {
 }
 
 // MARK: - Study
-struct StudySession: Codable, Identifiable {
-    let id: String
-    let userId: String
-    let durationMinutes: Int
-    let startedAt: Date
-    let completedAt: Date?
-    let earnedPoints: Int?
-    let isCompleted: Bool
-}
+// StudySession, StudyStats are now typealiases
 
 struct CreateStudySessionRequest: Codable {
     let durationMinutes: Int
 }
 
-struct StudyStats: Codable {
-    let totalDuration: Int
-    let sessionCount: Int
-    let averageDuration: Int
-    let streakDays: Int
-    let todayDuration: Int
-    let weekDuration: Int
-}
-
 // MARK: - Pairing
-struct PairingRequest: Codable {
-    let userId: String
-}
-
-struct PairingResponse: Codable {
-    let requestId: String
-    let code: String?
-    let token: String?
-    let expiresIn: Int
-    let qrUrl: String?
-}
-
-struct PairingStatusResponse: Codable {
-    let success: Bool
-    let paired: Bool
-    let deviceId: String?
-    let deviceName: String?
-    let botOnline: Bool?
-    let pairedAt: String?
-}
+// PairingRequest, PairingResponse, PairingStatusResponse, DeviceType are now typealiases
+// PairedDevice is kept here as API-specific type
 
 struct PairedDevice: Codable, Identifiable {
     let id: String
@@ -510,13 +411,6 @@ struct PairedDevice: Codable, Identifiable {
     let deviceType: DeviceType
     let pairedAt: Date
     let isOnline: Bool
-}
-
-enum DeviceType: String, Codable {
-    case mobile
-    case desktop
-    case tablet
-    case web
 }
 
 struct PairWithCodeRequest: Codable {
@@ -538,24 +432,9 @@ struct PointsResponse: Codable {
     let totalTransactions: Int
 }
 
-struct PointsTransaction: Codable, Identifiable {
-    let id: String
-    let pointsChange: Int
-    let type: TransactionType
-    let description: String
-    let balanceAfter: Int
-    let createdAt: Date
-}
-
-enum TransactionType: String, Codable {
-    case studyComplete = "study_complete"
-    case studyStreak = "study_streak"
-    case dailyLogin = "daily_login"
-    case achievement = "achievement"
-    case socialShare = "social_share"
-    case redeem = "redeem"
-    case adminAdjust = "admin_adjust"
-}
+// MARK: - Points
+// PointsTransaction, TransactionType are now typealiases to Shared/Models
+// PaymentStatus is kept here as it's API-specific
 
 enum PaymentStatus: String, Codable {
     case pending = "pending"
