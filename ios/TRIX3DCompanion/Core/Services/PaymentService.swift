@@ -21,10 +21,10 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     // MARK: - Published Properties
 
     /// Current pending orders
-    @Published private(set) var pendingOrders: [Order] = []
+    @Published private(set) var pendingAppOrders: [AppOrder] = []
 
     /// Completed orders
-    @Published private(set) var completedOrders: [Order] = []
+    @Published private(set) var completedAppOrders: [AppOrder] = []
 
     /// Whether currently processing payment
     @Published private(set) var isProcessing: Bool = false
@@ -41,7 +41,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     // MARK: - Private Properties
 
     /// Cached orders
-    private var cachedOrders: [String: Order] = [:]
+    private var cachedAppOrders: [String: AppOrder] = [:]
 
     /// Cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
@@ -64,7 +64,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
         // Load order history
         Task {
-            await loadOrderHistory()
+            await loadAppOrderHistory()
         }
 
         // Setup observation of store kit errors
@@ -138,7 +138,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         case .pending:
             isProcessing = false
             // Create pending order
-            let order = createPendingOrder(productId: productId, points: points)
+            let order = createPendingAppOrder(productId: productId, points: points)
             return .pending(order: order)
 
         case .failed(let error):
@@ -183,7 +183,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         case .pending:
             isProcessing = false
             // Create pending order for subscription
-            let order = createPendingSubscriptionOrder(productId: productId)
+            let order = createPendingSubscriptionAppOrder(productId: productId)
             return .pending(order: order)
 
         case .failed(let error):
@@ -206,7 +206,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         transactionId: String,
         productId: String,
         receiptData: String?
-    ) async -> Result<Order, PaymentError> {
+    ) async -> Result<AppOrder, PaymentError> {
         lastError = nil
 
         do {
@@ -242,7 +242,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             let response: ReceiptVerificationResponse = try await apiClient.verifyReceipt(verificationRequest)
 
             // Create order from response
-            let order = Order(
+            let order = AppOrder(
                 id: response.orderId,
                 userId: AuthService.shared.currentUser?.id ?? "",
                 productId: productId,
@@ -258,8 +258,8 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             )
 
             // Cache and update orders
-            cachedOrders[order.id] = order
-            updateOrdersArrays()
+            cachedAppOrders[order.id] = order
+            updateAppOrdersArrays()
 
             // Refresh points
             await pointsService.refreshPoints()
@@ -279,19 +279,19 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     }
 
     /// Get order details
-    /// - Parameter orderId: Order ID
-    /// - Returns: Order or nil if not found
-    func getOrder(orderId: String) async -> Order? {
+    /// - Parameter orderId: AppOrder ID
+    /// - Returns: AppOrder or nil if not found
+    func getAppOrder(orderId: String) async -> AppOrder? {
         // Check cache first
-        if let cached = cachedOrders[orderId] {
+        if let cached = cachedAppOrders[orderId] {
             return cached
         }
 
         // Fetch from server
         do {
-            let response: OrderDetailsResponse = try await apiClient.getOrder(orderId: orderId)
+            let response: AppOrderDetailsResponse = try await apiClient.getAppOrder(orderId: orderId)
 
-            let order = Order(
+            let order = AppOrder(
                 id: response.id,
                 userId: response.userId,
                 productId: response.productId,
@@ -306,7 +306,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 updatedAt: response.updatedAt
             )
 
-            cachedOrders[orderId] = order
+            cachedAppOrders[orderId] = order
             return order
         } catch {
             SecureLogger.shared.error("Failed to fetch order: \(orderId)")
@@ -319,30 +319,30 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     ///   - limit: Number of orders to retrieve
     ///   - offset: Pagination offset
     /// - Returns: Array of orders
-    func getOrderHistory(limit: Int = 50, offset: Int = 0) async -> [Order] {
+    func getAppOrderHistory(limit: Int = 50, offset: Int = 0) async -> [AppOrder] {
         // Return cached orders sorted by date
-        return Array(cachedOrders.values)
+        return Array(cachedAppOrders.values)
             .sorted { $0.createdAt > $1.createdAt }
             .prefix(limit)
             .map { $0 }
     }
 
     /// Cancel pending order
-    /// - Parameter orderId: Order ID to cancel
+    /// - Parameter orderId: AppOrder ID to cancel
     /// - Returns: Result indicating success or failure
-    func cancelOrder(orderId: String) async -> Result<Void, PaymentError> {
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
         lastError = nil
 
-        guard let order = cachedOrders[orderId], order.isPending else {
+        guard let order = cachedAppOrders[orderId], order.isPending else {
             return .failure(.orderNotFound)
         }
 
         do {
-            try await apiClient.cancelOrder(orderId: orderId)
+            try await apiClient.cancelAppOrder(orderId: orderId)
 
             // Remove from cache and update arrays
-            cachedOrders.removeValue(forKey: orderId)
-            updateOrdersArrays()
+            cachedAppOrders.removeValue(forKey: orderId)
+            updateAppOrdersArrays()
 
             return .success(())
 
@@ -395,16 +395,16 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
     /// Restore previous purchases
     /// - Returns: Result with restored orders or error
-    func restorePurchases() async -> Result<[Order], PaymentError> {
+    func restorePurchases() async -> Result<[AppOrder], PaymentError> {
         lastError = nil
 
         do {
             let response: RestorePurchasesResponse = try await apiClient.restorePurchases()
 
             // Process restored orders
-            var restoredOrders: [Order] = []
-            for orderResponse in response.restoredOrders {
-                let order = Order(
+            var restoredAppOrders: [AppOrder] = []
+            for orderResponse in response.restoredAppOrders {
+                let order = AppOrder(
                     id: orderResponse.id,
                     userId: orderResponse.userId,
                     productId: orderResponse.productId,
@@ -418,16 +418,16 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                     createdAt: orderResponse.createdAt,
                     updatedAt: orderResponse.updatedAt
                 )
-                cachedOrders[order.id] = order
-                restoredOrders.append(order)
+                cachedAppOrders[order.id] = order
+                restoredAppOrders.append(order)
             }
 
-            updateOrdersArrays()
+            updateAppOrdersArrays()
 
             // Refresh points after restore
             await pointsService.refreshPoints()
 
-            return .success(restoredOrders)
+            return .success(restoredAppOrders)
 
         } catch let error as NetworkError {
             let paymentError = mapNetworkError(error)
@@ -444,12 +444,12 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     // MARK: - Private Methods
 
     /// Load order history from server
-    private func loadOrderHistory() async {
+    private func loadAppOrderHistory() async {
         do {
-            let response: OrdersListResponse = try await apiClient.getOrders()
+            let response: AppOrdersListResponse = try await apiClient.getAppOrders()
 
             for orderResponse in response.orders {
-                let order = Order(
+                let order = AppOrder(
                     id: orderResponse.id,
                     userId: orderResponse.userId,
                     productId: orderResponse.productId,
@@ -463,9 +463,9 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                     createdAt: orderResponse.createdAt,
                     updatedAt: orderResponse.updatedAt
                 )
-                cachedOrders[order.id] = order
+                cachedAppOrders[order.id] = order
             }
-            updateOrdersArrays()
+            updateAppOrdersArrays()
         } catch {
             // Silently fail - orders will be loaded when needed
             SecureLogger.shared.warning("Failed to load order history from server")
@@ -473,12 +473,12 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     }
 
     /// Update published order arrays
-    private func updateOrdersArrays() {
-        let allOrders = Array(cachedOrders.values)
+    private func updateAppOrdersArrays() {
+        let allAppOrders = Array(cachedAppOrders.values)
             .sorted { $0.createdAt > $1.createdAt }
 
-        pendingOrders = allOrders.filter { $0.isPending }
-        completedOrders = allOrders.filter { $0.isCompleted }
+        pendingAppOrders = allAppOrders.filter { $0.isPending }
+        completedAppOrders = allAppOrders.filter { $0.isCompleted }
     }
 
     /// Create pending order for points purchase
@@ -486,11 +486,11 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     ///   - productId: Product ID
     ///   - points: Points amount
     /// - Returns: Pending order
-    private func createPendingOrder(productId: String, points: Int) -> Order {
+    private func createPendingAppOrder(productId: String, points: Int) -> AppOrder {
         let orderId = UUID().uuidString
         let price = getPriceForProduct(productId)
 
-        let order = Order(
+        let order = AppOrder(
             id: orderId,
             userId: AuthService.shared.currentUser?.id ?? "",
             productId: productId,
@@ -505,8 +505,8 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             updatedAt: Date()
         )
 
-        cachedOrders[orderId] = order
-        updateOrdersArrays()
+        cachedAppOrders[orderId] = order
+        updateAppOrdersArrays()
 
         return order
     }
@@ -514,11 +514,11 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     /// Create pending order for subscription
     /// - Parameter productId: Product ID
     /// - Returns: Pending order
-    private func createPendingSubscriptionOrder(productId: String) -> Order {
+    private func createPendingSubscriptionAppOrder(productId: String) -> AppOrder {
         let orderId = UUID().uuidString
         let price = getPriceForProduct(productId)
 
-        let order = Order(
+        let order = AppOrder(
             id: orderId,
             userId: AuthService.shared.currentUser?.id ?? "",
             productId: productId,
@@ -533,8 +533,8 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             updatedAt: Date()
         )
 
-        cachedOrders[orderId] = order
-        updateOrdersArrays()
+        cachedAppOrders[orderId] = order
+        updateAppOrdersArrays()
 
         return order
     }

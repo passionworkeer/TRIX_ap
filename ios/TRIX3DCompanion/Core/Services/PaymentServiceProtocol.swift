@@ -38,8 +38,8 @@ enum PaymentMethod: String, CaseIterable {
     }
 }
 
-/// Payment status
-enum PaymentStatus: String, Equatable {
+/// Payment status (renamed to avoid conflict with APIEndpoints)
+enum AppAppPaymentStatus: String, Equatable {
     case pending = "pending"
     case processing = "processing"
     case completed = "completed"
@@ -48,15 +48,15 @@ enum PaymentStatus: String, Equatable {
     case refunded = "refunded"
 }
 
-/// Order information
-struct Order: Identifiable, Codable, Equatable {
+/// AppOrder information
+struct AppAppOrder: Identifiable, Codable, Equatable {
     let id: String
     let userId: String
     let productId: String
     let productType: ProductType
     let amount: Double
     let currency: String
-    let status: PaymentStatus
+    let status: AppPaymentStatus
     let paymentMethod: PaymentMethod
     let transactionId: String?
     let points: Int?
@@ -78,8 +78,8 @@ struct Order: Identifiable, Codable, Equatable {
 
 /// Payment result
 enum PaymentResult: Equatable {
-    case success(order: Order)
-    case pending(order: Order)
+    case success(order: AppOrder)
+    case pending(order: AppOrder)
     case failed(error: PaymentError)
     case cancelled
 }
@@ -111,7 +111,7 @@ enum PaymentError: Error, LocalizedError {
         case .userCancelled:
             return "Payment cancelled"
         case .orderNotFound:
-            return "Order not found"
+            return "AppOrder not found"
         case .serverError(let message):
             return message
         case .unknown(let error):
@@ -179,10 +179,10 @@ struct PaymentSubscriptionStatus: Equatable {
 protocol PaymentServiceProtocol: ObservableObject {
 
     /// Current pending orders
-    var pendingOrders: [Order] { get }
+    var pendingAppOrders: [AppOrder] { get }
 
     /// Completed orders
-    var completedOrders: [Order] { get }
+    var completedAppOrders: [AppOrder] { get }
 
     /// Whether currently processing payment
     var isProcessing: Bool { get }
@@ -212,24 +212,24 @@ protocol PaymentServiceProtocol: ObservableObject {
         transactionId: String,
         productId: String,
         receiptData: String?
-    ) async -> Result<Order, PaymentError>
+    ) async -> Result<AppOrder, PaymentError>
 
     /// Get order details
-    /// - Parameter orderId: Order ID
-    /// - Returns: Order or nil if not found
-    func getOrder(orderId: String) async -> Order?
+    /// - Parameter orderId: AppOrder ID
+    /// - Returns: AppOrder or nil if not found
+    func getAppOrder(orderId: String) async -> AppOrder?
 
     /// Get order history
     /// - Parameters:
     ///   - limit: Number of orders to retrieve
     ///   - offset: Pagination offset
     /// - Returns: Array of orders
-    func getOrderHistory(limit: Int, offset: Int) async -> [Order]
+    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder]
 
     /// Cancel pending order
-    /// - Parameter orderId: Order ID to cancel
+    /// - Parameter orderId: AppOrder ID to cancel
     /// - Returns: Result indicating success or failure
-    func cancelOrder(orderId: String) async -> Result<Void, PaymentError>
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError>
 
     /// Get current subscription status
     /// - Returns: Subscription status information
@@ -237,17 +237,17 @@ protocol PaymentServiceProtocol: ObservableObject {
 
     /// Restore previous purchases
     /// - Returns: Result with restored orders or error
-    func restorePurchases() async -> Result<[Order], PaymentError>
+    func restorePurchases() async -> Result<[AppOrder], PaymentError>
 
     /// Clear error state
     func clearError()
 }
 
-// MARK: - Order Status Update
+// MARK: - AppOrder Status Update
 
-/// Order update notification
-struct OrderUpdate: Identifiable, Equatable {
+/// AppOrder update notification
+struct AppOrderUpdate: Identifiable, Equatable {
     let orderId: String
-    let status: PaymentStatus
+    let status: AppPaymentStatus
     let timestamp: Date
 }
