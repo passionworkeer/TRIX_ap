@@ -57,14 +57,14 @@ struct StudyListView: View {
     ]
 
     private let upcomingSessions = [
-        StudySession(
+        DemoStudySession(
             id: "1",
             title: "Linear Algebra",
             date: "Today, 3:00 PM",
             duration: "1h",
             participants: ["Alex", "Jordan", "Taylor"]
         ),
-        StudySession(
+        DemoStudySession(
             id: "2",
             title: "Organic Chemistry",
             date: "Tomorrow, 10:00 AM",
@@ -329,7 +329,7 @@ struct StudyRoomCard: View {
 
 /// Card displaying scheduled study session
 struct StudySessionCard: View {
-    let session: StudySession
+    let session: DemoStudySession
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -661,7 +661,9 @@ struct StudyRoom: Identifiable {
     let host: String
 }
 
-struct StudySession: Identifiable {
+/// Demo version of StudySession for UI preview purposes
+/// Uses simplified structure different from APIEndpoints.StudySession
+struct DemoStudySession: Identifiable {
     let id: String
     let title: String
     let date: String
@@ -689,7 +691,7 @@ struct StudySession: Identifiable {
             host: "Sarah"
         ))
 
-        StudySessionCard(session: StudySession(
+        StudySessionCard(session: DemoStudySession(
             id: "1",
             title: "Linear Algebra",
             date: "Today, 3:00 PM",

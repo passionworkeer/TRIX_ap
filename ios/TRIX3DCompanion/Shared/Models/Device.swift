@@ -61,30 +61,9 @@ struct Device: Codable, Identifiable {
     }
 }
 
-/// 配对请求模型
-struct PairingRequest: Codable, Identifiable {
-    let requestId: String
-    let deviceName: String
-    let deviceType: DeviceType
-    let timestamp: Date
-    let status: PairingStatus
-    let deviceId: String?
-    let deviceToken: String?
-    let message: String?
-    let metadata: PairingMetadata?
-
-    enum CodingKeys: String, CodingKey {
-        case requestId = "request_id"
-        case deviceName = "device_name"
-        case deviceType = "device_type"
-        case timestamp
-        case status
-        case deviceId = "device_id"
-        case deviceToken = "device_token"
-        case message
-        case metadata
-    }
-}
+/// Re-export PairingRequest from APIEndpoints for consistency
+/// Using APIEndpoints.PairingRequest as the canonical definition
+typealias PairingRequest = APIEndpoints.PairingRequest
 
 /// 配对响应模型
 struct PairingResponse: Codable {

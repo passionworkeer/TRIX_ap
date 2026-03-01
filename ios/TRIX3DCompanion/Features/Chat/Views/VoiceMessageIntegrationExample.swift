@@ -84,7 +84,7 @@ struct VoiceMessageIntegrationExample: View {
 
     // MARK: - State
 
-    @State private var messages: [ChatMessage] = []
+    @State private var messages: [DemoChatMessage] = []
     @State private var messageText = ""
     @State private var showRecordingUI = false
     @State private var uploadProgress: Double = 0.0
@@ -203,7 +203,7 @@ struct VoiceMessageIntegrationExample: View {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
-        let newMessage = ChatMessage(
+        let newMessage = DemoChatMessage(
             id: UUID().uuidString,
             type: .text,
             text: text,
@@ -227,7 +227,7 @@ struct VoiceMessageIntegrationExample: View {
         let duration = getAudioDuration(from: audioURL)
 
         // Create voice message
-        let voiceMessage = ChatMessage(
+        let voiceMessage = DemoChatMessage(
             id: UUID().uuidString,
             type: .voice,
             text: nil,
@@ -345,7 +345,7 @@ struct VoiceMessageIntegrationExample: View {
         // Find the last voice message and update its audioURL to the server URL
         if let lastIndex = messages.lastIndex(where: { !$0.isIncoming && $0.type == .voice }) {
             let oldMessage = messages[lastIndex]
-            let updatedMessage = ChatMessage(
+            let updatedMessage = DemoChatMessage(
                 id: oldMessage.id,
                 type: oldMessage.type,
                 text: oldMessage.text,
@@ -369,7 +369,9 @@ enum DemoMessageType {
     case image
 }
 
-struct ChatMessage: Identifiable {
+/// Demo version of ChatMessage for UI demonstration purposes
+/// Uses simplified structure different from APIEndpoints.ChatMessage
+struct DemoChatMessage: Identifiable {
     let id: String
     let type: DemoMessageType
     let text: String?
@@ -384,7 +386,7 @@ struct ChatMessage: Identifiable {
 // MARK: - Message Row Component
 
 struct MessageRow: View {
-    let message: ChatMessage
+    let message: DemoChatMessage
 
     var body: some View {
         HStack {
@@ -527,7 +529,7 @@ struct VoiceUploadRequest: Codable {
         let duration = getAudioDuration(from: url)
 
         // Create message
-        let message = ChatMessage(
+        let message = DemoChatMessage(
             type: .voice,
             audioURL: url,
             duration: duration,

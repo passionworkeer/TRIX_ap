@@ -1,5 +1,9 @@
 import Foundation
 
+// Re-export StudyRoomMember from APIEndpoints for consistency
+// Using APIEndpoints.StudyRoomMember as the canonical definition
+typealias StudyRoomMember = APIEndpoints.StudyRoomMember
+
 /// 学习房间会话状态
 enum StudyRoomSessionState: String, Codable {
     case idle
@@ -19,26 +23,6 @@ enum StudyRoomHostAction: String, Codable {
     case startFocus = "start_focus"
     case pause
     case end
-}
-
-/// 学习房间成员
-struct StudyRoomMember: Codable, Identifiable {
-    var id: String { userId }
-    let userId: String
-    let displayName: String
-    let avatarUrl: String?
-    let joinedAt: Date
-    let lastActiveAt: Date
-    let status: StudyRoomMemberStatus
-
-    enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case displayName = "display_name"
-        case avatarUrl = "avatar_url"
-        case joinedAt = "joined_at"
-        case lastActiveAt = "last_active_at"
-        case status
-    }
 }
 
 /// 学习房间计时器状态
