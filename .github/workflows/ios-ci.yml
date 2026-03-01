@@ -13,20 +13,61 @@ on:
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Shared environment variables
+  XCODE_VERSION: "16.1"
+  DEVELOPER_DIR: /Applications/Xcode_16.1.app/Contents/Developer
+
 jobs:
   build:
     name: Build Verification
     runs-on: macos-latest
+    timeout-minutes: 30
+    outputs:
+      xcode_version: ${{ steps.xcode-info.outputs.version }}
+      build_time: ${{ steps.build-info.outputs.build_time }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show environment info
+        id: xcode-info
+        run: |
+          echo "version=$(xcodebuild -version | head -1)" >> $GITHUB_OUTPUT
+          echo "macos_version=$(sw_vers -productVersion)" >> $GITHUB_OUTPUT
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
       - name: Show Xcode version
-        run: xcodebuild -version
+        run: |
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+          echo "=== Build Tools ==="
+          xcodebuild -showsdks
+
+      - name: Cache SPM Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}-${{ hashFiles('ios/TRIX3DCompanion/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+            ${{ runner.os }}-
+
+      - name: Cache Xcode Derived Data
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -38,14 +79,21 @@ jobs:
       - name: Verify project structure
         working-directory: ios/TRIX3DCompanion
         run: |
-          # Verify the project was generated
+          echo "=== Project Structure ==="
           ls -la *.xcodeproj
-          # Verify we can list the schemes
+          echo "=== Available Schemes ==="
           xcodebuild -list -project *.xcodeproj
+          echo "=== Project Targets ==="
+          xcodebuild -project *.xcodeproj -list -json | jq '.targets[]'
+
+      - name: Record build start time
+        id: build-info
+        run: echo "build_time=$(date +%s)" >> $GITHUB_OUTPUT
 
   analyze:
     name: Static Analysis
     runs-on: macos-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -54,14 +102,39 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
+      - name: Show environment
+        run: |
+          echo "=== Swift Version ==="
+          swift --version
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+
       - name: Run SwiftLint
         run: |
+          echo "=== Installing SwiftLint ==="
           brew install swiftlint
+          echo "=== Running SwiftLint ==="
           swiftlint lint ios --format || true
+
+      - name: Run Swift Analysis
+        run: |
+          echo "=== Swift Static Analysis ==="
+          # Check if project.yml exists
+          if [ -f "ios/TRIX3DCompanion/project.yml" ]; then
+            echo "Project configuration found"
+            # Run basic swift compilation check
+            cd ios/TRIX3DCompanion
+            if swift build --dry-run 2>/dev/null; then
+              echo "Swift package structure is valid"
+            else
+              echo "Note: Swift build check skipped (not a Swift Package)"
+            fi
+          fi
 
   unit-tests:
     name: Unit Tests
     runs-on: macos-latest
+    timeout-minutes: 45
     needs: build
 
     steps:
@@ -71,6 +144,30 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
+      - name: Show environment
+        run: |
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+          echo "=== Available Simulators ==="
+          xcrun simctl list devices available | grep -E "iPhone (14|15|16)" | head -5
+
+      - name: Cache SPM Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}-${{ hashFiles('ios/TRIX3DCompanion/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+            ${{ runner.os }}-
+
+      - name: Cache Derived Data
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+
       - name: Generate Xcode project
         working-directory: ios/TRIX3DCompanion
         run: xcodegen generate
@@ -78,6 +175,7 @@ jobs:
       - name: Run Unit Tests
         working-directory: ios/TRIX3DCompanion
         run: |
+          echo "=== Running Unit Tests ==="
           xcodebuild test \
             -project TRIX3DCompanion.xcodeproj \
             -scheme TRIX3DCompanion \
@@ -86,7 +184,16 @@ jobs:
             -resultBundlePath TestResults/UnitTests.xcresult \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      - name: Show Test Results
+        working-directory: ios/TRIX3DCompanion
+        run: |
+          if [ -d "TestResults/UnitTests.xcresult" ]; then
+            echo "=== Test Summary ==="
+            xcresulttool parse TestResults/UnitTests.xcresult --format json | jq -r '.actions._testableSummaries[]? | "Tests: \(.testableSummaries[].testsCount) | Failures: \(.testableSummaries[].testsFailedCount)"' 2>/dev/null || echo "Test results available"
+          fi
 
       - name: Upload Unit Test Results
         uses: actions/upload-artifact@v4
@@ -99,6 +206,7 @@ jobs:
   ui-tests:
     name: UI Tests
     runs-on: macos-latest
+    timeout-minutes: 45
     needs: build
 
     steps:
@@ -108,6 +216,20 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
 
+      - name: Show environment
+        run: |
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+
+      - name: Cache SPM Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}-${{ hashFiles('ios/TRIX3DCompanion/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+            ${{ runner.os }}-
+
       - name: Generate Xcode project
         working-directory: ios/TRIX3DCompanion
         run: xcodegen generate
@@ -115,6 +237,7 @@ jobs:
       - name: Check for UI Tests
         id: check-ui-tests
         run: |
+          echo "=== Checking for UI Tests Target ==="
           # Check if TRIX3DUITests target exists in project.yml
           if grep -q "^  TRIX3DUITests:" ios/TRIX3DCompanion/project.yml 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -126,6 +249,7 @@ jobs:
         if: steps.check-ui-tests.outputs.exists == 'true'
         working-directory: ios/TRIX3DCompanion
         run: |
+          echo "=== Running UI Tests ==="
           xcodebuild test \
             -project TRIX3DCompanion.xcodeproj \
             -scheme TRIX3DCompanion \
@@ -143,6 +267,7 @@ jobs:
   package:
     name: Build IPA Package
     runs-on: macos-latest
+    timeout-minutes: 45
     needs: [build, unit-tests, ui-tests]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
@@ -152,6 +277,20 @@ jobs:
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
+      - name: Show environment
+        run: |
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+
+      - name: Cache SPM Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/TRIX3DCompanion/project.yml') }}-${{ hashFiles('ios/TRIX3DCompanion/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+            ${{ runner.os }}-
 
       - name: Generate Xcode project
         working-directory: ios/TRIX3DCompanion
@@ -182,6 +321,7 @@ jobs:
       - name: Build Archive
         working-directory: ios/TRIX3DCompanion
         run: |
+          echo "=== Building Archive ==="
           xcodebuild archive \
             -project TRIX3DCompanion.xcodeproj \
             -scheme TRIX3DCompanion \
@@ -196,6 +336,7 @@ jobs:
       - name: Export IPA
         working-directory: ios/TRIX3DCompanion
         run: |
+          echo "=== Exporting IPA ==="
           xcodebuild -exportArchive \
             -archivePath build/TRIX3DCompanion.xcarchive \
             -exportPath output \
@@ -206,11 +347,14 @@ jobs:
 
       - name: Verify IPA Exists
         run: |
+          echo "=== Verifying IPA ==="
           ls -la ios/TRIX3DCompanion/output/
           if [ ! -f "ios/TRIX3DCompanion/output/TRIX3DCompanion.ipa" ]; then
             echo "ERROR: IPA file not found"
             exit 1
           fi
+          echo "=== IPA Size ==="
+          ls -lh ios/TRIX3DCompanion/output/TRIX3DCompanion.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
@@ -222,6 +366,7 @@ jobs:
   testflight:
     name: Upload to TestFlight
     runs-on: macos-latest
+    timeout-minutes: 30
     needs: package
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -242,6 +387,7 @@ jobs:
         env:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
+          echo "=== Setting up Keychain ==="
           # Create temporary keychain
           security create-keychain -p mykeychainpassword build.keychain
           security set-keychain-settings -lut 21600 build.keychain
@@ -251,6 +397,7 @@ jobs:
           echo -n "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode -o certificate.p12
           security import certificate.p12 -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -k build.keychain
           security list-keychain -d user -s build.keychain
+          echo "=== Certificate imported successfully ==="
 
       - name: Upload to TestFlight
         env:
@@ -258,6 +405,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          echo "=== Uploading to TestFlight ==="
           altool \
             --upload-app \
             -f "TRIX3DCompanion.ipa" \
@@ -269,4 +417,122 @@ jobs:
       - name: Cleanup Keychain
         if: always()
         run: |
+          echo "=== Cleaning up Keychain ==="
           security delete-keychain build.keychain || true
+
+  notify:
+    name: Notify on Failure
+    runs-on: macos-latest
+    timeout-minutes: 10
+    needs: [build, analyze, unit-tests, ui-tests, package, testflight]
+    if: failure()
+
+    steps:
+      - name: Create Failure Summary
+        id: summary
+        run: |
+          # Determine which jobs failed
+          FAILED_JOBS=""
+          if [ "${{ needs.build.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}Build, "
+          fi
+          if [ "${{ needs.analyze.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}Analyze, "
+          fi
+          if [ "${{ needs.unit-tests.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}Unit Tests, "
+          fi
+          if [ "${{ needs.ui-tests.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}UI Tests, "
+          fi
+          if [ "${{ needs.package.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}Package, "
+          fi
+          if [ "${{ needs.testflight.result }}" == "failure" ]; then
+            FAILED_JOBS="${FAILED_JOBS}TestFlight, "
+          fi
+
+          # Remove trailing comma
+          FAILED_JOBS=${FAILED_JOBS%, }
+          echo "failed_jobs=${FAILED_JOBS}" >> $GITHUB_OUTPUT
+
+      - name: Post Failure Comment to PR
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Posting failure comment to PR ==="
+          FAILED_JOBS="${{ steps.summary.outputs.failed_jobs }}"
+          BODY="## iOS CI Build Failed
+
+The following jobs failed: **${FAILED_JOBS}**
+
+### Details
+- **Branch:** \`${{ github.ref }}\`
+- **Commit:** \`${{ github.sha }}\`
+- **Workflow:** [${{ github.workflow }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+Please check the workflow logs for more details."
+
+          # Use GitHub CLI to post comment
+          gh pr comment ${{ github.event.pull_request.number }} --body "${BODY}" || echo "Failed to post comment (non-critical)"
+
+      - name: Notify via Slack (optional)
+        if: env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          echo "=== Sending Slack notification ==="
+          FAILED_JOBS="${{ steps.summary.outputs.failed_jobs }}"
+          PAYLOAD="{
+            \"text\": \"iOS CI Build Failed: ${FAILED_JOBS}\",
+            \"blocks\": [
+              {
+                \"type\": \"header\",
+                \"text\": {\"type\": \"plain_text\", \"text\": \"iOS CI Build Failed\"}
+              },
+              {
+                \"type\": \"section\",
+                \"fields\": [
+                  {\"type\": \"mrkdwn\", \"text\": \"*Failed Jobs:*\n${FAILED_JOBS}\"},
+                  {\"type\": \"mrkdwn\", \"text\": \"*Branch:*\n\`${{ github.ref }}\`\"},
+                  {\"type\": \"mrkdwn\", \"text\": \"*Commit:*\n\`${{ github.sha }}\`\"},
+                  {\"type\": \"mrkdwn\", \"text\": \"*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>\"}
+                ]
+              }
+            ]
+          }"
+
+          curl -X POST -H 'Content-Type: application/json' -d "${PAYLOAD}" ${SLACK_WEBHOOK} || echo "Slack notification failed (non-critical)"
+
+      - name: Notify via Discord (optional)
+        if: env.DISCORD_WEBHOOK != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          echo "=== Sending Discord notification ==="
+          FAILED_JOBS="${{ steps.summary.outputs.failed_jobs }}"
+          PAYLOAD="{
+            \"embeds\": [
+              {
+                \"title\": \"iOS CI Build Failed\",
+                \"color\": 16711680,
+                \"fields\": [
+                  {\"name\": \"Failed Jobs\", \"value\": \"${FAILED_JOBS}\", \"inline\": true},
+                  {\"name\": \"Branch\", \"value\": \"\`${{ github.ref }}\`\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"\`${{ github.sha }}\`\", \"inline\": true},
+                  {\"name\": \"Workflow\", \"value\": \"[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\", \"inline\": false}
+                ]
+              }
+            ]
+          }"
+
+          curl -X POST -H 'Content-Type: application/json' -d "${PAYLOAD}" ${DISCORD_WEBHOOK} || echo "Discord notification failed (non-critical)"
+
+      - name: Summary
+        run: |
+          echo "=== iOS CI Failure Notification ==="
+          echo "Failed jobs: ${{ steps.summary.outputs.failed_jobs }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Workflow URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
