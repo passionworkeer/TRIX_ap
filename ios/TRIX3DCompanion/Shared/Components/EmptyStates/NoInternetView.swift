@@ -31,7 +31,7 @@ struct NoInternetView: View {
             Text("请检查您的网络连接，或尝试使用离线模式继续浏览已缓存的内容")
                 .font(.body)
                 .foregroundColor(.textSecondary)
-                .multilineTextAlignment(.center")
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
             // 操作按钮

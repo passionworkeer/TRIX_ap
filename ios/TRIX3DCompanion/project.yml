@@ -119,6 +119,12 @@ packages:
   CodeScanner:
     url: https://github.com/twostraws/CodeScanner.git
     from: "2.0.0"
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: "11.0.0"
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa.git
+    from: "8.0.0"
 
 targetDependencies:
   - target: TRIX3DCompanion
@@ -135,6 +141,10 @@ targetDependencies:
     package: SQLite
   - target: TRIX3DCompanion
     package: CodeScanner
+  - target: TRIX3DCompanion
+    package: Firebase
+  - target: TRIX3DCompanion
+    package: Sentry
 
 entitlements:
   path: TRIX3DCompanion.entitlements
