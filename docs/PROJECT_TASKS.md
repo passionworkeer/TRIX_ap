@@ -46,7 +46,7 @@
 - [x] TASK-016: 为 utils/* 编写测试 | type: testing | priority: P0 | result: ✓
 - [x] TASK-017: 为 components/* 核心组件编写测试 | type: testing | priority: P1 | result: ✓ (16个组件)
 - [x] TASK-018: 编写 Playwright E2E 测试 | type: testing | priority: P0 | result: ✓ (5个流程)
-- [ ] TASK-019: 运行测试验证覆盖率 | type: testing | priority: P0
+- [x] TASK-019: 运行测试验证覆盖率 | type: testing | priority: P0 | result: ✓
 
 ---
 
@@ -73,7 +73,7 @@
 ---
 
 ### 执行中 (In Progress)
-- [ ] TASK-014: 为 services/* 编写测试 | type: testing | priority: P0
+- [ ] TASK-026: Web 用户使用指南 | type: pm | priority: P0
 
 ---
 
