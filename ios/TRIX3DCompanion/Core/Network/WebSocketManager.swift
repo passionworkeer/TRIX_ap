@@ -93,13 +93,7 @@ struct StudyRoomState: Codable {
     let createdAt: String
 }
 
-struct StudyRoomMember: Codable {
-    let odUserId: String
-    let displayName: String
-    let avatarUrl: String?
-    let joinedAt: String
-    let isOnline: Bool
-}
+// NOTE: StudyRoomMember is now defined in APIEndpoints.swift
 
 // MARK: - Request Payloads
 
@@ -115,15 +109,7 @@ struct AppMessageRequest: Codable {
     let messageId: String
 }
 
-struct PairWithCodeRequest: Codable {
-    let code: String
-    let userId: String
-}
-
-struct PairWithTokenRequest: Codable {
-    let token: String
-    let userId: String
-}
+// NOTE: PairWithCodeRequest and PairWithTokenRequest are now defined in APIEndpoints.swift
 
 struct StudyRoomCreateRequest: Codable {
     let userId: String

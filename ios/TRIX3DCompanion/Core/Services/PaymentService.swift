@@ -365,11 +365,11 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
     /// Get current subscription status
     /// - Returns: Subscription status information
-    func getSubscription() async -> SubscriptionStatus {
+    func getSubscription() async -> PaymentSubscriptionStatus {
         do {
             let response: SubscriptionStatusResponse = try await apiClient.getSubscription()
 
-            return SubscriptionStatus(
+            return PaymentSubscriptionStatus(
                 isActive: response.isActive,
                 tier: response.tier,
                 productId: response.productId,
@@ -381,7 +381,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         } catch {
             SecureLogger.shared.error("Failed to get subscription status: \(error)")
             // Return inactive status on error
-            return SubscriptionStatus(
+            return PaymentSubscriptionStatus(
                 isActive: false,
                 tier: nil,
                 productId: nil,
