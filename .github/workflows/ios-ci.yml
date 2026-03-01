@@ -58,3 +58,214 @@ jobs:
         run: |
           brew install swiftlint
           swiftlint lint ios --format || true
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
+      - name: Run Unit Tests
+        working-directory: ios/TRIX3DCompanion
+        run: |
+          xcodebuild test \
+            -project TRIX3DCompanion.xcodeproj \
+            -scheme TRIX3DCompanion \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -only-testing:TRIX3DCompanionTests \
+            -resultBundlePath TestResults/UnitTests.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload Unit Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: ios/TRIX3DCompanion/TestResults/UnitTests.xcresult
+          retention-days: 30
+
+  ui-tests:
+    name: UI Tests
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
+      - name: Check for UI Tests
+        id: check-ui-tests
+        run: |
+          if grep -q "bundle.ui-testing" project.yml 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run UI Tests (if available)
+        if: steps.check-ui-tests.outputs.exists == 'true'
+        working-directory: ios/TRIX3DCompanion
+        run: |
+          xcodebuild test \
+            -project TRIX3DCompanion.xcodeproj \
+            -scheme TRIX3DCompanion \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -only-testing:TRIX3DUITests \
+            -resultBundlePath TestResults/UITests.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Skip UI Tests (no target found)
+        if: steps.check-ui-tests.outputs.exists == 'false'
+        run: echo "No UI Tests target found - skipping"
+
+  package:
+    name: Build IPA Package
+    runs-on: macos-latest
+    needs: [build, unit-tests, ui-tests]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
+      - name: Generate Xcode project
+        working-directory: ios/TRIX3DCompanion
+        run: xcodegen generate
+
+      - name: Create Export Options Plist
+        run: |
+          mkdir -p ios/TRIX3DCompanion
+          cat > ios/TRIX3DCompanion/ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>exportComplianceData</key>
+            <true/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build Archive
+        working-directory: ios/TRIX3DCompanion
+        run: |
+          xcodebuild archive \
+            -project TRIX3DCompanion.xcodeproj \
+            -scheme TRIX3DCompanion \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/TRIX3DCompanion.xcarchive \
+            CODE_SIGN_IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+
+      - name: Export IPA
+        working-directory: ios/TRIX3DCompanion
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/TRIX3DCompanion.xcarchive \
+            -exportPath output \
+            -exportOptionsPlist ExportOptions.plist \
+            CODE_SIGN_IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}" \
+            CODE_SIGNING_REQUIRED=YES \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+
+      - name: Verify IPA Exists
+        run: |
+          ls -la ios/TRIX3DCompanion/output/
+          if [ ! -f "ios/TRIX3DCompanion/output/TRIX3DCompanion.ipa" ]; then
+            echo "ERROR: IPA file not found"
+            exit 1
+          fi
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios/TRIX3DCompanion/output/TRIX3DCompanion.ipa
+          retention-days: 7
+
+  testflight:
+    name: Upload to TestFlight
+    runs-on: macos-latest
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+
+      - name: Download IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+          path: .
+
+      - name: Import Apple Certificate
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          security create-keychain -p mykeychainpassword build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p mykeychainpassword build.keychain
+
+          # Import certificate
+          echo -n "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode -o certificate.p12
+          security import certificate.p12 -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -k build.keychain
+          security list-keychain -d user -s build.keychain
+
+      - name: Upload to TestFlight
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          altool \
+            --upload-app \
+            -f "TRIX3DCompanion.ipa" \
+            -u "$APPLE_ID" \
+            -p "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --type IOS
+
+      - name: Cleanup Keychain
+        if: always()
+        run: |
+          security delete-keychain build.keychain || true
