@@ -76,9 +76,14 @@ extension View {
     }
 
     /// Add heading accessibility
+    @ViewBuilder
     func accessibleHeading(_ level: HeadingLevel = .level2) -> some View {
-        self.accessibilityAddTraits(.isHeader)
-            .accessibilityHeading(level)
+        if #available(iOS 17.0, *) {
+            self.accessibilityAddTraits(.isHeader)
+                .accessibilityHeading(level)
+        } else {
+            self.accessibilityAddTraits(.isHeader)
+        }
     }
 
     /// Remove accessibility from element

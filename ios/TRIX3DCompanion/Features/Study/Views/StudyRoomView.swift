@@ -601,5 +601,5 @@ struct StudyRoomSettingsSheet: View {
         )
     )
 
-    return StudyRoomView(roomState: sampleRoom)
+    StudyRoomView(roomState: sampleRoom)
 }

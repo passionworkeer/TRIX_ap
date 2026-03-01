@@ -96,6 +96,7 @@ struct AvatarView: View {
                         switch phase {
                         case .empty:
                             ProgressView()
+                                .progressViewStyle(.circular)
                                 .frame(width: size.dimension, height: size.dimension)
                         case .success(let image):
                             image
@@ -196,13 +197,15 @@ extension AvatarView {
         username: String,
         size: AvatarSize = .medium,
         isOnline: Bool = false,
-        showStatus: Bool = false
+        showStatus: Bool = false,
+        borderColor: Color = .purple
     ) -> AvatarView {
         AvatarView(
             size: size,
             username: username,
             isOnline: isOnline,
-            showStatusIndicator: showStatus
+            showStatusIndicator: showStatus,
+            borderColor: borderColor
         )
     }
 }
