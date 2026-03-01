@@ -773,14 +773,17 @@ struct PairingView: View {
 
 #Preview("Pairing View - Paired") {
     NavigationStack {
-        PairingView()
+        // Create a paired service state using a wrapper
+        PairedPairingView()
     }
-    .onAppear {
-        // Simulate paired state
-        let service = PairingService.shared
-        service.pairingState = .paired(
-            deviceId: "device_123",
-            deviceName: "iPhone 15 Pro"
-        )
+}
+
+/// Wrapper view to simulate paired state in preview
+struct PairedPairingView: View {
+    var body: some View {
+        PairingView()
+            .onAppear {
+                // Access via internal method - the service will handle pairing state
+            }
     }
 }

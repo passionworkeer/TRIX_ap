@@ -262,9 +262,9 @@ extension View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                GradientButton("Primary Action", icon: "checkmark")
-                GradientButton("Blue Style", icon: "star.fill", gradientColors: [.blue, .cyan])
-                GradientButton("Orange Style", icon: "flame.fill", gradientColors: [.orange, .red])
+                GradientButton("Primary Action", icon: "checkmark") {}
+                GradientButton("Blue Style", icon: "star.fill", gradientColors: [.blue, .cyan]) {}
+                GradientButton("Orange Style", icon: "flame.fill", gradientColors: [.orange, .red]) {}
             }
 
             // OutlineGradientButton
@@ -273,8 +273,8 @@ extension View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                OutlineGradientButton("Outline Style")
-                OutlineGradientButton("With Icon", icon: "heart.fill", gradientColors: [.pink, .red])
+                OutlineGradientButton("Outline Style") {}
+                OutlineGradientButton("With Icon", icon: "heart.fill", gradientColors: [.pink, .red]) {}
             }
 
             // PillButton
@@ -284,13 +284,13 @@ extension View {
                     .foregroundColor(.secondary)
 
                 HStack(spacing: 12) {
-                    PillButton("Small", size: .small)
-                    PillButton("Medium", size: .medium)
-                    PillButton("Large", size: .large)
+                    PillButton("Small", size: .small) {}
+                    PillButton("Medium", size: .medium) {}
+                    PillButton("Large", size: .large) {}
                 }
 
-                PillButton("Tag", icon: "tag.fill", gradientColors: [.green, .mint])
-                PillButton("Download", icon: "arrow.down.circle.fill", gradientColors: [.blue, .purple])
+                PillButton("Tag", icon: "tag.fill", gradientColors: [.green, .mint]) {}
+                PillButton("Download", icon: "arrow.down.circle.fill", gradientColors: [.blue, .purple]) {}
             }
 
             // Standard Button with style
