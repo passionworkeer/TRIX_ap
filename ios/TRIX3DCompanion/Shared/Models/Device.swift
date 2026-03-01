@@ -61,28 +61,29 @@ struct Device: Codable, Identifiable {
     }
 }
 
-/// Re-export PairingRequest from APIEndpoints for consistency
-/// Using APIEndpoints.PairingRequest as the canonical definition
-typealias PairingRequest = APIEndpoints.PairingRequest
+/// 配对请求
+struct PairingRequest: Codable {
+    let userId: String
 
-/// 配对响应模型
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+    }
+}
+
+/// 配对响应
 struct PairingResponse: Codable {
     let requestId: String
-    let status: PairingStatus
-    let deviceToken: String?
-    let nodeId: String?
-    let wsUrl: String?
-    let expiresAt: Date?
-    let message: String?
+    let code: String?
+    let token: String?
+    let expiresIn: Int
+    let qrUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case requestId = "request_id"
-        case status
-        case deviceToken = "device_token"
-        case nodeId = "node_id"
-        case wsUrl = "ws_url"
-        case expiresAt = "expires_at"
-        case message
+        case code
+        case token
+        case expiresIn = "expires_in"
+        case qrUrl = "qr_url"
     }
 }
 
@@ -108,14 +109,20 @@ enum DevicePermission: String, Codable {
 
 /// 配对状态查询响应
 struct PairingStatusResponse: Codable {
+    let success: Bool
     let paired: Bool
-    let connected: Bool
-    let deviceInfo: DeviceInfo?
+    let deviceId: String?
+    let deviceName: String?
+    let botOnline: Bool?
+    let pairedAt: String?
 
     enum CodingKeys: String, CodingKey {
+        case success
         case paired
-        case connected
-        case deviceInfo = "device_info"
+        case deviceId = "device_id"
+        case deviceName = "device_name"
+        case botOnline = "bot_online"
+        case pairedAt = "paired_at"
     }
 }
 

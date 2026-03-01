@@ -11,7 +11,7 @@ import StoreKit
 // MARK: - Product Types
 
 /// In-app product type
-enum ProductType: String, CaseIterable {
+enum ProductType: String, CaseIterable, Codable {
     case subscription = "subscription"
     case points = "points"
 }

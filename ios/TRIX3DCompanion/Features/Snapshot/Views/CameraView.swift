@@ -429,33 +429,6 @@ class CameraPreviewUIView: UIView {
     }
 }
 
-// MARK: - Control Button
-
-/// Camera control button
-struct ControlButton: View {
-    let icon: String
-    let label: String
-    var isActive: Bool = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.title2)
-
-                Text(label)
-                    .font(.caption2)
-            }
-            .foregroundColor(isActive ? .brandPurple : .white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isActive ? .white : .ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-}
-
 // MARK: - Capture Button
 
 /// Photo capture button

@@ -48,6 +48,10 @@ final class NetworkRequestCache {
     private let memoryLimit: UInt64 = 50 * 1024 * 1024
     private var currentMemoryUsage: UInt64 = 0
 
+    // Request deduplication
+    private var inFlightRequests: [String: Task<Any, Error>] = [:]
+    private let flightQueue = DispatchQueue(label: "com.trix3d.requestflight")
+
     // MARK: - Initialization
 
     private init() {}
@@ -263,10 +267,6 @@ extension NetworkRequestCache {
 // MARK: - Request Deduplication
 
 extension NetworkRequestCache {
-
-    /// Track in-flight requests for deduplication
-    private var inFlightRequests: [String: Task<Any, Error>] = [:]
-    private let flightQueue = DispatchQueue(label: "com.trix3d.requestflight")
 
     /// Execute request with deduplication
     func executeWithDeduplication<T>(

@@ -650,17 +650,6 @@ struct CreateStudyRoomView: View {
 
 // MARK: - Models
 
-struct StudyRoom: Identifiable {
-    let id: String
-    let name: String
-    let participants: Int
-    let maxParticipants: Int
-    let subject: String
-    let duration: String
-    let isActive: Bool
-    let host: String
-}
-
 /// Demo version of StudySession for UI preview purposes
 /// Uses simplified structure different from APIEndpoints.StudySession
 struct DemoStudySession: Identifiable {

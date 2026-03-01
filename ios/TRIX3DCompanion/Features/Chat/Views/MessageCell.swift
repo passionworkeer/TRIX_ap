@@ -200,17 +200,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "1",
                     roomId: "room-1",
-                    friendId: nil,
+                    senderId: "user-1",
                     sender: .user,
-                    senderId: nil,
-                    text: "Hello! This is a message from me.",
-                    timestamp: Date(),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: true
+                    content: "Hello! This is a message from me.",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: true,
+                    createdAt: Date()
                 ),
                 isCurrentUser: true
             )
@@ -220,17 +218,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "2",
                     roomId: "room-1",
-                    friendId: nil,
-                    sender: .friend,
                     senderId: "friend-1",
-                    text: "Hi there! This is a reply message.",
-                    timestamp: Date().addingTimeInterval(-300),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: true
+                    sender: .friend,
+                    content: "Hi there! This is a reply message.",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: true,
+                    createdAt: Date().addingTimeInterval(-300)
                 ),
                 isCurrentUser: false
             )
@@ -240,17 +236,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "3",
                     roomId: "room-1",
-                    friendId: nil,
+                    senderId: "bot-1",
                     sender: .bot,
-                    senderId: nil,
-                    text: "I'm Clawbot, your AI assistant! How can I help you today?",
-                    timestamp: Date().addingTimeInterval(-600),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: true
+                    content: "I'm Clawbot, your AI assistant! How can I help you today?",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: true,
+                    createdAt: Date().addingTimeInterval(-600)
                 ),
                 isCurrentUser: false
             )
@@ -260,17 +254,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "4",
                     roomId: "room-1",
-                    friendId: nil,
+                    senderId: "user-1",
                     sender: .user,
-                    senderId: nil,
-                    text: "This is a much longer message that should wrap to multiple lines. It demonstrates how the message bubble handles longer text content gracefully.",
-                    timestamp: Date().addingTimeInterval(-900),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: false
+                    content: "This is a much longer message that should wrap to multiple lines. It demonstrates how the message bubble handles longer text content gracefully.",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: false,
+                    createdAt: Date().addingTimeInterval(-900)
                 ),
                 isCurrentUser: true
             )
@@ -287,17 +279,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "1",
                     roomId: "room-1",
-                    friendId: nil,
+                    senderId: "user-1",
                     sender: .user,
-                    senderId: nil,
-                    text: "Dark mode message!",
-                    timestamp: Date(),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: true
+                    content: "Dark mode message!",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: true,
+                    createdAt: Date()
                 ),
                 isCurrentUser: true
             )
@@ -306,17 +296,15 @@ struct MessageCell: View {
                 message: ChatMessage(
                     id: "2",
                     roomId: "room-1",
-                    friendId: nil,
-                    sender: .friend,
                     senderId: "friend-1",
-                    text: "Reply in dark mode.",
-                    timestamp: Date().addingTimeInterval(-300),
-                    messageType: .text,
-                    mediaUri: nil,
-                    mediaType: nil,
-                    mediaSize: nil,
-                    mediaMetadata: nil,
-                    isRead: true
+                    sender: .friend,
+                    content: "Reply in dark mode.",
+                    type: .text,
+                    mediaUrl: nil,
+                    mediaMimeType: nil,
+                    mediaDuration: nil,
+                    isRead: true,
+                    createdAt: Date().addingTimeInterval(-300)
                 ),
                 isCurrentUser: false
             )

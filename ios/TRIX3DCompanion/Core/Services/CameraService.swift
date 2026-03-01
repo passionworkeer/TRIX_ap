@@ -55,7 +55,7 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     private var currentDevice: AVCaptureDevice?
 
     /// 照片捕获的continuation
-    private var photoContinuation: CheckedContinuation<UIImage, Error>?
+    private var photoContinuation: CheckedContinuation<Result<UIImage, CameraError>, Never>?
 
     /// 超时任务，用于在成功时取消
     private var timeoutTask: Task<Void, Never>?
@@ -269,7 +269,7 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
                             code: -1,
                             userInfo: [NSLocalizedDescriptionKey: "Capture timeout"]
                         ))
-                        cont.resume(throwing: error)
+                        cont.resume(returning: .failure(error))
                     }
                 }
             }
@@ -280,10 +280,9 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     private func createPhotoSettings() -> AVCapturePhotoSettings {
         let settings: AVCapturePhotoSettings
 
-        if let photoSettings = AVCapturePhotoSettings.availablePhotoCodecTypes.contains(.hevc)
-            ? AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
-            : AVCapturePhotoSettings() {
-            settings = photoSettings
+        // 检查是否支持 HEVC
+        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+            settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
         } else {
             settings = AVCapturePhotoSettings()
         }
@@ -371,7 +370,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
                 self.timeoutTask?.cancel()
                 self.timeoutTask = nil
 
-                self.photoContinuation?.resume(throwing: CameraError.captureFailed(error))
+                self.photoContinuation?.resume(returning: .failure(CameraError.captureFailed(error)))
                 self.photoContinuation = nil
                 self.lastError = .captureFailed(error)
             }
@@ -385,13 +384,13 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
                 self.timeoutTask?.cancel()
                 self.timeoutTask = nil
 
-                self.photoContinuation?.resume(throwing: CameraError.captureFailed(
+                self.photoContinuation?.resume(returning: .failure(CameraError.captureFailed(
                     NSError(
                         domain: "CameraService",
                         code: -2,
                         userInfo: [NSLocalizedDescriptionKey: "Failed to get image data"]
                     )
-                ))
+                )))
                 self.photoContinuation = nil
                 self.lastError = .captureFailed(NSError(
                     domain: "CameraService",
@@ -409,13 +408,13 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
                 self.timeoutTask?.cancel()
                 self.timeoutTask = nil
 
-                self.photoContinuation?.resume(throwing: CameraError.captureFailed(
+                self.photoContinuation?.resume(returning: .failure(CameraError.captureFailed(
                     NSError(
                         domain: "CameraService",
                         code: -3,
                         userInfo: [NSLocalizedDescriptionKey: "Failed to create image"]
                     )
-                ))
+                )))
                 self.photoContinuation = nil
                 self.lastError = .captureFailed(NSError(
                     domain: "CameraService",
@@ -432,7 +431,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             self.timeoutTask?.cancel()
             self.timeoutTask = nil
 
-            self.photoContinuation?.resume(returning: image)
+            self.photoContinuation?.resume(returning: .success(image))
             self.photoContinuation = nil
         }
     }
@@ -452,7 +451,11 @@ extension CameraService {
 
     /// 检查是否支持视频录制
     var isVideoRecordingSupported: Bool {
-        photoOutput.isVideoRecordingSupported
+        // Check if current device supports video
+        guard let device = currentDevice else {
+            return false
+        }
+        return device.hasMediaType(.video)
     }
 
     /// 获取当前设备信息

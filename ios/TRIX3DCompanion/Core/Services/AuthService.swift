@@ -107,7 +107,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     private var tokenExpirationDate: Date?
 
     /// Refresh task to prevent concurrent token refresh
-    private var refreshTask: Task<Void, Never>?
+    private var refreshTask: Task<AuthResult<Void>, Never>?
 
     /// Cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
@@ -230,7 +230,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             isLoading = false
 
             // Check for specific error cases
-            if case .custom(let message) = mapNetworkError(error),
+            if case .validationError(let message) = mapNetworkError(error),
                message.lowercased().contains("email") || message.lowercased().contains("exists") {
                 let authError = AuthError.emailAlreadyExists
                 lastError = authError
@@ -320,7 +320,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             let authError = mapNetworkError(error)
 
             // If unauthorized, clear session
-            if case .unauthorized = authError {
+            if case .unauthorized = error {
                 clearSession()
             }
 
