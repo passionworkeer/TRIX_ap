@@ -115,6 +115,7 @@ export async function synthesizeSpeech(
 
   for (let index = 0; index < baseUrls.length; index += 1) {
     const baseUrl = baseUrls[index];
+    if (!baseUrl) continue;
     try {
       return await requestSynthesizeAtBaseUrl(baseUrl, body, signal);
     } catch (error) {

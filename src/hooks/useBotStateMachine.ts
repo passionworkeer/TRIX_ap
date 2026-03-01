@@ -42,7 +42,6 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
   const { voiceEnabled = false, latestBotMessage, onStateChange } = options;
 
   const [botState, setBotState] = useState<BotState>('IDLE');
-  const [idleEnteredAt, setIdleEnteredAt] = useState<number>(() => Date.now());
 
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +83,6 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     clearSpeakingTimeout();
     clearThinkingTimeout();
     setBotState('IDLE');
-    setIdleEnteredAt(Date.now());
     activeVoiceMessageIdRef.current = null;
     pendingVoiceMessageIdRef.current = null;
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
@@ -113,7 +111,6 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     speakingTimeoutRef.current = setTimeout(() => {
       speakingTimeoutRef.current = null;
       setBotState('IDLE');
-      setIdleEnteredAt(Date.now());
     }, durationMs);
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 

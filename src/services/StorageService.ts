@@ -33,7 +33,7 @@ class StorageService {
 
     // 防止重复请求
     if (this.pendingGets.has(key)) {
-      return this.pendingGets.get(key);
+      return this.pendingGets.get(key) as T | null;
     }
 
     // 异步读取
