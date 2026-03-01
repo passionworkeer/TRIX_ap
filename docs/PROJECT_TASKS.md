@@ -52,12 +52,12 @@
 
 ### 阶段五：iOS CI/CD
 
-- [ ] TASK-020: 添加 iOS 单元测试 job | type: devops | priority: P0
-- [ ] TASK-021: 添加 iOS UI 测试 job | type: devops | priority: P1
-- [ ] TASK-022: 添加 CocoaPods 依赖安装 | type: devops | priority: P0
-- [ ] TASK-023: 添加构建 job | type: devops | priority: P0
-- [ ] TASK-024: 添加自动打包 job | type: devops | priority: P1
-- [ ] TASK-025: 添加 TestFlight 上传 job | type: devops | priority: P1
+- [x] TASK-020: 添加 iOS 单元测试 job | type: devops | priority: P0 | result: ✓
+- [x] TASK-021: 添加 iOS UI 测试 job | type: devops | priority: P1 | result: ✓
+- [x] TASK-022: 添加 CocoaPods 依赖安装 | type: devops | priority: P0 | result: ⏭️ SKIP (项目用 SPM)
+- [x] TASK-023: 添加构建 job | type: devops | priority: P0 | result: ✓ (已有)
+- [x] TASK-024: 添加自动打包 job | type: devops | priority: P1 | result: ✓
+- [x] TASK-025: 添加 TestFlight 上传 job | type: devops | priority: P1 | result: ✓
 
 ---
 
