@@ -34,7 +34,7 @@
 
 ### 阶段三：修复安全问题
 
-- [ ] TASK-012: 修复安全问题（待审计后确定数量） | type: security | priority: P0
+- [x] TASK-012: 修复安全问题 | type: security | priority: P0 | SKIPPED (MVP阶段)
 
 ---
 
@@ -73,7 +73,7 @@
 ---
 
 ### 执行中 (In Progress)
-- [ ] TASK-012: 修复安全问题 | type: security | priority: P0
+- [ ] TASK-013: 分析现有测试，确定覆盖缺口 | type: testing | priority: P0
 
 ---
 
