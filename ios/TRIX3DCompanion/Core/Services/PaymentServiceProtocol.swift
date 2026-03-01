@@ -39,7 +39,7 @@ enum PaymentMethod: String, CaseIterable {
 }
 
 /// Payment status (renamed to avoid conflict with APIEndpoints)
-enum AppAppPaymentStatus: String, Equatable {
+enum AppPaymentStatus: String, Equatable {
     case pending = "pending"
     case processing = "processing"
     case completed = "completed"
@@ -49,7 +49,7 @@ enum AppAppPaymentStatus: String, Equatable {
 }
 
 /// AppOrder information
-struct AppAppOrder: Identifiable, Codable, Equatable {
+struct AppOrder: Identifiable, Codable, Equatable {
     let id: String
     let userId: String
     let productId: String
