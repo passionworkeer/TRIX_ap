@@ -140,6 +140,7 @@ export async function uploadFileToServerOss(
 
   for (let i = 0; i < uploadUrls.length; i += 1) {
     const uploadUrl = uploadUrls[i];
+    if (!uploadUrl) continue;
     try {
       return await uploadAtUrl(uploadUrl, file, signal);
     } catch (error) {

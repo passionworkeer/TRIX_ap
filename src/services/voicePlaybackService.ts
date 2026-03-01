@@ -22,7 +22,8 @@ class VoicePlaybackService {
   constructor() {
     this.audioElement = new Audio();
     this.audioElement.preload = 'auto';
-    this.audioElement.playsInline = true;
+    // playsInline is iOS Safari specific, use type assertion
+    (this.audioElement as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
   }
 
   private debugLog(message: string, payload?: Record<string, unknown>): void {
