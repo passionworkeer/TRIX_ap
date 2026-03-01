@@ -345,6 +345,37 @@ enum HTTPMethod: String {
 // MARK: - API Request/Response Types
 
 // MARK: - Auth
+struct User: Codable, Identifiable {
+    let id: String
+    let username: String
+    let email: String?
+    let avatarUrl: String?
+    let fullName: String?
+    let displayName: String?
+    let bio: String?
+    let points: Int
+    let isStudying: Bool
+    let companionId: String?
+    let totalStudyTime: Int
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+struct UserSession: Codable {
+    let id: String
+    let userId: String
+    let accessToken: String
+    let refreshToken: String
+    let expiresAt: Date
+}
+
+struct ProfileUpdate: Codable {
+    let username: String?
+    let fullName: String?
+    let displayName: String?
+    let bio: String?
+}
+
 struct LoginRequest: Codable {
     let email: String
     let password: String
@@ -374,7 +405,52 @@ struct UserStats: Codable {
 }
 
 // MARK: - Chat
-// ChatRoom, ChatRoomType, ChatMessage, MessageSender, MessageType are now typealiases
+
+// Chat types
+enum ChatRoomType: String, Codable {
+    case ai
+    case group
+    case privateChat = "private"
+}
+
+struct ChatRoom: Codable, Identifiable {
+    let id: String
+    let name: String
+    let type: ChatRoomType
+    let participants: [User]
+    let lastMessage: ChatMessage?
+    let unreadCount: Int
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+enum MessageSender: String, Codable {
+    case user
+    case bot
+    case friend
+}
+
+enum MessageType: String, Codable {
+    case text
+    case image
+    case voice
+    case video
+    case file
+}
+
+struct ChatMessage: Codable, Identifiable {
+    let id: String
+    let roomId: String
+    let senderId: String
+    let sender: MessageSender
+    let content: String
+    let type: MessageType
+    let mediaUrl: String?
+    let mediaMimeType: String?
+    let mediaDuration: Int?
+    let isRead: Bool
+    let createdAt: Date
+}
 
 struct SendMessageRequest: Codable {
     let content: String
@@ -394,16 +470,62 @@ struct CreateChatRoomRequest: Codable {
 }
 
 // MARK: - Study
-// StudySession, StudyStats are now typealiases
+
+struct StudySession: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let durationMinutes: Int
+    let startedAt: Date
+    let completedAt: Date?
+    let earnedPoints: Int?
+    let isCompleted: Bool
+}
+
+struct StudyStats: Codable {
+    let totalDuration: Int
+    let sessionCount: Int
+    let averageDuration: Int
+    let streakDays: Int
+    let todayDuration: Int
+    let weekDuration: Int
+}
 
 struct CreateStudySessionRequest: Codable {
     let durationMinutes: Int
 }
 
 // MARK: - Pairing
-// PairingRequest, PairingResponse, PairingStatusResponse, DeviceType are now typealiases
-// PairedDevice is kept here as API-specific type
 
+// Pairing types
+enum DeviceType: String, Codable {
+    case mobile
+    case desktop
+    case tablet
+    case web
+}
+
+struct PairingRequest: Codable {
+    let userId: String
+}
+
+struct PairingResponse: Codable {
+    let requestId: String
+    let code: String?
+    let token: String?
+    let expiresIn: Int
+    let qrUrl: String?
+}
+
+struct PairingStatusResponse: Codable {
+    let success: Bool
+    let paired: Bool
+    let deviceId: String?
+    let deviceName: String?
+    let botOnline: Bool?
+    let pairedAt: String?
+}
+
+// PairedDevice is kept here as API-specific type
 struct PairedDevice: Codable, Identifiable {
     let id: String
     let deviceId: String
@@ -433,9 +555,27 @@ struct PointsResponse: Codable {
 }
 
 // MARK: - Points
-// PointsTransaction, TransactionType are now typealiases to Shared/Models
-// PaymentStatus is kept here as it's API-specific
 
+enum TransactionType: String, Codable {
+    case studyComplete = "study_complete"
+    case studyStreak = "study_streak"
+    case dailyLogin = "daily_login"
+    case achievement = "achievement"
+    case socialShare = "social_share"
+    case redeem = "redeem"
+    case adminAdjust = "admin_adjust"
+}
+
+struct PointsTransaction: Codable, Identifiable {
+    let id: String
+    let pointsChange: Int
+    let type: TransactionType
+    let description: String
+    let balanceAfter: Int
+    let createdAt: Date
+}
+
+// PaymentStatus is kept here as it's API-specific
 enum PaymentStatus: String, Codable {
     case pending = "pending"
     case processing = "processing"

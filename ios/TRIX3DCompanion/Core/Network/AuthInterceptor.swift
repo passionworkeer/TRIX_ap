@@ -312,11 +312,4 @@ extension Notification.Name {
 
 // MARK: - Request Body
 
-/// Request body for token refresh endpoint
-private struct RefreshTokenRequest: Codable {
-    let refreshToken: String
-
-    enum CodingKeys: String, CodingKey {
-        case refreshToken = "refresh_token"
-    }
-}
+// NOTE: RefreshTokenRequest is defined in AuthService.swift

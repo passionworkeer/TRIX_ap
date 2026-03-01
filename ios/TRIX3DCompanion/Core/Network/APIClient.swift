@@ -554,6 +554,4 @@ extension APIClient {
     }
 }
 
-// MARK: - Empty Response
-
-struct EmptyResponse: Codable {}
+// NOTE: EmptyResponse is now defined in OAuthManager.swift

@@ -162,7 +162,7 @@ struct PointsTransaction: Identifiable, Codable {
 // MARK: - Subscription Types
 
 /// Subscription status information
-struct SubscriptionStatus: Equatable {
+struct PaymentSubscriptionStatus: Equatable {
     let isActive: Bool
     let tier: String?
     let productId: String?
@@ -233,7 +233,7 @@ protocol PaymentServiceProtocol: ObservableObject {
 
     /// Get current subscription status
     /// - Returns: Subscription status information
-    func getSubscription() async -> SubscriptionStatus
+    func getSubscription() async -> PaymentSubscriptionStatus
 
     /// Restore previous purchases
     /// - Returns: Result with restored orders or error
