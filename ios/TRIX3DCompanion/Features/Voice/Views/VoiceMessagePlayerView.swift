@@ -358,18 +358,17 @@ struct CompactVoicePlayerView: View {
                             .fill(Color.purple)
                             .frame(width: geometry.size.width * CGFloat(viewModel.progress), height: 4)
                     }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let newProgress = value.location.x / geometry.size.width
+                                Task {
+                                    await viewModel.seek(to: max(0, min(1, newProgress)))
+                                }
+                            }
+                    )
                 }
                 .frame(height: 4)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            guard let size = self.size.width as CGFloat?, size > 0 else { return }
-                            let newProgress = value.location.x / size
-                            Task {
-                                await viewModel.seek(to: max(0, min(1, newProgress)))
-                            }
-                        }
-                )
 
                 // Time labels
                 HStack {

@@ -33,6 +33,19 @@ targets:
         excludes:
           - "**/README.md"
           - "**/.gitkeep"
+    dependencies:
+      - package: Supabase
+      - package: Alamofire
+      - package: Starscream
+      - package: Kingfisher
+      - package: KeychainAccess
+      - package: SQLite
+      - package: CodeScanner
+      - package: Firebase
+        product: FirebaseAnalytics
+      - package: Firebase
+        product: FirebasePerformance
+      - package: Sentry
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion
@@ -125,26 +138,6 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa.git
     from: "8.0.0"
-
-targetDependencies:
-  - target: TRIX3DCompanion
-    package: Supabase
-  - target: TRIX3DCompanion
-    package: Alamofire
-  - target: TRIX3DCompanion
-    package: Starscream
-  - target: TRIX3DCompanion
-    package: Kingfisher
-  - target: TRIX3DCompanion
-    package: KeychainAccess
-  - target: TRIX3DCompanion
-    package: SQLite
-  - target: TRIX3DCompanion
-    package: CodeScanner
-  - target: TRIX3DCompanion
-    package: Firebase
-  - target: TRIX3DCompanion
-    package: Sentry
 
 entitlements:
   path: TRIX3DCompanion.entitlements
