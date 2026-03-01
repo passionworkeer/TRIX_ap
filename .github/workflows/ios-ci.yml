@@ -82,7 +82,7 @@ jobs:
             -project TRIX3DCompanion.xcodeproj \
             -scheme TRIX3DCompanion \
             -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
-            -only-testing:TRIX3DCompanionTests \
+            -only-testing:TRIX3DCompanionTests/ \
             -resultBundlePath TestResults/UnitTests.xcresult \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -115,7 +115,8 @@ jobs:
       - name: Check for UI Tests
         id: check-ui-tests
         run: |
-          if grep -q "bundle.ui-testing" project.yml 2>/dev/null; then
+          # Check if TRIX3DUITests target exists in project.yml
+          if grep -q "^  TRIX3DUITests:" ios/TRIX3DCompanion/project.yml 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -129,7 +130,7 @@ jobs:
             -project TRIX3DCompanion.xcodeproj \
             -scheme TRIX3DCompanion \
             -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
-            -only-testing:TRIX3DUITests \
+            -only-testing:TRIX3DUITests/ \
             -resultBundlePath TestResults/UITests.xcresult \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \

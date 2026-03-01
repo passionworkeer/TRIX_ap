@@ -62,18 +62,34 @@ targets:
     dependencies:
       - target: TRIX3DCompanion
 
+  TRIX3DUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ../TRIX3DUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion.uitests
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: TRIX3DCompanion
+    dependencies:
+      - target: TRIX3DCompanion
+
 schemes:
   TRIX3DCompanion:
     build:
       targets:
         TRIX3DCompanion: all
         TRIX3DCompanionTests: all
+        TRIX3DUITests: all
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - TRIX3DCompanionTests
+        - TRIX3DUITests
     profile:
       config: Release
     analyze:
