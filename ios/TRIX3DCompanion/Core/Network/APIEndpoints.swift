@@ -494,6 +494,26 @@ struct CreateStudySessionRequest: Codable {
     let durationMinutes: Int
 }
 
+// MARK: - Study Room
+
+struct StudyRoomMember: Codable {
+    let odUserId: String
+    let displayName: String
+    let avatarUrl: String?
+    let joinedAt: String
+    let isOnline: Bool
+}
+
+struct StudyRoomState: Codable {
+    let code: String
+    let name: String
+    let hostId: String
+    let members: [StudyRoomMember]
+    let maxMembers: Int
+    let status: String
+    let createdAt: String
+}
+
 // MARK: - Pairing
 
 // Pairing types
