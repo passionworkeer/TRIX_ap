@@ -27,8 +27,8 @@
 - [x] TASK-007: Web 前端安全扫描 | type: security | priority: P0 | result: ✓
 - [x] TASK-008: iOS Swift 代码安全扫描 | type: security | priority: P0 | result: ✓
 - [x] TASK-009: Server 代码安全扫描 | type: security | priority: P0 | result: ✓
-- [ ] TASK-010: 环境变量安全检查 | type: security | priority: P0
 - [ ] TASK-011: 依赖包漏洞扫描 | type: security | priority: P1
+- [x] TASK-010: 环境变量安全检查 | type: security | priority: P0 | result: ✓
 
 ---
 
@@ -73,7 +73,7 @@
 ---
 
 ### 执行中 (In Progress)
-- [ ] TASK-010: 环境变量安全检查 | type: security | priority: P0
+- [ ] TASK-011: 依赖包漏洞扫描 | type: security | priority: P1
 
 ---
 
@@ -83,7 +83,8 @@
 ---
 
 ### 已完成 (Done)
-- [x] TASK-009: Server 安全扫描 | type: security | note: 发现 Critical 问题（硬编码 API 凭证）
+- [x] TASK-010: 环境变量安全检查 | type: security | note: .env 已在 .gitignore 中
+- [x] TASK-009: Server 安全扫描 | type: security | note: 发现 Critical 问题
 - [x] TASK-008: iOS Swift 安全扫描 | type: security | note: 发现 2 个 High 问题
 - [x] TASK-007: Web 前端安全扫描 | type: security | note: 未发现高危安全问题
 - [x] TASK-006: 整理根目录 | type: devops | note: 移动脚本、DLL、文档
