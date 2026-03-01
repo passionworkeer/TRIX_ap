@@ -363,7 +363,8 @@ struct CompactVoicePlayerView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            let newProgress = value.location.x / $0.size.width
+                            guard let size = self.size.width as CGFloat?, size > 0 else { return }
+                            let newProgress = value.location.x / size
                             Task {
                                 await viewModel.seek(to: max(0, min(1, newProgress)))
                             }

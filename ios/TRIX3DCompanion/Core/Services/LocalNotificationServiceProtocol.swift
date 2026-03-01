@@ -195,14 +195,14 @@ protocol LocalNotificationServiceProtocol {
     ///   - config: Study reminder configuration
     ///   - customMessage: Custom message (optional)
     /// - Returns: Notification ID
-    func scheduleStudyReminder(config: StudyReminderConfig, customMessage: String? = nil) async throws -> String
+    func scheduleStudyReminder(config: StudyReminderConfig, customMessage: String?) async throws -> String
 
     /// Schedule daily goal reminder
     /// - Parameters:
     ///   - config: Daily goal configuration
     ///   - goalProgress: Current goal progress (optional)
     /// - Returns: Notification ID
-    func scheduleDailyGoalReminder(config: DailyGoalConfig, goalProgress: String? = nil) async throws -> String
+    func scheduleDailyGoalReminder(config: DailyGoalConfig, goalProgress: String?) async throws -> String
 
     /// Get all scheduled notifications
     /// - Returns: Array of pending notification requests
