@@ -663,8 +663,9 @@ export class BatchProcessor<T, R> {
       const results = await this.processor(items);
       items.forEach((item, index) => {
         const resolve = this.resolvers.get(item);
-        if (resolve) {
-          resolve(results[index]);
+        const result = results?.[index];
+        if (resolve && result !== undefined) {
+          resolve(result);
         }
         this.resolvers.delete(item);
         this.rejectors.delete(item);
