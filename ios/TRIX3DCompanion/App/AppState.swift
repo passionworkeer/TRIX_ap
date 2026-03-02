@@ -15,15 +15,19 @@ import Combine
 /// Main application tabs
 enum MainTab: String, CaseIterable {
     case home = "首页"
-    case chat = "聊天"
+    case map = "地图"
     case study = "学习"
+    case core = "核心"
+    case chat = "聊天"
     case profile = "我的"
 
     var systemImage: String {
         switch self {
         case .home: return "house.fill"
-        case .chat: return "message.fill"
+        case .map: return "map.fill"
         case .study: return "book.fill"
+        case .core: return "diamond.fill"
+        case .chat: return "message.fill"
         case .profile: return "person.fill"
         }
     }

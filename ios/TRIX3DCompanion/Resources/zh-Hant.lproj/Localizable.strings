@@ -5,8 +5,10 @@
 
 // MARK: - Navigation
 "nav.home" = "首頁";
+"nav.map" = "地圖";
 "nav.chat" = "聊天";
 "nav.study" = "學習";
+"nav.core" = "核心";
 "nav.profile" = "我的";
 "nav.settings" = "設定";
 

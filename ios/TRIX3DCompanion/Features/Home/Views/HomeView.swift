@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  TRIX3DCompanion
 //
-//  Home tab placeholder view
+//  Home screen matching web端的 Home.tsx
 //
 
 import SwiftUI
@@ -14,375 +14,326 @@ private func loc(_ key: String) -> String {
 
 // MARK: - Home View
 
-/// Main home screen showing user overview and quick actions
+/// Main home screen matching web design
 struct HomeView: View {
 
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
 
+    // MARK: - Bindings
+
+    @Binding var isWorkbenchPresented: Bool
+    @Binding var isChatPresented: Bool
+
     // MARK: - State
 
-    @State private var isRefreshing = false
+    @State private var showMailPanel = false
+    @State private var showNotificationPanel = false
+    @State private var showStudyRoom = false
+    @State private var showSnapshot = false
+    @State private var showTodo = false
+    @State private var showSchedule = false
+    @State private var showLocation = false
 
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header Section
-                    headerSection
-                        .padding(.horizontal)
-                        .padding(.top, 20)
+        ZStack {
+            // Hero Background - with safe area handling
+            HeroBackgroundView()
+                .ignoresSafeArea()
 
-                    // User Info Card
-                    userInfoCard
-                        .padding(.horizontal)
+            // Main content
+            VStack(spacing: 0) {
+                // Top bar with mail and notification buttons
+                topBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, 50)
 
-                    // Quick Actions
-                    quickActionsSection
-                        .padding(.horizontal)
+                Spacer()
 
-                    // Stats Overview
-                    statsSection
-                        .padding(.horizontal)
+                // Home Bot Bubble
+                botBubbleSection
 
-                    // Recent Activity
-                    recentActivitySection
-                        .padding(.horizontal)
-                        .padding(.bottom, 100) // Extra padding for tab bar
-                }
+                Spacer()
             }
-            .background(backgroundGradient)
-            .navigationTitle(loc("home.greeting"))
-            .navigationBarTitleDisplayMode(.large)
-            .refreshable {
-                await refreshData()
+
+            // Workbench Modal (appears on background tap)
+            if isWorkbenchPresented {
+                WorkbenchOverlay(
+                    isPresented: $isWorkbenchPresented,
+                    onCardClick: handleWorkbenchCardClick
+                )
+            }
+
+            // Study Room Overlay
+            if showStudyRoom {
+                StudyRoomOverlay(isPresented: $showStudyRoom)
             }
         }
+        .ignoresSafeArea()
     }
 
-    // MARK: - View Components
+    // MARK: - Top Bar
 
-    /// Header section with greeting
-    private var headerSection: some View {
+    private var topBar: some View {
         HStack {
+            // User greeting
             VStack(alignment: .leading, spacing: 4) {
                 Text(loc("home.welcome"))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.8))
 
                 Text(appState.displayName)
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
             }
 
             Spacer()
 
-            // Avatar placeholder
-            AsyncImage(url: appState.avatarURL) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.brandPurple, Color.brandPink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay {
-                        Text(String(appState.displayName.prefix(1)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                    }
-            }
-            .frame(width: 50, height: 50)
-            .clipShape(Circle())
-        }
-    }
-
-    /// User information card
-    private var userInfoCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "person.circle.fill")
-                    .foregroundColor(Color.brandPurple)
-
-                Text(loc("profile.title"))
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                Spacer()
+            // Mail button
+            Button {
+                showMailPanel = true
+            } label: {
+                Image(systemName: "envelope.fill")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
 
-            Divider()
-
-            HStack {
-                Label(loc("profile.points"), systemImage: "star.fill")
-                    .foregroundColor(.yellow)
-                Spacer()
-                Text("\(appState.userPoints)")
-                    .fontWeight(.semibold)
-            }
-
-            HStack {
-                Label(loc("study.total.time"), systemImage: "clock.fill")
-                    .foregroundColor(.blue)
-                Spacer()
-                Text(appState.formattedStudyTime)
-                    .fontWeight(.semibold)
-            }
-
-            HStack {
-                Label(loc("profile.status"), systemImage: appState.isStudying ? "book.fill" : "moon.fill")
-                    .foregroundColor(appState.isStudying ? .green : .gray)
-                Spacer()
-                Text(appState.isStudying ? loc("profile.currently.studying") : loc("profile.idle"))
-                    .fontWeight(.semibold)
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
-    }
-
-    /// Quick actions section
-    private var quickActionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(loc("home.quick.actions"))
-                .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 4)
-
-            HStack(spacing: 16) {
-                QuickActionButton(
-                    title: loc("study.start"),
-                    icon: "play.circle.fill",
-                    color: Color.brandPurple
-                ) {
-                    // Navigate to study
-                }
-
-                QuickActionButton(
-                    title: loc("study.join.room"),
-                    icon: "person.2.fill",
-                    color: Color.blue
-                ) {
-                    // Join room
-                }
-
-                QuickActionButton(
-                    title: loc("profile.stats"),
-                    icon: "chart.bar.fill",
-                    color: Color.green
-                ) {
-                    // View stats
-                }
+            // Notification button
+            Button {
+                showNotificationPanel = true
+            } label: {
+                Image(systemName: "bell.fill")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
         }
     }
 
-    /// Statistics section
-    private var statsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(loc("home.overview"))
-                .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 4)
+    // MARK: - Bot Bubble Section
 
-            HStack(spacing: 12) {
-                HomeStatCard(
-                    title: loc("study.today.time"),
-                    value: "2h 15m",
-                    icon: "sun.max.fill",
-                    color: .orange
-                )
+    private var botBubbleSection: some View {
+        VStack {
+            Spacer()
 
-                HomeStatCard(
-                    title: loc("study.week"),
-                    value: "12h 30m",
-                    icon: "calendar",
-                    color: Color.brandPurple
-                )
-
-                HomeStatCard(
-                    title: loc("study.streak"),
-                    value: "7 " + loc("days"),
-                    icon: "flame.fill",
-                    color: Color.red
-                )
+            // Home Bot Bubble
+            HomeBotBubbleView(
+                botName: "TRIX Bot",
+                botAvatar: "sparkles"
+            ) {
+                isChatPresented = true
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
         }
+        .frame(maxHeight: .infinity)
     }
 
-    /// Recent activity section
-    private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(loc("home.recent.activity"))
-                .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 4)
+    // MARK: - Workbench Card Actions
 
-            VStack(spacing: 8) {
-                ActivityRow(
-                    icon: "book.fill",
-                    title: loc("study.title"),
-                    description: loc("home.activity.study.complete"),
-                    time: "2 " + loc("hours.ago")
-                )
+    private func handleWorkbenchCardClick(_ itemId: String) {
+        isWorkbenchPresented = false
 
-                ActivityRow(
-                    icon: "star.fill",
-                    title: loc("points.earned"),
-                    description: loc("home.activity.points.earned"),
-                    time: "2 " + loc("hours.ago")
-                )
-
-                ActivityRow(
-                    icon: "person.2.fill",
-                    title: loc("home.activity.joined"),
-                    description: loc("home.activity.joined.room"),
-                    time: "5 " + loc("hours.ago")
-                )
-            }
+        switch itemId {
+        case "snapshot":
+            showSnapshot = true
+        case "location":
+            showLocation = true
+        case "schedule":
+            showSchedule = true
+        case "todo":
+            showTodo = true
+        default:
+            break
         }
-    }
-
-    /// Background gradient
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.1),
-                Color.brandPink.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-
-    // MARK: - Actions
-
-    private func refreshData() async {
-        isRefreshing = true
-        await appState.refreshSession()
-        isRefreshing = false
     }
 }
 
-// MARK: - Quick Action Button
+// MARK: - Workbench Overlay
 
-struct QuickActionButton: View {
-    let title: String
+struct WorkbenchOverlay: View {
+    @Binding var isPresented: Bool
+    let onCardClick: (String) -> Void
+
+    @State private var selectedCard: String?
+
+    var body: some View {
+        ZStack {
+            // Background overlay
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isPresented = false
+                }
+
+            // Cards container
+            VStack(spacing: 0) {
+                // Handle bar
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.secondary.opacity(0.4))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 12)
+
+                // Title
+                VStack(spacing: 4) {
+                    Text(loc("workbench.title"))
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text(loc("workbench.subtitle"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 16)
+
+                // Cards scroll
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        WorkbenchOverlayCard(
+                            icon: "camera.fill",
+                            label: loc("workbench.snapshot"),
+                            color: .orange,
+                            action: { onCardClick("snapshot") }
+                        )
+
+                        WorkbenchOverlayCard(
+                            icon: "location.fill",
+                            label: loc("workbench.location"),
+                            color: .green,
+                            action: { onCardClick("location") }
+                        )
+
+                        WorkbenchOverlayCard(
+                            icon: "calendar",
+                            label: loc("workbench.schedule"),
+                            color: .blue,
+                            action: { onCardClick("schedule") }
+                        )
+
+                        WorkbenchOverlayCard(
+                            icon: "checklist",
+                            label: loc("workbench.todo"),
+                            color: .purple,
+                            action: { onCardClick("todo") }
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                }
+
+                Spacer()
+            }
+            .frame(maxHeight: 250)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(.ultraThinMaterial)
+            )
+            .shadow(color: .black.opacity(0.2), radius: 20)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 120)
+        }
+    }
+}
+
+// MARK: - Workbench Overlay Card
+
+struct WorkbenchOverlayCard: View {
     let icon: String
+    let label: String
     let color: Color
     let action: () -> Void
+
+    @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 28))
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: [color, color.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [color, color.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .frame(width: 50, height: 50)
 
-                Text(title)
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+
+                Text(label)
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundColor(.primary)
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: 80, height: 90)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
     }
 }
 
-// MARK: - Home Stat Card
+// MARK: - Study Room Overlay
 
-struct HomeStatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
+struct StudyRoomOverlay: View {
+    @Binding var isPresented: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.title3)
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isPresented = false
+                }
 
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            VStack(spacing: 20) {
+                Text("学习房间")
+                    .font(.title2)
+                    .fontWeight(.bold)
 
-            Text(value)
-                .font(.headline)
-                .fontWeight(.bold)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-// MARK: - Activity Row
-
-struct ActivityRow: View {
-    let icon: String
-    let title: String
-    let description: String
-    let time: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(.purple)
-                .frame(width: 36, height: 36)
-                .background(.purple.opacity(0.1))
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(description)
-                    .font(.caption)
+                Text("与朋友一起学习")
                     .foregroundColor(.secondary)
+
+                Button("开始学习") {
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
             }
-
-            Spacer()
-
-            Text(time)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+            )
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
 // MARK: - Preview
 
 #Preview("Home View") {
-    HomeView()
-        .environmentObject(AppState.shared)
+    HomeView(
+        isWorkbenchPresented: .constant(false),
+        isChatPresented: .constant(false)
+    )
+    .environmentObject(AppState.shared)
 }
