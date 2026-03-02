@@ -29,10 +29,10 @@ final class PaymentViewModel: ObservableObject {
     @Published var availablePaymentMethods: [PaymentMethod] = [.applePay]
 
     /// Current order being processed
-    @Published var currentOrder: Order?
+    @Published var currentOrder: AppOrder?
 
     /// Order history
-    @Published var orderHistory: [Order] = []
+    @Published var orderHistory: [AppOrder] = []
 
     /// Error message to display
     @Published var errorMessage: String?
@@ -47,8 +47,8 @@ final class PaymentViewModel: ObservableObject {
         case selectingProduct
         case confirmingPurchase
         case processing
-        case success(order: Order)
-        case pending(order: Order)
+        case success(order: AppOrder)
+        case pending(order: AppOrder)
         case failed(error: String)
         case cancelled
 
@@ -108,28 +108,44 @@ final class PaymentViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Observe processing state
-        paymentService.$isProcessing
-            .sink { [weak self] isProcessing in
-                if isProcessing && self?.paymentState == .confirmingPurchase {
-                    self?.paymentState = .processing
+        // Note: Protocol properties cannot be observed directly with $ prefix
+        // We use Timer to periodically refresh order state instead
+        // This is a workaround for observing protocol-based published properties
+
+        // Observe processing state via Timer (every 2 seconds)
+        Timer.publish(every: 2, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    // Refresh order history to check for updates
+                    let history = await self.paymentService.getAppOrderHistory(limit: 50, offset: 0)
+                    self.handleOrdersUpdate(history)
                 }
             }
             .store(in: &cancellables)
+    }
 
-        // Observe pending orders
-        paymentService.$pendingOrders
-            .sink { [weak self] orders in
-                self?.handlePendingOrders(orders)
-            }
-            .store(in: &cancellables)
+    /// Handle orders update from periodic refresh
+    /// - Parameter orders: Updated orders list
+    private func handleOrdersUpdate(_ orders: [AppOrder]) {
+        let pendingOrders = orders.filter { $0.isPending }
+        let completedOrders = orders.filter { $0.isCompleted }
 
-        // Observe completed orders
-        paymentService.$completedOrders
-            .sink { [weak self] orders in
-                self?.orderHistory = orders
+        // Handle pending orders
+        if let currentOrderId = currentOrder?.id,
+           let updatedOrder = pendingOrders.first(where: { $0.id == currentOrderId }) {
+            if updatedOrder.isCompleted {
+                paymentState = .success(order: updatedOrder)
+                showResult = true
+            } else if updatedOrder.isFailed {
+                paymentState = .failed(error: "Payment failed")
+                showResult = true
             }
-            .store(in: &cancellables)
+        }
+
+        // Update completed orders
+        orderHistory = completedOrders
     }
 
     // MARK: - Public Methods
@@ -174,7 +190,7 @@ final class PaymentViewModel: ObservableObject {
     func cancelPayment() {
         if let order = currentOrder, order.isPending {
             Task {
-                _ = await paymentService.cancelOrder(orderId: order.id)
+                _ = await paymentService.cancelAppOrder(orderId: order.id)
             }
         }
 
@@ -194,15 +210,15 @@ final class PaymentViewModel: ObservableObject {
 
     /// Load order history
     func loadOrderHistory() async {
-        let history = await paymentService.getOrderHistory(limit: 50, offset: 0)
+        let history = await paymentService.getAppOrderHistory(limit: 50, offset: 0)
         orderHistory = history
     }
 
     /// Get order details
     /// - Parameter orderId: Order ID to fetch
     /// - Returns: Order details or nil
-    func getOrderDetails(orderId: String) async -> Order? {
-        return await paymentService.getOrder(orderId: orderId)
+    func getOrderDetails(orderId: String) async -> AppOrder? {
+        return await paymentService.getAppOrder(orderId: orderId)
     }
 
     /// Clear error state
@@ -270,7 +286,7 @@ final class PaymentViewModel: ObservableObject {
     }
 
     /// Get success order if available
-    var successOrder: Order? {
+    var successOrder: AppOrder? {
         if case .success(let order) = paymentState {
             return order
         }
@@ -278,7 +294,7 @@ final class PaymentViewModel: ObservableObject {
     }
 
     /// Get pending order if available
-    var pendingOrder: Order? {
+    var pendingOrder: AppOrder? {
         if case .pending(let order) = paymentState {
             return order
         }
@@ -312,7 +328,7 @@ final class PaymentViewModel: ObservableObject {
 
     /// Handle pending orders updates
     /// - Parameter orders: Updated pending orders
-    private func handlePendingOrders(_ orders: [Order]) {
+    private func handlePendingOrders(_ orders: [AppOrder]) {
         // Check if current pending order has been updated
         if let currentOrderId = currentOrder?.id,
            let updatedOrder = orders.first(where: { $0.id == currentOrderId }) {
@@ -392,8 +408,8 @@ extension PaymentViewModel {
     }
 
     /// Create mock order for preview
-    static func mockOrder() -> Order {
-        Order(
+    static func mockOrder() -> AppOrder {
+        AppOrder(
             id: UUID().uuidString,
             userId: "user123",
             productId: StoreProductConfiguration.points500,

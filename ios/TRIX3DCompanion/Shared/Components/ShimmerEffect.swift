@@ -188,8 +188,8 @@ struct LoadingStateView: View {
                     SkeletonCard(showHeader: false, contentLines: 2)
                 }
             } else {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                ProgressView(value: 0)
+                    .tint(.purple)
                     .scaleEffect(1.2)
 
                 Text(message)

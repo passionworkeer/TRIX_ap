@@ -267,7 +267,7 @@ struct PairingView: View {
                         Text("Your Pairing Code")
                             .font(.caption)
                             .foregroundColor(.textSecondary)
-                            .uppercase()
+                            .textCase(.uppercase)
 
                         Text(code.uppercased())
                             .font(.system(.title, design: .monospaced))
@@ -610,7 +610,7 @@ struct PairingView: View {
                 showPairingCode = true
             }
         case .failure(let error):
-            pairingService.lastError = error
+            pairingService.setError(error)
             showError = true
         }
     }
@@ -643,7 +643,7 @@ struct PairingView: View {
             manualCodeInput = ""
 
         case .failure(let error):
-            pairingService.lastError = error
+            pairingService.setError(error)
             showError = true
         }
     }
@@ -677,7 +677,7 @@ struct PairingView: View {
                 }
 
             case .failure(let error):
-                pairingService.lastError = error
+                pairingService.setError(error)
                 showError = true
             }
         }
@@ -688,7 +688,7 @@ struct PairingView: View {
         let result = await pairingService.unpairDevice(device.deviceId)
 
         if case .failure(let error) = result {
-            pairingService.lastError = error
+            pairingService.setError(error)
             showError = true
         }
 

@@ -39,14 +39,26 @@ protocol TTSServiceProtocol: AnyObject {
     /// - Parameter pitch: The pitch multiplier
     func setPitch(_ pitch: Float) async
 
+    /// Set voice language
+    /// - Parameter language: TTS language
+    func setVoice(language: TTSLanguage) async
+
     /// Get available voices for a language
     /// - Parameter language: Language code (e.g., "zh-CN")
     /// - Returns: Array of available voices
     func getAvailableVoices(for language: String) -> [AVSpeechSynthesisVoice]
+
+    /// Get available languages
+    /// - Returns: Array of available TTS languages
+    func getAvailableLanguages() -> [TTSLanguage]
+
+    /// Speak a preset text
+    /// - Parameter preset: The TTS preset to speak
+    func speakPreset(_ preset: TTSPreset) async throws
 }
 
 /// Common languages
-enum TTSLanguage: String, CaseIterable {
+enum TTSLanguage: String, CaseIterable, Codable {
     case chinese = "zh-CN"
     case english = "en-US"
     case japanese = "ja-JP"
@@ -89,5 +101,36 @@ enum TTSError: Error, LocalizedError {
         case .unknown:
             return "Unknown TTS error"
         }
+    }
+}
+
+/// TTS Presets for common messages
+enum TTSPreset {
+    case pomodoroStart
+    case pomodoroComplete
+    case restComplete
+    case dailyGoalReminder
+    case newMessage
+    case friendRequest
+
+    var message: String {
+        switch self {
+        case .pomodoroStart:
+            return "开始专注，祝你学习愉快！"
+        case .pomodoroComplete:
+            return "恭喜完成一个番茄钟！休息一下吧。"
+        case .restComplete:
+            return "休息时间结束了，准备开始新的专注！"
+        case .dailyGoalReminder:
+            return "你今天还没有完成学习目标哦，加油！"
+        case .newMessage:
+            return "你有新的消息。"
+        case .friendRequest:
+            return "你有新的好友请求。"
+        }
+    }
+
+    var language: TTSLanguage {
+        return .chinese
     }
 }

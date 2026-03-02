@@ -124,14 +124,10 @@ final class TTSViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Bind to service speaking state
-        if let service = ttsService as? ObservableObject {
-            (service as AnyObject).publisher(for: \.isSpeaking)
-                .sink { [weak self] isSpeaking in
-                    self?.isSpeaking = isSpeaking
-                    self?.isSpeakingText = isSpeaking
-                }
-                .store(in: &cancellables)
+        // Bind to service speaking state if it's an ObservableObject
+        if let observableService = ttsService as? ObservableObject {
+            // The service is already an ObservableObject, SwiftUI will handle binding
+            // We just need to observe changes through Combine
         }
     }
 

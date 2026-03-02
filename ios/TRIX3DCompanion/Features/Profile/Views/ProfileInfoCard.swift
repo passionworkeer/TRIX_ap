@@ -228,6 +228,8 @@ struct ProfileInfoCard: View {
                 isStudying: true,
                 companionId: "comp_001",
                 totalStudyTime: 1230,
+                school: "Trix High School",
+                grade: "Grade 10",
                 createdAt: Date(),
                 updatedAt: Date()
             ),

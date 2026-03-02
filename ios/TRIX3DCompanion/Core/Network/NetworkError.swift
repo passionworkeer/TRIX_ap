@@ -8,7 +8,7 @@
 import Foundation
 
 /// Network error types
-enum NetworkError: Error, LocalizedError {
+enum NetworkError: Error, LocalizedError, Hashable {
     /// No internet connection
     case noConnection
 
@@ -42,6 +42,75 @@ enum NetworkError: Error, LocalizedError {
     /// Unknown error
     case unknown(Error?)
 
+    /// Type mismatch error
+    case typeMismatch(String)
+
+    // MARK: - Hashable
+
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .noConnection:
+            hasher.combine(0)
+        case .timeout:
+            hasher.combine(1)
+        case .serverError(let statusCode, let message):
+            hasher.combine(2)
+            hasher.combine(statusCode)
+            hasher.combine(message)
+        case .decodingError:
+            hasher.combine(3)
+        case .invalidURL:
+            hasher.combine(4)
+        case .invalidResponse:
+            hasher.combine(5)
+        case .unauthorized:
+            hasher.combine(6)
+        case .forbidden:
+            hasher.combine(7)
+        case .notFound:
+            hasher.combine(8)
+        case .custom(let message):
+            hasher.combine(9)
+            hasher.combine(message)
+        case .unknown:
+            hasher.combine(10)
+        case .typeMismatch(let message):
+            hasher.combine(11)
+            hasher.combine(message)
+        }
+    }
+
+    static func == (lhs: NetworkError, rhs: NetworkError) -> Bool {
+        switch (lhs, rhs) {
+        case (.noConnection, .noConnection):
+            return true
+        case (.timeout, .timeout):
+            return true
+        case (.serverError(let l1, let m1), .serverError(let l2, let m2)):
+            return l1 == l2 && m1 == m2
+        case (.decodingError, .decodingError):
+            return true
+        case (.invalidURL, .invalidURL):
+            return true
+        case (.invalidResponse, .invalidResponse):
+            return true
+        case (.unauthorized, .unauthorized):
+            return true
+        case (.forbidden, .forbidden):
+            return true
+        case (.notFound, .notFound):
+            return true
+        case (.custom(let m1), .custom(let m2)):
+            return m1 == m2
+        case (.unknown, .unknown):
+            return true
+        case (.typeMismatch(let m1), .typeMismatch(let m2)):
+            return m1 == m2
+        default:
+            return false
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .noConnection:
@@ -69,6 +138,8 @@ enum NetworkError: Error, LocalizedError {
             return message
         case .unknown(let error):
             return error?.localizedDescription ?? "Unknown error occurred"
+        case .typeMismatch(let message):
+            return "Type mismatch: \(message)"
         }
     }
 

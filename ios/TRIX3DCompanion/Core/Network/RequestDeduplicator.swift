@@ -28,8 +28,34 @@ final class RequestDeduplicator {
         init(method: HTTPMethod, path: String, parameters: [String: Any]?, body: Data?) {
             self.method = method.rawValue
             self.path = path
-            self.parametersHash = parameters?.hashValue ?? 0
+            self.parametersHash = Self.hashParameters(parameters)
             self.bodyHash = body?.hashValue
+        }
+
+        /// Compute stable hash for [String: Any] dictionary
+        private static func hashParameters(_ parameters: [String: Any]?) -> Int {
+            guard let params = parameters else { return 0 }
+            var hasher = Hasher()
+            // Sort keys for stable hashing
+            for key in params.keys.sorted() {
+                hasher.combine(key)
+                if let value = params[key] {
+                    // Handle common types
+                    if let stringValue = value as? String {
+                        hasher.combine(stringValue)
+                    } else if let intValue = value as? Int {
+                        hasher.combine(intValue)
+                    } else if let doubleValue = value as? Double {
+                        hasher.combine(doubleValue)
+                    } else if let boolValue = value as? Bool {
+                        hasher.combine(boolValue)
+                    } else {
+                        // For other types, use their description
+                        hasher.combine(String(describing: value))
+                    }
+                }
+            }
+            return hasher.finalize()
         }
 
         func hash(into hasher: inout Hasher) {
@@ -60,6 +86,21 @@ final class RequestDeduplicator {
         }
     }
 
+    /// Configure deduplication for specific endpoint types
+    enum DeduplicationScope {
+        /// Deduplicate all requests
+        case all
+
+        /// Only deduplicate GET requests (safe operations)
+        case safeOnly
+
+        /// Only deduplicate POST/PUT/PATCH requests (mutations)
+        case mutationsOnly
+
+        /// No deduplication
+        case none
+    }
+
     // MARK: - Properties
 
     /// Currently pending requests
@@ -70,6 +111,9 @@ final class RequestDeduplicator {
 
     /// Enable deduplication
     private(set) var isEnabled: Bool
+
+    /// Current deduplication scope
+    private(set) var scope: DeduplicationScope = .safeOnly
 
     // MARK: - Initialization
 
@@ -144,17 +188,14 @@ final class RequestDeduplicator {
     /// - Parameter request: URL request
     /// - Returns: Request key for deduplication
     func makeKey(from request: URLRequest) -> RequestKey {
-        let method = HTTPMethod(rawValue: request.httpMethod ?? "GET")
+        let methodRaw = request.httpMethod ?? "GET"
+        let method = HTTPMethod(rawValue: methodRaw) ?? .get
         let path = request.url?.path ?? ""
-        let parametersHash = request.hashValue
 
-        // Hash body if present
-        var bodyHash: Int?
-        if let body = request.httpBody, !body.isEmpty {
-            bodyHash = body.prefix(1024).hashValue // Only hash first 1KB for efficiency
-        }
+        // Use body data directly
+        let bodyData: Data? = request.httpBody?.isEmpty == false ? request.httpBody : nil
 
-        return RequestKey(method: method, path: path, parameters: nil, body: bodyHash)
+        return RequestKey(method: method, path: path, parameters: nil, body: bodyData)
     }
 
     /// Create request key from components
@@ -169,7 +210,6 @@ final class RequestDeduplicator {
         parameters: [String: Any]?
     ) -> RequestKey {
         let path = endpoint.path
-        let parametersHash = parameters?.hashValue ?? 0
         return RequestKey(method: method, path: path, parameters: parameters, body: nil)
     }
 
@@ -185,6 +225,38 @@ final class RequestDeduplicator {
         lock.lock()
         defer { lock.unlock() }
         pendingRequests.removeAll()
+    }
+
+    /// Update deduplication scope
+    /// - Parameter newScope: New scope to apply
+    func updateScope(_ newScope: DeduplicationScope) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.scope = newScope
+        SecureLogger.shared.info("Deduplication scope updated: \(newScope)")
+    }
+
+    /// Check if endpoint should be deduplicated based on current scope
+    /// - Parameters:
+    ///   - endpoint: API endpoint
+    ///   - method: HTTP method
+    /// - Returns: True if should deduplicate
+    func shouldDeduplicate(endpoint: APIEndpoint, method: HTTPMethod) -> Bool {
+        guard isEnabled else { return false }
+
+        switch scope {
+        case .all:
+            return true
+
+        case .safeOnly:
+            return method == .get
+
+        case .mutationsOnly:
+            return method == .post || method == .put || method == .patch
+
+        case .none:
+            return false
+        }
     }
 
     // MARK: - Private Methods
@@ -236,60 +308,5 @@ extension RequestDeduplicator: RequestAdapter {
         registerRequest(key: key, task: task)
 
         completion(.success(urlRequest))
-    }
-}
-
-// MARK: - Deduplication Scope
-
-extension RequestDeduplicator {
-
-    /// Configure deduplication for specific endpoint types
-    enum DeduplicationScope {
-        /// Deduplicate all requests
-        case all
-
-        /// Only deduplicate GET requests (safe operations)
-        case safeOnly
-
-        /// Only deduplicate POST/PUT/PATCH requests (mutations)
-        case mutationsOnly
-
-        /// No deduplication
-        case none
-    }
-
-    /// Current deduplication scope
-    private(set) var scope: DeduplicationScope = .safeOnly
-
-    /// Update deduplication scope
-    /// - Parameter newScope: New scope to apply
-    func updateScope(_ newScope: DeduplicationScope) {
-        lock.lock()
-        defer { lock.unlock() }
-        self.scope = newScope
-        SecureLogger.shared.info("Deduplication scope updated: \(newScope)")
-    }
-
-    /// Check if endpoint should be deduplicated based on current scope
-    /// - Parameters:
-    ///   - endpoint: API endpoint
-    ///   - method: HTTP method
-    /// - Returns: True if should deduplicate
-    func shouldDeduplicate(endpoint: APIEndpoint, method: HTTPMethod) -> Bool {
-        guard isEnabled else { return false }
-
-        switch scope {
-        case .all:
-            return true
-
-        case .safeOnly:
-            return method == .get
-
-        case .mutationsOnly:
-            return method == .post || method == .put || method == .patch
-
-        case .none:
-            return false
-        }
     }
 }

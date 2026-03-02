@@ -198,7 +198,8 @@ extension RequestRetryManager: RequestInterceptor {
     ) {
         let currentAttempt = request.retryCount
 
-        guard shouldRetry(request: request.request, dueTo: error, currentAttempt: currentAttempt) else {
+        guard let urlRequest = request.request,
+              shouldRetry(request: urlRequest, dueTo: error, currentAttempt: currentAttempt) else {
             completion(.doNotRetry)
             return
         }

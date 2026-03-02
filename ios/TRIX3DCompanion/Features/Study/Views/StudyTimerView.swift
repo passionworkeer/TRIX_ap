@@ -164,7 +164,6 @@ struct StudyTimerView: View {
             Text(formatTime(remainingSeconds))
                 .font(.system(size: 80, weight: .thin, design: .rounded))
                 .foregroundColor(.textPrimary)
-                .contentTransition(.numericText(value: Double(remainingSeconds)))
 
             // Breathing animation
             breathingAnimationView
@@ -204,7 +203,6 @@ struct StudyTimerView: View {
             Text(formatTime(remainingSeconds))
                 .font(.system(size: isFocusMode ? 60 : 72, weight: .thin, design: .rounded))
                 .foregroundColor(.textPrimary)
-                .contentTransition(.numericText(value: Double(remainingSeconds)))
                 .animation(.easeInOut(duration: 0.3), value: remainingSeconds)
 
             if totalSeconds > 0 {
@@ -266,7 +264,7 @@ struct StudyTimerView: View {
     private var progressBar: some View {
         VStack(spacing: 8) {
             ProgressView(value: progressFraction)
-                .tint(.brandGradient)
+                .tint(.brandPurple)
                 .scaleEffect(y: 3)
 
             HStack {
@@ -336,6 +334,8 @@ struct StudyTimerView: View {
         switch roomState.sessionState {
         case .idle:
             return "Ready to Start"
+        case .active:
+            return "Active"
         case .focusing:
             return "Focus Time"
         case .resting:
@@ -348,8 +348,10 @@ struct StudyTimerView: View {
         switch roomState.sessionState {
         case .idle:
             return .textTertiary
+        case .active:
+            return .blue
         case .focusing:
-            return .brandPurple
+            return Color.brandPurple
         case .resting:
             return .success
         }
@@ -378,10 +380,12 @@ struct StudyTimerView: View {
         switch timerState {
         case .idle:
             return "play.fill"
-        case .focusing, .resting:
+        case .running, .focusing, .resting:
             return "pause.fill"
         case .paused:
             return "play.fill"
+        case .completed:
+            return "arrow.clockwise"
         }
     }
 
@@ -390,19 +394,21 @@ struct StudyTimerView: View {
         switch timerState {
         case .idle:
             return "Start"
-        case .focusing, .resting:
+        case .running, .focusing, .resting:
             return "Pause"
         case .paused:
             return "Resume"
+        case .completed:
+            return "Restart"
         }
     }
 
     /// 控制按钮颜色
     private var controlButtonColor: Color {
         switch timerState {
-        case .idle, .paused:
+        case .idle, .paused, .completed:
             return .brandPurple
-        case .focusing, .resting:
+        case .running, .focusing, .resting:
             return .warning
         }
     }
@@ -421,10 +427,12 @@ struct StudyTimerView: View {
         switch timerState {
         case .idle:
             startSession()
-        case .focusing, .resting:
+        case .running, .focusing, .resting:
             pauseSession()
         case .paused:
             resumeSession()
+        case .completed:
+            restartSession()
         }
     }
 
@@ -432,9 +440,8 @@ struct StudyTimerView: View {
     private func startSession() {
         Task {
             do {
-                try await studyService.startFocusSession(
-                    roomCode: roomState.roomCode,
-                    duration: totalSeconds
+                _ = try await studyService.startFocusSession(
+                    roomCode: roomState.roomCode
                 )
                 await MainActor.run {
                     timerState = .focusing
@@ -492,6 +499,12 @@ struct StudyTimerView: View {
                 SecureLogger.shared.error("Error ending session: \(error)")
             }
         }
+    }
+
+    /// 重新开始会话
+    private func restartSession() {
+        remainingSeconds = totalSeconds
+        startSession()
     }
 
     /// 更新计时器

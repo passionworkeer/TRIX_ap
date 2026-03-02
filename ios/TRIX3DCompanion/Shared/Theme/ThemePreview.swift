@@ -50,9 +50,12 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("主题设置")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
-            Picker("主题", selection: $themeManager.currentTheme) {
+            Picker("主题", selection: Binding(
+                get: { themeManager.currentTheme },
+                set: { themeManager.setTheme($0) }
+            )) {
                 ForEach(AppTheme.allCases, id: \.self) { theme in
                     Text(theme.displayName).tag(theme)
                 }
@@ -65,7 +68,7 @@ struct ThemePreviewView: View {
 
                 Text("当前模式: \(themeManager.isDarkMode ? "深色" : "浅色")")
                     .font(.subheadlineStyle)
-                    .foregroundStyle(.textSecondary)
+                    .foregroundColor(Color.textSecondary)
             }
             .padding(.top, 8)
         }
@@ -77,7 +80,7 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("品牌颜色")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
             HStack(spacing: 16) {
                 colorCard(name: "品牌紫", color: .brandPurple)
@@ -91,7 +94,7 @@ struct ThemePreviewView: View {
                 .overlay(
                     Text("品牌渐变")
                         .font(.button)
-                        .foregroundStyle(.white)
+                        .foregroundColor(Color.white)
                 )
         }
     }
@@ -102,7 +105,7 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("文本颜色")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
             VStack(alignment: .leading, spacing: 8) {
                 textRow(label: "主要文本", color: .textPrimary)
@@ -133,7 +136,7 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("状态颜色")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 colorCard(name: "成功", color: .success, icon: "checkmark.circle.fill")
@@ -154,13 +157,13 @@ struct ThemePreviewView: View {
                 if let icon = icon {
                     Image(systemName: icon)
                         .font(.title2)
-                        .foregroundStyle(.white)
+                        .foregroundColor(Color.white)
                 }
             }
 
             Text(name)
                 .font(.caption)
-                .foregroundStyle(.textSecondary)
+                .foregroundColor(Color.textSecondary)
         }
     }
 
@@ -170,7 +173,7 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("字体样式")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
             VStack(alignment: .leading, spacing: 12) {
                 fontRow(name: "Large Title", font: .largeTitle)
@@ -191,11 +194,11 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name)
                 .font(.caption)
-                .foregroundStyle(.textTertiary)
+                .foregroundColor(Color.textTertiary)
 
             Text("The quick brown fox")
                 .font(font)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
         }
     }
 
@@ -205,7 +208,7 @@ struct ThemePreviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("组件示例")
                 .font(.headlineStyle)
-                .foregroundStyle(.textPrimary)
+                .foregroundColor(Color.textPrimary)
 
             // 按钮
             VStack(spacing: 12) {
@@ -213,7 +216,7 @@ struct ThemePreviewView: View {
                     SecureLogger.shared.debug("Primary button tapped")
                 }
                 .font(.button)
-                .foregroundStyle(.white)
+                .foregroundColor(Color.white)
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color.brandGradient)
@@ -223,7 +226,7 @@ struct ThemePreviewView: View {
                     SecureLogger.shared.debug("Secondary button tapped")
                 }
                 .font(.button)
-                .foregroundStyle(.brandPurple)
+                .foregroundColor(Color.brandPurple)
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color.brandPurple.opacity(0.1))
@@ -249,7 +252,7 @@ struct ThemePreviewView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("输入框")
                     .font(.subheadlineStyle)
-                    .foregroundStyle(.textSecondary)
+                    .foregroundColor(Color.textSecondary)
 
                 TextField("请输入内容", text: .constant(""))
                     .textFieldStyle(.roundedBorder)
@@ -265,7 +268,7 @@ struct ThemePreviewView: View {
         HStack {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.brandPurple)
+                .foregroundColor(Color.brandPurple)
                 .frame(width: 44, height: 44)
                 .background(Color.brandPurple.opacity(0.1))
                 .cornerRadius(10)
@@ -273,18 +276,18 @@ struct ThemePreviewView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headlineStyle)
-                    .foregroundStyle(.textPrimary)
+                    .foregroundColor(Color.textPrimary)
 
                 Text(subtitle)
                     .font(.subheadlineStyle)
-                    .foregroundStyle(.textSecondary)
+                    .foregroundColor(Color.textSecondary)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
                 .font(.subheadline)
-                .foregroundStyle(.textTertiary)
+                .foregroundColor(Color.textTertiary)
         }
         .padding()
         .background(Color.cardBackground)

@@ -128,6 +128,7 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
     private let apiClient: APIClient
     private let webSocketManager: WebSocketManager
     private let keychainManager: KeychainManager
+    private let authService: AuthService
 
     // MARK: - Private Properties
 
@@ -147,14 +148,17 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
     ///   - apiClient: API client instance (defaults to shared)
     ///   - webSocketManager: WebSocket manager instance (defaults to shared)
     ///   - keychainManager: Keychain manager instance (defaults to shared)
+    ///   - authService: Auth service instance (defaults to shared)
     init(
         apiClient: APIClient = .shared,
         webSocketManager: WebSocketManager = .shared,
-        keychainManager: KeychainManager = .shared
+        keychainManager: KeychainManager = .shared,
+        authService: AuthService = .shared
     ) {
         self.apiClient = apiClient
         self.webSocketManager = webSocketManager
         self.keychainManager = keychainManager
+        self.authService = authService
 
         // Restore pairing state
         restorePairingState()
@@ -181,7 +185,7 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
         do {
             // Request pairing code from API
             let request: APIEndpointPairingRequest = APIEndpointPairingRequest(
-                userId: userDefaultsManager.getUserId() ?? ""
+                userId: authService.currentUser?.id ?? ""
             )
 
             let response: APIEndpointPairingResponse = try await apiClient.post(
@@ -557,6 +561,12 @@ extension PairingService {
     /// Clear error state
     func clearError() {
         lastError = nil
+    }
+
+    /// Set error state
+    /// - Parameter error: Error to set
+    func setError(_ error: PairingError) {
+        lastError = error
     }
 
     /// Get remaining time for pairing code validity

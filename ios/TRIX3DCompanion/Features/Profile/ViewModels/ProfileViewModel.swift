@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 // MARK: - Profile View Model
 
@@ -111,7 +112,10 @@ final class ProfileViewModel: ObservableObject {
             username: username,
             fullName: user?.fullName,
             displayName: user?.displayName,
-            bio: user?.bio
+            bio: user?.bio,
+            school: user?.school,
+            grade: user?.grade,
+            avatarUrl: nil
         )
         await updateProfile(update)
     }
@@ -123,7 +127,10 @@ final class ProfileViewModel: ObservableObject {
             username: user?.username,
             fullName: user?.fullName,
             displayName: displayName,
-            bio: user?.bio
+            bio: user?.bio,
+            school: user?.school,
+            grade: user?.grade,
+            avatarUrl: nil
         )
         await updateProfile(update)
     }
@@ -135,7 +142,10 @@ final class ProfileViewModel: ObservableObject {
             username: user?.username,
             fullName: user?.fullName,
             displayName: user?.displayName,
-            bio: bio
+            bio: bio,
+            school: user?.school,
+            grade: user?.grade,
+            avatarUrl: nil
         )
         await updateProfile(update)
     }
@@ -148,13 +158,34 @@ final class ProfileViewModel: ObservableObject {
         successMessage = nil
 
         do {
-            let uploadResponse = try await imageUploadService.uploadImage(imageData)
+            // Convert Data to UIImage
+            guard let image = UIImage(data: imageData) else {
+                errorMessage = "Invalid image data"
+                isLoading = false
+                return
+            }
+
+            let uploadResponse = try await imageUploadService.uploadImage(image)
+
+            // Extract URL from Result
+            let avatarUrl: String
+            switch uploadResponse {
+            case .success(let url):
+                avatarUrl = url
+            case .failure(let error):
+                errorMessage = "Upload failed: \(error.localizedDescription)"
+                isLoading = false
+                return
+            }
+
             let update = ProfileUpdate(
                 username: user?.username,
                 fullName: user?.fullName,
                 displayName: user?.displayName,
                 bio: user?.bio,
-                avatarUrl: uploadResponse.url
+                school: user?.school,
+                grade: user?.grade,
+                avatarUrl: avatarUrl
             )
 
             let updatedUser = try await apiClient.updateUserProfile(update)
@@ -275,6 +306,8 @@ extension ProfileViewModel {
             isStudying: true,
             companionId: "comp_001",
             totalStudyTime: 1230,
+            school: "TRIX Academy",
+            grade: "Grade 10",
             createdAt: Date(),
             updatedAt: Date()
         )

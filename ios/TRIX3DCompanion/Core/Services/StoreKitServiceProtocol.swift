@@ -94,7 +94,7 @@ struct RenewalInfo: Equatable {
 }
 
 /// Purchase result
-enum PurchaseResult: Equatable {
+enum PurchaseResult {
     case success(transaction: Transaction)
     case pending
     case failed(error: StoreKitError)

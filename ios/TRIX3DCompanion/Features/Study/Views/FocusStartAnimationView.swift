@@ -82,7 +82,7 @@ struct FocusStartAnimationView: View {
 
             Text("接下来的 \(duration) 分钟，只属于你")
                 .font(.title3)
-                .foregroundColor(.purple200)
+                .foregroundColor(Color.purple.opacity(0.7))
         }
     }
 
@@ -131,7 +131,7 @@ struct FocusStartAnimationView: View {
 
             Text("加油，你可以的 💪")
                 .font(.title3)
-                .foregroundColor(.purple200)
+                .foregroundColor(Color.purple.opacity(0.7))
         }
     }
 

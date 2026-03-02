@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 // MARK: - Points History View Model
 
@@ -231,7 +232,7 @@ final class PointsHistoryViewModel: ObservableObject {
 
     /// Group transactions by date
     /// - Returns: Dictionary with date strings as keys and transaction arrays as values
-    func groupedTransactions() -> [(String: [PointsTransaction])] {
+    func groupedTransactions() -> [String: [PointsTransaction]] {
         let calendar = Calendar.current
         var grouped: [String: [PointsTransaction]] = [:]
 
@@ -261,7 +262,7 @@ final class PointsHistoryViewModel: ObservableObject {
             }
         }
 
-        return grouped.map { [$0.key: $0.value] }
+        return grouped
     }
 
     // MARK: - Private Methods

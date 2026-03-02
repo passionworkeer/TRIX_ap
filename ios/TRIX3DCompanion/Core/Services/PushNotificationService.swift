@@ -152,10 +152,12 @@ final class PushNotificationService: NSObject, ObservableObject, PushNotificatio
 
     /// Handle registration failure
     /// - Parameter error: Error from APNs
-    func didFailToRegisterForRemoteNotifications(error: Error) {
-        let pushError = PushNotificationError.registrationFailed(error)
-        lastError = pushError
-        registrationStatus = .failed(pushError)
+    nonisolated func didFailToRegisterForRemoteNotifications(error: Error) {
+        Task { @MainActor in
+            let pushError = PushNotificationError.registrationFailed(error)
+            lastError = pushError
+            registrationStatus = .failed(pushError)
+        }
     }
 
     // MARK: - Remote Notification Handling
@@ -443,14 +445,14 @@ extension KeychainManager {
     private static let deviceTokenKey = "deviceToken"
 
     func getDeviceToken() -> String? {
-        get(KeychainManager.deviceTokenKey)
+        getString(forKey: KeychainManager.deviceTokenKey)
     }
 
     func saveDeviceToken(_ token: String) throws {
-        try save(KeychainManager.deviceTokenKey, value: token)
+        try saveString(token, forKey: KeychainManager.deviceTokenKey)
     }
 
     func deleteDeviceToken() throws {
-        try delete(KeychainManager.deviceTokenKey)
+        try remove(forKey: KeychainManager.deviceTokenKey)
     }
 }

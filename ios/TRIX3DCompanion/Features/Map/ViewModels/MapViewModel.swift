@@ -9,6 +9,7 @@ import Foundation
 import MapKit
 import CoreLocation
 import Combine
+import SwiftUI
 
 // MARK: - Map ViewModel
 

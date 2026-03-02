@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - Todo Model
 
@@ -52,6 +53,15 @@ struct Todo: Identifiable, Codable, Equatable {
             case .low: return "#10B981"     // green-500
             case .medium: return "#F97316"   // orange-500
             case .high: return "#EF4444"     // red-500
+            }
+        }
+
+        /// Returns SwiftUI Color for priority
+        var color: Color {
+            switch self {
+            case .low: return Color(hex: "#10B981") ?? .green
+            case .medium: return Color(hex: "#F97316") ?? .orange
+            case .high: return Color(hex: "#EF4444") ?? .red
             }
         }
     }

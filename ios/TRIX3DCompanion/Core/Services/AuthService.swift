@@ -11,7 +11,7 @@ import Combine
 // MARK: - Auth Error
 
 /// Authentication error types
-enum AuthError: Error, LocalizedError {
+enum AuthError: Error, LocalizedError, Equatable {
     case invalidCredentials
     case emailAlreadyExists
     case networkError(underlying: Error)
@@ -19,6 +19,27 @@ enum AuthError: Error, LocalizedError {
     case refreshFailed
     case unknown(underlying: Error?)
     case validationError(message: String)
+
+    static func == (lhs: AuthError, rhs: AuthError) -> Bool {
+        switch (lhs, rhs) {
+        case (.invalidCredentials, .invalidCredentials):
+            return true
+        case (.emailAlreadyExists, .emailAlreadyExists):
+            return true
+        case (.networkError, .networkError):
+            return true
+        case (.tokenExpired, .tokenExpired):
+            return true
+        case (.refreshFailed, .refreshFailed):
+            return true
+        case (.unknown, .unknown):
+            return true
+        case (.validationError(let lhsMsg), .validationError(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -127,6 +148,20 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
         // Restore session on initialization
         restoreSession()
+    }
+
+    // MARK: - Internal Methods
+
+    /// Update current user (internal use)
+    /// - Parameter user: User to set
+    func updateCurrentUser(_ user: User?) {
+        currentUser = user
+    }
+
+    /// Update login status (internal use)
+    /// - Parameter loggedIn: Whether user is logged in
+    func updateLoginStatus(_ loggedIn: Bool) {
+        isLoggedIn = loggedIn
     }
 
     // MARK: - Public Methods

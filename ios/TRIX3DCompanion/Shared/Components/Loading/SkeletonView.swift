@@ -81,7 +81,7 @@ struct SkeletonView: View {
 
 // MARK: - Skeleton Shape
 
-enum SkeletonShape {
+enum SkeletonShape: Equatable {
     case rectangle
     case circle
     case avatar

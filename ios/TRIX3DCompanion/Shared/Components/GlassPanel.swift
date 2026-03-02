@@ -22,7 +22,7 @@ struct GlassPanel: ViewModifier {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.ultraThinMaterial)
+                    .fill(Material.ultraThinMaterial)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
@@ -101,12 +101,10 @@ struct GlassPanelContainer<Content: View>: View {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(backgroundColor != nil ? .ultraThinMaterial.opacity(0.95) : .ultraThinMaterial)
+                    .fill(Material.ultraThinMaterial)
                     .overlay(
-                        backgroundColor.map { color in
-                            RoundedRectangle(cornerRadius: cornerRadius)
-                                .fill(color)
-                        }
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(backgroundColor?.opacity(0.95) ?? Color.clear)
                     )
             )
             .overlay(

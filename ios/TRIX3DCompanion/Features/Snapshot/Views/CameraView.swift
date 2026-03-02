@@ -32,11 +32,11 @@ struct CameraView: View {
     // MARK: - Initialization
 
     init(
-        viewModel: CameraViewModel = CameraViewModel(),
+        viewModel: CameraViewModel? = nil,
         onImageCaptured: ((UIImage, String?) -> Void)? = nil
     ) {
-        _viewModel = StateObject(wrappedValue: viewModel)
         self.onImageCaptured = onImageCaptured
+        _viewModel = StateObject(wrappedValue: viewModel ?? CameraViewModel())
     }
 
     // MARK: - Body
@@ -149,7 +149,8 @@ struct CameraView: View {
             // Flash button
             ControlButton(
                 icon: viewModel.flashMode.iconName,
-                label: viewModel.flashMode.displayName
+                title: viewModel.flashMode.displayName,
+                color: .white
             ) {
                 viewModel.toggleFlash()
             }
@@ -159,8 +160,8 @@ struct CameraView: View {
             // Grid toggle
             ControlButton(
                 icon: viewModel.showGrid ? "grid" : "grid",
-                label: "Grid",
-                isActive: viewModel.showGrid
+                title: "Grid",
+                color: viewModel.showGrid ? .brandPurple : .white
             ) {
                 viewModel.toggleGrid()
             }
@@ -168,7 +169,8 @@ struct CameraView: View {
             // Switch camera
             ControlButton(
                 icon: "camera.rotate.fill",
-                label: "Flip"
+                title: "Flip",
+                color: .white
             ) {
                 viewModel.switchCamera()
             }
@@ -176,7 +178,8 @@ struct CameraView: View {
             // Close button
             ControlButton(
                 icon: "xmark",
-                label: "Close"
+                title: "Close",
+                color: .white
             ) {
                 dismiss()
             }

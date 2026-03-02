@@ -88,7 +88,7 @@ struct RegisterView: View {
         } message: {
             Text("Your account has been created successfully!")
         }
-        .onChange(of: authService.lastError) { _, newError in
+        .onChange(of: authService.lastError) { newError in
             if let error = newError {
                 errorMessage = error.localizedDescription
                 showingError = true
@@ -238,8 +238,8 @@ struct RegisterView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                ProgressView(value: 0)
+                    .tint(.white)
                     .scaleEffect(1.5)
 
                 Text("Creating account...")

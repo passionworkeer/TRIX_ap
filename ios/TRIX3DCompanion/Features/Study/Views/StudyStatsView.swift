@@ -68,7 +68,8 @@ struct StudyStatsView: View {
             }
             .overlay {
                 if isLoading {
-                    ProgressView("Loading stats...")
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
                 }
             }
             .alert("Error", isPresented: .constant(errorMessage != nil)) {
@@ -97,7 +98,7 @@ struct StudyStatsView: View {
             Text("All Time").tag(TimeRange.allTime)
         }
         .pickerStyle(.segmented)
-        .onChange(of: selectedTimeRange) { _, _ in
+        .onChange(of: selectedTimeRange) { _ in
             Task {
                 await loadStats()
             }
@@ -154,8 +155,8 @@ struct StudyStatsView: View {
                     Chart {
                         ForEach(weeklyData) { day in
                             BarMark(
-                                x: .value("Day", day.date, unit: .day),
-                                y: .value("Minutes", day.durationMinutes)
+                                x: .value("Day", Self.parseDate(day.date), unit: .day),
+                                y: .value("Minutes", day.totalMinutes)
                             )
                             .foregroundStyle(
                                 LinearGradient(
@@ -177,7 +178,7 @@ struct StudyStatsView: View {
                                 }
                             }
                             AxisGridLine()
-                                .foregroundStyle(.separator.opacity(0.5))
+                                .foregroundStyle(Color.gray.opacity(0.3))
                         }
                     }
                     .chartXAxis {
@@ -189,7 +190,7 @@ struct StudyStatsView: View {
                                 }
                             }
                             AxisGridLine()
-                                .foregroundStyle(.separator.opacity(0.5))
+                                .foregroundStyle(Color.gray.opacity(0.3))
                         }
                     }
 
@@ -205,7 +206,7 @@ struct StudyStatsView: View {
 
                         Spacer()
 
-                        Text("Total: \(formatDuration(weeklyData.reduce(0) { $0 + $1.durationMinutes * 60 }))")
+                        Text("Total: \(formatDuration(weeklyData.reduce(0) { $0 + $1.totalMinutes }))")
                             .font(.caption)
                             .foregroundColor(.textSecondary)
                     }
@@ -362,12 +363,16 @@ struct StudyStatsView: View {
         errorMessage = nil
 
         do {
-            let loadedStats = try await studyService.getStudyStats(timeRange: selectedTimeRange)
-            let loadedWeeklyData = try await studyService.getWeeklyStudyData()
+            let result = try await studyService.getStudyStats()
+            let weeklyResult = try await studyService.getWeeklyStudyData()
 
             await MainActor.run {
-                stats = loadedStats
-                weeklyData = loadedWeeklyData
+                if case .success(let statsData) = result {
+                    stats = statsData
+                }
+                if case .success(let weeklyDataResult) = weeklyResult {
+                    weeklyData = weeklyDataResult
+                }
                 isLoading = false
             }
         } catch {
@@ -488,7 +493,7 @@ struct AchievementBadge: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .background(
-            (earned ? .ultraThinMaterial : Color.clear)
+            earned ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -505,10 +510,21 @@ enum TimeRange: String, CaseIterable {
 }
 
 /// 每日学习数据
-struct DailyStudyData: Identifiable {
+struct StudyDailyData: Identifiable {
     let id = UUID()
     let date: Date
     let durationMinutes: Int
+}
+
+// MARK: - Helper Methods
+
+extension StudyStatsView {
+    /// Parse date string to Date
+    static func parseDate(_ dateString: String) -> Date {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        return dateFormatter.date(from: dateString) ?? Date()
+    }
 }
 
 // MARK: - Preview

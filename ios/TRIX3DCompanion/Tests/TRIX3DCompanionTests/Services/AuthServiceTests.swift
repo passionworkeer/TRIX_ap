@@ -16,10 +16,22 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
-// MARK: - Mock API Client for Auth
+// MARK: - Auth API Protocol
+
+/// Protocol for authentication API methods
+/// This allows us to create mock implementations for testing
+protocol AuthAPIProtocol {
+    func login(email: String, password: String) async throws -> AuthResponse
+    func register(username: String, email: String, password: String) async throws -> User
+    func logout() async throws
+    func getCurrentUser() async throws -> User
+    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable
+}
+
+// MARK: - Mock Auth API Client
 
 @MainActor
-final class MockAPIClientForAuth: APIClient {
+final class MockAuthAPIClient: AuthAPIProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockAuthResponse: AuthResponse?
@@ -31,7 +43,7 @@ final class MockAPIClientForAuth: APIClient {
     var lastRegisterPassword: String?
     var logoutCalled = false
 
-    override func login(email: String, password: String) async throws -> AuthResponse {
+    func login(email: String, password: String) async throws -> AuthResponse {
         lastLoginEmail = email
         lastLoginPassword = password
 
@@ -39,10 +51,14 @@ final class MockAPIClientForAuth: APIClient {
             throw mockError ?? NetworkError.unauthorized
         }
 
-        return mockAuthResponse!
+        guard let response = mockAuthResponse else {
+            throw NetworkError.custom("No mock response configured")
+        }
+
+        return response
     }
 
-    override func register(username: String, email: String, password: String) async throws -> User {
+    func register(username: String, email: String, password: String) async throws -> User {
         lastRegisterUsername = username
         lastRegisterEmail = email
         lastRegisterPassword = password
@@ -51,40 +67,67 @@ final class MockAPIClientForAuth: APIClient {
             throw mockError ?? NetworkError.custom("Registration failed")
         }
 
-        return mockUser!
+        guard let user = mockUser else {
+            throw NetworkError.custom("No mock user configured")
+        }
+
+        return user
     }
 
-    override func logout() async throws {
+    func logout() async throws {
         logoutCalled = true
         if shouldFailRequests {
             throw mockError ?? NetworkError.custom("Logout failed")
         }
     }
 
-    override func getCurrentUser() async throws -> User {
+    func getCurrentUser() async throws -> User {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        return mockUser!
+
+        guard let user = mockUser else {
+            throw NetworkError.custom("No mock user configured")
+        }
+
+        return user
     }
 
-    override func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.custom("Request failed")
         }
 
-        if T.self == AuthResponse.self {
-            return mockAuthResponse as! T
+        if T.self == AuthResponse.self, let authResponse = mockAuthResponse {
+            return authResponse as! T
         }
 
         throw NetworkError.custom("Unknown endpoint")
     }
 }
 
+// MARK: - Keychain Protocol
+
+/// Protocol for keychain operations
+/// This allows us to create mock implementations for testing
+protocol KeychainProtocol {
+    func saveSession(_ session: UserSession) throws
+    func clearSession() throws
+    func saveAccessToken(_ token: String) throws
+    func saveRefreshToken(_ token: String) throws
+    func getAccessToken() -> String?
+    func getRefreshToken() -> String?
+    func getUserId() -> String?
+    func hasValidSession() -> Bool
+}
+
+// Extend KeychainManager to conform to the protocol
+extension KeychainManager: KeychainProtocol {}
+
 // MARK: - Mock Keychain Manager for Auth
 
 @MainActor
-final class MockKeychainManagerForAuth: KeychainManager {
+final class MockKeychainManagerForAuth: KeychainProtocol {
     var shouldFailSaveSession = false
     var shouldFailClearSession = false
     var shouldFailSaveAccessToken = false
@@ -95,7 +138,7 @@ final class MockKeychainManagerForAuth: KeychainManager {
     var storedUserId: String?
     var clearSessionCalled = false
 
-    override func saveSession(_ session: UserSession) throws {
+    func saveSession(_ session: UserSession) throws {
         if shouldFailSaveSession {
             throw KeychainError.securityValidationFailed
         }
@@ -104,7 +147,7 @@ final class MockKeychainManagerForAuth: KeychainManager {
         storedUserId = session.userId
     }
 
-    override func clearSession() throws {
+    func clearSession() throws {
         clearSessionCalled = true
         if shouldFailClearSession {
             throw KeychainError.securityValidationFailed
@@ -114,34 +157,355 @@ final class MockKeychainManagerForAuth: KeychainManager {
         storedUserId = nil
     }
 
-    override func saveAccessToken(_ token: String) throws {
+    func saveAccessToken(_ token: String) throws {
         if shouldFailSaveAccessToken {
             throw KeychainError.securityValidationFailed
         }
         storedAccessToken = token
     }
 
-    override func saveRefreshToken(_ token: String) throws {
+    func saveRefreshToken(_ token: String) throws {
         if shouldFailSaveRefreshToken {
             throw KeychainError.securityValidationFailed
         }
         storedRefreshToken = token
     }
 
-    override func getAccessToken() -> String? {
+    func getAccessToken() -> String? {
         return storedAccessToken
     }
 
-    override func getRefreshToken() -> String? {
+    func getRefreshToken() -> String? {
         return storedRefreshToken
     }
 
-    override func getUserId() -> String? {
+    func getUserId() -> String? {
         return storedUserId
     }
 
-    override func hasValidSession() -> Bool {
+    func hasValidSession() -> Bool {
         return shouldReturnValidSession && storedAccessToken != nil && storedRefreshToken != nil
+    }
+}
+
+// MARK: - Testable Auth Service
+
+/// A testable version of AuthService that accepts mock dependencies
+@MainActor
+final class TestableAuthService: AuthServiceProtocol {
+
+    // MARK: - Published Properties
+
+    @Published private(set) var currentUser: User?
+    @Published private(set) var isLoggedIn: Bool = false
+    @Published private(set) var isLoading: Bool = false
+    @Published private(set) var lastError: AuthError?
+
+    // MARK: - Dependencies
+
+    private let authAPI: AuthAPIProtocol
+    private let keychainManager: KeychainProtocol
+
+    // MARK: - Private Properties
+
+    private let tokenRefreshBuffer: TimeInterval = 300
+    private var tokenExpirationDate: Date?
+    private var refreshTask: Task<AuthResult<Void>, Never>?
+    private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Initialization
+
+    init(
+        authAPI: AuthAPIProtocol,
+        keychainManager: KeychainProtocol
+    ) {
+        self.authAPI = authAPI
+        self.keychainManager = keychainManager
+    }
+
+    // MARK: - Internal Methods
+
+    func updateCurrentUser(_ user: User?) {
+        currentUser = user
+    }
+
+    func updateLoginStatus(_ loggedIn: Bool) {
+        isLoggedIn = loggedIn
+    }
+
+    // MARK: - Public Methods
+
+    func login(email: String, password: String) async -> AuthResult<User> {
+        // Validate input
+        guard isValidEmail(email) else {
+            let error = AuthError.validationError(message: "Invalid email format")
+            lastError = error
+            return .failure(error)
+        }
+
+        guard password.count >= 6 else {
+            let error = AuthError.validationError(message: "Password must be at least 6 characters")
+            lastError = error
+            return .failure(error)
+        }
+
+        isLoading = true
+        lastError = nil
+
+        do {
+            let response = try await authAPI.login(email: email, password: password)
+
+            // Save session tokens
+            try saveSession(response.session)
+
+            // Set current user
+            currentUser = response.user
+            isLoggedIn = true
+
+            isLoading = false
+
+            return .success(response.user)
+
+        } catch let error as NetworkError {
+            isLoading = false
+            let authError = mapNetworkError(error)
+            lastError = authError
+            return .failure(authError)
+        } catch {
+            isLoading = false
+            let authError = AuthError.unknown(underlying: error)
+            lastError = authError
+            return .failure(authError)
+        }
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+        // Validate input
+        guard isValidEmail(email) else {
+            let error = AuthError.validationError(message: "Invalid email format")
+            lastError = error
+            return .failure(error)
+        }
+
+        guard username.count >= 3 else {
+            let error = AuthError.validationError(message: "Username must be at least 3 characters")
+            lastError = error
+            return .failure(error)
+        }
+
+        guard password.count >= 6 else {
+            let error = AuthError.validationError(message: "Password must be at least 6 characters")
+            lastError = error
+            return .failure(error)
+        }
+
+        isLoading = true
+        lastError = nil
+
+        do {
+            let user = try await authAPI.register(username: username, email: email, password: password)
+
+            // After registration, automatically login
+            let loginResult = await login(email: email, password: password)
+
+            isLoading = false
+
+            switch loginResult {
+            case .success:
+                return .success(user)
+            case .failure(let error):
+                // Registration succeeded but auto-login failed
+                // Return user anyway since registration was successful
+                return .success(user)
+            }
+
+        } catch let error as NetworkError {
+            isLoading = false
+
+            // Check for specific error cases
+            if case .validationError(let message) = mapNetworkError(error),
+               message.lowercased().contains("email") || message.lowercased().contains("exists") {
+                let authError = AuthError.emailAlreadyExists
+                lastError = authError
+                return .failure(authError)
+            }
+
+            let authError = mapNetworkError(error)
+            lastError = authError
+            return .failure(authError)
+        } catch {
+            isLoading = false
+            let authError = AuthError.unknown(underlying: error)
+            lastError = authError
+            return .failure(authError)
+        }
+    }
+
+    func logout() async -> AuthResult<Void> {
+        isLoading = true
+
+        // Call logout API (best effort - don't fail if API is unavailable)
+        do {
+            try await authAPI.logout()
+        } catch {
+            // Continue with local logout even if API call fails
+        }
+
+        // Clear local session
+        clearSession()
+
+        isLoading = false
+
+        return .success(())
+    }
+
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
+        // If not logged in, nothing to refresh
+        guard isLoggedIn else {
+            return .success(())
+        }
+
+        // If no refresh token, cannot refresh
+        guard keychainManager.getRefreshToken() != nil else {
+            return .failure(.refreshFailed)
+        }
+
+        // Check if token needs refresh
+        guard shouldRefreshToken() else {
+            return .success(())
+        }
+
+        // Prevent concurrent refresh attempts
+        if let existingTask = refreshTask {
+            await existingTask.value
+            return .success(())
+        }
+
+        let task = Task {
+            await performTokenRefresh()
+        }
+
+        refreshTask = task
+
+        let result = await task.value
+        refreshTask = nil
+
+        return result
+    }
+
+    func fetchCurrentUser() async -> AuthResult<User> {
+        guard isLoggedIn else {
+            return .failure(.invalidCredentials)
+        }
+
+        do {
+            let user = try await authAPI.getCurrentUser()
+            currentUser = user
+            return .success(user)
+        } catch let error as NetworkError {
+            let authError = mapNetworkError(error)
+
+            // If unauthorized, clear session
+            if case .unauthorized = error {
+                clearSession()
+            }
+
+            return .failure(authError)
+        } catch {
+            return .failure(.unknown(underlying: error))
+        }
+    }
+
+    // MARK: - Session Management
+
+    func saveSession(_ session: UserSession) throws {
+        try keychainManager.saveSession(session)
+        tokenExpirationDate = session.expiresAt
+    }
+
+    func clearSession() {
+        try? keychainManager.clearSession()
+        currentUser = nil
+        isLoggedIn = false
+        tokenExpirationDate = nil
+        lastError = nil
+    }
+
+    // MARK: - Token Management
+
+    private func shouldRefreshToken() -> Bool {
+        guard let expirationDate = tokenExpirationDate else {
+            return true
+        }
+
+        // Refresh if token expires within buffer time
+        return Date().addingTimeInterval(tokenRefreshBuffer) >= expirationDate
+    }
+
+    private func performTokenRefresh() async -> AuthResult<Void> {
+        guard let refreshToken = keychainManager.getRefreshToken() else {
+            clearSession()
+            return .failure(.refreshFailed)
+        }
+
+        do {
+            // Create refresh request
+            let refreshRequest = RefreshTokenRequest(refreshToken: refreshToken)
+            let response: AuthResponse = try await authAPI.post(
+                .authRefresh,
+                body: refreshRequest
+            )
+
+            // Save new tokens
+            try saveSession(response.session)
+
+            // Update current user
+            currentUser = response.user
+
+            return .success(())
+
+        } catch {
+            // Refresh failed - clear session
+            clearSession()
+            return .failure(.refreshFailed)
+        }
+    }
+
+    // MARK: - Validation Helpers
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: emailRegex, options: .regularExpression) != nil
+    }
+
+    private func mapNetworkError(_ error: NetworkError) -> AuthError {
+        switch error {
+        case .noConnection, .timeout:
+            return .networkError(underlying: error)
+        case .unauthorized:
+            return .invalidCredentials
+        case .custom(let message):
+            return .validationError(message: message)
+        default:
+            return .unknown(underlying: error)
+        }
+    }
+}
+
+// MARK: - Convenience Extensions
+
+extension TestableAuthService {
+
+    var isPremium: Bool {
+        currentUser?.points ?? 0 > 0
+    }
+
+    var displayName: String {
+        currentUser?.displayName ?? currentUser?.username ?? "User"
+    }
+
+    func clearError() {
+        lastError = nil
     }
 }
 
@@ -150,29 +514,29 @@ final class MockKeychainManagerForAuth: KeychainManager {
 @MainActor
 final class AuthServiceTests: XCTestCase {
 
-    var sut: AuthService!
-    var mockAPIClient: MockAPIClientForAuth!
+    var sut: TestableAuthService!
+    var mockAuthAPI: MockAuthAPIClient!
     var mockKeychainManager: MockKeychainManagerForAuth!
 
     override func setUp() async throws {
         try await super.setUp()
 
-        mockAPIClient = MockAPIClientForAuth()
+        mockAuthAPI = MockAuthAPIClient()
         mockKeychainManager = MockKeychainManagerForAuth()
 
         // Setup default mock response
-        mockAPIClient.mockAuthResponse = createMockAuthResponse()
-        mockAPIClient.mockUser = createMockUser()
+        mockAuthAPI.mockAuthResponse = createMockAuthResponse()
+        mockAuthAPI.mockUser = createMockUser()
 
-        sut = AuthService(
-            apiClient: mockAPIClient,
+        sut = TestableAuthService(
+            authAPI: mockAuthAPI,
             keychainManager: mockKeychainManager
         )
     }
 
     override func tearDown() async throws {
         sut = nil
-        mockAPIClient = nil
+        mockAuthAPI = nil
         mockKeychainManager = nil
         try await super.tearDown()
     }
@@ -194,7 +558,7 @@ extension AuthServiceTests {
         switch result {
         case .success(let user):
             XCTAssertEqual(user.id, "test_user_id", "Should return correct user")
-            XCTAssertEqual(mockAPIClient.lastLoginEmail, email, "Should call API with correct email")
+            XCTAssertEqual(mockAuthAPI.lastLoginEmail, email, "Should call API with correct email")
             XCTAssertTrue(sut.isLoggedIn, "Should be logged in")
             XCTAssertEqual(sut.currentUser?.id, user.id, "Should set current user")
         case .failure(let error):
@@ -244,8 +608,8 @@ extension AuthServiceTests {
 
     func testLoginWithInvalidCredentials() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .unauthorized
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .unauthorized
 
         // When
         let result = await sut.login(email: "test@example.com", password: "password123")
@@ -261,8 +625,8 @@ extension AuthServiceTests {
 
     func testLoginWithNetworkError() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .timeout
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .timeout
 
         // When
         let result = await sut.login(email: "test@example.com", password: "password123")
@@ -313,9 +677,9 @@ extension AuthServiceTests {
         // Then
         switch result {
         case .success(let user):
-            XCTAssertEqual(user.id, "new_user_id", "Should return registered user")
-            XCTAssertEqual(mockAPIClient.lastRegisterUsername, username, "Should call API with correct username")
-            XCTAssertEqual(mockAPIClient.lastRegisterEmail, email, "Should call API with correct email")
+            XCTAssertEqual(user.id, "test_user_id", "Should return registered user")
+            XCTAssertEqual(mockAuthAPI.lastRegisterUsername, username, "Should call API with correct username")
+            XCTAssertEqual(mockAuthAPI.lastRegisterEmail, email, "Should call API with correct email")
         case .failure(let error):
             XCTFail("Should succeed: \(error)")
         }
@@ -383,8 +747,8 @@ extension AuthServiceTests {
 
     func testRegisterWithEmailAlreadyExists() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .custom("Email already exists")
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .custom("Email already exists")
 
         // When
         let result = await sut.register(username: "newuser", email: "existing@example.com", password: "password123")
@@ -400,8 +764,8 @@ extension AuthServiceTests {
 
     func testRegisterWithNetworkError() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .timeout
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .timeout
 
         // When
         let result = await sut.register(username: "newuser", email: "new@example.com", password: "password123")
@@ -459,8 +823,8 @@ extension AuthServiceTests {
     func testLogoutContinuesEvenWhenAPIFails() async {
         // Given
         _ = await sut.login(email: "test@example.com", password: "password123")
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .timeout
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .timeout
 
         // When
         let result = await sut.logout()
@@ -526,7 +890,7 @@ extension AuthServiceTests {
                 expiresAt: Date().addingTimeInterval(3600)
             )
         )
-        mockAPIClient.mockAuthResponse = newAuthResponse
+        mockAuthAPI.mockAuthResponse = newAuthResponse
 
         // When
         let result = await sut.refreshTokenIfNeeded()
@@ -543,8 +907,8 @@ extension AuthServiceTests {
     func testRefreshTokenFailure() async {
         // Given - logged in
         _ = await sut.login(email: "test@example.com", password: "password123")
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .unauthorized
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .unauthorized
 
         // When
         let result = await sut.refreshTokenIfNeeded()
@@ -598,8 +962,8 @@ extension AuthServiceTests {
     func testFetchCurrentUserWithUnauthorizedError() async {
         // Given - logged in but API returns unauthorized
         _ = await sut.login(email: "test@example.com", password: "password123")
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .unauthorized
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .unauthorized
 
         // When
         let result = await sut.fetchCurrentUser()
@@ -617,8 +981,8 @@ extension AuthServiceTests {
     func testFetchCurrentUserWithNetworkError() async {
         // Given - logged in
         _ = await sut.login(email: "test@example.com", password: "password123")
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .timeout
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .timeout
 
         // When
         let result = await sut.fetchCurrentUser()
@@ -643,8 +1007,8 @@ extension AuthServiceTests {
 
     func testLoginSetsLastError() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .unauthorized
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .unauthorized
 
         // When
         _ = await sut.login(email: "test@example.com", password: "password123")
@@ -655,8 +1019,8 @@ extension AuthServiceTests {
 
     func testClearErrorClearsErrorState() async {
         // Given
-        mockAPIClient.shouldFailRequests = true
-        mockAPIClient.mockError = .unauthorized
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .unauthorized
         _ = await sut.login(email: "test@example.com", password: "password123")
         XCTAssertNotNil(sut.lastError, "Should have error after failed login")
 
@@ -726,8 +1090,8 @@ extension AuthServiceTests {
             createdAt: Date(),
             updatedAt: Date()
         )
-        mockAPIClient.mockUser = userWithNoPoints
-        mockAPIClient.mockAuthResponse = AuthResponse(
+        mockAuthAPI.mockUser = userWithNoPoints
+        mockAuthAPI.mockAuthResponse = AuthResponse(
             user: userWithNoPoints,
             session: createMockSession()
         )

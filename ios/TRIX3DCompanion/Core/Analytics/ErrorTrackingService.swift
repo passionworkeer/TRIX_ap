@@ -63,18 +63,6 @@ final class ErrorTrackingService: ObservableObject, ErrorTrackingServiceProtocol
             options.environment = "production"
             #endif
 
-            // Attach stack trace
-            options.attachStackTrace = true
-
-            // Maximum breadcrumbs
-            options.maxBreadcrumbs = 50
-
-            // Session timeout
-            options.sessionTimeoutInterval = 30
-
-            // Enable app hang tracking
-            options.appHang = true
-
             // Enable auto session tracking
             options.enableAutoSessionTracking = true
 
@@ -94,18 +82,17 @@ final class ErrorTrackingService: ObservableObject, ErrorTrackingServiceProtocol
             return
         }
 
-        // Create scope with context
-        let scope = Scope()
+        // Set context if provided
         if let context = context {
             for (key, value) in context {
-                scope.setExtra(value: value, key: key)
+                SentrySDK.configureScope { scope in
+                    scope.setExtra(value: value, key: key)
+                }
             }
         }
 
         // Capture error
-        SentrySDK.capture(error: error) { scope in
-            return scope
-        }
+        SentrySDK.capture(error: error)
 
         logger.error("Error captured: \(error.localizedDescription)")
     }
@@ -114,18 +101,17 @@ final class ErrorTrackingService: ObservableObject, ErrorTrackingServiceProtocol
     func captureMessage(_ message: String, level: SentryLevel = .error, context: [String: Any]? = nil) {
         guard isEnabled else { return }
 
-        // Create scope with context
-        let scope = Scope()
+        // Set context if provided
         if let context = context {
-            for (key, value) in context {
-                scope.setExtra(value: value, key: key)
+            SentrySDK.configureScope { scope in
+                for (key, value) in context {
+                    scope.setExtra(value: value, key: key)
+                }
             }
         }
 
         // Capture message
-        SentrySDK.capture(message: message, level: level) { scope in
-            return scope
-        }
+        SentrySDK.capture(message: message)
 
         logger.debug("Message captured: \(message)")
     }
@@ -134,12 +120,10 @@ final class ErrorTrackingService: ObservableObject, ErrorTrackingServiceProtocol
     func setUser(userId: String?, email: String?, username: String?) {
         guard isEnabled else { return }
 
-        let user = Sentry.User(
-            userId: userId ?? "",
-            email: email,
-            username: username,
-            extras: nil
-        )
+        let user = Sentry.User()
+        user.userId = userId
+        user.email = email
+        user.username = username
         SentrySDK.setUser(user)
     }
 

@@ -169,7 +169,7 @@ final class VoicePlayerViewModel: ObservableObject {
 
     /// Seek to specific progress position
     /// - Parameter progress: Progress value (0.0 - 1.0)
-    func seek(to progress: Double) async {
+    func seekToProgress(_ progress: Double) async {
         let time = totalDuration * progress
         await seek(to: time)
     }

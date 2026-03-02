@@ -95,8 +95,8 @@ struct AvatarView: View {
                     AsyncImage(url: imageURL) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView()
-                                .progressViewStyle(.circular)
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
                                 .frame(width: size.dimension, height: size.dimension)
                         case .success(let image):
                             image

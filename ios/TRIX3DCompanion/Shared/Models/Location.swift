@@ -34,7 +34,7 @@ struct Location: Codable, Identifiable {
 }
 
 /// 位置类别
-enum LocationCategory: String, Codable {
+enum LocationCategory: String, Codable, CaseIterable {
     case school
     case library
     case cafe

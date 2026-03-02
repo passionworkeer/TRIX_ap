@@ -30,7 +30,7 @@ struct LocalizedText: View {
     let key: String
     var arguments: [CVarArg] = []
 
-    var body: Text {
+    var body: some View {
         if arguments.isEmpty {
             Text(key.localized)
         } else {

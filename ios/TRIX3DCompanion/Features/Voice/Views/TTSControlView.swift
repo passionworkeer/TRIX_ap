@@ -119,7 +119,7 @@ struct TTSControlView: View {
                 if viewModel.textToSpeak.isEmpty {
                     Text("在此输入要朗读的文本...")
                         .font(.body)
-                        .foregroundColor(.tertiary)
+                        .foregroundColor(Color.secondary.opacity(0.5))
                         .padding(.vertical, 12)
                         .padding(.horizontal, 16)
                 }
@@ -228,7 +228,7 @@ struct TTSControlView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                QuickActionButton(
+                TTSQuickActionButton(
                     icon: "timer",
                     title: "番茄钟开始",
                     color: .blue
@@ -238,7 +238,7 @@ struct TTSControlView: View {
                     }
                 }
 
-                QuickActionButton(
+                TTSQuickActionButton(
                     icon: "checkmark.circle.fill",
                     title: "番茄钟完成",
                     color: .green
@@ -248,7 +248,7 @@ struct TTSControlView: View {
                     }
                 }
 
-                QuickActionButton(
+                TTSQuickActionButton(
                     icon: "bell.fill",
                     title: "休息结束",
                     color: .orange
@@ -258,7 +258,7 @@ struct TTSControlView: View {
                     }
                 }
 
-                QuickActionButton(
+                TTSQuickActionButton(
                     icon: "exclamationmark.bubble.fill",
                     title: "目标提醒",
                     color: .purple
@@ -393,7 +393,7 @@ struct TTSControlView: View {
 // MARK: - Quick Action Button
 
 /// A button for quick TTS actions
-struct QuickActionButton: View {
+struct TTSQuickActionButton: View {
     let icon: String
     let title: String
     let color: Color

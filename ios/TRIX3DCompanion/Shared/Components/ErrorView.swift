@@ -21,10 +21,11 @@ struct ErrorView: View {
         self.retryAction = retryAction
     }
 
-    // MARK: - Body
-    var body: some View {
-        VStack(spacing: 24) {
-            // Error icon with animation
+    // MARK: - Error Icon View
+
+    @ViewBuilder
+    private var errorIconView: some View {
+        if #available(iOS 17.0, *) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 60))
                 .foregroundStyle(
@@ -35,6 +36,24 @@ struct ErrorView: View {
                     )
                 )
                 .symbolEffect(.bounce, value: true)
+        } else {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.purple, .pink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+    }
+
+    // MARK: - Body
+    var body: some View {
+        VStack(spacing: 24) {
+            // Error icon with animation
+            errorIconView
 
             // Error title
             Text(title)
@@ -77,7 +96,7 @@ struct ErrorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+                .fill(Material.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
         )
     }

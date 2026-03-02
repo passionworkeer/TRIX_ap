@@ -193,21 +193,21 @@ struct HomeView: View {
                 .padding(.horizontal, 4)
 
             HStack(spacing: 12) {
-                StatCard(
+                HomeStatCard(
                     title: "Today",
                     value: "2h 15m",
                     icon: "sun.max.fill",
                     color: .orange
                 )
 
-                StatCard(
+                HomeStatCard(
                     title: "This Week",
                     value: "12h 30m",
                     icon: "calendar",
                     color: .purple
                 )
 
-                StatCard(
+                HomeStatCard(
                     title: "Streak",
                     value: "7 days",
                     icon: "flame.fill",
@@ -307,9 +307,9 @@ struct QuickActionButton: View {
     }
 }
 
-// MARK: - Stat Card
+// MARK: - Home Stat Card
 
-struct StatCard: View {
+struct HomeStatCard: View {
     let title: String
     let value: String
     let icon: String

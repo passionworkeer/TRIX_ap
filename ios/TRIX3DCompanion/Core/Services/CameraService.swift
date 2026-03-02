@@ -141,7 +141,7 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     /// 启动相机会话
     func startCameraSession() async -> Result<Void, CameraError> {
         // 先检查权限
-        guard hasPermission else {
+        if !hasPermission {
             let granted = await requestPermission()
             if !granted {
                 return .failure(.permissionDenied)
@@ -216,7 +216,16 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
 
     /// 切换闪光灯模式
     func toggleFlash() {
-        flashMode.cycle()
+        switch flashMode {
+        case .off:
+            flashMode = .on
+        case .on:
+            flashMode = .auto
+        case .auto:
+            flashMode = .off
+        @unknown default:
+            flashMode = .off
+        }
     }
 
     /// 设置闪光灯模式
@@ -237,17 +246,16 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
         }
 
         // 确保设备可用
-        guard let device = currentDevice, device.hasFlash else {
-            // 继续尝试拍照，即使没有闪光灯
+        if let device = currentDevice, device.hasFlash {
+            // Flash available
+        } else {
+            // Continue without flash
         }
 
         // 创建照片设置
         let settings = createPhotoSettings()
 
-        // 设置委托
-        photoOutput.delegate = self
-
-        // 捕获照片
+        // 捕获照片 (delegate passed directly to capturePhoto)
         return await withCheckedContinuation { continuation in
             self.photoContinuation = continuation
 

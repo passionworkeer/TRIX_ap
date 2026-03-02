@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import StoreKit
 
 // MARK: - Store ViewModel
 
@@ -78,49 +79,24 @@ final class StoreViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Observe available products
-        storeKitService.$availableProducts
-            .sink { [weak self] products in
-                self?.categorizeProducts(products)
-            }
-            .store(in: &cancellables)
-
-        // Observe subscription status
-        storeKitService.$subscriptionStatus
-            .sink { [weak self] status in
-                self?.subscriptionStatus = status
-            }
-            .store(in: &cancellables)
-
-        // Observe points balance
-        pointsService.$balance
-            .compactMap { $0 }
-            .sink { [weak self] balance in
-                self?.userPoints = balance.totalPoints
-            }
-            .store(in: &cancellables)
-
-        // Observe loading states
-        storeKitService.$isLoadingProducts
-            .sink { [weak self] isLoading in
-                self?.isLoadingProducts = isLoading
-            }
-            .store(in: &cancellables)
-
-        storeKitService.$isPurchasing
-            .sink { [weak self] isPurchasing in
-                self?.isPurchasing = isPurchasing
-            }
-            .store(in: &cancellables)
+        // Note: Services don't expose @Published properties via protocols
+        // Instead, we manually sync state when loading data
     }
 
     // MARK: - Public Methods
 
     /// Load available products
     func loadProducts() async {
+        isLoadingProducts = true
+
         let result = await storeKitService.loadProducts(
             productIds: StoreProductConfiguration.allProductIds
         )
+
+        // Sync state from services
+        categorizeProducts(storeKitService.availableProducts)
+        subscriptionStatus = storeKitService.subscriptionStatus
+        isLoadingProducts = storeKitService.isLoadingProducts
 
         if case .failure(let error) = result {
             errorMessage = error.errorDescription
@@ -130,6 +106,11 @@ final class StoreViewModel: ObservableObject {
     /// Refresh points balance
     func refreshPoints() async {
         let result = await pointsService.refreshPoints()
+
+        // Sync balance from service
+        if let balance = pointsService.balance {
+            userPoints = balance.totalPoints
+        }
 
         if case .failure(let error) = result {
             errorMessage = error.errorDescription

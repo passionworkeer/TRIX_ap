@@ -209,9 +209,7 @@ final class AudioSessionManager {
 
     /// Get available outputs
     var availableOutputs: [AVAudioSessionPortDescription] {
-        return audioSession.availableInputs?.flatMap { input in
-            input.dataSources ?? []
-        } ?? []
+        return audioSession.currentRoute.outputs
     }
 }
 

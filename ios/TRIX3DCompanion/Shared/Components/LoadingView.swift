@@ -12,21 +12,22 @@ import SwiftUI
 struct LoadingView: View {
     // MARK: - Properties
     var message: String?
-    var backgroundColor: Color = .ultraThinMaterial
 
     // MARK: - Body
     var body: some View {
         ZStack {
             // Background overlay
-            backgroundColor
+            Color(.systemBackground)
+                .opacity(0.8)
                 .ignoresSafeArea()
 
             // Loading content
             VStack(spacing: 16) {
                 // Progress indicator
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.purple)
+                Rectangle()
+                    .fill(Color.purple)
+                    .frame(width: 40, height: 40)
+                    .opacity(0.5)
 
                 // Optional message
                 if let message = message {

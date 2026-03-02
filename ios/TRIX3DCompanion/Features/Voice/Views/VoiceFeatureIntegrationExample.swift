@@ -244,10 +244,12 @@ struct VoiceFeatureIntegrationExample: View {
 
 // MARK: - Voice Tab
 
-enum VoiceTab: CaseIterable {
+enum VoiceTab: String, CaseIterable, Identifiable {
     case player
     case tts
     case combined
+
+    var id: String { rawValue }
 
     var title: String {
         switch self {

@@ -249,7 +249,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 productType: productType,
                 amount: price,
                 currency: "CNY",
-                status: response.status,
+                status: response.status.toAppPaymentStatus(),
                 paymentMethod: .applePay,
                 transactionId: transactionId,
                 points: response.pointsAdded,
@@ -289,22 +289,10 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
         // Fetch from server
         do {
-            let response: AppOrderDetailsResponse = try await apiClient.getAppOrder(orderId: orderId)
+            let response: OrderDetailsResponse = try await apiClient.getOrder(orderId: orderId)
 
-            let order = AppOrder(
-                id: response.id,
-                userId: response.userId,
-                productId: response.productId,
-                productType: StoreProductConfiguration.productType(for: response.productId) ?? .points,
-                amount: response.amount,
-                currency: response.currency,
-                status: response.status,
-                paymentMethod: .applePay,
-                transactionId: response.transactionId,
-                points: response.points,
-                createdAt: response.createdAt,
-                updatedAt: response.updatedAt
-            )
+            // Use the toAppOrder() conversion method
+            let order = response.toAppOrder()
 
             cachedAppOrders[orderId] = order
             return order
@@ -338,7 +326,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         }
 
         do {
-            try await apiClient.cancelAppOrder(orderId: orderId)
+            try await apiClient.cancelOrder(orderId: orderId)
 
             // Remove from cache and update arrays
             cachedAppOrders.removeValue(forKey: orderId)
@@ -403,7 +391,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
             // Process restored orders
             var restoredAppOrders: [AppOrder] = []
-            for orderResponse in response.restoredAppOrders {
+            for orderResponse in response.restoredOrders {
                 let order = AppOrder(
                     id: orderResponse.id,
                     userId: orderResponse.userId,
@@ -411,7 +399,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                     productType: StoreProductConfiguration.productType(for: orderResponse.productId) ?? .points,
                     amount: orderResponse.amount,
                     currency: orderResponse.currency,
-                    status: orderResponse.status,
+                    status: orderResponse.status.toAppPaymentStatus(),
                     paymentMethod: .applePay,
                     transactionId: orderResponse.transactionId,
                     points: orderResponse.points,
@@ -446,23 +434,11 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     /// Load order history from server
     private func loadAppOrderHistory() async {
         do {
-            let response: AppOrdersListResponse = try await apiClient.getAppOrders()
+            let response: OrdersListResponse = try await apiClient.getOrders(page: 1, limit: 50)
 
             for orderResponse in response.orders {
-                let order = AppOrder(
-                    id: orderResponse.id,
-                    userId: orderResponse.userId,
-                    productId: orderResponse.productId,
-                    productType: StoreProductConfiguration.productType(for: orderResponse.productId) ?? .points,
-                    amount: orderResponse.amount,
-                    currency: orderResponse.currency,
-                    status: orderResponse.status,
-                    paymentMethod: .applePay,
-                    transactionId: orderResponse.transactionId,
-                    points: orderResponse.points,
-                    createdAt: orderResponse.createdAt,
-                    updatedAt: orderResponse.updatedAt
-                )
+                // Use the toAppOrder() conversion method
+                let order = orderResponse.toAppOrder()
                 cachedAppOrders[order.id] = order
             }
             updateAppOrdersArrays()

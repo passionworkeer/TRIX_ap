@@ -59,7 +59,7 @@ struct MainTabView: View {
                 // CustomTabBar()
             }
         }
-        .onChange(of: appState.selectedTab) { _, newTab in
+        .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
         }
         .onAppear {

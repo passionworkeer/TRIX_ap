@@ -213,7 +213,7 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
 
 extension AppleSignInService: ASAuthorizationControllerPresentationContextProviding {
 
-    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         // Return the stored presentation anchor
         // Note: This should always be available when sign-in is initiated
         return currentPresentationAnchor ?? ASPresentationAnchor()

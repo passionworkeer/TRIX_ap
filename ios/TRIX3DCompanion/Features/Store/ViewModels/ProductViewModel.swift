@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import StoreKit
 
 // MARK: - Product ViewModel
 
@@ -98,20 +99,10 @@ final class ProductViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Observe purchasing state
-        storeKitService.$isPurchasing
-            .sink { [weak self] isPurchasing in
-                self?.isPurchasing = isPurchasing
-            }
-            .store(in: &cancellables)
-
-        // Observe points balance
-        pointsService.$balance
-            .compactMap { $0 }
-            .sink { [weak self] balance in
-                self?.currentPoints = balance.totalPoints
-            }
-            .store(in: &cancellables)
+        // Note: isPurchasing and balance are private(set) in their respective services
+        // So we can't use $isPurchasing and $balance here.
+        // The isPurchasing state is managed locally in the purchase() method
+        // The currentPoints is loaded via loadCurrentPoints() which is called in init
     }
 
     // MARK: - Public Methods

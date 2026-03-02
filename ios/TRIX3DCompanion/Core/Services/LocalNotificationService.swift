@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import UserNotifications
 import Combine
 
@@ -117,7 +118,7 @@ final class LocalNotificationService: NSObject, ObservableObject, LocalNotificat
         content.userInfo["type"] = request.type.rawValue
 
         // Create trigger
-        let trigger: UNTrigger
+        let trigger: UNNotificationTrigger
         if let scheduledDate = request.scheduledDate {
             if request.repeats {
                 // For repeating notifications, use calendar trigger

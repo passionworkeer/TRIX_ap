@@ -13,7 +13,7 @@ import Combine
 
 /// Manager for handling third-party OAuth authentication
 @MainActor
-final class OAuthManager: NSObject, OAuthManagerProtocol {
+final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
 
     // MARK: - Singleton
 
@@ -323,8 +323,8 @@ final class OAuthManager: NSObject, OAuthManagerProtocol {
             saveToken(token, for: .apple)
 
             // Update auth service
-            authService.currentUser = response.user
-            authService.isLoggedIn = true
+            authService.updateCurrentUser(response.user)
+            authService.updateLoginStatus(true)
 
             // Fetch linked accounts
             _ = await fetchLinkedAccounts()
@@ -432,8 +432,8 @@ final class OAuthManager: NSObject, OAuthManagerProtocol {
             saveToken(token, for: .wechat)
 
             // Update auth service
-            authService.currentUser = response.user
-            authService.isLoggedIn = true
+            authService.updateCurrentUser(response.user)
+            authService.updateLoginStatus(true)
 
             // Fetch linked accounts
             _ = await fetchLinkedAccounts()
