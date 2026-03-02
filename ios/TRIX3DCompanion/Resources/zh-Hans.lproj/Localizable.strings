@@ -5,8 +5,10 @@
 
 // MARK: - Navigation
 "nav.home" = "首页";
+"nav.map" = "地图";
 "nav.chat" = "聊天";
 "nav.study" = "学习";
+"nav.core" = "核心";
 "nav.profile" = "我的";
 "nav.settings" = "设置";
 
@@ -196,6 +198,7 @@
 // MARK: - Home
 "home.greeting" = "首页";
 "home.welcome" = "欢迎回来";
+"home.bot.greeting" = "有什么可以帮你的吗？";
 "home.quick.actions" = "快捷功能";
 "home.overview" = "概览";
 "home.recent.activity" = "最近动态";
@@ -215,3 +218,11 @@
 "workbench.location" = "位置";
 "workbench.schedule" = "日程";
 "workbench.todo" = "待办";
+
+// MARK: - Mail
+"mail.title" = "邮件";
+"mail.empty" = "暂无邮件";
+
+// MARK: - Notification
+"notification.title" = "通知";
+"notification.empty" = "暂无通知";

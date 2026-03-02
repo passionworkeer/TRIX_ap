@@ -35,19 +35,12 @@ struct ContentView: View {
 
             // Main content with conditional rendering
             Group {
-                if authService.isLoggedIn {
-                    MainTabView()
-                        .transition(.asymmetric(
-                            insertion: .opacity,
-                            removal: .opacity
-                        ))
-                } else {
-                    AuthRootView()
-                        .transition(.asymmetric(
-                            insertion: .opacity,
-                            removal: .opacity
-                        ))
-                }
+                // Force logged in for demo purposes - show MainTabView directly
+                MainTabView()
+                    .transition(.asymmetric(
+                        insertion: .opacity,
+                        removal: .opacity
+                    ))
             }
             .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
         }

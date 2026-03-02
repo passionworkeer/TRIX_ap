@@ -1,0 +1,298 @@
+//
+//  NotificationPanelView.swift
+//  TRIX3DCompanion
+//
+//  Notification panel similar to web NotificationPanel
+//
+
+import SwiftUI
+
+struct NotificationPanelView: View {
+    @Binding var isPresented: Bool
+
+    @State private var notifications: [AppNotification] = []
+    @State private var isLoading = false
+    @State private var selectedFilter: NotificationFilter = .all
+
+    enum NotificationFilter: String, CaseIterable {
+        case all = "全部"
+        case unread = "未读"
+        case system = "系统"
+    }
+
+    var body: some View {
+        ZStack {
+            // Background overlay
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isPresented = false
+                }
+
+            // Main panel
+            VStack(spacing: 0) {
+                // Handle bar
+                handleBar
+
+                // Header
+                headerSection
+
+                // Filter tabs
+                filterSection
+
+                // Notifications list
+                notificationsList
+            }
+            .frame(maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(.ultraThinMaterial)
+            )
+            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
+        }
+        .onAppear {
+            loadNotifications()
+        }
+    }
+
+    // MARK: - Handle Bar
+
+    private var handleBar: some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(Color.secondary.opacity(0.4))
+            .frame(width: 40, height: 5)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+    }
+
+    // MARK: - Header
+
+    private var headerSection: some View {
+        HStack {
+            Text(NSLocalizedString("notification.title", comment: "通知"))
+                .font(.title3)
+                .fontWeight(.bold)
+
+            Spacer()
+
+            Button {
+                isPresented = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+    }
+
+    // MARK: - Filter Section
+
+    private var filterSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(NotificationFilter.allCases, id: \.self) { filter in
+                    Button {
+                        selectedFilter = filter
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.subheadline)
+                            .fontWeight(selectedFilter == filter ? .semibold : .regular)
+                            .foregroundColor(selectedFilter == filter ? .white : .secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(selectedFilter == filter ? Color.brandPurple : Color.clear)
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(selectedFilter == filter ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .padding(.bottom, 12)
+    }
+
+    // MARK: - Notifications List
+
+    private var notificationsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if isLoading {
+                    ProgressView()
+                        .padding(.top, 40)
+                } else if filteredNotifications.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(filteredNotifications) { notification in
+                        NotificationRow(notification: notification) {
+                            markAsRead(notification)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+    }
+
+    private var filteredNotifications: [AppNotification] {
+        switch selectedFilter {
+        case .all:
+            return notifications
+        case .unread:
+            return notifications.filter { !$0.isRead }
+        case .system:
+            return notifications.filter { $0.type == .system }
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "bell.slash")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+
+            Text(NSLocalizedString("notification.empty", comment: "暂无通知"))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(.top, 60)
+    }
+
+    // MARK: - Actions
+
+    private func loadNotifications() {
+        isLoading = true
+
+        // Simulated data
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            notifications = [
+                AppNotification(id: UUID(), type: .system, title: "学习提醒", content: "是时候开始学习了！", time: "10分钟前", isRead: false),
+                AppNotification(id: UUID(), type: .points, title: "积分到账", content: "您获得了 +50 积分", time: "2小时前", isRead: false),
+                AppNotification(id: UUID(), type: .chat, title: "新消息", content: "TRIX Bot: 你好！", time: "昨天", isRead: true)
+            ]
+            isLoading = false
+        }
+    }
+
+    private func markAsRead(_ notification: AppNotification) {
+        if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
+            notifications[index].isRead = true
+        }
+    }
+}
+
+// MARK: - Notification Model
+
+struct AppNotification: Identifiable, Hashable {
+    let id: UUID
+    let type: NotificationType
+    let title: String
+    let content: String
+    let time: String
+    var isRead: Bool
+
+    enum NotificationType: String {
+        case system
+        case points
+        case chat
+        case study
+    }
+}
+
+// MARK: - Notification Row
+
+struct NotificationRow: View {
+    let notification: AppNotification
+    let onTap: () -> Void
+
+    var body: some View {
+        Button {
+            onTap()
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(iconBackgroundColor)
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: iconName)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
+
+                // Content
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(notification.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(notification.isRead ? .secondary : .primary)
+
+                        Spacer()
+
+                        Text(notification.time)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text(notification.content)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+
+                // Unread indicator
+                if !notification.isRead {
+                    Circle()
+                        .fill(Color.brandPurple)
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(notification.isRead ? Color.clear : Color.brandPurple.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(notification.isRead ? Color.clear : Color.brandPurple.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var iconName: String {
+        switch notification.type {
+        case .system: return "gearshape.fill"
+        case .points: return "star.fill"
+        case .chat: return "message.fill"
+        case .study: return "book.fill"
+        }
+    }
+
+    private var iconBackgroundColor: Color {
+        switch notification.type {
+        case .system: return .blue
+        case .points: return .yellow
+        case .chat: return .green
+        case .study: return .purple
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview("Notification Panel") {
+    NotificationPanelView(isPresented: .constant(true))
+}

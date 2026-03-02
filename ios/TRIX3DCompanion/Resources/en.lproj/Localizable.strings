@@ -5,8 +5,10 @@
 
 // MARK: - Navigation
 "nav.home" = "Home";
+"nav.map" = "Map";
 "nav.chat" = "Chat";
 "nav.study" = "Study";
+"nav.core" = "Core";
 "nav.profile" = "Profile";
 "nav.settings" = "Settings";
 
