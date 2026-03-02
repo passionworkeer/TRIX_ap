@@ -59,6 +59,11 @@
 
 // MARK: - Study
 "study.title" = "学习室";
+"study.focus.time" = "专注时间";
+"study.focusing" = "专注中...";
+"study.select.duration" = "选择时长";
+"study.stop" = "停止";
+"minutes" = "分钟";
 "study.timer" = "学习计时器";
 "study.start" = "开始学习";
 "study.pause" = "暂停";
