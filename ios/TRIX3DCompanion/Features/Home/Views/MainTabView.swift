@@ -21,7 +21,6 @@ struct MainTabView: View {
     @State private var isTabBarVisible = true
     @State private var isWorkbenchPresented = false
     @State private var isChatPresented = false
-    @State private var isHomeViewExpanded = true
 
     // MARK: - Body
 
@@ -30,7 +29,8 @@ struct MainTabView: View {
             // Tab content using ZStack for overlay navigation
             ZStack {
                 switch appState.selectedTab {
-                case .home:
+                case .home, .core:
+                    // Both home and core show the same HomeView with workbench
                     HomeView(
                         isWorkbenchPresented: $isWorkbenchPresented,
                         isChatPresented: $isChatPresented
@@ -39,8 +39,6 @@ struct MainTabView: View {
                     MapView()
                 case .study:
                     StudyListView()
-                case .core:
-                    WorkbenchView()
                 case .chat:
                     ChatListView()
                 case .profile:
@@ -50,22 +48,15 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // GlassDock Navigation
-            if isTabBarVisible {
-                GlassDockView(
-                    selectedTab: $appState.selectedTab,
-                    isWorkbenchPresented: $isWorkbenchPresented,
-                    isChatPresented: $isChatPresented
-                )
-            }
+            GlassDockView(
+                selectedTab: $appState.selectedTab,
+                isWorkbenchPresented: $isWorkbenchPresented,
+                isChatPresented: $isChatPresented
+            )
         }
         .ignoresSafeArea(.keyboard)
         .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
-        }
-        .onChange(of: isWorkbenchPresented) { newValue in
-            if newValue {
-                // Workbench is being shown
-            }
         }
         .sheet(isPresented: $isWorkbenchPresented) {
             WorkbenchView()

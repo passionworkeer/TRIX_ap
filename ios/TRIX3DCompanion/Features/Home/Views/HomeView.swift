@@ -58,6 +58,11 @@ struct HomeView: View {
 
                 Spacer()
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Tap on background opens workbench
+                isWorkbenchPresented = true
+            }
 
             // Workbench Modal (appears on background tap)
             if isWorkbenchPresented {

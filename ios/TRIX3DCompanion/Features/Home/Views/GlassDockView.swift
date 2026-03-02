@@ -134,6 +134,8 @@ struct GlassDockView: View {
     private var coreButton: some View {
         Button {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                // Set to home tab and show workbench
+                selectedTab = .home
                 isWorkbenchPresented = true
             }
         } label: {
