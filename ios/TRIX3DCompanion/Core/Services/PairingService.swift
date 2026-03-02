@@ -125,9 +125,9 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let webSocketManager: WebSocketManager
-    private let keychainManager: KeychainManager
+    private let apiClient: APIClientProtocol
+    private let webSocketManager: WebSocketManagerProtocol
+    private let keychainManager: KeychainManagerProtocol
     private let authService: AuthService
 
     // MARK: - Private Properties
@@ -150,14 +150,14 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
     ///   - keychainManager: Keychain manager instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
-        webSocketManager: WebSocketManager = .shared,
-        keychainManager: KeychainManager = .shared,
+        apiClient: APIClientProtocol? = nil,
+        webSocketManager: WebSocketManagerProtocol? = nil,
+        keychainManager: KeychainManagerProtocol? = nil,
         authService: AuthService = .shared
     ) {
-        self.apiClient = apiClient
-        self.webSocketManager = webSocketManager
-        self.keychainManager = keychainManager
+        self.apiClient = apiClient ?? APIClient.shared
+        self.webSocketManager = webSocketManager ?? WebSocketManager.shared
+        self.keychainManager = keychainManager ?? KeychainManager.shared
         self.authService = authService
 
         // Restore pairing state
@@ -430,7 +430,7 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
     /// Setup WebSocket event listeners
     private func setupWebSocketListeners() {
         // Listen for pairing success
-        webSocketManager.on(.pairingSuccess) { [weak self] event in
+        webSocketManager.on("pairing_success") { [weak self] event in
             guard let self = self,
                   case .pairingSuccess(let deviceId, let deviceName) = event as? WebSocketEvent else {
                 return
@@ -452,7 +452,7 @@ final class PairingService: ObservableObject, PairingServiceProtocol {
         }
 
         // Listen for unpaired event
-        webSocketManager.on(.unpaired) { [weak self] event in
+        webSocketManager.on("unpaired") { [weak self] event in
             guard let self = self else { return }
 
             self.pairingState = .unpaired

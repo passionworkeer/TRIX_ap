@@ -318,7 +318,6 @@ extension KeychainManagerTests {
         let session = UserSession(
             id: "session_id",
             userId: "user_id",
-            sessionToken: "session_token",
             accessToken: "access_token",
             refreshToken: "refresh_token",
             expiresAt: Date().addingTimeInterval(3600)
@@ -330,7 +329,6 @@ extension KeychainManagerTests {
         // Then
         XCTAssertEqual(sut.getAccessToken(), "access_token", "Access token should be saved")
         XCTAssertEqual(sut.getRefreshToken(), "refresh_token", "Refresh token should be saved")
-        XCTAssertEqual(sut.getSessionToken(), "session_token", "Session token should be saved")
         XCTAssertEqual(sut.getUserId(), "user_id", "User ID should be saved")
     }
 
@@ -339,7 +337,6 @@ extension KeychainManagerTests {
         let session = UserSession(
             id: "session_id",
             userId: "user_id",
-            sessionToken: "session_token",
             accessToken: "access_token",
             refreshToken: "refresh_token",
             expiresAt: Date().addingTimeInterval(3600)
@@ -352,7 +349,6 @@ extension KeychainManagerTests {
         // Then
         XCTAssertNil(sut.getAccessToken(), "Access token should be cleared")
         XCTAssertNil(sut.getRefreshToken(), "Refresh token should be cleared")
-        XCTAssertNil(sut.getSessionToken(), "Session token should be cleared")
         XCTAssertNil(sut.getUserId(), "User ID should be cleared")
     }
 
@@ -885,7 +881,6 @@ extension KeychainManagerTests {
         let session = UserSession(
             id: "session_123",
             userId: "user_456",
-            sessionToken: "session_token_abc",
             accessToken: "access_token_def",
             refreshToken: "refresh_token_ghi",
             expiresAt: Date().addingTimeInterval(3600)
@@ -909,7 +904,6 @@ extension KeychainManagerTests {
         try sut.saveSession(UserSession(
             id: "session_123",
             userId: "user_456",
-            sessionToken: "session_token",
             accessToken: "access_token",
             refreshToken: "refresh_token",
             expiresAt: Date()
@@ -995,7 +989,6 @@ extension KeychainManagerTests {
         try sut.saveSession(UserSession(
             id: "session_1",
             userId: "user_1",
-            sessionToken: "token_1",
             accessToken: "access_1",
             refreshToken: "refresh_1",
             expiresAt: Date()
@@ -1005,7 +998,6 @@ extension KeychainManagerTests {
         try sut.saveSession(UserSession(
             id: "session_2",
             userId: "user_2",
-            sessionToken: "token_2",
             accessToken: "access_2",
             refreshToken: "refresh_2",
             expiresAt: Date()

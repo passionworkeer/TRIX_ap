@@ -159,9 +159,9 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let webSocketManager: WebSocketManager
-    private let authService: AuthService
+    private let apiClient: APIClientProtocol
+    private let webSocketManager: WebSocketManagerProtocol
+    private let authService: AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -191,13 +191,13 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     ///   - webSocketManager: WebSocket manager instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
-        webSocketManager: WebSocketManager = .shared,
-        authService: AuthService = .shared
+        apiClient: APIClientProtocol? = nil,
+        webSocketManager: WebSocketManagerProtocol? = nil,
+        authService: AuthServiceProtocol? = nil
     ) {
-        self.apiClient = apiClient
-        self.webSocketManager = webSocketManager
-        self.authService = authService
+        self.apiClient = apiClient ?? APIClient.shared
+        self.webSocketManager = webSocketManager ?? WebSocketManager.shared
+        self.authService = authService ?? AuthService.shared
 
         setupWebSocketListeners()
         loadPendingOfflineSessions()
@@ -774,7 +774,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     /// Set up WebSocket event listeners
     private func setupWebSocketListeners() {
         // Listen for connection events
-        webSocketManager.on(.connected) { [weak self] _ in
+        webSocketManager.on("connected") { [weak self] _ in
             Task { @MainActor in
                 self?.isWebSocketConnected = true
 
@@ -785,14 +785,14 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             }
         }
 
-        webSocketManager.on(.disconnected) { [weak self] _ in
+        webSocketManager.on("disconnected") { [weak self] _ in
             Task { @MainActor in
                 self?.isWebSocketConnected = false
             }
         }
 
         // Listen for study room state updates
-        webSocketManager.on(.studyRoomState) { [weak self] result in
+        webSocketManager.on("study_room_state") { [weak self] result in
             Task { @MainActor in
                 self?.handleStudyRoomStateEvent(result)
             }

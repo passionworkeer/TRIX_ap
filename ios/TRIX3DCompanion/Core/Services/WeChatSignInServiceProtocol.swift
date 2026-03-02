@@ -10,7 +10,7 @@ import Foundation
 // MARK: - WeChat Sign In Error
 
 /// Errors that can occur during WeChat Sign In
-enum WeChatSignInError: Error, LocalizedError {
+enum WeChatSignInError: Error, LocalizedError, Equatable {
     case notInstalled
     case notSupported
     case cancelled
@@ -60,6 +60,31 @@ enum WeChatSignInError: Error, LocalizedError {
         switch self {
         case .cancelled, .tokenExpired, .networkError:
             return true
+        default:
+            return false
+        }
+    }
+
+    // Manual Equatable implementation for associated values
+    static func == (lhs: WeChatSignInError, rhs: WeChatSignInError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notInstalled, .notInstalled),
+             (.notSupported, .notSupported),
+             (.cancelled, .cancelled),
+             (.invalidCode, .invalidCode),
+             (.invalidAccessToken, .invalidAccessToken),
+             (.authenticationFailed, .authenticationFailed),
+             (.invalidResponse, .invalidResponse),
+             (.noOpenID, .noOpenID),
+             (.noAccessToken, .noAccessToken),
+             (.tokenExpired, .tokenExpired):
+            return true
+        case (.networkError(let lhsError), .networkError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.authorizationFailed(let lhsMessage), .authorizationFailed(let rhsMessage)):
+            return lhsMessage == rhsMessage
+        case (.unknown(let lhsError), .unknown(let rhsError)):
+            return lhsError?.localizedDescription == rhsError?.localizedDescription
         default:
             return false
         }

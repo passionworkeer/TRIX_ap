@@ -64,7 +64,7 @@ enum PairingAccessibilityIdentifiers {
 
 /// Mock API client for pairing UI testing
 @MainActor
-final class MockAPIClientForPairing: APIClient {
+final class MockAPIClientForPairing: APIClientProtocol {
 
     var shouldSucceedPairingRequest = true
     var shouldSucceedFetchDevices = true
@@ -72,7 +72,22 @@ final class MockAPIClientForPairing: APIClient {
     var mockDevices: [Device] = []
     var lastRequest: Any?
 
-    override func post<T: Decodable>(_ endpoint: APIEndpoint, body: (any Encodable)?) async throws -> T {
+    func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
+        if endpoint == .pairingDevices {
+            guard shouldSucceedFetchDevices else {
+                throw NetworkError.custom(message: "Failed to fetch devices")
+            }
+
+            guard let typedResponse = mockDevices as? T else {
+                throw NetworkError.decodingFailed
+            }
+            return typedResponse
+        }
+
+        throw NetworkError.custom(message: "Unknown endpoint")
+    }
+
+    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         lastRequest = body
 
         if endpoint == .pairingRequest {
@@ -108,19 +123,20 @@ final class MockAPIClientForPairing: APIClient {
         throw NetworkError.custom(message: "Unknown endpoint")
     }
 
-    override func get<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
-        if endpoint == .pairingDevices {
-            guard shouldSucceedFetchDevices else {
-                throw NetworkError.custom(message: "Failed to fetch devices")
-            }
+    func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
 
-            guard let typedResponse = mockDevices as? T else {
-                throw NetworkError.decodingFailed
-            }
-            return typedResponse
-        }
+    func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
 
-        throw NetworkError.custom(message: "Unknown endpoint")
+    func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.custom(message: "Not implemented")
     }
 }
 
@@ -128,8 +144,9 @@ final class MockAPIClientForPairing: APIClient {
 
 /// Mock WebSocket manager for pairing UI testing
 @MainActor
-final class MockWebSocketManagerForPairing: WebSocketManager {
+final class MockWebSocketManagerForPairing: WebSocketManagerProtocol {
 
+    var isConnectedValue = false
     var shouldSucceedPairing = true
     var shouldSimulateTimeout = false
     var simulatePairingDelay: UInt64 = 500_000_000 // 0.5 seconds
@@ -143,52 +160,75 @@ final class MockWebSocketManagerForPairing: WebSocketManager {
     var unpairCallCount = 0
     var checkStatusCallCount = 0
 
-    override func pairWithCode(_ code: String) {
+    func isConnected() -> Bool {
+        return isConnectedValue
+    }
+
+    func connect(userId: String) async throws {
+        isConnectedValue = true
+    }
+
+    func disconnect() {
+        isConnectedValue = false
+    }
+
+    func sendMessage(content: String, contentType: BotMessage.MessageContentType, mediaUrl: String?, mediaMimeType: String?) {}
+
+    func on(_ event: String, handler: @escaping (Any) -> Void) -> String { return "handler_1" }
+
+    func pairWithCode(_ code: String) {
         pairingCallCount += 1
         lastPairingCode = code
     }
 
-    override func pairWithToken(_ token: String) {
+    func pairWithToken(_ token: String) {
         pairingCallCount += 1
         lastPairingToken = token
     }
 
-    override func unpair() {
+    func unpair() {
         unpairCallCount += 1
     }
 
-    override func checkPairingStatus(completion: @escaping (Result<PairingStatusResponse, Error>) -> Void) {
+    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
         checkStatusCallCount += 1
 
         if shouldSucceedPairing {
-            let response = PairingStatusResponse(
+            let response = SocketResponse(
+                success: true,
                 paired: true,
-                connected: true,
-                deviceInfo: DeviceInfo(
-                    deviceId: mockPairedDeviceId,
-                    deviceName: mockPairedDeviceName,
-                    pairedAt: Date()
-                )
+                error: nil,
+                deviceId: mockPairedDeviceId,
+                deviceName: mockPairedDeviceName,
+                message: nil,
+                pairingId: nil,
+                status: nil,
+                data: nil
             )
             completion(.success(response))
         } else {
-            completion(.failure(NetworkError.custom(message: "Failed to check status")))
+            completion(.failure(WebSocketError(code: nil, message: "Failed to check status")))
         }
     }
 
-    // Simulate pairing events
-    func simulatePairingSuccess() {
-        let event = WebSocketEvent.pairingSuccess(deviceId: mockPairedDeviceId, deviceName: mockPairedDeviceName)
-        notifyEvent(event)
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(code: nil, message: "Not implemented")))
     }
 
-    func simulatePairingFailure(error: PairingError = .pairingFailed(underlying: nil)) {
-        // In real implementation would notify error event
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(code: nil, message: "Not implemented")))
     }
 
-    func simulateUnpaired() {
-        let event = WebSocketEvent.unpaired
-        notifyEvent(event)
+    func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(code: nil, message: "Not implemented")))
+    }
+
+    func getStudyRoomState(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(code: nil, message: "Not implemented")))
+    }
+
+    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(code: nil, message: "Not implemented")))
     }
 }
 
@@ -196,39 +236,58 @@ final class MockWebSocketManagerForPairing: WebSocketManager {
 
 /// Mock Keychain manager for pairing UI testing
 @MainActor
-final class MockKeychainManagerForPairing: KeychainManager {
+final class MockKeychainManagerForPairing: KeychainManagerProtocol {
 
     var savedDeviceId: String?
     var savedDeviceName: String?
     var shouldFailSave = false
     var shouldFailRemove = false
+    private var storage: [String: Data] = [:]
 
-    override func savePairedDevice(deviceId: String, deviceName: String) throws {
+    func save(key: String, data: Data) throws {
         guard !shouldFailSave else {
-            throw KeychainError.saveFailed(underlying: nil)
+            throw NSError(domain: "KeychainError", code: -1)
+        }
+        storage[key] = data
+    }
+
+    func get(key: String) -> Data? {
+        return storage[key]
+    }
+
+    func delete(key: String) throws {
+        guard !shouldFailRemove else {
+            throw NSError(domain: "KeychainError", code: -1)
+        }
+        storage.removeValue(forKey: key)
+    }
+
+    func savePairedDevice(deviceId: String, deviceName: String) throws {
+        guard !shouldFailSave else {
+            throw NSError(domain: "KeychainError", code: -1)
         }
         savedDeviceId = deviceId
         savedDeviceName = deviceName
     }
 
-    override func getPairedDeviceId() -> String? {
+    func getPairedDeviceId() -> String? {
         return savedDeviceId
     }
 
-    override func getPairedDeviceName() -> String? {
+    func getPairedDeviceName() -> String? {
         return savedDeviceName
     }
 
-    override func removePairedDevice() throws {
+    func removePairedDevice() throws {
         guard !shouldFailRemove else {
-            throw KeychainError.deleteFailed(underlying: nil)
+            throw NSError(domain: "KeychainError", code: -1)
         }
         savedDeviceId = nil
         savedDeviceName = nil
     }
 
-    override func migratePairingDataFromUserDefaults() {
-        // No-op for testing
+    func migratePairingDataFromUserDefaults() -> Bool {
+        return true
     }
 }
 
@@ -1005,18 +1064,17 @@ final class PairingUITests: XCTestCase {
 // MARK: - View Model Helper Extension
 
 #if DEBUG
-extension PairingService {
-    /// Create preview service with mock for testing
-    static func createForTesting(
-        mockService: MockPairingServiceForUI = MockPairingServiceForUI()
-    ) -> PairingService {
-        // Note: This creates a real service with injected mocks
-        // In production, you'd use dependency injection
-        PairingService(
-            apiClient: MockAPIClientForPairing(),
-            webSocketManager: MockWebSocketManagerForPairing(),
-            keychainManager: MockKeychainManagerForPairing()
-        )
-    }
-}
+// Extension disabled due to Swift 6 concurrency issues
+// extension PairingService {
+//     /// Create preview service with mock for testing
+//     static func createForTesting(
+//         mockService: MockPairingServiceForUI = MockPairingServiceForUI()
+//     ) -> PairingService {
+//         PairingService(
+//             apiClient: MockAPIClientForPairing(),
+//             webSocketManager: MockWebSocketManagerForPairing(),
+//             keychainManager: MockKeychainManagerForPairing()
+//         )
+//     }
+// }
 #endif

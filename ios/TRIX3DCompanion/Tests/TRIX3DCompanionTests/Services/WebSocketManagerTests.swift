@@ -472,19 +472,19 @@ final class WebSocketManagerTests: XCTestCase {
 
     func testStudyRoomStateEvent_Initialization() {
         // Given
-        let timestamp = Int(Date().timeIntervalSince1970)
+        let timestamp = Date()
 
         // When
         let event = StudyRoomStateEvent(
             roomCode: "ABC123",
+            reason: "joined",
             room: nil,
-            action: "joined",
-            timestamp: timestamp
+            serverTs: timestamp
         )
 
         // Then
         XCTAssertEqual(event.roomCode, "ABC123")
-        XCTAssertEqual(event.action, "joined")
+        XCTAssertEqual(event.reason, "joined")
         XCTAssertNil(event.room)
     }
 
@@ -493,24 +493,25 @@ final class WebSocketManagerTests: XCTestCase {
     func testStudyRoomState_Initialization() {
         // Given
         let code = "ABC123"
-        let name = "Study Room"
-        let hostId = "user_123"
+        let hostUserId = "user_123"
+        let timestamp = Date()
 
         // When
         let state = StudyRoomState(
-            code: code,
-            name: name,
-            hostId: hostId,
+            roomCode: code,
+            hostUserId: hostUserId,
+            sessionState: .idle,
             members: [],
             maxMembers: 10,
-            status: "active",
-            createdAt: "2024-01-01T00:00:00Z"
+            version: 1,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            timer: nil
         )
 
         // Then
-        XCTAssertEqual(state.code, code)
-        XCTAssertEqual(state.name, name)
-        XCTAssertEqual(state.hostId, hostId)
+        XCTAssertEqual(state.roomCode, code)
+        XCTAssertEqual(state.hostUserId, hostUserId)
         XCTAssertEqual(state.maxMembers, 10)
     }
 

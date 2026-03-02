@@ -19,6 +19,46 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
     @Published var isProcessing: Bool = false
     @Published var lastError: PaymentError?
 
+    // MARK: - PaymentServiceProtocol Required Properties
+
+    var pendingAppOrders: [AppOrder] {
+        pendingOrders.map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: order.status.toAppPaymentStatus(),
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
+    var completedAppOrders: [AppOrder] {
+        completedOrders.map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: order.status.toAppPaymentStatus(),
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
     // Test control properties
     var shouldFailPurchase = false
     var shouldReturnPending = false
@@ -114,7 +154,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
         transactionId: String,
         productId: String,
         receiptData: String?
-    ) async -> Result<Order, PaymentError> {
+    ) async -> Result<AppOrder, PaymentError> {
         verifyReceiptCalled = true
         verifyReceiptCalledWithTransactionId = transactionId
         verifyReceiptCalledWithProductId = productId
@@ -146,7 +186,21 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
         let order = createMockOrder(productId: productId, points: 100, status: .completed)
         mockOrders[order.id] = order
-        return .success(order)
+        let appOrder = AppOrder(
+            id: order.id,
+            userId: order.userId,
+            productId: order.productId,
+            productType: order.productType,
+            amount: order.amount,
+            currency: order.currency,
+            status: order.status.toAppPaymentStatus(),
+            paymentMethod: order.paymentMethod,
+            transactionId: order.transactionId,
+            points: order.points,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+        )
+        return .success(appOrder)
     }
 
     func getOrder(orderId: String) async -> Order? {
@@ -183,6 +237,115 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
         clearErrorCalled = true
         lastError = nil
     }
+
+    // MARK: - PaymentServiceProtocol Required Methods (AppOrder variants)
+
+    func getAppOrder(orderId: String) async -> AppOrder? {
+        guard let order = mockOrders[orderId] else { return nil }
+        return AppOrder(
+            id: order.id,
+            userId: order.userId,
+            productId: order.productId,
+            productType: order.productType,
+            amount: order.amount,
+            currency: order.currency,
+            status: order.status.toAppPaymentStatus(),
+            paymentMethod: order.paymentMethod,
+            transactionId: order.transactionId,
+            points: order.points,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+        )
+    }
+
+    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder] {
+        getOrderHistoryCalled = true
+        let orders = Array(mockOrders.values)
+            .sorted { $0.createdAt > $1.createdAt }
+        return Array(orders.dropFirst(offset).prefix(limit)).map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: order.status.toAppPaymentStatus(),
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
+        return await cancelOrder(orderId: orderId)
+    }
+
+    func getSubscription() async -> PaymentSubscriptionStatus {
+        getSubscriptionCalled = true
+        if shouldFailSubscriptionFetch {
+            return PaymentSubscriptionStatus(
+                isActive: false,
+                tier: nil,
+                productId: nil,
+                expiresAt: nil,
+                willAutoRenew: false,
+                startedAt: nil,
+                updatedAt: nil
+            )
+        }
+        return PaymentSubscriptionStatus(
+            isActive: mockSubscriptionActive,
+            tier: mockSubscriptionTier,
+            productId: mockSubscriptionProductId,
+            expiresAt: mockSubscriptionExpiresAt,
+            willAutoRenew: mockWillAutoRenew,
+            startedAt: mockSubscriptionStartedAt,
+            updatedAt: Date()
+        )
+    }
+
+    func restorePurchases() async -> Result<[AppOrder], PaymentError> {
+        restorePurchasesCalled = true
+        if shouldFailRestore {
+            lastError = mockError ?? .verificationFailed
+            return .failure(lastError!)
+        }
+        let orders = mockOrders.values.map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: order.status.toAppPaymentStatus(),
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+        return .success(Array(orders))
+    }
+
+    // MARK: - Subscription Test Control Properties
+
+    var getSubscriptionCalled = false
+    var shouldFailSubscriptionFetch = false
+    var mockSubscriptionActive = false
+    var mockSubscriptionTier: String? = nil
+    var mockSubscriptionProductId: String? = nil
+    var mockSubscriptionExpiresAt: Date? = nil
+    var mockWillAutoRenew = false
+    var mockSubscriptionStartedAt: Date? = nil
+
+    var restorePurchasesCalled = false
+    var shouldFailRestore = false
 
     // MARK: - Helper Methods
 

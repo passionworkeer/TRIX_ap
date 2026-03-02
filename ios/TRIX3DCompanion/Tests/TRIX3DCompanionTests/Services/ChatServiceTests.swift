@@ -94,12 +94,43 @@ final class MockWebSocketManagerForChat: WebSocketManagerProtocol {
 
     func sendMessage(content: String, contentType: BotMessage.MessageContentType, mediaUrl: String?, mediaMimeType: String?) {}
 
-    func on(_ event: WebSocketEvent, handler: @escaping (Any) -> Void) {}
+    func on(_ event: String, handler: @escaping (Any) -> Void) -> String { return "handler_1" }
+
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
+
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
+
+    func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
+
+    func getStudyRoomState(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
+
+    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
+
+    func pairWithCode(_ code: String) {}
+
+    func pairWithToken(_ token: String) {}
+
+    func unpair() {}
+
+    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
+        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    }
 }
 
 @MainActor
 final class MockAuthServiceForChat: AuthServiceProtocol {
     var isLoggedInValue = false
+    var isLoadingValue = false
     var mockUser: User?
 
     var isLoggedIn: Bool {
@@ -110,7 +141,15 @@ final class MockAuthServiceForChat: AuthServiceProtocol {
         return mockUser
     }
 
+    var isLoading: Bool {
+        return isLoadingValue
+    }
+
     func login(email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
         return .failure(.invalidCredentials)
     }
 
@@ -119,23 +158,15 @@ final class MockAuthServiceForChat: AuthServiceProtocol {
         return .success(())
     }
 
-    func refreshToken() async -> AuthResult<Void> {
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
         return .success(())
     }
 
-    func getCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<User> {
         if let user = mockUser {
             return .success(user)
         }
         return .failure(.invalidCredentials)
-    }
-
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
-        return .success(updates)
-    }
-
-    func deleteAccount() async -> AuthResult<Void> {
-        return .success(())
     }
 }
 

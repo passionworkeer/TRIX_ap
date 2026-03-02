@@ -8,13 +8,25 @@
 import Foundation
 import Alamofire
 
+// MARK: - APIClient Protocol
+
+/// Protocol for API Client operations to enable testing with mocks
+protocol APIClientProtocol {
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T
+    func download(from url: String) async throws -> Data
+}
+
 /// API Client for making HTTP requests
 /// Features:
 /// - SSL Pinning
 /// - Request retry with exponential backoff
 /// - Request deduplication
 /// - Security headers validation
-final class APIClient {
+final class APIClient: APIClientProtocol {
 
     // MARK: - Singleton
     static let shared = APIClient()
@@ -551,6 +563,34 @@ extension APIClient {
     /// - Returns: Restore purchases response with restored orders
     func restorePurchases() async throws -> RestorePurchasesResponse {
         return try await post(.restorePurchases)
+    }
+
+    // MARK: - APIClientProtocol Conformance
+
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        return try await get(endpoint, parameters: nil, headers: nil)
+    }
+
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        return try await post(endpoint, parameters: nil, body: body, headers: nil)
+    }
+
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        return try await put(endpoint, parameters: nil, body: body, headers: nil)
+    }
+
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        return try await delete(endpoint, parameters: nil, headers: nil)
+    }
+
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
+        // Upload functionality would be implemented here
+        throw NetworkError.custom(message: "Upload not implemented")
+    }
+
+    func download(from url: String) async throws -> Data {
+        // Download functionality would be implemented here
+        throw NetworkError.custom(message: "Download not implemented")
     }
 }
 
