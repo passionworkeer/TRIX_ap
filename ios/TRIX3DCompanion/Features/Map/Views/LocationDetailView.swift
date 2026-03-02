@@ -127,7 +127,7 @@ struct LocationDetailView: View {
         VStack(spacing: 16) {
             // Address
             if let address = location.address {
-                InfoRow(
+                LocationInfoRow(
                     icon: "location.fill",
                     label: "Address",
                     value: address
@@ -136,7 +136,7 @@ struct LocationDetailView: View {
 
             // Description
             if let description = location.description {
-                InfoRow(
+                LocationInfoRow(
                     icon: "text.alignleft",
                     label: "Description",
                     value: description
@@ -144,14 +144,14 @@ struct LocationDetailView: View {
             }
 
             // Coordinates
-            InfoRow(
+            LocationInfoRow(
                 icon: "globe",
                 label: "Coordinates",
                 value: String(format: "%.4f, %.4f", location.latitude, location.longitude)
             )
 
             // Created date
-            InfoRow(
+            LocationInfoRow(
                 icon: "calendar",
                 label: "Added",
                 value: location.createdAt.formatted(date: .abbreviated, time: .shortened)
@@ -186,7 +186,7 @@ struct LocationDetailView: View {
                     .background(Color.brandGradient)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .disabled(appState.currentUser?.pairedDeviceId == nil)
+            .disabled(appState.currentUser?.companionId == nil)
 
             // Check in button
             Button(action: { showCheckInConfirmation = true }) {
@@ -265,7 +265,7 @@ struct LocationDetailView: View {
 // MARK: - Info Row
 
 /// Info row component
-struct InfoRow: View {
+struct LocationInfoRow: View {
     let icon: String
     let label: String
     let value: String

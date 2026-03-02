@@ -113,35 +113,3 @@ extension AVCaptureDevice.Position {
         }
     }
 }
-
-// MARK: - Flash Mode Extension
-
-extension AVCaptureDevice.FlashMode {
-    /// 循环切换到下一个闪光灯模式
-    mutating func cycle() {
-        switch self {
-        case .off:
-            self = .on
-        case .on:
-            self = .auto
-        case .auto:
-            self = .off
-        @unknown default:
-            self = .off
-        }
-    }
-
-    /// 获取闪光灯模式的中文描述
-    var displayName: String {
-        switch self {
-        case .off:
-            return "关闭"
-        case .on:
-            return "开启"
-        case .auto:
-            return "自动"
-        @unknown default:
-            return "未知"
-        }
-    }
-}

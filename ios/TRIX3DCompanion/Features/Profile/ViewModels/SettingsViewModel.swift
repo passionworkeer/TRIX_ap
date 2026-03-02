@@ -7,25 +7,7 @@
 
 import Foundation
 import Combine
-
-// MARK: - App Theme
-
-/// App theme options
-enum AppTheme: String, CaseIterable, Identifiable {
-    case light
-    case dark
-    case system
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .light: return "Light"
-        case .dark: return "Dark"
-        case .system: return "System"
-        }
-    }
-}
+import SwiftUI
 
 // MARK: - App Language
 
@@ -151,7 +133,7 @@ final class SettingsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            try await cacheService.clearAllCache()
+            try await cacheService.clearAll()
             await loadCacheSize()
             successMessage = "Cache cleared successfully"
         } catch {
@@ -171,14 +153,16 @@ final class SettingsViewModel: ObservableObject {
 
         do {
             // Subscribe to progress updates
-            exportService.$exportProgress
+            exportService.$currentProgress
                 .receive(on: DispatchQueue.main)
                 .sink { progress in
-                    self.exportProgress = progress.percentage
+                    if let progress = progress {
+                        self.exportProgress = progress.percentage
+                    }
                 }
                 .store(in: &cancellables)
 
-            let result = try await exportService.exportAllData(format: format)
+            let result = try await exportService.exportAll(format: format)
 
             isExportingData = false
             exportProgress = 100
@@ -193,7 +177,7 @@ final class SettingsViewModel: ObservableObject {
 
     /// Load current cache size
     func loadCacheSize() async {
-        cacheSize = await cacheService.getCacheSize()
+        cacheSize = await cacheService.totalCacheSize
     }
 
     /// Get formatted cache size string

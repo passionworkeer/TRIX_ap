@@ -32,8 +32,8 @@ struct MapView: View {
 
     // MARK: - Initialization
 
-    init(viewModel: MapViewModel = MapViewModel()) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    init(viewModel: MapViewModel? = nil) {
+        _viewModel = StateObject(wrappedValue: viewModel ?? MapViewModel())
     }
 
     // MARK: - Body
@@ -107,7 +107,6 @@ struct MapView: View {
                 }
             }
         }
-        .mapStyle(.standard(pointsOfInterest: .including([])))
     }
 
     /// Search bar overlay
@@ -195,7 +194,7 @@ struct MapView: View {
                                 .font(.title2)
                                 .foregroundStyle(
                                     viewModel.isUserLocationAvailable
-                                        ? Color.brandGradient
+                                        ? Color.brandPurple
                                         : Color.textSecondary
                                 )
                         }
@@ -259,7 +258,7 @@ struct MapView: View {
     /// Share location with companion
     /// - Parameter location: Location to share
     private func shareLocationWithCompanion(_ location: Location) {
-        guard let companionId = appState.currentUser?.pairedDeviceId else {
+        guard let companionId = appState.currentUser?.companionId else {
             return
         }
 
@@ -349,7 +348,7 @@ struct CategoryFilterChip: View {
             .padding(.vertical, 8)
             .background(
                 isSelected
-                    ? Color.brandGradient
+                    ? Color.brandPurple
                     : Color.cardBackground
             )
             .clipShape(Capsule())

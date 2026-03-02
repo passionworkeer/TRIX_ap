@@ -23,6 +23,9 @@ protocol VoicePlaybackServiceProtocol: AnyObject {
     /// Current playback rate (0.5, 1.0, 1.5, 2.0)
     var playbackRate: Float { get }
 
+    /// Toggle play/pause
+    func togglePlayPause() async
+
     /// Play audio from URL
     /// - Parameter url: The audio file URL
     func play(url: URL) async throws

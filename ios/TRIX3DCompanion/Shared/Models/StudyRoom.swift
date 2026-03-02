@@ -1,7 +1,18 @@
 import Foundation
 
+/// 计时器状态
+enum TimerState: String, Codable {
+    case idle
+    case running
+    case paused
+    case completed
+    case focusing
+    case resting
+}
+
 /// 学习房间成员
-struct StudyRoomMember: Codable {
+struct StudyRoomMember: Codable, Identifiable {
+    var id: String { odUserId }
     let odUserId: String
     let displayName: String
     let avatarUrl: String?
@@ -20,6 +31,7 @@ struct StudyRoomMember: Codable {
 /// 学习房间会话状态
 enum StudyRoomSessionState: String, Codable {
     case idle
+    case active
     case focusing
     case resting
 }
@@ -134,4 +146,24 @@ struct StudyRoom: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+}
+
+/// 每日学习数据
+struct DailyStudyData: Codable, Identifiable {
+    var id: String { date }
+    let date: String
+    let totalMinutes: Int
+    let sessionCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case totalMinutes = "total_minutes"
+        case sessionCount = "session_count"
+    }
+}
+
+/// 周学习数据响应
+struct WeeklyStudyDataResponse: Codable {
+    let success: Bool
+    let data: [DailyStudyData]
 }

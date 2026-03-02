@@ -13,7 +13,7 @@ final class ThemeManager: ObservableObject {
     // MARK: - Properties
 
     /// 当前主题设置
-    private(set) var currentTheme: AppTheme {
+    @Published private(set) var currentTheme: AppTheme {
         didSet {
             UserDefaultsManager.shared.setSelectedTheme(currentTheme)
             updateColorScheme()
@@ -121,19 +121,21 @@ extension View {
     /// 应用主题到视图
     /// - Parameter themeManager: 主题管理器
     /// - Returns: 应用了主题的视图
+    @ViewBuilder
     func themed(with themeManager: ThemeManager = .shared) -> some View {
-        self
-            .environment(\.colorScheme, themeManager.colorScheme)
-            .environment(\.themeManager, themeManager)
-            .preferredColorScheme(themeManager.colorScheme)
+        if let scheme = themeManager.colorScheme {
+            self.environment(\.themeManager, themeManager).preferredColorScheme(scheme)
+        } else {
+            self.environment(\.themeManager, themeManager)
+        }
     }
 
     /// 监听主题变化
     /// - Parameter action: 主题变化时的回调
     /// - Returns: 应用了监听的视图
     func onThemeChange(perform action: @escaping (AppTheme) -> Void) -> some View {
-        self.onChange(of: ThemeManager.shared.currentTheme) { _, newTheme in
-            action(newTheme)
+        self.onReceive(ThemeManager.shared.$currentTheme) { theme in
+            action(theme)
         }
     }
 }

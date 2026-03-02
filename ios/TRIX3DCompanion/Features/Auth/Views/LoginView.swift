@@ -85,11 +85,11 @@ struct LoginView: View {
         } message: {
             Text(errorMessage)
         }
-        .onChange(of: authService.lastError) { _, newError in
+        .onChange(of: authService.lastError) { newError in
             if let error = newError {
                 errorMessage = error.localizedDescription
-                showingError = true
             }
+            showingError = newError != nil
         }
     }
 

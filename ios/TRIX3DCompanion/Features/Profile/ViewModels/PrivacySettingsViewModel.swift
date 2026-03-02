@@ -111,7 +111,7 @@ final class PrivacySettingsViewModel: ObservableObject {
                 deletionStatus = .pending(deletionDate: deletionDate)
             } else {
                 // Deletion date passed, clear it
-                cancelAccountDeletion()
+                await cancelAccountDeletion()
             }
         }
     }

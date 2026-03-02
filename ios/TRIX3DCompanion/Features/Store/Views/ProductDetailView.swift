@@ -268,7 +268,6 @@ struct ProductDetailView: View {
             HStack {
                 if viewModel.isPurchasing {
                     ProgressView()
-                        .progressViewStyle(.circular)
                         .tint(.white)
                 } else {
                     Text(buttonTitle)
@@ -304,7 +303,6 @@ struct ProductDetailView: View {
 
             VStack(spacing: 16) {
                 ProgressView()
-                    .progressViewStyle(.circular)
                     .scaleEffect(1.5)
 
                 Text("Processing...")

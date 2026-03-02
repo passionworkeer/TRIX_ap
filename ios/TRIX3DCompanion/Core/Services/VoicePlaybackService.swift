@@ -258,9 +258,11 @@ extension VoicePlaybackService: AVAudioPlayerDelegate {
         }
     }
 
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        isPlaying = false
-        stopProgressTimer()
-        updateState(.error(error?.localizedDescription ?? "Decode error"))
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        Task { @MainActor in
+            isPlaying = false
+            stopProgressTimer()
+            updateState(.error(error?.localizedDescription ?? "Decode error"))
+        }
     }
 }

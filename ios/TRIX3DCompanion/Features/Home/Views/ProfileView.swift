@@ -177,28 +177,28 @@ struct ProfileView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    AchievementBadge(
+                    ProfileAchievementBadge(
                         title: "First Study",
                         icon: "book.fill",
                         color: .blue,
                         isUnlocked: true
                     )
 
-                    AchievementBadge(
+                    ProfileAchievementBadge(
                         title: "7 Day Streak",
                         icon: "flame.fill",
                         color: .orange,
                         isUnlocked: true
                     )
 
-                    AchievementBadge(
+                    ProfileAchievementBadge(
                         title: "Social Butterfly",
                         icon: "person.3.fill",
                         color: .pink,
                         isUnlocked: false
                     )
 
-                    AchievementBadge(
+                    ProfileAchievementBadge(
                         title: "Night Owl",
                         icon: "moon.stars.fill",
                         color: .purple,
@@ -224,10 +224,7 @@ struct ProfileView: View {
                     title: "Appearance",
                     description: appState.isDarkMode ? "Dark Mode" : "Light Mode",
                     color: .purple,
-                    trailing: Toggle("", isOn: Binding(
-                        get: { appState.isDarkMode },
-                        set: { _ in appState.toggleDarkMode() }
-                    ))
+                    trailing: AnyView(Toggle("", isOn: $appState.isDarkMode))
                 )
 
                 Divider()
@@ -238,10 +235,7 @@ struct ProfileView: View {
                     title: "Notifications",
                     description: appState.isPushNotificationEnabled ? "Enabled" : "Disabled",
                     color: .red,
-                    trailing: Toggle("", isOn: Binding(
-                        get: { appState.isPushNotificationEnabled },
-                        set: { _ in appState.togglePushNotifications() }
-                    ))
+                    trailing: AnyView(Toggle("", isOn: $appState.isPushNotificationEnabled))
                 )
 
                 Divider()
@@ -355,7 +349,7 @@ struct ProfileStatCard: View {
 // MARK: - Achievement Badge
 
 /// Achievement badge component
-struct AchievementBadge: View {
+struct ProfileAchievementBadge: View {
     let title: String
     let icon: String
     let color: Color
@@ -594,12 +588,9 @@ struct EditProfileView: View {
                 //     )
                 // )
 
-                // Update local state
-                await MainActor.run {
-                    appState.displayName = displayName
-                    isSaving = false
-                    dismiss()
-                }
+                // Update local state - reload profile to reflect changes
+                isSaving = false
+                dismiss()
             } catch {
                 await MainActor.run {
                     isSaving = false

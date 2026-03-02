@@ -306,7 +306,7 @@ extension SSLPinningManager {
     }
 
     /// Enable pinning
-    func enablePinning() {
+    func enablePinningNow() {
         self.pinningMode = .publicKey
         SecureLogger.shared.info("SSL pinning enabled")
     }

@@ -278,7 +278,7 @@ final class SecurityHeadersValidator {
             )
         }
 
-        report.overallResult = validate(response)
+        report.setOverallResult(validate(response))
 
         return report
     }
@@ -321,6 +321,10 @@ struct ValidationReport {
             isValid: isValid,
             value: value
         )
+    }
+
+    mutating func setOverallResult(_ result: SecurityHeadersValidator.ValidationResult) {
+        overallResult = result
     }
 
     /// Generate human-readable report

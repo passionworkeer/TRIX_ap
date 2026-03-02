@@ -23,7 +23,7 @@ final class ImageCacheManager {
 
     // MARK: - Types
 
-    enum CachePolicy {
+    enum ImageCachePolicy {
         case lowMemory       // ~20MB
         case balanced        // ~50MB
         case aggressive      // ~100MB
@@ -41,7 +41,7 @@ final class ImageCacheManager {
     private var cache: [String: CachedImage] = [:]
     private var queue = DispatchQueue(label: "com.trix3d.imagecache", attributes: .concurrent)
 
-    private var currentPolicy: CachePolicy = .balanced {
+    private var currentPolicy: ImageCachePolicy = .balanced {
         didSet {
             updateCacheLimit()
         }
@@ -57,7 +57,7 @@ final class ImageCacheManager {
         observeMemoryWarnings()
         observeAppState()
 
-        logger.info("Image cache initialized with policy: \(currentPolicy)")
+        logger.info("Image cache initialized with policy: \(String(describing: self.currentPolicy))")
     }
 
     // MARK: - Public Methods
@@ -89,9 +89,7 @@ final class ImageCacheManager {
     func setImage(_ image: UIImage, forKey key: String) {
         let imageSize = estimateImageSize(image)
 
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-
+        queue.async(flags: .barrier) { [self] in
             // Remove old entry if exists
             if let oldEntry = self.cache[key] {
                 self.currentMemoryUsage -= self.estimateImageSize(oldEntry.image)
@@ -114,9 +112,7 @@ final class ImageCacheManager {
 
     /// Remove image from cache
     func removeImage(forKey key: String) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-
+        queue.async(flags: .barrier) {
             if let entry = self.cache.removeValue(forKey: key) {
                 self.currentMemoryUsage -= self.estimateImageSize(entry.image)
             }
@@ -125,9 +121,7 @@ final class ImageCacheManager {
 
     /// Clear all cached images
     func clearCache() {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-
+        queue.async(flags: .barrier) {
             self.cache.removeAll()
             self.currentMemoryUsage = 0
 
@@ -136,9 +130,9 @@ final class ImageCacheManager {
     }
 
     /// Set cache policy
-    func setCachePolicy(_ policy: CachePolicy) {
+    func setCachePolicy(_ policy: ImageCachePolicy) {
         currentPolicy = policy
-        logger.info("Cache policy changed to: \(policy)")
+        logger.info("Cache policy changed to: \(String(describing: policy))")
     }
 
     /// Get current memory usage in bytes
@@ -176,23 +170,23 @@ final class ImageCacheManager {
     }
 
     private func evictIfNeeded() {
-        guard currentMemoryUsage > memoryLimit else { return }
+        guard self.currentMemoryUsage > self.memoryLimit else { return }
 
-        logger.info("Evicting images, current: \(currentMemoryUsage / 1024)KB, limit: \(memoryLimit / 1024)KB")
+        logger.info("Evicting images, current: \(self.currentMemoryUsage / 1024)KB, limit: \(self.memoryLimit / 1024)KB")
 
         // Sort by access frequency and time (LRU with frequency)
-        let sortedKeys = cache.sorted { lhs, rhs in
-            let lhsScore = lhs.value.accessCount * 1000 + lhs.value.accessTime
-            let rhsScore = rhs.value.accessCount * 1000 + rhs.value.accessTime
+        let sortedKeys = self.cache.sorted { lhs, rhs in
+            let lhsScore = Double(lhs.value.accessCount * 1000) + lhs.value.accessTime
+            let rhsScore = Double(rhs.value.accessCount * 1000) + rhs.value.accessTime
             return lhsScore < rhsScore
         }.map { $0.key }
 
         // Evict until under limit
         for key in sortedKeys {
-            guard currentMemoryUsage > memoryLimit * 80 / 100 else { break }
+            guard self.currentMemoryUsage > self.memoryLimit * 80 / 100 else { break }
 
-            if let entry = cache.removeValue(forKey: key) {
-                currentMemoryUsage -= estimateImageSize(entry.image)
+            if let entry = self.cache.removeValue(forKey: key) {
+                self.currentMemoryUsage -= self.estimateImageSize(entry.image)
             }
         }
     }

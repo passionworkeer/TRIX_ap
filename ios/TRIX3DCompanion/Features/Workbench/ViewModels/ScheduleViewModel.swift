@@ -312,10 +312,29 @@ extension ScheduleViewModel {
 
 /// Test notification service that does nothing
 private final class PreviewNotificationService: LocalNotificationServiceProtocol {
-    func requestAuthorization() async throws -> Bool { true }
-    func schedule(_ request: LocalNotificationRequest) async throws -> String { "" }
+    var authorizationStatus: UNAuthorizationStatus { .authorized }
+    var isAuthorized: Bool { true }
+
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool { true }
+    func checkAuthorizationStatus() async -> UNAuthorizationStatus { .authorized }
+    func schedule(_ request: LocalNotificationRequest) async throws -> String { "preview-\(UUID().uuidString)" }
+    func scheduleStudyReminder(config: StudyReminderConfig, customMessage: String?) async throws -> String { "preview-\(UUID().uuidString)" }
+    func scheduleDailyGoalReminder(config: DailyGoalConfig, goalProgress: String?) async throws -> String { "preview-\(UUID().uuidString)" }
+    func getScheduledNotifications() async -> [UNNotificationRequest] { [] }
+    func getPendingNotifications(ofType type: LocalNotificationType) async -> [UNNotificationRequest] { [] }
     func cancelNotification(identifier: String) async throws { }
-    func getPendingNotifications() async throws -> [String] { [] }
+    func cancelNotifications(ofType type: LocalNotificationType) async { }
+    func cancelAllNotifications() async { }
+    func removeDeliveredNotifications() async { }
+    func getPendingNotificationIdentifiers() async -> [String] { [] }
+    func getNotificationSettings() async -> UNNotificationSettings {
+        // Preview/test implementation - not used in actual app
+        // In production, this would come from UNUserNotificationCenter.current().notificationSettings()
+        fatalError("getNotificationSettings() should not be called in preview mode")
+    }
+    func registerCategories() { }
+    func setBadgeCount(_ count: Int) { }
+    func clearBadge() { }
 }
 
 /// Test haptic provider that does nothing

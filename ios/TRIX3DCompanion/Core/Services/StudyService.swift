@@ -8,10 +8,13 @@
 import Foundation
 import Combine
 
+// MARK: - API Endpoints Access
+// Note: APIEndpoints is accessed through the APIClient
+
 // MARK: - Study Error
 
 /// Study service error types
-enum StudyError: Error, LocalizedError {
+enum StudyError: Error, LocalizedError, Equatable {
     case notAuthenticated
     case roomNotFound
     case roomFull
@@ -50,6 +53,28 @@ enum StudyError: Error, LocalizedError {
             return error?.localizedDescription ?? "An unknown error occurred"
         }
     }
+
+    // Custom Equatable implementation
+    static func == (lhs: StudyError, rhs: StudyError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notAuthenticated, .notAuthenticated),
+             (.roomNotFound, .roomNotFound),
+             (.roomFull, .roomFull),
+             (.notRoomHost, .notRoomHost),
+             (.noActiveSession, .noActiveSession),
+             (.sessionAlreadyActive, .sessionAlreadyActive),
+             (.webSocketNotConnected, .webSocketNotConnected),
+             (.invalidRoomCode, .invalidRoomCode),
+             (.syncFailed, .syncFailed):
+            return true
+        case (.networkError(let lhsError), .networkError(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        case (.unknown(let lhsError), .unknown(let rhsError)):
+            return lhsError?.localizedDescription == rhsError?.localizedDescription
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Study Result
@@ -73,9 +98,17 @@ protocol StudyServiceProtocol {
     func createStudyRoom(name: String, maxMembers: Int) async -> StudyResult<StudyRoom>
     func joinStudyRoom(roomCode: String) async -> StudyResult<StudyRoomState>
     func leaveStudyRoom() async -> StudyResult<Void>
+    func joinRoom(_ roomCode: String) async -> StudyResult<StudyRoomState>
+    func leaveRoom(_ roomCode: String) async -> StudyResult<Void>
     func startStudySession(roomCode: String) async -> StudyResult<StudySession>
+    func startFocusSession(roomCode: String) async -> StudyResult<StudySession>
     func endStudySession() async -> StudyResult<StudySession>
+    func endSession(roomCode: String) async -> StudyResult<StudySession>
+    func pauseSession(roomCode: String) async throws
+    func resumeSession(roomCode: String) async throws
     func fetchStudyStats() async -> StudyResult<StudyStats>
+    func getStudyStats() async -> StudyResult<StudyStats>
+    func getWeeklyStudyData() async -> StudyResult<[DailyStudyData]>
     func syncOfflineSessions() async -> StudyResult<Int>
 }
 
@@ -171,7 +204,8 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     }
 
     deinit {
-        stopSessionTimer()
+        sessionTimer?.invalidate()
+        sessionTimer = nil
     }
 
     // MARK: - Public Methods - Study Rooms
@@ -387,7 +421,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     /// Start a study session in a room
     /// - Parameter roomCode: The room code (optional if already in a room)
     /// - Returns: StudyResult containing the started session
-    func startStudySession(roomCode: String? = nil) async -> StudyResult<StudySession> {
+    func startStudySession(roomCode: String) async -> StudyResult<StudySession> {
         guard authService.isLoggedIn else {
             let error = StudyError.notAuthenticated
             lastError = error
@@ -607,7 +641,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 let request = CreateStudySessionRequest(durationMinutes: duration)
 
                 // Send to API
-                _ = try await apiClient.post(
+                let _: EmptyResponse = try await apiClient.post(
                     .studySessions,
                     body: request
                 )
@@ -675,6 +709,66 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         }
     }
 
+    // MARK: - Protocol Conformance Methods
+
+    /// Join a study room (alias for joinStudyRoom)
+    func joinRoom(_ roomCode: String) async -> StudyResult<StudyRoomState> {
+        return await joinStudyRoom(roomCode: roomCode)
+    }
+
+    /// Leave a study room (alias for leaveStudyRoom)
+    func leaveRoom(_ roomCode: String) async -> StudyResult<Void> {
+        return await leaveStudyRoom()
+    }
+
+    /// Start a focus session (alias for startStudySession)
+    func startFocusSession(roomCode: String) async -> StudyResult<StudySession> {
+        return await startStudySession(roomCode: roomCode)
+    }
+
+    /// End a session with room code (alias for endStudySession)
+    func endSession(roomCode: String) async -> StudyResult<StudySession> {
+        return await endStudySession()
+    }
+
+    /// Pause session with room code
+    func pauseSession(roomCode: String) async throws {
+        pauseSession()
+    }
+
+    /// Resume session with room code
+    func resumeSession(roomCode: String) async throws {
+        resumeSession()
+    }
+
+    /// Get study stats (alias for fetchStudyStats)
+    func getStudyStats() async -> StudyResult<StudyStats> {
+        return await fetchStudyStats()
+    }
+
+    /// Get weekly study data
+    func getWeeklyStudyData() async -> StudyResult<[DailyStudyData]> {
+        guard authService.isLoggedIn else {
+            let error = StudyError.notAuthenticated
+            lastError = error
+            return .failure(error)
+        }
+
+        lastError = nil
+        do {
+            let response: WeeklyStudyDataResponse = try await apiClient.get(.weeklyStudyData)
+            return .success(response.data)
+        } catch let error as NetworkError {
+            let studyError = mapNetworkError(error)
+            lastError = studyError
+            return .failure(studyError)
+        } catch {
+            let studyError = StudyError.unknown(underlying: error)
+            lastError = studyError
+            return .failure(studyError)
+        }
+    }
+
     // MARK: - Private Methods - WebSocket
 
     /// Set up WebSocket event listeners
@@ -723,7 +817,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 if isActiveSession {
                     sessionState = .resting
                 }
-            case .idle:
+            case .active, .idle:
                 break
             }
         }
@@ -795,8 +889,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
     /// Get all offline sessions from storage
     private func getOfflineSessions() -> [[String: Any]] {
-        guard let data = defaults.data(forKey: offlineSessionsKey),
-              let sessions = try? JSONDecoder().decode([[String: Any]].self, from: data) else {
+        guard let data = defaults.data(forKey: offlineSessionsKey) else {
+            return []
+        }
+
+        // Use JSONSerialization instead of JSONDecoder for [String: Any]
+        guard let sessions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return []
         }
 
@@ -861,7 +959,8 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             } else if message.contains("host") {
                 return .notRoomHost
             } else {
-                return .unknown(underlying: StudyError.custom(message: message))
+                let nsError = NSError(domain: "NetworkError", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+                return .unknown(underlying: nsError)
             }
         default:
             return .unknown(underlying: error)
@@ -869,16 +968,21 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     }
 
     /// Map WebSocket errors to study errors
-    private func mapWebSocketError(_ error: WebSocketError) -> StudyError {
-        if error.message.contains("Not connected") {
-            return .webSocketNotConnected
-        } else if error.message.contains("not found") {
-            return .roomNotFound
-        } else if error.message.contains("full") {
-            return .roomFull
-        } else {
-            return .unknown(underlying: error)
+    private func mapWebSocketError(_ error: any Error) -> StudyError {
+        // If it's already a WebSocketError, extract message
+        if let wsError = error as? WebSocketError {
+            if wsError.message.contains("Not connected") {
+                return .webSocketNotConnected
+            } else if wsError.message.contains("not found") {
+                return .roomNotFound
+            } else if wsError.message.contains("full") {
+                return .roomFull
+            } else {
+                return .unknown(underlying: error)
+            }
         }
+        // For other errors, wrap in networkError
+        return .networkError(underlying: error)
     }
 
     /// Convert StudyRoomState to StudyRoom

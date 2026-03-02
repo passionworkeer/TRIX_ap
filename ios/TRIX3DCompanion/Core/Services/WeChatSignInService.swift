@@ -178,6 +178,10 @@ enum WeChatSDK: WeChatSDKProtocol {
 @MainActor
 final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
 
+    // MARK: - Singleton
+
+    static let shared = WeChatSignInService()
+
     // MARK: - Configuration
 
     /// Whether WeChat SDK is available

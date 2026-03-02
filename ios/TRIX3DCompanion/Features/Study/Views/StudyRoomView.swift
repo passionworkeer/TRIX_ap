@@ -129,7 +129,7 @@ struct StudyRoomView: View {
             HStack(spacing: 20) {
                 VStack(spacing: 4) {
                     Image(systemName: "person.2.fill")
-                        .foregroundColor(.brandPurple)
+                        .foregroundColor(Color.brandPurple)
                         .font(.title3)
 
                     Text("\(roomState.members.count)/\(roomState.maxMembers)")
@@ -139,7 +139,7 @@ struct StudyRoomView: View {
 
                 VStack(spacing: 4) {
                     Image(systemName: "clock.fill")
-                        .foregroundColor(.brandPink)
+                        .foregroundColor(Color.brandPink)
                         .font(.title3)
 
                     Text(sessionStateText)
@@ -150,7 +150,7 @@ struct StudyRoomView: View {
                 if let timer = roomState.timer {
                     VStack(spacing: 4) {
                         Image(systemName: "timer")
-                            .foregroundColor(.brandPurple)
+                            .foregroundColor(Color.brandPurple)
                             .font(.title3)
 
                         Text(formatDuration(timer.remainingSeconds))
@@ -243,7 +243,7 @@ struct StudyRoomView: View {
                 VStack(spacing: 8) {
                     // Progress bar
                     ProgressView(value: progressFraction)
-                        .tint(.brandGradient)
+                        .tint(Color.brandPurple)
                         .scaleEffect(y: 2)
 
                     HStack {
@@ -301,10 +301,10 @@ struct StudyRoomView: View {
                 Button(action: { leaveRoom() }) {
                     Label("Leave Room", systemImage: "door.left.hand.open")
                         .font(.subheadline)
-                        .foregroundColor(.error)
+                        .foregroundColor(Color.error)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(.error.opacity(0.1))
+                        .background(Color.error.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             } else {
@@ -343,6 +343,8 @@ struct StudyRoomView: View {
         switch roomState.sessionState {
         case .idle:
             return "Idle"
+        case .active:
+            return "Active"
         case .focusing:
             return "Focusing"
         case .resting:
@@ -355,6 +357,8 @@ struct StudyRoomView: View {
         switch roomState.sessionState {
         case .idle:
             return .textTertiary
+        case .active:
+            return .blue
         case .focusing:
             return .success
         case .resting:
@@ -477,22 +481,19 @@ struct ParticipantAvatar: View {
     private var defaultAvatar: some View {
         ZStack {
             Circle()
-                .fill(.brandPurple.opacity(0.2))
+                .fill(Color.brandPurple.opacity(0.2))
 
             Text(String(member.displayName.prefix(1)).uppercased())
                 .font(.headline)
-                .foregroundColor(.brandPurple)
+                .foregroundColor(Color.brandPurple)
         }
     }
 
     private var statusColor: Color {
-        switch member.status {
-        case .online:
+        if member.isOnline {
             return .success
-        case .focusing:
-            return .brandPurple
-        case .resting:
-            return .warning
+        } else {
+            return .textTertiary
         }
     }
 }
@@ -548,6 +549,8 @@ struct StudyRoomSettingsSheet: View {
         switch roomState.sessionState {
         case .idle:
             return "Idle"
+        case .active:
+            return "Active"
         case .focusing:
             return "Focusing"
         case .resting:

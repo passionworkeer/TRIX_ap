@@ -11,7 +11,7 @@ import AuthenticationServices
 // MARK: - OAuth Provider
 
 /// Supported OAuth providers
-enum OAuthProvider: String, CaseIterable {
+enum OAuthProvider: String, CaseIterable, Codable {
     case apple = "apple"
     case wechat = "wechat"
 

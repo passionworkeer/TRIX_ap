@@ -13,7 +13,7 @@ import Combine
 
 /// ViewModel managing voice message playback
 @MainActor
-class VoiceMessageViewModel: ObservableObject {
+class VoiceMessageViewModel: NSObject, ObservableObject {
 
     // MARK: - Published Properties
 
@@ -55,6 +55,8 @@ class VoiceMessageViewModel: ObservableObject {
 
         // Generate default waveform samples
         self.waveformSamples = Self.generateDefaultWaveform()
+
+        super.init()
     }
 
     // MARK: - Playback Operations
@@ -128,7 +130,7 @@ class VoiceMessageViewModel: ObservableObject {
     }
 
     /// Seeks to a specific progress position
-    func seek(to progress: Double) {
+    func seekToProgress(_ progress: Double) {
         let time = totalDuration * progress
         seek(to: time)
     }
@@ -184,8 +186,11 @@ class VoiceMessageViewModel: ObservableObject {
     // MARK: - Cleanup
 
     deinit {
-        stopProgressTimer()
-        audioPlayer?.stop()
+        // Must use Task to call MainActor methods from deinit
+        Task { @MainActor in
+            stopProgressTimer()
+            audioPlayer?.stop()
+        }
     }
 }
 

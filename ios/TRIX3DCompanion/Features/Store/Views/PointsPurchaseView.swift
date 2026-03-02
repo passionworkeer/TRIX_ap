@@ -269,7 +269,7 @@ struct PointsPurchaseView: View {
     }
 
     /// Extract order from result
-    private func extractOrder(from result: PaymentResult) -> Order? {
+    private func extractOrder(from result: PaymentResult) -> AppOrder? {
         if case .success(let order) = result {
             return order
         }
@@ -288,16 +288,16 @@ struct PackageCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 12) {
-                // Badges
+                // PointsBadges
                 HStack {
                     Spacer()
 
                     if package.isPopular {
-                        Badge(text: "Popular", color: .blue)
+                        PointsBadge(text: "Popular", color: .blue)
                     }
 
                     if package.isBestValue {
-                        Badge(text: "Best Value", color: .green)
+                        PointsBadge(text: "Best Value", color: .green)
                     }
                 }
 
@@ -355,10 +355,10 @@ struct PackageCard: View {
     }
 }
 
-// MARK: - Badge
+// MARK: - PointsBadge
 
-/// Badge component
-struct Badge: View {
+/// PointsBadge component
+struct PointsBadge: View {
     let text: String
     let color: Color
 

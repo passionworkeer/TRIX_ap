@@ -245,7 +245,7 @@ final class OfflineCacheService: ObservableObject, OfflineCacheServiceProtocol {
 
         // Check expiration
         if entry.isExpired {
-            try? remove(key: key, type: type)
+            try? await remove(key: key, type: type)
             throw CacheError.expired
         }
 

@@ -36,6 +36,14 @@ struct QRScannerView: View {
     /// Error message
     @State private var errorMessage = ""
 
+    // MARK: - Computed Properties
+
+    /// Loading indicator for indeterminate progress
+    @ViewBuilder
+    private var loadingIndicator: some View {
+        ProgressView(value: 0)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -69,9 +77,7 @@ struct QRScannerView: View {
                 // Loading/Requesting permission
                 Color.black
                     .overlay(
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
+                        loadingIndicator
                     )
             }
         }

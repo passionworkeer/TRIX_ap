@@ -338,10 +338,8 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             return .failure(error)
         }
 
-        // If WebSocket is connected, send via WebSocket for real-time delivery
-        if webSocketManager.isConnected() {
-            sendViaWebSocket(roomId: roomId, content: content, type: type)
-        }
+        // Send via WebSocket for real-time delivery (non-blocking)
+        sendViaWebSocket(roomId: roomId, content: content, type: type)
 
         // Also send via API for persistence
         do {
@@ -550,17 +548,16 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         // Convert bot message to chat message
         let chatMessage = ChatMessage(
             id: UUID().uuidString,
-            roomId: currentRoomId,
-            senderId: nil,
+            roomId: currentRoomId ?? "",
+            senderId: "bot",
             sender: .bot,
-            text: botMessage.content,
-            timestamp: Date(timeIntervalSince1970: TimeInterval(botMessage.timestamp)),
-            messageType: botMessage.contentType.map { convertMessageType($0) },
-            mediaUri: botMessage.mediaUrl,
-            mediaType: botMessage.mediaMimeType,
-            mediaSize: nil,
-            mediaMetadata: nil,
-            isRead: false
+            content: botMessage.content,
+            type: .text,
+            mediaUrl: botMessage.mediaUrl,
+            mediaMimeType: botMessage.mediaMimeType,
+            mediaDuration: nil,
+            isRead: false,
+            createdAt: Date(timeIntervalSince1970: TimeInterval(botMessage.timestamp))
         )
 
         // Add to current room if active
@@ -616,7 +613,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     }
 
     /// Convert WebSocket message type to chat message type
-    private func convertMessageType(_ type: BotMessage.MessageContentType) -> MessageContentType {
+    private func convertMessageType(_ type: BotMessage.MessageContentType) -> BotMessage.MessageContentType {
         switch type {
         case .text:
             return .text
@@ -642,7 +639,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             messagesCache[roomId]?.append(message)
 
             // Sort by timestamp
-            messagesCache[roomId]?.sort { $0.timestamp < $1.timestamp }
+            messagesCache[roomId]?.sort { $0.createdAt < $1.createdAt }
         }
     }
 
@@ -687,8 +684,6 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             return .notAuthenticated
         case .notFound:
             return .roomNotFound
-        case .custom(let message):
-            return .unknown(underlying: ChatError.custom(message: message))
         default:
             return .unknown(underlying: error)
         }
@@ -711,17 +706,15 @@ private extension ChatMessage {
         ChatMessage(
             id: id,
             roomId: roomId,
-            friendId: friendId,
-            sender: sender,
             senderId: senderId,
-            text: text,
-            timestamp: timestamp,
-            messageType: messageType,
-            mediaUri: mediaUri,
-            mediaType: mediaType,
-            mediaSize: mediaSize,
-            mediaMetadata: mediaMetadata,
-            isRead: isRead
+            sender: sender,
+            content: content,
+            type: type,
+            mediaUrl: mediaUrl,
+            mediaMimeType: mediaMimeType,
+            mediaDuration: mediaDuration,
+            isRead: isRead,
+            createdAt: createdAt
         )
     }
 }
@@ -779,7 +772,7 @@ extension ChatService {
         guard !query.isEmpty else { return currentMessages }
 
         return currentMessages.filter { message in
-            message.text.localizedCaseInsensitiveContains(query)
+            message.content.localizedCaseInsensitiveContains(query)
         }
     }
 }

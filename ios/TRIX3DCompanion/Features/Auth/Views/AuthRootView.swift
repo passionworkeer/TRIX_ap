@@ -146,7 +146,7 @@ struct AuthRootViewCard: View {
                 }
             }
         }
-        .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
+        .onChange(of: authService.isLoggedIn) { isLoggedIn in
             if isLoggedIn {
                 SecureLogger.shared.authEvent("User logged in successfully")
             }

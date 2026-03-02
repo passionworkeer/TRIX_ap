@@ -222,13 +222,13 @@ struct ScheduleRow: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(schedule.statusColor)
+                    .background(Color(hex: schedule.statusColorHex))
                     .clipShape(Capsule())
 
                 Text(formattedTime)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(schedule.statusColor)
+                    .foregroundColor(Color(hex: schedule.statusColorHex))
             }
             .frame(width: 50)
 

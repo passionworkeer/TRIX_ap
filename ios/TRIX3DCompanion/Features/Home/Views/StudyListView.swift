@@ -23,38 +23,7 @@ struct StudyListView: View {
 
     // MARK: - Sample Data
 
-    private let activeRooms = [
-        StudyRoom(
-            id: "1",
-            name: "Calculus Study",
-            participants: 12,
-            maxParticipants: 20,
-            subject: "Mathematics",
-            duration: "2h",
-            isActive: true,
-            host: "Sarah"
-        ),
-        StudyRoom(
-            id: "2",
-            name: "Physics Problems",
-            participants: 8,
-            maxParticipants: 15,
-            subject: "Physics",
-            duration: "1.5h",
-            isActive: true,
-            host: "Mike"
-        ),
-        StudyRoom(
-            id: "3",
-            name: "Chemistry Lab Prep",
-            participants: 5,
-            maxParticipants: 10,
-            subject: "Chemistry",
-            duration: "3h",
-            isActive: true,
-            host: "Emma"
-        )
-    ]
+    private let activeRooms: [StudyRoom] = []
 
     private let upcomingSessions = [
         DemoStudySession(
@@ -173,7 +142,7 @@ struct StudyListView: View {
 
             StatBox(
                 title: "study.total.studying".localized,
-                value: "\(activeRooms.reduce(0) { $0 + $1.participants })",
+                value: "\(activeRooms.reduce(0) { $0 + $1.members.count })",
                 icon: "person.2.fill",
                 color: .blue
             )
@@ -254,7 +223,7 @@ struct StudyRoomCard: View {
                         .font(.headline)
                         .fontWeight(.semibold)
 
-                    Text(room.subject)
+                    Text("Study Room")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -280,20 +249,18 @@ struct StudyRoomCard: View {
 
             // Info row
             HStack(spacing: 16) {
-                Label("\(room.participants)/\(room.maxParticipants)", systemImage: "person.2")
+                Label("\(room.members.count)/\(room.maxMembers)", systemImage: "person.2")
                     .font(.caption)
-
-                Label(room.duration, systemImage: "clock")
 
                 Spacer()
 
-                Label("by \(room.host)", systemImage: "person.circle")
+                Label("by \(room.hostUserId)", systemImage: "person.circle")
                     .font(.caption)
             }
             .foregroundColor(.secondary)
 
             // Progress bar
-            ProgressView(value: Double(room.participants), total: Double(room.maxParticipants))
+            ProgressView(value: Double(room.members.count), total: Double(room.maxMembers))
                 .tint(.purple)
 
             // Join button
@@ -581,7 +548,7 @@ struct CreateStudyRoomView: View {
             HStack {
                 if isCreating {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .tint(.white)
                 } else {
                     Image(systemName: "plus.circle.fill")
                     Text("study.create.button".localized)
@@ -671,13 +638,14 @@ struct DemoStudySession: Identifiable {
     VStack(spacing: 12) {
         StudyRoomCard(room: StudyRoom(
             id: "1",
+            roomCode: "ABC123",
             name: "Calculus Study",
-            participants: 12,
-            maxParticipants: 20,
-            subject: "Mathematics",
-            duration: "2h",
-            isActive: true,
-            host: "Sarah"
+            hostUserId: "user1",
+            maxMembers: 20,
+            members: [],
+            sessionState: .active,
+            createdAt: Date(),
+            updatedAt: Date()
         ))
 
         StudySessionCard(session: DemoStudySession(

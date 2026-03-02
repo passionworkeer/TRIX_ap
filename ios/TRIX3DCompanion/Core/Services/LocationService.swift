@@ -351,9 +351,7 @@ final class LocationService: NSObject, ObservableObject, LocationServiceProtocol
                     locationError = .permissionDenied
                 case .locationUnknown, .network:
                     locationError = .locationUnavailable
-                case .timeout:
-                    locationError = .timeout
-                default:
+                @unknown default:
                     locationError = .locationUnavailable
                 }
             } else {

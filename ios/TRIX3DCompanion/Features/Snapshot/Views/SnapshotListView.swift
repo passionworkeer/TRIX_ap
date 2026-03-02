@@ -35,8 +35,8 @@ struct SnapshotListView: View {
 
     // MARK: - Initialization
 
-    init(viewModel: SnapshotListViewModel = SnapshotListViewModel()) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    init(viewModel: SnapshotListViewModel? = nil) {
+        _viewModel = StateObject(wrappedValue: viewModel ?? SnapshotListViewModel())
     }
 
     // MARK: - Body
@@ -169,8 +169,8 @@ struct SnapshotListView: View {
     /// Loading footer
     private var loadingFooter: some View {
         HStack(spacing: 12) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
+            ProgressView(value: 0)
+                .tint(.brandPurple)
 
             Text("Loading more...")
                 .font(.subheadline)
@@ -248,8 +248,8 @@ struct SnapshotCell: View {
         ZStack {
             Color.secondaryBackground
 
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
+            ProgressView(value: 0)
+                .tint(.brandPurple)
         }
     }
 
@@ -304,7 +304,7 @@ struct SnapshotDetailView: View {
                     AsyncImage(url: URL(string: snapshot.imageUrl)) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView()
+                            ProgressView(value: 0)
                                 .frame(height: 300)
 
                         case .success(let image):
@@ -319,7 +319,7 @@ struct SnapshotDetailView: View {
                                 .frame(height: 300)
 
                         @unknown default:
-                            ProgressView()
+                            ProgressView(value: 0)
                                 .frame(height: 300)
                         }
                     }

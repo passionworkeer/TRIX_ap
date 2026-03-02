@@ -343,7 +343,7 @@ struct SubscriptionView: View {
     }
 
     /// Extract order from result
-    private func extractOrder(from result: PaymentResult) -> Order? {
+    private func extractOrder(from result: PaymentResult) -> AppOrder? {
         if case .success(let order) = result {
             return order
         }

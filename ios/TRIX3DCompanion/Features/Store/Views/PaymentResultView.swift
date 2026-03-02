@@ -17,7 +17,7 @@ struct PaymentResultView: View {
     let isSuccess: Bool
     let productName: String
     let points: Int?
-    let order: Order?
+    let order: AppOrder?
 
     // MARK: - Environment
 
@@ -101,7 +101,7 @@ struct PaymentResultView: View {
     }
 
     /// Order details card
-    private func orderDetailsCard(_ order: Order) -> some View {
+    private func orderDetailsCard(_ order: AppOrder) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Order Details")
                 .font(.headline)
@@ -235,10 +235,10 @@ struct OrderRow: View {
         isSuccess: true,
         productName: "580 Points",
         points: 580,
-        order: Order(
+        order: AppOrder(
             id: UUID().uuidString,
             userId: "user123",
-            productId: StoreProductConfiguration.points500,
+            productId: "points_500",
             productType: .points,
             amount: 28.0,
             currency: "CNY",

@@ -16,7 +16,7 @@ extension ChatDetailView {
     /// Enhanced input area with voice recording support
     func inputAreaWithVoice(
         messageText: Binding<String>,
-        isInputFocused: FocusState<Bool>,
+        isInputFocused: FocusState<Bool>?,
         showRecordingUI: Binding<Bool>,
         onRecordingComplete: @escaping (URL) -> Void
     ) -> some View {
@@ -33,7 +33,6 @@ extension ChatDetailView {
                 TextField("Type a message...", text: messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.body)
-                    .focused(isInputFocused)
                     .lineLimit(1...6)
 
                 // Voice button (shown when text is empty)

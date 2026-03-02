@@ -118,6 +118,8 @@ enum APIEndpoint {
     /// Delete a study session (DELETE /study/sessions/:id)
     case deleteStudySession(id: String)
     case studyStats
+    /// Get weekly study data (GET /study/stats/weekly)
+    case weeklyStudyData
 
     // MARK: - Study Room
     case studyRoomCreate
@@ -207,6 +209,7 @@ enum APIEndpoint {
         case .updateStudySession(let id): return "/study/sessions/\(id)"
         case .deleteStudySession(let id): return "/study/sessions/\(id)"
         case .studyStats: return "/study/stats"
+        case .weeklyStudyData: return "/study/stats/weekly"
 
         // Study Room
         case .studyRoomCreate: return "/study/room/create"
@@ -300,7 +303,7 @@ enum APIEndpoint {
         // Read operations - GET methods
         case .userProfile, .authMe, .userStats, .userSettings,
              .chatRooms, .chatRoom, .chatRoomMessages,
-             .studySessions, .studyStats, .studyRoomState,
+             .studySessions, .studyStats, .weeklyStudyData, .studyRoomState,
              .pairingStatus, .pairingDevices,
              .points, .pointsHistory,
              .locations, .location, .locationNearby, .locationShare,
@@ -354,6 +357,8 @@ struct User: Codable, Identifiable {
     let isStudying: Bool
     let companionId: String?
     let totalStudyTime: Int
+    let school: String?
+    let grade: String?
     let createdAt: Date
     let updatedAt: Date
 
@@ -369,6 +374,8 @@ struct User: Codable, Identifiable {
         case isStudying = "is_studying"
         case companionId = "companion_id"
         case totalStudyTime = "total_study_time"
+        case school
+        case grade
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -395,12 +402,18 @@ struct ProfileUpdate: Codable {
     let fullName: String?
     let displayName: String?
     let bio: String?
+    let school: String?
+    let grade: String?
+    let avatarUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case username
         case fullName = "full_name"
         case displayName = "display_name"
         case bio
+        case school
+        case grade
+        case avatarUrl = "avatar_url"
     }
 }
 

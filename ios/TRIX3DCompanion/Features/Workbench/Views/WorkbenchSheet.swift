@@ -6,6 +6,44 @@
 //
 
 import SwiftUI
+import MapKit
+
+// MARK: - Placeholder Location Picker View
+
+/// Placeholder for LocationPickerView when the Map module is not available
+struct LocationPickerView: View {
+    var showAsSheet: Bool = true
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.purple)
+
+                Text("Location Picker")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Select a location on the map")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+            }
+            .padding(.top, 50)
+            .navigationTitle("Pick Location")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        // Dismiss handled by parent
+                    }
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Workbench Sheet
 

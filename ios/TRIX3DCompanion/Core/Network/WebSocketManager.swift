@@ -148,12 +148,6 @@ struct SocketResponseData: Codable {
     let pairedAt: String?
 }
 
-struct StudyRoomAckPayload: Codable {
-    let success: Bool
-    let room: StudyRoomState?
-    let error: String?
-}
-
 // MARK: - WebSocket Manager
 
 /// WebSocket connection manager
@@ -164,7 +158,7 @@ final class WebSocketManager: NSObject {
 
     // MARK: - Properties
     private var socket: WebSocket?
-    private var isConnected = false
+    private var connected = false
     private var reconnectAttempts = 0
     private let maxReconnectAttempts = 10
     private var reconnectTimer: Timer?
@@ -176,7 +170,10 @@ final class WebSocketManager: NSObject {
     private var deviceId: String?
 
     // Event listeners
-    private var eventListeners: [String: [EventCallback]] = [:]
+    private var eventListeners: [String: [EventListener]] = [:]
+
+    // Handler ID counter
+    private var handlerIdCounter = 0
 
     // MARK: - Message deduplication and ordering
     private var receivedMessageIds: Set<String> = []
@@ -193,6 +190,11 @@ final class WebSocketManager: NSObject {
     // MARK: - Types
     typealias EventCallback = (Any) -> Void
 
+    struct EventListener {
+        let id: String
+        let handler: EventCallback
+    }
+
     // MARK: - Initialization
     private override init() {
         super.init()
@@ -201,11 +203,16 @@ final class WebSocketManager: NSObject {
 
     // MARK: - Public Methods
 
+    /// Check if connected to WebSocket server
+    func checkConnected() -> Bool {
+        return connected
+    }
+
     /// Connect to WebSocket server
     func connect(userId: String) async throws {
         self.userId = userId
 
-        guard !isConnected else { return }
+        guard !connected else { return }
 
         let urlString = WebSocketURL.current
         guard let url = URL(string: urlString) else {
@@ -250,29 +257,63 @@ final class WebSocketManager: NSObject {
 
         socket?.disconnect()
         socket = nil
-        isConnected = false
+        connected = false
 
         emit(.disconnected(reason: "User disconnected"))
     }
 
     /// Add event listener
-    func on(_ event: WebSocketEventType, handler: @escaping EventCallback) {
+    func on(_ event: WebSocketEventType, handler: @escaping EventCallback) -> String {
         let key = event.rawValue
+        handlerIdCounter += 1
+        let handlerId = "handler_\(handlerIdCounter)"
+        let listener = EventListener(id: handlerId, handler: handler)
         if eventListeners[key] == nil {
             eventListeners[key] = []
         }
-        eventListeners[key]?.append(handler)
+        eventListeners[key]?.append(listener)
+        return handlerId
     }
 
-    /// Remove event listener
-    func off(_ event: WebSocketEventType, handler: @escaping EventCallback) {
+    /// Remove event listener by handler ID
+    func off(_ event: WebSocketEventType, handlerId: String) {
         let key = event.rawValue
-        eventListeners[key]?.removeAll { $0 === handler }
+        eventListeners[key]?.removeAll { $0.id == handlerId }
+    }
+
+    /// Remove all event listeners for an event
+    func off(_ event: WebSocketEventType) {
+        let key = event.rawValue
+        eventListeners[key]?.removeAll()
     }
 
     /// Remove all event listeners
     func removeAllListeners() {
         eventListeners.removeAll()
+    }
+
+    // MARK: - String-based event handling for dynamic events (like ACK responses)
+
+    /// Add event listener with raw string key (for dynamic events like ACK)
+    func on(_ eventKey: String, handler: @escaping EventCallback) -> String {
+        handlerIdCounter += 1
+        let handlerId = "handler_\(handlerIdCounter)"
+        let listener = EventListener(id: handlerId, handler: handler)
+        if eventListeners[eventKey] == nil {
+            eventListeners[eventKey] = []
+        }
+        eventListeners[eventKey]?.append(listener)
+        return handlerId
+    }
+
+    /// Remove event listener by raw string key and handler ID
+    func off(_ eventKey: String, handlerId: String) {
+        eventListeners[eventKey]?.removeAll { $0.id == handlerId }
+    }
+
+    /// Remove all listeners for a raw string key
+    func off(_ eventKey: String) {
+        eventListeners[eventKey]?.removeAll()
     }
 
     // MARK: - Send Methods
@@ -328,7 +369,12 @@ final class WebSocketManager: NSObject {
             return
         }
 
-        emitEventWithAck("check_pairing_status", payload: ["userId": userId], completion: completion)
+        struct PairingStatusRequest: Codable {
+            let userId: String
+        }
+
+        let payload = PairingStatusRequest(userId: userId)
+        emitEventWithAck("check_pairing_status", payload: payload, completion: completion)
     }
 
     /// Unpair device
@@ -415,13 +461,6 @@ final class WebSocketManager: NSObject {
         emitEventWithAck("study_room_get_state", payload: payload, completion: completion)
     }
 
-    // MARK: - Connection Status
-
-    /// Check if connected
-    func isConnected() -> Bool {
-        return isConnected
-    }
-
     // MARK: - Private Methods
 
     /// Get or create device ID using KeychainManager with cryptographic security
@@ -444,7 +483,7 @@ final class WebSocketManager: NSObject {
     }
 
     private func emitEvent(_ event: String, payload: Encodable?) {
-        guard isConnected else {
+        guard connected else {
             SecureLogger.shared.warning("Not connected, cannot emit event: \(event)")
             return
         }
@@ -469,31 +508,37 @@ final class WebSocketManager: NSObject {
         socket?.write(string: message)
     }
 
-    private func emitEventWithAck<T: Codable>(
+    private func emitEventWithAck<T: Codable, P: Encodable>(
         _ event: String,
-        payload: [String: Any],
+        payload: P,
         completion: @escaping (Result<T, Error>) -> Void
     ) {
-        guard isConnected else {
+        guard connected else {
             completion(.failure(WebSocketError(code: nil, message: "Not connected to channel server")))
             return
         }
 
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: payload)
+            // Encode the payload to JSON
+            let encoder = JSONEncoder()
+            let jsonData = try encoder.encode(payload)
             let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
 
             // Create ACK handler
             let ackEvent = "\(event)_ack"
 
-            // Set up response handler
-            self.on(ackEvent) { result in
+            // Set up response handler - capture handlerId separately
+            var capturedHandlerId: String = ""
+            let tempHandlerId = self.on(ackEvent) { [weak self] result in
+                // Remove this handler after receiving response
+                self?.off(ackEvent, handlerId: capturedHandlerId)
                 if let response = result as? T {
                     completion(.success(response))
                 } else {
                     completion(.failure(WebSocketError(code: nil, message: "Invalid response")))
                 }
             }
+            capturedHandlerId = tempHandlerId
 
             // Send event with callback
             let message = "[\"\(event)\",\(jsonString),\"\(ackEvent)\"]"
@@ -501,7 +546,7 @@ final class WebSocketManager: NSObject {
 
             // Timeout after 10 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-                self?.off(ackEvent, handler: { _ in })
+                self?.off(ackEvent, handlerId: capturedHandlerId)
                 completion(.failure(NetworkError.timeout))
             }
 
@@ -540,8 +585,8 @@ final class WebSocketManager: NSObject {
         }
 
         let listeners = eventListeners[key] ?? []
-        listeners.forEach { callback in
-            callback(event)
+        listeners.forEach { listener in
+            listener.handler(event)
         }
     }
 
@@ -618,14 +663,14 @@ final class WebSocketManager: NSObject {
 
         switch eventName {
         case "connect":
-            isConnected = true
+            connected = true
             reconnectAttempts = 0
             startHeartbeat()
             sendAppRegister()
             emit(.connected)
 
         case "disconnect":
-            isConnected = false
+            connected = false
             stopHeartbeat()
             let reason = (data as? String) ?? "Unknown"
             emit(.disconnected(reason: reason))
@@ -720,14 +765,14 @@ extension WebSocketManager: WebSocketDelegate {
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         switch event {
         case .connected(_):
-            isConnected = true
+            connected = true
             reconnectAttempts = 0
             startHeartbeat()
             sendAppRegister()
             emit(.connected)
 
         case .disconnected(let reason, _):
-            isConnected = false
+            connected = false
             stopHeartbeat()
             emit(.disconnected(reason: reason))
             startReconnecting()
@@ -757,7 +802,7 @@ extension WebSocketManager: WebSocketDelegate {
             }
 
         case .cancelled:
-            isConnected = false
+            connected = false
             emit(.disconnected(reason: "Cancelled"))
 
         case .error(let error):
@@ -766,7 +811,7 @@ extension WebSocketManager: WebSocketDelegate {
             startReconnecting()
 
         case .peerClosed:
-            isConnected = false
+            connected = false
             emit(.disconnected(reason: "Peer closed"))
             startReconnecting()
         }
@@ -932,8 +977,8 @@ extension WebSocketManager: WebSocketDelegate {
         // Notify listeners waiting for this ACK
         let key = ackId
         let listeners = eventListeners[key] ?? []
-        listeners.forEach { callback in
-            callback(data)
+        listeners.forEach { listener in
+            listener.handler(data)
         }
     }
 }

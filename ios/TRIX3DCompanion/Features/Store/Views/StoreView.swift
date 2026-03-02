@@ -131,30 +131,6 @@ struct StoreView: View {
                     .font(.title3)
                     .foregroundColor(.secondary)
             }
-
-            // Level progress
-            if let balance = viewModel.balance {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Level \(balance.level)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Text("\(Int(balance.progressToNextLevel() * 100))%")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-
-                    ProgressView(value: balance.progressToNextLevel())
-                        .tint(.blue)
-
-                    Text("\(balance.pointsForNextLevel()) points to next level")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
         }
         .padding()
         .background(

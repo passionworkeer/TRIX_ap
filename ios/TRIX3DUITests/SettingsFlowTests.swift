@@ -88,8 +88,8 @@ final class SettingsFlowTests: XCTestCase {
         let notificationsToggle = app.switches["Notifications"]
         if notificationsToggle.exists {
             notificationsToggle.tap()
-            // Toggle should be on
-            XCTAssertTrue(notificationsToggle.isOn)
+            // Toggle should be on (using isSelected for switches)
+            XCTAssertTrue(notificationsToggle.isSelected)
         }
     }
 

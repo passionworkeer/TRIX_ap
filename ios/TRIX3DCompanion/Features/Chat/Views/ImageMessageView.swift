@@ -65,7 +65,7 @@ struct ImageMessageView: View {
                                 }
 
                         case .failure(let error):
-                            errorPlaceholder(error)
+                            errorPlaceholder
 
                         @unknown default:
                             loadingPlaceholder
@@ -73,7 +73,7 @@ struct ImageMessageView: View {
                     }
                 }
             } else {
-                errorPlaceholder(URLError(.badURL))
+                errorPlaceholder
             }
 
             // Loading indicator
@@ -128,8 +128,10 @@ struct ImageMessageView: View {
             .frame(width: 200, height: 200)
             .overlay {
                 VStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: isCurrentUser ? .white : .primary))
+                    Rectangle()
+                        .fill(isCurrentUser ? Color.white : Color.primary)
+                        .frame(width: 30, height: 30)
+                        .opacity(0.5)
 
                     Text("Loading...")
                         .font(.caption)
@@ -158,9 +160,10 @@ struct ImageMessageView: View {
 
     /// Loading overlay
     private var loadingOverlay: some View {
-        ProgressView()
-            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-            .scaleEffect(1.5)
+        Rectangle()
+            .fill(Color.white)
+            .frame(width: 30, height: 30)
+            .opacity(0.5)
     }
 }
 
@@ -258,9 +261,10 @@ struct ImageViewer: View {
     /// Loading view
     private var loadingView: some View {
         VStack(spacing: 16) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                .scaleEffect(1.5)
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: 40, height: 40)
+                .opacity(0.5)
 
             Text("Loading image...")
                 .font(.headline)

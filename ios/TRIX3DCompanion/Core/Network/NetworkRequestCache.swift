@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import Alamofire
 
 /// Network request cache manager
 final class NetworkRequestCache {
@@ -23,7 +22,7 @@ final class NetworkRequestCache {
 
     // MARK: - Types
 
-    enum CachePolicy {
+    enum CachePolicy: Equatable {
         case noCache
         case memoryOnly(duration: TimeInterval)
         case diskAndMemory(duration: TimeInterval)
@@ -200,8 +199,8 @@ final class NetworkRequestCache {
 
         // LRU eviction
         let sortedKeys = cache.sorted { lhs, rhs in
-            let lhsScore = lhs.value.accessCount * 1000 + lhs.value.timestamp.timeIntervalSince1970
-            let rhsScore = rhs.value.accessCount * 1000 + rhs.value.timestamp.timeIntervalSince1970
+            let lhsScore = Double(lhs.value.accessCount * 1000) + lhs.value.timestamp.timeIntervalSince1970
+            let rhsScore = Double(rhs.value.accessCount * 1000) + rhs.value.timestamp.timeIntervalSince1970
             return lhsScore < rhsScore
         }.map { $0.key }
 
@@ -250,11 +249,11 @@ extension NetworkRequestCache {
     func cachePolicy(for endpoint: APIEndpoint) -> CachePolicy {
         switch endpoint {
         // GET requests for static data - longer cache
-        case .getUserProfile, .getStudyRoomInfo:
+        case .userProfile:
             return .memoryOnly(duration: 600) // 10 minutes
 
         // GET requests for dynamic data - shorter cache
-        case .getChatRooms, .getChatMessages:
+        case .chatRooms, .chatRoomMessages:
             return .memoryOnly(duration: 60) // 1 minute
 
         // POST/PUT/DELETE - no cache
@@ -276,14 +275,17 @@ extension NetworkRequestCache {
         let key = cacheKey(for: request)
 
         // Check if request is already in flight
-        flightQueue.sync {
-            if let existingTask = inFlightRequests[key] {
-                // Request is in flight, wait for it
-                Task {
-                    let result = try await existingTask.value as? T
-                    return result
-                }
+        let existingTask = flightQueue.sync { () -> Task<Any, Error>? in
+            return inFlightRequests[key]
+        }
+
+        // If request is in flight, wait for it
+        if let existingTask = existingTask {
+            let result = try await existingTask.value
+            guard let typedResult = result as? T else {
+                throw NetworkError.typeMismatch("Failed to cast response to expected type")
             }
+            return typedResult
         }
 
         // Execute new request

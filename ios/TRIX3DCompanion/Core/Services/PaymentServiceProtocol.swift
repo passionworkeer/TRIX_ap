@@ -6,6 +6,7 @@
 //
 
 import Foundation
+// import TRIX3DCompanionCore
 
 // MARK: - Payment Types
 
@@ -49,7 +50,7 @@ enum AppPaymentStatus: String, Equatable {
 }
 
 /// AppOrder information
-struct AppOrder: Identifiable, Codable, Equatable {
+struct AppOrder: Identifiable, Equatable {
     let id: String
     let userId: String
     let productId: String
@@ -77,7 +78,7 @@ struct AppOrder: Identifiable, Codable, Equatable {
 }
 
 /// Payment result
-enum PaymentResult: Equatable {
+enum PaymentResult {
     case success(order: AppOrder)
     case pending(order: AppOrder)
     case failed(error: PaymentError)
@@ -144,7 +145,7 @@ struct PointsPurchaseResponse: Codable {
     let orderId: String
     let pointsAdded: Int
     let totalPoints: Int
-    let transaction: APIEndpoints.PointsTransaction?
+    let transaction: PointsTransaction?
 }
 
 // MARK: - Subscription Types
@@ -235,7 +236,159 @@ protocol PaymentServiceProtocol: ObservableObject {
 
 /// AppOrder update notification
 struct AppOrderUpdate: Identifiable, Equatable {
+    let id: String
     let orderId: String
     let status: AppPaymentStatus
     let timestamp: Date
+}
+
+// MARK: - Type Aliases for API Responses
+
+/// Type alias for order details response (from API layer)
+typealias AppOrderDetailsResponse = OrderDetailsResponse
+
+/// Type alias for orders list response (from API layer)
+typealias AppOrdersListResponse = OrdersListResponse
+
+// MARK: - Order to AppOrder Conversion
+
+extension OrderDetailsResponse {
+    /// Convert to AppOrder
+    func toAppOrder() -> AppOrder {
+        // Map ProductType from string to proper enum
+        let productType: ProductType
+        if let pt = ProductType(rawValue: self.productId) {
+            productType = pt
+        } else {
+            productType = .points
+        }
+
+        // Map PaymentMethod from string (default to apple_pay)
+        let paymentMethod: PaymentMethod
+        if let pm = PaymentMethod(rawValue: "apple_pay") {
+            paymentMethod = pm
+        } else {
+            paymentMethod = .applePay
+        }
+
+        return AppOrder(
+            id: self.id,
+            userId: self.userId,
+            productId: self.productId,
+            productType: productType,
+            amount: self.amount,
+            currency: self.currency,
+            status: self.status.toAppPaymentStatus(),
+            paymentMethod: paymentMethod,
+            transactionId: self.transactionId,
+            points: self.points,
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt
+        )
+    }
+}
+
+// MARK: - PaymentStatus to AppPaymentStatus Conversion
+
+extension PaymentStatus {
+    /// Convert API PaymentStatus to AppPaymentStatus
+    func toAppPaymentStatus() -> AppPaymentStatus {
+        switch self {
+        case .pending:
+            return .pending
+        case .processing:
+            return .processing
+        case .completed:
+            return .completed
+        case .failed:
+            return .failed
+        case .cancelled:
+            return .cancelled
+        case .refunded:
+            return .refunded
+        }
+    }
+}
+
+extension AppPaymentStatus {
+    /// Convert AppPaymentStatus to API PaymentStatus
+    func toPaymentStatus() -> PaymentStatus {
+        switch self {
+        case .pending:
+            return .pending
+        case .processing:
+            return .processing
+        case .completed:
+            return .completed
+        case .failed:
+            return .failed
+        case .cancelled:
+            return .cancelled
+        case .refunded:
+            return .refunded
+        }
+    }
+}
+
+// MARK: - ProductType String Raw Value
+
+extension ProductType {
+    /// Get raw value string for ProductType
+    var rawValue: String {
+        switch self {
+        case .points:
+            return "points"
+        case .subscription:
+            return "subscription"
+        }
+    }
+
+    /// Initialize from raw string
+    init?(rawValue: String) {
+        switch rawValue {
+        case "points":
+            self = .points
+        case "subscription":
+            self = .subscription
+        default:
+            // Try to detect from product ID prefix
+            if rawValue.hasPrefix("points_") || rawValue.contains("points") {
+                self = .points
+            } else if rawValue.hasPrefix("sub_") || rawValue.contains("subscription") {
+                self = .subscription
+            } else {
+                return nil
+            }
+        }
+    }
+}
+
+// MARK: - PaymentMethod String Raw Value
+
+extension PaymentMethod {
+    /// Get raw value string for PaymentMethod
+    var rawValue: String {
+        switch self {
+        case .applePay:
+            return "apple_pay"
+        case .wechatPay:
+            return "wechat_pay"
+        case .alipay:
+            return "alipay"
+        }
+    }
+
+    /// Initialize from raw string
+    init?(rawValue: String) {
+        switch rawValue {
+        case "apple_pay":
+            self = .applePay
+        case "wechat_pay":
+            self = .wechatPay
+        case "alipay":
+            self = .alipay
+        default:
+            return nil
+        }
+    }
 }

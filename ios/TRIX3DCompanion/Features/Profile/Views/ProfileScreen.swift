@@ -22,10 +22,6 @@ struct NewProfileView: View {
 
     // MARK: - State
 
-    @State private var showSettings = false
-    @State private var showPointsHistory = false
-    @State private var showPrivacySettings = false
-    @State private var showAbout = false
     @State private var showEditProfile = false
     @State private var showImagePicker = false
     @State private var showDeleteAlert = false
@@ -50,18 +46,6 @@ struct NewProfileView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 toolbarContent
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsScreen()
-            }
-            .sheet(isPresented: $showPointsHistory) {
-                PointsHistoryScreen()
-            }
-            .sheet(isPresented: $showPrivacySettings) {
-                PrivacySettingsScreen()
-            }
-            .sheet(isPresented: $showAbout) {
-                AboutScreen()
             }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileSheet(viewModel: viewModel)
@@ -91,7 +75,7 @@ struct NewProfileView: View {
                     Label("Edit Profile", systemImage: "pencil")
                 }
 
-                Button(action: { showSettings = true }) {
+                Button(action: { /* Settings */ }) {
                     Label("Settings", systemImage: "gear")
                 }
 
@@ -165,31 +149,31 @@ struct NewProfileView: View {
 
     private var quickActions: some View {
         HStack(spacing: 12) {
-            QuickActionButton(
+            ProfileQuickActionButton(
                 icon: "star.fill",
                 title: "Points",
                 subtitle: "\(viewModel.totalPoints)",
                 color: .yellow
             ) {
-                showPointsHistory = true
+                // Points history
             }
 
-            QuickActionButton(
+            ProfileQuickActionButton(
                 icon: "gearshape.fill",
                 title: "Settings",
                 subtitle: "Preferences",
                 color: .purple
             ) {
-                showSettings = true
+                // Settings
             }
 
-            QuickActionButton(
+            ProfileQuickActionButton(
                 icon: "hand.raised.fill",
                 title: "Privacy",
                 subtitle: "Security",
                 color: .blue
             ) {
-                showPrivacySettings = true
+                // Privacy
             }
         }
     }
@@ -221,7 +205,7 @@ struct NewProfileView: View {
 
                     Spacer()
 
-                    Button(action: { showPointsHistory = true }) {
+                    Button(action: { /* History */ }) {
                         Text("History")
                             .font(.subheadline)
                             .fontWeight(.medium)
@@ -315,7 +299,7 @@ struct NewProfileView: View {
                 title: "About",
                 description: "App version and info",
                 color: .gray,
-                action: { showAbout = true }
+                action: { /* About */ }
             )
         }
         .background(.ultraThinMaterial)
@@ -360,7 +344,7 @@ struct NewProfileView: View {
 
 // MARK: - Quick Action Button
 
-struct QuickActionButton: View {
+struct ProfileQuickActionButton: View {
     let icon: String
     let title: String
     let subtitle: String
@@ -471,14 +455,14 @@ struct EditProfileSheet: View {
 
 #Preview("Quick Actions") {
     HStack(spacing: 12) {
-        QuickActionButton(
+        ProfileQuickActionButton(
             icon: "star.fill",
             title: "Points",
             subtitle: "2450",
             color: .yellow
         ) {}
 
-        QuickActionButton(
+        ProfileQuickActionButton(
             icon: "gearshape.fill",
             title: "Settings",
             subtitle: "Preferences",

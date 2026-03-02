@@ -30,7 +30,7 @@ enum VoiceRecordingState {
 
 /// ViewModel managing voice recording state and operations
 @MainActor
-class VoiceRecordingViewModel: ObservableObject {
+class VoiceRecordingViewModel: NSObject, ObservableObject {
 
     // MARK: - Published Properties
 
@@ -85,7 +85,8 @@ class VoiceRecordingViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    override init() {
+        super.init()
         Task {
             await checkPermissionStatus()
         }
@@ -110,7 +111,11 @@ class VoiceRecordingViewModel: ObservableObject {
     /// Requests microphone permission from the user
     func requestMicrophonePermission() async {
         do {
-            let granted = try await AVAudioSession.sharedInstance().requestRecordPermission()
+            let granted = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
             hasPermission = granted
 
             if !granted {
@@ -135,6 +140,7 @@ class VoiceRecordingViewModel: ObservableObject {
                 errorMessage = "需要麦克风权限才能录音"
                 return
             }
+            return
         }
 
         recordingState = .preparing
@@ -431,7 +437,9 @@ struct VoiceRecordingButton: View {
                                 handleDragChanged(value)
                             }
                             .onEnded { value in
-                                await handleDragEnded(value)
+                                Task {
+                                    await handleDragEnded(value)
+                                }
                             }
                     )
                     .padding(.bottom, 40)

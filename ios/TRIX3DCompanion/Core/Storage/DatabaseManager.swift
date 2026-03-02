@@ -181,12 +181,12 @@ final class DatabaseManager {
 
     /// Decrypt sensitive string field
     private func decryptField(_ value: String) -> String {
-        guard value.hasPrefix("ENC:"),
-              let data = Data(base64Encoded: value.dropFirst(4)),
-              let decrypted = decrypt(data),
-              let string = String(data: decrypted, encoding: .utf8) else {
-            return value
-        }
+        guard value.hasPrefix("ENC:") else { return value }
+
+        let encodedString = String(value.dropFirst(4))
+        guard let data = Data(base64Encoded: encodedString) else { return value }
+        guard let decrypted = decrypt(data) else { return value }
+        guard let string = String(data: decrypted, encoding: .utf8) else { return value }
         return string
     }
 
@@ -263,7 +263,7 @@ final class DatabaseManager {
     }
 
     /// Thread-safe async database operation
-    private func performAsync<T>(_ operation: @escaping () throws -> T, completion: @escaping (Result<T, Error>) -> Void) {
+    private func performAsync<T>(_ operation: @escaping () throws -> T, completion: @escaping (Swift.Result<T, Error>) -> Void) {
         readWriteQueue.async {
             do {
                 let result = try self.performWithLock(operation)
@@ -399,23 +399,23 @@ final class DatabaseManager {
     func insertMessage(_ message: ChatMessage) throws {
         guard let db = db else { throw DatabaseError.notConnected }
 
-        let conversationId = message.roomId ?? message.friendId ?? ""
+        let conversationId = message.roomId
 
         // Encrypt sensitive content
-        let encryptedContent = encryptField(message.text)
+        let encryptedContent = encryptField(message.content)
 
         let insert = messagesTable.insert(
             messageId <- message.id,
             messageRoomId <- conversationId,
-            messageSenderId <- message.senderId ?? "",
+            messageSenderId <- message.senderId,
             messageSenderType <- message.sender.rawValue,
             messageContent <- encryptedContent,
-            messageType <- message.messageType?.rawValue ?? "text",
-            messageMediaUrl <- message.mediaUri,
-            messageMediaMimeType <- message.mediaType,
-            messageMediaDuration <- message.mediaMetadata?.duration,
+            messageType <- message.type.rawValue,
+            messageMediaUrl <- message.mediaUrl,
+            messageMediaMimeType <- message.mediaMimeType,
+            messageMediaDuration <- message.mediaDuration,
             messageIsRead <- message.isRead,
-            messageCreatedAt <- message.timestamp,
+            messageCreatedAt <- message.createdAt,
             messageSyncedAt <- nil
         )
 
@@ -466,19 +466,15 @@ final class DatabaseManager {
             let message = ChatMessage(
                 id: row[messageId],
                 roomId: row[messageRoomId],
-                friendId: nil,
-                sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
                 senderId: row[messageSenderId],
-                text: decryptedContent,
-                timestamp: row[messageCreatedAt],
-                messageType: MessageContentType(rawValue: row[messageType]),
-                mediaUri: row[messageMediaUrl],
-                mediaType: row[messageMediaMimeType],
-                mediaSize: nil,
-                mediaMetadata: row[messageMediaDuration].map { duration in
-                    MediaMetadata(width: nil, height: nil, duration: duration, thumbnail: nil)
-                },
-                isRead: row[messageIsRead]
+                sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
+                content: decryptedContent,
+                type: MessageType(rawValue: row[messageType]) ?? .text,
+                mediaUrl: row[messageMediaUrl],
+                mediaMimeType: row[messageMediaMimeType],
+                mediaDuration: row[messageMediaDuration],
+                isRead: row[messageIsRead],
+                createdAt: row[messageCreatedAt]
             )
             messages.append(message)
         }
@@ -554,8 +550,8 @@ final class DatabaseManager {
             roomId <- room.id,
             roomName <- room.name,
             roomType <- room.type.rawValue,
-            roomLastMessage <- room.lastMessage?.text,
-            roomLastMessageAt <- room.lastMessage?.timestamp,
+            roomLastMessage <- room.lastMessage?.content,
+            roomLastMessageAt <- room.lastMessage?.createdAt,
             roomUnreadCount <- room.unreadCount,
             roomUpdatedAt <- room.updatedAt
         )
@@ -591,7 +587,7 @@ final class DatabaseManager {
                 id: row[roomId],
                 name: row[roomName],
                 type: ChatRoomType(rawValue: row[roomType]) ?? .ai,
-                participants: nil, // 需要从服务器获取
+                participants: [], // 需要从服务器获取
                 lastMessage: nil, // 简化处理
                 unreadCount: row[roomUnreadCount],
                 createdAt: Date(), // 简化处理
@@ -639,11 +635,11 @@ final class DatabaseManager {
         let insert = studySessionsTable.insert(or: .replace,
             sessionId <- session.id,
             sessionUserId <- session.userId,
-            sessionSubject <- session.subject,
-            sessionDuration <- session.duration,
+            sessionSubject <- nil,
+            sessionDuration <- session.durationMinutes,
             sessionStartedAt <- session.startedAt,
-            sessionEndedAt <- session.endedAt,
-            sessionNotes <- session.notes,
+            sessionEndedAt <- session.completedAt,
+            sessionNotes <- nil,
             sessionEarnedPoints <- session.earnedPoints,
             sessionIsCompleted <- session.isCompleted,
             sessionSynced <- false
@@ -665,14 +661,11 @@ final class DatabaseManager {
             let session = StudySession(
                 id: row[sessionId],
                 userId: row[sessionUserId],
-                subject: row[sessionSubject],
-                duration: row[sessionDuration],
+                durationMinutes: row[sessionDuration],
                 startedAt: row[sessionStartedAt],
-                endedAt: row[sessionEndedAt],
-                notes: row[sessionNotes],
+                completedAt: row[sessionEndedAt],
                 earnedPoints: row[sessionEarnedPoints],
-                isCompleted: row[sessionIsCompleted],
-                createdAt: row[sessionStartedAt]
+                isCompleted: row[sessionIsCompleted]
             )
             sessions.append(session)
         }
@@ -840,6 +833,43 @@ final class DatabaseManager {
         try db.run(expiredMessages.delete())
     }
 
+    // MARK: - Points Sync Support Methods (Stubs)
+
+    /// Get pending point transactions
+    /// - Returns: Array of pending PointsTransaction
+    func getPendingPointTransactions() throws -> [PointsTransaction] {
+        // Stub implementation - returns empty array
+        return []
+    }
+
+    /// Mark a point transaction as synced
+    /// - Parameter transactionId: Transaction ID
+    func markPointTransactionSynced(_ transactionId: String) throws {
+        // Stub implementation - no-op
+    }
+
+    /// Update user points
+    /// - Parameters:
+    ///   - userId: User ID
+    ///   - points: New points value
+    func updateUserPoints(userId: String, points: Int) throws {
+        // Stub implementation - no-op
+    }
+
+    /// Get a point transaction by ID
+    /// - Parameter transactionId: Transaction ID
+    /// - Returns: PointsTransaction if found
+    func getPointTransaction(_ transactionId: String) throws -> PointsTransaction? {
+        // Stub implementation - returns nil
+        return nil
+    }
+
+    /// Insert a new point transaction
+    /// - Parameter transaction: PointsTransaction to insert
+    func insertPointTransaction(_ transaction: PointsTransaction) throws {
+        // Stub implementation - no-op
+    }
+
     // MARK: - Database Info
 
     /// 获取数据库大小
@@ -858,6 +888,41 @@ final class DatabaseManager {
     func getMessageCount() throws -> Int {
         guard let db = db else { throw DatabaseError.notConnected }
         return try db.scalar(messagesTable.count)
+    }
+
+    // MARK: - Sync Support Methods (Stubs)
+
+    /// Get pending messages that haven't been synced
+    /// - Returns: Array of pending ChatMessage
+    func getPendingMessages() throws -> [ChatMessage] {
+        // Stub implementation - returns empty array
+        return []
+    }
+
+    /// Mark a message as synced
+    /// - Parameter messageId: Message ID to mark
+    func markMessageSynced(_ messageId: String) throws {
+        // Stub implementation - no-op
+    }
+
+    /// Get a single message by ID
+    /// - Parameter messageId: Message ID
+    /// - Returns: ChatMessage if found
+    func getMessage(_ messageId: String) throws -> ChatMessage? {
+        // Stub implementation - returns nil
+        return nil
+    }
+
+    /// Update a message
+    /// - Parameter message: ChatMessage to update
+    func updateMessage(_ message: ChatMessage) throws {
+        // Stub implementation - no-op
+    }
+
+    /// Mark a message as having a conflict
+    /// - Parameter messageId: Message ID
+    func markMessageConflict(_ messageId: String) throws {
+        // Stub implementation - no-op
     }
 
     // MARK: - Database Corruption Recovery Testing

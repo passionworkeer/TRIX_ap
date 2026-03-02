@@ -307,10 +307,25 @@ final class KeychainManager {
         try safeSaveData(data, key: key)
     }
 
+    /// 保存任意数据（别名方法，与 saveData 功能相同）
+    /// - Parameters:
+    ///   - key: 键名
+    ///   - data: 要保存的数据
+    func save(key: String, data: Data) throws {
+        try safeSaveData(data, key: key)
+    }
+
     /// 获取数据
     /// - Parameter key: 键名
     /// - Returns: 数据，如果不存在则返回 nil
     func getData(forKey key: String) -> Data? {
+        try? keychain.getData(key)
+    }
+
+    /// 获取数据（别名方法，与 getData 功能相同）
+    /// - Parameter key: 键名
+    /// - Returns: 数据，如果不存在则返回 nil
+    func get(key: String) -> Data? {
         try? keychain.getData(key)
     }
 
@@ -335,6 +350,12 @@ final class KeychainManager {
         try keychain.remove(key)
     }
 
+    /// 删除指定键的数据（别名方法，与 remove 功能相同）
+    /// - Parameter key: 键名
+    func delete(key: String) throws {
+        try keychain.remove(key)
+    }
+
     // MARK: - Session Management
 
     /// 保存完整的会话信息
@@ -342,7 +363,6 @@ final class KeychainManager {
     func saveSession(_ session: UserSession) throws {
         try saveAccessToken(session.accessToken)
         try saveRefreshToken(session.refreshToken)
-        try saveSessionToken(session.sessionToken)
         try saveUserId(session.userId)
     }
 

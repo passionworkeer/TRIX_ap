@@ -121,28 +121,9 @@ final class AppLaunchOptimizer {
 
     /// Estimate pre-main phase time
     private func measurePreMainPhase() {
-        // We can't measure pre-main directly from Swift,
-        // but we can estimate using process start time
-        var kinfo = kinfo_proc()
-        var size = MemoryLayout<kinfo_proc>.stride
-        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
-
-        let result = mib.withUnsafeMutableBufferPointer { mibPtr in
-            sysctl(
-                mibPtr.baseAddress, UInt32(mib.count),
-                &kinfo, &size,
-                nil, 0
-            )
-        }
-
-        if result == 0 {
-            let startTime = kinfo.kp_proc.p_starttime.tv_sec
-            let now = timeval(tv_sec: 0, tv_usec: 0)
-            let elapsed = TimeInterval(now.tv_sec - startTime)
-
-            // This is a rough estimate of pre-main time
-            launchMetrics.phaseTimings[.preMain] = min(elapsed, 0.5)
-        }
+        // Pre-main time cannot be directly measured from Swift
+        // Using estimated value
+        launchMetrics.phaseTimings[.preMain] = 0.1
     }
 }
 

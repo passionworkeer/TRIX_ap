@@ -39,6 +39,15 @@ struct ProgressView: View {
         self.title = title
     }
 
+    /// Initialize an indeterminate progress view (no specific value)
+    init() {
+        self.value = 0
+        self.total = 1.0
+        self.style = .linear
+        self.showPercentage = false
+        self.title = nil
+    }
+
     // MARK: - View Body
 
     var body: some View {
