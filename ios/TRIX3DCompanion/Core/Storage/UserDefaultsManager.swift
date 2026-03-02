@@ -445,10 +445,12 @@ final class UserDefaultsManager {
 // MARK: - Supporting Types
 
 /// 应用主题
-enum AppTheme: String, CaseIterable {
+enum AppTheme: String, CaseIterable, Identifiable {
     case system = "system"
     case light = "light"
     case dark = "dark"
+
+    var id: String { rawValue }
 
     var displayName: String {
         switch self {

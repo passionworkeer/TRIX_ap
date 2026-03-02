@@ -22,20 +22,20 @@ import StoreKit
 // MARK: - Mock StoreKitServiceProtocol
 
 @MainActor
-final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
+final class MockStoreKitServiceForPayment: StoreKitServiceProtocol, ObservableObject {
 
     @Published var availableProducts: [StoreProduct] = []
     @Published var isLoadingProducts: Bool = false
-    @Published var subscriptionStatus: SubscriptionStatus?
+    @Published var subscriptionStatus: TRIX3DCompanion.SubscriptionStatus?
     @Published var isPurchasing: Bool = false
-    @Published var lastError: StoreKitError?
+    @Published var lastError: TRIX3DCompanion.StoreKitError?
 
     // Test control properties
     var shouldFailLoadProducts = false
     var shouldFailPurchase = false
     var shouldReturnPending = false
     var shouldReturnCancelled = false
-    var mockStoreKitError: StoreKitError?
+    var mockStoreKitError: TRIX3DCompanion.StoreKitError?
     var mockProducts: [StoreProduct] = []
 
     // Call tracking
@@ -51,7 +51,7 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
     var getTransactionInfoCalled = false
     var clearErrorCalled = false
 
-    func loadProducts(productIds: [String]) async -> Result<Void, StoreKitError> {
+    func loadProducts(productIds: [String]) async -> Result<Void, TRIX3DCompanion.StoreKitError> {
         loadProductsCalled = true
         loadProductsCalledWithProductIds = productIds
         isLoadingProducts = true
@@ -102,12 +102,12 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
         ))))
     }
 
-    func restorePurchases() async -> Result<[TransactionInfo], StoreKitError> {
+    func restorePurchases() async -> Result<[TransactionInfo], TRIX3DCompanion.StoreKitError> {
         restorePurchasesCalled = true
         return .success([])
     }
 
-    func checkSubscriptionStatus() async -> SubscriptionStatus? {
+    func checkSubscriptionStatus() async -> TRIX3DCompanion.SubscriptionStatus? {
         checkSubscriptionStatusCalled = true
         return subscriptionStatus
     }
@@ -132,7 +132,7 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
         return nil
     }
 
-    func prepareVerificationPayload(transaction: Transaction, productId: String) -> [String: Any]? {
+    func prepareVerificationPayload(transaction: StoreKit.Transaction, productId: String) -> [String: Any]? {
         return ["transactionId": "txn", "productId": productId]
     }
 
@@ -280,14 +280,14 @@ final class PaymentViewModelTests: XCTestCase {
 
     var sut: PaymentViewModel!
     var mockPaymentService: MockPaymentService!
-    var mockStoreKitService: MockStoreKitService!
+    var mockStoreKitService: MockStoreKitServiceForPayment!
     var mockPointsService: MockPointsService!
     var cancellables: Set<AnyCancellable>!
 
     override func setUp() {
         super.setUp()
         mockPaymentService = MockPaymentService()
-        mockStoreKitService = MockStoreKitService()
+        mockStoreKitService = MockStoreKitServiceForPayment()
         mockPointsService = MockPointsService()
         cancellables = Set<AnyCancellable>()
 
@@ -309,7 +309,7 @@ final class PaymentViewModelTests: XCTestCase {
 
     // MARK: - Helper Methods
 
-    private func createMockStoreProduct(id: String = "test.product", type: ProductType = .points, points: Int? = 100) -> StoreProduct {
+    private func createMockStoreProduct(id: String = "test.product", type: TRIX3DCompanion.ProductType = .points, points: Int? = 100) -> StoreProduct {
         StoreProduct(
             id: id,
             name: "Test Product",

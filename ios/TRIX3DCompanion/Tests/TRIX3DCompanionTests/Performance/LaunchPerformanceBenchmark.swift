@@ -7,6 +7,7 @@
 
 import XCTest
 import UIKit
+@testable import TRIX3DCompanion
 
 /// Performance benchmarks for measuring app launch times
 ///
@@ -43,7 +44,7 @@ final class LaunchPerformanceBenchmark: XCTestCase {
     // MARK: - Setup
 
     override func setUpWithError() throws {
-        super.setUpWithError()
+        try super.setUpWithError()
         coldLaunchTimes.removeAll()
         hotLaunchTimes.removeAll()
         firstRenderTimes.removeAll()

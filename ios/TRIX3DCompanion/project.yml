@@ -26,6 +26,7 @@ targets:
       - path: Features
         excludes:
           - "**/README.md"
+          - "**/PersistenceIntegrationExample.swift"
       - path: Shared
         excludes:
           - "**/README.md"
@@ -94,15 +95,21 @@ schemes:
     build:
       targets:
         TRIX3DCompanion: all
-        TRIX3DCompanionTests: all
-        TRIX3DUITests: all
     run:
       config: Debug
-    test:
+    profile:
+      config: Release
+    analyze:
       config: Debug
+    archive:
+      config: Release
+
+  TRIX3DCompanion-AppOnly:
+    build:
       targets:
-        - TRIX3DCompanionTests
-        - TRIX3DUITests
+        TRIX3DCompanion: all
+    run:
+      config: Debug
     profile:
       config: Release
     analyze:

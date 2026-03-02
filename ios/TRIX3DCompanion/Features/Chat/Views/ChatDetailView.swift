@@ -71,29 +71,31 @@ struct ChatDetailView: View {
             }
         }
         .onDisappear {
-            chatService.closeConversation()
+            chatService.disconnectWebSocket()
         }
         .sheet(isPresented: $showingImagePicker) {
-            ImagePicker { imageURL in
+            ChatDetailViewImagePicker { imageURL in
                 Task {
-                    await chatService.sendImageMessage(imageURL)
+                    // Send image as a message with the image URL
+                    _ = await chatService.sendMessage(roomId: conversation.id, content: imageURL, type: .image)
                 }
             }
         }
-        .confirmationDialog("chat.attach.media".localized, isPresented: $showingAttachmentOptions) {
-            Button("chat.photo.library".localized) {
+        .confirmationDialog("Attach Media", isPresented: $showingAttachmentOptions) {
+            Button("Photo Library") {
                 showingImagePicker = true
             }
-            Button("camera.take.photo".localized) {
+            Button("Take Photo") {
                 openCamera()
             }
-            Button("action.cancel".localized, role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $showingCamera) {
             CameraView { image, imageURL in
                 if let url = imageURL {
                     Task {
-                        await chatService.sendImageMessage(url)
+                        // Send image as a message with the image URL
+                        _ = await chatService.sendMessage(roomId: conversation.id, content: url, type: .image)
                     }
                 }
             }
@@ -108,7 +110,7 @@ struct ChatDetailView: View {
             Image(systemName: "wifi.slash")
                 .font(.caption)
 
-            Text(chatService.connectionStatus)
+            Text("Disconnected")
                 .font(.caption)
 
             Spacer()
@@ -116,7 +118,7 @@ struct ChatDetailView: View {
             Button("Retry") {
                 Task {
                     if let userId = appState.currentUser?.id {
-                        await chatService.connect(userId: userId)
+                        await chatService.connectWebSocket(userId: userId)
                     }
                 }
             }
@@ -134,15 +136,15 @@ struct ChatDetailView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     // Load more button
-                    if chatService.hasMoreHistory && !chatService.messages.isEmpty {
+                    if chatService.hasMoreMessages && !chatService.currentMessages.isEmpty {
                         loadMoreButton
                     }
 
                     // Messages (with pagination support)
-                    ForEach(chatService.messages) { message in
+                    ForEach(chatService.currentMessages) { message in
                         MessageCell(
                             message: message,
-                            isCurrentUser: message.sender == .user
+                            isCurrentUser: message.senderId == appState.currentUser?.id
                         )
                             .id(message.id)
                     }
@@ -155,7 +157,7 @@ struct ChatDetailView: View {
                 .padding(.top)
                 .padding(.bottom, 8)
             }
-            .onChange(of: chatService.messages.count) { _ in
+            .onChange(of: chatService.currentMessages.count) { _ in
                 // Auto-scroll to bottom when new message arrives
                 withAnimation(.easeOut(duration: 0.3)) {
                     proxy.scrollTo("bottom", anchor: .bottom)
@@ -173,7 +175,7 @@ struct ChatDetailView: View {
     private var loadMoreButton: some View {
         Button(action: loadMoreMessages) {
             HStack(spacing: 8) {
-                if chatService.isLoading {
+                if chatService.isLoadingMessages {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                 } else {
@@ -186,7 +188,7 @@ struct ChatDetailView: View {
             .foregroundColor(.secondary)
             .padding()
         }
-        .disabled(chatService.isLoading)
+        .disabled(chatService.isLoadingMessages)
     }
 
     /// Input area
@@ -214,13 +216,7 @@ struct ChatDetailView: View {
                     Button(action: sendMessage) {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.brandPurple, .brandPink],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundColor(.purple)
                     }
                     .disabled(!chatService.isConnected)
                 }
@@ -231,15 +227,12 @@ struct ChatDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.separator.opacity(0.5), lineWidth: 0.5)
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
             )
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(
-            .ultraThinMaterial,
-            in: Rectangle()
-        )
+        .background(.ultraThinMaterial, in: Rectangle())
     }
 
     /// Background gradient
@@ -260,13 +253,16 @@ struct ChatDetailView: View {
 
     /// Load conversation
     private func loadConversation() async {
-        await chatService.openConversation(conversation)
+        chatService.selectRoom(roomId: conversation.id)
+        _ = await chatService.fetchMessages(roomId: conversation.id, before: nil)
     }
 
     /// Load more messages
     private func loadMoreMessages() {
         Task {
-            await chatService.loadMessages(older: true)
+            if let oldestMessage = chatService.currentMessages.first {
+                _ = await chatService.fetchMessages(roomId: conversation.id, before: oldestMessage.createdAt)
+            }
         }
     }
 
@@ -279,7 +275,7 @@ struct ChatDetailView: View {
         isInputFocused = false
 
         Task {
-            await chatService.sendTextMessage(text)
+            _ = await chatService.sendMessage(roomId: conversation.id, content: text, type: .text)
         }
     }
 
@@ -293,7 +289,7 @@ struct ChatDetailView: View {
         // Present conversation info sheet
         // This would show member list, shared media, etc.
         Task {
-            await chatService.sendTextMessage("[ℹ️ Conversation info - Settings would open here]")
+            _ = await chatService.sendMessage(roomId: conversation.id, content: "[ℹ️ Conversation info - Settings would open here]", type: .text)
         }
     }
 
@@ -311,7 +307,7 @@ struct ChatDetailView: View {
 // MARK: - Image Picker (Placeholder)
 
 /// Simple image picker placeholder
-struct ImagePicker: View {
+struct ChatDetailViewImagePicker: View {
     let onImageSelected: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -323,17 +319,17 @@ struct ImagePicker: View {
                     .font(.system(size: 60))
                     .foregroundColor(.purple)
 
-                Text("camera.placeholder.title".localized)
+                Text("Select Photo")
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("camera.placeholder.description".localized)
+                Text("Choose a photo from your library")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding()
 
-                Button("camera.sample.image".localized) {
+                Button("Use Sample Image") {
                     // Use a sample image URL
                     onImageSelected("https://picsum.photos/400/400?random=\(Int.random(in: 1...1000))")
                     dismiss()
@@ -341,11 +337,11 @@ struct ImagePicker: View {
                 .buttonStyle(.borderedProminent)
             }
             .padding()
-            .navigationTitle("camera.select.photo".localized)
+            .navigationTitle("Select Photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("action.cancel".localized) {
+                    Button("Cancel") {
                         dismiss()
                     }
                 }
@@ -372,41 +368,4 @@ struct ImagePicker: View {
         .environmentObject(AppState.shared)
         .environmentObject(ChatService.shared)
     }
-}
-
-#Preview("Bot Chat") {
-    NavigationView {
-        ChatDetailView(
-            conversation: ChatConversation(
-                id: "bot",
-                name: "Clawbot AI",
-                lastMessage: "How can I help?",
-                time: "Now",
-                unreadCount: 0,
-                avatarColor: .purple,
-                isOnline: true
-            )
-        )
-        .environmentObject(AppState.shared)
-        .environmentObject(ChatService.shared)
-    }
-}
-
-#Preview("Dark Mode") {
-    NavigationView {
-        ChatDetailView(
-            conversation: ChatConversation(
-                id: "1",
-                name: "Study Buddy",
-                lastMessage: "Great session!",
-                time: "1h ago",
-                unreadCount: 1,
-                avatarColor: .green,
-                isOnline: true
-            )
-        )
-        .environmentObject(AppState.shared)
-        .environmentObject(ChatService.shared)
-    }
-    .preferredColorScheme(.dark)
 }

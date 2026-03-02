@@ -11,7 +11,7 @@ import MapKit
 // MARK: - Placeholder Location Picker View
 
 /// Placeholder for LocationPickerView when the Map module is not available
-struct LocationPickerView: View {
+struct WorkbenchLocationPicker: View {
     var showAsSheet: Bool = true
 
     var body: some View {
@@ -100,7 +100,7 @@ struct WorkbenchSheet: View {
                 ScheduleListView()
             }
             .sheet(isPresented: $showLocationPicker) {
-                LocationPickerView()
+                WorkbenchLocationPicker()
             }
             .fullScreenCover(isPresented: $showSnapshot) {
                 SnapshotViewWrapper()

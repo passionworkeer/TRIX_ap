@@ -94,10 +94,12 @@ final class KeychainManager: KeychainManagerProtocol {
             .synchronizable(false) // 不同步到 iCloud
             .accessibility(.whenUnlockedThisDeviceOnly) // 仅在设备解锁时可访问
 
-        // Run security validation on initialization
-        if securityValidationEnabled {
-            validateOnInitialization()
-        }
+        // DISABLED: Security validation causes circular dependency
+        // KeychainSecurityValidator.shared calls KeychainManager.shared in init
+        // This will be done later in the app lifecycle
+        // if securityValidationEnabled {
+        //     validateOnInitialization()
+        // }
     }
 
     // MARK: - Security Validation
