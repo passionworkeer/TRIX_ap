@@ -233,8 +233,9 @@ struct ChatListView: View {
 
         // Sync with server
         Task {
-            do {
-                let room = try await chatService.createChatRoom(name: trimmedName, type: .group)
+            let result = await chatService.createChatRoom(name: trimmedName, type: .group)
+            switch result {
+            case .success(let room):
                 // Update with server-generated ID
                 if let index = conversations.firstIndex(where: { $0.id == newConversation.id }) {
                     conversations[index] = ChatConversation(
@@ -248,7 +249,7 @@ struct ChatListView: View {
                     )
                 }
                 SecureLogger.shared.info("Chat room synced with server: \(room.id)")
-            } catch {
+            case .failure(let error):
                 // Keep local conversation even if sync fails
                 SecureLogger.shared.error("Failed to sync chat room with server: \(error)")
             }

@@ -8,6 +8,14 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Location Annotation
+
+/// Annotation item for map marker
+struct LocationAnnotation: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+}
+
 // MARK: - Location Picker View
 
 /// A view for picking a location using MapKit
@@ -31,6 +39,12 @@ struct LocationPickerView: View {
     // MARK: - Properties
 
     var showAsSheet: Bool = true
+
+    // MARK: - Initialization
+
+    init(showAsSheet: Bool = true) {
+        self.showAsSheet = showAsSheet
+    }
 
     // MARK: - Body
 
@@ -91,13 +105,17 @@ struct LocationPickerView: View {
     // MARK: - Map View
 
     private var mapView: some View {
-        Map(coordinateRegion: $region, annotationItems: []) { location in
+        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: selectedLocations) { location in
             MapMarker(coordinate: location.coordinate, tint: .purple)
         }
-        .onTapGesture { coordinate in
-            selectedLocation = coordinate
-        }
         .ignoresSafeArea(edges: .bottom)
+    }
+
+    // MARK: - Computed Properties
+
+    private var selectedLocations: [LocationAnnotation] {
+        guard let location = selectedLocation else { return [] }
+        return [LocationAnnotation(coordinate: location)]
     }
 
     // MARK: - Selected Location Info
@@ -126,5 +144,5 @@ struct LocationPickerView: View {
 // MARK: - Preview
 
 #Preview("Location Picker") {
-    LocationPickerView(showAsSheet: false)
+    LocationPickerView()
 }

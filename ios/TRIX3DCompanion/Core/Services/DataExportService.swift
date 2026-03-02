@@ -431,7 +431,7 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
             }
 
             // Sort all messages by timestamp (newest first)
-            return allMessages.sorted { $0.timestamp > $1.timestamp }
+            return allMessages.sorted { $0.createdAt > $1.createdAt }
 
         case .failure(let error):
             // If chat service fails, fall back to local database
@@ -470,7 +470,7 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
 
                 // Update the last message date for next pagination
                 if let oldestMessage = messages.last {
-                    lastMessageDate = oldestMessage.timestamp
+                    lastMessageDate = oldestMessage.createdAt
                 }
 
                 // If we received fewer messages than page size, we're done
@@ -526,19 +526,19 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
         // Export study sessions
         if !data.studySessions.isEmpty {
             csvLines.append("# Study Sessions")
-            csvLines.append("ID,User ID,Subject,Duration,Started,Ended,Notes,Earned Points,Completed")
+            csvLines.append("ID,User ID,Duration,Started,Completed,Earned Points,Is Completed")
             for session in data.studySessions {
-                let line = [
+                let values = [
                     session.id,
                     session.userId,
-                    session.subject ?? "",
-                    "\(session.duration)",
+                    "\(session.durationMinutes)",
                     ISO8601DateFormatter().string(from: session.startedAt),
-                    session.endedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "",
-                    session.notes ?? "",
+                    session.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "",
                     "\(session.earnedPoints ?? 0)",
                     "\(session.isCompleted)"
-                ].map { escapeCSV($0) }.joined(separator: ",")
+                ]
+                let escapedValues = values.map { escapeCSV($0) }
+                let line = escapedValues.joined(separator: ",")
                 csvLines.append(line)
             }
             csvLines.append("")
@@ -675,7 +675,7 @@ extension ExportableData {
 
     /// Get study statistics summary
     var studyStats: String {
-        let totalDuration = studySessions.reduce(0) { $0 + $1.duration }
+        let totalDuration = studySessions.reduce(into: 0) { $0 += $1.durationMinutes }
         let completedCount = studySessions.filter { $0.isCompleted }.count
         let totalPoints = studySessions.compactMap { $0.earnedPoints }.reduce(0, +)
 

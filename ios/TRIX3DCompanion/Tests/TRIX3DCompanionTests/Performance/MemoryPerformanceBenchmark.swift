@@ -30,7 +30,7 @@ final class MemoryPerformanceBenchmark: XCTestCase {
     // MARK: - Setup
 
     override func setUpWithError() throws {
-        super.setUpWithError()
+        try super.setUpWithError()
         baselineMemoryMB = currentMemoryUsageMB()
         print("Baseline memory: \(String(format: "%.1f", baselineMemoryMB)) MB")
     }
@@ -213,7 +213,7 @@ final class MemoryPerformanceBenchmark: XCTestCase {
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
 
         let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: count) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
                 task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
             }
         }

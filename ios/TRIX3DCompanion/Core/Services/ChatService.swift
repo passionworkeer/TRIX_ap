@@ -764,7 +764,7 @@ extension ChatService {
             return await fetchMessages(roomId: roomId, before: nil)
         }
 
-        return await fetchMessages(roomId: roomId, before: lastMessage.timestamp)
+        return await fetchMessages(roomId: roomId, before: lastMessage.createdAt)
     }
 
     /// Search messages in current room

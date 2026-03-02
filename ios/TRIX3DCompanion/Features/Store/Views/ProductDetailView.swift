@@ -172,7 +172,7 @@ struct ProductDetailView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(viewModel.features, id: \.self) { feature in
-                    FeatureRow(icon: "checkmark.circle.fill", text: feature)
+                    ProductFeatureRow(icon: "checkmark.circle.fill", text: feature)
                 }
             }
         }
@@ -349,8 +349,8 @@ struct ProductDetailView: View {
 
 // MARK: - Feature Row
 
-/// Feature row component
-struct FeatureRow: View {
+/// Feature row component for product details
+struct ProductFeatureRow: View {
     let icon: String
     let text: String
 

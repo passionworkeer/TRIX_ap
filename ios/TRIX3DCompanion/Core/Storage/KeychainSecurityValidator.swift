@@ -80,17 +80,19 @@ final class KeychainSecurityValidator {
     /// Current security configuration
     private(set) var config: SecurityConfig
 
-    /// Keychain manager reference
-    private let keychainManager: KeychainManager
-
     /// Lock for concurrent operations
     private let lock = NSLock()
+
+    /// Keychain manager reference - computed to avoid circular dependency
+    private var keychainManager: KeychainManager {
+        return KeychainManager.shared
+    }
 
     // MARK: - Initialization
 
     private init(config: SecurityConfig = .default) {
         self.config = config
-        self.keychainManager = KeychainManager.shared
+        // Important: Don't access keychainManager here to avoid circular dependency
     }
 
     // MARK: - Public Validation Methods

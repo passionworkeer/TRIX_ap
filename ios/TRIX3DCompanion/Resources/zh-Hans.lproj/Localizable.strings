@@ -192,3 +192,26 @@
 "pairing.code" = "配对码";
 "pairing.success" = "配对成功！";
 "pairing.failed" = "配对失败";
+
+// MARK: - Home
+"home.greeting" = "首页";
+"home.welcome" = "欢迎回来";
+"home.quick.actions" = "快捷功能";
+"home.overview" = "概览";
+"home.recent.activity" = "最近动态";
+"home.activity.study.complete" = "完成45分钟学习";
+"home.activity.points.earned" = "+50 积分";
+"home.activity.joined" = "加入房间";
+"home.activity.joined.room" = "进入数学学习房间";
+"hours.ago" = "小时前";
+"days" = "天";
+"study.week" = "本周";
+"profile.status" = "状态";
+
+// MARK: - Workbench
+"workbench.title" = "工作台";
+"workbench.subtitle" = "快捷功能入口";
+"workbench.snapshot" = "快拍";
+"workbench.location" = "位置";
+"workbench.schedule" = "日程";
+"workbench.todo" = "待办";

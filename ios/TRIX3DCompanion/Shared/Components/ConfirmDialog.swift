@@ -97,9 +97,7 @@ struct ConfirmDialog: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(
-                                isDestructive ? ButtonStyle.destructive.fillStyle : ButtonStyle.default.fillStyle
-                            )
+                            .background(isDestructive ? Color.red : Color.purple)
                             .cornerRadius(12)
                     }
                     .buttonStyle(.plain)
@@ -117,11 +115,11 @@ struct ConfirmDialog: View {
                 }
             }
             .padding(24)
-            .background(
+            .background {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
+                    .fill(Material.ultraThinMaterial)
+            }
+            .overlay {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(
                         LinearGradient(
@@ -131,7 +129,7 @@ struct ConfirmDialog: View {
                         ),
                         lineWidth: 1
                     )
-            )
+            }
             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
             .padding(.horizontal, 40)
             .transition(.scale.combined(with: .opacity))

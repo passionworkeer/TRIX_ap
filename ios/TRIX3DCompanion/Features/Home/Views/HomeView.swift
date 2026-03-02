@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Home View
 
 /// Main home screen showing user overview and quick actions
@@ -50,7 +55,7 @@ struct HomeView: View {
                 }
             }
             .background(backgroundGradient)
-            .navigationTitle("Home")
+            .navigationTitle(loc("home.greeting"))
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 await refreshData()
@@ -64,7 +69,7 @@ struct HomeView: View {
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Welcome back,")
+                Text(loc("home.welcome"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
@@ -85,7 +90,7 @@ struct HomeView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.purple, .pink],
+                            colors: [Color.brandPurple, Color.brandPink],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -107,9 +112,9 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "person.circle.fill")
-                    .foregroundColor(.purple)
+                    .foregroundColor(Color.brandPurple)
 
-                Text("My Profile")
+                Text(loc("profile.title"))
                     .font(.headline)
                     .fontWeight(.semibold)
 
@@ -119,7 +124,7 @@ struct HomeView: View {
             Divider()
 
             HStack {
-                Label("Points", systemImage: "star.fill")
+                Label(loc("profile.points"), systemImage: "star.fill")
                     .foregroundColor(.yellow)
                 Spacer()
                 Text("\(appState.userPoints)")
@@ -127,7 +132,7 @@ struct HomeView: View {
             }
 
             HStack {
-                Label("Study Time", systemImage: "clock.fill")
+                Label(loc("study.total.time"), systemImage: "clock.fill")
                     .foregroundColor(.blue)
                 Spacer()
                 Text(appState.formattedStudyTime)
@@ -135,10 +140,10 @@ struct HomeView: View {
             }
 
             HStack {
-                Label("Status", systemImage: appState.isStudying ? "book.fill" : "moon.fill")
+                Label(loc("profile.status"), systemImage: appState.isStudying ? "book.fill" : "moon.fill")
                     .foregroundColor(appState.isStudying ? .green : .gray)
                 Spacer()
-                Text(appState.isStudying ? "Studying" : "Idle")
+                Text(appState.isStudying ? loc("profile.currently.studying") : loc("profile.idle"))
                     .fontWeight(.semibold)
             }
         }
@@ -151,34 +156,34 @@ struct HomeView: View {
     /// Quick actions section
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Actions")
+            Text(loc("home.quick.actions"))
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
 
             HStack(spacing: 16) {
                 QuickActionButton(
-                    title: "Start Study",
+                    title: loc("study.start"),
                     icon: "play.circle.fill",
-                    color: .purple
+                    color: Color.brandPurple
                 ) {
-                    // Action
+                    // Navigate to study
                 }
 
                 QuickActionButton(
-                    title: "Join Room",
+                    title: loc("study.join.room"),
                     icon: "person.2.fill",
-                    color: .blue
+                    color: Color.blue
                 ) {
-                    // Action
+                    // Join room
                 }
 
                 QuickActionButton(
-                    title: "View Stats",
+                    title: loc("profile.stats"),
                     icon: "chart.bar.fill",
-                    color: .green
+                    color: Color.green
                 ) {
-                    // Action
+                    // View stats
                 }
             }
         }
@@ -187,31 +192,31 @@ struct HomeView: View {
     /// Statistics section
     private var statsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Overview")
+            Text(loc("home.overview"))
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
 
             HStack(spacing: 12) {
                 HomeStatCard(
-                    title: "Today",
+                    title: loc("study.today.time"),
                     value: "2h 15m",
                     icon: "sun.max.fill",
                     color: .orange
                 )
 
                 HomeStatCard(
-                    title: "This Week",
+                    title: loc("study.week"),
                     value: "12h 30m",
                     icon: "calendar",
-                    color: .purple
+                    color: Color.brandPurple
                 )
 
                 HomeStatCard(
-                    title: "Streak",
-                    value: "7 days",
+                    title: loc("study.streak"),
+                    value: "7 " + loc("days"),
                     icon: "flame.fill",
-                    color: .red
+                    color: Color.red
                 )
             }
         }
@@ -220,7 +225,7 @@ struct HomeView: View {
     /// Recent activity section
     private var recentActivitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Activity")
+            Text(loc("home.recent.activity"))
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
@@ -228,23 +233,23 @@ struct HomeView: View {
             VStack(spacing: 8) {
                 ActivityRow(
                     icon: "book.fill",
-                    title: "Study Session",
-                    description: "Completed 45min study session",
-                    time: "2 hours ago"
+                    title: loc("study.title"),
+                    description: loc("home.activity.study.complete"),
+                    time: "2 " + loc("hours.ago")
                 )
 
                 ActivityRow(
                     icon: "star.fill",
-                    title: "Points Earned",
-                    description: "+50 points for studying",
-                    time: "2 hours ago"
+                    title: loc("points.earned"),
+                    description: loc("home.activity.points.earned"),
+                    time: "2 " + loc("hours.ago")
                 )
 
                 ActivityRow(
                     icon: "person.2.fill",
-                    title: "Joined Room",
-                    description: "Entered 'Math Study' room",
-                    time: "5 hours ago"
+                    title: loc("home.activity.joined"),
+                    description: loc("home.activity.joined.room"),
+                    time: "5 " + loc("hours.ago")
                 )
             }
         }
@@ -254,8 +259,8 @@ struct HomeView: View {
     private var backgroundGradient: some View {
         LinearGradient(
             colors: [
-                Color.purple.opacity(0.1),
-                Color.pink.opacity(0.05),
+                Color.brandPurple.opacity(0.1),
+                Color.brandPink.opacity(0.05),
                 Color.clear
             ],
             startPoint: .topLeading,

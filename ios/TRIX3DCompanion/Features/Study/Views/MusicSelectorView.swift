@@ -103,14 +103,14 @@ struct MusicSelectorView: View {
             HStack(spacing: 12) {
                 Image(systemName: "speaker.fill")
                     .font(.caption)
-                    .foregroundColor(.gray400)
+                    .foregroundColor(Color.gray.opacity(0.6))
 
                 Slider(value: $audioPlayer.volume, in: 0...1)
                     .tint(.brandPurple)
 
                 Image(systemName: "speaker.wave.3.fill")
                     .font(.caption)
-                    .foregroundColor(.gray400)
+                    .foregroundColor(Color.gray.opacity(0.6))
             }
         }
         .padding()
@@ -176,7 +176,7 @@ private struct CategoryButton: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(isSelected ? Color.brandPurple : Color.white.opacity(0.1))
-                .foregroundColor(isSelected ? .white : .gray300)
+                .foregroundColor(isSelected ? .white : Color.gray.opacity(0.3))
                 .cornerRadius(20)
         }
     }
@@ -195,7 +195,7 @@ private struct TrackButton: View {
             VStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color.brandPurple.opacity(0.2) : Color.white.opacity(0.05))
+                        .fill(isSelected ? Color.purple.opacity(0.2) : Color.white.opacity(0.05))
                         .frame(height: 70)
 
                     Text(track.icon)
@@ -206,7 +206,7 @@ private struct TrackButton: View {
                         HStack(spacing: 2) {
                             ForEach(0..<3) { index in
                                 RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.brandPurple)
+                                    .fill(Color.purple)
                                     .frame(width: 3, height: CGFloat(8 + index * 4))
                             }
                         }
@@ -218,12 +218,12 @@ private struct TrackButton: View {
                     Text(track.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(isSelected ? .brandPurple : .white)
+                        .foregroundColor(isSelected ? Color.purple : .white)
                         .lineLimit(1)
 
                     Text(track.nameEn)
                         .font(.caption2)
-                        .foregroundColor(.gray500)
+                        .foregroundColor(Color.gray.opacity(0.5))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -231,7 +231,7 @@ private struct TrackButton: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? Color.brandPurple : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 2)
             )
         }
     }

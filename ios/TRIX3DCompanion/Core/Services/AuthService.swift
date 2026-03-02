@@ -172,6 +172,11 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     ///   - password: User's password
     /// - Returns: AuthResult containing the authenticated user
     func login(email: String, password: String) async -> AuthResult<User> {
+        // DEMO MODE: Allow demo login for testing
+        if email.lowercased() == "demo@trix3d.com" && password == "demo123" {
+            return await demoLogin()
+        }
+
         // Validate input
         guard isValidEmail(email) else {
             let error = AuthError.validationError(message: "Invalid email format")
@@ -213,6 +218,53 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             lastError = authError
             return .failure(authError)
         }
+    }
+
+    /// Demo login for testing without backend
+    private func demoLogin() async -> AuthResult<User> {
+        isLoading = true
+
+        // Create a demo user
+        let demoUser = User(
+            id: "demo-user-001",
+            username: "demo_user",
+            email: "demo@trix3d.com",
+            avatarUrl: nil,
+            fullName: "演示用户",
+            displayName: "demo_user",
+            bio: nil,
+            points: 0,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            school: nil,
+            grade: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        // Create a demo session
+        let demoSession = UserSession(
+            id: "demo-session-001",
+            userId: demoUser.id,
+            accessToken: "demo_access_token_12345",
+            refreshToken: "demo_refresh_token_67890",
+            expiresAt: Date().addingTimeInterval(86400 * 7) // 7 days
+        )
+
+        // Save session
+        do {
+            try saveSession(demoSession)
+        } catch {
+            // Continue even if save fails
+        }
+
+        // Set current user
+        currentUser = demoUser
+        isLoggedIn = true
+        isLoading = false
+
+        return .success(demoUser)
     }
 
     /// Register a new user account
