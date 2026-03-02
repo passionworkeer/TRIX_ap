@@ -82,10 +82,10 @@ struct MessageCell: View {
     /// Message bubble
     @ViewBuilder
     private var messageBubble: some View {
-        switch message.messageType {
+        switch message.type {
         case .image:
             ImageMessageView(
-                imageURL: message.mediaUri ?? "",
+                imageURL: message.mediaUrl ?? "",
                 isCurrentUser: isCurrentUser
             )
         default:
@@ -95,7 +95,7 @@ struct MessageCell: View {
 
     /// Text message bubble
     private var textMessageBubble: some View {
-        Text(message.text)
+        Text(message.content)
             .font(.body)
             .foregroundColor(isCurrentUser ? .white : .primary)
             .padding(.horizontal, 16)
@@ -140,7 +140,7 @@ struct MessageCell: View {
     /// Timestamp view
     private var timestampView: some View {
         HStack(spacing: 4) {
-            Text(formatTimestamp(message.timestamp))
+            Text(formatTimestamp(message.createdAt))
                 .font(.caption2)
                 .foregroundColor(.secondary)
 

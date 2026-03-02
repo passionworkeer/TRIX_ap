@@ -10,24 +10,32 @@ import StoreKit
 import Combine
 @testable import TRIX3DCompanion
 
+// Type aliases to resolve ambiguity
+typealias AppStoreKitError = TRIX3DCompanion.StoreKitError
+typealias AppSubscriptionStatus = TRIX3DCompanion.SubscriptionStatus
+typealias AppStoreProduct = TRIX3DCompanion.StoreProduct
+
 // MARK: - Mock StoreKitServiceProtocol
 
 @MainActor
 final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
 
-    @Published var availableProducts: [StoreProduct] = []
+    @Published var availableProducts: [AppStoreProduct] = []
     @Published var isLoadingProducts: Bool = false
-    @Published var subscriptionStatus: SubscriptionStatus?
+    @Published var subscriptionStatus: AppSubscriptionStatus?
     @Published var isPurchasing: Bool = false
-    @Published var lastError: StoreKitError?
+    @Published var lastError: AppStoreKitError?
 
     // Test control properties
     var shouldFailProductLoad = false
     var shouldFailPurchase = false
     var shouldReturnPending = false
     var shouldReturnCancelled = false
-    var mockError: StoreKitError?
+    var mockError: AppStoreKitError?
     var mockTransactions: [TransactionInfo] = []
+    var mockReceiptData: String?
+    var mockLatestTransactionId: String?
+    var mockTransactionInfo: TransactionInfo?
 
     // Call tracking
     var loadProductsCalled = false
@@ -37,9 +45,13 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
     var restorePurchasesCalled = false
     var checkSubscriptionStatusCalled = false
     var getTransactionHistoryCalled = false
+    var getReceiptDataCalled = false
+    var getLatestTransactionIdCalled = false
+    var getTransactionInfoCalled = false
+    var prepareVerificationPayloadCalled = false
     var clearErrorCalled = false
 
-    func loadProducts(productIds: [String]) async -> Result<Void, StoreKitError> {
+    func loadProducts(productIds: [String]) async -> Result<Void, AppStoreKitError> {
         loadProductsCalled = true
         loadProductsCalledWithIds = productIds
         isLoadingProducts = true
@@ -90,7 +102,7 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
         return .success(transaction: mockTransaction)
     }
 
-    func restorePurchases() async -> Result<[TransactionInfo], StoreKitError> {
+    func restorePurchases() async -> Result<[TransactionInfo], AppStoreKitError> {
         restorePurchasesCalled = true
         lastError = nil
 
@@ -103,7 +115,7 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
         return .success(mockTransactions)
     }
 
-    func checkSubscriptionStatus() async -> SubscriptionStatus? {
+    func checkSubscriptionStatus() async -> AppSubscriptionStatus? {
         checkSubscriptionStatusCalled = true
         return subscriptionStatus
     }
@@ -113,6 +125,29 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
         return mockTransactions
     }
 
+    func getReceiptData() async -> String? {
+        getReceiptDataCalled = true
+        return mockReceiptData
+    }
+
+    func getLatestTransactionId(for productId: String) async -> String? {
+        getLatestTransactionIdCalled = true
+        return mockLatestTransactionId
+    }
+
+    func getTransactionInfo(transactionId: String) async -> TransactionInfo? {
+        getTransactionInfoCalled = true
+        return mockTransactionInfo
+    }
+
+    func prepareVerificationPayload(transaction: StoreKit.Transaction, productId: String) -> [String: Any]? {
+        prepareVerificationPayloadCalled = true
+        return [
+            "transactionId": transaction.id,
+            "productId": productId
+        ]
+    }
+
     func clearError() {
         clearErrorCalled = true
         lastError = nil
@@ -120,12 +155,21 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
 
     // MARK: - Helper Methods
 
-    private func createMockProducts(for ids: [String]) -> [StoreProduct] {
+    private func createMockProducts(for ids: [String]) -> [AppStoreProduct] {
         return ids.map { id in
             let type = StoreProductConfiguration.productType(for: id) ?? .points
             let points = StoreProductConfiguration.pointsForProduct(id)
 
-            return StoreProduct(
+            // Create a mock StoreKit.Product
+            let mockProduct = MockProductData(
+                id: id,
+                displayName: "Mock Product \(id)",
+                description: "Mock description for \(id)",
+                displayPrice: "¥9.99",
+                type: .autoRenewable
+            )
+
+            return AppStoreProduct(
                 id: id,
                 name: "Mock Product \(id)",
                 description: "Mock description for \(id)",
@@ -134,46 +178,38 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
                 type: type,
                 points: points,
                 subscriptionPeriod: type == .subscription ? SubscriptionPeriod(value: 1, unit: .month) : nil,
-                product: MockProduct()
+                product: AnyProduct(mockProduct)
             )
         }
     }
 
     private func createMockTransaction(productId: String) -> Transaction {
-        return MockTransaction(productID: productId)
+        return Transaction(productID: productID, transactionID: 123456789, purchaseDate: Date())
     }
 }
 
-// MARK: - Mock Transaction
+// MARK: - Mock Transaction Data (simple struct for testing)
 
-final class MockTransaction: Transaction {
-    let mockProductID: String
-    let mockID: UInt64 = 123456789
-    let mockPurchaseDate: Date = Date()
-
-    init(productID: String) {
-        self.mockProductID = productID
-    }
-
-    override var productID: String { mockProductID }
-    override var id: UInt64 { mockID }
-    override var purchaseDate: Date { mockPurchaseDate }
-    override var expirationDate: Date? { nil }
-    override var quantity: Int { 1 }
-    override var revocationDate: Date? { nil }
-    override var originalID: UInt64 { mockID }
+struct MockTransactionData {
+    let productID: String
+    let transactionID: UInt64 = 123456789
+    let purchaseDate: Date = Date()
 }
 
-// MARK: - Mock Product
+// MARK: - Mock Product Data (simple struct, not inheriting)
 
-final class MockProduct: Product {
-    override var id: String { "mock.product.id" }
-    override var displayName: String { "Mock Product" }
-    override var description: String { "Mock Description" }
-    override var displayPrice: String { "¥9.99" }
-    override var priceFormatStyle: Style { Style() }
-    override var type: ProductType { .autoRenewable }
-    override var subscriptionPeriod: Product.SubscriptionPeriod? { nil }
+struct MockProductData {
+    let id: String
+    let displayName: String
+    let description: String
+    let displayPrice: String
+    let type: ProductType
+}
+
+enum ProductType: String, Codable {
+    case consumable
+    case nonConsumable
+    case subscription
 }
 
 // MARK: - StoreKitService Tests
@@ -456,7 +492,7 @@ final class StoreKitServiceTests: XCTestCase {
 
     func testCheckSubscriptionStatus_Active() async {
         // Given
-        let status = SubscriptionStatus(
+        let status = AppSubscriptionStatus(
             state: .subscribed,
             renewalInfo: nil,
             expirationDate: Date().addingTimeInterval(86400),
@@ -475,7 +511,7 @@ final class StoreKitServiceTests: XCTestCase {
 
     func testCheckSubscriptionStatus_Expired() async {
         // Given
-        let status = SubscriptionStatus(
+        let status = AppSubscriptionStatus(
             state: .expired,
             renewalInfo: nil,
             expirationDate: Date().addingTimeInterval(-86400),
@@ -504,7 +540,7 @@ final class StoreKitServiceTests: XCTestCase {
 
     func testSubscriptionStatus_InGracePeriod() async {
         // Given
-        let status = SubscriptionStatus(
+        let status = AppSubscriptionStatus(
             state: .inGracePeriod,
             renewalInfo: nil,
             expirationDate: Date().addingTimeInterval(-3600),
@@ -521,7 +557,7 @@ final class StoreKitServiceTests: XCTestCase {
 
     func testSubscriptionStatus_InBillingRetry() async {
         // Given
-        let status = SubscriptionStatus(
+        let status = AppSubscriptionStatus(
             state: .inBillingRetryPeriod,
             renewalInfo: nil,
             expirationDate: Date().addingTimeInterval(-3600),
@@ -670,7 +706,7 @@ final class StoreKitServiceTests: XCTestCase {
     func testLastError_PublishesChanges() async {
         // Given
         let expectation = expectation(description: "Error publishes")
-        var receivedError: StoreKitError?
+        var receivedError: AppStoreKitError?
 
         sut.$lastError
             .dropFirst()
@@ -770,17 +806,17 @@ final class StoreKitServiceTests: XCTestCase {
 
     func testStoreKitError_IsRecoverable() {
         // Then
-        XCTAssertFalse(StoreKitError.userCancelled.isRecoverable)
-        XCTAssertFalse(StoreKitError.productNotFound.isRecoverable)
-        XCTAssertTrue(StoreKitError.verificationFailed.isRecoverable)
-        XCTAssertTrue(StoreKitError.configurationError.isRecoverable)
+        XCTAssertFalse(AppStoreKitError.userCancelled.isRecoverable)
+        XCTAssertFalse(AppStoreKitError.productNotFound.isRecoverable)
+        XCTAssertTrue(AppStoreKitError.verificationFailed.isRecoverable)
+        XCTAssertTrue(AppStoreKitError.configurationError.isRecoverable)
     }
 
     func testStoreKitError_ErrorDescription() {
         // Then
-        XCTAssertNotNil(StoreKitError.productNotFound.errorDescription)
-        XCTAssertNotNil(StoreKitError.userCancelled.errorDescription)
-        XCTAssertNotNil(StoreKitError.verificationFailed.errorDescription)
-        XCTAssertNotNil(StoreKitError.configurationError.errorDescription)
+        XCTAssertNotNil(AppStoreKitError.productNotFound.errorDescription)
+        XCTAssertNotNil(AppStoreKitError.userCancelled.errorDescription)
+        XCTAssertNotNil(AppStoreKitError.verificationFailed.errorDescription)
+        XCTAssertNotNil(AppStoreKitError.configurationError.errorDescription)
     }
 }

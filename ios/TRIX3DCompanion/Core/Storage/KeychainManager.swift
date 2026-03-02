@@ -2,6 +2,20 @@ import Foundation
 import Security
 import KeychainAccess
 
+// MARK: - KeychainManager Protocol
+
+/// Protocol for Keychain Manager operations to enable testing with mocks
+protocol KeychainManagerProtocol {
+    func save(key: String, data: Data) throws
+    func get(key: String) -> Data?
+    func delete(key: String) throws
+    func savePairedDevice(deviceId: String, deviceName: String) throws
+    func getPairedDeviceId() -> String?
+    func getPairedDeviceName() -> String?
+    func removePairedDevice() throws
+    func migratePairingDataFromUserDefaults() -> Bool
+}
+
 /// Keychain 管理器 - 安全存储敏感数据
 ///
 /// 使用 KeychainAccess 库简化 Keychain 操作，提供以下安全特性：
@@ -26,7 +40,7 @@ import KeychainAccess
 ///     print("User is logged in")
 /// }
 /// ```
-final class KeychainManager {
+final class KeychainManager: KeychainManagerProtocol {
 
     // MARK: - Singleton
 

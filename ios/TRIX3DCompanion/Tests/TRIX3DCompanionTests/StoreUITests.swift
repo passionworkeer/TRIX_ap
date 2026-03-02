@@ -9,6 +9,7 @@
 import XCTest
 import SwiftUI
 import Combine
+import StoreKit
 @testable import TRIX3DCompanion
 
 // MARK: - Accessibility Identifiers
@@ -64,9 +65,9 @@ final class MockStoreKitServiceForUI: StoreKitServiceProtocol, ObservableObject 
 
     @Published var availableProducts: [StoreProduct] = []
     @Published var isLoadingProducts: Bool = false
-    @Published var subscriptionStatus: SubscriptionStatus?
+    @Published var subscriptionStatus: TRIX3DCompanion.SubscriptionStatus?
     @Published var isPurchasing: Bool = false
-    @Published var lastError: StoreKitError?
+    @Published var lastError: TRIX3DCompanion.StoreKitError?
 
     // Test configuration
     var shouldSucceedLoadProducts = true
@@ -78,7 +79,7 @@ final class MockStoreKitServiceForUI: StoreKitServiceProtocol, ObservableObject 
     var loadProductsCallCount = 0
     var purchaseCallCount = 0
 
-    func loadProducts(productIds: [String]) async -> Result<Void, StoreKitError> {
+    func loadProducts(productIds: [String]) async -> Result<Void, TRIX3DCompanion.StoreKitError> {
         loadProductsCallCount += 1
         isLoadingProducts = true
 
@@ -173,11 +174,11 @@ final class MockStoreKitServiceForUI: StoreKitServiceProtocol, ObservableObject 
         return .success(transaction: transaction)
     }
 
-    func restorePurchases() async -> Result<[TransactionInfo], StoreKitError> {
+    func restorePurchases() async -> Result<[TransactionInfo], TRIX3DCompanion.StoreKitError> {
         return .success([])
     }
 
-    func checkSubscriptionStatus() async -> SubscriptionStatus? {
+    func checkSubscriptionStatus() async -> TRIX3DCompanion.SubscriptionStatus? {
         return subscriptionStatus
     }
 
@@ -197,7 +198,7 @@ final class MockStoreKitServiceForUI: StoreKitServiceProtocol, ObservableObject 
         return nil
     }
 
-    func prepareVerificationPayload(transaction: Transaction, productId: String) -> [String: Any]? {
+    func prepareVerificationPayload(transaction: StoreKit.Transaction, productId: String) -> [String: Any]? {
         return nil
     }
 
@@ -208,34 +209,26 @@ final class MockStoreKitServiceForUI: StoreKitServiceProtocol, ObservableObject 
 
 // MARK: - Mock Product
 
-final class MockProductForUI: Product {
-    override var id: String { "mock.product" }
-    override var displayName: String { "Mock Product" }
-    override var description: String { "Mock Description" }
-    override var displayPrice: String { "¥6.00" }
-    override var priceFormatStyle: Style { Style() }
-    override var type: ProductType { .points }
-    override var subscriptionPeriod: Product.SubscriptionPeriod? { nil }
+// Use simple struct instead of trying to inherit from StoreKit.Product
+struct MockProductForUI {
+    let id: String = "mock.product"
+    let displayName: String = "Mock Product"
+    let descriptionText: String = "Mock Description"
+    let displayPrice: String = "¥6.00"
+    let type: TRIX3DCompanion.ProductType = .points
 }
 
 // MARK: - Mock Transaction
 
-final class MockTransactionForUI: Transaction {
-    let mockProductID: String
-    let mockID: UInt64 = 123456789
-    let mockPurchaseDate: Date = Date()
+// Use simple struct instead of trying to inherit from StoreKit.Transaction
+struct MockTransactionForUI {
+    let productID: String
+    let transactionID: UInt64 = 123456789
+    let purchaseDate: Date = Date()
 
     init(productID: String) {
-        self.mockProductID = productID
+        self.productID = productID
     }
-
-    override var productID: String { mockProductID }
-    override var id: UInt64 { mockID }
-    override var purchaseDate: Date { mockPurchaseDate }
-    override var expirationDate: Date? { nil }
-    override var quantity: Int { 1 }
-    override var revocationDate: Date? { nil }
-    override var originalID: UInt64 { mockID }
 }
 
 // MARK: - Mock Points Service
@@ -346,6 +339,45 @@ final class MockPaymentServiceForUI: PaymentServiceProtocol, ObservableObject {
     @Published var completedOrders: [Order] = []
     @Published var lastError: PaymentError?
 
+    // Required by PaymentServiceProtocol
+    var pendingAppOrders: [AppOrder] {
+        pendingOrders.map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: .completed,
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
+    var completedAppOrders: [AppOrder] {
+        completedOrders.map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: .completed,
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
     // Test configuration
     var shouldSucceed = true
     var shouldSimulatePending = false
@@ -445,15 +477,90 @@ final class MockPaymentServiceForUI: PaymentServiceProtocol, ObservableObject {
         transactionId: String,
         productId: String,
         receiptData: String?
-    ) async -> Result<Order, PaymentError> {
+    ) async -> Result<AppOrder, PaymentError> {
         guard let order = mockOrders.first else {
             return .failure(.orderNotFound)
         }
-        return .success(order)
+        let appOrder = AppOrder(
+            id: order.id,
+            userId: order.userId,
+            productId: order.productId,
+            productType: order.productType,
+            amount: order.amount,
+            currency: order.currency,
+            status: .completed,
+            paymentMethod: order.paymentMethod,
+            transactionId: order.transactionId,
+            points: order.points,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+        )
+        return .success(appOrder)
     }
 
     func clearError() {
         lastError = nil
+    }
+
+    // MARK: - PaymentServiceProtocol Required Methods
+
+    func getAppOrder(orderId: String) async -> AppOrder? {
+        guard let order = mockOrders.first(where: { $0.id == orderId }) else {
+            return nil
+        }
+        return AppOrder(
+            id: order.id,
+            userId: order.userId,
+            productId: order.productId,
+            productType: order.productType,
+            amount: order.amount,
+            currency: order.currency,
+            status: .completed,
+            paymentMethod: order.paymentMethod,
+            transactionId: order.transactionId,
+            points: order.points,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+        )
+    }
+
+    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder] {
+        return Array(mockOrders.prefix(limit).dropFirst(offset)).map { order in
+            AppOrder(
+                id: order.id,
+                userId: order.userId,
+                productId: order.productId,
+                productType: order.productType,
+                amount: order.amount,
+                currency: order.currency,
+                status: .completed,
+                paymentMethod: order.paymentMethod,
+                transactionId: order.transactionId,
+                points: order.points,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt
+            )
+        }
+    }
+
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
+        return .success(())
+    }
+
+    func getSubscription() async -> PaymentSubscriptionStatus {
+        return PaymentSubscriptionStatus(
+            isActive: false,
+            tier: nil,
+            productId: nil,
+            expiresAt: nil,
+            willAutoRenew: false,
+            startedAt: nil,
+            updatedAt: nil
+        )
+    }
+
+    func restorePurchases() async -> Result<[AppOrder], PaymentError> {
+        return .success([])
     }
 }
 
@@ -872,16 +979,17 @@ final class StoreUITests: XCTestCase {
 // MARK: - View Model Helper Extension
 
 #if DEBUG
-extension StoreViewModel {
-    /// Create preview view model with mock services
-    static func createForTesting(
-        storeKitService: StoreKitServiceProtocol = MockStoreKitServiceForUI(),
-        pointsService: PointsServiceProtocol = MockPointsServiceForUI()
-    ) -> StoreViewModel {
-        StoreViewModel(
-            storeKitService: storeKitService,
-            pointsService: pointsService
-        )
-    }
-}
+// Extension disabled due to Swift 6 concurrency issues
+// extension StoreViewModel {
+//     /// Create preview view model with mock services
+//     static func createForTesting(
+//         storeKitService: StoreKitServiceProtocol = MockStoreKitServiceForUI(),
+//         pointsService: PointsServiceProtocol = MockPointsServiceForUI()
+//     ) -> StoreViewModel {
+//         StoreViewModel(
+//             storeKitService: storeKitService,
+//             pointsService: pointsService
+//         )
+//     }
+// }
 #endif

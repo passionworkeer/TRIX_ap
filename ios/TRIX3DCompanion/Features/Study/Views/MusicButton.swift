@@ -40,7 +40,7 @@ struct MusicButton: View {
                     // 已选择但暂停
                     Image(systemName: "music.note")
                         .font(.system(size: 16))
-                        .foregroundColor(.purple300)
+                        .foregroundColor(.purple)
                 } else {
                     // 未选择
                     Image(systemName: "music.note")
@@ -56,7 +56,7 @@ struct MusicButton: View {
 
 #Preview {
     ZStack {
-        Color.gray900
+        Color.gray
         MusicButton(showMusicSelector: .constant(false))
     }
 }

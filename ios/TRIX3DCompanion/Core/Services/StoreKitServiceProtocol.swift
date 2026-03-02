@@ -26,7 +26,7 @@ struct StoreProduct: Identifiable, Equatable {
     let type: ProductType
     let points: Int?
     let subscriptionPeriod: SubscriptionPeriod?
-    let product: Product
+    let product: Product?
 
     /// Equality check based on ID
     static func == (lhs: StoreProduct, rhs: StoreProduct) -> Bool {

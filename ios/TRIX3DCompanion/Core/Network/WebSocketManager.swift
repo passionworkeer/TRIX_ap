@@ -9,6 +9,26 @@ import Foundation
 import Security
 import Starscream
 
+// MARK: - WebSocketManager Protocol
+
+/// Protocol for WebSocket Manager operations to enable testing with mocks
+protocol WebSocketManagerProtocol {
+    func isConnected() -> Bool
+    func connect(userId: String) async throws
+    func disconnect()
+    func sendMessage(content: String, contentType: BotMessage.MessageContentType, mediaUrl: String?, mediaMimeType: String?)
+    func on(_ event: String, handler: @escaping (Any) -> Void) -> String
+    func pairWithCode(_ code: String)
+    func pairWithToken(_ token: String)
+    func unpair()
+    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void)
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
+    func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
+    func getStudyRoomState(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
+    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
+}
+
 // MARK: - WebSocket Events
 
 /// WebSocket event types
@@ -151,7 +171,7 @@ struct SocketResponseData: Codable {
 // MARK: - WebSocket Manager
 
 /// WebSocket connection manager
-final class WebSocketManager: NSObject {
+final class WebSocketManager: NSObject, WebSocketManagerProtocol {
 
     // MARK: - Singleton
     static let shared = WebSocketManager()
@@ -204,6 +224,11 @@ final class WebSocketManager: NSObject {
     // MARK: - Public Methods
 
     /// Check if connected to WebSocket server
+    func isConnected() -> Bool {
+        return connected
+    }
+
+    /// Check if connected to WebSocket server (alias for compatibility)
     func checkConnected() -> Bool {
         return connected
     }
@@ -363,7 +388,7 @@ final class WebSocketManager: NSObject {
     }
 
     /// Check pairing status
-    func checkPairingStatus(completion: @escaping (Result<SocketResponse, Error>) -> Void) {
+    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
             return
@@ -389,7 +414,7 @@ final class WebSocketManager: NSObject {
         displayName: String,
         avatarUrl: String? = nil,
         maxMembers: Int? = nil,
-        completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void
+        completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void
     ) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
@@ -411,7 +436,7 @@ final class WebSocketManager: NSObject {
         roomCode: String,
         displayName: String,
         avatarUrl: String? = nil,
-        completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void
+        completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void
     ) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
@@ -429,7 +454,7 @@ final class WebSocketManager: NSObject {
     }
 
     /// Leave study room
-    func leaveStudyRoom(roomCode: String? = nil, completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void) {
+    func leaveStudyRoom(roomCode: String? = nil, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
             return
@@ -440,7 +465,7 @@ final class WebSocketManager: NSObject {
     }
 
     /// Host action in study room
-    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void) {
+    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
             return
@@ -451,7 +476,7 @@ final class WebSocketManager: NSObject {
     }
 
     /// Get study room state
-    func getStudyRoomState(roomCode: String? = nil, completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void) {
+    func getStudyRoomState(roomCode: String? = nil, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
             return
@@ -511,7 +536,7 @@ final class WebSocketManager: NSObject {
     private func emitEventWithAck<T: Codable, P: Encodable>(
         _ event: String,
         payload: P,
-        completion: @escaping (Result<T, Error>) -> Void
+        completion: @escaping (Result<T, WebSocketError>) -> Void
     ) {
         guard connected else {
             completion(.failure(WebSocketError(code: nil, message: "Not connected to channel server")))
@@ -547,11 +572,11 @@ final class WebSocketManager: NSObject {
             // Timeout after 10 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
                 self?.off(ackEvent, handlerId: capturedHandlerId)
-                completion(.failure(NetworkError.timeout))
+                completion(.failure(WebSocketError(code: nil, message: "Request timeout")))
             }
 
         } catch {
-            completion(.failure(error))
+            completion(.failure(WebSocketError(code: nil, message: error.localizedDescription)))
         }
     }
 

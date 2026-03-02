@@ -87,24 +87,31 @@ final class MockNetworkMonitor: NetworkMonitorProtocol, ObservableObject {
 
     // MARK: - Published Properties
 
-    @Published private(set) var currentStatus: NetworkStatus = .disconnected
     @Published private(set) var isMonitoring: Bool = false
+
+    // MARK: - Protocol Conformance
+
+    var currentStatus: NetworkStatus {
+        _currentStatus.wrappedValue
+    }
+
+    @Published private(set) var _currentStatus: NetworkStatus = .disconnected
 
     // MARK: - Publishers
 
     var statusPublisher: AnyPublisher<NetworkStatus, Never> {
-        $currentStatus.eraseToAnyPublisher()
+        $_currentStatus.eraseToAnyPublisher()
     }
 
     var connectionTypePublisher: AnyPublisher<ConnectionType, Never> {
-        $currentStatus
+        $_currentStatus
             .map { $0.connectionType }
             .removeDuplicates()
             .eraseToAnyPublisher()
     }
 
     var isConnectedPublisher: AnyPublisher<Bool, Never> {
-        $currentStatus
+        $_currentStatus
             .map { $0.isConnected }
             .removeDuplicates()
             .eraseToAnyPublisher()
@@ -144,7 +151,7 @@ final class MockNetworkMonitor: NetworkMonitorProtocol, ObservableObject {
         let connectionType = determineConnectionType(from: mockPath)
         let quality = determineQuality(from: mockPath, connectionType: connectionType)
 
-        currentStatus = NetworkStatus(
+        _currentStatus = NetworkStatus(
             isConnected: mockPath.status == .satisfied,
             connectionType: connectionType,
             quality: quality,

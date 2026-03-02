@@ -22,6 +22,7 @@ import Combine
 @MainActor
 final class MockAuthServiceForProfile: AuthServiceProtocol {
     var isLoggedInValue = true
+    var isLoadingValue = false
     var mockUser: User?
     var shouldFailUpdate = false
 
@@ -33,7 +34,15 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
         return mockUser
     }
 
+    var isLoading: Bool {
+        return isLoadingValue
+    }
+
     func login(email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
         return .failure(.invalidCredentials)
     }
 
@@ -41,11 +50,11 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
         return .success(())
     }
 
-    func refreshToken() async -> AuthResult<Void> {
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
         return .success(())
     }
 
-    func getCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<User> {
         if let user = mockUser {
             return .success(user)
         }

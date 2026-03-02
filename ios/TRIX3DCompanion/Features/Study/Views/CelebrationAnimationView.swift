@@ -57,7 +57,7 @@ struct CelebrationAnimationView: View {
 
                         Text(studyDuration >= 25 ? "太棒了! 你完成了全部专注时间 🎉" : "每一次专注都是进步 💪")
                             .font(.subheadline)
-                            .foregroundColor(.pink200)
+                            .foregroundColor(.pink)
                     }
 
                     // 数据卡片
@@ -101,7 +101,7 @@ struct CelebrationAnimationView: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.yellow400, Color.orange500],
+                        colors: [Color.yellow, Color.orange],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -150,13 +150,13 @@ struct CelebrationAnimationView: View {
     private func companionView(name: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "person.fill")
-                .foregroundColor(.pink300)
+                .foregroundColor(.pink)
 
             Text("和 ")
                 .foregroundColor(.white.opacity(0.8))
             Text(name)
                 .fontWeight(.semibold)
-                .foregroundColor(.pink300)
+                .foregroundColor(.pink)
             Text(" 共度了一段高效时光")
                 .foregroundColor(.white.opacity(0.8))
         }
@@ -166,11 +166,11 @@ struct CelebrationAnimationView: View {
     private var pointsView: some View {
         HStack(spacing: 8) {
             Image(systemName: "bolt.fill")
-                .foregroundColor(.yellow400)
+                .foregroundColor(.yellow)
 
             Text("+\(earnedPoints) 积分")
                 .font(.headline)
-                .foregroundColor(.yellow400)
+                .foregroundColor(.yellow)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)

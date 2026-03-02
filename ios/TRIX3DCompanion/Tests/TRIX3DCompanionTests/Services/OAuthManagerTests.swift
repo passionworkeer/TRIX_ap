@@ -94,12 +94,23 @@ final class MockOAuthManagerDelegate: OAuthManagerDelegate {
 final class MockAuthServiceForOAuth: AuthServiceProtocol {
     var isLoggedIn = false
     var currentUser: User?
+    var isLoading = false
     var shouldFailLogin = false
     var shouldFailLogout = false
+    var shouldFailRegister = false
 
     func login(email: String, password: String) async -> AuthResult<User> {
         if shouldFailLogin {
             return .failure(.invalidCredentials)
+        }
+        currentUser = createMockUser()
+        isLoggedIn = true
+        return .success(currentUser!)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+        if shouldFailRegister {
+            return .failure(.emailAlreadyExists)
         }
         currentUser = createMockUser()
         isLoggedIn = true
@@ -115,26 +126,15 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         return .success(())
     }
 
-    func refreshToken() async -> AuthResult<Void> {
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
         return .success(())
     }
 
-    func getCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<User> {
         if let user = currentUser {
             return .success(user)
         }
         return .failure(.invalidCredentials)
-    }
-
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
-        currentUser = updates
-        return .success(updates)
-    }
-
-    func deleteAccount() async -> AuthResult<Void> {
-        isLoggedIn = false
-        currentUser = nil
-        return .success(())
     }
 
     private func createMockUser() -> User {

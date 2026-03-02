@@ -23,19 +23,32 @@ import Combine
 @MainActor
 final class MockNetworkMonitorForSync: NetworkMonitorProtocol {
     var isConnectedValue = true
-    var statusValue: NetworkStatus = .connected(.wifi)
+    var statusValue: NetworkStatus = NetworkStatus(
+        isConnected: true,
+        connectionType: .wifi,
+        quality: .excellent,
+        timestamp: Date()
+    )
 
-    var isConnected: Bool {
-        return isConnectedValue
-    }
-
-    var status: NetworkStatus {
+    var currentStatus: NetworkStatus {
         return statusValue
     }
 
     var statusPublisher: AnyPublisher<NetworkStatus, Never> {
         Just(statusValue).eraseToAnyPublisher()
     }
+
+    var connectionTypePublisher: AnyPublisher<ConnectionType, Never> {
+        Just(.wifi).eraseToAnyPublisher()
+    }
+
+    var isConnectedPublisher: AnyPublisher<Bool, Never> {
+        Just(isConnectedValue).eraseToAnyPublisher()
+    }
+
+    func startMonitoring() {}
+    func stopMonitoring() {}
+    func getCurrentStatus() async -> NetworkStatus { statusValue }
 }
 
 @MainActor
@@ -181,6 +194,7 @@ final class MockAPIClientForSync: APIClientProtocol {
 @MainActor
 final class MockAuthServiceForSync: AuthServiceProtocol {
     var isLoggedInValue = false
+    var isLoadingValue = false
     var mockUser: User?
 
     var isLoggedIn: Bool {
@@ -191,7 +205,15 @@ final class MockAuthServiceForSync: AuthServiceProtocol {
         return mockUser
     }
 
+    var isLoading: Bool {
+        return isLoadingValue
+    }
+
     func login(email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
         return .failure(.invalidCredentials)
     }
 
@@ -199,8 +221,15 @@ final class MockAuthServiceForSync: AuthServiceProtocol {
         return .success(())
     }
 
-    func refreshToken() async -> AuthResult<Void> {
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
         return .success(())
+    }
+
+    func fetchCurrentUser() async -> AuthResult<User> {
+        if let user = mockUser {
+            return .success(user)
+        }
+        return .failure(.invalidCredentials)
     }
 
     func getCurrentUser() async -> AuthResult<User> {
@@ -753,10 +782,16 @@ extension DataSyncServiceTests {
 
 // MARK: - Mock Protocol Definitions
 
+@MainActor
 protocol NetworkMonitorProtocol {
-    var isConnected: Bool { get }
-    var status: NetworkStatus { get }
+    var currentStatus: NetworkStatus { get }
     var statusPublisher: AnyPublisher<NetworkStatus, Never> { get }
+    var connectionTypePublisher: AnyPublisher<ConnectionType, Never> { get }
+    var isConnectedPublisher: AnyPublisher<Bool, Never> { get }
+
+    func startMonitoring()
+    func stopMonitoring()
+    func getCurrentStatus() async -> NetworkStatus
 }
 
 protocol OfflineCacheServiceProtocol {

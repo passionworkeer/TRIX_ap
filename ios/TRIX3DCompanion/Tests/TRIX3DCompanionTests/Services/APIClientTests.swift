@@ -84,92 +84,25 @@ final class MockURLSession: URLProtocol {
     }
 }
 
-// MARK: - Mock Session for Alamofire Testing
-
-/// Mock Alamofire Session for testing
-final class MockSession: Session {
-    var mockRequest: DataRequest?
-    var mockResponse: AFDataResponse<Data>?
-    var shouldSucceed = true
-    var mockError: AFError?
-
-    override func request(
-        _ url: URLConvertible,
-        method: Alamofire.HTTPMethod,
-        parameters: Parameters?,
-        encoding: ParameterEncoding,
-        headers: HTTPHeaders?,
-        interceptor: RequestInterceptor?
-    ) -> DataRequest {
-        let request = super.request(
-            url,
-            method: method,
-            parameters: parameters,
-            encoding: encoding,
-            headers: headers,
-            interceptor: interceptor
-        )
-        self.mockRequest = request
-        return request
-    }
-
-    func mockSuccessResponse<T: Codable>(_ value: T, decoder: JSONDecoder) {
-        let data = try? JSONEncoder().encode(value)
-        let httpResponse = HTTPURLResponse(
-            url: URL(string: "http://test.com")!,
-            statusCode: 200,
-            httpVersion: nil,
-            headerFields: nil
-        )!
-
-        mockResponse = AFDataResponse(
-            request: nil,
-            response: httpResponse,
-            data: data,
-            metrics: nil,
-            serializationDuration: 0,
-            result: .success(data ?? Data())
-        )
-    }
-
-    func mockFailureResponse(_ error: AFError) {
-        let httpResponse = HTTPURLResponse(
-            url: URL(string: "http://test.com")!,
-            statusCode: 500,
-            httpVersion: nil,
-            headerFields: nil
-        )!
-
-        mockResponse = AFDataResponse(
-            request: nil,
-            response: httpResponse,
-            data: nil,
-            metrics: nil,
-            serializationDuration: 0,
-            result: .failure(error)
-        )
-    }
-}
-
 // MARK: - Mock Request for Retry Testing
 
-final class MockRequest: Request {
+final class MockRequest {
     var mockTask: URLSessionTask?
     var mockRetryCount: Int = 0
 
-    override var task: URLSessionTask? {
+    var task: URLSessionTask? {
         return mockTask
     }
 
-    override var retryCount: Int {
+    var retryCount: Int {
         return mockRetryCount
     }
 
-    override func retry() async throws -> Bool {
+    func retry() async throws -> Bool {
         return true
     }
 
-    override var request: URLRequest? {
+    var request: URLRequest? {
         return URLRequest(url: URL(string: "http://test.com")!)
     }
 }
@@ -196,7 +129,6 @@ final class APIClientTests: XCTestCase {
     // MARK: - Properties
 
     var sut: APIClient!
-    var mockSession: MockSession!
 
     // MARK: - Setup & Teardown
 
@@ -208,7 +140,6 @@ final class APIClientTests: XCTestCase {
 
     override func tearDown() {
         sut = nil
-        mockSession = nil
         MockURLSession.reset()
         super.tearDown()
     }
