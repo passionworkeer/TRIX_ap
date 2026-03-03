@@ -83,6 +83,33 @@ router.put('/user/profile', authMiddleware, async (req, res) => {
   }
 });
 
+// 更新用户头像
+router.post('/user/avatar', authMiddleware, async (req, res) => {
+  try {
+    const { avatar_url } = req.body;
+
+    if (!avatar_url) {
+      return error(res, '请提供头像URL');
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .update({
+        avatar_url,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    success(res, profile, '头像更新成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 // 获取用户统计
 router.get('/user/stats', authMiddleware, async (req, res) => {
   try {

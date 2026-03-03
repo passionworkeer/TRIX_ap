@@ -1243,4 +1243,218 @@ router.get('/pairing/status/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ============================================
+// 获取单个位置
+// ============================================
+
+router.get('/locations/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: location, error } = await supabase
+      .from('user_locations')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (error) throw error;
+    if (!location) return notFound(res, '位置不存在');
+
+    success(res, location);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// ============================================
+// 通知偏好设置
+// ============================================
+
+router.get('/notifications/preferences', authMiddleware, async (req, res) => {
+  try {
+    // 从用户配置中读取通知偏好
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('notification_preferences')
+      .eq('id', req.userId)
+      .single();
+
+    const preferences = profile?.notification_preferences || {
+      push_enabled: true,
+      study_reminder: true,
+      friend_request: true,
+      system_notification: true,
+      study_room_invite: true,
+      mall_promotion: false
+    };
+
+    success(res, preferences);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+router.put('/notifications/preferences', authMiddleware, async (req, res) => {
+  try {
+    const { push_enabled, study_reminder, friend_request, system_notification, study_room_invite, mall_promotion } = req.body;
+
+    const preferences = {
+      push_enabled,
+      study_reminder,
+      friend_request,
+      system_notification,
+      study_room_invite,
+      mall_promotion
+    };
+
+    // 保存到用户配置
+    await supabase
+      .from('profiles')
+      .update({ notification_preferences: preferences })
+      .eq('id', req.userId);
+
+    success(res, preferences, '偏好设置已更新');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// ============================================
+// 学习房间
+// ============================================
+
+// 创建学习房间
+router.post('/study/room/create', authMiddleware, async (req, res) => {
+  try {
+    const { name, max_participants = 5, subject } = req.body;
+
+    // 生成房间码
+    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const { data: room, error } = await supabase
+      .from('study_rooms')
+      .insert({
+        code: roomCode,
+        name: name || `学习房间 ${roomCode}`,
+        host_id: req.userId,
+        max_participants,
+        subject,
+        status: 'waiting'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 添加创建者为参与者
+    await supabase
+      .from('study_room_participants')
+      .insert({
+        room_id: room.id,
+        user_id: req.userId,
+        role: 'host'
+      });
+
+    success(res, room, '房间创建成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 加入学习房间
+router.post('/study/room/join', authMiddleware, async (req, res) => {
+  try {
+    const { room_code } = req.body;
+
+    if (!room_code) {
+      return error(res, '请提供房间码');
+    }
+
+    // 查找房间
+    const { data: room, error: roomError } = await supabase
+      .from('study_rooms')
+      .select('*')
+      .eq('code', room_code.toUpperCase())
+      .single();
+
+    if (roomError || !room) {
+      return notFound(res, '房间不存在');
+    }
+
+    if (room.status === 'ended') {
+      return error(res, '房间已结束');
+    }
+
+    // 检查是否已满
+    const { count } = await supabase
+      .from('study_room_participants')
+      .select('*', { count: 'exact', head: true })
+      .eq('room_id', room.id);
+
+    if (count >= room.max_participants) {
+      return error(res, '房间已满');
+    }
+
+    // 检查是否已在房间中
+    const { data: existing } = await supabase
+      .from('study_room_participants')
+      .select('*')
+      .eq('room_id', room.id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (existing) {
+      return error(res, '你已在房间中');
+    }
+
+    // 加入房间
+    await supabase
+      .from('study_room_participants')
+      .insert({
+        room_id: room.id,
+        user_id: req.userId,
+        role: 'participant'
+      });
+
+    success(res, room, '加入成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 离开学习房间
+router.post('/study/room/leave', authMiddleware, async (req, res) => {
+  try {
+    const { room_id } = req.body;
+
+    // 移除参与者
+    const { error } = await supabase
+      .from('study_room_participants')
+      .delete()
+      .eq('room_id', room_id)
+      .eq('user_id', req.userId);
+
+    if (error) throw error;
+
+    // 检查房间是否还有参与者
+    const { count } = await supabase
+      .from('study_room_participants')
+      .select('*', { count: 'exact', head: true })
+      .eq('room_id', room_id);
+
+    // 如果没有参与者，结束房间
+    if (count === 0) {
+      await supabase
+        .from('study_rooms')
+        .update({ status: 'ended' })
+        .eq('id', room_id);
+    }
+
+    success(res, null, '离开成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 module.exports = router;
