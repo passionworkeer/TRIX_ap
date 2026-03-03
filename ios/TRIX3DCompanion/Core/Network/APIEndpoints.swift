@@ -134,6 +134,57 @@ enum APIEndpoint {
     case pairingDevices
     case pairingDevice(id: String)
 
+    // MARK: - Achievement
+    case achievementList
+    case achievementUnlock(achievementId: String)
+    case achievementCheck
+
+    // MARK: - Friend
+    case friendList
+    case friendAdd
+    case friendRemove(friendId: String)
+    case friendRequests
+    case friendAccept(requestId: String)
+    case friendDecline(requestId: String)
+
+    // MARK: - Mall
+    case mallItems
+    case mallItem(id: String)
+    case mallPurchase
+    case mallPurchaseHistory
+
+    // MARK: - Wardrobe
+    case wardrobeOutfits
+    case wardrobeEquip(outfitId: String)
+    case wardrobeUnequip(outfitId: String)
+
+    // MARK: - Schedule
+    case scheduleList
+    case scheduleCreate
+    case scheduleUpdate(id: String)
+    case scheduleDelete(id: String)
+    case scheduleByDateRange
+    case scheduleUpcoming
+
+    // MARK: - Todo
+    case todoList
+    case todoCreate
+    case todoUpdate(id: String)
+    case todoDelete(id: String)
+    case todoToggle(id: String)
+
+    // MARK: - Study History
+    case studyHistory
+    case studyHistoryDaily
+    case studyHistoryWeekly
+    case studyHistoryMonthly
+
+    // MARK: - Place
+    case placeNearby
+    case placeSearch
+    case placeFavorite
+    case placeFavoriteToggle(placeId: String)
+
     // MARK: - Points
     case points
     case pointsHistory
@@ -228,6 +279,57 @@ enum APIEndpoint {
         case .pairingDevices: return "/pairing/devices"
         case .pairingDevice(let id): return "/pairing/devices/\(id)"
 
+        // Achievement
+        case .achievementList: return "/achievements"
+        case .achievementUnlock(let achievementId): return "/achievements/\(achievementId)/unlock"
+        case .achievementCheck: return "/achievements/check"
+
+        // Friend
+        case .friendList: return "/friends"
+        case .friendAdd: return "/friends"
+        case .friendRemove(let friendId): return "/friends/\(friendId)"
+        case .friendRequests: return "/friends/requests"
+        case .friendAccept(let requestId): return "/friends/requests/\(requestId)/accept"
+        case .friendDecline(let requestId): return "/friends/requests/\(requestId)/decline"
+
+        // Mall
+        case .mallItems: return "/mall/items"
+        case .mallItem(let id): return "/mall/items/\(id)"
+        case .mallPurchase: return "/mall/purchase"
+        case .mallPurchaseHistory: return "/mall/purchase/history"
+
+        // Wardrobe
+        case .wardrobeOutfits: return "/wardrobe/outfits"
+        case .wardrobeEquip(let outfitId): return "/wardrobe/outfits/\(outfitId)/equip"
+        case .wardrobeUnequip(let outfitId): return "/wardrobe/outfits/\(outfitId)/unequip"
+
+        // Schedule
+        case .scheduleList: return "/schedules"
+        case .scheduleCreate: return "/schedules"
+        case .scheduleUpdate(let id): return "/schedules/\(id)"
+        case .scheduleDelete(let id): return "/schedules/\(id)"
+        case .scheduleByDateRange: return "/schedules/range"
+        case .scheduleUpcoming: return "/schedules/upcoming"
+
+        // Todo
+        case .todoList: return "/todos"
+        case .todoCreate: return "/todos"
+        case .todoUpdate(let id): return "/todos/\(id)"
+        case .todoDelete(let id): return "/todos/\(id)"
+        case .todoToggle(let id): return "/todos/\(id)/toggle"
+
+        // Study History
+        case .studyHistory: return "/study/history"
+        case .studyHistoryDaily: return "/study/history/daily"
+        case .studyHistoryWeekly: return "/study/history/weekly"
+        case .studyHistoryMonthly: return "/study/history/monthly"
+
+        // Place
+        case .placeNearby: return "/places/nearby"
+        case .placeSearch: return "/places/search"
+        case .placeFavorite: return "/places/favorites"
+        case .placeFavoriteToggle(let placeId): return "/places/\(placeId)/favorite"
+
         // Points
         case .points: return "/points"
         case .pointsHistory: return "/points/history"
@@ -281,6 +383,9 @@ enum APIEndpoint {
             // POST /payments/restore
             // Restore previous purchases from App Store
             return "/payments/restore"
+        @unknown default:
+            // Handle unknown cases for future-proofing
+            return "/unknown"
         }
     }
 
@@ -293,11 +398,19 @@ enum APIEndpoint {
              .studyRoomCreate, .studyRoomJoin, .studyRoomLeave,
              .upload, .uploadBase64, .chatRoomMessagesSend, .chatRoomCreate,
              .deviceToken, .purchasePoints, .verifyReceipt, .restorePurchases,
-             .pointsAdd, .pointsDeduct:
+             .pointsAdd, .pointsDeduct,
+             .achievementUnlock, .achievementCheck,
+             .friendAdd, .friendAccept, .friendDecline,
+             .mallPurchase,
+             .wardrobeEquip, .wardrobeUnequip,
+             .scheduleCreate, .scheduleUpdate, .scheduleDelete,
+             .todoCreate, .todoUpdate, .todoDelete, .todoToggle,
+             .placeFavoriteToggle:
             return .post
 
         // Update operations - PUT methods
-        case .userUpdateProfile, .updateStudySession, .pairingDevice, .cancelOrder:
+        case .userUpdateProfile, .updateStudySession, .pairingDevice, .cancelOrder,
+             .scheduleUpdate, .todoUpdate:
             return .put
 
         // Read operations - GET methods
@@ -309,15 +422,25 @@ enum APIEndpoint {
              .locations, .location, .locationNearby, .locationShare,
              .snapshots, .snapshot,
              .notificationPreferences, .notificationSettings,
-             .getOrders, .getOrder, .getSubscription:
+             .getOrders, .getOrder, .getSubscription,
+             .achievementList,
+             .friendList, .friendRequests,
+             .mallItems, .mallItem, .mallPurchaseHistory,
+             .wardrobeOutfits,
+             .scheduleList, .scheduleByDateRange, .scheduleUpcoming,
+             .todoList,
+             .studyHistory, .studyHistoryDaily, .studyHistoryWeekly, .studyHistoryMonthly,
+             .placeNearby, .placeSearch, .placeFavorite:
             return .get
 
         // Delete operations - DELETE methods
-        case .deleteStudySession:
+        case .deleteStudySession, .friendRemove:
             return .delete
 
         // Read operations - GET methods (for chat room messages read)
         case .chatRoomMessagesRead:
+            return .get
+        @unknown default:
             return .get
         }
     }
@@ -888,5 +1011,364 @@ struct RestorePurchasesResponse: Codable {
         case restoredOrders = "restored_orders"
         case totalRestored = "total_restored"
         case message
+    }
+}
+
+// MARK: - Achievement
+
+/// Achievement rarity
+enum AchievementRarity: String, Codable {
+    case common
+    case rare
+    case epic
+    case legendary
+}
+
+/// Achievement category
+enum AchievementCategory: String, Codable {
+    case duration
+    case streak
+    case social
+    case milestone
+    case special
+}
+
+/// Achievement type
+enum AchievementType: String, Codable {
+    case totalMinutes = "total_minutes"
+    case singleSession = "single_session"
+    case dailyStreak = "daily_streak"
+    case weeklyStreak = "weekly_streak"
+    case totalSessions = "total_sessions"
+    case friendsStudied = "friends_studied"
+    case earlyBird = "early_bird"
+    case nightOwl = "night_owl"
+    case weekendWarrior = "weekend_warrior"
+    case perfectMonth = "perfect_month"
+}
+
+/// Achievement model
+struct Achievement: Codable, Identifiable {
+    let id: String
+    let name: String
+    let nameEn: String
+    let description: String
+    let icon: String
+    let category: AchievementCategory
+    let requirement: Int
+    let type: AchievementType
+    let rarity: AchievementRarity
+    let unlockedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, icon, category, requirement, type, rarity
+        case nameEn = "name_en"
+        case unlockedAt = "unlocked_at"
+    }
+}
+
+/// User achievement with unlock status
+struct UserAchievement: Codable, Identifiable {
+    let id: String
+    let achievementId: String
+    let unlockedAt: Date
+    let metadata: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case achievementId = "achievement_id"
+        case unlockedAt = "unlocked_at"
+        case metadata
+    }
+}
+
+/// Achievement check response
+struct AchievementCheckResponse: Codable {
+    let newlyUnlocked: [Achievement]
+    let totalUnlocked: Int
+
+    enum CodingKeys: String, CodingKey {
+        case newlyUnlocked = "newly_unlocked"
+        case totalUnlocked = "total_unlocked"
+    }
+}
+
+// MARK: - Friend Request
+
+/// Friend request model
+struct FriendRequest: Codable, Identifiable {
+    let id: String
+    let fromUserId: String
+    let fromUsername: String
+    let fromAvatarUrl: String?
+    let toUserId: String
+    let status: String
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fromUserId = "from_user_id"
+        case fromUsername = "from_username"
+        case fromAvatarUrl = "from_avatar_url"
+        case toUserId = "to_user_id"
+        case status
+        case createdAt = "created_at"
+    }
+}
+
+/// Add friend request
+struct AddFriendRequest: Codable {
+    let friendId: String
+
+    enum CodingKeys: String, CodingKey {
+        case friendId = "friend_id"
+    }
+}
+
+// MARK: - Mall
+
+/// Mall category
+enum MallCategory: String, Codable {
+    case clothing
+    case accessory
+    case prop
+}
+
+/// Mall item
+struct MallItem: Codable, Identifiable {
+    let id: String
+    let name: String
+    let description: String
+    let image: String
+    let price: Int
+    let category: MallCategory
+    let isOwned: Bool
+}
+
+/// Purchase request
+struct PurchaseRequest: Codable {
+    let itemId: String
+    let quantity: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case itemId = "item_id"
+        case quantity
+    }
+}
+
+/// Purchase response
+struct PurchaseResponse: Codable {
+    let success: Bool
+    let message: String
+    let remainingPoints: Int
+    let item: MallItem?
+
+    enum CodingKeys: String, CodingKey {
+        case success, message
+        case remainingPoints = "remaining_points"
+        case item
+    }
+}
+
+/// Purchase history item
+struct PurchaseHistoryItem: Codable, Identifiable {
+    let id: String
+    let item: MallItem
+    let purchasedAt: Date
+    let pointsSpent: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, item
+        case purchasedAt = "purchased_at"
+        case pointsSpent = "points_spent"
+    }
+}
+
+// MARK: - Wardrobe
+
+/// Outfit category
+enum OutfitCategory: String, Codable {
+    case hair
+    case top
+    case bottom
+    case shoes
+    case accessory
+    case background
+}
+
+/// Outfit item
+struct Outfit: Codable, Identifiable {
+    let id: String
+    let name: String
+    let category: OutfitCategory
+    let image: String
+    let previewImage: String?
+    let isOwned: Bool
+    let isEquipped: Bool
+    let description: String?
+    let price: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, category, image, description, price
+        case previewImage = "preview_image"
+        case isOwned = "is_owned"
+        case isEquipped = "is_equipped"
+    }
+}
+
+/// Equip response
+struct EquipResponse: Codable {
+    let success: Bool
+    let message: String
+    let equippedOutfit: Outfit?
+
+    enum CodingKeys: String, CodingKey {
+        case success, message
+        case equippedOutfit = "equipped_outfit"
+    }
+}
+
+// MARK: - Todo
+
+/// Todo model from API
+struct APITodo: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let title: String
+    let description: String?
+    let isCompleted: Bool
+    let dueDate: Date?
+    let priority: Int
+    let tags: [String]
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, priority, tags
+        case userId = "user_id"
+        case isCompleted = "is_completed"
+        case dueDate = "due_date"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Create todo request
+struct APICreateTodoRequest: Codable {
+    let title: String
+    let description: String?
+    let dueDate: Date?
+    let priority: Int?
+    let tags: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, priority, tags
+        case dueDate = "due_date"
+    }
+}
+
+/// Update todo request
+struct APIUpdateTodoRequest: Codable {
+    let title: String?
+    let description: String?
+    let isCompleted: Bool?
+    let dueDate: Date?
+    let priority: Int?
+    let tags: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, priority, tags
+        case isCompleted = "is_completed"
+        case dueDate = "due_date"
+    }
+}
+
+// MARK: - Study History
+
+/// Daily study summary
+struct DailyStudySummary: Codable {
+    let date: String
+    let totalMinutes: Int
+    let sessionsCount: Int
+    let longestSession: Int
+    let averageDuration: Int
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case totalMinutes = "total_minutes"
+        case sessionsCount = "sessions_count"
+        case longestSession = "longest_session"
+        case averageDuration = "average_duration"
+    }
+}
+
+/// Weekly study summary
+struct WeeklyStudySummary: Codable {
+    let weekStart: String
+    let weekEnd: String
+    let totalMinutes: Int
+    let sessionsCount: Int
+    let dailyAverage: Int
+    let bestDay: DailyStudySummary
+    let streakDays: Int
+
+    enum CodingKeys: String, CodingKey {
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case totalMinutes = "total_minutes"
+        case sessionsCount = "sessions_count"
+        case dailyAverage = "daily_average"
+        case bestDay = "best_day"
+        case streakDays = "streak_days"
+    }
+}
+
+/// Monthly study summary
+struct MonthlyStudySummary: Codable {
+    let month: String
+    let year: Int
+    let totalMinutes: Int
+    let sessionsCount: Int
+    let dailyAverage: Int
+    let weeklyBreakdown: [WeeklyStudySummary]
+    let longestStreak: Int
+
+    enum CodingKeys: String, CodingKey {
+        case month, year
+        case totalMinutes = "total_minutes"
+        case sessionsCount = "sessions_count"
+        case dailyAverage = "daily_average"
+        case weeklyBreakdown = "weekly_breakdown"
+        case longestStreak = "longest_streak"
+    }
+}
+
+// MARK: - Place
+
+/// Place category
+enum PlaceCategory: String, Codable {
+    case library
+    case cafe
+    case bookstore
+    case university
+    case park
+    case other
+}
+
+/// Place model
+struct Place: Codable, Identifiable {
+    let id: String
+    let name: String
+    let category: PlaceCategory
+    let address: String?
+    let latitude: Double
+    let longitude: Double
+    let rating: Double?
+    let isFavorite: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, category, address, rating
+        case latitude, longitude
+        case isFavorite = "is_favorite"
     }
 }
