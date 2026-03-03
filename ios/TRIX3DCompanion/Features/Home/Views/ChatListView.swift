@@ -59,7 +59,7 @@ struct ChatListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 searchBar.padding()
                 trixBotEntry.padding(.horizontal).padding(.bottom, 12)
@@ -168,7 +168,11 @@ struct ChatListView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(recommendedUsers) { user in
-                        QuickAddUserCard(user: user) { addUser(user) }
+                        QuickAddUserCard(
+                            user: user,
+                            onAdd: { addUser(user) },
+                            onDismiss: { dismissUser(user) }
+                        )
                     }
                 }.padding(.horizontal, 20)
             }
@@ -226,6 +230,10 @@ struct ChatListView: View {
         generator.notificationOccurred(.success)
     }
 
+    private func dismissUser(_ user: RecommendedUser) {
+        withAnimation { recommendedUsers.removeAll { $0.id == user.id } }
+    }
+
     private func createNewChat() {
         showingCreateChat = true
     }
@@ -267,11 +275,21 @@ struct ChatListView: View {
 struct QuickAddUserCard: View {
     let user: RecommendedUser
     let onAdd: () -> Void
+    let onDismiss: () -> Void
     @State private var isAdded = false
 
     var body: some View {
         VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
+                // Delete button
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.7))
+                        .background(Circle().fill(.black.opacity(0.3)))
+                }
+                .offset(x: 4, y: -4)
+
                 // Snapchat-style card background - smaller size
                 RoundedRectangle(cornerRadius: 12)
                     .fill(.white.opacity(0.05))

@@ -191,7 +191,7 @@ struct ChatDetailViewImagePicker: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Image(systemName: "photo.on.rectangle.angled").font(.system(size: 60)).foregroundColor(.purple)
                 Text("Select Photo").font(.title2).fontWeight(.semibold)
@@ -213,7 +213,7 @@ struct ChatDetailViewImagePicker: View {
 // MARK: - Preview
 
 #Preview("Chat Detail") {
-    NavigationView {
+    NavigationStack {
         ChatDetailView(conversation: ChatConversation(id: "1", name: "Math Study Group", avatarUrl: nil, lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true))
             .environmentObject(AppState.shared)
             .environmentObject(ChatService.shared)
