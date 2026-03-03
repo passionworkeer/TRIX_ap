@@ -46,20 +46,20 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
 
-            // GlassDock Navigation
+            // GlassDock Navigation - 根据工作台状态显示/隐藏
             GlassDockView(
                 selectedTab: $appState.selectedTab,
                 isWorkbenchPresented: $isWorkbenchPresented,
                 isChatPresented: $isChatPresented
             )
+            .opacity(appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1)
+            .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
         }
         .ignoresSafeArea(.keyboard)
         .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
-        }
-        .sheet(isPresented: $isWorkbenchPresented) {
-            WorkbenchView()
         }
     }
 

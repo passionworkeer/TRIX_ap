@@ -351,8 +351,6 @@ struct StudyRoomView: View {
         switch roomState.sessionState {
         case .idle:
             return "Idle"
-        case .active:
-            return "Active"
         case .focusing:
             return "Focusing"
         case .resting:
@@ -365,8 +363,6 @@ struct StudyRoomView: View {
         switch roomState.sessionState {
         case .idle:
             return .textTertiary
-        case .active:
-            return .blue
         case .focusing:
             return .success
         case .resting:
@@ -557,8 +553,6 @@ struct StudyRoomSettingsSheet: View {
         switch roomState.sessionState {
         case .idle:
             return "Idle"
-        case .active:
-            return "Active"
         case .focusing:
             return "Focusing"
         case .resting:

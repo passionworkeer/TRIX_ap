@@ -379,8 +379,6 @@ struct StudyTimerView: View {
         switch roomState.sessionState {
         case .idle:
             return "Ready to Start"
-        case .active:
-            return "Active"
         case .focusing:
             return "Focus Time"
         case .resting:
@@ -393,8 +391,6 @@ struct StudyTimerView: View {
         switch roomState.sessionState {
         case .idle:
             return .textTertiary
-        case .active:
-            return .blue
         case .focusing:
             return Color.brandPurple
         case .resting:

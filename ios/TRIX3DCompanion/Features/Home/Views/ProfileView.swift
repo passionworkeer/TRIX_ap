@@ -53,7 +53,6 @@ struct ProfileView: View {
                     // Logout button
                     logoutButton
                         .padding(.horizontal)
-                        .padding(.bottom, 100) // Extra padding for tab bar
                 }
             }
             .background(backgroundGradient)

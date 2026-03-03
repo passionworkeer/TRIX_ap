@@ -20,10 +20,40 @@ struct StudyListView: View {
 
     @State private var selectedSegment = 0
     @State private var isCreatingRoom = false
+    @State private var selectedRoom: StudyRoom?
+    @State private var selectedRoomState: StudyRoomState?
 
     // MARK: - Sample Data
 
-    private let activeRooms: [StudyRoom] = []
+    private let activeRooms: [StudyRoom] = [
+        StudyRoom(
+            id: "1",
+            roomCode: "ABC123",
+            name: "Math Study",
+            hostUserId: "user1",
+            maxMembers: 10,
+            members: [
+                StudyRoomMember(odUserId: "user1", displayName: "Alice", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: true),
+                StudyRoomMember(odUserId: "user2", displayName: "Bob", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: true)
+            ],
+            sessionState: .focusing,
+            createdAt: Date(),
+            updatedAt: Date()
+        ),
+        StudyRoom(
+            id: "2",
+            roomCode: "XYZ789",
+            name: "Physics Group",
+            hostUserId: "user2",
+            maxMembers: 8,
+            members: [
+                StudyRoomMember(odUserId: "user3", displayName: "Charlie", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: false)
+            ],
+            sessionState: .idle,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    ]
 
     private let upcomingSessions = [
         DemoStudySession(
@@ -61,7 +91,6 @@ struct StudyListView: View {
                         }
                     }
                     .padding()
-                    .padding(.bottom, 100) // Extra padding for tab bar
                 }
             }
             .background(backgroundGradient)
@@ -78,6 +107,9 @@ struct StudyListView: View {
             }
             .sheet(isPresented: $isCreatingRoom) {
                 CreateStudyRoomView()
+            }
+            .sheet(item: $selectedRoomState) { roomState in
+                StudyRoomView(roomState: roomState)
             }
         }
     }
@@ -205,6 +237,20 @@ struct StudyListView: View {
 
     private func joinRoom(_ room: StudyRoom) {
         SecureLogger.shared.debug("Join room: \(room.name)")
+
+        // Convert StudyRoom to StudyRoomState for navigation
+        let roomState = StudyRoomState(
+            roomCode: room.roomCode,
+            hostUserId: room.hostUserId,
+            sessionState: StudyRoomSessionState(rawValue: room.sessionState.rawValue) ?? .idle,
+            members: room.members,
+            maxMembers: room.maxMembers,
+            version: 1,
+            createdAt: room.createdAt,
+            updatedAt: room.updatedAt,
+            timer: nil
+        )
+        selectedRoomState = roomState
     }
 }
 
@@ -582,32 +628,22 @@ struct CreateStudyRoomView: View {
         isCreating = true
 
         Task {
-            do {
-                // Call API to create room
-                // let response: CreateRoomResponse = try await apiClient.request(
-                //     .POST,
-                //     endpoint: "/study/rooms",
-                //     body: CreateRoomRequest(
-                //         name: roomName,
-                //         subject: subject,
-                //         description: description,
-                //         maxParticipants: maxParticipants,
-                //         duration: duration,
-                //         isPrivate: isPrivate
-                //     )
-                // )
+            // Use StudyService to create the room
+            let result = await StudyService.shared.createStudyRoom(
+                name: roomName,
+                maxMembers: maxParticipants
+            )
 
-                // Simulate API call
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+            await MainActor.run {
+                isCreating = false
 
-                await MainActor.run {
-                    isCreating = false
+                switch result {
+                case .success(let room):
+                    // Room created successfully, navigate to it
+                    SecureLogger.shared.info("Room created successfully: \(room.name)")
                     dismiss()
-                }
-            } catch {
-                await MainActor.run {
-                    isCreating = false
-                    errorMessage = "Failed to create room. Please try again."
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
                     showError = true
                 }
             }
@@ -643,7 +679,7 @@ struct DemoStudySession: Identifiable {
             hostUserId: "user1",
             maxMembers: 20,
             members: [],
-            sessionState: .active,
+            sessionState: .focusing,
             createdAt: Date(),
             updatedAt: Date()
         ))

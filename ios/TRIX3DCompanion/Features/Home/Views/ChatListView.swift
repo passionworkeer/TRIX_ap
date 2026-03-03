@@ -104,25 +104,49 @@ struct ChatListView: View {
             openTrixBotChat()
         } label: {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(RadialGradient(colors: [Color.purple.opacity(0.4), .clear], center: .center, startRadius: 0, endRadius: 25)).frame(width: 54, height: 54)
-                    Circle().fill(LinearGradient(colors: [Color.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 50, height: 50)
-                        .overlay { Image(systemName: "sparkles").font(.title3).foregroundColor(.white) }
-                    Circle().fill(.green).frame(width: 14, height: 14).overlay(Circle().stroke(.white, lineWidth: 2)).offset(x: 20, y: 20)
+                // Avatar with status indicator
+                ZStack(alignment: .bottomTrailing) {
+                    Circle().fill(RadialGradient(colors: [Color.purple.opacity(0.4), .clear], center: .center, startRadius: 0, endRadius: 25)).frame(width: 48, height: 48)
+                    Circle().fill(LinearGradient(colors: [Color.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 48, height: 48)
+                        .overlay {
+                            Image(systemName: "sparkles").font(.title3).foregroundColor(.white)
+                        }
+                        .overlay(
+                            Circle().stroke(.white.opacity(0.1), lineWidth: 1)
+                        )
+                    // Online status
+                    Circle().fill(.green).frame(width: 14, height: 14).overlay(Circle().stroke(.black.opacity(0.3), lineWidth: 2)).offset(x: 2, y: 2).shadow(color: .green.opacity(0.5), radius: 4)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("TRIX Bot").font(.headline).foregroundColor(.primary)
-                    HStack(spacing: 6) {
-                        Circle().fill(.green).frame(width: 6, height: 6)
-                        Text("AI 学习助手").font(.caption).foregroundColor(.secondary)
+
+                // Name and status
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("TRIX Bot").font(.headline).foregroundColor(.white)
+                    }
+                    HStack(spacing: 4) {
+                        Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(.green)
+                        Text("AI 学习助手").font(.subheadline).foregroundColor(.gray.opacity(0.6))
                     }
                 }
+
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
+
+                // Camera icon (Web style)
+                Circle()
+                    .fill(.green.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.green)
+                    }
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-            .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 16))
-        }.buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Quick Add Section
@@ -130,9 +154,9 @@ struct ChatListView: View {
     private var quickAddSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("推荐添加").font(.subheadline).fontWeight(.semibold).foregroundColor(.secondary)
+                Text("Quick Add").font(.subheadline).fontWeight(.semibold).foregroundColor(.white.opacity(0.8)).textCase(.uppercase)
                 Spacer()
-                Button("隐藏") { withAnimation { showQuickAdd = false } }.font(.caption).foregroundColor(.purple)
+                Button("隐藏") { withAnimation { showQuickAdd = false } }.font(.caption).foregroundColor(.white.opacity(0.6))
             }.padding(.horizontal, 20)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -162,7 +186,7 @@ struct ChatListView: View {
                         Divider().padding(.leading, 72)
                     }
                 }
-            }.padding(.bottom, 100)
+            }
         }
     }
 
@@ -173,7 +197,7 @@ struct ChatListView: View {
             Image(systemName: "message.circle").font(.system(size: 60)).foregroundColor(.purple.opacity(0.3))
             Text("没有找到对话").font(.headline).foregroundColor(.secondary)
             Text("开始新对话一起学习吧").font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center)
-        }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(.bottom, 100)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Background Gradient
@@ -240,19 +264,61 @@ struct QuickAddUserCard: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            ZStack(alignment: .bottomTrailing) {
-                Circle().fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 60, height: 60)
-                    .overlay { Text(user.avatar).font(.title2).fontWeight(.semibold).foregroundColor(.white) }
-                if !isAdded {
-                    Circle().fill(Color.purple).frame(width: 24, height: 24).overlay { Image(systemName: "plus").font(.system(size: 12, weight: .bold)).foregroundColor(.white) }.offset(x: 5, y: 5)
+            ZStack(alignment: .topTrailing) {
+                // Snapchat-style card background
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.white.opacity(0.05))
+                    .frame(width: 130, height: 150)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.white.opacity(0.1), lineWidth: 1)
+                    )
+
+                VStack(spacing: 8) {
+                    // Avatar
+                    Circle()
+                        .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 64, height: 64)
+                        .overlay {
+                            Text(user.avatar).font(.title).fontWeight(.semibold).foregroundColor(.white)
+                        }
+                        .padding(.top, 16)
+
+                    // Name
+                    Text(user.name)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .frame(width: 110)
+
+                    if !isAdded {
+                        // Snapchat-style yellow add button
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3)) {
+                                isAdded = true
+                            }
+                            onAdd()
+                        }) {
+                            Text("+ 添加")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 6)
+                                .background(.yellow)
+                                .clipShape(Capsule())
+                                .shadow(color: .yellow.opacity(0.5), radius: 8)
+                        }
+                    } else {
+                        Text("已添加")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
             }
-            Text(user.name).font(.caption).fontWeight(.medium).foregroundColor(.primary).lineLimit(1).frame(width: 70)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if !isAdded { withAnimation(.spring(response: 0.3)) { isAdded = true }; onAdd() }
-        }
+        .frame(width: 130)
     }
 }
 
@@ -263,29 +329,61 @@ struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Avatar
             ZStack(alignment: .bottomTrailing) {
-                Circle().fill(LinearGradient(colors: [conversation.avatarColor, conversation.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 50, height: 50)
-                    .overlay { Text(String(conversation.name.prefix(1))).font(.title3).fontWeight(.semibold).foregroundColor(.white) }
+                Circle().fill(LinearGradient(colors: [conversation.avatarColor, conversation.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 48, height: 48)
+                    .overlay {
+                        Text(String(conversation.name.prefix(1))).font(.title3).fontWeight(.semibold).foregroundColor(.white)
+                    }
+                    .overlay(
+                        Circle().stroke(.white.opacity(0.1), lineWidth: 1)
+                    )
                 if conversation.isOnline {
-                    Circle().fill(.green).frame(width: 14, height: 14).overlay(Circle().stroke(.white, lineWidth: 2)).offset(x: 2, y: 2)
+                    Circle().fill(.green).frame(width: 14, height: 14).overlay(Circle().stroke(.black.opacity(0.3), lineWidth: 2)).offset(x: 2, y: 2).shadow(color: .green.opacity(0.5), radius: 4)
                 }
             }
+
+            // Name and message
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(conversation.name).font(.headline).foregroundColor(.primary)
+                    Text(conversation.name).font(.headline).foregroundColor(.white)
                     Spacer()
-                    Text(conversation.time).font(.caption2).foregroundColor(.secondary)
                 }
-                HStack {
-                    Text(conversation.lastMessage).font(.subheadline).foregroundColor(.secondary).lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(conversation.unreadCount > 0 ? .yellow : .gray.opacity(0.5))
+                    Text(conversation.lastMessage).font(.subheadline).foregroundColor(conversation.unreadCount > 0 ? .white.opacity(0.9) : .gray.opacity(0.6)).lineLimit(1)
                     Spacer()
-                    if conversation.unreadCount > 0 {
-                        Text("\(conversation.unreadCount)").font(.caption2).fontWeight(.bold).foregroundColor(.white).padding(.horizontal, 8).padding(.vertical, 4).background(.purple).clipShape(Capsule())
-                    }
                 }
             }
-            Spacer()
-        }.padding(.horizontal).padding(.vertical, 12).background(.ultraThinMaterial.opacity(0.3)).contentShape(Rectangle())
+
+            // Right side - camera icon or unread badge
+            if conversation.unreadCount > 0 {
+                // Amber unread badge (Web style)
+                Text("\(conversation.unreadCount > 9 ? "9+" : "\(conversation.unreadCount)")")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.yellow)
+                    .clipShape(Circle())
+                    .shadow(color: .yellow.opacity(0.3), radius: 4)
+            } else {
+                // Camera icon (Web style)
+                Circle()
+                    .fill(.white.opacity(0.1))
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray.opacity(0.5))
+                    }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(.white.opacity(0.05))
+        .contentShape(Rectangle())
     }
 }
 

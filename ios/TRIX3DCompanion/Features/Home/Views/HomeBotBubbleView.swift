@@ -3,6 +3,7 @@
 //  TRIX3DCompanion
 //
 //  Floating robot avatar bubble for home screen chat entry
+//  仿照 Web 端的 HomeBotBubble.tsx 设计
 //
 
 import SwiftUI
@@ -14,101 +15,57 @@ struct HomeBotBubbleView: View {
 
     @State private var isAnimating = false
     @State private var isPressed = false
+    @State private var bubbleText: String = ""
 
     var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-                onTap()
-            }
-        }) {
-            HStack(spacing: 12) {
-                // Bot Avatar
-                ZStack {
-                    // Glow effect
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.brandPurple.opacity(0.5), .clear],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: 25
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                        .blur(radius: isAnimating ? 8 : 4)
-                        .scaleEffect(isAnimating ? 1.1 : 1.0)
-
-                    // Avatar circle
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.brandPurple, Color.brandPink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 44, height: 44)
-
-                    // Avatar icon
-                    Image(systemName: botAvatar)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+        // 右上角小气泡
+        VStack(alignment: .trailing, spacing: 0) {
+            // 气泡主体
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    isPressed = true
                 }
-
-                // Bot info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(botName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-
-                    Text(NSLocalizedString("home.bot.greeting", comment: ""))
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isPressed = false
+                    onTap()
                 }
+            }) {
+                HStack(spacing: 6) {
+                    // 星星图标
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.yellow)
 
-                Spacer()
-
-                // Chat icon
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
+                    // 文字 (最多两行)
+                    Text(bubbleText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                .scaleEffect(isPressed ? 0.95 : 1.0)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.brandPurple.opacity(0.8),
-                                Color.brandPink.opacity(0.6)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: Color.brandPurple.opacity(0.3), radius: 10, x: 0, y: 5)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .buttonStyle(.plain)
+
+            // 小箭头 (气泡右下角的三角形)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.trailing, 8)
         }
-        .buttonStyle(.plain)
         .onAppear {
+            bubbleText = NSLocalizedString("home.bot.greeting", comment: "")
             withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                 isAnimating = true
             }
@@ -124,13 +81,14 @@ struct HomeBotBubbleView: View {
 
         VStack {
             Spacer()
+
             HomeBotBubbleView(
                 botName: "TRIX AI",
                 botAvatar: "sparkles",
                 onTap: {}
             )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 100)
+            .padding(.trailing, 20)
+            .padding(.top, 100)
         }
     }
 }
