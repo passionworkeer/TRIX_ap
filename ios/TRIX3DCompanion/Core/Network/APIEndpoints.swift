@@ -37,11 +37,11 @@ enum APIBaseURL {
         #if DEBUG
         if APISecurityConfig.allowInsecureInDev {
             // Only for local development convenience - NOT for production use
-            return "http://TRIX_SERVER_HOST:8765"
+            return "http://TRIX_SERVER_HOST:8765/api"
         }
         #endif
         // Default to HTTPS for security
-        return "https://api.trix3d.com"
+        return "https://api.trix3d.com/api"
     }()
 
     /// Current base URL based on build configuration
