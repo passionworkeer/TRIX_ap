@@ -387,6 +387,12 @@ app.use('/api', mvpRoutes);
 const extendedRoutes = require('./routes/extended');
 app.use('/api', extendedRoutes);
 
+// ============================================
+// Supplement API Routes
+// ============================================
+const supplementRoutes = require('./routes/supplement');
+app.use('/api', supplementRoutes);
+
 // Health check
   res.json({
     status: 'ok',
