@@ -8,6 +8,10 @@
 
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 // MARK: - Snapshot Action
 
 /// 快照分析动作类型

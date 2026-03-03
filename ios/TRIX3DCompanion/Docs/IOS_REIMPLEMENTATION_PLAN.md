@@ -19,6 +19,10 @@
 - [x] 2.5 实现 SummaryModal 完成总结弹窗
 - [x] 2.6 实现 Study 积分系统 (2积分/分钟)
 
+### Phase 2.5: 新增功能
+- [x] 2.7 实现 RobotHeroBackgroundView 3D机器人背景
+- [x] 2.8 实现 SnapshotAnalysisView AI分析视图
+
 ### Phase 3: 聊天模块 (Chat)
 - [x] 3.1 完善 ChatListView 好友列表
 - [x] 3.2 实现 QuickAddSection 快速添加好友
