@@ -9,6 +9,36 @@
 import SwiftUI
 import UserNotifications
 
+// MARK: - Points Service Integration
+
+/// Extension to add study points via PointsService
+extension StudyTimerView {
+    /// Award points for completed study session
+    private func awardStudyPoints() async {
+        let pointsService = PointsService.shared
+
+        // Add points using PointsService
+        let metadata: [String: String] = [
+            "source": "study_session",
+            "duration_minutes": "\(actualStudyDuration)",
+            "room_code": roomState.roomCode
+        ]
+
+        let result = await pointsService.addPoints(
+            earnedPoints,
+            description: String(format: NSLocalizedString("study.points.reward.description", comment: ""), actualStudyDuration),
+            metadata: metadata
+        )
+
+        switch result {
+        case .success(let balance):
+            print("✅ Points awarded successfully. New balance: \(balance.totalPoints)")
+        case .insufficientBalance, .invalidAmount, .failed:
+            print("⚠️ Failed to award points")
+        }
+    }
+}
+
 // MARK: - Study Timer View
 
 /// 学习计时器视图
@@ -29,6 +59,9 @@ struct StudyTimerView: View {
     @State private var isFocusMode = false
     @State private var notificationPermissionGranted = false
     @State private var showMusicSelector = false
+    @State private var showCelebration = false
+    @State private var earnedPoints = 0
+    @State private var actualStudyDuration = 0
 
     // MARK: - Dependencies
 
@@ -86,6 +119,18 @@ struct StudyTimerView: View {
         }
         .onReceive(timer) { _ in
             updateTimer()
+        }
+        .fullScreenCover(isPresented: $showCelebration) {
+            CelebrationAnimationView(
+                studyDuration: actualStudyDuration,
+                earnedPoints: earnedPoints,
+                hasCompanion: false,
+                companionName: nil,
+                onDismiss: {
+                    showCelebration = false
+                    dismiss()
+                }
+            )
         }
     }
 
@@ -488,15 +533,29 @@ struct StudyTimerView: View {
     private func endSession() {
         Task {
             do {
+                // Calculate points before ending
+                let studiedMinutes = (totalSeconds - remainingSeconds) / 60
+                actualStudyDuration = max(1, studiedMinutes)
+                earnedPoints = actualStudyDuration * 2
+
                 try await studyService.endSession(roomCode: roomState.roomCode)
+
+                // Award points for completed session
+                await awardStudyPoints()
+
+                await MainActor.run {
+                    timerState = .completed
+                    // Show celebration modal
+                    showCelebration = true
+                }
+            } catch {
+                // Handle error
+                SecureLogger.shared.error("Error ending session: \(error)")
                 await MainActor.run {
                     timerState = .idle
                     remainingSeconds = totalSeconds
                     dismiss()
                 }
-            } catch {
-                // Handle error
-                SecureLogger.shared.error("Error ending session: \(error)")
             }
         }
     }
@@ -527,9 +586,19 @@ struct StudyTimerView: View {
             remainingSeconds = 300 // 5 minute break
             scheduleNotification()
         } else {
-            // Session fully completed
-            endSession()
-            sendCompletionNotification()
+            // Session fully completed - calculate points and show celebration
+            let studiedMinutes = (totalSeconds - remainingSeconds) / 60
+            actualStudyDuration = max(1, studiedMinutes) // At least 1 minute
+            earnedPoints = actualStudyDuration * 2 // 2 points per minute
+
+            // Award points asynchronously
+            Task {
+                await awardStudyPoints()
+            }
+
+            // Show celebration modal instead of immediately dismissing
+            timerState = .completed
+            showCelebration = true
         }
     }
 

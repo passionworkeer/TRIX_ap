@@ -17,6 +17,7 @@
 - [x] 2.3 实现 StudyStats 学习统计卡片
 - [x] 2.4 实现 FocusStartAnimation 开始动画
 - [x] 2.5 实现 SummaryModal 完成总结弹窗
+- [x] 2.6 实现 Study 积分系统 (2积分/分钟)
 
 ### Phase 3: 聊天模块 (Chat)
 - [x] 3.1 完善 ChatListView 好友列表

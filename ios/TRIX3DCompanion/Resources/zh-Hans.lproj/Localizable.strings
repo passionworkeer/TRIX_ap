@@ -96,6 +96,8 @@
 "study.create.failed" = "创建房间失败，请重试";
 "study.your.time" = "你的时长";
 "study.total.studying" = "总学习人数";
+"study.points.reward" = "专注学习奖励";
+"study.points.reward.description" = "专注学习奖励 (%d分钟)";
 
 // MARK: - Map & Location
 "map.title" = "探索";
