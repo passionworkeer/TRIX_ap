@@ -214,7 +214,7 @@ struct ChatDetailViewImagePicker: View {
 
 #Preview("Chat Detail") {
     NavigationView {
-        ChatDetailView(conversation: ChatConversation(id: "1", name: "Math Study Group", lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true))
+        ChatDetailView(conversation: ChatConversation(id: "1", name: "Math Study Group", avatarUrl: nil, lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true))
             .environmentObject(AppState.shared)
             .environmentObject(ChatService.shared)
     }

@@ -14,6 +14,7 @@ import Foundation
 struct ChatConversation: Identifiable, Equatable {
     let id: String
     let name: String
+    let avatarUrl: String?
     let lastMessage: String
     let time: String
     let unreadCount: Int
