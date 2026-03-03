@@ -381,6 +381,12 @@ messageService.initMessageTable().catch((error) => {
 const mvpRoutes = require('./routes/mvp');
 app.use('/api', mvpRoutes);
 
+// ============================================
+// Extended API Routes
+// ============================================
+const extendedRoutes = require('./routes/extended');
+app.use('/api', extendedRoutes);
+
 // Health check
   res.json({
     status: 'ok',
