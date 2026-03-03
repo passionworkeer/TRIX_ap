@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Todo List View
 
 /// Todo list view displaying todo items
@@ -40,12 +45,12 @@ struct TodoListView: View {
                 todoList
             }
             .background(backgroundGradient)
-            .navigationTitle("Todo List")
+            .navigationTitle(loc("todo.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button("Done") {
+                        Button(loc("action.done")) {
                             dismiss()
                         }
                     }

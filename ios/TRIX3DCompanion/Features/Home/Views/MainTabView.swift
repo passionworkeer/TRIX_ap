@@ -28,21 +28,31 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             // Tab content using ZStack for overlay navigation
             ZStack {
-                switch appState.selectedTab {
-                case .home, .core:
-                    // Both home and core show the same HomeView with workbench
-                    HomeView(
-                        isWorkbenchPresented: $isWorkbenchPresented,
-                        isChatPresented: $isChatPresented
+                // 优先显示聊天界面
+                if isChatPresented {
+                    ChatDetailViewWrapper(
+                        conversation: trixBotConversation,
+                        onClose: {
+                            isChatPresented = false
+                        }
                     )
-                case .map:
-                    MapView()
-                case .study:
-                    StudyListView()
-                case .chat:
-                    ChatListView()
-                case .profile:
-                    ProfileView()
+                } else {
+                    switch appState.selectedTab {
+                    case .home, .core:
+                        // Both home and core show the same HomeView with workbench
+                        HomeView(
+                            isWorkbenchPresented: $isWorkbenchPresented,
+                            isChatPresented: $isChatPresented
+                        )
+                    case .map:
+                        MapView()
+                    case .study:
+                        StudyListView()
+                    case .chat:
+                        ChatListView()
+                    case .profile:
+                        ProfileView()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,6 +71,26 @@ struct MainTabView: View {
         .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
         }
+        .onChange(of: isChatPresented) { newValue in
+            if newValue {
+                // 点击气泡后切换到聊天 tab
+                appState.selectedTab = .chat
+            }
+        }
+    }
+
+    // MARK: - Trix Bot Conversation
+
+    private var trixBotConversation: ChatConversation {
+        ChatConversation(
+            id: "trix-bot",
+            name: "TRIX Bot",
+            lastMessage: "",
+            time: "",
+            unreadCount: 0,
+            avatarColor: .purple,
+            isOnline: true
+        )
     }
 
     // MARK: - Event Handlers
@@ -81,4 +111,28 @@ struct MainTabView: View {
 #Preview("Main Tabs") {
     MainTabView()
         .environmentObject(AppState.shared)
+}
+
+// MARK: - Chat Detail View Wrapper
+
+/// 聊天详情视图包装器，添加关闭按钮
+struct ChatDetailViewWrapper: View {
+    let conversation: ChatConversation
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ChatDetailView(conversation: conversation)
+
+            // 关闭按钮
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundColor(.white)
+                    .padding()
+            }
+            .padding(.top, 50)
+            .padding(.trailing, 16)
+        }
+    }
 }

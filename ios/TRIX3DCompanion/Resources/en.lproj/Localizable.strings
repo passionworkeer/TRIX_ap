@@ -194,3 +194,41 @@
 "pairing.code" = "Pairing Code";
 "pairing.success" = "Pairing Successful!";
 "pairing.failed" = "Pairing Failed";
+
+// MARK: - Todo
+"todo.title" = "Todo List";
+"todo.add" = "Add Todo";
+"todo.edit" = "Edit Todo";
+"todo.empty" = "No todos yet";
+"todo.completed" = "Completed";
+"todo.pending" = "Pending";
+
+// MARK: - Schedule
+"schedule.title" = "Schedule";
+"schedule.add" = "Add Schedule";
+"schedule.edit" = "Edit Schedule";
+"schedule.empty" = "No schedules yet";
+"schedule.today" = "Today";
+"schedule.upcoming" = "Upcoming";
+
+// MARK: - Location
+"location.pick" = "Pick Location";
+"location.search" = "Search location";
+"location.current" = "Current Location";
+"location.favorites" = "Favorites";
+
+// MARK: - Snapshot
+"snapshot.title" = "Photos";
+"snapshot.empty" = "No photos yet";
+"snapshot.take" = "Take Photo";
+"snapshot.delete" = "Delete Photo";
+
+// MARK: - Workbench
+"workbench.title" = "Workbench";
+"workbench.snapshot" = "Camera";
+"workbench.location" = "Location";
+"workbench.schedule" = "Schedule";
+"workbench.todo" = "Todo";
+
+// MARK: - Action Done
+"action.done" = "Done";

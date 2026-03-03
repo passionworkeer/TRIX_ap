@@ -62,7 +62,39 @@ struct HomeView: View {
                 )
                 .ignoresSafeArea()
 
-                // 右上角聊天气泡 - 始终显示，不受工作台状态影响
+                // Main content - 顶部工具栏，根据工作台状态显示/隐藏
+                // 使用覆盖整个屏幕的点击区域
+                VStack(spacing: 0) {
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // 点击背景切换工作台显示状态
+                    isWorkbenchPresented.toggle()
+                }
+
+                // 顶部工具栏
+                VStack(spacing: 0) {
+                    // Top bar with mail and notification buttons
+                    topBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 往下移动，避开状态栏
+                        .opacity(isWorkbenchPresented ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
+
+                    Spacer()
+                }
+
+                // Workbench Modal (appears on background tap) - 底部浮窗效果
+                if isWorkbenchPresented {
+                    WorkbenchOverlay(
+                        isPresented: $isWorkbenchPresented,
+                        onCardClick: handleWorkbenchCardClick
+                    )
+                }
+
+                // 右上角聊天气泡 - 在最上层，确保点击不被拦截
                 VStack {
                     HStack {
                         Spacer()
@@ -74,33 +106,8 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.size.height * 0.35)  // 屏幕中间偏上位置
+                    .padding(.top, geometry.size.height * 0.26)  // 屏幕中间偏上位置
                     Spacer()
-                }
-
-                // Main content - 顶部工具栏，根据工作台状态显示/隐藏
-                VStack(spacing: 0) {
-                    // Top bar with mail and notification buttons
-                    topBar
-                        .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 往下移动，避开状态栏
-                        .opacity(isWorkbenchPresented ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
-
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // 点击背景切换工作台显示状态
-                    isWorkbenchPresented.toggle()
-                }
-
-                // Workbench Modal (appears on background tap) - 底部浮窗效果
-                if isWorkbenchPresented {
-                    WorkbenchOverlay(
-                        isPresented: $isWorkbenchPresented,
-                        onCardClick: handleWorkbenchCardClick
-                    )
                 }
             }
 
@@ -121,70 +128,82 @@ struct HomeView: View {
 
             // Snapshot View
             if showSnapshot {
-                SnapshotListView()
-                    .overlay(alignment: .topTrailing) {
-                        Button {
-                            showSnapshot = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .padding(.top, 60)
-                        .padding(.trailing, 10)
+                ZStack(alignment: .topTrailing) {
+                    SnapshotListView()
+
+                    Button {
+                        showSnapshot = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
+                    .padding(.top, 50)
+                    .padding(.trailing, 16)
+                }
             }
 
             // Location View
             if showLocation {
-                LocationPickerView()
-                    .overlay(alignment: .topTrailing) {
-                        Button {
-                            showLocation = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .padding(.top, 60)
-                        .padding(.trailing, 10)
+                ZStack(alignment: .topTrailing) {
+                    LocationPickerView()
+
+                    Button {
+                        showLocation = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
+                    .padding(.top, 50)
+                    .padding(.trailing, 16)
+                }
             }
 
             // Schedule View
             if showSchedule {
-                ScheduleListView()
-                    .overlay(alignment: .topTrailing) {
-                        Button {
-                            showSchedule = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .padding(.top, 60)
-                        .padding(.trailing, 10)
+                ZStack(alignment: .topTrailing) {
+                    ScheduleListView()
+
+                    Button {
+                        showSchedule = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
+                    .padding(.top, 50)
+                    .padding(.trailing, 16)
+                }
             }
 
             // Todo View
             if showTodo {
-                TodoListView()
-                    .overlay(alignment: .topTrailing) {
-                        Button {
-                            showTodo = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .padding(.top, 60)
-                        .padding(.trailing, 10)
+                ZStack(alignment: .topTrailing) {
+                    TodoListView()
+
+                    Button {
+                        showTodo = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding(12)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
+                    .padding(.top, 50)
+                    .padding(.trailing, 16)
+                }
             }
         }
     }

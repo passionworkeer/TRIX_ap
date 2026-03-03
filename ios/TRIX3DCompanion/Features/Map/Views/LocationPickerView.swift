@@ -8,6 +8,11 @@
 import SwiftUI
 import MapKit
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Location Annotation
 
 /// Annotation item for map marker
@@ -62,19 +67,19 @@ struct LocationPickerView: View {
                     selectedLocationInfo(coordinate: location)
                 }
             }
-            .navigationTitle("Pick Location")
+            .navigationTitle(loc("location.pick"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if showAsSheet {
-                        Button("Cancel") {
+                        Button(loc("action.cancel")) {
                             dismiss()
                         }
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(loc("action.done")) {
                         // Handle done action
                         if showAsSheet {
                             dismiss()
