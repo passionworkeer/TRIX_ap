@@ -204,9 +204,31 @@ enum APIEndpoint {
     case snapshot(id: String)
 
     // MARK: - Notifications
+    case notificationList
+    case notificationMarkRead(id: String)
+    case notificationMarkAllRead
     case deviceToken
     case notificationPreferences
     case notificationSettings
+
+    // MARK: - Unread Counts
+    case unreadCounts
+    case unreadCount(friendId: String)
+    case unreadUpdateCount(friendId: String)
+    case unreadMarkAllRead
+
+    // MARK: - Clawbot (AI Conversation)
+    case clawbotConversations
+    case clawbotCreateConversation
+    case clawbotConversationMessages(conversationId: String)
+    case clawbotSendMessage(conversationId: String)
+    case clawbotDeleteConversation(conversationId: String)
+
+    // MARK: - Study Goals
+    case studyGoals
+    case studyGoalCreate
+    case studyGoalUpdate(id: String)
+    case studyGoalDelete(id: String)
 
     // MARK: - Payments
     //
@@ -383,6 +405,34 @@ enum APIEndpoint {
             // POST /payments/restore
             // Restore previous purchases from App Store
             return "/payments/restore"
+
+        // Notifications
+        case .notificationList: return "/notifications"
+        case .notificationMarkRead(let id): return "/notifications/\(id)/read"
+        case .notificationMarkAllRead: return "/notifications/read-all"
+        case .deviceToken: return "/notifications/device-token"
+        case .notificationPreferences: return "/notifications/preferences"
+        case .notificationSettings: return "/notifications/settings"
+
+        // Unread Counts
+        case .unreadCounts: return "/unread/counts"
+        case .unreadCount(let friendId): return "/unread/counts/\(friendId)"
+        case .unreadUpdateCount(let friendId): return "/unread/counts/\(friendId)"
+        case .unreadMarkAllRead: return "/unread/read-all"
+
+        // Clawbot (AI Conversation)
+        case .clawbotConversations: return "/clawbot/conversations"
+        case .clawbotCreateConversation: return "/clawbot/conversations"
+        case .clawbotConversationMessages(let conversationId): return "/clawbot/conversations/\(conversationId)/messages"
+        case .clawbotSendMessage(let conversationId): return "/clawbot/conversations/\(conversationId)/messages"
+        case .clawbotDeleteConversation(let conversationId): return "/clawbot/conversations/\(conversationId)"
+
+        // Study Goals
+        case .studyGoals: return "/study/goals"
+        case .studyGoalCreate: return "/study/goals"
+        case .studyGoalUpdate(let id): return "/study/goals/\(id)"
+        case .studyGoalDelete(let id): return "/study/goals/\(id)"
+
         @unknown default:
             // Handle unknown cases for future-proofing
             return "/unknown"
@@ -405,12 +455,17 @@ enum APIEndpoint {
              .wardrobeEquip, .wardrobeUnequip,
              .scheduleCreate, .scheduleUpdate, .scheduleDelete,
              .todoCreate, .todoUpdate, .todoDelete, .todoToggle,
-             .placeFavoriteToggle:
+             .placeFavoriteToggle,
+             // New POST endpoints
+             .notificationMarkRead, .notificationMarkAllRead,
+             .clawbotCreateConversation, .clawbotSendMessage, .clawbotDeleteConversation,
+             .studyGoalCreate, .unreadUpdateCount, .unreadMarkAllRead:
             return .post
 
         // Update operations - PUT methods
         case .userUpdateProfile, .updateStudySession, .pairingDevice, .cancelOrder,
-             .scheduleUpdate, .todoUpdate:
+             .scheduleUpdate, .todoUpdate,
+             .studyGoalUpdate:
             return .put
 
         // Read operations - GET methods
@@ -421,7 +476,7 @@ enum APIEndpoint {
              .points, .pointsHistory,
              .locations, .location, .locationNearby, .locationShare,
              .snapshots, .snapshot,
-             .notificationPreferences, .notificationSettings,
+             .notificationList, .notificationPreferences, .notificationSettings,
              .getOrders, .getOrder, .getSubscription,
              .achievementList,
              .friendList, .friendRequests,
@@ -430,11 +485,16 @@ enum APIEndpoint {
              .scheduleList, .scheduleByDateRange, .scheduleUpcoming,
              .todoList,
              .studyHistory, .studyHistoryDaily, .studyHistoryWeekly, .studyHistoryMonthly,
-             .placeNearby, .placeSearch, .placeFavorite:
+             .placeNearby, .placeSearch, .placeFavorite,
+             // New GET endpoints
+             .unreadCounts, .unreadCount,
+             .clawbotConversations, .clawbotConversationMessages,
+             .studyGoals:
             return .get
 
         // Delete operations - DELETE methods
-        case .deleteStudySession, .friendRemove:
+        case .deleteStudySession, .friendRemove,
+             .studyGoalDelete:
             return .delete
 
         // Read operations - GET methods (for chat room messages read)
@@ -1370,5 +1430,170 @@ struct Place: Codable, Identifiable {
         case id, name, category, address, rating
         case latitude, longitude
         case isFavorite = "is_favorite"
+    }
+}
+
+// MARK: - Clawbot (AI Conversation)
+
+/// AI conversation model
+struct ClawbotConversation: Codable, Identifiable {
+    let id: String
+    let name: String
+    let avatarUrl: String?
+    let lastMessage: String?
+    let lastMessageAt: Date?
+    let unreadCount: Int
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case avatarUrl = "avatar_url"
+        case lastMessage = "last_message"
+        case lastMessageAt = "last_message_at"
+        case unreadCount = "unread_count"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// AI message model
+struct ClawbotMessage: Codable, Identifiable {
+    let id: String
+    let conversationId: String
+    let senderId: String
+    let senderType: String
+    let content: String
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case conversationId = "conversation_id"
+        case senderId = "sender_id"
+        case senderType = "sender_type"
+        case content
+        case createdAt = "created_at"
+    }
+}
+
+/// Create conversation request
+struct CreateClawbotConversationRequest: Codable {
+    let name: String?
+}
+
+/// Send message request
+struct SendClawbotMessageRequest: Codable {
+    let content: String
+}
+
+// MARK: - Study Goals
+
+/// Study goal model
+struct StudyGoal: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let title: String
+    let description: String?
+    let targetMinutes: Int
+    let currentMinutes: Int
+    let startDate: Date
+    let endDate: Date
+    let isCompleted: Bool
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case title, description
+        case targetMinutes = "target_minutes"
+        case currentMinutes = "current_minutes"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case isCompleted = "is_completed"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Create study goal request
+struct CreateStudyGoalRequest: Codable {
+    let title: String
+    let description: String?
+    let targetMinutes: Int
+    let startDate: Date
+    let endDate: Date
+
+    enum CodingKeys: String, CodingKey {
+        case title, description
+        case targetMinutes = "target_minutes"
+        case startDate = "start_date"
+        case endDate = "end_date"
+    }
+}
+
+/// Update study goal request
+struct UpdateStudyGoalRequest: Codable {
+    let title: String?
+    let description: String?
+    let targetMinutes: Int?
+    let currentMinutes: Int?
+    let startDate: Date?
+    let endDate: Date?
+    let isCompleted: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description
+        case targetMinutes = "target_minutes"
+        case currentMinutes = "current_minutes"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case isCompleted = "is_completed"
+    }
+}
+
+// MARK: - Notifications
+
+/// App notification model from API
+struct APIAppNotification: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let type: String
+    let title: String
+    let body: String
+    let data: [String: String]?
+    let isRead: Bool
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case type, title, body, data
+        case isRead = "is_read"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Unread Counts
+
+/// Unread counts model
+struct UnreadCounts: Codable {
+    let total: Int
+    let chat: Int
+    let notifications: Int
+    let friendRequests: Int
+
+    enum CodingKeys: String, CodingKey {
+        case total, chat, notifications
+        case friendRequests = "friend_requests"
+    }
+}
+
+/// Update unread count request
+struct UpdateUnreadCountRequest: Codable {
+    let count: Int
+
+    enum CodingKeys: String, CodingKey {
+        case count
     }
 }
