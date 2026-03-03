@@ -28,44 +28,34 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             // Tab content using ZStack for overlay navigation
             ZStack {
-                // 优先显示聊天界面
-                if isChatPresented {
-                    ChatDetailViewWrapper(
-                        conversation: trixBotConversation,
-                        onClose: {
-                            isChatPresented = false
-                        }
+                // 根据选择的 tab 显示内容
+                switch appState.selectedTab {
+                case .home, .core:
+                    // Both home and core show the same HomeView with workbench
+                    HomeView(
+                        isWorkbenchPresented: $isWorkbenchPresented,
+                        isChatPresented: $isChatPresented
                     )
-                } else {
-                    switch appState.selectedTab {
-                    case .home, .core:
-                        // Both home and core show the same HomeView with workbench
-                        HomeView(
-                            isWorkbenchPresented: $isWorkbenchPresented,
-                            isChatPresented: $isChatPresented
-                        )
-                    case .map:
-                        MapView()
-                    case .study:
-                        StudyListView()
-                    case .chat:
-                        ChatListView()
-                    case .profile:
-                        ProfileView()
-                    }
+                case .map:
+                    MapView()
+                case .study:
+                    StudyListView()
+                case .chat:
+                    ChatListView()
+                case .profile:
+                    ProfileView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
 
-            // GlassDock Navigation - 聊天界面时不显示，其他界面显示
+            // GlassDock Navigation - 根据工作台状态显示/隐藏
             GlassDockView(
                 selectedTab: $appState.selectedTab,
                 isWorkbenchPresented: $isWorkbenchPresented,
                 isChatPresented: $isChatPresented
             )
-            .opacity(isChatPresented ? 0 : (appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1))
-            .allowsHitTesting(!isChatPresented)  // 聊天界面时禁用点击
+            .opacity(appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1)
             .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
         }
         .ignoresSafeArea(.keyboard)
@@ -74,8 +64,12 @@ struct MainTabView: View {
         }
         .onChange(of: isChatPresented) { newValue in
             if newValue {
-                // 点击气泡后切换到聊天 tab
+                // 点击气泡后切换到聊天 tab，显示聊天列表
                 appState.selectedTab = .chat
+                // 重置状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isChatPresented = false
+                }
             }
         }
     }

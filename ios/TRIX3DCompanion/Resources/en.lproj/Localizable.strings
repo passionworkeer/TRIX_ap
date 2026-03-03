@@ -244,3 +244,79 @@
 "auth.register.creating" = "Creating account...";
 "auth.signin.apple" = "Sign in with Apple";
 "auth.signin.wechat" = "Sign in with WeChat";
+
+// MARK: - Settings Screen
+"settings.title" = "Settings";
+"settings.appearance" = "Appearance";
+"settings.theme" = "Theme";
+"settings.language" = "Language";
+"settings.notifications" = "Notifications";
+"settings.push.notifications" = "Push Notifications";
+"settings.haptic.feedback" = "Haptic Feedback";
+"settings.media" = "Media";
+"settings.auto.play.voice" = "Auto-play Voice Messages";
+"settings.storage" = "Storage";
+"settings.cache.size" = "Cache Size";
+"settings.clear.cache" = "Clear Cache";
+"settings.data" = "Data";
+"settings.export.data" = "Export Data (JSON)";
+"settings.done" = "Done";
+"settings.error" = "Error";
+"settings.theme.light" = "Light Mode";
+"settings.theme.dark" = "Dark Mode";
+"settings.theme.system" = "System";
+"settings.language.english" = "English";
+"settings.language.chinese" = "Chinese";
+
+// MARK: - Profile Status
+"profile.currently.studying" = "Currently Studying";
+"profile.idle" = "Idle";
+"profile.status" = "Status";
+
+// MARK: - Achievements
+"achievement.first.study" = "First Study";
+"achievement.streak.7" = "7 Day Streak";
+"achievement.social.butterfly" = "Social Butterfly";
+"achievement.night.owl" = "Night Owl";
+
+// MARK: - Edit Profile
+"profile.tell.about.self" = "Tell us about yourself";
+"profile.school.university" = "Your school or university";
+"profile.grade.example" = "e.g., Grade 10, Year 2";
+
+// MARK: - More Settings
+"settings.more.settings" = "More Settings";
+"settings.additional.preferences" = "Additional preferences";
+"settings.about" = "About";
+"settings.app.version" = "App version and info";
+
+// MARK: - Pairing
+"pairing.display.code" = "Display Code";
+"pairing.scan.qr" = "Scan QR Code";
+"pairing.paired.devices" = "Paired Devices";
+"pairing.device.connected" = "Device Connected";
+"pairing.no.device" = "No Device Connected";
+"pairing.display.pairing.code" = "Display Pairing Code";
+"pairing.generate.description" = "Generate a pairing code for other devices to scan";
+"pairing.regenerate.code" = "Regenerate Code";
+"pairing.generate.code" = "Generate Pairing Code";
+"pairing.your.code" = "Your Pairing Code";
+"pairing.qr.failed" = "QR Code Generation Failed";
+"pairing.expires" = "Expires in";
+"pairing.copy.code" = "Copy Code";
+"pairing.scan.qr.title" = "Scan QR Code";
+"pairing.scan.description" = "Scan a QR code from another device to pair";
+"pairing.open.scanner" = "Open QR Scanner";
+"pairing.enter.code" = "Enter Pairing Code";
+"pairing.enter.placeholder" = "Enter 6-character code";
+"pairing.pair.with.code" = "Pair with Code";
+"pairing.manage.devices" = "Manage your connected devices";
+"pairing.no.devices" = "No Paired Devices";
+"pairing.no.devices.desc" = "Pair with a device to get started";
+"pairing.refresh" = "Refresh";
+"pairing.online" = "Online";
+"pairing.offline" = "Offline";
+"pairing.mobile" = "Mobile";
+"pairing.desktop" = "Desktop";
+"pairing.tablet" = "Tablet";
+"pairing.web" = "Web";

@@ -127,7 +127,7 @@ struct ProfileView: View {
                     .fill(appState.isStudying ? .green : .gray)
                     .frame(width: 8, height: 8)
 
-                Text(appState.isStudying ? "Currently Studying" : "Idle")
+                Text(appState.isStudying ? "profile.currently.studying".localized : "profile.idle".localized)
                     .font(.caption)
                     .fontWeight(.medium)
             }
@@ -183,28 +183,28 @@ struct ProfileView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ProfileAchievementBadge(
-                        title: "First Study",
+                        title: "achievement.first.study".localized,
                         icon: "book.fill",
                         color: .blue,
                         isUnlocked: true
                     )
 
                     ProfileAchievementBadge(
-                        title: "7 Day Streak",
+                        title: "achievement.streak.7".localized,
                         icon: "flame.fill",
                         color: .orange,
                         isUnlocked: true
                     )
 
                     ProfileAchievementBadge(
-                        title: "Social Butterfly",
+                        title: "achievement.social.butterfly".localized,
                         icon: "person.3.fill",
                         color: .pink,
                         isUnlocked: false
                     )
 
                     ProfileAchievementBadge(
-                        title: "Night Owl",
+                        title: "achievement.night.owl".localized,
                         icon: "moon.stars.fill",
                         color: .purple,
                         isUnlocked: false
@@ -281,8 +281,8 @@ struct ProfileView: View {
             VStack(spacing: 0) {
                 SettingsRow(
                     icon: "paintbrush.fill",
-                    title: "Appearance",
-                    description: appState.isDarkMode ? "Dark Mode" : "Light Mode",
+                    title: "settings.appearance".localized,
+                    description: appState.isDarkMode ? "settings.theme.dark".localized : "settings.theme.light".localized,
                     color: .purple,
                     trailing: AnyView(Toggle("", isOn: $appState.isDarkMode))
                 )
@@ -292,7 +292,7 @@ struct ProfileView: View {
 
                 SettingsRow(
                     icon: "bell.fill",
-                    title: "Notifications",
+                    title: "settings.notifications".localized,
                     description: appState.isPushNotificationEnabled ? "Enabled" : "Disabled",
                     color: .red,
                     trailing: AnyView(Toggle("", isOn: $appState.isPushNotificationEnabled))
@@ -303,8 +303,8 @@ struct ProfileView: View {
 
                 SettingsRow(
                     icon: "gear",
-                    title: "More Settings",
-                    description: "Additional preferences",
+                    title: "settings.more.settings".localized,
+                    description: "settings.additional.preferences".localized,
                     color: .gray,
                     action: { showingSettings = true }
                 )
@@ -314,8 +314,8 @@ struct ProfileView: View {
 
                 SettingsRow(
                     icon: "info.circle.fill",
-                    title: "About",
-                    description: "App version and info",
+                    title: "settings.about".localized,
+                    description: "settings.app.version".localized,
                     color: .blue,
                     action: { showingAbout = true }
                 )
@@ -603,13 +603,13 @@ struct EditProfileView: View {
             FormField(label: "profile.display.name".localized, text: $displayName, placeholder: "auth.username.placeholder".localized)
 
             // Bio
-            FormField(label: "profile.bio".localized, text: $bio, placeholder: "Tell us about yourself", isMultiline: true)
+            FormField(label: "profile.bio".localized, text: $bio, placeholder: "profile.tell.about.self".localized, isMultiline: true)
 
             // School
-            FormField(label: "profile.school".localized, text: $school, placeholder: "Your school or university")
+            FormField(label: "profile.school".localized, text: $school, placeholder: "profile.school.university".localized)
 
             // Grade
-            FormField(label: "profile.grade".localized, text: $grade, placeholder: "e.g., Grade 10, Year 2")
+            FormField(label: "profile.grade".localized, text: $grade, placeholder: "profile.grade.example".localized)
         }
     }
 
@@ -793,8 +793,8 @@ struct AboutView: View {
     VStack(spacing: 0) {
         SettingsRow(
             icon: "paintbrush.fill",
-            title: "Appearance",
-            description: "Dark Mode",
+            title: "settings.appearance".localized,
+            description: "settings.theme.dark".localized,
             color: .purple
         )
 
@@ -802,7 +802,7 @@ struct AboutView: View {
 
         SettingsRow(
             icon: "bell.fill",
-            title: "Notifications",
+            title: "settings.notifications".localized,
             description: "Enabled",
             color: .red
         )
