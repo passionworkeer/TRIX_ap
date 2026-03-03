@@ -35,14 +35,28 @@ struct HomeView: View {
     @State private var showTodo = false
     @State private var showSchedule = false
     @State private var showLocation = false
+    @State private var botState: BotState = .idle
+    @State private var useRobotBackground = true
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // Hero Background - with safe area handling
-            HeroBackgroundView()
-                .ignoresSafeArea()
+            // Hero Background - with robot or gradient
+            Group {
+                if useRobotBackground {
+                    RobotHeroBackgroundView(
+                        botState: botState,
+                        onActiveVideoSourceChange: { source in
+                            print("Active video source: \(source)")
+                        }
+                    )
+                    .ignoresSafeArea()
+                } else {
+                    HeroBackgroundView()
+                        .ignoresSafeArea()
+                }
+            }
 
             // Main content
             VStack(spacing: 0) {
