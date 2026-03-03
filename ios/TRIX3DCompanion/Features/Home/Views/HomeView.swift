@@ -74,7 +74,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 60)  // 距离顶部 60pt
+                    .padding(.top, geometry.size.height * 0.35)  // 屏幕中间偏上位置
                     Spacer()
                 }
 
