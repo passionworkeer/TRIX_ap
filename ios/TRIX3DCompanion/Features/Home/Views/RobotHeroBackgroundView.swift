@@ -2,32 +2,26 @@
 //  RobotHeroBackgroundView.swift
 //  TRIX3DCompanion
 //
-//  3D Robot Hero Background
-//  使用状态驱动的动态背景，支持机器人动画效果
+//  3D Robot Hero Background with video playback
+//  Uses state-driven video transitions with battery-aware optimization
 //
 
 import SwiftUI
 import AVKit
-
-// MARK: - Bot State
-
-/// 机器人状态枚举
-enum BotState: String, Equatable {
-    case idle = "IDLE"
-    case thinking = "THINKING"
-    case speaking = "SPEAKING"
-    case boring = "BORING"
-}
+import UIKit
+import Combine
 
 // MARK: - Robot Hero Background View
 
-/// 3D 机器人 Hero 背景视图
+/// 3D 机器人 Hero 背景视图，支持视频播放和状态过渡
 struct RobotHeroBackgroundView: View {
 
     // MARK: - State
 
-    @State private var isLowBattery: Bool = false
-    @State private var animationOffset: CGFloat = 0
+    @StateObject private var videoTransitionManager = VideoTransitionManager()
+    @StateObject private var batteryManager = BatteryAwareVideoPlayer.shared
+
+    @State private var showParticles = true
 
     // MARK: - Properties
 
@@ -38,66 +32,39 @@ struct RobotHeroBackgroundView: View {
 
     var body: some View {
         ZStack {
-            // Background gradient based on bot state
-            backgroundGradient
+            // Video layers (managed by VideoTransitionManager)
+            VideoLayersView(manager: videoTransitionManager)
                 .ignoresSafeArea()
-                .offset(y: animationOffset)
 
-            // Animated particles
-            particleOverlay
-                .ignoresSafeArea()
+            // Animated particles (optional overlay)
+            if showParticles {
+                particleOverlay
+                    .ignoresSafeArea()
+            }
 
             // Gradient overlay for readability
             gradientOverlay
                 .ignoresSafeArea()
+
+            // Battery indicator overlay (in low power mode)
+            if batteryManager.isLowPowerMode {
+                batteryIndicator
+            }
         }
         .onAppear {
-            setupBatteryMonitoring()
-            startAnimation()
+            Task {
+                await initializeVideoSystem()
+            }
         }
         .onChange(of: botState) { _, newState in
-            updateForState(newState)
+            Task {
+                await transitionToState(newState)
+            }
         }
-    }
-
-    // MARK: - Background Gradient
-
-    private var backgroundGradient: some View {
-        let gradientColors = gradientColorsForState(botState)
-
-        return LinearGradient(
-            colors: gradientColors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    private func gradientColorsForState(_ state: BotState) -> [Color] {
-        switch state {
-        case .idle:
-            return [
-                Color(hex: "667eea"),
-                Color(hex: "764ba2"),
-                Color(hex: "6B8DD6")
-            ]
-        case .thinking:
-            return [
-                Color(hex: "4338ca"),
-                Color(hex: "6366f1"),
-                Color(hex: "8B5CF6")
-            ]
-        case .speaking:
-            return [
-                Color(hex: "7C3AED"),
-                Color(hex: "A78BFA"),
-                Color(hex: "F472B6")
-            ]
-        case .boring:
-            return [
-                Color.gray.opacity(0.3),
-                Color.gray.opacity(0.2),
-                Color.clear
-            ]
+        .onChange(of: batteryManager.playbackQuality) { _, _ in
+            Task {
+                await handleQualityChange()
+            }
         }
     }
 
@@ -105,12 +72,12 @@ struct RobotHeroBackgroundView: View {
 
     private var particleOverlay: some View {
         GeometryReader { geometry in
-            ForEach(0..<20, id: \.self) { index in
+            ForEach(0..<10, id: \.self) { index in
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color.white.opacity(0.3),
+                                Color.white.opacity(batteryManager.isLowPowerMode ? 0.1 : 0.3),
                                 Color.clear
                             ],
                             center: .center,
@@ -118,12 +85,12 @@ struct RobotHeroBackgroundView: View {
                             endRadius: 20
                         )
                     )
-                    .frame(width: CGFloat.random(in: 10...40))
+                    .frame(width: CGFloat.random(in: 10...30))
                     .position(
                         x: CGFloat.random(in: 0...geometry.size.width),
                         y: CGFloat.random(in: 0...geometry.size.height)
                     )
-                    .opacity(Double.random(in: 0.2...0.6))
+                    .opacity(Double.random(in: 0.1...0.4))
                     .blur(radius: 5)
             }
         }
@@ -136,7 +103,7 @@ struct RobotHeroBackgroundView: View {
             // Top dark gradient
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.4),
+                    Color.black.opacity(0.5),
                     Color.clear
                 ],
                 startPoint: .top,
@@ -156,61 +123,73 @@ struct RobotHeroBackgroundView: View {
         .allowsHitTesting(false)
     }
 
-    // MARK: - Battery Monitoring
+    // MARK: - Battery Indicator
 
-    private func setupBatteryMonitoring() {
-        // Check for low power mode
-        isLowBattery = ProcessInfo.processInfo.isLowPowerModeEnabled
+    private var batteryIndicator: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "battery.low")
+                .font(.caption2)
+                .foregroundColor(.yellow)
 
-        // Monitor battery state changes
-        NotificationCenter.default.publisher(for: Notification.Name("NSProcessInfoPowerStateDidChange"))
-            .sink { [weak self] _ in
-                self?.isLowBattery = ProcessInfo.processInfo.isLowPowerModeEnabled
-                if let state = self?.botState {
-                    self?.updateForState(state)
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    @State private var cancellables = Set<AnyCancellable>()
-
-    // MARK: - Animation
-
-    private func startAnimation() {
-        withAnimation(
-            Animation.easeInOut(duration: 8.0)
-                .repeatForever(autoreverses: true)
-        ) {
-            animationOffset = 50
+            Text("\(batteryManager.getBatteryPercentage())%")
+                .font(.caption2)
+                .foregroundColor(.yellow)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .padding(.trailing, 16)
+        .padding(.top, 60)
     }
 
-    // MARK: - State Updates
+    // MARK: - Initialization
 
-    private func updateForState(_ state: BotState) {
-        let sourceName = videoSourceForState(state)
-        onActiveVideoSourceChange?(sourceName)
+    private func initializeVideoSystem() async {
+        // Initialize video transition manager
+        await videoTransitionManager.initialize()
 
-        // Trigger haptic feedback on state change
+        // Set initial state
+        let adjustedState = batteryManager.adjustedState(for: botState)
+        await videoTransitionManager.setInitialState(adjustedState)
+
+        // Notify callback
+        onActiveVideoSourceChange?(adjustedState.videoFileName)
+
+        SecureLogger.shared.info("RobotHeroBackground initialized with state: \(botState.rawValue)")
+    }
+
+    // MARK: - State Transitions
+
+    private func transitionToState(_ state: BotState) async {
+        // Apply battery-aware state adjustment
+        let adjustedState = batteryManager.adjustedState(for: state)
+
+        // Perform video transition
+        await videoTransitionManager.transitionToState(adjustedState)
+
+        // Notify callback
+        onActiveVideoSourceChange?(adjustedState.videoFileName)
+
+        // Trigger haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+
+        SecureLogger.shared.info("Transitioned to state: \(adjustedState.rawValue)")
     }
 
-    private func videoSourceForState(_ state: BotState) -> String {
-        if isLowBattery && state == .idle {
-            return "videos/role1/boring.mp4"
+    private func handleQualityChange() async {
+        // Adjust particle effects based on battery
+        withAnimation {
+            showParticles = batteryManager.playbackQuality != .low
         }
 
-        switch state {
-        case .thinking:
-            return "videos/role1/thinking.mp4"
-        case .speaking:
-            return "videos/role1/speaking.mp4"
-        case .idle:
-            return "videos/role1/idle.mp4"
-        case .boring:
-            return "videos/role1/boring.mp4"
+        // Pause/resume based on battery
+        if batteryManager.shouldPausePlayback() {
+            videoTransitionManager.pause()
+        } else {
+            videoTransitionManager.resume()
         }
     }
 }
@@ -238,7 +217,7 @@ extension Color {
             .sRGB,
             red: Double(r) / 255,
             green: Double(g) / 255,
-            blue:  Double(b) / 255,
+            blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
     }
@@ -269,6 +248,15 @@ import Combine
 #Preview("Robot Hero Background - Speaking") {
     RobotHeroBackgroundView(
         botState: .speaking,
+        onActiveVideoSourceChange: { source in
+            print("Active video source: \(source)")
+        }
+    )
+}
+
+#Preview("Robot Hero Background - Boring") {
+    RobotHeroBackgroundView(
+        botState: .boring,
         onActiveVideoSourceChange: { source in
             print("Active video source: \(source)")
         }
