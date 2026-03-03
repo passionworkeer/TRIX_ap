@@ -234,7 +234,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 4)
 
-            NavigationLink(destination: WardrobeView()) {
+            NavigationLink(destination: Text("Wardrobe")) {
                 HStack(spacing: 12) {
                     // Equipped items preview
                     ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in

@@ -323,17 +323,25 @@ struct StudyRoomView: View {
         }
     }
 
-    /// 背景渐变
+    /// 背景渐变 - 使用图片背景
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.1),
-                Color.brandPink.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack {
+            // 图片背景
+            Image("StudyRoomBG")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+
+            // 渐变叠加层
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.3),
+                    Color.black.opacity(0.2),
+                    Color.black.opacity(0.4)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 
     // MARK: - Computed Properties

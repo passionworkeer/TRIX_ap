@@ -134,7 +134,7 @@ struct GlassDockView: View {
     private var coreButton: some View {
         Button {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                // Set to home tab and show workbench
+                // 相机按钮点击后切换到Home页并弹出工作台（让用户选择功能）
                 selectedTab = .home
                 isWorkbenchPresented = true
             }

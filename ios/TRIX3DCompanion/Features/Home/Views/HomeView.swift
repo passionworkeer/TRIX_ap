@@ -41,46 +41,48 @@ struct HomeView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            // Hero Background - with robot or gradient
-            Group {
+        GeometryReader { geometry in
+            ZStack {
+                // Video Background
                 if useRobotBackground {
-                    RobotHeroBackgroundView(
-                        botState: botState,
-                        onActiveVideoSourceChange: { source in
-                            print("Active video source: \(source)")
-                        }
-                    )
-                    .ignoresSafeArea()
+                    VideoPlayerView(videoName: botState.videoFileName, isPlaying: true)
+                        .ignoresSafeArea()
                 } else {
                     HeroBackgroundView()
-                        .ignoresSafeArea()
+                    .ignoresSafeArea()
                 }
-            }
 
-            // Main content
-            VStack(spacing: 0) {
-                // Top bar with mail and notification buttons
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 50)
+                // Gradient overlay for readability
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.3)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                Spacer()
+                // Main content
+                VStack(spacing: 0) {
+                    // Top bar with mail and notification buttons
+                    topBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, geometry.safeAreaInsets.top + 8)
 
-                // Home Bot Bubble
-                botBubbleSection
+                    Spacer()
 
-                Spacer()
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Tap on background opens workbench
-                isWorkbenchPresented = true
-            }
+                    // Home Bot Bubble
+                    botBubbleSection
 
-            // Workbench Modal (appears on background tap)
-            if isWorkbenchPresented {
-                WorkbenchOverlay(
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Tap on background opens workbench
+                    isWorkbenchPresented = true
+                }
+
+                // Workbench Modal (appears on background tap)
+                if isWorkbenchPresented {
+                    WorkbenchOverlay(
                     isPresented: $isWorkbenchPresented,
                     onCardClick: handleWorkbenchCardClick
                 )
@@ -90,6 +92,37 @@ struct HomeView: View {
             if showStudyRoom {
                 StudyRoomOverlay(isPresented: $showStudyRoom)
             }
+
+            // Mail Panel
+            if showMailPanel {
+                MailPanelView(isPresented: $showMailPanel)
+            }
+
+            // Notification Panel
+            if showNotificationPanel {
+                NotificationPanelView(isPresented: $showNotificationPanel)
+            }
+
+            // Snapshot View
+            if showSnapshot {
+                SnapshotListView()
+            }
+
+            // Location View
+            if showLocation {
+                LocationPickerView()
+            }
+
+            // Schedule View
+            if showSchedule {
+                ScheduleListView()
+            }
+
+            // Todo View
+            if showTodo {
+                TodoListView()
+            }
+        }
         }
         .ignoresSafeArea()
     }
