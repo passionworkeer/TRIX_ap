@@ -2,7 +2,7 @@
 //  ChatListView.swift
 //  TRIX3DCompanion
 //
-//  Chat tab placeholder view showing conversation list
+//  Chat tab with friends list, quick add, and TRIX Bot
 //
 
 import SwiftUI
@@ -25,6 +25,20 @@ struct ChatListView: View {
     @State private var showingCreateChat = false
     @State private var newChatName = ""
     @State private var conversations: [ChatConversation] = []
+
+    // MARK: - Quick Add Data
+
+    @State private var recommendedUsers: [RecommendedUser] = []
+    @State private var showQuickAdd = true
+
+    // Sample recommended users
+    private let sampleRecommendedUsers: [RecommendedUser] = [
+        RecommendedUser(id: "1", name: "Sarah Chen", avatar: "SC", mutualFriends: 5, avatarColor: .pink),
+        RecommendedUser(id: "2", name: "Mike Johnson", avatar: "MJ", mutualFriends: 3, avatarColor: .blue),
+        RecommendedUser(id: "3", name: "Emma Wilson", avatar: "EW", mutualFriends: 8, avatarColor: .purple),
+        RecommendedUser(id: "4", name: "David Lee", avatar: "DL", mutualFriends: 2, avatarColor: .green),
+        RecommendedUser(id: "5", name: "Lisa Park", avatar: "LP", mutualFriends: 6, avatarColor: .orange)
+    ]
 
     // MARK: - Sample Data
 
@@ -72,6 +86,7 @@ struct ChatListView: View {
     init() {
         // Initialize with sample data
         _conversations = State(initialValue: sampleConversations)
+        _recommendedUsers = State(initialValue: sampleRecommendedUsers)
     }
 
     // MARK: - Body
@@ -82,6 +97,17 @@ struct ChatListView: View {
                 // Search bar
                 searchBar
                     .padding()
+
+                // TRIX Bot entry
+                trixBotEntry
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+
+                // Quick Add section
+                if showQuickAdd && !recommendedUsers.isEmpty {
+                    quickAddSection
+                        .padding(.bottom, 12)
+                }
 
                 // Conversation list
                 if filteredConversations.isEmpty {
@@ -105,6 +131,119 @@ struct ChatListView: View {
                 createChatSheet
             }
         }
+        .onAppear {
+            loadRecommendedUsers()
+        }
+    }
+
+    // MARK: - TRIX Bot Entry
+
+    private var trixBotEntry: some View {
+        Button {
+            // Open TRIX Bot chat
+            openTrixBotChat()
+        } label: {
+            HStack(spacing: 12) {
+                // Bot avatar with glow
+                ZStack {
+                    // Glow effect
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.brandPurple.opacity(0.4), .clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 25
+                            )
+                        )
+                        .frame(width: 54, height: 54)
+
+                    // Avatar
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.brandPurple, Color.brandPink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                        .overlay {
+                            Image(systemName: "sparkles")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                        }
+
+                    // Online indicator
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 14, height: 14)
+                        .overlay {
+                            Circle()
+                                .stroke(.white, lineWidth: 2)
+                        }
+                        .offset(x: 20, y: 20)
+                }
+
+                // Bot info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TRIX Bot")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("AI 学习助手")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Quick Add Section
+
+    private var quickAddSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("推荐添加")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button("隐藏") {
+                    withAnimation {
+                        showQuickAdd = false
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.purple)
+            }
+            .padding(.horizontal, 20)
+
+            // Horizontal scroll users
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(recommendedUsers) { user in
+                        QuickAddUserCard(user: user) {
+                            addUser(user)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
     }
 
     // MARK: - View Components
@@ -115,7 +254,7 @@ struct ChatListView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
 
-            TextField("Search conversations...", text: $searchText)
+            TextField("搜索对话...", text: $searchText)
                 .textFieldStyle(.plain)
 
             if !searchText.isEmpty {
@@ -169,11 +308,11 @@ struct ChatListView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.purple.opacity(0.3))
 
-            Text("No conversations found")
+            Text("没有找到对话")
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("Start a new chat to begin studying together")
+            Text("开始新对话一起学习吧")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -197,6 +336,36 @@ struct ChatListView: View {
     }
 
     // MARK: - Actions
+
+    private func openTrixBotChat() {
+        // Navigate to TRIX Bot chat
+        let botConversation = ChatConversation(
+            id: "trixbot",
+            name: "TRIX Bot",
+            lastMessage: "有什么可以帮你的吗？",
+            time: "在线",
+            unreadCount: 0,
+            avatarColor: .purple,
+            isOnline: true
+        )
+        // Navigate to chat detail with bot
+    }
+
+    private func loadRecommendedUsers() {
+        // Load recommended users from API
+        // For now using sample data
+    }
+
+    private func addUser(_ user: RecommendedUser) {
+        // Add user as friend
+        withAnimation {
+            recommendedUsers.removeAll { $0.id == user.id }
+        }
+
+        // Show success feedback
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+    }
 
     private func createNewChat() {
         showingCreateChat = true
@@ -385,6 +554,78 @@ struct ConversationRow: View {
         .padding(.vertical, 12)
         .background(.ultraThinMaterial.opacity(0.3))
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Recommended User Model
+
+struct RecommendedUser: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let avatar: String
+    let mutualFriends: Int
+    let avatarColor: Color
+}
+
+// MARK: - Quick Add User Card
+
+struct QuickAddUserCard: View {
+    let user: RecommendedUser
+    let onAdd: () -> Void
+
+    @State private var isAdded = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .bottomTrailing) {
+                // Avatar
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [user.avatarColor, user.avatarColor.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .overlay {
+                        Text(user.avatar)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                    }
+
+                // Add button overlay
+                if !isAdded {
+                    Circle()
+                        .fill(Color.brandPurple)
+                        .frame(width: 24, height: 24)
+                        .overlay {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: 5, y: 5)
+                    }
+            }
+
+            // Name
+            Text(user.name)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .frame(width: 70)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isAdded {
+                withAnimation(.spring(response: 0.3)) {
+                    isAdded = true
+                }
+                onAdd()
+            }
+        }
     }
 }
 
