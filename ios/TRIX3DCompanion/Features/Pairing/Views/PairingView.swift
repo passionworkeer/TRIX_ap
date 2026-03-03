@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Pairing View
 
 /// Main view for device pairing and management
@@ -86,7 +91,7 @@ struct PairingView: View {
                 endPoint: .bottomTrailing
             )
         )
-        .navigationTitle("Device Pairing")
+        .navigationTitle(loc("pairing.title"))
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showQRScanner) {
             QRScannerView(
@@ -94,7 +99,7 @@ struct PairingView: View {
                 onDismiss: { showQRScanner = false }
             )
         }
-        .alert("Pairing Error", isPresented: $showError) {
+        .alert(loc("pairing.error"), isPresented: $showError) {
             Button("OK", role: .cancel) {
                 pairingService.clearError()
             }
@@ -104,20 +109,20 @@ struct PairingView: View {
             }
         }
         .confirmationDialog(
-            "Unpair Device",
+            loc("pairing.unpair"),
             isPresented: $showUnpairDialog,
             presenting: deviceToUnpair
         ) { device in
-            Button("Unpair", role: .destructive) {
+            Button(loc("pairing.unpair"), role: .destructive) {
                 if let device = deviceToUnpair {
                     Task {
                         await unpairDevice(device)
                     }
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(loc("action.cancel"), role: .cancel) {}
         } message: { device in
-            Text("Are you sure you want to unpair from \"\(device.deviceName)\"?")
+            Text(loc("pairing.unpair.confirm") + " \"\(device.deviceName)\"?")
         }
         .task {
             await loadPairedDevices()

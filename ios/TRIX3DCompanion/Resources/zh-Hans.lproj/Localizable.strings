@@ -264,3 +264,15 @@
 
 // MARK: - Action Done
 "action.done" = "完成";
+
+// MARK: - Additional Auth Keys
+"auth.confirm.password" = "确认密码";
+"auth.confirm.password.required" = "请确认密码";
+"auth.password.min.length" = "密码至少需要6个字符";
+"auth.username.min.length" = "用户名至少需要3个字符";
+"auth.password.mismatch" = "两次密码输入不一致";
+"auth.register.success" = "成功！";
+"auth.register.success.message" = "您的账号已创建成功！";
+"auth.register.creating" = "正在创建账号...";
+"auth.signin.apple" = "使用 Apple 登录";
+"auth.signin.wechat" = "使用微信登录";
