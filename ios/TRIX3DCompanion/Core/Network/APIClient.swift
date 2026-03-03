@@ -565,6 +565,84 @@ extension APIClient {
         return try await post(.restorePurchases)
     }
 
+    // MARK: - Notifications
+
+    func getNotifications() async throws -> [APIAppNotification] {
+        let response: PaginatedResponse<APIAppNotification> = try await get(.notificationList)
+        return response.data
+    }
+
+    func markNotificationAsRead(notificationId: String) async throws {
+        let _: EmptyResponse = try await post(.notificationMarkRead(id: notificationId))
+    }
+
+    func markAllNotificationsAsRead() async throws {
+        let _: EmptyResponse = try await post(.notificationMarkAllRead)
+    }
+
+    // MARK: - Unread Counts
+
+    func getUnreadCounts() async throws -> UnreadCounts {
+        return try await get(.unreadCounts)
+    }
+
+    func getUnreadCount(friendId: String) async throws -> Int {
+        return try await get(.unreadCount(friendId: friendId))
+    }
+
+    func updateUnreadCount(friendId: String, count: Int) async throws {
+        let request = UpdateUnreadCountRequest(count: count)
+        let _: EmptyResponse = try await post(.unreadUpdateCount(friendId: friendId), body: request)
+    }
+
+    func markAllAsRead() async throws {
+        let _: EmptyResponse = try await post(.unreadMarkAllRead)
+    }
+
+    // MARK: - Clawbot (AI Conversation)
+
+    func getClawbotConversations() async throws -> [ClawbotConversation] {
+        return try await get(.clawbotConversations)
+    }
+
+    func createClawbotConversation(name: String?) async throws -> ClawbotConversation {
+        let request = CreateClawbotConversationRequest(name: name)
+        return try await post(.clawbotCreateConversation, body: request)
+    }
+
+    func getClawbotMessages(conversationId: String, page: Int = 1, limit: Int = 50) async throws -> [ClawbotMessage] {
+        let params: Parameters = ["page": page, "limit": limit]
+        let response: PaginatedResponse<ClawbotMessage> = try await get(.clawbotConversationMessages(conversationId: conversationId), parameters: params)
+        return response.data
+    }
+
+    func sendClawbotMessage(conversationId: String, content: String) async throws -> ClawbotMessage {
+        let request = SendClawbotMessageRequest(content: content)
+        return try await post(.clawbotSendMessage(conversationId: conversationId), body: request)
+    }
+
+    func deleteClawbotConversation(conversationId: String) async throws {
+        let _: EmptyResponse = try await delete(.clawbotDeleteConversation(conversationId: conversationId))
+    }
+
+    // MARK: - Study Goals
+
+    func getStudyGoals() async throws -> [StudyGoal] {
+        return try await get(.studyGoals)
+    }
+
+    func createStudyGoal(_ request: CreateStudyGoalRequest) async throws -> StudyGoal {
+        return try await post(.studyGoalCreate, body: request)
+    }
+
+    func updateStudyGoal(id: String, request: UpdateStudyGoalRequest) async throws -> StudyGoal {
+        return try await put(.studyGoalUpdate(id: id), body: request)
+    }
+
+    func deleteStudyGoal(id: String) async throws {
+        let _: EmptyResponse = try await delete(.studyGoalDelete(id: id))
+    }
+
     // MARK: - APIClientProtocol Conformance
 
     func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
