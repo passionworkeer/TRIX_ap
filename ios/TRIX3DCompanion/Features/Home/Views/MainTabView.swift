@@ -58,13 +58,14 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
 
-            // GlassDock Navigation - 根据工作台状态显示/隐藏
+            // GlassDock Navigation - 聊天界面时不显示，其他界面显示
             GlassDockView(
                 selectedTab: $appState.selectedTab,
                 isWorkbenchPresented: $isWorkbenchPresented,
                 isChatPresented: $isChatPresented
             )
-            .opacity(appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1)
+            .opacity(isChatPresented ? 0 : (appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1))
+            .allowsHitTesting(!isChatPresented)  // 聊天界面时禁用点击
             .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
         }
         .ignoresSafeArea(.keyboard)
