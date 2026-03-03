@@ -375,7 +375,13 @@ messageService.initMessageTable().catch((error) => {
   console.error('[MessageService] initMessageTable failed:', error);
 });
 
-app.get('/health', (_req, res) => {
+// ============================================
+// MVP API Routes
+// ============================================
+const mvpRoutes = require('./routes/mvp');
+app.use('/api', mvpRoutes);
+
+// Health check
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
