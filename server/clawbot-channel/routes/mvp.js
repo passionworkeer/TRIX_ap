@@ -777,6 +777,40 @@ router.get('/mall/items', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// 获取单个商品
+router.get('/mall/items/:id', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: item, error } = await supabase
+      .from('mall_items')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) throw error;
+    if (!item) return notFound(res, '商品不存在');
+
+    // 检查是否已购买
+    let isOwned = false;
+    if (req.userId) {
+      const { data: purchased } = await supabase
+        .from('user_purchased_items')
+        .select('id')
+        .eq('user_id', req.userId)
+        .eq('item_id', id)
+        .single();
+
+      isOwned = !!purchased;
+    }
+
+    success(res, { ...item, is_owned: isOwned });
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 // 购买商品
 router.post('/mall/purchase', authMiddleware, async (req, res) => {
   try {
@@ -1155,6 +1189,157 @@ router.get('/study/history/monthly', authMiddleware, async (req, res) => {
     serverError(res, err);
   }
 });
+
+// ============================================
+// 用户设置模块
+// ============================================
+
+// 获取用户设置
+router.get('/user/settings', authMiddleware, async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.userId)
+      .single();
+
+    // 返回用户的应用设置
+    const settings = {
+      notifications: {
+        enabled: true,
+        study_reminder: true,
+        friend_request: true,
+        system_notification: true
+      },
+      privacy: {
+        show_online_status: true,
+        allow_friend_requests: true,
+        share_location: false
+      },
+      display: {
+        theme: 'system',
+        language: 'zh-Hans'
+      },
+      profile: profile || {}
+    };
+
+    success(res, settings);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 更新用户设置
+router.put('/user/settings', authMiddleware, async (req, res) => {
+  try {
+    const { notifications, privacy, display } = req.body;
+
+    // 这里可以扩展为保存到专门的设置表
+    // 暂时只返回更新后的设置
+    const settings = {
+      notifications: notifications || {},
+      privacy: privacy || {},
+      display: display || {}
+    };
+
+    success(res, settings, '设置已更新');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// ============================================
+// 成就解锁
+// ============================================
+
+// 解锁成就
+router.post('/achievements/:id/unlock', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 检查成就是否存在
+    const { data: achievement } = await supabase
+      .from('achievements')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!achievement) {
+      return notFound(res, '成就不存在');
+    }
+
+    // 检查是否已经解锁
+    const { data: existing } = await supabase
+      .from('user_achievements')
+      .select('*')
+      .eq('user_id', req.userId)
+      .eq('achievement_id', id)
+      .single();
+
+    if (existing) {
+      return error(res, '成就已经解锁');
+    }
+
+    // 解锁成就
+    const { data: userAchievement, error: unlockError } = await supabase
+      .from('user_achievements')
+      .insert({
+        user_id: req.userId,
+        achievement_id: id,
+        unlocked_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (unlockError) throw unlockError;
+
+    // 奖励积分
+    if (achievement.points > 0) {
+      await addPoints(req.userId, achievement.points, 'bonus', `成就: ${achievement.name}`);
+    }
+
+    success(res, { ...achievement, user_achievement: userAchievement }, '成就解锁成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 辅助函数: 增加积分
+async function addPoints(userId, amount, type, reason) {
+  const { data: existingPoints } = await supabase
+    .from('user_points')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (existingPoints) {
+    await supabase
+      .from('user_points')
+      .update({
+        total_points: existingPoints.total_points + amount,
+        lifetime_points: existingPoints.lifetime_points + amount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+  } else {
+    await supabase
+      .from('user_points')
+      .insert({
+        user_id: userId,
+        total_points: amount,
+        lifetime_points: amount
+      });
+  }
+
+  await supabase
+    .from('points_transactions')
+    .insert({
+      user_id: userId,
+      amount,
+      type,
+      reason
+    });
+}
 
 // ============================================
 // 导出路由
