@@ -43,13 +43,15 @@ struct HomeView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Video Background
+                // 视频背景 - 根据 Web 端实现
                 if useRobotBackground {
-                    VideoPlayerView(videoName: botState.videoFileName, isPlaying: true)
+                    VideoBackgroundView(botState: botState)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
                         .ignoresSafeArea()
                 } else {
                     HeroBackgroundView()
-                    .ignoresSafeArea()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .ignoresSafeArea()
                 }
 
                 // Gradient overlay for readability
@@ -60,32 +62,46 @@ struct HomeView: View {
                 )
                 .ignoresSafeArea()
 
-                // Main content
+                // 右上角聊天气泡 - 始终显示，不受工作台状态影响
+                VStack {
+                    HStack {
+                        Spacer()
+                        HomeBotBubbleView(
+                            botName: "TRIX Bot",
+                            botAvatar: "sparkles"
+                        ) {
+                            isChatPresented = true
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, geometry.safeAreaInsets.top + 60)  // 距离顶部 60pt
+                    Spacer()
+                }
+
+                // Main content - 顶部工具栏，根据工作台状态显示/隐藏
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 8)
-
-                    Spacer()
-
-                    // Home Bot Bubble
-                    botBubbleSection
+                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 往下移动，避开状态栏
+                        .opacity(isWorkbenchPresented ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
                     Spacer()
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // Tap on background opens workbench
-                    isWorkbenchPresented = true
+                    // 点击背景切换工作台显示状态
+                    isWorkbenchPresented.toggle()
                 }
 
-                // Workbench Modal (appears on background tap)
+                // Workbench Modal (appears on background tap) - 底部浮窗效果
                 if isWorkbenchPresented {
                     WorkbenchOverlay(
-                    isPresented: $isWorkbenchPresented,
-                    onCardClick: handleWorkbenchCardClick
-                )
+                        isPresented: $isWorkbenchPresented,
+                        onCardClick: handleWorkbenchCardClick
+                    )
+                }
             }
 
             // Study Room Overlay
@@ -123,26 +139,13 @@ struct HomeView: View {
                 TodoListView()
             }
         }
-        }
-        .ignoresSafeArea()
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
         HStack {
-            // User greeting
-            VStack(alignment: .leading, spacing: 4) {
-                Text(loc("home.welcome"))
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-
-                Text(appState.displayName)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-            }
-
+            // Spacer to balance the layout (removed welcome text)
             Spacer()
 
             // Mail button
@@ -150,44 +153,28 @@ struct HomeView: View {
                 showMailPanel = true
             } label: {
                 Image(systemName: "envelope.fill")
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
             }
+
+            Spacer()
+                .frame(width: 12)
 
             // Notification button
             Button {
                 showNotificationPanel = true
             } label: {
                 Image(systemName: "bell.fill")
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
             }
         }
-    }
-
-    // MARK: - Bot Bubble Section
-
-    private var botBubbleSection: some View {
-        VStack {
-            Spacer()
-
-            // Home Bot Bubble
-            HomeBotBubbleView(
-                botName: "TRIX Bot",
-                botAvatar: "sparkles"
-            ) {
-                isChatPresented = true
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .frame(maxHeight: .infinity)
     }
 
     // MARK: - Workbench Card Actions
@@ -216,81 +203,117 @@ struct WorkbenchOverlay: View {
     @Binding var isPresented: Bool
     let onCardClick: (String) -> Void
 
-    @State private var selectedCard: String?
+    @State private var offset: CGFloat = 300
+    @State private var backdropOpacity: Double = 0
+
+    // 底部 Dock 高度 + 安全区域
+    private let dockHeight: CGFloat = 120
 
     var body: some View {
         ZStack {
-            // Background overlay
-            Color.black.opacity(0.3)
+            // 半透明背景 - 点击关闭
+            Color.black.opacity(backdropOpacity)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    isPresented = false
+                    closeWorkbench()
                 }
 
-            // Cards container
-            VStack(spacing: 0) {
-                // Handle bar
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.secondary.opacity(0.4))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 12)
-
-                // Title
-                VStack(spacing: 4) {
-                    Text(loc("workbench.title"))
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text(loc("workbench.subtitle"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 16)
-
-                // Cards scroll
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        WorkbenchOverlayCard(
-                            icon: "camera.fill",
-                            label: loc("workbench.snapshot"),
-                            color: .orange,
-                            action: { onCardClick("snapshot") }
-                        )
-
-                        WorkbenchOverlayCard(
-                            icon: "location.fill",
-                            label: loc("workbench.location"),
-                            color: .green,
-                            action: { onCardClick("location") }
-                        )
-
-                        WorkbenchOverlayCard(
-                            icon: "calendar",
-                            label: loc("workbench.schedule"),
-                            color: .blue,
-                            action: { onCardClick("schedule") }
-                        )
-
-                        WorkbenchOverlayCard(
-                            icon: "checklist",
-                            label: loc("workbench.todo"),
-                            color: .purple,
-                            action: { onCardClick("todo") }
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                }
-
+            // 底部浮窗卡片 - 往上移动，避开底部 Dock
+            VStack {
                 Spacer()
+
+                // 卡片内容
+                VStack(spacing: 0) {
+                    // Handle bar
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(Color.secondary.opacity(0.4))
+                        .frame(width: 40, height: 5)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+
+                    // Title
+                    Text(loc("workbench.title"))
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .padding(.bottom, 16)
+
+                    // Cards scroll
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 20) {
+                            WorkbenchOverlayCard(
+                                icon: "camera.fill",
+                                label: loc("workbench.snapshot"),
+                                color: .orange,
+                                action: {
+                                    onCardClick("snapshot")
+                                    closeWorkbench()
+                                }
+                            )
+
+                            WorkbenchOverlayCard(
+                                icon: "location.fill",
+                                label: loc("workbench.location"),
+                                color: .green,
+                                action: {
+                                    onCardClick("location")
+                                    closeWorkbench()
+                                }
+                            )
+
+                            WorkbenchOverlayCard(
+                                icon: "calendar",
+                                label: loc("workbench.schedule"),
+                                color: .blue,
+                                action: {
+                                    onCardClick("schedule")
+                                    closeWorkbench()
+                                }
+                            )
+
+                            WorkbenchOverlayCard(
+                                icon: "checklist",
+                                label: loc("workbench.todo"),
+                                color: .purple,
+                                action: {
+                                    onCardClick("todo")
+                                    closeWorkbench()
+                                }
+                            )
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+                .frame(height: 200)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(.ultraThinMaterial)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 20)
             }
-            .frame(maxHeight: 250)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
-            )
-            .shadow(color: .black.opacity(0.2), radius: 20)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 120)
+            .padding(.bottom, dockHeight)  // 避开底部 Dock
+            .offset(y: offset)
+        }
+        .onAppear {
+            openWorkbench()
+        }
+    }
+
+    private func openWorkbench() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            offset = 0
+            backdropOpacity = 0.3
+        }
+    }
+
+    private func closeWorkbench() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            offset = 300
+            backdropOpacity = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isPresented = false
         }
     }
 }

@@ -64,7 +64,6 @@ struct StoreView: View {
                         // Info Section
                         infoSection
                             .padding(.horizontal)
-                            .padding(.bottom, 100)
                     }
                 }
                 .background(Color(UIColor.systemGroupedBackground))

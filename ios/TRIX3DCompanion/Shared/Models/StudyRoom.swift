@@ -28,10 +28,9 @@ struct StudyRoomMember: Codable, Identifiable {
     }
 }
 
-/// 学习房间会话状态
+/// 学习房间会话状态 - 匹配 Web 端定义
 enum StudyRoomSessionState: String, Codable {
     case idle
-    case active
     case focusing
     case resting
 }

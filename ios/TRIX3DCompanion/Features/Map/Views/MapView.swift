@@ -202,7 +202,6 @@ struct MapView: View {
                     .buttonStyle(.plain)
                 }
                 .padding(.trailing, 16)
-                .padding(.bottom, 100)
             }
         }
     }

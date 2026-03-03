@@ -817,7 +817,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 if isActiveSession {
                     sessionState = .resting
                 }
-            case .active, .idle:
+            case .idle:
                 break
             }
         }
