@@ -233,3 +233,34 @@
 // MARK: - Notification
 "notification.title" = "通知";
 "notification.empty" = "暂无通知";
+
+// MARK: - Todo
+"todo.title" = "待办事项";
+"todo.add" = "添加待办";
+"todo.edit" = "编辑待办";
+"todo.empty" = "暂无待办";
+"todo.completed" = "已完成";
+"todo.pending" = "待处理";
+
+// MARK: - Schedule
+"schedule.title" = "日程";
+"schedule.add" = "添加日程";
+"schedule.edit" = "编辑日程";
+"schedule.empty" = "暂无日程";
+"schedule.today" = "今天";
+"schedule.upcoming" = "即将到来";
+
+// MARK: - Location
+"location.pick" = "选择位置";
+"location.search" = "搜索位置";
+"location.current" = "当前位置";
+"location.favorites" = "收藏夹";
+
+// MARK: - Snapshot
+"snapshot.title" = "照片";
+"snapshot.empty" = "暂无照片";
+"snapshot.take" = "拍照";
+"snapshot.delete" = "删除照片";
+
+// MARK: - Action Done
+"action.done" = "完成";

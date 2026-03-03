@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Schedule List View
 
 /// Schedule list view displaying schedule items
@@ -40,12 +45,12 @@ struct ScheduleListView: View {
                 scheduleList
             }
             .background(backgroundGradient)
-            .navigationTitle("Schedule")
+            .navigationTitle(loc("schedule.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button("Done") {
+                        Button(loc("action.done")) {
                             dismiss()
                         }
                     }
