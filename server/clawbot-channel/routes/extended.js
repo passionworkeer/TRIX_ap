@@ -1128,4 +1128,119 @@ router.put('/notifications/settings', authMiddleware, async (req, res) => {
   }
 });
 
+// ============================================
+// 获取单个聊天房间
+// ============================================
+
+router.get('/chat/rooms/:roomId', authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    // 验证用户是否在房间中
+    const { data: participant } = await supabase
+      .from('chat_room_participants')
+      .select('*')
+      .eq('room_id', roomId)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!participant) {
+      return unauthorized(res, '你不在此房间中');
+    }
+
+    // 获取房间信息
+    const { data: room, error } = await supabase
+      .from('chat_rooms')
+      .select('*')
+      .eq('id', roomId)
+      .single();
+
+    if (error) throw error;
+    if (!room) return notFound(res, '房间不存在');
+
+    // 获取参与者信息
+    const { data: participants } = await supabase
+      .from('chat_room_participants')
+      .select(`
+        user_id,
+        role,
+        joined_at,
+        user:profiles(id, username, full_name, avatar_url)
+      `)
+      .eq('room_id', roomId);
+
+    success(res, { ...room, participants });
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// ============================================
+// 切换地点收藏
+// ============================================
+
+router.post('/places/:placeId/favorite', authMiddleware, async (req, res) => {
+  try {
+    const { placeId } = req.params;
+
+    // 检查是否已经收藏
+    const { data: existing } = await supabase
+      .from('place_favorites')
+      .select('*')
+      .eq('user_id', req.userId)
+      .eq('place_id', placeId)
+      .single();
+
+    if (existing) {
+      // 取消收藏
+      await supabase
+        .from('place_favorites')
+        .delete()
+        .eq('id', existing.id);
+
+      success(res, { is_favorited: false }, '取消收藏成功');
+    } else {
+      // 添加收藏
+      const { data: favorite, error } = await supabase
+        .from('place_favorites')
+        .insert({
+          user_id: req.userId,
+          place_id: placeId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      success(res, { is_favorited: true, favorite }, '收藏成功');
+    }
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// ============================================
+// 配对状态查询
+// ============================================
+
+router.get('/pairing/status/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: pairing, error } = await supabase
+      .from('pairing_requests')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (error) throw error;
+    if (!pairing) return notFound(res, '配对请求不存在');
+
+    success(res, pairing);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 module.exports = router;
