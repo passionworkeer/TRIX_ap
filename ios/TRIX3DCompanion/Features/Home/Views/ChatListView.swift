@@ -38,10 +38,10 @@ struct ChatListView: View {
 
     // Sample Data
     private let sampleConversations = [
-        ChatConversation(id: "1", name: "Math Study Group", lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true),
-        ChatConversation(id: "2", name: "Physics Discussion", lastMessage: "Check out this formula", time: "1h ago", unreadCount: 0, avatarColor: .purple, isOnline: false),
-        ChatConversation(id: "3", name: "Study Buddy - Alex", lastMessage: "Great session today!", time: "3h ago", unreadCount: 1, avatarColor: .green, isOnline: true),
-        ChatConversation(id: "4", name: "Chemistry Lab", lastMessage: "Don't forget the report", time: "1d ago", unreadCount: 0, avatarColor: .orange, isOnline: false)
+        ChatConversation(id: "1", name: "Math Study Group", avatarUrl: nil, lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true),
+        ChatConversation(id: "2", name: "Physics Discussion", avatarUrl: nil, lastMessage: "Check out this formula", time: "1h ago", unreadCount: 0, avatarColor: .purple, isOnline: false),
+        ChatConversation(id: "3", name: "Study Buddy - Alex", avatarUrl: nil, lastMessage: "Great session today!", time: "3h ago", unreadCount: 1, avatarColor: .green, isOnline: true),
+        ChatConversation(id: "4", name: "Chemistry Lab", avatarUrl: nil, lastMessage: "Don't forget the report", time: "1d ago", unreadCount: 0, avatarColor: .orange, isOnline: false)
     ]
 
     init() {
@@ -209,7 +209,7 @@ struct ChatListView: View {
     // MARK: - Actions
 
     private func openTrixBotChat() {
-        let botConversation = ChatConversation(id: "trixbot", name: "TRIX Bot", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
+        let botConversation = ChatConversation(id: "trixbot", name: "TRIX Bot", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
         selectedConversation = botConversation
     }
 
@@ -235,7 +235,7 @@ struct ChatListView: View {
                         let trimmedName = newChatName.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmedName.isEmpty else { return }
                         let colors: [Color] = [.blue, .purple, .green, .orange, .pink]
-                        let newConversation = ChatConversation(id: UUID().uuidString, name: trimmedName, lastMessage: "New conversation", time: "Just now", unreadCount: 0, avatarColor: colors.randomElement() ?? .purple, isOnline: false)
+                        let newConversation = ChatConversation(id: UUID().uuidString, name: trimmedName, avatarUrl: nil, lastMessage: "New conversation", time: "Just now", unreadCount: 0, avatarColor: colors.randomElement() ?? .purple, isOnline: false)
                         conversations.insert(newConversation, at: 0)
                         newChatName = ""
                         showingCreateChat = false

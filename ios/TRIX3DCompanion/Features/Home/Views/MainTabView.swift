@@ -85,7 +85,8 @@ struct MainTabView: View {
     private var trixBotConversation: ChatConversation {
         ChatConversation(
             id: "trix-bot",
-            name: "TRIX Bot",
+            name: "TRIX",
+            avatarUrl: "AvatarHead",
             lastMessage: "",
             time: "",
             unreadCount: 0,
