@@ -128,7 +128,7 @@ struct ChatListView: View {
                 // Name and status
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text("TRIX").font(.headline).foregroundColor(.white)
+                        Text("TRIX Bot").font(.headline).foregroundColor(.white)
                     }
                     HStack(spacing: 4) {
                         Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(.green)
@@ -163,15 +163,21 @@ struct ChatListView: View {
             HStack {
                 Text("Quick Add").font(.subheadline).fontWeight(.semibold).foregroundColor(.white.opacity(0.8)).textCase(.uppercase)
                 Spacer()
-                Button("隐藏") { withAnimation { showQuickAdd = false } }.font(.caption).foregroundColor(.white.opacity(0.6))
+                // 删除整个推荐区域按钮
+                Button(action: {
+                    withAnimation { showQuickAdd = false }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.5))
+                }
             }.padding(.horizontal, 20)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(recommendedUsers) { user in
                         QuickAddUserCard(
                             user: user,
-                            onAdd: { addUser(user) },
-                            onDismiss: { dismissUser(user) }
+                            onAdd: { addUser(user) }
                         )
                     }
                 }.padding(.horizontal, 20)
@@ -220,7 +226,7 @@ struct ChatListView: View {
     // MARK: - Actions
 
     private func openTrixBotChat() {
-        let botConversation = ChatConversation(id: "trixbot", name: "TRIX", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
+        let botConversation = ChatConversation(id: "trixbot", name: "TRIX Bot", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
         selectedConversation = botConversation
     }
 
@@ -228,10 +234,6 @@ struct ChatListView: View {
         withAnimation { recommendedUsers.removeAll { $0.id == user.id } }
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-    }
-
-    private func dismissUser(_ user: RecommendedUser) {
-        withAnimation { recommendedUsers.removeAll { $0.id == user.id } }
     }
 
     private func createNewChat() {
@@ -275,71 +277,58 @@ struct ChatListView: View {
 struct QuickAddUserCard: View {
     let user: RecommendedUser
     let onAdd: () -> Void
-    let onDismiss: () -> Void
     @State private var isAdded = false
 
     var body: some View {
         VStack(spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-                // Delete button
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white.opacity(0.7))
-                        .background(Circle().fill(.black.opacity(0.3)))
-                }
-                .offset(x: 4, y: -4)
+            // Snapchat-style card background
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(0.05))
+                .frame(width: 80, height: 100)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(.white.opacity(0.1), lineWidth: 1)
+                )
 
-                // Snapchat-style card background - smaller size
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.white.opacity(0.05))
-                    .frame(width: 80, height: 100)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(.white.opacity(0.1), lineWidth: 1)
-                    )
-
-                VStack(spacing: 4) {
-                    // Avatar - smaller
-                    Circle()
-                        .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 44, height: 44)
-                        .overlay {
-                            Text(user.avatar).font(.caption).fontWeight(.semibold).foregroundColor(.white)
-                        }
-                        .padding(.top, 8)
-
-                    // Name
-                    Text(user.name)
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .frame(width: 70)
-
-                    if !isAdded {
-                        // Smaller add button
-                        Button(action: {
-                            withAnimation(.spring(response: 0.3)) {
-                                isAdded = true
-                            }
-                            onAdd()
-                        }) {
-                            Text("+ 添加")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                                .background(.yellow)
-                                .clipShape(Capsule())
-                                .shadow(color: .yellow.opacity(0.5), radius: 4)
-                        }
-                    } else {
-                        Text("已添加")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.6))
+            VStack(spacing: 4) {
+                // Avatar - smaller
+                Circle()
+                    .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 44, height: 44)
+                    .overlay {
+                        Text(user.avatar).font(.caption).fontWeight(.semibold).foregroundColor(.white)
                     }
+                    .padding(.top, 8)
+
+                // Name
+                Text(user.name)
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .frame(width: 70)
+
+                if !isAdded {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            isAdded = true
+                        }
+                        onAdd()
+                    }) {
+                        Text("+ 添加")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(.yellow)
+                            .clipShape(Capsule())
+                            .shadow(color: .yellow.opacity(0.5), radius: 4)
+                    }
+                } else {
+                    Text("已添加")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
         }
