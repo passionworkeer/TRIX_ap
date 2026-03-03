@@ -232,3 +232,15 @@
 
 // MARK: - Action Done
 "action.done" = "Done";
+
+// MARK: - Additional Auth Keys
+"auth.confirm.password" = "Confirm Password";
+"auth.confirm.password.required" = "Please confirm your password";
+"auth.password.min.length" = "Password must be at least 6 characters";
+"auth.username.min.length" = "Username must be at least 3 characters";
+"auth.password.mismatch" = "Passwords do not match";
+"auth.register.success" = "Success!";
+"auth.register.success.message" = "Your account has been created successfully!";
+"auth.register.creating" = "Creating account...";
+"auth.signin.apple" = "Sign in with Apple";
+"auth.signin.wechat" = "Sign in with WeChat";

@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 struct RegisterView: View {
     // MARK: - Environment
 
@@ -74,19 +79,19 @@ struct RegisterView: View {
                 loadingOverlay
             }
         }
-        .alert("Registration Failed", isPresented: $showingError) {
+        .alert(loc("error.register.failed"), isPresented: $showingError) {
             Button("OK", role: .cancel) {
                 authService.clearError()
             }
         } message: {
             Text(errorMessage)
         }
-        .alert("Success!", isPresented: $showingSuccess) {
+        .alert(loc("auth.register.success"), isPresented: $showingSuccess) {
             Button("OK") {
                 // Registration successful - will auto-login
             }
         } message: {
-            Text("Your account has been created successfully!")
+            Text(loc("auth.register.success.message"))
         }
         .onChange(of: authService.lastError) { newError in
             if let error = newError {
@@ -119,13 +124,13 @@ struct RegisterView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
 
             // Title
-            Text("Create Account")
+            Text(loc("auth.register.title"))
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.2), radius: 5)
 
             // Subtitle
-            Text("Join the TRIX 3D community")
+            Text(loc("auth.register.subtitle"))
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
         }
@@ -137,7 +142,7 @@ struct RegisterView: View {
             // Username field
             authTextField(
                 icon: "person.fill",
-                placeholder: "Username",
+                placeholder: loc("auth.username.placeholder"),
                 text: $username,
                 autocapitalization: false
             )
@@ -149,7 +154,7 @@ struct RegisterView: View {
             // Email field
             authTextField(
                 icon: "envelope.fill",
-                placeholder: "Email",
+                placeholder: loc("auth.email.placeholder"),
                 text: $email,
                 keyboardType: .emailAddress,
                 autocapitalization: false
@@ -162,7 +167,7 @@ struct RegisterView: View {
             // Password field
             authSecureField(
                 icon: "lock.fill",
-                placeholder: "Password (min 6 characters)",
+                placeholder: loc("auth.password.placeholder"),
                 text: $password
             )
             .focused($focusedField, equals: .password)
@@ -173,7 +178,7 @@ struct RegisterView: View {
             // Confirm password field
             authSecureField(
                 icon: "lock.fill",
-                placeholder: "Confirm Password",
+                placeholder: loc("auth.confirm.password"),
                 text: $confirmPassword
             )
             .focused($focusedField, equals: .confirmPassword)
@@ -196,7 +201,7 @@ struct RegisterView: View {
                 await handleRegister()
             }
         } label: {
-            Text("Create Account")
+            Text(loc("action.register"))
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -220,11 +225,11 @@ struct RegisterView: View {
             onSwitchToLogin()
         } label: {
             HStack(spacing: 4) {
-                Text("Already have an account?")
+                Text(loc("auth.has.account"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.white.opacity(0.8))
 
-                Text("Sign In")
+                Text(loc("action.login"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .underline()
@@ -242,7 +247,7 @@ struct RegisterView: View {
                     .tint(.white)
                     .scaleEffect(1.5)
 
-                Text("Creating account...")
+                Text(loc("auth.register.creating"))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.white)
             }
@@ -315,43 +320,43 @@ struct RegisterView: View {
     private func handleRegister() async {
         // Validate inputs
         guard !username.isEmpty else {
-            errorMessage = "Please enter a username"
+            errorMessage = loc("auth.username.placeholder") + " is required"
             showingError = true
             return
         }
 
         guard username.count >= 3 else {
-            errorMessage = "Username must be at least 3 characters"
+            errorMessage = loc("auth.username.min.length")
             showingError = true
             return
         }
 
         guard !email.isEmpty else {
-            errorMessage = "Please enter your email"
+            errorMessage = loc("auth.email.placeholder") + " is required"
             showingError = true
             return
         }
 
         guard !password.isEmpty else {
-            errorMessage = "Please enter a password"
+            errorMessage = loc("auth.password.placeholder") + " is required"
             showingError = true
             return
         }
 
         guard password.count >= 6 else {
-            errorMessage = "Password must be at least 6 characters"
+            errorMessage = loc("auth.password.min.length")
             showingError = true
             return
         }
 
         guard !confirmPassword.isEmpty else {
-            errorMessage = "Please confirm your password"
+            errorMessage = loc("auth.confirm.password.required")
             showingError = true
             return
         }
 
         guard password == confirmPassword else {
-            errorMessage = "Passwords do not match"
+            errorMessage = loc("auth.password.mismatch")
             showingError = true
             return
         }

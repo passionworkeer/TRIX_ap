@@ -8,6 +8,11 @@
 import SwiftUI
 import AuthenticationServices
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 struct LoginView: View {
     // MARK: - Environment
 
@@ -78,7 +83,7 @@ struct LoginView: View {
                 loadingOverlay
             }
         }
-        .alert("Login Failed", isPresented: $showingError) {
+        .alert(loc("error.login.failed"), isPresented: $showingError) {
             Button("OK", role: .cancel) {
                 authService.clearError()
             }
@@ -116,13 +121,13 @@ struct LoginView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
 
             // Title
-            Text("Welcome Back")
+            Text(loc("auth.login.title"))
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.2), radius: 5)
 
             // Subtitle
-            Text("Sign in to continue your journey")
+            Text(loc("auth.login.subtitle"))
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
         }
@@ -134,7 +139,7 @@ struct LoginView: View {
             // Email field
             authTextField(
                 icon: "envelope.fill",
-                placeholder: "Email",
+                placeholder: loc("auth.email.placeholder"),
                 text: $email,
                 keyboardType: .emailAddress,
                 autocapitalization: false
@@ -147,7 +152,7 @@ struct LoginView: View {
             // Password field
             authSecureField(
                 icon: "lock.fill",
-                placeholder: "Password",
+                placeholder: loc("auth.password.placeholder"),
                 text: $password
             )
             .focused($focusedField, equals: .password)
@@ -170,7 +175,7 @@ struct LoginView: View {
                 await handleLogin()
             }
         } label: {
-            Text("Sign In")
+            Text(loc("action.login"))
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -194,11 +199,11 @@ struct LoginView: View {
             onSwitchToRegister()
         } label: {
             HStack(spacing: 4) {
-                Text("Don't have an account?")
+                Text(loc("auth.no.account"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.white.opacity(0.8))
 
-                Text("Sign Up")
+                Text(loc("action.signup"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .underline()
@@ -294,7 +299,7 @@ struct LoginView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(1.5)
 
-                Text("Signing in...")
+                Text(loc("loading"))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.white)
             }
@@ -367,13 +372,13 @@ struct LoginView: View {
     private func handleLogin() async {
         // Validate inputs
         guard !email.isEmpty else {
-            errorMessage = "Please enter your email"
+            errorMessage = loc("auth.email.placeholder") + " is required"
             showingError = true
             return
         }
 
         guard !password.isEmpty else {
-            errorMessage = "Please enter your password"
+            errorMessage = loc("auth.password.placeholder") + " is required"
             showingError = true
             return
         }
