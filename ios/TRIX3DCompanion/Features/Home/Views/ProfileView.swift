@@ -21,6 +21,8 @@ struct ProfileView: View {
     @State private var isEditingProfile = false
     @State private var showingSettings = false
     @State private var showingAbout = false
+    @State private var showingWardrobe = false
+    @State private var equippedOutfits: Set<String> = ["hat1"]
 
     // MARK: - Body
 
@@ -38,6 +40,10 @@ struct ProfileView: View {
 
                     // Achievements section
                     achievementsSection
+                        .padding(.horizontal)
+
+                    // Wardrobe section
+                    wardrobeSection
                         .padding(.horizontal)
 
                     // Settings section
@@ -207,6 +213,61 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, 4)
             }
+        }
+    }
+
+    /// Wardrobe section - quick access to wardrobe
+    private var wardrobeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("我的装扮")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Button("查看全部") {
+                    // Navigate to full WardrobeView
+                }
+                .font(.subheadline)
+                .foregroundColor(.purple)
+            }
+            .padding(.horizontal, 4)
+
+            NavigationLink(destination: WardrobeView()) {
+                HStack(spacing: 12) {
+                    // Equipped items preview
+                    ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPurple, Color.brandPink],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 50, height: 50)
+                            .overlay {
+                                Image(systemName: "sparkles")
+                                    .font(.title3)
+                                    .foregroundColor(.white)
+                            }
+                    }
+
+                    // Add more button
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .overlay {
+                            Image(systemName: "plus")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                        }
+                }
+            }
+            .padding(12)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
