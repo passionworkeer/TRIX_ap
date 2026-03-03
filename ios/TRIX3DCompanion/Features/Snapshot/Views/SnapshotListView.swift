@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// Helper function for localization
+private func loc(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Snapshot List View
 
 /// Photo gallery grid view with infinite scroll
@@ -54,11 +59,11 @@ struct SnapshotListView: View {
                     snapshotGrid
                 }
             }
-            .navigationTitle("Photos")
+            .navigationTitle(loc("snapshot.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(loc("action.close")) {
                         dismiss()
                     }
                 }

@@ -122,21 +122,69 @@ struct HomeView: View {
             // Snapshot View
             if showSnapshot {
                 SnapshotListView()
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            showSnapshot = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding()
+                        }
+                        .padding(.top, 60)
+                        .padding(.trailing, 10)
+                    }
             }
 
             // Location View
             if showLocation {
                 LocationPickerView()
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            showLocation = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding()
+                        }
+                        .padding(.top, 60)
+                        .padding(.trailing, 10)
+                    }
             }
 
             // Schedule View
             if showSchedule {
                 ScheduleListView()
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            showSchedule = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding()
+                        }
+                        .padding(.top, 60)
+                        .padding(.trailing, 10)
+                    }
             }
 
             // Todo View
             if showTodo {
                 TodoListView()
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            showTodo = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding()
+                        }
+                        .padding(.top, 60)
+                        .padding(.trailing, 10)
+                    }
             }
         }
     }
