@@ -1,6 +1,6 @@
 # TRIX3D 后端 API 文档
 
-> 版本: 1.0.0
+> 版本: 1.1.0
 > 最后更新: 2026-03-03
 
 ---
@@ -315,6 +315,40 @@ curl -X GET http://47.243.55.130:8765/api/user/profile \
 |------|------|------|------|
 | POST | `/upload` | ✅ | 文件上传 |
 | POST | `/upload/base64` | ✅ | Base64 上传 |
+
+---
+
+### 19. 未读计数模块 `/unread`
+
+| 方法 | 端点 | 认证 | 描述 |
+|------|------|------|------|
+| GET | `/unread/counts` | ✅ | 获取所有未读计数 |
+| GET | `/unread/counts/:friendId` | ✅ | 获取与某好友的未读计数 |
+| PUT | `/unread/counts/:friendId` | ✅ | 更新未读计数 |
+| POST | `/unread/read-all` | ✅ | 标记全部已读 |
+
+---
+
+### 20. AI 对话模块 `/clawbot`
+
+| 方法 | 端点 | 认证 | 描述 |
+|------|------|------|------|
+| GET | `/clawbot/conversations` | ✅ | 获取对话列表 |
+| POST | `/clawbot/conversations` | ✅ | 创建对话 |
+| GET | `/clawbot/conversations/:id/messages` | ✅ | 获取对话消息 |
+| POST | `/clawbot/conversations/:id/messages` | ✅ | 发送消息 |
+| DELETE | `/clawbot/conversations/:id` | ✅ | 删除对话 |
+
+---
+
+### 21. 学习目标模块 `/study/goals`
+
+| 方法 | 端点 | 认证 | 描述 |
+|------|------|------|------|
+| GET | `/study/goals` | ✅ | 获取学习目标列表 |
+| POST | `/study/goals` | ✅ | 创建学习目标 |
+| PUT | `/study/goals/:id` | ✅ | 更新学习目标 |
+| DELETE | `/study/goals/:id` | ✅ | 删除学习目标 |
 
 ---
 
