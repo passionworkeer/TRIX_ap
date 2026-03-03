@@ -276,3 +276,79 @@
 "auth.register.creating" = "正在创建账号...";
 "auth.signin.apple" = "使用 Apple 登录";
 "auth.signin.wechat" = "使用微信登录";
+
+// MARK: - Settings Screen
+"settings.title" = "设置";
+"settings.appearance" = "外观";
+"settings.theme" = "主题";
+"settings.language" = "语言";
+"settings.notifications" = "通知";
+"settings.push.notifications" = "推送通知";
+"settings.haptic.feedback" = "触感反馈";
+"settings.media" = "媒体";
+"settings.auto.play.voice" = "自动播放语音消息";
+"settings.storage" = "存储";
+"settings.cache.size" = "缓存大小";
+"settings.clear.cache" = "清除缓存";
+"settings.data" = "数据";
+"settings.export.data" = "导出数据 (JSON)";
+"settings.done" = "完成";
+"settings.error" = "错误";
+"settings.theme.light" = "浅色模式";
+"settings.theme.dark" = "深色模式";
+"settings.theme.system" = "跟随系统";
+"settings.language.english" = "English";
+"settings.language.chinese" = "中文";
+
+// MARK: - Profile Status
+"profile.currently.studying" = "正在学习";
+"profile.idle" = "空闲";
+"profile.status" = "状态";
+
+// MARK: - Achievements
+"achievement.first.study" = "首次学习";
+"achievement.streak.7" = "7天连续";
+"achievement.social.butterfly" = "社交达人";
+"achievement.night.owl" = "夜猫子";
+
+// MARK: - Edit Profile
+"profile.tell.about.self" = "介绍一下自己";
+"profile.school.university" = "学校或大学";
+"profile.grade.example" = "如：高一、大二";
+
+// MARK: - More Settings
+"settings.more.settings" = "更多设置";
+"settings.additional.preferences" = "其他偏好设置";
+"settings.about" = "关于";
+"settings.app.version" = "应用版本信息";
+
+// MARK: - Pairing
+"pairing.display.code" = "显示配对码";
+"pairing.scan.qr" = "扫描二维码";
+"pairing.paired.devices" = "已配对设备";
+"pairing.device.connected" = "设备已连接";
+"pairing.no.device" = "未连接设备";
+"pairing.display.pairing.code" = "显示配对码";
+"pairing.generate.description" = "生成配对码供其他设备扫描";
+"pairing.regenerate.code" = "重新生成";
+"pairing.generate.code" = "生成配对码";
+"pairing.your.code" = "您的配对码";
+"pairing.qr.failed" = "二维码生成失败";
+"pairing.expires" = "过期时间";
+"pairing.copy.code" = "复制码";
+"pairing.scan.qr.title" = "扫描二维码";
+"pairing.scan.description" = "扫描其他设备的二维码进行配对";
+"pairing.open.scanner" = "打开扫描器";
+"pairing.enter.code" = "输入配对码";
+"pairing.enter.placeholder" = "输入6位配对码";
+"pairing.pair.with.code" = "使用配对码配对";
+"pairing.manage.devices" = "管理已连接设备";
+"pairing.no.devices" = "没有已配对设备";
+"pairing.no.devices.desc" = "配对设备以开始使用";
+"pairing.refresh" = "刷新";
+"pairing.online" = "在线";
+"pairing.offline" = "离线";
+"pairing.mobile" = "手机";
+"pairing.desktop" = "电脑";
+"pairing.tablet" = "平板";
+"pairing.web" = "网页";

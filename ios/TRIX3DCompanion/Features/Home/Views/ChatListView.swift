@@ -33,7 +33,10 @@ struct ChatListView: View {
         RecommendedUser(id: "2", name: "Mike Johnson", avatar: "MJ", mutualFriends: 3, avatarColor: .blue),
         RecommendedUser(id: "3", name: "Emma Wilson", avatar: "EW", mutualFriends: 8, avatarColor: .purple),
         RecommendedUser(id: "4", name: "David Lee", avatar: "DL", mutualFriends: 2, avatarColor: .green),
-        RecommendedUser(id: "5", name: "Lisa Park", avatar: "LP", mutualFriends: 6, avatarColor: .orange)
+        RecommendedUser(id: "5", name: "Lisa Park", avatar: "LP", mutualFriends: 6, avatarColor: .orange),
+        RecommendedUser(id: "6", name: "Tom Wang", avatar: "TW", mutualFriends: 4, avatarColor: .cyan),
+        RecommendedUser(id: "7", name: "Amy Liu", avatar: "AL", mutualFriends: 7, avatarColor: .mint),
+        RecommendedUser(id: "8", name: "John Smith", avatar: "JS", mutualFriends: 1, avatarColor: .indigo)
     ]
 
     // Sample Data
@@ -41,7 +44,11 @@ struct ChatListView: View {
         ChatConversation(id: "1", name: "Math Study Group", avatarUrl: nil, lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true),
         ChatConversation(id: "2", name: "Physics Discussion", avatarUrl: nil, lastMessage: "Check out this formula", time: "1h ago", unreadCount: 0, avatarColor: .purple, isOnline: false),
         ChatConversation(id: "3", name: "Study Buddy - Alex", avatarUrl: nil, lastMessage: "Great session today!", time: "3h ago", unreadCount: 1, avatarColor: .green, isOnline: true),
-        ChatConversation(id: "4", name: "Chemistry Lab", avatarUrl: nil, lastMessage: "Don't forget the report", time: "1d ago", unreadCount: 0, avatarColor: .orange, isOnline: false)
+        ChatConversation(id: "4", name: "Chemistry Lab", avatarUrl: nil, lastMessage: "Don't forget the report", time: "1d ago", unreadCount: 0, avatarColor: .orange, isOnline: false),
+        ChatConversation(id: "5", name: "English Club", avatarUrl: nil, lastMessage: "See you tomorrow!", time: "5h ago", unreadCount: 2, avatarColor: .yellow, isOnline: true),
+        ChatConversation(id: "6", name: "History Study", avatarUrl: nil, lastMessage: "The exam is next week", time: "1d ago", unreadCount: 0, avatarColor: .red, isOnline: false),
+        ChatConversation(id: "7", name: "Biology Group", avatarUrl: nil, lastMessage: "Lab report submitted", time: "2d ago", unreadCount: 0, avatarColor: .teal, isOnline: true),
+        ChatConversation(id: "8", name: "Art Workshop", avatarUrl: nil, lastMessage: "Great work everyone!", time: "3d ago", unreadCount: 0, avatarColor: .pink, isOnline: false)
     ]
 
     init() {
@@ -121,7 +128,7 @@ struct ChatListView: View {
                 // Name and status
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text("TRIX Bot").font(.headline).foregroundColor(.white)
+                        Text("TRIX").font(.headline).foregroundColor(.white)
                     }
                     HStack(spacing: 4) {
                         Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(.green)
@@ -152,14 +159,14 @@ struct ChatListView: View {
     // MARK: - Quick Add Section
 
     private var quickAddSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Quick Add").font(.subheadline).fontWeight(.semibold).foregroundColor(.white.opacity(0.8)).textCase(.uppercase)
                 Spacer()
                 Button("隐藏") { withAnimation { showQuickAdd = false } }.font(.caption).foregroundColor(.white.opacity(0.6))
             }.padding(.horizontal, 20)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     ForEach(recommendedUsers) { user in
                         QuickAddUserCard(user: user) { addUser(user) }
                     }
@@ -209,7 +216,7 @@ struct ChatListView: View {
     // MARK: - Actions
 
     private func openTrixBotChat() {
-        let botConversation = ChatConversation(id: "trixbot", name: "TRIX Bot", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
+        let botConversation = ChatConversation(id: "trixbot", name: "TRIX", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
         selectedConversation = botConversation
     }
 
@@ -263,37 +270,37 @@ struct QuickAddUserCard: View {
     @State private var isAdded = false
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
-                // Snapchat-style card background
-                RoundedRectangle(cornerRadius: 16)
+                // Snapchat-style card background - smaller size
+                RoundedRectangle(cornerRadius: 12)
                     .fill(.white.opacity(0.05))
-                    .frame(width: 130, height: 150)
+                    .frame(width: 80, height: 100)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 12)
                             .stroke(.white.opacity(0.1), lineWidth: 1)
                     )
 
-                VStack(spacing: 8) {
-                    // Avatar
+                VStack(spacing: 4) {
+                    // Avatar - smaller
                     Circle()
                         .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 64, height: 64)
+                        .frame(width: 44, height: 44)
                         .overlay {
-                            Text(user.avatar).font(.title).fontWeight(.semibold).foregroundColor(.white)
+                            Text(user.avatar).font(.caption).fontWeight(.semibold).foregroundColor(.white)
                         }
-                        .padding(.top, 16)
+                        .padding(.top, 8)
 
                     // Name
                     Text(user.name)
-                        .font(.caption)
+                        .font(.caption2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
-                        .frame(width: 110)
+                        .frame(width: 70)
 
                     if !isAdded {
-                        // Snapchat-style yellow add button
+                        // Smaller add button
                         Button(action: {
                             withAnimation(.spring(response: 0.3)) {
                                 isAdded = true
@@ -301,24 +308,24 @@ struct QuickAddUserCard: View {
                             onAdd()
                         }) {
                             Text("+ 添加")
-                                .font(.caption)
+                                .font(.caption2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.black)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 6)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
                                 .background(.yellow)
                                 .clipShape(Capsule())
-                                .shadow(color: .yellow.opacity(0.5), radius: 8)
+                                .shadow(color: .yellow.opacity(0.5), radius: 4)
                         }
                     } else {
                         Text("已添加")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.white.opacity(0.6))
                     }
                 }
             }
         }
-        .frame(width: 130)
+        .frame(width: 80)
     }
 }
 

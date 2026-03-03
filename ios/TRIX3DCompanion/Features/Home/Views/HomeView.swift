@@ -106,7 +106,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.size.height * 0.26)  // 屏幕中间偏上位置
+                    .padding(.top, geometry.size.height * 0.18)  // 屏幕上方位置
                     Spacer()
                 }
             }

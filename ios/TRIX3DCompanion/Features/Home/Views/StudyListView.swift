@@ -135,6 +135,7 @@ struct StudyListView: View {
             VStack(spacing: 12) {
                 ForEach(activeRooms) { room in
                     StudyRoomCard(room: room)
+                        .buttonStyle(.plain)
                         .onTapGesture {
                             joinRoom(room)
                         }

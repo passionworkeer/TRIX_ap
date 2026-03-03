@@ -51,9 +51,9 @@ struct PairingView: View {
     // MARK: - Tabs
 
     enum PairingTab: String, CaseIterable {
-        case displayCode = "Display Code"
-        case scanCode = "Scan QR Code"
-        case pairedDevices = "Paired Devices"
+        case displayCode = "pairing.display.code"
+        case scanCode = "pairing.scan.qr"
+        case pairedDevices = "pairing.paired.devices"
     }
 
     // MARK: - Body
@@ -139,7 +139,7 @@ struct PairingView: View {
                     .fill(pairingService.isPaired ? Color.success : Color.warning)
                     .frame(width: 12, height: 12)
 
-                Text(pairingService.isPaired ? "Device Connected" : "No Device Connected")
+                Text(pairingService.isPaired ? "pairing.device.connected".localized : "pairing.no.device".localized)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.textSecondary)
@@ -229,11 +229,11 @@ struct PairingView: View {
                         )
                     )
 
-                Text("Display Pairing Code")
+                Text("pairing.display.pairing.code".localized)
                     .font(.title3)
                     .fontWeight(.bold)
 
-                Text("Generate a pairing code for other devices to scan")
+                Text("pairing.generate.description".localized)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
@@ -247,7 +247,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                    Text(showPairingCode ? "Regenerate Code" : "Generate Pairing Code")
+                    Text(showPairingCode ? "pairing.regenerate.code".localized : "pairing.generate.code".localized)
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -269,7 +269,7 @@ struct PairingView: View {
                 VStack(spacing: 16) {
                     // Code display
                     VStack(spacing: 12) {
-                        Text("Your Pairing Code")
+                        Text("pairing.your.code".localized)
                             .font(.caption)
                             .foregroundColor(.textSecondary)
                             .textCase(.uppercase)
@@ -306,7 +306,7 @@ struct PairingView: View {
                                         .font(.system(size: 60))
                                         .foregroundColor(.black)
 
-                                    Text("QR Code Generation Failed")
+                                    Text("pairing.qr.failed".localized)
                                         .font(.caption)
                                         .foregroundColor(.textSecondary)
                                 }
@@ -317,7 +317,7 @@ struct PairingView: View {
                     // Expiration timer
                     if let remainingTime = pairingService.pairingCodeRemainingTime {
                         VStack(spacing: 8) {
-                            Text("Expires in")
+                            Text("pairing.expires".localized)
                                 .font(.caption)
                                 .foregroundColor(.textSecondary)
 
@@ -340,7 +340,7 @@ struct PairingView: View {
                     }) {
                         HStack {
                             Image(systemName: "doc.on.doc")
-                            Text("Copy Code")
+                            Text("pairing.copy.code".localized)
                         }
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -379,11 +379,11 @@ struct PairingView: View {
                         )
                     )
 
-                Text("Scan QR Code")
+                Text("pairing.scan.qr.title".localized)
                     .font(.title3)
                     .fontWeight(.bold)
 
-                Text("Scan a QR code from another device to pair")
+                Text("pairing.scan.description".localized)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
@@ -395,7 +395,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "qrcode.viewfinder")
-                    Text("Open QR Scanner")
+                    Text("pairing.open.scanner".localized)
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -422,12 +422,12 @@ struct PairingView: View {
 
             // Manual code input
             VStack(spacing: 12) {
-                Text("Enter Pairing Code")
+                Text("pairing.enter.code".localized)
                     .font(.caption)
                     .foregroundColor(.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                TextField("Enter 6-character code", text: $manualCodeInput)
+                TextField("pairing.enter.placeholder".localized, text: $manualCodeInput)
                     .textFieldStyle(.plain)
                     .textCase(.uppercase)
                     .autocapitalization(.allCharacters)
@@ -447,7 +447,7 @@ struct PairingView: View {
                         await pairWithCode(manualCodeInput)
                     }
                 }) {
-                    Text("Pair with Code")
+                    Text("pairing.pair.with.code".localized)
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -493,7 +493,7 @@ struct PairingView: View {
                     .font(.title3)
                     .fontWeight(.bold)
 
-                Text("Manage your connected devices")
+                Text("pairing.manage.devices".localized)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
@@ -507,11 +507,11 @@ struct PairingView: View {
                         .font(.system(size: 50))
                         .foregroundColor(.textTertiary)
 
-                    Text("No Paired Devices")
+                    Text("pairing.no.devices".localized)
                         .font(.headline)
                         .foregroundColor(.textSecondary)
 
-                    Text("Pair with a device to get started")
+                    Text("pairing.no.devices.desc".localized)
                         .font(.subheadline)
                         .foregroundColor(.textTertiary)
                 }
@@ -532,7 +532,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "arrow.clockwise")
-                    Text("Refresh")
+                    Text("pairing.refresh".localized)
                 }
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -571,7 +571,7 @@ struct PairingView: View {
                         .fill(device.isOnline ? Color.success : Color.textTertiary)
                         .frame(width: 8, height: 8)
 
-                    Text(device.isOnline ? "Online" : "Offline")
+                    Text(device.isOnline ? "pairing.online".localized : "pairing.offline".localized)
                         .font(.caption)
                         .foregroundColor(.textSecondary)
 
@@ -732,13 +732,13 @@ struct PairingView: View {
     private func deviceTypeString(for type: DeviceType) -> String {
         switch type {
         case .mobile:
-            return "Mobile"
+            return "pairing.mobile".localized
         case .desktop:
-            return "Desktop"
+            return "pairing.desktop".localized
         case .tablet:
-            return "Tablet"
+            return "pairing.tablet".localized
         case .web:
-            return "Web"
+            return "pairing.web".localized
         }
     }
 
