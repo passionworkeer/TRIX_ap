@@ -667,8 +667,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         if success {
-            if let data = dict["data"] as? [String: Any] {
-                self.deviceId = data["deviceId"] as? String
+            // Check for deviceId in different formats (matching Web)
+            // Web returns: { success: true, pairingId, status }
+            if let deviceId = dict["deviceId"] as? String {
+                self.deviceId = deviceId
+            } else if let pairingId = dict["pairingId"] as? String {
+                self.deviceId = pairingId
+            } else if let data = dict["data"] as? [String: Any],
+                      let deviceId = data["deviceId"] as? String {
+                self.deviceId = deviceId
             }
         }
 
