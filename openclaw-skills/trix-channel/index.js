@@ -1913,13 +1913,24 @@ function getStatus() {
   };
 }
 
-async function generatePairingCode() {
+async function generatePairingCode(forceNew = false) {
   if (!serverSocket || !isConnectedToServer) {
     return { success: false, error: 'Channel not started' };
   }
 
   return new Promise((resolve, reject) => {
-    serverSocket.emit('bot_request_pairing', { deviceId }, (response) => {
+    // 如果 forceNew，使用新的 deviceId 来请求全新配对
+    const emitData = {};
+    if (forceNew) {
+      // 生成新 deviceId
+      emitData.deviceId = `trix_${os.hostname()}_${Date.now()}`;
+      emitData.forceNew = true;
+      console.log(`[TRIXChannel] requesting new pairing with deviceId: ${emitData.deviceId}`);
+    } else {
+      emitData.deviceId = deviceId;
+    }
+    
+    serverSocket.emit('bot_request_pairing', emitData, (response) => {
       if (!response?.success) {
         reject(new Error(response?.error || 'pairing code generation failed'));
         return;
