@@ -11,6 +11,33 @@ import CoreLocation
 import Combine
 import SwiftUI
 
+// MARK: - Friend Map Location Model
+
+/// Friend location on map for displaying user avatars
+struct FriendMapLocation: Identifiable {
+    let id: String
+    let name: String
+    let avatarUrl: String?
+    let latitude: Double
+    let longitude: Double
+    let isStudying: Bool
+    let status: String  // "online", "away", "offline"
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
+// MARK: - Heat Zone Model
+
+/// Heat zone for displaying activity intensity on map
+struct HeatZone: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+    let color: Color
+    let size: CGFloat
+}
+
 // MARK: - Map ViewModel
 
 /// Map view model managing map state, locations, and search
@@ -52,6 +79,12 @@ final class MapViewModel: ObservableObject {
     /// Selected category filter
     @Published var selectedCategory: LocationCategory?
 
+    /// Whether to show heat map overlay
+    @Published var showHeatMap: Bool = true
+
+    /// Friend locations on map
+    @Published var friendLocations: [FriendMapLocation] = []
+
     // MARK: - Dependencies
 
     private let locationService: LocationServiceProtocol
@@ -62,8 +95,8 @@ final class MapViewModel: ObservableObject {
     /// Default region span
     private let defaultSpan = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
 
-    /// Default coordinate (Beijing, China)
-    private let defaultCoordinate = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
+    /// Default coordinate (Shanghai Lujiazui)
+    private let defaultCoordinate = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
 
     /// Search radius in meters
     private let searchRadius: Double = 5000
@@ -78,7 +111,7 @@ final class MapViewModel: ObservableObject {
     init(locationService: LocationServiceProtocol = LocationService.shared) {
         self.locationService = locationService
 
-        // Initialize region with default location
+        // Initialize region with default location (Shanghai Lujiazui)
         self.region = MKCoordinateRegion(
             center: defaultCoordinate,
             span: defaultSpan
@@ -89,6 +122,173 @@ final class MapViewModel: ObservableObject {
 
         // Check location permission
         checkLocationPermission()
+
+        // Load mock data for demo
+        loadMockData()
+    }
+
+    // MARK: - Mock Data
+
+    /// Load mock data for demonstration
+    private func loadMockData() {
+        // Load mock places
+        loadMockPlaces()
+
+        // Load mock friends
+        loadMockFriends()
+    }
+
+    /// Load mock places (similar to Web端的 mockPlaces)
+    private func loadMockPlaces() {
+        let baseLat = 31.2304
+        let baseLng = 121.4737
+
+        let mockPlaces: [Location] = [
+            Location(
+                id: "place-1",
+                userId: "system",
+                name: "星巴克咖啡",
+                description: "和朋友聚会喝咖啡",
+                latitude: baseLat + 0.001,
+                longitude: baseLng + 0.002,
+                address: "陆家嘴环路",
+                category: .cafe,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-2",
+                userId: "system",
+                name: "海底捞火锅",
+                description: "热闹的火锅聚餐",
+                latitude: baseLat - 0.001,
+                longitude: baseLng + 0.003,
+                address: "世纪大道",
+                category: .other,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-3",
+                userId: "system",
+                name: "万达影城",
+                description: "最新电影上映中",
+                latitude: baseLat + 0.002,
+                longitude: baseLng - 0.002,
+                address: "浦东南路",
+                category: .other,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-4",
+                userId: "system",
+                name: "静安雕塑公园",
+                description: "适合散步和聊天",
+                latitude: baseLat - 0.002,
+                longitude: baseLng - 0.003,
+                address: "静安区",
+                category: .park,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-5",
+                userId: "system",
+                name: "24小时自习室",
+                description: "安静的学习环境",
+                latitude: baseLat + 0.003,
+                longitude: baseLng + 0.001,
+                address: "浦东新区",
+                category: .library,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-6",
+                userId: "system",
+                name: "KTV 唱歌",
+                description: "聚会唱K放松",
+                latitude: baseLat - 0.003,
+                longitude: baseLng + 0.001,
+                address: "长宁区",
+                category: .other,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+        ]
+
+        allLocations = mockPlaces
+        filteredLocations = mockPlaces
+    }
+
+    /// Load mock friend locations (similar to Web端的 mockFriends)
+    private func loadMockFriends() {
+        let baseLat = 31.2304
+        let baseLng = 121.4737
+
+        // Helper to generate offset positions
+        let offsets: [(Double, Double)] = [
+            (0.001, 0.002),
+            (-0.001, 0.003),
+            (0.002, -0.002)
+        ]
+
+        friendLocations = [
+            FriendMapLocation(
+                id: "friend-1",
+                name: "Ava",
+                avatarUrl: nil,  // Will use default avatar
+                latitude: baseLat + offsets[0].0,
+                longitude: baseLng + offsets[0].1,
+                isStudying: true,
+                status: "online"
+            ),
+            FriendMapLocation(
+                id: "friend-2",
+                name: "Leo",
+                avatarUrl: nil,
+                latitude: baseLat + offsets[1].0,
+                longitude: baseLng + offsets[1].1,
+                isStudying: false,
+                status: "online"
+            ),
+            FriendMapLocation(
+                id: "friend-3",
+                name: "Mia",
+                avatarUrl: nil,
+                latitude: baseLat + offsets[2].0,
+                longitude: baseLng + offsets[2].1,
+                isStudying: true,
+                status: "away"
+            )
+        ]
+    }
+
+    /// Get heat zones for map overlay
+    var heatZones: [HeatZone] {
+        guard showHeatMap else { return [] }
+
+        let baseLat = 31.231
+        let baseLng = 121.474
+
+        return [
+            HeatZone(
+                coordinate: CLLocationCoordinate2D(latitude: baseLat, longitude: baseLng),
+                color: Color.red.opacity(0.15),
+                size: 300
+            ),
+            HeatZone(
+                coordinate: CLLocationCoordinate2D(latitude: baseLat - 0.002, longitude: baseLng - 0.002),
+                color: Color.blue.opacity(0.12),
+                size: 250
+            ),
+            HeatZone(
+                coordinate: CLLocationCoordinate2D(latitude: baseLat + 0.002, longitude: baseLng + 0.002),
+                color: Color.purple.opacity(0.1),
+                size: 280
+            )
+        ]
     }
 
     // MARK: - Setup

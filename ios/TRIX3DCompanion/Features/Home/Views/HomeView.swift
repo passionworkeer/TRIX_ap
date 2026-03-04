@@ -74,12 +74,12 @@ struct HomeView: View {
                     isWorkbenchPresented.toggle()
                 }
 
-                // 顶部工具栏
+                // 顶部工具栏 - 点击主界面后显示
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 往下移动，避开状态栏
+                        .padding(.top, geometry.safeAreaInsets.top + 10)  // 避开状态栏和灵动岛
                         .opacity(isWorkbenchPresented ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
@@ -106,7 +106,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.size.height * 0.18)  // 屏幕上方位置
+                    .padding(.top, geometry.size.height * 0.18 + geometry.safeAreaInsets.top)  // 屏幕上方位置 + 避开灵动岛
                     Spacer()
                 }
             }
@@ -141,7 +141,7 @@ struct HomeView: View {
                             .background(Color.black.opacity(0.5))
                             .clipShape(Circle())
                     }
-                    .padding(.top, 50)
+                    .padding(.top, 60)  // 避开状态栏和灵动岛
                     .padding(.trailing, 16)
                 }
             }
@@ -161,7 +161,7 @@ struct HomeView: View {
                             .background(Color.black.opacity(0.5))
                             .clipShape(Circle())
                     }
-                    .padding(.top, 50)
+                    .padding(.top, 60)  // 避开状态栏和灵动岛
                     .padding(.trailing, 16)
                 }
             }
@@ -181,7 +181,7 @@ struct HomeView: View {
                             .background(Color.black.opacity(0.5))
                             .clipShape(Circle())
                     }
-                    .padding(.top, 50)
+                    .padding(.top, 60)  // 避开状态栏和灵动岛
                     .padding(.trailing, 16)
                 }
             }
@@ -201,7 +201,7 @@ struct HomeView: View {
                             .background(Color.black.opacity(0.5))
                             .clipShape(Circle())
                     }
-                    .padding(.top, 50)
+                    .padding(.top, 60)  // 避开状态栏和灵动岛
                     .padding(.trailing, 16)
                 }
             }
@@ -223,7 +223,7 @@ struct HomeView: View {
                     .font(.title3)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial)
+                    .background(Color.gray.opacity(0.2))
                     .clipShape(Circle())
             }
 
@@ -238,7 +238,7 @@ struct HomeView: View {
                     .font(.title3)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial)
+                    .background(Color.gray.opacity(0.2))
                     .clipShape(Circle())
             }
         }
@@ -355,7 +355,7 @@ struct WorkbenchOverlay: View {
                 .frame(height: 200)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(.ultraThinMaterial)
+                        .fill(Color.gray.opacity(0.2))
                 )
                 .shadow(color: .black.opacity(0.3), radius: 20)
             }
@@ -422,7 +422,7 @@ struct WorkbenchOverlayCard: View {
             .frame(width: 80, height: 90)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.gray.opacity(0.2))
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
@@ -464,7 +464,7 @@ struct StudyRoomOverlay: View {
             .padding(30)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.gray.opacity(0.2))
             )
         }
     }

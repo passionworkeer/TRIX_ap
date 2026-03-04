@@ -929,6 +929,131 @@ struct UploadResponse: Codable {
     let key: String
 }
 
+// MARK: - Generic Request Models
+
+/// Empty request for endpoints that don't need body
+struct EmptyRequest: Codable {}
+
+/// Generic success response
+struct SuccessResponse: Codable {
+    let success: Bool
+    let message: String?
+}
+
+// MARK: - Friend Request Models
+
+/// Add friend request
+struct FriendAddRequest: Codable {
+    let friendId: String
+
+    enum CodingKeys: String, CodingKey {
+        case friendId = "friend_id"
+    }
+}
+
+/// Friend request action (accept/decline)
+struct FriendRequestActionRequest: Codable {
+    let requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Mall Request Models
+
+/// Purchase request for mall
+struct MallPurchaseRequest: Codable {
+    let itemId: String
+
+    enum CodingKeys: String, CodingKey {
+        case itemId = "item_id"
+    }
+}
+
+/// Purchase result from mall API
+struct MallPurchaseResult: Codable {
+    let success: Bool
+    let itemId: String
+    let message: String?
+}
+
+// MARK: - Schedule Request Models
+
+/// Create schedule request
+struct ScheduleCreateRequest: Codable {
+    let title: String
+    let description: String?
+    let startTime: Date
+    let endTime: Date
+    let location: String?
+    let reminder: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case location
+        case reminder
+    }
+}
+
+/// Update schedule request
+struct ScheduleUpdateRequest: Codable {
+    let title: String?
+    let description: String?
+    let startTime: Date?
+    let endTime: Date?
+    let location: String?
+    let reminder: Int?
+}
+
+// MARK: - Todo Request Models
+
+/// Create todo request
+struct TodoCreateRequest: Codable {
+    let title: String
+    let description: String?
+    let priority: String
+    let dueDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case priority
+        case dueDate = "due_date"
+    }
+}
+
+/// Update todo request
+struct TodoUpdateRequest: Codable {
+    let title: String?
+    let description: String?
+    let completed: Bool?
+    let priority: String?
+    let dueDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case completed
+        case priority
+        case dueDate = "due_date"
+    }
+}
+
+// MARK: - Upload Request Models
+
+/// Upload base64 request
+struct UploadBase64Request: Codable {
+    let data: String
+
+    enum CodingKeys: String, CodingKey {
+        case data
+    }
+}
+
 // MARK: - Generic API Response
 struct APIResponse<T: Codable>: Codable {
     let success: Bool
@@ -1185,6 +1310,27 @@ struct AddFriendRequest: Codable {
     }
 }
 
+/// Friend model (API response)
+struct APIFriend: Codable, Identifiable {
+    let id: String
+    let friendId: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let status: String
+    let addedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case friendId = "friend_id"
+        case username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case status
+        case addedAt = "added_at"
+    }
+}
+
 // MARK: - Mall
 
 /// Mall category
@@ -1245,6 +1391,9 @@ struct PurchaseHistoryItem: Codable, Identifiable {
 }
 
 // MARK: - Wardrobe
+
+/// Wardrobe outfit (alias for Outfit)
+typealias WardrobeOutfit = Outfit
 
 /// Outfit category
 enum OutfitCategory: String, Codable {

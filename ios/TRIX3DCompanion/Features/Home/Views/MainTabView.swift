@@ -127,7 +127,7 @@ struct ChatDetailViewWrapper: View {
                     .foregroundColor(.white)
                     .padding()
             }
-            .padding(.top, 50)
+            .padding(.top, 60)  // 避开状态栏和灵动岛
             .padding(.trailing, 16)
         }
     }

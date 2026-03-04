@@ -61,11 +61,11 @@ struct ChatListView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                searchBar.padding()
-                trixBotEntry.padding(.horizontal).padding(.bottom, 12)
+                searchBar.padding(.horizontal).padding(.top, 8)
+                trixBotEntry.padding(.horizontal).padding(.bottom, 8)
 
                 if showQuickAdd && !recommendedUsers.isEmpty {
-                    quickAddSection.padding(.bottom, 12)
+                    quickAddSection.padding(.bottom, 8)
                 }
 
                 if filteredConversations.isEmpty {
@@ -101,7 +101,7 @@ struct ChatListView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(Color.gray.opacity(0.2)).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - TRIX Bot Entry
@@ -113,11 +113,11 @@ struct ChatListView: View {
             HStack(spacing: 12) {
                 // Avatar with status indicator
                 ZStack(alignment: .bottomTrailing) {
-                    Circle().fill(RadialGradient(colors: [Color.purple.opacity(0.4), .clear], center: .center, startRadius: 0, endRadius: 25)).frame(width: 48, height: 48)
-                    Circle().fill(LinearGradient(colors: [Color.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 48, height: 48)
-                        .overlay {
-                            Image(systemName: "sparkles").font(.title3).foregroundColor(.white)
-                        }
+                    Image("AvatarHead")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 48, height: 48)
+                        .clipShape(Circle())
                         .overlay(
                             Circle().stroke(.white.opacity(0.1), lineWidth: 1)
                         )
@@ -131,8 +131,8 @@ struct ChatListView: View {
                         Text("TRIX Bot").font(.headline).foregroundColor(.white)
                     }
                     HStack(spacing: 4) {
-                        Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(.green)
-                        Text("AI 学习助手").font(.subheadline).foregroundColor(.gray.opacity(0.6))
+                        Image(systemName: "message.fill").font(.system(size: 14)).foregroundColor(.green)
+                        Text("在线").font(.subheadline).foregroundColor(.gray.opacity(0.6))
                     }
                 }
 
@@ -159,28 +159,28 @@ struct ChatListView: View {
     // MARK: - Quick Add Section
 
     private var quickAddSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Quick Add").font(.subheadline).fontWeight(.semibold).foregroundColor(.white.opacity(0.8)).textCase(.uppercase)
+                Text("Quick Add").font(.caption).fontWeight(.semibold).foregroundColor(.white.opacity(0.7)).textCase(.uppercase)
                 Spacer()
                 // 删除整个推荐区域按钮
                 Button(action: {
                     withAnimation { showQuickAdd = false }
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.5))
                 }
-            }.padding(.horizontal, 20)
+            }.padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(recommendedUsers) { user in
                         QuickAddUserCard(
                             user: user,
                             onAdd: { addUser(user) }
                         )
                     }
-                }.padding(.horizontal, 20)
+                }.padding(.horizontal, 16)
             }
         }
     }
@@ -220,7 +220,7 @@ struct ChatListView: View {
     // MARK: - Background Gradient
 
     private var backgroundGradient: some View {
-        LinearGradient(colors: [Color.purple.opacity(0.05), Color.pink.opacity(0.03), .clear], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+        LinearGradient(colors: [Color.purple.opacity(0.15), Color.pink.opacity(0.1), Color.black.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
     }
 
     // MARK: - Actions
@@ -280,59 +280,50 @@ struct QuickAddUserCard: View {
     @State private var isAdded = false
 
     var body: some View {
-        VStack(spacing: 4) {
-            // Snapchat-style card background
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.05))
-                .frame(width: 80, height: 100)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.white.opacity(0.1), lineWidth: 1)
-                )
-
-            VStack(spacing: 4) {
-                // Avatar - smaller
-                Circle()
-                    .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 44, height: 44)
-                    .overlay {
-                        Text(user.avatar).font(.caption).fontWeight(.semibold).foregroundColor(.white)
-                    }
-                    .padding(.top, 8)
-
-                // Name
-                Text(user.name)
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .frame(width: 70)
-
-                if !isAdded {
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3)) {
-                            isAdded = true
-                        }
-                        onAdd()
-                    }) {
-                        Text("+ 添加")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(.yellow)
-                            .clipShape(Capsule())
-                            .shadow(color: .yellow.opacity(0.5), radius: 4)
-                    }
-                } else {
-                    Text("已添加")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.6))
+        VStack(spacing: 2) {
+            // Avatar
+            Circle()
+                .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Text(user.avatar).font(.caption2).fontWeight(.semibold).foregroundColor(.white)
                 }
+
+            // Name
+            Text(user.name)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .frame(width: 50)
+
+            if !isAdded {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        isAdded = true
+                    }
+                    onAdd()
+                }) {
+                    Text("+ 添加")
+                        .font(.system(size: 9))
+                        .fontWeight(.bold)
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(.yellow)
+                        .clipShape(Capsule())
+                }
+            } else {
+                Text("已添加")
+                    .font(.system(size: 8))
+                    .foregroundColor(.white.opacity(0.6))
             }
         }
-        .frame(width: 80)
+        .frame(width: 55)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        .background(.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -364,7 +355,7 @@ struct ConversationRow: View {
                     Spacer()
                 }
                 HStack(spacing: 4) {
-                    Image(systemName: "message.square.fill").font(.system(size: 14)).foregroundColor(conversation.unreadCount > 0 ? .yellow : .gray.opacity(0.5))
+                    Image(systemName: "message.fill").font(.system(size: 14)).foregroundColor(conversation.unreadCount > 0 ? .yellow : .gray.opacity(0.5))
                     Text(conversation.lastMessage).font(.subheadline).foregroundColor(conversation.unreadCount > 0 ? .white.opacity(0.9) : .gray.opacity(0.6)).lineLimit(1)
                     Spacer()
                 }

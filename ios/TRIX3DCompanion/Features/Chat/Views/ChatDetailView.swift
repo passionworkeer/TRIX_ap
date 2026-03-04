@@ -50,13 +50,6 @@ struct ChatDetailView: View {
         .gesture(TapGesture().onEnded { _ in dismissKeyboard() })
         .navigationTitle(conversation.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: showConversationInfo) {
-                    Image(systemName: "ellipsis.circle").foregroundColor(.primary)
-                }
-            }
-        }
         .onAppear {
             Task { await loadConversation() }
         }
@@ -107,7 +100,7 @@ struct ChatDetailView: View {
                     ForEach(chatService.currentMessages) { message in
                         MessageCell(message: message, isCurrentUser: message.senderId == appState.currentUser?.id).id(message.id)
                     }
-                }.padding().padding(.bottom, 8)
+                }.padding(.horizontal).padding(.bottom, 8)
             }
             .onChange(of: chatService.currentMessages.count) { _ in
                 withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
@@ -180,7 +173,6 @@ struct ChatDetailView: View {
     }
 
     private func openCamera() { showingCamera = true }
-    private func showConversationInfo() {}
     private func dismissKeyboard() { isInputFocused = false }
 }
 
