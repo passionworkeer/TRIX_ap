@@ -20,10 +20,10 @@ struct VideoPlayerView: UIViewRepresentable {
 
         // 视频文件在 app bundle 的根目录
         if let url = Bundle.main.url(forResource: videoName, withExtension: "mp4") {
-            print("Video found: \(url)")
+            SecureLogger.shared.debug("Video found: \(url)")
             containerView.setupPlayer(url: url, isPlaying: isPlaying, playbackRate: playbackRate)
         } else {
-            print("Video not found: \(videoName).mp4 in bundle")
+            SecureLogger.shared.warning("Video not found: \(videoName).mp4 in bundle")
         }
 
         return containerView
@@ -84,7 +84,7 @@ class VideoPlayerContainerView: UIView {
 
         if let playerLayer = playerLayer {
             layer.addSublayer(playerLayer)
-            print("PlayerLayer added, bounds: \(bounds)")
+            SecureLogger.shared.debug("PlayerLayer added, bounds: \(bounds)")
         }
     }
 

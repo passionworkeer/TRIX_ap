@@ -15,6 +15,7 @@
 | 语音录音集成 | ✅ | b00f383 |
 | 语音转文字 (Speech Recognition) | ✅ | b00f383 |
 | AI Action 选择器 | ✅ | 99389d4 |
+| print() 语句替换为 SecureLogger | ✅ | (本次) |
 
 ---
 
@@ -40,8 +41,8 @@
 
 | 问题 | 优先级 | 说明 |
 |------|--------|------|
-| print() 语句 | 低 | 违规但不影响功能 |
-| AvatarView 集成 | 中 | MessageCell 未使用头像组件 |
+| print() 语句 | 低 | ✅ 已修复 - 替换为 SecureLogger |
+| AvatarView 集成 | 中 | ✅ 已修复 - MessageCell 已集成 AvatarView |
 | FriendMapPin 空实现 | 低 | 已添加热力图替代 |
 
 ---

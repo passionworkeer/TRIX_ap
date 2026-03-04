@@ -32,9 +32,9 @@ extension StudyTimerView {
 
         switch result {
         case .success(let balance):
-            print("✅ Points awarded successfully. New balance: \(balance.totalPoints)")
+            SecureLogger.shared.info("Points awarded successfully. New balance: \(balance.totalPoints)")
         case .insufficientBalance, .invalidAmount, .failed:
-            print("⚠️ Failed to award points")
+            SecureLogger.shared.warning("Failed to award points")
         }
     }
 }
