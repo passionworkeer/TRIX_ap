@@ -561,12 +561,17 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private func generateSecureRandomString(_ length: Int) -> String {
         let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         var randomString = ""
-        for _ in 0..<length {
-            if let randomChar = characters.randomElement() {
-                randomString.append(randomChar)
-            }
+
+        // Use UUID for cryptographically secure random
+        let uuid = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        let uuidChars = Array(uuid)
+
+        for i in 0..<length {
+            let index = i % uuidChars.count
+            randomString.append(uuidChars[index])
         }
-        return randomString
+
+        return String(randomString.prefix(length))
     }
 
     private func generateMessageId() -> String {
@@ -902,7 +907,7 @@ extension ClawbotChannelService: WebSocketDelegate {
         do {
             try await ttsService.speak(text, language: ttsLanguage.rawValue)
         } catch {
-            print("TTS Error: \(error.localizedDescription)")
+            SecureLogger.shared.error("TTS Error: \(error.localizedDescription)")
         }
     }
 
