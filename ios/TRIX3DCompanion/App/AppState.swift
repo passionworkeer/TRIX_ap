@@ -131,11 +131,19 @@ final class AppState: ObservableObject {
             isDarkMode = defaults.bool(forKey: "isDarkMode")
         }
 
-        // Load last selected tab
+        // Always start with Home tab by default
+        // This ensures fresh install or reset users see the Home tab
+        selectedTab = .home
+
+        // Load last selected tab only if explicitly set by user
+        // For now, always default to home to avoid confusion
+        // Uncomment below if persistence is needed after initial setup
+        /*
         if let tabRawValue = defaults.string(forKey: "selectedTab"),
            let tab = MainTab(rawValue: tabRawValue) {
             selectedTab = tab
         }
+        */
 
         // Defer heavy setup to after first frame
         DeferredInitializationManager.shared.register { [weak self] in

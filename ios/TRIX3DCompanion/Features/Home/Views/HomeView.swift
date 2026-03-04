@@ -126,84 +126,24 @@ struct HomeView: View {
                 NotificationPanelView(isPresented: $showNotificationPanel)
             }
 
-            // Snapshot View
+            // Snapshot View - 直接显示，使用子视图自带的关闭按钮
             if showSnapshot {
-                ZStack(alignment: .topTrailing) {
-                    SnapshotListView()
-
-                    Button {
-                        showSnapshot = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 60)  // 避开状态栏和灵动岛
-                    .padding(.trailing, 16)
-                }
+                SnapshotListView()
             }
 
-            // Location View
+            // Location View - 直接显示
             if showLocation {
-                ZStack(alignment: .topTrailing) {
-                    LocationPickerView()
-
-                    Button {
-                        showLocation = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 60)  // 避开状态栏和灵动岛
-                    .padding(.trailing, 16)
-                }
+                LocationPickerView()
             }
 
-            // Schedule View
+            // Schedule View - 直接显示
             if showSchedule {
-                ZStack(alignment: .topTrailing) {
-                    ScheduleListView()
-
-                    Button {
-                        showSchedule = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 60)  // 避开状态栏和灵动岛
-                    .padding(.trailing, 16)
-                }
+                ScheduleListView()
             }
 
-            // Todo View
+            // Todo View - 直接显示
             if showTodo {
-                ZStack(alignment: .topTrailing) {
-                    TodoListView()
-
-                    Button {
-                        showTodo = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 60)  // 避开状态栏和灵动岛
-                    .padding(.trailing, 16)
-                }
+                TodoListView()
             }
         }
     }
