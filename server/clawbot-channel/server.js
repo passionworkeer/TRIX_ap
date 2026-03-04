@@ -394,6 +394,7 @@ const supplementRoutes = require('./routes/supplement');
 app.use('/api', supplementRoutes);
 
 // Health check
+app.get('/health', async (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
