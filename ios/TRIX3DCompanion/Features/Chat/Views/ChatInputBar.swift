@@ -7,6 +7,8 @@
 //
 
 import SwiftUI
+import Speech
+import Combine
 
 // MARK: - Chat Input Bar
 
@@ -24,14 +26,24 @@ struct ChatInputBar: View {
     @State private var showImagePicker = false
     @State private var showCamera = false
     @State private var showDocumentPicker = false
+    @State private var showVoiceRecording = false
+
+    // Speech recognition state
+    @State private var isListening = false
+    @State private var showSpeechError = false
+    @State private var speechErrorMessage = ""
 
     // MARK: - Properties
 
     let onSend: () -> Void
     let onAttach: ((AttachmentType) -> Void)?
+    let onVoiceRecordingComplete: ((URL) -> Void)?
 
     let isConnected: Bool
     let maxCharacterLimit: Int = 1000
+
+    // Speech recognition service
+    @StateObject private var speechService = SpeechRecognitionService.shared
 
     // MARK: - Environment
 
@@ -41,6 +53,12 @@ struct ChatInputBar: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 12) {
+            // Voice recording button
+            voiceRecordingButton
+
+            // Speech-to-text button
+            speechToTextButton
+
             // Attachment button
             attachmentButton
 
@@ -67,6 +85,22 @@ struct ChatInputBar: View {
         .confirmationDialog("Send Attachment", isPresented: $showAttachmentMenu, titleVisibility: .hidden) {
             attachmentMenuButtons
         }
+        .fullScreenCover(isPresented: $showVoiceRecording) {
+            VoiceRecordingButton(
+                onRecordingComplete: { url in
+                    showVoiceRecording = false
+                    onVoiceRecordingComplete?(url)
+                },
+                onCancelled: {
+                    showVoiceRecording = false
+                }
+            )
+        }
+        .alert("Speech Recognition Error", isPresented: $showSpeechError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(speechErrorMessage)
+        }
     }
 
     // MARK: - Attachment Button
@@ -90,6 +124,53 @@ struct ChatInputBar: View {
         .disabled(!isConnected)
     }
 
+    // MARK: - Voice Recording Button
+
+    private var voiceRecordingButton: some View {
+        Button(action: { showVoiceRecording = true }) {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Circle()
+                            .stroke(.gray.opacity(0.2), lineWidth: 1)
+                    )
+
+                Image(systemName: "mic.fill")
+                    .font(.title2)
+                    .foregroundColor(.red)
+            }
+        }
+        .disabled(!isConnected)
+    }
+
+    // MARK: - Speech-to-Text Button
+
+    private var speechToTextButton: some View {
+        Button(action: toggleSpeechRecognition) {
+            ZStack {
+                Circle()
+                    .fill(isListening ? Color.red.opacity(0.2) : .ultraThinMaterial)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Circle()
+                            .stroke(isListening ? Color.red.opacity(0.5) : .gray.opacity(0.2), lineWidth: 1)
+                    )
+
+                Image(systemName: isListening ? "waveform" : "text.bubble")
+                    .font(.title2)
+                    .foregroundColor(isListening ? .red : .blue)
+            }
+        }
+        .disabled(!isConnected || !speechService.isSupported)
+        .opacity(speechService.isSupported ? 1.0 : 0.5)
+        .scaleEffect(isListening ? 1.1 : 1.0)
+        .animation(.easeInOut(duration: 0.3), value: isListening)
+    }
+
+    // MARK: - Speech Recognition Toggle
+
     // MARK: - Text Input Container
 
     private var textInputContainer: some View {
@@ -104,6 +185,22 @@ struct ChatInputBar: View {
                     // Enforce character limit
                     if newValue.count > maxCharacterLimit {
                         text = String(newValue.prefix(maxCharacterLimit))
+                    }
+                }
+                .onChange(of: speechService.recognizedText) { newValue in
+                    // Update text when speech recognition completes
+                    if !newValue.isEmpty && isListening == false {
+                        if text.isEmpty {
+                            text = newValue
+                        } else {
+                            text = text + " " + newValue
+                        }
+                        // Reset recognized text
+                        Task {
+                            await MainActor.run {
+                                speechService.recognizedText = ""
+                            }
+                        }
                     }
                 }
 
@@ -293,6 +390,46 @@ struct ChatInputBar: View {
         // Clear text
         text = ""
     }
+
+    private func toggleSpeechRecognition() {
+        if isListening {
+            // Stop listening
+            Task {
+                await speechService.stopRecognition()
+                isListening = false
+            }
+        } else {
+            // Start listening
+            Task {
+                do {
+                    try await speechService.startRecognition()
+                    isListening = true
+                } catch {
+                    speechErrorMessage = error.localizedDescription
+                    showSpeechError = true
+                    isListening = false
+                }
+            }
+        }
+    }
+
+    // Update text when speech recognition completes
+    private func updateTextFromSpeech() {
+        if !speechService.recognizedText.isEmpty {
+            // Append recognized text to existing text
+            if text.isEmpty {
+                text = speechService.recognizedText
+            } else {
+                text = text + " " + speechService.recognizedText
+            }
+            // Clear recognized text after appending
+            Task {
+                await MainActor.run {
+                    speechService.recognizedText = ""
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Convenience Initializers
@@ -304,6 +441,7 @@ extension ChatInputBar {
         self.isConnected = isConnected
         self.onSend = onSend
         self.onAttach = nil
+        self.onVoiceRecordingComplete = nil
     }
 
     init(
@@ -316,6 +454,21 @@ extension ChatInputBar {
         self.isConnected = isConnected
         self.onSend = onSend
         self.onAttach = onAttach
+        self.onVoiceRecordingComplete = nil
+    }
+
+    init(
+        text: Binding<String>,
+        isConnected: Bool = true,
+        onSend: @escaping () -> Void,
+        onAttach: ((AttachmentType) -> Void)? = nil,
+        onVoiceRecordingComplete: ((URL) -> Void)? = nil
+    ) {
+        self._text = text
+        self.isConnected = isConnected
+        self.onSend = onSend
+        self.onAttach = onAttach
+        self.onVoiceRecordingComplete = onVoiceRecordingComplete
     }
 }
 

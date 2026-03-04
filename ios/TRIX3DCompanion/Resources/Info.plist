@@ -63,7 +63,7 @@
     <string>TRIX 3D Companion needs permission to save your study snapshots and photos to your photo library.</string>
 
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>TRIX 3D Companion uses speech recognition to transcribe voice messages for accessibility features.</string>
+    <string>TRIX 3D Companion uses speech recognition to convert your voice messages into text for convenient chat input.</string>
 
     <key>NSAppleMusicUsageDescription</key>
     <string>TRIX 3D Companion does not access Apple Music. This permission is not used.</string>
