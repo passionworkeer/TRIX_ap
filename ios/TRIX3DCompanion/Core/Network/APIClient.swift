@@ -643,6 +643,181 @@ extension APIClient {
         let _: EmptyResponse = try await delete(.studyGoalDelete(id: id))
     }
 
+    // MARK: - Friends
+
+    func getFriends() async throws -> [APIFriend] {
+        return try await get(.friendList)
+    }
+
+    func addFriend(friendId: String) async throws -> APIFriend {
+        let request = FriendAddRequest(friendId: friendId)
+        return try await post(.friendAdd, body: request)
+    }
+
+    func removeFriend(friendId: String) async throws {
+        let _: EmptyResponse = try await delete(.friendRemove(friendId: friendId))
+    }
+
+    func getFriendRequests() async throws -> [FriendRequest] {
+        return try await get(.friendRequests)
+    }
+
+    func acceptFriendRequest(requestId: String) async throws -> APIFriend {
+        let request = FriendRequestActionRequest(requestId: requestId)
+        return try await post(.friendAccept(requestId: requestId), body: request)
+    }
+
+    func declineFriendRequest(requestId: String) async throws {
+        let _: EmptyResponse = try await post(.friendDecline(requestId: requestId), body: EmptyRequest())
+    }
+
+    // MARK: - Achievements
+
+    func getAchievements() async throws -> [Achievement] {
+        return try await get(.achievementList)
+    }
+
+    func checkAchievements() async throws -> [Achievement] {
+        return try await get(.achievementCheck)
+    }
+
+    func unlockAchievement(achievementId: String) async throws -> Achievement {
+        return try await post(.achievementUnlock(achievementId: achievementId), body: EmptyRequest())
+    }
+
+    // MARK: - Mall
+
+    func getMallItems() async throws -> [MallItem] {
+        return try await get(.mallItems)
+    }
+
+    func getMallItem(id: String) async throws -> MallItem {
+        return try await get(.mallItem(id: id))
+    }
+
+    func purchaseMallItem(itemId: String) async throws -> MallPurchaseResult {
+        let request = MallPurchaseRequest(itemId: itemId)
+        return try await post(.mallPurchase, body: request)
+    }
+
+    func getPurchaseHistory() async throws -> [PurchaseHistoryItem] {
+        return try await get(.mallPurchaseHistory)
+    }
+
+    // MARK: - Wardrobe
+
+    func getWardrobeOutfits() async throws -> [WardrobeOutfit] {
+        return try await get(.wardrobeOutfits)
+    }
+
+    func equipOutfit(outfitId: String) async throws -> WardrobeOutfit {
+        let _: EmptyResponse = try await post(.wardrobeEquip(outfitId: outfitId), body: EmptyRequest())
+        return try await get(.wardrobeOutfits)
+    }
+
+    func unequipOutfit(outfitId: String) async throws {
+        let _: EmptyResponse = try await delete(.wardrobeUnequip(outfitId: outfitId))
+    }
+
+    // MARK: - Schedules
+
+    func getSchedules() async throws -> [Schedule] {
+        return try await get(.scheduleList)
+    }
+
+    func createSchedule(_ schedule: ScheduleCreateRequest) async throws -> Schedule {
+        return try await post(.scheduleCreate, body: schedule)
+    }
+
+    func updateSchedule(id: String, _ schedule: ScheduleUpdateRequest) async throws -> Schedule {
+        return try await put(.scheduleUpdate(id: id), body: schedule)
+    }
+
+    func deleteSchedule(id: String) async throws {
+        let _: EmptyResponse = try await delete(.scheduleDelete(id: id))
+    }
+
+    func getSchedulesByDateRange(start: Date, end: Date) async throws -> [Schedule] {
+        let params: Parameters = ["start": ISO8601DateFormatter().string(from: start), "end": ISO8601DateFormatter().string(from: end)]
+        return try await get(.scheduleByDateRange, parameters: params)
+    }
+
+    func getUpcomingSchedules() async throws -> [Schedule] {
+        return try await get(.scheduleUpcoming)
+    }
+
+    // MARK: - Todos
+
+    func getTodos() async throws -> [Todo] {
+        return try await get(.todoList)
+    }
+
+    func createTodo(_ todo: TodoCreateRequest) async throws -> Todo {
+        return try await post(.todoCreate, body: todo)
+    }
+
+    func updateTodo(id: String, _ todo: TodoUpdateRequest) async throws -> Todo {
+        return try await put(.todoUpdate(id: id), body: todo)
+    }
+
+    func deleteTodo(id: String) async throws {
+        let _: EmptyResponse = try await delete(.todoDelete(id: id))
+    }
+
+    func toggleTodo(id: String) async throws -> Todo {
+        return try await post(.todoToggle(id: id), body: EmptyRequest())
+    }
+
+    // MARK: - Places
+
+    func getNearbyPlaces(latitude: Double, longitude: Double, radius: Double = 1000) async throws -> [Place] {
+        let params: Parameters = ["lat": latitude, "lng": longitude, "radius": radius]
+        return try await get(.placeNearby, parameters: params)
+    }
+
+    func searchPlaces(query: String) async throws -> [Place] {
+        let params: Parameters = ["q": query]
+        return try await get(.placeSearch, parameters: params)
+    }
+
+    func getFavoritePlaces() async throws -> [Place] {
+        return try await get(.placeFavorite)
+    }
+
+    func toggleFavoritePlace(placeId: String) async throws -> Place {
+        return try await post(.placeFavoriteToggle(placeId: placeId), body: EmptyRequest())
+    }
+
+    // MARK: - Snapshots
+
+    func getSnapshots() async throws -> [Snapshot] {
+        return try await get(.snapshots)
+    }
+
+    func getSnapshot(id: String) async throws -> Snapshot {
+        return try await get(.snapshot(id: id))
+    }
+
+    func createSnapshot(_ snapshot: CreateSnapshotRequest) async throws -> Snapshot {
+        return try await post(.snapshots, body: snapshot)
+    }
+
+    func deleteSnapshot(id: String) async throws {
+        let _: EmptyResponse = try await delete(.snapshot(id: id))
+    }
+
+    // MARK: - Upload
+
+    func uploadFile(data: Data, fileName: String, mimeType: String) async throws -> UploadResponse {
+        // Create multipart form data request
+        return try await upload(.upload, data: data, fileName: fileName)
+    }
+
+    func uploadBase64Image(base64Data: String) async throws -> UploadResponse {
+        let request = UploadBase64Request(data: base64Data)
+        return try await post(.uploadBase64, body: request)
+    }
+
     // MARK: - APIClientProtocol Conformance
 
     func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {

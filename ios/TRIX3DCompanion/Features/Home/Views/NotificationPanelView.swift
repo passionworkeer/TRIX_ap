@@ -50,6 +50,7 @@ struct NotificationPanelView: View {
             )
             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
         }
+        .ignoresSafeArea(edges: .top)
         .onAppear {
             loadNotifications()
         }

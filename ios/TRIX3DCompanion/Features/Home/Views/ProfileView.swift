@@ -21,7 +21,6 @@ struct ProfileView: View {
     @State private var isEditingProfile = false
     @State private var showingSettings = false
     @State private var showingAbout = false
-    @State private var showingWardrobe = false
     @State private var equippedOutfits: Set<String> = ["hat1"]
 
     // MARK: - Body
@@ -222,47 +221,38 @@ struct ProfileView: View {
                 Text("我的装扮")
                     .font(.headline)
                     .fontWeight(.semibold)
-
                 Spacer()
-
-                Button("查看全部") {
-                    // Navigate to full WardrobeView
-                }
-                .font(.subheadline)
-                .foregroundColor(.purple)
             }
             .padding(.horizontal, 4)
 
-            NavigationLink(destination: Text("Wardrobe")) {
-                HStack(spacing: 12) {
-                    // Equipped items preview
-                    ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.brandPurple, Color.brandPink],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 50, height: 50)
-                            .overlay {
-                                Image(systemName: "sparkles")
-                                    .font(.title3)
-                                    .foregroundColor(.white)
-                            }
-                    }
-
-                    // Add more button
+            HStack(spacing: 12) {
+                // Equipped items preview
+                ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in
                     Circle()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.brandPurple, Color.brandPink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .frame(width: 50, height: 50)
                         .overlay {
-                            Image(systemName: "plus")
+                            Image(systemName: "sparkles")
                                 .font(.title3)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.white)
                         }
                 }
+
+                // Add more button
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 50, height: 50)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
             }
             .padding(12)
             .background(.ultraThinMaterial)
@@ -585,12 +575,6 @@ struct EditProfileView: View {
             .frame(width: 80, height: 80)
             .clipShape(Circle())
             .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
-
-            Button("profile.change.photo".localized) {
-                // Would open photo picker
-            }
-            .font(.subheadline)
-            .foregroundColor(.purple)
         }
         .padding(.top, 20)
     }

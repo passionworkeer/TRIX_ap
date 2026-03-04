@@ -81,6 +81,11 @@
 "camera.back" = "後鏡頭";
 "camera.unknown" = "未知";
 "camera.no.photo" = "沒有可儲存的照片";
+"camera.permission.denied" = "需要相機權限才能拍照";
+"camera.permission.title" = "相機權限";
+"camera.sample.image" = "選擇範例圖片";
+"camera.placeholder.title" = "圖片選擇器";
+"camera.placeholder.description" = "這是圖片選擇器的佔位符";
 
 // MARK: - Profile
 "profile.title" = "我的";
@@ -94,57 +99,144 @@
 "profile.help" = "幫助與支援";
 "profile.terms" = "服務條款";
 "profile.privacy.policy" = "隱私政策";
+"profile.display.name" = "顯示名稱";
+"profile.bio" = "個人簡介";
+"profile.school" = "學校";
+"profile.grade" = "年級";
+"profile.change.photo" = "更換照片";
+"profile.stats" = "統計資料";
+"profile.achievements" = "成就";
+"profile.total.points" = "總積分";
+"profile.study.time" = "學習時間";
+"profile.level" = "等級";
+"profile.currently.studying" = "正在學習";
+"profile.idle" = "閒置";
+"profile.log.out" = "登出";
+"profile.save.failed" = "儲存失敗，請重試";
+"profile.name.empty" = "顯示名稱不能為空";
 
-// MARK: - Points & Store
-"store.title" = "商城";
-"store.points" = "積分";
-"store.purchase" = "購買";
-"store.premium" = "高級會員";
-"store.restore" = "復原購買";
-"points.history" = "積分記錄";
-"points.earned" = "獲得";
-"points.spent" = "消費";
+// MARK: - Profile Status
+"profile.currently.studying" = "正在學習";
+"profile.idle" = "閒置";
+"profile.status" = "狀態";
 
-// MARK: - Errors
-"error.network" = "網路錯誤";
-"error.server" = "伺服器錯誤";
-"error.unknown" = "未知錯誤";
-"error.timeout" = "請求逾時";
-"error.permission" = "權限被拒絕";
-"error.login.failed" = "登入失敗";
-"error.register.failed" = "註冊失敗";
+// MARK: - Todo
+"todo.title" = "待辦事項";
+"todo.add" = "新增待辦";
+"todo.edit" = "編輯待辦";
+"todo.empty" = "暫無待辦";
+"todo.completed" = "已完成";
+"todo.pending" = "待處理";
 
-// MARK: - Empty States
-"empty.messages" = "暫無訊息";
-"empty.friends" = "暫無好友";
-"empty.study.sessions" = "暫無學習記錄";
-"empty.notifications" = "暫無通知";
-"empty.points" = "暫無積分";
+// MARK: - Schedule
+"schedule.title" = "日程";
+"schedule.add" = "新增日程";
+"schedule.edit" = "編輯日程";
+"schedule.empty" = "暫無日程";
+"schedule.today" = "今天";
+"schedule.upcoming" = "即將到來";
 
-// MARK: - Loading States
-"loading" = "載入中...";
-"loading.messages" = "訊息載入中...";
-"loading.profile" = "資料載入中...";
+// MARK: - Location
+"location.pick" = "選擇地點";
+"location.search" = "搜尋地點";
+"location.current" = "目前位置";
+"location.favorites" = "收藏";
 
-// MARK: - Notifications
-"notification.study.reminder" = "學習提醒";
-"notification.study.message" = "是時候開始學習了！";
-"notification.points.title" = "獲得積分";
-"notification.chat.title" = "新訊息";
+// MARK: - Snapshot
+"snapshot.title" = "相簿";
+"snapshot.empty" = "暫無相片";
+"snapshot.take" = "拍照";
+"snapshot.delete" = "刪除相片";
 
-// MARK: - Accessibility
-"a11y.home" = "首頁標籤";
-"a11y.chat" = "聊天標籤";
-"a11y.study" = "學習標籤";
-"a11y.profile" = "我的標籤";
-"a11y.send.button" = "傳送訊息按鈕";
-"a11y.voice.record" = "語音錄製按鈕";
-"a11y.back.button" = "返回按鈕";
+// MARK: - Workbench
+"workbench.title" = "工作台";
+"workbench.snapshot" = "相機";
+"workbench.location" = "位置";
+"workbench.schedule" = "日程";
+"workbench.todo" = "待辦";
 
-// MARK: - Pairing
-"pairing.title" = "尋找好友";
-"pairing.scan" = "掃描 QR Code";
-"pairing.share" = "分享 QR Code";
-"pairing.code" = "配對碼";
-"pairing.success" = "配對成功！";
-"pairing.failed" = "配對失敗";
+// MARK: - Action Done
+"action.done" = "完成";
+
+// MARK: - Additional Auth Keys
+"auth.confirm.password" = "確認密碼";
+"auth.confirm.password.required" = "請確認您的密碼";
+"auth.password.min.length" = "密碼至少需要 6 個字元";
+"auth.username.min.length" = "使用者名稱至少需要 3 個字元";
+"auth.password.mismatch" = "密碼不一致";
+"auth.register.success" = "成功！";
+"auth.register.success.message" = "您的帳戶已成功建立！";
+"auth.register.creating" = "正在建立帳戶...";
+"auth.signin.apple" = "使用 Apple 登入";
+"auth.signin.wechat" = "使用微信登入";
+
+// MARK: - Settings Screen
+"settings.title" = "設定";
+"settings.appearance" = "外觀";
+"settings.theme" = "主題";
+"settings.language" = "語言";
+"settings.notifications" = "通知";
+"settings.push.notifications" = "推播通知";
+"settings.haptic.feedback" = "觸覺回饋";
+"settings.media" = "媒體";
+"settings.auto.play.voice" = "自動播放語音訊息";
+"settings.storage" = "儲存空間";
+"settings.cache.size" = "快取大小";
+"settings.clear.cache" = "清除快取";
+"settings.data" = "資料";
+"settings.export.data" = "匯出資料 (JSON)";
+"settings.done" = "完成";
+"settings.error" = "錯誤";
+"settings.theme.light" = "淺色模式";
+"settings.theme.dark" = "深色模式";
+"settings.theme.system" = "跟隨系統";
+"settings.language.english" = "英文";
+"settings.language.chinese" = "中文";
+
+// MARK: - Achievements
+"achievement.first.study" = "初次學習";
+"achievement.streak.7" = "7天連續";
+"achievement.social.butterfly" = "社交蝴蝶";
+"achievement.night.owl" = "夜貓子";
+
+// MARK: - Edit Profile
+"profile.tell.about.self" = "告訴我們關於您的事";
+"profile.school.university" = "您的學校或大學";
+"profile.grade.example" = "例如：高一、大二";
+
+// MARK: - More Settings
+"settings.more.settings" = "更多設定";
+"settings.additional.preferences" = "其他偏好設定";
+"settings.about" = "關於";
+"settings.app.version" = "應用程式版本資訊";
+
+// MARK: - Pairing (Extended)
+"pairing.display.code" = "顯示配對碼";
+"pairing.scan.qr" = "掃描 QR Code";
+"pairing.paired.devices" = "已配對裝置";
+"pairing.device.connected" = "已連接裝置";
+"pairing.no.device" = "未連接任何裝置";
+"pairing.display.pairing.code" = "顯示配對碼";
+"pairing.generate.description" = "產生配對碼讓其他裝置掃描";
+"pairing.regenerate.code" = "重新產生配對碼";
+"pairing.generate.code" = "產生配對碼";
+"pairing.your.code" = "您的配對碼";
+"pairing.qr.failed" = "QR Code 產生失敗";
+"pairing.expires" = "過期時間";
+"pairing.copy.code" = "複製配對碼";
+"pairing.scan.qr.title" = "掃描 QR Code";
+"pairing.scan.description" = "掃描其他裝置上的 QR Code 進行配對";
+"pairing.open.scanner" = "開啟 QR 掃描器";
+"pairing.enter.code" = "輸入配對碼";
+"pairing.enter.placeholder" = "輸入 6 位數配對碼";
+"pairing.pair.with.code" = "使用配對碼配對";
+"pairing.manage.devices" = "管理已連接的裝置";
+"pairing.no.devices" = "無已配對裝置";
+"pairing.no.devices.desc" = "配對裝置以開始使用";
+"pairing.refresh" = "重新整理";
+"pairing.online" = "線上";
+"pairing.offline" = "離線";
+"pairing.mobile" = "手機";
+"pairing.desktop" = "電腦";
+"pairing.tablet" = "平板";
+"pairing.web" = "網頁";

@@ -88,7 +88,7 @@ struct WorkbenchView: View {
             .padding(.bottom, 30)
             .background(
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.gray.opacity(0.3))
             )
             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -10)
             .offset(y: showCardDetail ? 300 : 0)

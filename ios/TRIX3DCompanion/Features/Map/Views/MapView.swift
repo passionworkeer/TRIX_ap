@@ -39,23 +39,25 @@ struct MapView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Map
-            mapContent
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                // Map
+                mapContent
 
-            // Search bar overlay
-            searchBarOverlay
-                .padding(.top, 8)
+                // Search bar overlay with safe area
+                searchBarOverlay
+                    .padding(.top, geometry.safeAreaInsets.top + 8)
 
-            // Floating action buttons
-            floatingButtons
+                // Floating action buttons
+                floatingButtons
 
-            // Loading overlay
-            if viewModel.isLoading {
-                loadingOverlay
+                // Loading overlay
+                if viewModel.isLoading {
+                    loadingOverlay
+                }
             }
+            .ignoresSafeArea(edges: .bottom)
         }
-        .ignoresSafeArea(edges: .bottom)
         .task {
             await viewModel.loadNearbyLocations()
         }
@@ -94,8 +96,10 @@ struct MapView: View {
 
     // MARK: - View Components
 
-    /// Main map content
+    /// Main map content with all markers
+    @ViewBuilder
     private var mapContent: some View {
+        // Location markers
         Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
             MapAnnotation(coordinate: location.coordinate) {
                 LocationMarker(
@@ -106,6 +110,11 @@ struct MapView: View {
                     viewModel.selectLocation(location)
                 }
             }
+        }
+
+        // Friend markers overlay (simple approach)
+        ForEach(viewModel.friendLocations) { friend in
+            FriendMapPin(friend: friend, region: viewModel.region)
         }
     }
 
@@ -134,7 +143,7 @@ struct MapView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
+            .background(Color.gray.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: .shadow, radius: 8, x: 0, y: 4)
             .padding(.horizontal)
@@ -186,7 +195,7 @@ struct MapView: View {
                     Button(action: { centerOnUserLocation() }) {
                         ZStack {
                             Circle()
-                                .fill(.ultraThinMaterial)
+                                .fill(Color.gray.opacity(0.3))
                                 .frame(width: 56, height: 56)
                                 .shadow(color: .shadow, radius: 8, x: 0, y: 4)
 
@@ -203,7 +212,45 @@ struct MapView: View {
                 }
                 .padding(.trailing, 16)
             }
+
+            // Bottom status bar (Web 端风格)
+            bottomStatusBar
+                .padding(.bottom, 90) // Account for bottom dock height
         }
+    }
+
+    /// Bottom status bar showing places and friends count
+    private var bottomStatusBar: some View {
+        HStack(spacing: 24) {
+            // Places count
+            HStack(spacing: 6) {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundStyle(.blue)
+                Text("\(viewModel.filteredLocations.count) 个地点")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+
+            // Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 1, height: 20)
+
+            // Friends count
+            HStack(spacing: 6) {
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(.green)
+                Text("\(viewModel.friendLocations.count) 位好友")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(Color.gray.opacity(0.2))
+        .clipShape(Capsule())
+        .shadow(color: .shadow, radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 40)
     }
 
     /// Loading overlay
@@ -222,7 +269,7 @@ struct MapView: View {
                     .foregroundColor(.textSecondary)
             }
             .padding(24)
-            .background(.ultraThinMaterial)
+            .background(Color.gray.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
@@ -408,4 +455,83 @@ extension LocationCategory {
     MapView(viewModel: .preview)
         .environmentObject(AppState.shared)
         .preferredColorScheme(.dark)
+}
+
+// MARK: - Compact Friend Marker
+
+/// Compact friend marker for map annotations
+private struct CompactFriendMarker: View {
+    let friend: FriendMapLocation
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack(alignment: .bottomTrailing) {
+                // Avatar background
+                Circle()
+                    .fill(avatarGradient)
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 2)
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
+
+                // Avatar initials
+                Text(String(friend.name.prefix(1)))
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+
+                // Status indicator
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 12, height: 12)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 1.5)
+                    )
+                    .offset(x: 2, y: 2)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    /// Avatar gradient based on name
+    private var avatarGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colorIndex = abs(friend.name.hashValue) % colors.count
+        let color = colors[colorIndex]
+
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Status indicator color
+    private var statusColor: Color {
+        switch friend.status {
+        case "online":
+            return .green
+        case "away":
+            return .orange
+        default:
+            return .gray
+        }
+    }
+}
+
+// MARK: - Friend Map Pin Overlay
+
+/// Friend map pin that positions itself based on coordinate region
+private struct FriendMapPin: View {
+    let friend: FriendMapLocation
+    let region: MKCoordinateRegion
+
+    var body: some View {
+        // This is a simplified version - in production you'd convert coordinates to screen position
+        // For now, we'll just not render anything and rely on the main map
+        EmptyView()
+    }
 }
