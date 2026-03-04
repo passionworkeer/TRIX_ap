@@ -16,16 +16,19 @@ struct ChatListView: View {
 
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var chatService: ChatService
+    @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
 
     // MARK: - State
 
     @State private var searchText = ""
     @State private var selectedConversation: ChatConversation?
     @State private var showingCreateChat = false
+    @State private var showingPairing = false
     @State private var newChatName = ""
     @State private var conversations: [ChatConversation] = []
     @State private var recommendedUsers: [RecommendedUser] = []
     @State private var showQuickAdd = true
+    @State private var showPairingAlert = false
 
     // Sample recommended users
     private let sampleRecommendedUsers: [RecommendedUser] = [
@@ -85,6 +88,11 @@ struct ChatListView: View {
                 }
             }
             .sheet(isPresented: $showingCreateChat) { createChatSheet }
+            .sheet(isPresented: $showingPairing) {
+                NavigationStack {
+                    PairingView()
+                }
+            }
         }
     }
 
@@ -108,7 +116,11 @@ struct ChatListView: View {
 
     private var trixBotEntry: some View {
         Button {
-            openTrixBotChat()
+            if clawbotChannel.isPaired {
+                openTrixBotChat()
+            } else {
+                showPairingAlert = true
+            }
         } label: {
             HStack(spacing: 12) {
                 // Avatar with status indicator
@@ -121,8 +133,13 @@ struct ChatListView: View {
                         .overlay(
                             Circle().stroke(.white.opacity(0.1), lineWidth: 1)
                         )
-                    // Online status
-                    Circle().fill(.green).frame(width: 14, height: 14).overlay(Circle().stroke(.black.opacity(0.3), lineWidth: 2)).offset(x: 2, y: 2).shadow(color: .green.opacity(0.5), radius: 4)
+                    // Online status - show based on pairing
+                    Circle()
+                        .fill(clawbotChannel.isPaired ? .green : .orange)
+                        .frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(.black.opacity(0.3), lineWidth: 2))
+                        .offset(x: 2, y: 2)
+                        .shadow(color: clawbotChannel.isPaired ? .green.opacity(0.5) : .orange.opacity(0.5), radius: 4)
                 }
 
                 // Name and status
@@ -131,8 +148,12 @@ struct ChatListView: View {
                         Text("TRIX Bot").font(.headline).foregroundColor(.white)
                     }
                     HStack(spacing: 4) {
-                        Image(systemName: "message.fill").font(.system(size: 14)).foregroundColor(.green)
-                        Text("在线").font(.subheadline).foregroundColor(.gray.opacity(0.6))
+                        Image(systemName: clawbotChannel.isPaired ? "message.fill" : "link.badge.plus")
+                            .font(.system(size: 14))
+                            .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
+                        Text(clawbotChannel.isPaired ? "已配对" : "未配对")
+                            .font(.subheadline)
+                            .foregroundColor(clawbotChannel.isPaired ? .green : .orange.opacity(0.8))
                     }
                 }
 
@@ -140,12 +161,12 @@ struct ChatListView: View {
 
                 // Camera icon (Web style)
                 Circle()
-                    .fill(.green.opacity(0.2))
+                    .fill(clawbotChannel.isPaired ? .green.opacity(0.2) : .gray.opacity(0.2))
                     .frame(width: 40, height: 40)
                     .overlay {
-                        Image(systemName: "camera.fill")
+                        Image(systemName: clawbotChannel.isPaired ? "camera.fill" : "link")
                             .font(.system(size: 16))
-                            .foregroundColor(.green)
+                            .foregroundColor(clawbotChannel.isPaired ? .green : .gray)
                     }
             }
             .padding(.horizontal, 16)
@@ -154,6 +175,14 @@ struct ChatListView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .alert("TRIX Bot 未配对", isPresented: $showPairingAlert) {
+            Button("去配对") {
+                showingPairing = true
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("请先配对 OpenClaw 设备，然后才能与 TRIX Bot 聊天。\n\n在 OpenClaw 端生成配对码，然后在配对页面输入。")
+        }
     }
 
     // MARK: - Quick Add Section

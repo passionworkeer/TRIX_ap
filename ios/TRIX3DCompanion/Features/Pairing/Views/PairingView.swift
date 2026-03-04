@@ -21,6 +21,9 @@ struct PairingView: View {
     /// Pairing service
     @State private var pairingService = PairingService.shared
 
+    /// Clawbot Channel service for OpenClaw pairing
+    @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
+
     /// Current tab selection
     @State private var selectedTab: PairingTab = .displayCode
 
@@ -620,12 +623,17 @@ struct PairingView: View {
         }
     }
 
-    /// Pair with a manual code
+    /// Pair with a manual code - use ClawbotChannelService for OpenClaw pairing
     private func pairWithCode(_ code: String) async {
-        let result = await pairingService.pairWithCode(code)
+        // First ensure connected to Clawbot Channel
+        if !clawbotChannel.isConnected {
+            await clawbotChannel.connect()
+        }
 
-        switch result {
-        case .success:
+        // Use ClawbotChannelService for pairing with OpenClaw
+        let success = await clawbotChannel.pairWithCode(code)
+
+        if success {
             // Show success animation
             withAnimation(.spring(response: 0.5)) {
                 showSuccessAnimation = true
@@ -646,9 +654,11 @@ struct PairingView: View {
             }
 
             manualCodeInput = ""
-
-        case .failure(let error):
-            pairingService.setError(error)
+        } else {
+            // Show error from ClawbotChannel
+            if let error = clawbotChannel.lastError {
+                pairingService.setError(.pairingFailed(underlying: NSError(domain: "ClawbotChannel", code: -1, userInfo: [NSLocalizedDescriptionKey: error])))
+            }
             showError = true
         }
     }
