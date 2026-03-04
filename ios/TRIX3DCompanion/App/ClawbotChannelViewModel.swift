@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import AVFoundation
 
 @MainActor
 final class ClawbotChannelViewModel: ObservableObject {
@@ -24,6 +25,14 @@ final class ClawbotChannelViewModel: ObservableObject {
 
     @Published var messages: [ClawbotMessage] = []
     @Published var isSending: Bool = false
+
+    // TTS Settings
+    @Published var ttsEnabled: Bool = true {
+        didSet { service.ttsEnabled = ttsEnabled }
+    }
+    @Published var ttsLanguage: TTSLanguage = .chinese {
+        didSet { service.ttsLanguage = ttsLanguage }
+    }
 
     // MARK: - Private Properties
 

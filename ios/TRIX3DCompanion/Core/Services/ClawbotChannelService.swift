@@ -9,6 +9,7 @@
 import Foundation
 import Starscream
 import Combine
+import AVFoundation
 
 // MARK: - Types
 
@@ -135,6 +136,10 @@ protocol ClawbotChannelServiceProtocol {
     var isPaired: Bool { get }
     var deviceId: String? { get }
 
+    // TTS
+    var ttsEnabled: Bool { get set }
+    var ttsLanguage: TTSLanguage { get set }
+
     // Connection
     func connect() async throws
     func disconnect()
@@ -201,6 +206,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // Event handlers
     private var eventHandlers: [String: Any] = [:]
+
+    // TTS for bot messages
+    private let ttsService = TTSService.shared
+    @Published var ttsEnabled: Bool = true
+    @Published var ttsLanguage: TTSLanguage = .chinese
 
     // MARK: - Configuration
 
@@ -812,6 +822,30 @@ extension ClawbotChannelService: WebSocketDelegate {
 
         DispatchQueue.main.async {
             self.lastMessage = message
+
+            // Trigger TTS for bot message (text content only)
+            if self.ttsEnabled && contentType == .text && !content.isEmpty {
+                Task {
+                    await self.speakBotMessage(content)
+                }
+            }
+        }
+    }
+
+    /// Speak bot message via TTS
+    @MainActor
+    private func speakBotMessage(_ text: String) async {
+        // Stop any current speech first
+        await ttsService.stop()
+
+        // Set the language
+        await ttsService.setVoice(language: ttsLanguage)
+
+        // Speak the message
+        do {
+            try await ttsService.speak(text, language: ttsLanguage.rawValue)
+        } catch {
+            print("TTS Error: \(error.localizedDescription)")
         }
     }
 
