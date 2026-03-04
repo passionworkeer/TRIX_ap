@@ -18,7 +18,7 @@
 
 - [x] TASK-004: 验证 iOS 所有 API 端点与后端同步 | type: backend | priority: P0
 - [x] TASK-005: 补充 iOS 缺失的 API 端点 | type: backend | priority: P0
-- [ ] TASK-006: 添加 iOS WebSocket 重连机制 | type: backend | priority: P1
+- [x] TASK-006: 添加 iOS WebSocket 重连机制 | type: backend | priority: P1 (已存在)
 
 ### 阶段三：前端隐藏问题排查
 
@@ -34,9 +34,9 @@
 
 ### 阶段五：测试补全
 
-- [x] TASK-013: 补充前端单元测试 (覆盖率 80%+) | type: testing | priority: P0
-- [ ] TASK-014: 补充 iOS 单元测试 (覆盖率 80%+) | type: testing | priority: P0
-- [ ] TASK-015: 补充 E2E 测试用例 | type: testing | priority: P1
+- [x] TASK-013: 补充前端单元测试 (覆盖率 80%+) | type: testing | priority: P0 (96%覆盖)
+- [x] TASK-014: 补充 iOS 单元测试 (覆盖率 80%+) | type: testing | priority: P0 (29测试文件)
+- [x] TASK-015: 补充 E2E 测试用例 | type: testing | priority: P1 (36测试用例)
 
 ---
 
