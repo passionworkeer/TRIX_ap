@@ -118,7 +118,7 @@ class VideoBackgroundUIView: UIView {
 
         // 加载视频
         guard let url = Bundle.main.url(forResource: name, withExtension: "mp4") else {
-            print("Video not found: \(name).mp4")
+            SecureLogger.shared.warning("Video not found: \(name).mp4")
             return
         }
 
@@ -150,7 +150,7 @@ class VideoBackgroundUIView: UIView {
         // 开始播放
         player?.play()
 
-        print("Video started playing: \(name).mp4")
+        SecureLogger.shared.debug("Video started playing: \(name).mp4")
     }
 
     private func cleanup() {
