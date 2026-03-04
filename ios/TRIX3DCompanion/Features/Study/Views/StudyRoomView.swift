@@ -494,7 +494,7 @@ struct ParticipantAvatar: View {
     }
 
     private var statusColor: Color {
-        if member.isOnline {
+        if member.status == .online {
             return .success
         } else {
             return .textTertiary
@@ -570,25 +570,28 @@ struct StudyRoomSettingsSheet: View {
         sessionState: .focusing,
         members: [
             StudyRoomMember(
-                odUserId: "user1",
+                userId: "user1",
                 displayName: "Alice",
                 avatarUrl: nil,
-                joinedAt: "2024-01-01T00:00:00Z",
-                isOnline: true
+                joinedAt: Date(),
+                lastActiveAt: Date(),
+                status: .online
             ),
             StudyRoomMember(
-                odUserId: "user2",
+                userId: "user2",
                 displayName: "Bob",
                 avatarUrl: nil,
-                joinedAt: "2024-01-01T00:00:00Z",
-                isOnline: true
+                joinedAt: Date(),
+                lastActiveAt: Date(),
+                status: .online
             ),
             StudyRoomMember(
-                odUserId: "user3",
+                userId: "user3",
                 displayName: "Charlie",
                 avatarUrl: nil,
-                joinedAt: "2024-01-01T00:00:00Z",
-                isOnline: true
+                joinedAt: Date(),
+                lastActiveAt: Date(),
+                status: .online
             )
         ],
         maxMembers: 10,

@@ -33,8 +33,8 @@ struct StudyListView: View {
             hostUserId: "user1",
             maxMembers: 10,
             members: [
-                StudyRoomMember(odUserId: "user1", displayName: "Alice", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: true),
-                StudyRoomMember(odUserId: "user2", displayName: "Bob", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: true)
+                StudyRoomMember(userId: "user1", displayName: "Alice", avatarUrl: nil, joinedAt: Date(), lastActiveAt: Date(), status: .online),
+                StudyRoomMember(userId: "user2", displayName: "Bob", avatarUrl: nil, joinedAt: Date(), lastActiveAt: Date(), status: .online)
             ],
             sessionState: .focusing,
             createdAt: Date(),
@@ -47,7 +47,7 @@ struct StudyListView: View {
             hostUserId: "user2",
             maxMembers: 8,
             members: [
-                StudyRoomMember(odUserId: "user3", displayName: "Charlie", avatarUrl: nil, joinedAt: "2024-01-01T00:00:00Z", isOnline: false)
+                StudyRoomMember(userId: "user3", displayName: "Charlie", avatarUrl: nil, joinedAt: Date(), lastActiveAt: Date(), status: .online)
             ],
             sessionState: .idle,
             createdAt: Date(),
