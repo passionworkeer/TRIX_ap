@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-02-22
+> **最后更新**: 2026-03-04
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -20,14 +20,12 @@ docs/
 ├── 📊 项目报告
 │   └── project-reports/
 │       ├── PROJECT.md                # 项目总览
-│       ├── PROJECT_AUDIT_P0123_2026-02-22.md  # 功能审计报告
-│       └── SECURITY_AUDIT_MVP_2026-02-22.md   # 安全审计报告
+│       └── NEXT_FEATURES_PLAN.md     # 下一步功能计划
 │
 ├── 🔧 开发文档
 │   └── development/
 │       ├── ARCHITECTURE.md           # 架构文档
-│       ├── TESTING.md                # 测试指南
-│       └── notes/                    # 开发笔记
+│       └── TESTING.md                # 测试指南
 │
 ├── 🚀 用户指南
 │   └── guides/
@@ -66,8 +64,8 @@ docs/
 
 | 文档 | 描述 |
 |------|------|
-| [PROJECT_AUDIT_P0123_2026-02-22.md](./project-reports/PROJECT_AUDIT_P0123_2026-02-22.md) | 功能审计 - P0/P1/P2 问题 |
-| [SECURITY_AUDIT_MVP_2026-02-22.md](./project-reports/SECURITY_AUDIT_MVP_2026-02-22.md) | 安全审计 - 漏洞与修复建议 |
+| [PROJECT.md](./project-reports/PROJECT.md) | 项目总览 |
+| [NEXT_FEATURES_PLAN.md](./project-reports/NEXT_FEATURES_PLAN.md) | 下一步功能计划 |
 
 ### 🚀 用户指南
 
@@ -77,6 +75,8 @@ docs/
 | [QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 扫码配对完整指南 |
 | [PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 配对输入功能 |
 | [UNPAIR_FEATURE_GUIDE.md](./guides/UNPAIR_FEATURE_GUIDE.md) | 解绑设备操作 |
+| [SSH_SETUP.md](./guides/SSH-SETUP.md) | SSH 免密登录配置 |
+| [server/SSH_CONNECTION.md](./server/SSH_CONNECTION.md) | **服务器连接与部署指南** |
 
 ### 🔧 开发参考
 
@@ -105,13 +105,13 @@ FEATURES.md → API 文档 → TESTING.md
 ### 安全加固 (15 分钟)
 
 ```
-SECURITY_AUDIT_MVP_2026-02-22.md → 修复 P0 问题
+PROJECT.md → 审查安全问题
 ```
 
 ### 代码审计 (15 分钟)
 
 ```
-PROJECT_AUDIT_P0123_2026-02-22.md → 处理待办事项
+PROJECT.md → 审查待办事项
 ```
 
 ---
@@ -121,9 +121,9 @@ PROJECT_AUDIT_P0123_2026-02-22.md → 处理待办事项
 | 目录 | 文档数量 | 状态 |
 |------|----------|------|
 | 核心文档 | 4 | ✅ 维护中 |
-| 项目报告 | 3 | ✅ 维护中 |
+| 项目报告 | 2 | ✅ 维护中 |
 | 开发文档 | 3+ | ✅ 维护中 |
-| 用户指南 | 5 | ✅ 维护中 |
+| 用户指南 | 6 | ✅ 维护中 |
 | API 文档 | 1 | ✅ 维护中 |
 | 归档文档 | 20+ | 📦 只读 |
 | **活跃文档** | **~16** | - |
@@ -149,4 +149,4 @@ PROJECT_AUDIT_P0123_2026-02-22.md → 处理待办事项
 
 ---
 
-**最后更新**: 2026-02-22
+**最后更新**: 2026-03-04
