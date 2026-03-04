@@ -101,7 +101,7 @@ struct StoreView: View {
             HStack {
                 Image(systemName: "star.fill")
                     .font(.title2)
-                    .foregroundColor(.yellow)
+                    .foregroundColor(.orange)
 
                 Text("My Points")
                     .font(.headline)
@@ -279,7 +279,7 @@ struct ProductCard: View {
                 // Icon
                 Image(systemName: "star.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.yellow)
+                    .foregroundColor(.orange)
 
                 VStack(alignment: .leading, spacing: 4) {
                     // Product name

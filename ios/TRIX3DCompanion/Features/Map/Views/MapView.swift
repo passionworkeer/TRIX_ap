@@ -146,7 +146,17 @@ struct MapView: View {
     /// Main map content with all markers
     @ViewBuilder
     private var mapContent: some View {
-        Map(coordinateRegion: $viewModel.region, showsUserLocation: true)
+        Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
+            MapAnnotation(coordinate: location.coordinate) {
+                LocationMarker(
+                    location: location,
+                    color: viewModel.markerColor(for: location),
+                    iconName: viewModel.iconName(for: location)
+                ) {
+                    viewModel.selectLocation(location)
+                }
+            }
+        }
     }
 
     /// Search bar overlay

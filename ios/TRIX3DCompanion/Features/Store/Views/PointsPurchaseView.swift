@@ -171,7 +171,7 @@ struct PointsPurchaseView: View {
         HStack {
             Image(systemName: "star.fill")
                 .font(.title2)
-                .foregroundColor(.yellow)
+                .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current Balance")
