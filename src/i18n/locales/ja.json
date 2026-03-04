@@ -32,6 +32,161 @@
     "delete": "削除",
     "close": "閉じる"
   },
+  "workbench": {
+    "title": "ワークベンチ",
+    "subtitle": "クイック機能アクセス",
+    "hint": "スワイプして更多信息を見る",
+    "snapshot": "スナップ",
+    "location": "場所",
+    "schedule": "スケジュール",
+    "todo": "トゥドゥ"
+  },
+  "todo": {
+    "title": "トゥドゥリスト",
+    "add": "追加",
+    "edit": "編集",
+    "delete": "削除",
+    "completed": "完了",
+    "active": "進行中",
+    "priority": {
+      "high": "高優先度",
+      "medium": "中優先度",
+      "low": "低優先度",
+      "short": {
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      }
+    },
+    "filter": {
+      "all": "すべて",
+      "active": "進行中",
+      "completed": "完了"
+    },
+    "sort": {
+      "priority": "優先度",
+      "due_date": "期限",
+      "created_at": "作成日"
+    },
+    "form": {
+      "title": "タイトル",
+      "description": "説明",
+      "priority": "優先度",
+      "dueDate": "期限",
+      "submit": "送信",
+      "cancel": "キャンセル",
+      "titlePlaceholder": "トゥドゥを入力...",
+      "descriptionPlaceholder": "説明を追加（任意）...",
+      "selectDate": "日付を選択"
+    },
+    "empty": "トゥドゥがありません",
+    "noResults": "条件に一致するトゥドゥがありません",
+    "statusUpdated": "ステータスが更新されました",
+    "deleted": "削除されました",
+    "updated": "更新されました",
+    "added": "追加されました",
+    "dueDate": {
+      "expired": "期限切れ",
+      "today": "今日",
+      "tomorrow": "明日",
+      "daysLeft": "{{days}}日後",
+      "quickOptions": {
+        "today": "今日",
+        "tomorrow": "明日",
+        "nextWeek": "来週"
+      }
+    },
+    "validation": {
+      "titleRequired": "タイトルを入力してください",
+      "titleTooLong": "タイトルは200文字以内にしてください"
+    },
+    "notification": {
+      "markComplete": "完了としてマーク",
+      "markIncomplete": "未完了としてマーク"
+    }
+  },
+  "schedule": {
+    "title": "スケジュール",
+    "add": "追加",
+    "edit": "編集",
+    "delete": "削除",
+    "today": "今日",
+    "tomorrow": "明日",
+    "thisWeek": "今週",
+    "earlier": "以前",
+    "filter": {
+      "all": "すべて",
+      "today": "今日",
+      "upcoming": "今後"
+    },
+    "reminder": {
+      "15min": "15分前",
+      "30min": "30分前",
+      "1hour": "1時間前",
+      "2hours": "2時間前",
+      "1day": "1日前",
+      "none": "リマインダーなし",
+      "minutes": "{{minutes}}分前に通知"
+    },
+    "form": {
+      "title": "タイトル",
+      "description": "説明",
+      "startTime": "開始時刻",
+      "endTime": "終了時刻",
+      "location": "場所",
+      "reminder": "リマインダー",
+      "submit": "送信",
+      "cancel": "キャンセル",
+      "titlePlaceholder": "スケジュールのタイトルを入力...",
+      "descriptionPlaceholder": "説明を追加（任意）...",
+      "locationPlaceholder": "場所を入力（任意）...",
+      "endTimeOptional": "（任意）",
+      "quickTime": {
+        "now": "今すぐ",
+        "nextHour": "次の正時",
+        "today9am": "今日 09:00",
+        "today2pm": "今日 14:00",
+        "today6pm": "今日 18:00"
+      }
+    },
+    "empty": "スケジュールがありません",
+    "noResults": "条件に一致するスケジュールがありません",
+    "deleted": "削除されました",
+    "updated": "更新されました",
+    "added": "追加されました",
+    "validation": {
+      "titleRequired": "タイトルを入力してください",
+      "titleTooLong": "タイトルは200文字以内にしてください",
+      "startTimeRequired": "開始時刻を選択してください",
+      "endTimeRequired": "終了時刻を選択してください",
+      "endTimeAfterStart": "終了時刻は開始時刻より後にしてください"
+    },
+    "notification": {
+      "enabled": "通知が有効になりました",
+      "enable": "通知を有効にする"
+    }
+  },
+  "location": {
+    "title": "場所を選択",
+    "searchPlaceholder": "場所を検索...",
+    "currentLocation": "現在地",
+    "share": "場所を共有",
+    "shareButton": "共有",
+    "sharing": "共有中...",
+    "namePlaceholder": "この場所的名字",
+    "nameLabel": "場所の名前",
+    "nameInputPlaceholder": "場所の名前を入力...",
+    "copiedToClipboard": "リンクをクリップボードにコピーしました",
+    "shared": "場所が共有されました",
+    "selectPrompt": "マップをクリックして場所を選択",
+    "myLocation": "マイ場所",
+    "locationAcquired": "位置情報を取得しました",
+    "error": {
+      "selectFirst": "場所を選択してください",
+      "getLocation": "位置情報の取得に失敗しました",
+      "shareFailed": "共有に失敗しました"
+    }
+  },
   "profile": {
     "title": "プロフィール",
     "darkMode": "ダークモード",

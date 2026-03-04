@@ -1,0 +1,297 @@
+{
+  "home": {
+    "greeting": "嘿",
+    "whatToLearn": "今天想學點什麼?"
+  },
+  "chat": {
+    "title": "聊天",
+    "noFriends": "暫無好友",
+    "unpaired": "未配對",
+    "quickAdd": "快速添加"
+  },
+  "study": {
+    "title": "自習室",
+    "totalFocus": "總專注時長",
+    "totalStudyTime": "累計學習",
+    "points": "積分",
+    "addBuddy": "添加學習夥伴",
+    "startFocus": "開始專注",
+    "selectDuration": "選擇專注時長",
+    "minutes": "分鐘"
+  },
+  "common": {
+    "minutes": "分鐘",
+    "hours": "小時",
+    "loading": "加載中...",
+    "error": "錯誤",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "edit": "編輯",
+    "delete": "刪除",
+    "close": "關閉"
+  },
+  "workbench": {
+    "title": "工作台",
+    "subtitle": "快捷功能入口",
+    "hint": "左右滑動查看更多",
+    "snapshot": "快拍",
+    "location": "位置",
+    "schedule": "日程",
+    "todo": "待辦"
+  },
+  "todo": {
+    "title": "待辦事項",
+    "add": "添加待辦",
+    "edit": "編輯待辦",
+    "delete": "刪除待辦",
+    "completed": "已完成",
+    "active": "進行中",
+    "priority": {
+      "high": "高優先級",
+      "medium": "中優先級",
+      "low": "低優先級",
+      "short": {
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      }
+    },
+    "filter": {
+      "all": "全部",
+      "active": "進行中",
+      "completed": "已完成"
+    },
+    "sort": {
+      "priority": "優先級",
+      "due_date": "截止日期",
+      "created_at": "建立時間"
+    },
+    "form": {
+      "title": "標題",
+      "description": "描述",
+      "priority": "優先級",
+      "dueDate": "截止日期",
+      "submit": "提交",
+      "cancel": "取消",
+      "titlePlaceholder": "輸入待辦事項...",
+      "descriptionPlaceholder": "新增描述（可選）...",
+      "selectDate": "選擇日期"
+    },
+    "empty": "暫無待辦事項",
+    "noResults": "沒有符合條件的待辦",
+    "statusUpdated": "狀態已更新",
+    "deleted": "已刪除",
+    "updated": "已更新",
+    "added": "已添加",
+    "dueDate": {
+      "expired": "已過期",
+      "today": "今天",
+      "tomorrow": "明天",
+      "daysLeft": "{{days}}天後",
+      "quickOptions": {
+        "today": "今天",
+        "tomorrow": "明天",
+        "nextWeek": "下週"
+      }
+    },
+    "validation": {
+      "titleRequired": "請輸入標題",
+      "titleTooLong": "標題不能超過200個字元"
+    },
+    "notification": {
+      "markComplete": "標記為已完成",
+      "markIncomplete": "標記為未完成"
+    }
+  },
+  "schedule": {
+    "title": "日程安排",
+    "add": "添加日程",
+    "edit": "編輯日程",
+    "delete": "刪除",
+    "today": "今天",
+    "tomorrow": "明天",
+    "thisWeek": "本週",
+    "earlier": "更早",
+    "filter": {
+      "all": "全部",
+      "today": "今天",
+      "upcoming": "本週"
+    },
+    "reminder": {
+      "15min": "15分鐘前",
+      "30min": "30分鐘前",
+      "1hour": "1小時前",
+      "2hours": "2小時前",
+      "1day": "1天前",
+      "none": "不提醒",
+      "minutes": "{{minutes}}分鐘前提醒"
+    },
+    "form": {
+      "title": "標題",
+      "description": "描述",
+      "startTime": "開始時間",
+      "endTime": "結束時間",
+      "location": "地點",
+      "reminder": "提醒",
+      "submit": "提交",
+      "cancel": "取消",
+      "titlePlaceholder": "輸入日程標題...",
+      "descriptionPlaceholder": "新增描述（可選）...",
+      "locationPlaceholder": "輸入地點（可選）...",
+      "endTimeOptional": "（可選）",
+      "quickTime": {
+        "now": "現在",
+        "nextHour": "下一個整點",
+        "today9am": "今天 09:00",
+        "today2pm": "今天 14:00",
+        "today6pm": "今天 18:00"
+      }
+    },
+    "empty": "暫無日程安排",
+    "noResults": "沒有符合條件的日程",
+    "deleted": "已刪除",
+    "updated": "已更新",
+    "added": "已添加",
+    "validation": {
+      "titleRequired": "請輸入標題",
+      "titleTooLong": "標題不能超過200個字元",
+      "startTimeRequired": "請選擇開始時間",
+      "endTimeRequired": "請選擇完整的結束時間",
+      "endTimeAfterStart": "結束時間必須晚於開始時間"
+    },
+    "notification": {
+      "enabled": "通知已開啟",
+      "enable": "開啟通知"
+    }
+  },
+  "location": {
+    "title": "選擇位置",
+    "searchPlaceholder": "搜尋位置...",
+    "currentLocation": "目前位置",
+    "share": "分享位置",
+    "shareButton": "分享位置",
+    "sharing": "分享中...",
+    "namePlaceholder": "為這個位置命名",
+    "nameLabel": "位置名稱",
+    "nameInputPlaceholder": "輸入位置名稱...",
+    "copiedToClipboard": "位置連結已複製到剪貼簿",
+    "shared": "位置分享成功",
+    "selectPrompt": "點擊地圖選擇位置",
+    "myLocation": "我的位置",
+    "locationAcquired": "已獲取位置",
+    "error": {
+      "selectFirst": "請先選擇一個位置",
+      "getLocation": "獲取位置失敗",
+      "shareFailed": "分享位置失敗"
+    }
+  },
+  "profile": {
+    "title": "個人中心",
+    "darkMode": "深色模式",
+    "language": "語言",
+    "logout": "登出",
+    "points": "積分",
+    "daysActive": "陪伴天數",
+    "interactions": "互動",
+    "level": "等級",
+    "myWardrobe": "我的衣櫥",
+    "viewAll": "查看全部",
+    "getMore": "獲取更多",
+    "appearance": "外觀與個人化",
+    "general": "通用",
+    "privacy": "隱私與安全",
+    "about": "關於我們",
+    "outfitEquipped": "已裝備: {{name}}",
+    "logoutConfirm": "確定要登出嗎？",
+    "privacyInDev": "隱私與安全設定頁面（開發中）",
+    "aboutText": "TRIX v1.2.0\n開發團隊: TRIX Studio\n© 2026 All Rights Reserved",
+    "statsMessages": {
+      "daysActive": "🎉 你已經和 TRIX 相伴 {{value}} 天啦！\n繼續保持，一起成長！",
+      "points": "⭐ 目前積分: {{value}}\n繼續學習賺取更多積分！",
+      "interactions": "💬 總互動次數: {{value}}\n本週互動: 86 次"
+    },
+    "wardrobeInDev": "裝備商店（開發中）\n即將推出更多精美裝備！",
+    "getMoreOutfits": "獲取更多裝備\n\n完成任務和活動即可解鎖新裝備！",
+    "languageChanged": "語言已切換為: {{language}}"
+  },
+  "map": {
+    "virtualSpace": "VIRTUAL SPACE",
+    "studyRoom": "自習室",
+    "popularPlaces": "熱門地點",
+    "friendsCount": "位好友",
+    "places": {
+      "starbucks": {
+        "name": "星巴克咖啡",
+        "description": "和朋友聚會喝咖啡",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "hotpot": {
+        "name": "海底撈火鍋",
+        "description": "熱鬧的火鍋聚餐",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "cinema": {
+        "name": "萬達影城",
+        "description": "最新電影上映中",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "park": {
+        "name": "靜安雕塑公園",
+        "description": "適合散步和聊天",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "studyRoom": {
+        "name": "24小時自習室",
+        "description": "安靜的學習環境",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      },
+      "ktv": {
+        "name": "KTV 唱歌",
+        "description": "聚會唱K放鬆",
+        "navigate": "導航",
+        "favorite": "收藏",
+        "favorited": "已收藏"
+      }
+    },
+    "types": {
+      "dining": "🍽️ 餐飲",
+      "entertainment": "🎬 娛樂",
+      "study": "📚 學習",
+      "shopping": "🛍️ 購物",
+      "park": "🌳 公園"
+    }
+  },
+  "friend": {
+    "sendMessage": "發訊息",
+    "viewProfile": "主頁",
+    "inviteStudy": "邀請自習",
+    "studying": "正在學習中",
+    "todayStudyTime": "今日已學習 {{minutes}} 分鐘",
+    "lastOnline": "最後活躍: {{time}}",
+    "online": "線上",
+    "inviteSent": "已邀請 {{name}} 一起自習"
+  },
+  "common": {
+    "loading": "加載中...",
+    "error": "錯誤",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "edit": "編輯",
+    "delete": "刪除",
+    "close": "關閉"
+  }
+}
