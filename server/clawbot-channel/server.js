@@ -343,7 +343,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-secret']
 }));
-app.use(express.json());
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -403,6 +403,8 @@ app.get('/health', async (req, res) => {
 });
 
 app.post('/api/tts/synthesize', ttsLimiter, async (req, res) => {
+  const rawBody = req.rawBody || '';
+  console.log('[TTS] rawBody:', rawBody.toString());
   const { text, scene = 'bot_reply', messageId } = req.body || {};
 
   if (process.env.DOUBAO_TTS_ENABLED === 'false') {
