@@ -133,7 +133,7 @@ struct PaymentResultView: View {
         HStack(spacing: 16) {
             Image(systemName: "star.fill")
                 .font(.title2)
-                .foregroundColor(.yellow)
+                .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Points Added")
