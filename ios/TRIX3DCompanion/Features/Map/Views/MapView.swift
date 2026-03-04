@@ -143,18 +143,26 @@ struct MapView: View {
 
     // MARK: - View Components
 
-    /// Main map content with all markers
+    /// Main map content with all markers and heat zones
     @ViewBuilder
     private var mapContent: some View {
-        Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
-            MapAnnotation(coordinate: location.coordinate) {
-                LocationMarker(
-                    location: location,
-                    color: viewModel.markerColor(for: location),
-                    iconName: viewModel.iconName(for: location)
-                ) {
-                    viewModel.selectLocation(location)
+        ZStack {
+            // Base map with markers
+            Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
+                MapAnnotation(coordinate: location.coordinate) {
+                    LocationMarker(
+                        location: location,
+                        color: viewModel.markerColor(for: location),
+                        iconName: viewModel.iconName(for: location)
+                    ) {
+                        viewModel.selectLocation(location)
+                    }
                 }
+            }
+
+            // Heat zone overlays
+            ForEach(viewModel.heatZones) { heatZone in
+                HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
             }
         }
     }
@@ -610,5 +618,49 @@ private struct FriendMapPin: View {
     var body: some View {
         // Using FriendAvatarAnnotation in map instead
         EmptyView()
+    }
+}
+
+// MARK: - Heat Zone Overlay
+
+/// Heat zone overlay for map visualization
+struct HeatZoneOverlay: View {
+    let heatZone: HeatZone
+    let region: MKCoordinateRegion
+
+    var body: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    gradient: Gradient(colors: [heatZone.color, heatZone.color.opacity(0)]),
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: heatZone.size
+                )
+            )
+            .frame(width: heatZone.size * 2, height: heatZone.size * 2)
+            .position(
+                x: coordinateToPosition(heatZone.coordinate).x,
+                y: coordinateToPosition(heatZone.coordinate).y
+            )
+    }
+
+    /// Convert coordinate to view position (simplified)
+    private func coordinateToPosition(_ coordinate: CLLocationCoordinate2D) -> CGPoint {
+        let span = region.span
+        let center = region.center
+
+        // Calculate relative position
+        let latDiff = (coordinate.latitude - center.latitude) / span.latitudeDelta
+        let lngDiff = (coordinate.longitude - center.longitude) / span.longitudeDelta
+
+        // Assume screen size (will be adjusted by parent view)
+        let screenWidth: CGFloat = 400
+        let screenHeight: CGFloat = 600
+
+        return CGPoint(
+            x: (0.5 + lngDiff) * screenWidth,
+            y: (0.5 - latDiff) * screenHeight
+        )
     }
 }
