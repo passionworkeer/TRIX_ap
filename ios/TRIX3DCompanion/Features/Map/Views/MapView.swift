@@ -62,9 +62,9 @@ struct MapView: View {
             VStack {
                 Spacer()
 
-                // Bottom status bar
+                // Bottom status bar - moved up
                 bottomStatusBar
-                    .padding(.bottom, 90) // Above GlassDock
+                    .padding(.bottom, 50) // Above GlassDock
             }
 
             // Location button (right side)
@@ -95,7 +95,7 @@ struct MapView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.trailing, 16)
-                    .padding(.bottom, 100) // Above GlassDock
+                    .padding(.bottom, 60) // Above GlassDock
                 }
             }
 
@@ -146,23 +146,7 @@ struct MapView: View {
     /// Main map content with all markers
     @ViewBuilder
     private var mapContent: some View {
-        // Location markers
-        Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
-            MapAnnotation(coordinate: location.coordinate) {
-                LocationMarker(
-                    location: location,
-                    color: viewModel.markerColor(for: location),
-                    iconName: viewModel.iconName(for: location)
-                ) {
-                    viewModel.selectLocation(location)
-                }
-            }
-        }
-
-        // Friend markers overlay (simple approach)
-        ForEach(viewModel.friendLocations) { friend in
-            FriendMapPin(friend: friend, region: viewModel.region)
-        }
+        Map(coordinateRegion: $viewModel.region, showsUserLocation: true)
     }
 
     /// Search bar overlay
@@ -534,14 +518,87 @@ private struct CompactFriendMarker: View {
 
 // MARK: - Friend Map Pin Overlay
 
+/// Friend avatar annotation for map
+private struct FriendAvatarAnnotation: View {
+    let friend: FriendMapLocation
+
+    var body: some View {
+        VStack(spacing: 2) {
+            // Avatar with glow for studying
+            ZStack(alignment: .bottomTrailing) {
+                // Glow ring for studying friends
+                if friend.isStudying {
+                    Circle()
+                        .fill(Color.green.opacity(0.4))
+                        .frame(width: 44, height: 44)
+                        .blur(radius: 4)
+                }
+
+                // Avatar background
+                Circle()
+                    .fill(avatarGradient)
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 2)
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+
+                // Avatar initial
+                Text(String(friend.name.prefix(1)))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+
+                // Status indicator
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 10, height: 10)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 1.5)
+                    )
+                    .offset(x: 2, y: 2)
+            }
+
+            // Name tag
+            Text(friend.name)
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.black.opacity(0.6))
+                .clipShape(Capsule())
+        }
+    }
+
+    private var avatarGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colorIndex = abs(friend.name.hashValue) % colors.count
+        let color = colors[colorIndex]
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var statusColor: Color {
+        switch friend.status {
+        case "online": return .green
+        case "away": return .orange
+        default: return .gray
+        }
+    }
+}
+
 /// Friend map pin that positions itself based on coordinate region
 private struct FriendMapPin: View {
     let friend: FriendMapLocation
     let region: MKCoordinateRegion
 
     var body: some View {
-        // This is a simplified version - in production you'd convert coordinates to screen position
-        // For now, we'll just not render anything and rely on the main map
+        // Using FriendAvatarAnnotation in map instead
         EmptyView()
     }
 }
