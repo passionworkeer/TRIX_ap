@@ -28,6 +28,9 @@ struct ChatInputBar: View {
     @State private var showDocumentPicker = false
     @State private var showVoiceRecording = false
 
+    // AI Action selector state
+    @State private var selectedAIAction: AIActionType = .chat
+
     // Speech recognition state
     @State private var isListening = false
     @State private var showSpeechError = false
@@ -53,6 +56,9 @@ struct ChatInputBar: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 12) {
+            // AI Action selector button
+            aiActionSelectorButton
+
             // Voice recording button
             voiceRecordingButton
 
@@ -122,6 +128,18 @@ struct ChatInputBar: View {
             }
         }
         .disabled(!isConnected)
+    }
+
+    // MARK: - AI Action Selector Button
+
+    private var aiActionSelectorButton: some View {
+        AIActionSelectorView(
+            selectedAction: $selectedAIAction,
+            onSelect: { action in
+                // Apply AI action prefix to current text
+                text = applyAIActionPrefix(text, action: action)
+            }
+        )
     }
 
     // MARK: - Voice Recording Button
