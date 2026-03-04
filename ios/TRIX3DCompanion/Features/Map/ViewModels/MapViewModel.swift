@@ -358,8 +358,10 @@ final class MapViewModel: ObservableObject {
 
         case .failure(let error):
             errorMessage = error.errorDescription
-            allLocations = []
-            filteredLocations = []
+            // Keep existing mock data if API fails
+            if allLocations.isEmpty {
+                loadMockData()
+            }
         }
 
         isLoading = false

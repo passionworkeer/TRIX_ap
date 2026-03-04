@@ -14,35 +14,38 @@ struct MailPanelView: View {
     @State private var isLoading = false
 
     var body: some View {
-        ZStack {
-            // Background overlay
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    isPresented = false
+        GeometryReader { geometry in
+            ZStack {
+                // Background overlay
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isPresented = false
+                    }
+
+                // Main panel
+                VStack(spacing: 0) {
+                    // Handle bar
+                    handleBar
+
+                    // Header
+                    headerSection
+
+                    // Messages list
+                    messagesList
                 }
-
-            // Main panel
-            VStack(spacing: 0) {
-                // Handle bar
-                handleBar
-
-                // Header
-                headerSection
-
-                // Messages list
-                messagesList
+                .frame(maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.gray.opacity(0.3))
+                )
+                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
             }
-            .frame(maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
-            )
-            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
-        }
-        .ignoresSafeArea(edges: .top)
-        .onAppear {
-            loadMessages()
+            .padding(.top, geometry.safeAreaInsets.top) // Respect safe area
+            .ignoresSafeArea(edges: .bottom)
+            .onAppear {
+                loadMessages()
+            }
         }
     }
 
