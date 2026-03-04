@@ -39,25 +39,72 @@ struct MapView: View {
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .top) {
-                // Map
-                mapContent
+        ZStack {
+            // Map
+            mapContent
 
-                // Search bar overlay with safe area
+            // Top safe area content
+            VStack {
+                // Spacer for safe area
+                Spacer()
+                    .frame(height: UIApplication.shared.connectedScenes
+                        .compactMap { $0 as? UIWindowScene }
+                        .first?.windows.first?.safeAreaInsets.top ?? 47)
+
+                // Search bar
                 searchBarOverlay
-                    .padding(.top, geometry.safeAreaInsets.top + 8)
+                    .padding(.horizontal)
 
-                // Floating action buttons
-                floatingButtons
+                Spacer()
+            }
 
-                // Loading overlay
-                if viewModel.isLoading {
-                    loadingOverlay
+            // Bottom content
+            VStack {
+                Spacer()
+
+                // Bottom status bar
+                bottomStatusBar
+                    .padding(.bottom, 90) // Above GlassDock
+            }
+
+            // Location button (right side)
+            VStack {
+                Spacer()
+
+                HStack {
+                    Spacer()
+
+                    VStack(spacing: 12) {
+                        // Locate me button
+                        Button(action: { centerOnUserLocation() }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 56, height: 56)
+                                    .shadow(color: .shadow, radius: 8, x: 0, y: 4)
+
+                                Image(systemName: viewModel.isUserLocationAvailable ? "location.fill" : "location")
+                                    .font(.title2)
+                                    .foregroundStyle(
+                                        viewModel.isUserLocationAvailable
+                                            ? Color.brandPurple
+                                            : Color.textSecondary
+                                    )
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 100) // Above GlassDock
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
+
+            // Loading overlay
+            if viewModel.isLoading {
+                loadingOverlay
+            }
         }
+        .ignoresSafeArea(edges: .bottom)
         .task {
             await viewModel.loadNearbyLocations()
         }
@@ -179,43 +226,6 @@ struct MapView: View {
                 }
             }
             .padding(.horizontal)
-        }
-    }
-
-    /// Floating action buttons
-    private var floatingButtons: some View {
-        VStack {
-            Spacer()
-
-            HStack {
-                Spacer()
-
-                VStack(spacing: 12) {
-                    // Locate me button
-                    Button(action: { centerOnUserLocation() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 56, height: 56)
-                                .shadow(color: .shadow, radius: 8, x: 0, y: 4)
-
-                            Image(systemName: viewModel.isUserLocationAvailable ? "location.fill" : "location")
-                                .font(.title2)
-                                .foregroundStyle(
-                                    viewModel.isUserLocationAvailable
-                                        ? Color.brandPurple
-                                        : Color.textSecondary
-                                )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.trailing, 16)
-            }
-
-            // Bottom status bar (Web 端风格)
-            bottomStatusBar
-                .padding(.bottom, 90) // Account for bottom dock height
         }
     }
 
