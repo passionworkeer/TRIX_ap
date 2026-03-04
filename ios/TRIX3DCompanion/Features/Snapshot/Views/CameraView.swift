@@ -423,7 +423,10 @@ class CameraPreviewUIView: UIView {
 
     /// Convenience accessor for the video preview layer
     var videoPreviewLayer: AVCaptureVideoPreviewLayer {
-        return layer as! AVCaptureVideoPreviewLayer
+        guard let previewLayer = layer as? AVCaptureVideoPreviewLayer else {
+            fatalError("Unable to convert layer to AVCaptureVideoPreviewLayer")
+        }
+        return previewLayer
     }
 
     override func layoutSubviews() {
