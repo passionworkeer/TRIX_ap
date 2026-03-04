@@ -268,6 +268,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         DispatchQueue.main.async {
             self.connectionState = .disconnected
+            self.botState = .idle  // Reset bot state on disconnect (matching Web)
         }
     }
 
@@ -378,6 +379,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         isPaired = false
         deviceId = nil
+        botState = .idle  // Reset bot state on unpair (matching Web)
         clearPersistedState()
     }
 
@@ -573,7 +575,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     private func getSupabaseUserId() async -> String? {
         // 从 AuthService 获取当前用户 ID
-        return AuthService.shared.user?.id
+        return AuthService.shared.currentUser?.id
     }
 
     // MARK: - Persistence
@@ -830,21 +832,52 @@ extension ClawbotChannelService: WebSocketDelegate {
         DispatchQueue.main.async {
             self.lastMessage = message
 
-            // Set bot state to speaking when receiving bot message
-            self.botState = .speaking
-
-            // After TTS completes (or after delay), set back to idle
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                if self.botState == .speaking {
-                    self.botState = .idle
-                }
-            }
-
-            // Trigger TTS for bot message (text content only)
+            // State machine: IDLE -> THINKING -> SPEAKING -> IDLE (matching Web)
             if self.ttsEnabled && contentType == .text && !content.isEmpty {
+                // With voice enabled: IDLE -> THINKING -> SPEAKING -> IDLE
+                self.botState = .thinking
+
+                // Then transition to speaking after a short delay (mimicking processing time)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if self.botState == .thinking {
+                        self.botState = .speaking
+                    }
+                }
+
+                // Calculate dynamic timeout based on content length (matching Web)
+                // Web: SPEAKING_BASE_MS (800) + contentLength * SPEAKING_PER_CHAR_MS (45)
+                // Min: 1200ms, Max: 12000ms
+                let contentLength = content.count
+                let baseMs: Double = 800
+                let perCharMs: Double = 45
+                let minMs: Double = 1200
+                let maxMs: Double = 12000
+                let speakingDuration = min(max(baseMs + Double(contentLength) * perCharMs, minMs), maxMs)
+
+                // Add thinking timeout (25 seconds like Web)
+                let thinkingTimeout: Double = 25.0
+
+                // Set back to idle after calculated duration
+                DispatchQueue.main.asyncAfter(deadline: .now() + (speakingDuration / 1000)) {
+                    if self.botState == .speaking {
+                        self.botState = .idle
+                    }
+                }
+
+                // Also set thinking timeout
+                DispatchQueue.main.asyncAfter(deadline: .now() + thinkingTimeout) {
+                    if self.botState == .thinking {
+                        self.botState = .idle
+                    }
+                }
+
+                // Trigger TTS for bot message
                 Task {
                     await self.speakBotMessage(content)
                 }
+            } else {
+                // Without voice: just idle
+                self.botState = .idle
             }
         }
     }
