@@ -48,35 +48,30 @@ struct MessageCell: View {
 
     // MARK: - View Components
 
-    /// Avatar view for received messages
+    /// Avatar view for received messages - using AvatarView component
     private var avatarView: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [.purple.opacity(0.7), .pink.opacity(0.7)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .frame(width: 32, height: 32)
-            .overlay {
-                Text(avatarInitial)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-            }
+        AvatarView(
+            size: .small,
+            username: avatarUsername,
+            isOnline: senderIsOnline
+        )
     }
 
-    /// Avatar initial letter
-    private var avatarInitial: String {
+    /// Avatar username derived from sender
+    private var avatarUsername: String {
         switch message.sender {
         case .bot:
             return "AI"
         case .friend:
-            return "F"
+            return "Friend"
         case .user:
-            return "U"
+            return "You"
         }
+    }
+
+    /// Whether sender is online (simplified - always false for messages)
+    private var senderIsOnline: Bool {
+        message.sender == .bot
     }
 
     /// Message bubble
