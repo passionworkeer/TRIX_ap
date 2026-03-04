@@ -35,6 +35,7 @@ const Profile: React.FC = () => {
   // Get current language display name
   const languageNames: Record<string, string> = {
     zh: '简体中文',
+    'zh-TW': '繁體中文',
     en: 'English',
     ja: '日本語'
   };
@@ -62,8 +63,12 @@ const Profile: React.FC = () => {
   };
 
   const handleLanguageChange = () => {
-    const languages = ['zh', 'en', 'ja'];
-    const currentIndex = languages.indexOf(i18n.language);
+    const languages = ['zh', 'zh-TW', 'en', 'ja'];
+    // 处理可能的语言代码变体
+    const currentLang = i18n.language.includes('zh-TW') ? 'zh-TW' :
+                        i18n.language.includes('zh') ? 'zh' :
+                        i18n.language;
+    const currentIndex = languages.indexOf(currentLang);
     const nextLanguage = languages[(currentIndex + 1) % languages.length];
     i18n.changeLanguage(nextLanguage);
   };

@@ -4,6 +4,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 // 导入翻译文件
 import zh from './locales/zh.json';
+import zhTW from './locales/zh-TW.json';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
 
@@ -13,6 +14,7 @@ i18n
   .init({
     resources: {
       zh: { translation: zh },
+      'zh-TW': { translation: zhTW },
       en: { translation: en },
       ja: { translation: ja },
     },
