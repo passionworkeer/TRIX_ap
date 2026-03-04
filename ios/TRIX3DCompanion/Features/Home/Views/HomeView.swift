@@ -20,6 +20,7 @@ struct HomeView: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
 
     // MARK: - Bindings
 
@@ -35,7 +36,6 @@ struct HomeView: View {
     @State private var showTodo = false
     @State private var showSchedule = false
     @State private var showLocation = false
-    @State private var botState: BotState = .idle
     @State private var useRobotBackground = true
 
     // MARK: - Body
@@ -43,9 +43,9 @@ struct HomeView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // 视频背景 - 根据 Web 端实现
+                // 视频背景 - 根据 Web 端实现，使用 ClawbotChannel 的 botState
                 if useRobotBackground {
-                    VideoBackgroundView(botState: botState)
+                    VideoBackgroundView(botState: clawbotChannel.botState)
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .ignoresSafeArea()
                 } else {

@@ -162,6 +162,7 @@ protocol ClawbotChannelServiceProtocol {
     var connectionStatePublisher: Published<ClawbotConnectionState>.Publisher { get }
     var pairingStatePublisher: Published<Bool>.Publisher { get }
     var messagePublisher: Published<ClawbotMessage>.Publisher { get }
+    var botStatePublisher: Published<BotState>.Publisher { get }
 }
 
 // MARK: - Event Handlers
@@ -181,12 +182,14 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var lastMessage: ClawbotMessage?
+    @Published private(set) var botState: BotState = .idle
 
     // MARK: - Publishers (for Combine)
 
     var connectionStatePublisher: Published<ClawbotConnectionState>.Publisher { $connectionState }
     var pairingStatePublisher: Published<Bool>.Publisher { $isPaired }
     var messagePublisher: Published<ClawbotMessage>.Publisher { $lastMessage }
+    var botStatePublisher: Published<BotState>.Publisher { $botState }
 
     // MARK: - Private Properties
 
@@ -422,6 +425,10 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
                 if let dict = response as? [String: Any],
                    let success = dict["success"] as? Bool, success {
+                    // Set bot state to thinking after sending message
+                    DispatchQueue.main.async {
+                        self.botState = .thinking
+                    }
                     continuation.resume()
                 } else {
                     let errorMessage = (response as? [String: Any])?["error"] as? String ?? "Failed to send message"
@@ -822,6 +829,16 @@ extension ClawbotChannelService: WebSocketDelegate {
 
         DispatchQueue.main.async {
             self.lastMessage = message
+
+            // Set bot state to speaking when receiving bot message
+            self.botState = .speaking
+
+            // After TTS completes (or after delay), set back to idle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                if self.botState == .speaking {
+                    self.botState = .idle
+                }
+            }
 
             // Trigger TTS for bot message (text content only)
             if self.ttsEnabled && contentType == .text && !content.isEmpty {
