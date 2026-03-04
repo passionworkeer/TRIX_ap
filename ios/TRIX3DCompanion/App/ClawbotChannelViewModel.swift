@@ -22,6 +22,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
     @Published private(set) var lastError: String?
+    @Published private(set) var botState: BotState = .idle
 
     @Published var messages: [ClawbotMessage] = []
     @Published var isSending: Bool = false
@@ -177,6 +178,11 @@ final class ClawbotChannelViewModel: ObservableObject {
                 self?.messages.append(message)
             }
             .store(in: &cancellables)
+
+        // Bind bot state
+        service.$botState
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$botState)
     }
 
     private func generateMessageId() -> String {
