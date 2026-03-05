@@ -134,7 +134,7 @@ struct StudyListView: View {
             // Rooms list
             VStack(spacing: 12) {
                 ForEach(activeRooms) { room in
-                    StudyRoomCard(room: room)
+                    StudyRoomCard(room: room, onJoin: { joinRoom(room) })
                         .buttonStyle(.plain)
                         .onTapGesture {
                             joinRoom(room)
@@ -260,6 +260,7 @@ struct StudyListView: View {
 /// Card displaying study room information
 struct StudyRoomCard: View {
     let room: StudyRoom
+    let onJoin: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -311,7 +312,7 @@ struct StudyRoomCard: View {
                 .tint(.purple)
 
             // Join button
-            Button(action: {}) {
+            Button(action: onJoin) {
                 HStack {
                     Image(systemName: "arrow.right.circle.fill")
                     Text("study.join.room".localized)
@@ -683,7 +684,7 @@ struct DemoStudySession: Identifiable {
             sessionState: .focusing,
             createdAt: Date(),
             updatedAt: Date()
-        ))
+        ), onJoin: {})
 
         StudySessionCard(session: DemoStudySession(
             id: "1",
