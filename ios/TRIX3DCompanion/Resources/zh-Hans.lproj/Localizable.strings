@@ -325,6 +325,7 @@
 // MARK: - Pairing
 "pairing.display.code" = "显示配对码";
 "pairing.scan.qr" = "扫描二维码";
+"pairing.input.code" = "输入配对码";
 "pairing.paired.devices" = "已配对设备";
 "pairing.device.connected" = "设备已连接";
 "pairing.no.device" = "未连接设备";
@@ -342,6 +343,11 @@
 "pairing.enter.code" = "输入配对码";
 "pairing.enter.placeholder" = "输入6位配对码";
 "pairing.pair.with.code" = "使用配对码配对";
+"pairing.input.code.title" = "手动输入配对码";
+"pairing.input.code.description" = "输入 OpenClaw 设备上显示的 6 位配对码";
+"pairing.input.code.verify" = "验证配对码";
+"pairing.input.code.help" = "配对码由 OpenClaw 设备生成";
+"pairing.switch.to.scan" = "切换到扫码";
 "pairing.manage.devices" = "管理已连接设备";
 "pairing.no.devices" = "没有已配对设备";
 "pairing.no.devices.desc" = "配对设备以开始使用";

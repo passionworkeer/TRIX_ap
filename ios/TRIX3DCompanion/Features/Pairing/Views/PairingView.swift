@@ -25,7 +25,7 @@ struct PairingView: View {
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
 
     /// Current tab selection
-    @State private var selectedTab: PairingTab = .displayCode
+    @State private var selectedTab: PairingTab = .scanQR
 
     /// Show QR scanner
     @State private var showQRScanner = false
@@ -54,8 +54,8 @@ struct PairingView: View {
     // MARK: - Tabs
 
     enum PairingTab: String, CaseIterable {
-        case displayCode = "pairing.display.code"
-        case scanCode = "pairing.scan.qr"
+        case scanQR = "pairing.scan.qr"
+        case inputCode = "pairing.input.code"
         case pairedDevices = "pairing.paired.devices"
     }
 
@@ -72,10 +72,10 @@ struct PairingView: View {
 
                 // Content based on selected tab
                 switch selectedTab {
-                case .displayCode:
-                    displayCodeSection
-                case .scanCode:
+                case .scanQR:
                     scanCodeSection
+                case .inputCode:
+                    inputCodeSection
                 case .pairedDevices:
                     pairedDevicesSection
                 }
@@ -216,13 +216,13 @@ struct PairingView: View {
         .glassPanel(cornerRadius: 16, padding: 8)
     }
 
-    // MARK: - Display Code Section
+    // MARK: - Input Code Section
 
-    private var displayCodeSection: some View {
+    private var inputCodeSection: some View {
         VStack(spacing: 20) {
             // Instructions
             VStack(spacing: 8) {
-                Image(systemName: "qrcode")
+                Image(systemName: "keyboard")
                     .font(.system(size: 40))
                     .foregroundStyle(
                         LinearGradient(
@@ -232,136 +232,84 @@ struct PairingView: View {
                         )
                     )
 
-                Text("pairing.display.pairing.code".localized)
+                Text("pairing.input.code.title".localized)
                     .font(.title3)
                     .fontWeight(.bold)
 
-                Text("pairing.generate.description".localized)
+                Text("pairing.input.code.description".localized)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
-            // Generate/Display code button
-            Button(action: {
-                Task {
-                    await generatePairingCode()
+            // Code input field
+            VStack(spacing: 16) {
+                TextField("ABC123", text: $manualCodeInput)
+                    .font(.system(.title, design: .monospaced))
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                    .textInputAutocapitalization(.characters)
+                    .disableAutocorrection(true)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.tertiaryBackground)
+                    )
+                    .onChange(of: manualCodeInput) { newValue in
+                        // Only allow alphanumeric characters, max 6
+                        manualCodeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
+                    }
+
+                // Verify button
+                Button(action: {
+                    Task {
+                        await verifyPairingCode()
+                    }
+                }) {
+                    HStack {
+                        if pairingService.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("pairing.input.code.verify".localized)
+                        }
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        manualCodeInput.count == 6 ?
+                        LinearGradient(
+                            colors: [.brandPurple, .brandPink],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ) : LinearGradient(colors: [.gray], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .cornerRadius(12)
                 }
+                .disabled(manualCodeInput.count != 6 || pairingService.isLoading)
+            }
+            .glassPanel()
+
+            // Help text
+            VStack(spacing: 4) {
+                Text("pairing.input.code.help".localized)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
+
+            // Switch to scan button
+            Button(action: {
+                selectedTab = .scanQR
             }) {
                 HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text(showPairingCode ? "pairing.regenerate.code".localized : "pairing.generate.code".localized)
+                    Image(systemName: "qrcode.viewfinder")
+                    Text("pairing.switch.to.scan".localized)
                 }
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        colors: [.brandPurple, .brandPink],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
-            }
-            .disabled(pairingService.isLoading)
-
-            // Display pairing code
-            if showPairingCode, let code = pairingService.currentPairingCode {
-                VStack(spacing: 16) {
-                    // Code display
-                    VStack(spacing: 12) {
-                        Text("pairing.your.code".localized)
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                            .textCase(.uppercase)
-
-                        Text(code.uppercased())
-                            .font(.system(.title, design: .monospaced))
-                            .fontWeight(.bold)
-                            .foregroundColor(.textPrimary)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.tertiaryBackground)
-                            )
-                    }
-
-                    // QR Code generated from pairing code
-                    if let qrImage = generateQRCode(from: code) {
-                        Image(uiImage: qrImage)
-                            .interpolation(.none)
-                            .resizable()
-                            .frame(width: 200, height: 200)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
-                    } else {
-                        // Fallback placeholder if QR generation fails
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white)
-                            .frame(height: 200)
-                            .overlay(
-                                VStack(spacing: 12) {
-                                    Image(systemName: "qrcode")
-                                        .font(.system(size: 60))
-                                        .foregroundColor(.black)
-
-                                    Text("pairing.qr.failed".localized)
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
-                                }
-                            )
-                            .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
-                    }
-
-                    // Expiration timer
-                    if let remainingTime = pairingService.pairingCodeRemainingTime {
-                        VStack(spacing: 8) {
-                            Text("pairing.expires".localized)
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
-
-                            Text(formatTime(remainingTime))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.warning)
-
-                            ProgressView(value: remainingTime, total: 300)
-                                .progressViewStyle(.linear)
-                        }
-                    }
-
-                    // Copy button
-                    Button(action: {
-                        UIPasteboard.general.string = code
-                        // Show feedback
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }) {
-                        HStack {
-                            Image(systemName: "doc.on.doc")
-                            Text("pairing.copy.code".localized)
-                        }
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.brandPurple)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(Color.brandPurple.opacity(0.1))
-                        .cornerRadius(10)
-                    }
-                }
-                .glassPanel()
-            }
-
-            // Loading indicator
-            if pairingService.isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
-                    .scaleEffect(1.2)
+                .font(.subheadline)
+                .foregroundColor(.brandPurple)
             }
         }
     }
@@ -620,6 +568,31 @@ struct PairingView: View {
         case .failure(let error):
             pairingService.setError(error)
             showError = true
+        }
+    }
+
+    /// Verify and pair with manual input code
+    private func verifyPairingCode() async {
+        guard manualCodeInput.count == 6 else { return }
+
+        // Ensure connected to Clawbot Channel
+        if !clawbotChannel.isConnected {
+            await clawbotChannel.connect()
+        }
+
+        // Use ClawbotChannelService for pairing with OpenClaw
+        let success = await clawbotChannel.pairWithCode(manualCodeInput.uppercased())
+
+        if success {
+            // Show success animation
+            withAnimation(.spring(response: 0.5)) {
+                showSuccessAnimation = true
+            }
+        } else {
+            // Show error
+            pairingService.setError(PairingError.invalidCode)
+            showError = true
+            manualCodeInput = ""
         }
     }
 
