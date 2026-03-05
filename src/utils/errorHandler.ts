@@ -6,12 +6,37 @@
  * - 用户友好的错误消息
  * - 错误日志记录（可接入监控服务如 Sentry）
  * - 错误分类和处理
+ *
+ * @deprecated 请使用 src/lib/errors.ts 中的新错误处理系统
+ * 此文件保留用于向后兼容，新代码请使用 lib/errors.ts
  */
 
 import { useNotification } from '../hooks/useNotification';
 import { logger } from './logger';
+import {
+  ErrorCode,
+  AppError as NewAppError,
+  parseError as newParseError,
+  ERROR_MESSAGES,
+  ErrorFactory,
+  hasErrorMessage,
+  getErrorMessage,
+} from '../lib/errors';
 
-// 错误类型枚举
+// 重新导出新系统的类型和函数，保持向后兼容
+export { ErrorCode, AppError, ErrorFactory, hasErrorMessage, getErrorMessage } from '../lib/errors';
+
+/**
+ * @deprecated 使用 lib/errors.ts 中的 NewAppError
+ */
+export type AppError = NewAppError;
+
+// 用户友好的错误消息映射（中文）- 已迁移到 lib/errors.ts
+const DEPRECATED_ERROR_MESSAGES: Record<ErrorCode, string> = ERROR_MESSAGES;
+
+/**
+ * @deprecated 使用 lib/errors.ts 中的 ErrorCode
+ */
 export enum ErrorType {
   // 网络错误
   NETWORK_ERROR = 'NETWORK_ERROR',
@@ -45,135 +70,46 @@ export enum ErrorType {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
-// 用户友好的错误消息映射（中文）
-const ERROR_MESSAGES: Record<ErrorType, string> = {
-  [ErrorType.NETWORK_ERROR]: '网络连接失败，请检查网络后重试',
-  [ErrorType.TIMEOUT_ERROR]: '请求超时，请稍后重试',
-  [ErrorType.AUTH_ERROR]: '认证失败，请重新登录',
-  [ErrorType.UNAUTHORIZED]: '未授权访问，请先登录',
-  [ErrorType.SESSION_EXPIRED]: '会话已过期，请重新登录',
-  [ErrorType.DATABASE_ERROR]: '数据库操作失败，请稍后重试',
-  [ErrorType.NOT_FOUND]: '请求的资源不存在',
-  [ErrorType.DUPLICATE_ENTRY]: '该记录已存在',
-  [ErrorType.CONSTRAINT_VIOLATION]: '操作违反了数据约束',
-  [ErrorType.FILE_UPLOAD_ERROR]: '文件上传失败，请重试',
-  [ErrorType.FILE_TOO_LARGE]: '文件大小超出限制',
-  [ErrorType.INVALID_FILE_TYPE]: '不支持的文件类型',
-  [ErrorType.VALIDATION_ERROR]: '输入数据验证失败',
-  [ErrorType.INVALID_INPUT]: '输入数据格式不正确',
-  [ErrorType.PERMISSION_DENIED]: '权限不足，无法执行此操作',
-  [ErrorType.FORBIDDEN]: '禁止访问此资源',
-  [ErrorType.UNKNOWN_ERROR]: '操作失败，请稍后重试',
+// 兼容旧代码的错误类型映射
+const ERROR_TYPE_TO_CODE: Record<string, ErrorCode> = {
+  [ErrorType.NETWORK_ERROR]: ErrorCode.NETWORK_ERROR,
+  [ErrorType.TIMEOUT_ERROR]: ErrorCode.TIMEOUT_ERROR,
+  [ErrorType.AUTH_ERROR]: ErrorCode.AUTH_ERROR,
+  [ErrorType.UNAUTHORIZED]: ErrorCode.UNAUTHORIZED,
+  [ErrorType.SESSION_EXPIRED]: ErrorCode.SESSION_EXPIRED,
+  [ErrorType.DATABASE_ERROR]: ErrorCode.DATABASE_ERROR,
+  [ErrorType.NOT_FOUND]: ErrorCode.NOT_FOUND,
+  [ErrorType.DUPLICATE_ENTRY]: ErrorCode.DUPLICATE_ENTRY,
+  [ErrorType.CONSTRAINT_VIOLATION]: ErrorCode.VALIDATION_ERROR,
+  [ErrorType.FILE_UPLOAD_ERROR]: ErrorCode.FILE_UPLOAD_ERROR,
+  [ErrorType.FILE_TOO_LARGE]: ErrorCode.FILE_TOO_LARGE,
+  [ErrorType.INVALID_FILE_TYPE]: ErrorCode.INVALID_FILE_TYPE,
+  [ErrorType.VALIDATION_ERROR]: ErrorCode.VALIDATION_ERROR,
+  [ErrorType.INVALID_INPUT]: ErrorCode.INVALID_INPUT,
+  [ErrorType.PERMISSION_DENIED]: ErrorCode.PERMISSION_DENIED,
+  [ErrorType.FORBIDDEN]: ErrorCode.FORBIDDEN,
+  [ErrorType.UNKNOWN_ERROR]: ErrorCode.UNKNOWN_ERROR,
 };
 
-// 自定义错误类
-export class AppError extends Error {
-  type: ErrorType;
-  originalError?: unknown;
-  userMessage?: string;
-  context?: Record<string, any>;
-
-  constructor(
-    type: ErrorType,
-    message?: string,
-    originalError?: unknown,
-    context?: Record<string, any>
-  ) {
-    super(message || ERROR_MESSAGES[type]);
-    this.type = type;
-    this.originalError = originalError;
-    this.userMessage = message || ERROR_MESSAGES[type];
-    this.context = context;
-    this.name = 'AppError';
-  }
-}
-
 /**
- * 解析错误并返回 AppError
+ * 解析错误并返回 AppError（使用新系统）
  */
-function parseError(error: unknown): AppError {
-  // 已经是 AppError，直接返回
-  if (error instanceof AppError) {
-    return error;
-  }
-
-  // 处理标准 Error 对象
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-
-    // 网络错误
-    if (message.includes('network') || message.includes('fetch')) {
-      return new AppError(ErrorType.NETWORK_ERROR, undefined, error);
-    }
-    if (message.includes('timeout')) {
-      return new AppError(ErrorType.TIMEOUT_ERROR, undefined, error);
-    }
-
-    // 认证错误
-    if (message.includes('unauthorized') || message.includes('401')) {
-      return new AppError(ErrorType.UNAUTHORIZED, undefined, error);
-    }
-    if (message.includes('session') || message.includes('expired')) {
-      return new AppError(ErrorType.SESSION_EXPIRED, undefined, error);
-    }
-
-    // 权限错误
-    if (message.includes('permission') || message.includes('forbidden') || message.includes('403')) {
-      return new AppError(ErrorType.PERMISSION_DENIED, undefined, error);
-    }
-
-    // 数据库错误
-    if (message.includes('database') || message.includes('supabase')) {
-      return new AppError(ErrorType.DATABASE_ERROR, undefined, error);
-    }
-    if (message.includes('not found') || message.includes('404')) {
-      return new AppError(ErrorType.NOT_FOUND, undefined, error);
-    }
-    if (message.includes('duplicate') || message.includes('already exists')) {
-      return new AppError(ErrorType.DUPLICATE_ENTRY, undefined, error);
-    }
-
-    // 文件上传错误
-    if (message.includes('upload') || message.includes('file')) {
-      return new AppError(ErrorType.FILE_UPLOAD_ERROR, undefined, error);
-    }
-    if (message.includes('too large') || message.includes('size')) {
-      return new AppError(ErrorType.FILE_TOO_LARGE, undefined, error);
-    }
-    if (message.includes('invalid') && message.includes('type')) {
-      return new AppError(ErrorType.INVALID_FILE_TYPE, undefined, error);
-    }
-
-    // 验证错误
-    if (message.includes('validation') || message.includes('invalid')) {
-      return new AppError(ErrorType.VALIDATION_ERROR, undefined, error);
-    }
-
-    // 默认未知错误
-    return new AppError(ErrorType.UNKNOWN_ERROR, undefined, error);
-  }
-
-  // 处理字符串错误
-  if (typeof error === 'string') {
-    return new AppError(ErrorType.UNKNOWN_ERROR, error);
-  }
-
-  // 其他未知错误
-  return new AppError(ErrorType.UNKNOWN_ERROR);
+function parseError(error: unknown): NewAppError {
+  return newParseError(error);
 }
 
 /**
  * 错误日志记录函数
  * 可接入监控服务（如 Sentry、LogRocket 等）
  */
-function logError(error: AppError): void {
+function logError(error: NewAppError): void {
   // 开发环境：在控制台输出详细错误信息
   if (import.meta.env.DEV) {
     logger.ui.error('🔴 Error:', {
-      type: error.type,
-      message: error.userMessage,
+      code: error.code,
+      message: error.message,
+      details: error.details,
       originalError: error.originalError,
-      context: error.context,
       stack: error.stack,
     });
   }
@@ -188,8 +124,8 @@ function logError(error: AppError): void {
 
     // 简单的生产环境日志
     logger.ui.error('Error:', {
-      type: error.type,
-      message: error.userMessage,
+      code: error.code,
+      message: error.message,
       timestamp: new Date().toISOString(),
     });
   }
@@ -220,14 +156,14 @@ export function useErrorHandler() {
 
     // 使用自定义消息（如果提供）
     if (customMessage) {
-      appError.userMessage = customMessage;
+      appError.message = customMessage;
     }
 
     // 记录错误
     logError(appError);
 
     // 显示错误消息给用户
-    notification.showError(appError.userMessage || '操作失败，请稍后重试');
+    notification.showError(appError.message || '操作失败，请稍后重试');
   };
 
   /**
@@ -288,7 +224,7 @@ export function handleGlobalError(error: unknown, customMessage?: string): void 
   const appError = parseError(error);
 
   if (customMessage) {
-    appError.userMessage = customMessage;
+    appError.message = customMessage;
   }
 
   logError(appError);
@@ -298,7 +234,7 @@ export function handleGlobalError(error: unknown, customMessage?: string): void 
   if (typeof window !== 'undefined') {
     // 动态导入 toast
     import('react-hot-toast').then(({ toast }) => {
-      toast.error(appError.userMessage || '操作失败，请稍后重试', {
+      toast.error(appError.message || '操作失败，请稍后重试', {
         duration: 4000,
         style: {
           background: '#fef2f2',
@@ -311,61 +247,33 @@ export function handleGlobalError(error: unknown, customMessage?: string): void 
 }
 
 /**
- * 创建特定类型的错误
+ * 创建特定类型的错误（已迁移到 lib/errors.ts）
+ * @deprecated 使用 lib/errors.ts 中的 ErrorFactory
  */
-export const ErrorFactory = {
+export const LegacyErrorFactory = {
   networkError: (message?: string) =>
-    new AppError(ErrorType.NETWORK_ERROR, message),
+    new NewAppError(ErrorCode.NETWORK_ERROR, message),
 
   authError: (message?: string) =>
-    new AppError(ErrorType.AUTH_ERROR, message),
+    new NewAppError(ErrorCode.AUTH_ERROR, message),
 
   databaseError: (message?: string) =>
-    new AppError(ErrorType.DATABASE_ERROR, message),
+    new NewAppError(ErrorCode.DATABASE_ERROR, message),
 
   notFoundError: (message?: string) =>
-    new AppError(ErrorType.NOT_FOUND, message),
+    new NewAppError(ErrorCode.NOT_FOUND, message),
 
   fileUploadError: (message?: string) =>
-    new AppError(ErrorType.FILE_UPLOAD_ERROR, message),
+    new NewAppError(ErrorCode.FILE_UPLOAD_ERROR, message),
 
   validationError: (message?: string) =>
-    new AppError(ErrorType.VALIDATION_ERROR, message),
+    new NewAppError(ErrorCode.VALIDATION_ERROR, message),
 
   permissionDeniedError: (message?: string) =>
-    new AppError(ErrorType.PERMISSION_DENIED, message),
+    new NewAppError(ErrorCode.PERMISSION_DENIED, message),
 };
 
 /**
- * 类型守卫：检查错误是否具有 message 属性
- *
- * 使用方式：
- * ```ts
- * try {
- *   await someOperation();
- * } catch (error: unknown) {
- *   if (hasErrorMessage(error)) {
- *     logger.ui.error(error.message);
- *   }
- * }
- * ```
+ * 类型守卫已从 ../lib/errors 导出
+ * 参见上方第 27 行
  */
-export function hasErrorMessage(error: unknown): error is { message: string } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message: unknown }).message === 'string'
-  );
-}
-
-/**
- * 安全获取错误消息
- * 如果错误没有 message 属性，返回默认消息
- */
-export function getErrorMessage(error: unknown, defaultMessage = '操作失败，请稍后重试'): string {
-  if (hasErrorMessage(error)) {
-    return error.message;
-  }
-  return defaultMessage;
-}

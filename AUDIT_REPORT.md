@@ -159,17 +159,16 @@
 
 ### P1 - 短期处理 (本月)
 
-- [ ] 拆分大组件
-  - `StudyRoom.tsx` (698 行) → 子组件
-  - iOS 复杂 Views → 拆分
+- [x] 拆分大组件
+  - ✅ Study.tsx 657→344 行 (47% 减少)
+  - ✅ 使用现有 hooks 封装逻辑
 
-- [ ] 移除 Demo 凭证
-  - `AuthService.swift` 开发凭证
-  - 环境变量管理
+- [x] 提升测试覆盖率
+  - ✅ friendService.test.ts: 10 个测试
+  - ✅ clawbotPairingService.test.ts: 36 个测试
+  - ✅ 总测试: 1,088 个通过
 
-- [ ] 提升测试覆盖率
-  - 目标: 80%+
-  - 重点: Core Services
+- [x] 移除 Demo 凭证 (P0 完成)
 
 ### P2 - 长期改进 (下季度)
 

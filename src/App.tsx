@@ -16,6 +16,7 @@ import { useNotification } from './hooks/useNotification';
 import { useImmersiveVoice } from './hooks/useImmersiveVoice';
 import { ResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
+import { useWebVitals, usePageLoadTiming } from './hooks/useWebVitals';
 import {
   PAIRING_REQUIRED_TOAST_MESSAGE,
   PAIRING_REQUIRED_TOAST_OPTIONS
@@ -106,6 +107,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 function AppContent() {
   // 资源预加载 - 提升首屏体验
   ResourcePreloader();
+
+  // 性能监控 - 首屏加载时间和 Web Vitals
+  usePageLoadTiming();
+  useWebVitals({ debug: import.meta.env.DEV, reportToServer: false });
 
   const isDev = import.meta.env.DEV;
   const location = useLocation();

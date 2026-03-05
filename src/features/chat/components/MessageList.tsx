@@ -2,11 +2,13 @@
  * MessageList - 消息列表组件
  *
  * 显示聊天消息列表，支持文本、图片、视频等多种消息类型
+ * 使用虚拟化优化大量消息渲染性能
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 import Avatar from '../../../components/Avatar';
 import MediaMessage from '../../../components/MediaMessage';
 
@@ -37,11 +39,95 @@ const MessageList: React.FC<MessageListProps> = ({
   isLoading = false
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<any>(null);
 
-  // 自动滚动到底部
+  // 自动滚动到底部 - 新消息到来时
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length > 0 && virtuosoRef.current) {
+      // 滚动到最后一条消息
+      virtuosoRef.current.scrollToIndex({
+        index: messages.length - 1,
+        align: 'end',
+        behavior: 'auto',
+      });
+    }
+  }, [messages.length]);
+
+  // 滚动到底部方法
+  const scrollToBottom = useCallback((smooth = false) => {
+    if (messages.length > 0 && virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({
+        index: messages.length - 1,
+        align: 'end',
+        behavior: smooth ? 'smooth' : 'auto',
+      });
+    }
+  }, [messages.length]);
+
+  // 渲染单个消息
+  const renderMessage = useCallback((msg: Message, index: number) => {
+    const isUser = msg.sender === 'user';
+    const showAvatar = index === 0 || messages[index - 1]?.sender !== msg.sender;
+
+    return (
+      <motion.div
+        key={msg.id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      >
+        <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+          {/* 头像 */}
+          {!isUser && showAvatar && (
+            <Avatar
+              name={isBot ? 'Bot' : 'Friend'}
+              avatar={isBot ? undefined : undefined}
+              size="sm"
+              className="w-8 h-8 rounded-full border border-white/10 flex-shrink-0"
+            />
+          )}
+
+          {/* 消息内容 */}
+          <div
+            className={`px-4 py-2 rounded-2xl ${
+              isUser
+                ? 'bg-indigo-600 text-white rounded-br-sm'
+                : 'bg-white/10 backdrop-blur-sm text-white rounded-bl-sm'
+            }`}
+          >
+            {/* 文本消息 */}
+            {msg.text && (
+              <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+            )}
+
+            {/* 媒体消息 */}
+            {(msg.messageType === 'image' || msg.messageType === 'video') && msg.mediaUri && (
+              <MediaMessage
+                uri={msg.mediaUri}
+                type={msg.messageType}
+              />
+            )}
+
+            {/* 时间戳 */}
+            <p
+              className={`text-xs mt-1 ${
+                isUser ? 'text-white/80' : 'text-gray-500'
+              }`}
+            >
+              {msg.timestamp}
+            </p>
+          </div>
+
+          {/* 用户头像占位 */}
+          {isUser && showAvatar && (
+            <div className="w-8 h-8 flex-shrink-0"></div>
+          )}
+        </div>
+      </motion.div>
+    );
+  }, [isBot]);
 
   if (isLoading) {
     return (
@@ -69,76 +155,32 @@ const MessageList: React.FC<MessageListProps> = ({
     );
   }
 
+  // 对于少量消息，直接渲染以获得更好的动画效果
+  if (messages.length <= 50) {
+    return (
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <AnimatePresence initial={false}>
+          {messages.map((msg, index) => renderMessage(msg, index))}
+        </AnimatePresence>
+        <div ref={messagesEndRef} />
+      </div>
+    );
+  }
+
+  // 大量消息使用虚拟化滚动
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-      <AnimatePresence initial={false}>
-        {messages.map((msg, index) => {
-          const isUser = msg.sender === 'user';
-          const showAvatar = index === 0 || messages[index - 1]?.sender !== msg.sender;
-
-          return (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`flex max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
-                {/* 头像 */}
-                {!isUser && showAvatar && (
-                  <Avatar
-                    name={isBot ? 'Bot' : 'Friend'}
-                    avatar={isBot ? undefined : undefined}
-                    size="sm"
-                    className="w-8 h-8 rounded-full border border-white/10 flex-shrink-0"
-                  />
-                )}
-
-                {/* 消息内容 */}
-                <div
-                  className={`px-4 py-2 rounded-2xl ${
-                    isUser
-                      ? 'bg-indigo-600 text-white rounded-br-sm'
-                      : 'bg-white/10 backdrop-blur-sm text-white rounded-bl-sm'
-                  }`}
-                >
-                  {/* 文本消息 */}
-                  {msg.text && (
-                    <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-                  )}
-
-                  {/* 媒体消息 */}
-                  {(msg.messageType === 'image' || msg.messageType === 'video') && msg.mediaUri && (
-                    <MediaMessage
-                      uri={msg.mediaUri}
-                      type={msg.messageType}
-                    />
-                  )}
-
-                  {/* 时间戳 */}
-                  <p
-                    className={`text-xs mt-1 ${
-                      isUser ? 'text-white/80' : 'text-gray-500'
-                    }`}
-                  >
-                    {msg.timestamp}
-                  </p>
-                </div>
-
-                {/* 用户头像占位 */}
-                {isUser && showAvatar && (
-                  <div className="w-8 h-8 flex-shrink-0"></div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
-
-      {/* 滚动锚点 */}
-      <div ref={messagesEndRef} />
+    <div className="flex-1">
+      <Virtuoso
+        ref={virtuosoRef}
+        className="h-full px-4 py-4"
+        data={messages}
+        overscan={200}
+        itemContent={(index, msg) => (
+          <div className="py-1">
+            {renderMessage(msg, index)}
+          </div>
+        )}
+      />
     </div>
   );
 };
