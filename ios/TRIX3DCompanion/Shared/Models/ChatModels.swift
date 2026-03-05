@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Chat Conversation
 
 /// Chat conversation model
-struct ChatConversation: Identifiable, Equatable {
+struct ChatConversation: Identifiable, Equatable, Hashable {
     let id: String
     let name: String
     let avatarUrl: String?
@@ -20,6 +20,11 @@ struct ChatConversation: Identifiable, Equatable {
     let unreadCount: Int
     let avatarColor: Color
     let isOnline: Bool
+
+    // Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 // MARK: - Recommended User

@@ -1606,25 +1606,6 @@ struct ClawbotConversation: Codable, Identifiable {
     }
 }
 
-/// AI message model
-struct ClawbotMessage: Codable, Identifiable {
-    let id: String
-    let conversationId: String
-    let senderId: String
-    let senderType: String
-    let content: String
-    let createdAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case conversationId = "conversation_id"
-        case senderId = "sender_id"
-        case senderType = "sender_type"
-        case content
-        case createdAt = "created_at"
-    }
-}
-
 /// Create conversation request
 struct CreateClawbotConversationRequest: Codable {
     let name: String?

@@ -18,12 +18,29 @@ struct ChatListView: View {
     @EnvironmentObject private var chatService: ChatService
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
 
+    // MARK: - Callbacks
+
+    var onNavigateToChat: ((ChatConversation) -> Void)?
+    var onNavigateToPairing: (() -> Void)?
+    var onNavigateToTrixBot: (() -> Void)?
+
     // MARK: - State
+
+    init(
+        onNavigateToChat: ((ChatConversation) -> Void)? = nil,
+        onNavigateToPairing: (() -> Void)? = nil,
+        onNavigateToTrixBot: (() -> Void)? = nil
+    ) {
+        self.onNavigateToChat = onNavigateToChat
+        self.onNavigateToPairing = onNavigateToPairing
+        self.onNavigateToTrixBot = onNavigateToTrixBot
+    }
 
     @State private var searchText = ""
     @State private var selectedConversation: ChatConversation?
     @State private var showingCreateChat = false
     @State private var showingPairing = false
+    @State private var showingTrixBotChat = false
     @State private var newChatName = ""
     @State private var conversations: [ChatConversation] = []
     @State private var recommendedUsers: [RecommendedUser] = []
@@ -62,36 +79,41 @@ struct ChatListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                searchBar.padding(.horizontal).padding(.top, 8)
-                trixBotEntry.padding(.horizontal).padding(.bottom, 8)
+        VStack(spacing: 0) {
+            searchBar.padding(.horizontal).padding(.top, 8)
+            trixBotEntry.padding(.horizontal).padding(.bottom, 8)
 
-                if showQuickAdd && !recommendedUsers.isEmpty {
-                    quickAddSection.padding(.bottom, 8)
-                }
+            if showQuickAdd && !recommendedUsers.isEmpty {
+                quickAddSection.padding(.bottom, 8)
+            }
 
-                if filteredConversations.isEmpty {
-                    emptyState
-                } else {
-                    conversationList
+            if filteredConversations.isEmpty {
+                emptyState
+            } else {
+                conversationList
+            }
+        }
+        .background(backgroundGradient)
+        .navigationTitle("Messages")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: createNewChat) {
+                    Image(systemName: "square.and.pencil").foregroundColor(.purple)
                 }
             }
-            .background(backgroundGradient)
-            .navigationTitle("Messages")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: createNewChat) {
-                        Image(systemName: "square.and.pencil").foregroundColor(.purple)
-                    }
-                }
+        }
+        .sheet(isPresented: $showingCreateChat) { createChatSheet }
+        .sheet(isPresented: $showingPairing) {
+            NavigationStack {
+                PairingView()
+                    .environmentObject(clawbotChannel)
             }
-            .sheet(isPresented: $showingCreateChat) { createChatSheet }
-            .sheet(isPresented: $showingPairing) {
-                NavigationStack {
-                    PairingView()
-                }
+        }
+        .sheet(isPresented: $showingTrixBotChat) {
+            NavigationStack {
+                TrixBotChatView()
+                    .environmentObject(clawbotChannel)
             }
         }
     }
@@ -117,9 +139,11 @@ struct ChatListView: View {
     private var trixBotEntry: some View {
         Button {
             if clawbotChannel.isPaired {
-                openTrixBotChat()
+                // If already paired, go to chat via callback
+                onNavigateToTrixBot?()
             } else {
-                showPairingAlert = true
+                // If not paired, use callback to navigate to pairing
+                onNavigateToPairing?()
             }
         } label: {
             HStack(spacing: 12) {
@@ -225,9 +249,12 @@ struct ChatListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(filteredConversations) { conversation in
-                    NavigationLink(destination: ChatDetailView(conversation: conversation)) {
+                    Button {
+                        onNavigateToChat?(conversation)
+                    } label: {
                         ConversationRow(conversation: conversation)
-                    }.buttonStyle(.plain)
+                    }
+                    .buttonStyle(.plain)
                     if conversation.id != filteredConversations.last?.id {
                         Divider().padding(.leading, 72)
                     }
@@ -255,8 +282,11 @@ struct ChatListView: View {
     // MARK: - Actions
 
     private func openTrixBotChat() {
+        // Create TRIX Bot conversation
         let botConversation = ChatConversation(id: "trixbot", name: "TRIX Bot", avatarUrl: "AvatarHead", lastMessage: "有什么可以帮你的吗？", time: "在线", unreadCount: 0, avatarColor: .purple, isOnline: true)
         selectedConversation = botConversation
+        // Navigate to TRIX Bot chat
+        showingTrixBotChat = true
     }
 
     private func addUser(_ user: RecommendedUser) {

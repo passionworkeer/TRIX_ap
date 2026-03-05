@@ -155,13 +155,13 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
         // Update status
         if isListening {
             isListening = false
-
-            if recognizedText.isEmpty {
-                status = .idle
-            } else {
-                status = .idle
-            }
+            status = .idle
         }
+    }
+
+    /// Reset recognized text (for external use)
+    func resetRecognizedText() {
+        recognizedText = ""
     }
 
     // MARK: - Private Methods
