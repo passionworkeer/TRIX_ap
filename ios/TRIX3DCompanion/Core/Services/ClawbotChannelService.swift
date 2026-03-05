@@ -98,6 +98,7 @@ protocol ClawbotChannelServiceProtocol {
     func checkPairingStatus() async throws -> ClawbotPairingStatus
     func pairWithCode(_ code: String) async throws -> Bool
     func pairWithToken(_ token: String) async throws -> Bool
+    func pairWithQR(_ qrData: String) async throws -> Bool
     func unpair()
 
     // Messages
@@ -233,21 +234,88 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     }
 
     func pairWithCode(_ code: String) async throws -> Bool {
-        // Simplified implementation - requires Socket.IO for full functionality
+        // Ensure connected
         guard isConnected else {
             throw ClawbotError.notConnected
         }
-        // TODO: Implement with Socket.IO
-        throw ClawbotError.messageFailed("Pairing requires Socket.IO support")
+
+        // Validate code format (6 alphanumeric characters)
+        let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalizedCode.count == 6, normalizedCode.range(of: "^[A-Z0-9]+$", options: .regularExpression) != nil else {
+            throw ClawbotError.invalidResponse
+        }
+
+        // Send pairing request via WebSocket
+        let message: [String: Any] = [
+            "event": "pair_with_code",
+            "data": [
+                "code": normalizedCode,
+                "deviceId": deviceId ?? ""
+            ]
+        ]
+
+        if let jsonData = try? JSONSerialization.data(withJSONObject: message),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            socket?.write(string: jsonString)
+        }
+
+        // Wait for pairing success event (handled in handleTextMessage)
+        // Return true immediately as the actual result comes via WebSocket callback
+        return true
     }
 
     func pairWithToken(_ token: String) async throws -> Bool {
-        // Simplified implementation - requires Socket.IO for full functionality
+        // Ensure connected
         guard isConnected else {
             throw ClawbotError.notConnected
         }
-        // TODO: Implement with Socket.IO
-        throw ClawbotError.messageFailed("Pairing requires Socket.IO support")
+
+        // Parse token from QR code data
+        let normalizedData = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        var qrToken: String?
+
+        // Try to parse as JSON
+        if let data = normalizedData.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            // Extract token from JSON (supports both "token" and "pairingToken" keys)
+            qrToken = json["token"] as? String ?? json["pairingToken"] as? String
+        }
+
+        // If not JSON, check if it's a direct token or "trix:pair:" prefix
+        if qrToken == nil {
+            if normalizedData.hasPrefix("trix:pair:") {
+                qrToken = String(normalizedData.dropFirst(10))
+            } else if normalizedData.count >= 10 {
+                // Direct token
+                qrToken = normalizedData
+            }
+        }
+
+        guard let finalToken = qrToken, finalToken.count >= 10 else {
+            throw ClawbotError.invalidResponse
+        }
+
+        // Send pairing request via WebSocket with token
+        let message: [String: Any] = [
+            "event": "pair_with_qr",
+            "data": [
+                "token": finalToken,
+                "deviceId": deviceId ?? ""
+            ]
+        ]
+
+        if let jsonData = try? JSONSerialization.data(withJSONObject: message),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            socket?.write(string: jsonString)
+        }
+
+        // Return true immediately as the actual result comes via WebSocket callback
+        return true
+    }
+
+    /// Pair with QR code data (convenience method that calls pairWithToken)
+    func pairWithQR(_ qrData: String) async throws -> Bool {
+        return try await pairWithToken(qrData)
     }
 
     func unpair() {

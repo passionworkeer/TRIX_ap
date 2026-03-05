@@ -91,6 +91,7 @@ struct MainTabView: View {
                 isChatPresented: $isChatPresented
             )
             .opacity(shouldShowTabBar ? 1 : 0)
+            .allowsHitTesting(shouldShowTabBar)  // 关键修复：当透明度为0时禁用触摸
             .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
         }
         .ignoresSafeArea(.keyboard)

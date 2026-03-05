@@ -641,10 +641,57 @@ struct PairingView: View {
         showQRScanner = false
 
         Task {
-            let result = await pairingService.pairWithQRCode(code)
+            // Parse QR code data similar to Web端的实现
+            let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines)
+            var qrToken: String?
 
-            switch result {
-            case .success:
+            // Try to parse as JSON
+            if let data = normalized.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                // Extract token from JSON (supports both "token" and "pairingToken" keys)
+                if let token = json["token"] as? String, !token.isEmpty {
+                    qrToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+                } else if let token = json["pairingToken"] as? String, !token.isEmpty {
+                    qrToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+
+            // Ensure connected to Clawbot Channel
+            if !clawbotChannel.isConnected {
+                await clawbotChannel.connect()
+            }
+
+            var success = false
+
+            if let token = qrToken {
+                // QR token from JSON - use pairWithQR (pairWithToken)
+                success = await clawbotChannel.pairWithToken(token)
+                if !success {
+                    pairingService.setError(PairingError.invalidQRData)
+                    showError = true
+                }
+            } else if normalized.count == 6 && normalized.range(of: "^[A-Z0-9]+$", options: .regularExpression, range: nil, locale: nil) != nil {
+                // 6-character pairing code - use pairWithCode
+                success = await clawbotChannel.pairWithCode(normalized.uppercased())
+                if !success {
+                    pairingService.setError(PairingError.invalidCode)
+                    showError = true
+                }
+            } else {
+                // Try as direct token
+                if normalized.count >= 10 {
+                    success = await clawbotChannel.pairWithToken(normalized)
+                    if !success {
+                        pairingService.setError(PairingError.invalidQRData)
+                        showError = true
+                    }
+                } else {
+                    pairingService.setError(PairingError.invalidQRData)
+                    showError = true
+                }
+            }
+
+            if success {
                 // Show success animation
                 withAnimation(.spring(response: 0.5)) {
                     showSuccessAnimation = true
@@ -663,10 +710,6 @@ struct PairingView: View {
                         selectedTab = .pairedDevices
                     }
                 }
-
-            case .failure(let error):
-                pairingService.setError(error)
-                showError = true
             }
         }
     }

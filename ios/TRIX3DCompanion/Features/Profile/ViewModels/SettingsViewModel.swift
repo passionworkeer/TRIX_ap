@@ -40,10 +40,12 @@ final class SettingsViewModel: ObservableObject {
 
     // MARK: - Published Properties
 
-    /// Current app theme
+    /// Current app theme (synced with ThemeManager)
     @Published var selectedTheme: AppTheme {
         didSet {
-            saveTheme()
+            if selectedTheme != oldValue {
+                saveTheme()
+            }
         }
     }
 
@@ -112,8 +114,8 @@ final class SettingsViewModel: ObservableObject {
         self.cacheService = cacheService
         self.exportService = exportService
 
-        // Load saved preferences
-        self.selectedTheme = Self.loadTheme()
+        // Load saved preferences from ThemeManager (which syncs with UserDefaults)
+        self.selectedTheme = ThemeManager.shared.currentTheme
         self.selectedLanguage = Self.loadLanguage()
         self.notificationsEnabled = Self.loadNotifications()
         self.hapticFeedbackEnabled = Self.loadHapticFeedback()
@@ -193,14 +195,9 @@ final class SettingsViewModel: ObservableObject {
 
     // MARK: - Private Methods - Load/Save Preferences
 
-    private static func loadTheme() -> AppTheme {
-        let rawValue = UserDefaults.standard.string(forKey: "app_theme") ?? AppTheme.system.rawValue
-        return AppTheme(rawValue: rawValue) ?? .system
-    }
-
+    /// Save theme through ThemeManager (persists to UserDefaults)
     private func saveTheme() {
-        UserDefaults.standard.set(selectedTheme.rawValue, forKey: "app_theme")
-        applyTheme()
+        ThemeManager.shared.setTheme(selectedTheme)
     }
 
     private static func loadLanguage() -> AppLanguage {
@@ -235,12 +232,6 @@ final class SettingsViewModel: ObservableObject {
 
     private func saveAutoPlayVoice() {
         UserDefaults.standard.set(autoPlayVoiceEnabled, forKey: "auto_play_voice_enabled")
-    }
-
-    /// Apply the selected theme
-    private func applyTheme() {
-        // Theme application would be handled here
-        // This might involve updating a theme publisher or notifying the app
     }
 }
 

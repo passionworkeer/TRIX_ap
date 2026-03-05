@@ -43,6 +43,7 @@ final class APIClient: APIClientProtocol {
     private let retryManager: RequestRetryManager
     private let deduplicator: RequestDeduplicator
     private let headersValidator: SecurityHeadersValidator
+    private let networkLogger: NetworkLogger
 
     // MARK: - Initialization
     private init() {
@@ -53,6 +54,7 @@ final class APIClient: APIClientProtocol {
         self.retryManager = RequestRetryManager.shared
         self.deduplicator = RequestDeduplicator.shared
         self.headersValidator = SecurityHeadersValidator.shared
+        self.networkLogger = NetworkLogger.shared
 
         // Create auth interceptor for automatic token management
         self.authInterceptor = AuthInterceptor()
@@ -257,6 +259,7 @@ final class APIClient: APIClientProtocol {
     ) async throws -> T {
         let url = baseURL + endpoint.path
         var requestHeaders = headers ?? HTTPHeaders()
+        let requestStartTime = Date()
 
         // NOTE: Authorization header is now handled automatically by AuthInterceptor
         // We no longer manually add it here to avoid conflicts with the interceptor
@@ -270,6 +273,15 @@ final class APIClient: APIClientProtocol {
             requestHeaders.add(.contentType("application/json"))
         }
 
+        // Log request
+        let headersDict = requestHeaders.dictionary
+        let logEntryId = networkLogger.logRequest(
+            method: method.rawValue,
+            url: url,
+            headers: headersDict,
+            body: body
+        )
+
         // Build request
         let request = AF.request(
             url,
@@ -281,11 +293,19 @@ final class APIClient: APIClientProtocol {
 
         // Execute request with security validation
         return try await withCheckedThrowingContinuation { continuation in
-            request.responseDecodable(of: T.self, decoder: decoder) { [weak self] response in
-                guard let self = self else {
-                    continuation.resume(throwing: NetworkError.unknown(nil))
-                    return
-                }
+            request.responseDecodable(of: T.self, decoder: self.decoder) { response in
+                // Calculate request duration
+                let duration = Date().timeIntervalSince(requestStartTime)
+
+                // Log response
+                let statusCode = response.response?.statusCode ?? 0
+                self.networkLogger.logResponse(
+                    entryId: logEntryId,
+                    statusCode: statusCode,
+                    body: response.data,
+                    duration: duration,
+                    error: response.error
+                )
 
                 // Validate security headers if response is successful
                 if let httpResponse = response.response,
@@ -472,6 +492,44 @@ extension APIClient {
     }
 
     // MARK: - Pairing
+
+    /// Initiate pairing with a code
+    /// - Parameters:
+    ///   - code: Pairing code
+    ///   - userId: User ID
+    /// - Returns: Pairing response with request ID
+    func initiatePairingWithCode(code: String, userId: String) async throws -> PairingResponse {
+        let request = PairWithCodeRequest(code: code, userId: userId)
+        return try await post(.pairingRequest, body: request)
+    }
+
+    /// Initiate pairing with a token
+    /// - Parameters:
+    ///   - token: Pairing token
+    ///   - userId: User ID
+    /// - Returns: Pairing response with request ID
+    func initiatePairingWithToken(token: String, userId: String) async throws -> PairingResponse {
+        let request = PairWithTokenRequest(token: token, userId: userId)
+        return try await post(.pairingRequest, body: request)
+    }
+
+    /// Check pairing status
+    /// - Parameter requestId: The pairing request ID
+    /// - Returns: Pairing status response
+    func checkPairingStatus(requestId: String) async throws -> PairingStatusResponse {
+        return try await get(.pairingStatus(requestId: requestId))
+    }
+
+    /// Confirm pairing
+    /// - Parameters:
+    ///   - code: Pairing code
+    ///   - confirmed: Whether the pairing is confirmed
+    ///   - permissions: Optional device permissions
+    /// - Returns: Pairing response
+    func confirmPairing(code: String, confirmed: Bool, permissions: [DevicePermission]? = nil) async throws -> PairingResponse {
+        let request = PairingConfirmRequest(code: code, confirmed: confirmed, permissions: permissions)
+        return try await post(.pairingConfirm, body: request)
+    }
 
     func getPairedDevices() async throws -> [PairedDevice] {
         let response: PaginatedResponse<PairedDevice> = try await get(.pairingDevices)
