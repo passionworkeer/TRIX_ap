@@ -36,6 +36,7 @@ struct ChatListView: View {
         self.onNavigateToTrixBot = onNavigateToTrixBot
     }
 
+    @StateObject private var friendService = FriendService.shared
     @State private var searchText = ""
     @State private var selectedConversation: ChatConversation?
     @State private var showingCreateChat = false
@@ -47,33 +48,16 @@ struct ChatListView: View {
     @State private var showQuickAdd = true
     @State private var showPairingAlert = false
 
-    // Sample recommended users
-    private let sampleRecommendedUsers: [RecommendedUser] = [
-        RecommendedUser(id: "1", name: "Sarah Chen", avatar: "SC", mutualFriends: 5, avatarColor: .pink),
-        RecommendedUser(id: "2", name: "Mike Johnson", avatar: "MJ", mutualFriends: 3, avatarColor: .blue),
-        RecommendedUser(id: "3", name: "Emma Wilson", avatar: "EW", mutualFriends: 8, avatarColor: .purple),
-        RecommendedUser(id: "4", name: "David Lee", avatar: "DL", mutualFriends: 2, avatarColor: .green),
-        RecommendedUser(id: "5", name: "Lisa Park", avatar: "LP", mutualFriends: 6, avatarColor: .orange),
-        RecommendedUser(id: "6", name: "Tom Wang", avatar: "TW", mutualFriends: 4, avatarColor: .cyan),
-        RecommendedUser(id: "7", name: "Amy Liu", avatar: "AL", mutualFriends: 7, avatarColor: .mint),
-        RecommendedUser(id: "8", name: "John Smith", avatar: "JS", mutualFriends: 1, avatarColor: .indigo)
-    ]
+    // MARK: - Initialization
 
-    // Sample Data
-    private let sampleConversations = [
-        ChatConversation(id: "1", name: "Math Study Group", avatarUrl: nil, lastMessage: "Let's meet at 3pm", time: "2m ago", unreadCount: 3, avatarColor: .blue, isOnline: true),
-        ChatConversation(id: "2", name: "Physics Discussion", avatarUrl: nil, lastMessage: "Check out this formula", time: "1h ago", unreadCount: 0, avatarColor: .purple, isOnline: false),
-        ChatConversation(id: "3", name: "Study Buddy - Alex", avatarUrl: nil, lastMessage: "Great session today!", time: "3h ago", unreadCount: 1, avatarColor: .green, isOnline: true),
-        ChatConversation(id: "4", name: "Chemistry Lab", avatarUrl: nil, lastMessage: "Don't forget the report", time: "1d ago", unreadCount: 0, avatarColor: .orange, isOnline: false),
-        ChatConversation(id: "5", name: "English Club", avatarUrl: nil, lastMessage: "See you tomorrow!", time: "5h ago", unreadCount: 2, avatarColor: .yellow, isOnline: true),
-        ChatConversation(id: "6", name: "History Study", avatarUrl: nil, lastMessage: "The exam is next week", time: "1d ago", unreadCount: 0, avatarColor: .red, isOnline: false),
-        ChatConversation(id: "7", name: "Biology Group", avatarUrl: nil, lastMessage: "Lab report submitted", time: "2d ago", unreadCount: 0, avatarColor: .teal, isOnline: true),
-        ChatConversation(id: "8", name: "Art Workshop", avatarUrl: nil, lastMessage: "Great work everyone!", time: "3d ago", unreadCount: 0, avatarColor: .pink, isOnline: false)
-    ]
-
-    init() {
-        _conversations = State(initialValue: sampleConversations)
-        _recommendedUsers = State(initialValue: sampleRecommendedUsers)
+    init(
+        onNavigateToChat: ((ChatConversation) -> Void)? = nil,
+        onNavigateToPairing: (() -> Void)? = nil,
+        onNavigateToTrixBot: (() -> Void)? = nil
+    ) {
+        self.onNavigateToChat = onNavigateToChat
+        self.onNavigateToPairing = onNavigateToPairing
+        self.onNavigateToTrixBot = onNavigateToTrixBot
     }
 
     // MARK: - Body
@@ -108,6 +92,11 @@ struct ChatListView: View {
             NavigationStack {
                 PairingView()
                     .environmentObject(clawbotChannel)
+            }
+        }
+        .onAppear {
+            Task {
+                await loadFriends()
             }
         }
         .sheet(isPresented: $showingTrixBotChat) {
@@ -280,6 +269,46 @@ struct ChatListView: View {
     }
 
     // MARK: - Actions
+
+    /// Load friends from FriendService and convert to conversations
+    private func loadFriends() async {
+        do {
+            let friends = try await friendService.fetchFriends()
+
+            conversations = friends.map { friend in
+                ChatConversation(
+                    id: friend.friendId,
+                    name: friend.name,
+                    avatarUrl: friend.avatarUrl,
+                    lastMessage: friend.bio ?? "暂无简介",
+                    time: formatTimeAgo(from: friend.updatedAt),
+                    unreadCount: 0,
+                    avatarColor: .blue,
+                    isOnline: friend.status == .online
+                )
+            }
+
+            // 加载推荐用户（需要单独实现或使用空数组）
+            recommendedUsers = []
+        } catch {
+            SecureLogger.shared.error("Failed to load friends: \(error.localizedDescription)")
+        }
+    }
+
+    /// Format time similar to Web relative time
+    private func formatTimeAgo(from date: Date) -> String {
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+
+        if interval < 60 { return "刚刚" }
+        if interval < 3600 { return "\(Int(interval/60))分钟前" }
+        if interval < 86400 { return "\(Int(interval/3600))小时前" }
+        if interval < 604800 { return "\(Int(interval/86400))天前" }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM/dd"
+        return dateFormatter.string(from: date)
+    }
 
     private func openTrixBotChat() {
         // Create TRIX Bot conversation
