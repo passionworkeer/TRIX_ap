@@ -123,7 +123,8 @@ final class MapViewModel: ObservableObject {
         // Check location permission
         checkLocationPermission()
 
-        // Don't load mock data - use real API data for 真机测试
+        // Load mock data immediately for simulator testing
+        loadMockData()
     }
 
     // MARK: - Mock Data
