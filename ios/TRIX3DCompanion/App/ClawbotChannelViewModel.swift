@@ -110,6 +110,11 @@ final class ClawbotChannelViewModel: ObservableObject {
         }
     }
 
+    /// Pair with QR code data (convenience method)
+    func pairWithQR(_ qrData: String) async -> Bool {
+        return await pairWithToken(qrData)
+    }
+
     /// Unpair from current device
     func unpair() {
         service.unpair()
