@@ -196,7 +196,7 @@
     ]
   },
   "review_information": {
-    "notes": "This app requires a TRIX 3D printer to function. Demo account: demo@trix3d.com / Demo123!",
+    "notes": "This app requires a TRIX 3D printer to function. For testing purposes, a demo account can be created through the app's registration flow.",
     "contact": {
       "first_name": "TRIX",
       "last_name": "Support",
@@ -204,9 +204,8 @@
       "phone": "+86-xxx-xxxx-xxxx"
     },
     "demo_account": {
-      "required": true,
-      "username": "demo@trix3d.com",
-      "password": "Demo123!"
+      "required": false,
+      "note": "App reviewers can create a test account through the registration flow. No hardcoded demo credentials are included in the production build."
     }
   },
   "export_compliance": {

@@ -172,10 +172,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     ///   - password: User's password
     /// - Returns: AuthResult containing the authenticated user
     func login(email: String, password: String) async -> AuthResult<User> {
-        // DEMO MODE: Allow demo login for testing
-        if email.lowercased() == "demo@trix3d.com" && password == "demo123" {
+        // DEMO MODE: Allow demo login for testing (DEBUG builds only)
+        #if DEBUG
+        if email.lowercased() == getDemoEmail() && password == getDemoPassword() {
             return await demoLogin()
         }
+        #endif
 
         // Validate input
         guard isValidEmail(email) else {
@@ -220,7 +222,8 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         }
     }
 
-    /// Demo login for testing without backend
+    /// Demo login for testing without backend (DEBUG builds only)
+    #if DEBUG
     private func demoLogin() async -> AuthResult<User> {
         isLoading = true
 
@@ -228,7 +231,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         let demoUser = User(
             id: "demo-user-001",
             username: "demo_user",
-            email: "demo@trix3d.com",
+            email: getDemoEmail(),
             avatarUrl: nil,
             fullName: "演示用户",
             displayName: "demo_user",
@@ -266,6 +269,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
         return .success(demoUser)
     }
+    #endif
 
     /// Register a new user account
     /// - Parameters:
@@ -499,6 +503,20 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             return .failure(.refreshFailed)
         }
     }
+
+    // MARK: - Environment Variables (DEBUG only)
+
+    #if DEBUG
+    /// Get demo email from environment or use default
+    private func getDemoEmail() -> String {
+        return ProcessInfo.processInfo.environment["DEMO_EMAIL"] ?? "demo@trix3d.com"
+    }
+
+    /// Get demo password from environment or use default
+    private func getDemoPassword() -> String {
+        return ProcessInfo.processInfo.environment["DEMO_PASSWORD"] ?? "demo123"
+    }
+    #endif
 
     // MARK: - Validation Helpers
 
