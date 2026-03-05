@@ -338,8 +338,33 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             return .failure(error)
         }
 
-        // Send via WebSocket for real-time delivery (non-blocking)
-        sendViaWebSocket(roomId: roomId, content: content, type: type)
+        // Determine message content type
+        let contentType: ClawbotMessageContentType
+        switch type {
+        case .text:
+            contentType = .text
+        case .image:
+            contentType = .image
+        case .video:
+            contentType = .video
+        case .voice, .file:
+            contentType = .file
+        }
+
+        // Send via ClawbotChannelService for bot messages (if paired)
+        if clawbotChannelService.isPaired {
+            do {
+                try await clawbotChannelService.sendMessage(
+                    content,
+                    contentType: contentType,
+                    mediaUrl: nil,
+                    mediaMimeType: nil
+                )
+            } catch {
+                // Log error but don't fail - API will handle persistence
+                SecureLogger.shared.error("Failed to send via ClawbotChannel: \(error.localizedDescription)")
+            }
+        }
 
         // Also send via API for persistence
         do {
@@ -397,10 +422,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     // MARK: - Public Methods - WebSocket
 
-    /// Connect to WebSocket for real-time updates
-    /// - Parameter userId: The user ID to connect with
+    /// Connect to ClawbotChannel for real-time updates
     /// - Returns: ChatResult indicating success or failure
-    func connectWebSocket(userId: String) async -> ChatResult<Void> {
+    func connectWebSocket() async -> ChatResult<Void> {
         // Verify authentication
         guard authService.isLoggedIn else {
             let error = ChatError.notAuthenticated
@@ -409,15 +433,10 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         }
 
         do {
-            try await webSocketManager.connect(userId: userId)
+            try await clawbotChannelService.connect()
             isConnected = true
             return .success(())
 
-        } catch let error as NetworkError {
-            isConnected = false
-            let chatError = mapNetworkError(error)
-            lastError = chatError
-            return .failure(chatError)
         } catch {
             isConnected = false
             let chatError = ChatError.unknown(underlying: error)
@@ -426,9 +445,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         }
     }
 
-    /// Disconnect from WebSocket
+    /// Disconnect from ClawbotChannel
     func disconnectWebSocket() {
-        webSocketManager.disconnect()
+        clawbotChannelService.disconnect()
         isConnected = false
     }
 
@@ -504,60 +523,76 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         return .success(())
     }
 
-    // MARK: - Private Methods - WebSocket
+    // MARK: - Private Methods - ClawbotChannel
 
-    /// Set up WebSocket event listeners
-    private func setupWebSocketListeners() {
-        // Listen for connection events
-        webSocketManager.on(.connected) { [weak self] _ in
-            Task { @MainActor in
-                self?.isConnected = true
+    /// Set up ClawbotChannel event listeners
+    private func setupClawbotChannelListeners() {
+        // Subscribe to connection state changes
+        clawbotChannelService.$connectionState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                switch state {
+                case .connected:
+                    self.isConnected = true
+                case .disconnected, .error:
+                    self.isConnected = false
+                default:
+                    break
+                }
             }
-        }
+            .store(in: &cancellables)
 
-        webSocketManager.on(.disconnected) { [weak self] event in
-            Task { @MainActor in
-                self?.isConnected = false
+        // Subscribe to incoming bot messages
+        clawbotChannelService.$lastMessage
+            .receive(on: DispatchQueue.main)
+            .compactMap { $0 }
+            .sink { [weak self] clawbotMessage in
+                guard let self = self else { return }
+                self.handleBotMessage(clawbotMessage)
             }
-        }
+            .store(in: &cancellables)
 
-        // Listen for incoming messages
-        webSocketManager.on(.botMessage) { [weak self] result in
-            Task { @MainActor in
-                self?.handleBotMessage(result)
+        // Subscribe to bot state changes
+        clawbotChannelService.$botState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] botState in
+                guard let self = self else { return }
+                // Update current messages based on bot state
+                if self.currentRoomId != nil {
+                    self.updateCurrentMessages()
+                }
             }
-        }
-
-        webSocketManager.on(.messageSent) { [weak self] result in
-            Task { @MainActor in
-                self?.handleMessageSent(result)
-            }
-        }
-
-        webSocketManager.on(.messageError) { [weak self] result in
-            Task { @MainActor in
-                self?.handleMessageError(result)
-            }
-        }
+            .store(in: &cancellables)
     }
 
-    /// Handle incoming bot message from WebSocket
-    private func handleBotMessage(_ result: Any) {
-        guard let botMessage = result as? BotMessage else { return }
+    /// Handle incoming bot message from ClawbotChannel
+    private func handleBotMessage(_ clawbotMessage: ClawbotMessage) {
+        // Convert ClawbotMessage to ChatMessage
+        let messageType: MessageType
+        switch clawbotMessage.contentType {
+        case .text:
+            messageType = .text
+        case .image:
+            messageType = .image
+        case .video:
+            messageType = .video
+        case .file, .mixed:
+            messageType = .file
+        }
 
-        // Convert bot message to chat message
         let chatMessage = ChatMessage(
-            id: UUID().uuidString,
+            id: clawbotMessage.id,
             roomId: currentRoomId ?? "",
             senderId: "bot",
             sender: .bot,
-            content: botMessage.content,
-            type: .text,
-            mediaUrl: botMessage.mediaUrl,
-            mediaMimeType: botMessage.mediaMimeType,
+            content: clawbotMessage.content,
+            type: messageType,
+            mediaUrl: clawbotMessage.mediaUrl,
+            mediaMimeType: clawbotMessage.mediaMimeType,
             mediaDuration: nil,
             isRead: false,
-            createdAt: Date(timeIntervalSince1970: TimeInterval(botMessage.timestamp))
+            createdAt: clawbotMessage.timestamp
         )
 
         // Add to current room if active
@@ -565,51 +600,6 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             addMessageToCache(chatMessage, for: roomId)
             updateCurrentMessages()
         }
-    }
-
-    /// Handle message sent confirmation from WebSocket
-    private func handleMessageSent(_ result: Any) {
-        guard let response = result as? MessageSentResponse,
-              response.success else {
-            return
-        }
-
-        // Message was successfully sent via WebSocket
-        // The API response will handle updating the cache
-    }
-
-    /// Handle message error from WebSocket
-    private func handleMessageError(_ result: Any) {
-        guard let error = result as? WebSocketError else { return }
-
-        // Log or handle the error
-        SecureLogger.shared.error("WebSocket message error: \(error.message)")
-
-        lastError = .networkError(underlying: error)
-    }
-
-    /// Send message via WebSocket
-    private func sendViaWebSocket(roomId: String, content: String, type: MessageType) {
-        let contentType: BotMessage.MessageContentType
-        switch type {
-        case .text:
-            contentType = .text
-        case .image:
-            contentType = .image
-        case .video:
-            contentType = .video
-        case .voice:
-            contentType = .file
-        case .file:
-            contentType = .file
-        }
-
-        webSocketManager.sendMessage(
-            content: content,
-            contentType: contentType,
-            mediaUrl: nil,
-            mediaMimeType: nil
-        )
     }
 
     /// Convert WebSocket message type to chat message type
