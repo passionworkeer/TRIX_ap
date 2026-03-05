@@ -1,0 +1,26 @@
+//
+// Release.xcconfig
+// TRIX3DCompanion
+//
+// Release configuration with demo account DISABLED
+//
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE
+OTHER_SWIFT_FLAGS = $(inherited)
+
+// Security: Demo account is DISABLED in release builds
+// DO NOT set these values in production - they are intentionally empty
+DEMO_EMAIL =
+DEMO_PASSWORD =
+
+// Network Configuration (Production)
+API_BASE_URL = https://api.trix3d.com
+WEBSOCKET_URL = wss://api.trix3d.com
+
+// Logging
+ENABLE_VERBOSE_LOGGING = NO
+
+// Security Settings
+VALIDATE_SSL_CERTS = YES
+DISABLE_PRODUCTION_DEBUGGING = YES

@@ -1,149 +1,277 @@
 /**
- * 日志工具 - Logger Utility
+ * Logger Utility - Enhanced Logging System
  *
- * 开发环境：输出日志到控制台
- * 生产环境：不输出日志
+ * Features:
+ * - Log level control via VITE_LOG_LEVEL environment variable
+ * - Timestamp support
+ * - Context information
+ * - Remote logging capability (optional)
+ * - Production filtering
+ * - Module-specific loggers
  */
 
-const isDev = import.meta.env.DEV;
+// ============================================================================
+// Types
+// ============================================================================
 
-type LogLevel = 'log' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/**
- * 格式化日志前缀
- */
-const formatPrefix = (prefix: string) => {
-  if (typeof window === 'undefined') {
-    return `[${prefix}]`;
+interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  context: string;
+  message: string;
+  data?: unknown[];
+}
+
+interface LoggerConfig {
+  level: LogLevel;
+  enableTimestamp: boolean;
+  enableRemote: boolean;
+  remoteEndpoint?: string;
+}
+
+// ============================================================================
+// Log Level Priority (for filtering)
+// ============================================================================
+
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const getLogLevel = (): LogLevel => {
+  const envLevel = import.meta.env.VITE_LOG_LEVEL?.toLowerCase();
+  if (envLevel && ['debug', 'info', 'warn', 'error'].includes(envLevel)) {
+    return envLevel as LogLevel;
   }
-  return `%c[${prefix}]`;
+
+  // Default based on environment
+  return import.meta.env.DEV ? 'debug' : 'error';
+};
+
+const config: LoggerConfig = {
+  level: getLogLevel(),
+  enableTimestamp: true,
+  enableRemote: import.meta.env.VITE_ENABLE_REMOTE_LOGGING === 'true',
+  remoteEndpoint: import.meta.env.VITE_REMOTE_LOG_ENDPOINT,
+};
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Check if a log level should be output based on current configuration
+ */
+const shouldLog = (level: LogLevel): boolean => {
+  return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[config.level];
 };
 
 /**
- * 日志颜色映射
+ * Format timestamp
  */
-const colors: Record<string, string> = {
-  log: '#6B7280',    // gray
-  info: '#3B82F6',   // blue
-  warn: '#F59E0B',   // yellow
-  error: '#EF4444',  // red
-  success: '#10B981', // green
+const getTimestamp = (): string => {
+  if (!config.enableTimestamp) return '';
+
+  const now = new Date();
+  const iso = now.toISOString();
+  const time = iso.split('T')[1]?.slice(0, -1) ?? iso;
+  return time;
 };
 
 /**
- * 获取颜色辅助函数
+ * Format log prefix with color and timestamp
  */
-const getColor = (key: keyof typeof colors): string => {
-  return (colors[key] ?? colors.log) as string;
+const formatPrefix = (context: string, level: LogLevel): string[] => {
+  const parts: string[] = [];
+
+  if (config.enableTimestamp) {
+    parts.push(`%c${getTimestamp()}`);
+  }
+
+  parts.push(`%c[${context}]`);
+  parts.push(`%c[${level.toUpperCase()}]`);
+
+  return parts;
 };
 
 /**
- * 基础日志函数
+ * Color mapping for different log levels
  */
-const log = (level: LogLevel, prefix: string, color: string, ...args: unknown[]) => {
-  if (!isDev) return;
+const getLogStyles = (level: LogLevel): string[] => {
+  const timestampStyle = 'color: #6B7280; font-weight: lighter;';
+  const contextStyle = 'color: #3B82F6; font-weight: bold;';
 
+  const levelStyles: Record<LogLevel, string> = {
+    debug: 'color: #9CA3AF; font-weight: bold;',
+    info: 'color: #3B82F6; font-weight: bold;',
+    warn: 'color: #F59E0B; font-weight: bold;',
+    error: 'color: #EF4444; font-weight: bold;',
+  };
+
+  return [timestampStyle, contextStyle, levelStyles[level]];
+};
+
+/**
+ * Send log to remote service (optional)
+ */
+const sendToRemote = async (entry: LogEntry): Promise<void> => {
+  if (!config.enableRemote || !config.remoteEndpoint) {
+    return;
+  }
+
+  try {
+    await fetch(config.remoteEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(entry),
+      keepalive: true, // Ensure logs are sent even if page is unloading
+    });
+  } catch (error) {
+    // Avoid infinite loop by using native console
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.error('[Logger] Failed to send log to remote:', error);
+    }
+  }
+};
+
+// ============================================================================
+// Core Logging Functions
+// ============================================================================
+
+/**
+ * Core log function
+ */
+const log = (
+  level: LogLevel,
+  context: string,
+  message: string,
+  ...data: unknown[]
+): void => {
+  // Check if this level should be logged
+  if (!shouldLog(level)) {
+    return;
+  }
+
+  // Create log entry for remote logging
+  const entry: LogEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    context,
+    message,
+    data: data.length > 0 ? data : undefined,
+  };
+
+  // Console output
   if (typeof window !== 'undefined') {
-    // 浏览器环境：带颜色
-    const styledPrefix = formatPrefix(prefix);
-    console[level](styledPrefix, `color: ${color}; font-weight: bold`, ...args);
+    // Browser environment with colors
+    const prefix = formatPrefix(context, level);
+    const styles = getLogStyles(level);
+    // eslint-disable-next-line no-console
+    console[level](...prefix, ...styles, message, ...data);
   } else {
-    // Node.js环境
-    console[level](`[${prefix}]`, ...args);
+    // Node.js environment
+    // eslint-disable-next-line no-console
+    console[level](`[${getTimestamp()}] [${context}] [${level.toUpperCase()}]`, message, ...data);
+  }
+
+  // Remote logging (fire and forget)
+  if (level === 'error' || level === 'warn') {
+    // Only send errors and warnings to remote service
+    void sendToRemote(entry);
   }
 };
 
+// ============================================================================
+// Module Logger Factory
+// ============================================================================
+
 /**
- * 创建模块日志工具
+ * Create a module-specific logger
  */
 const createModuleLogger = (moduleName: string) => ({
-  log: (...args: unknown[]) => logger.log(moduleName, ...args),
-  info: (...args: unknown[]) => logger.info(moduleName, ...args),
-  warn: (...args: unknown[]) => logger.warn(moduleName, ...args),
-  error: (...args: unknown[]) => logger.error(moduleName, ...args),
-  success: (...args: unknown[]) => logger.success(moduleName, ...args),
+  debug: (message: string, ...data: unknown[]) => log('debug', moduleName, message, ...data),
+  info: (message: string, ...data: unknown[]) => log('info', moduleName, message, ...data),
+  warn: (message: string, ...data: unknown[]) => log('warn', moduleName, message, ...data),
+  error: (message: string, ...data: unknown[]) => log('error', moduleName, message, ...data),
 });
 
-/**
- * 日志工具对象
- */
+// ============================================================================
+// Public Logger API
+// ============================================================================
+
 export const logger = {
   /**
-   * 普通日志
+   * Set log level dynamically
    */
-  log: (prefix: string, ...args: unknown[]) => {
-    log('log', prefix, getColor('log'), ...args);
+  setLevel: (level: LogLevel): void => {
+    config.level = level;
   },
 
   /**
-   * 信息日志
+   * Get current log level
    */
-  info: (prefix: string, ...args: unknown[]) => {
-    log('info', prefix, getColor('info'), ...args);
+  getLevel: (): LogLevel => config.level,
+
+  /**
+   * Debug level log (development only)
+   */
+  debug: (context: string, message: string, ...data: unknown[]) => {
+    log('debug', context, message, ...data);
   },
 
   /**
-   * 警告日志
+   * Info level log
    */
-  warn: (prefix: string, ...args: unknown[]) => {
-    log('warn', prefix, getColor('warn'), ...args);
+  info: (context: string, message: string, ...data: unknown[]) => {
+    log('info', context, message, ...data);
   },
 
   /**
-   * 错误日志（生产环境也会输出）
+   * Warning level log
    */
-  error: (prefix: string, ...args: unknown[]) => {
-    // 错误日志总是输出
-    log('error', prefix, getColor('error'), ...args);
+  warn: (context: string, message: string, ...data: unknown[]) => {
+    log('warn', context, message, ...data);
   },
 
   /**
-   * 成功日志
+   * Error level log (always logged)
    */
-  success: (prefix: string, ...args: unknown[]) => {
-    if (!isDev) return;
-    log('info', prefix, getColor('success'), ...args);
+  error: (context: string, message: string, ...data: unknown[]) => {
+    log('error', context, message, ...data);
   },
 
   /**
-   * 便捷方法：Study模块日志
+   * Module-specific loggers
    */
   study: createModuleLogger('Study'),
-
-  /**
-   * 便捷方法：Chat模块日志
-   */
   chat: createModuleLogger('Chat'),
-
-  /**
-   * 便捷方法：WebSocket模块日志
-   */
   websocket: createModuleLogger('WebSocket'),
-
-  /**
-   * 便捷方法：Auth模块日志
-   */
   auth: createModuleLogger('Auth'),
-
-  /**
-   * 便捷方法：Points模块日志
-   */
   points: createModuleLogger('Points'),
-
-  /**
-   * 便捷方法：Clawbot模块日志
-   */
   clawbot: createModuleLogger('Clawbot'),
-
-  /**
-   * 便捷方法：Database模块日志
-   */
   database: createModuleLogger('Database'),
-
-  /**
-   * 便捷方法：Media模块日志
-   */
   media: createModuleLogger('Media'),
+  pairing: createModuleLogger('Pairing'),
+  schedule: createModuleLogger('Schedule'),
+  notification: createModuleLogger('Notification'),
+  location: createModuleLogger('Location'),
+  upload: createModuleLogger('Upload'),
+  ui: createModuleLogger('UI'),
 };
+
+// ============================================================================
+// Convenience Export
+// ============================================================================
 
 export default logger;
