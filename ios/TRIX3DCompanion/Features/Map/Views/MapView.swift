@@ -166,23 +166,26 @@ struct MapView: View {
                 HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
             }
 
-            // Friend markers as overlay (positioned at center of screen for now)
-            // Note: SwiftUI Map doesn't support custom overlay positioning easily
-            // Friends will be shown when tapped on location detail
-            ForEach(viewModel.friendLocations) { friend in
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        FriendMarkerView(friend: friend) {
-                            viewModel.selectFriend(friend)
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 200)
-                        Spacer()
+            // Friend markers list at bottom
+            VStack {
+                Spacer()
+                friendMarkersBar
+            }
+        }
+    }
+
+    /// Friend markers bar at bottom
+    private var friendMarkersBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(viewModel.friendLocations) { friend in
+                    FriendMarkerView(friend: friend) {
+                        viewModel.selectFriend(friend)
                     }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 120)
         }
     }
 
@@ -216,6 +219,11 @@ struct MapView: View {
             .shadow(color: .shadow, radius: 8, x: 0, y: 4)
             .padding(.horizontal)
 
+            // Search results list
+            if isSearchFocused && !viewModel.filteredLocations.isEmpty {
+                searchResultsList
+            }
+
             // Category filters
             categoryFilterBar
                 .padding(.top, 8)
@@ -248,6 +256,26 @@ struct MapView: View {
             }
             .padding(.horizontal)
         }
+    }
+
+    /// Search results list
+    private var searchResultsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 8) {
+                ForEach(viewModel.filteredLocations) { location in
+                    SearchResultRow(location: location) {
+                        viewModel.selectLocation(location)
+                        isSearchFocused = false
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
+        .frame(maxHeight: 200)
+        .background(Color.white.shadow(color: .shadow, radius: 8, x: 0, y: 4))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
     }
 
     /// Bottom status bar showing places and friends count
@@ -361,8 +389,13 @@ struct LocationMarker: View {
     let iconName: String
     let action: () -> Void
 
+    @State private var isPressed = false
+
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            SecureLogger.shared.debug("LocationMarker tapped: \(location.name)")
+            action()
+        }) {
             VStack(spacing: 0) {
                 // Marker pin
                 ZStack {
@@ -375,6 +408,7 @@ struct LocationMarker: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                 }
+                .scaleEffect(isPressed ? 1.2 : 1.0)
 
                 // Triangle pointer
                 Triangle()
@@ -384,10 +418,79 @@ struct LocationMarker: View {
             }
         }
         .buttonStyle(.plain)
+        .frame(width: 50, height: 60) // Make tappable area larger
+        .contentShape(Rectangle()) // Make entire area tappable
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    SecureLogger.shared.debug("LocationMarker tapped via gesture: \(location.name)")
+                    action()
+                }
+        )
     }
 }
 
 // MARK: - Triangle Shape
+
+/// Search result row for location selection
+struct SearchResultRow: View {
+    let location: Location
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                // Category icon
+                ZStack {
+                    Circle()
+                        .fill(categoryColor.opacity(0.2))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: location.category?.iconName ?? "mappin.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(categoryColor)
+                }
+
+                // Location info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.textPrimary)
+
+                    Text(location.address ?? "")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.textTertiary)
+            }
+            .padding(12)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var categoryColor: Color {
+        guard let category = location.category else { return .gray }
+        switch category {
+        case .school: return .blue
+        case .library: return .purple
+        case .cafe: return .orange
+        case .home: return .green
+        case .park: return .green
+        case .other: return .gray
+        }
+    }
+}
+
+/// Triangle shape for marker pointer
 
 /// Triangle shape for marker pointer
 struct Triangle: Shape {
