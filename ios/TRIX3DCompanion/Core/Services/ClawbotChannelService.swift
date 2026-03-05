@@ -94,6 +94,7 @@ protocol ClawbotChannelServiceProtocol {
     func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> ClawbotStudyRoomState
     func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?) async throws -> ClawbotStudyRoomState
     func leaveStudyRoom(roomCode: String?) async throws
+    func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> ClawbotStudyRoomState
 }
 
 // MARK: - Study Room State
@@ -451,6 +452,36 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                     return
                 }
                 continuation.resume()
+            }
+        }
+    }
+
+    // MARK: - Host Actions
+
+    /// Perform host action (start_focus, pause, end)
+    func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> ClawbotStudyRoomState {
+        guard isConnected, let socket = socket, let userId = userId else {
+            throw ClawbotError.notConnected
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "study_room_host_action", [
+                "userId": userId,
+                "roomCode": roomCode,
+                "action": action.rawValue
+            ]) { response in
+                guard let dict = response as? [String: Any],
+                      let success = dict["success"] as? Bool, success,
+                      let roomData = dict["room"] as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
+
+                if let room = self.parseStudyRoomState(roomData) {
+                    continuation.resume(returning: room)
+                } else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                }
             }
         }
     }

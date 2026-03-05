@@ -160,7 +160,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
-    private let webSocketManager: WebSocketManagerProtocol
+    private let clawbotChannelService: ClawbotChannelServiceProtocol
     private let authService: AuthServiceProtocol
 
     // MARK: - Private Properties
@@ -188,18 +188,17 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     /// Initialize with dependencies
     /// - Parameters:
     ///   - apiClient: API client instance (defaults to shared)
-    ///   - webSocketManager: WebSocket manager instance (defaults to shared)
+    ///   - clawbotChannelService: Clawbot Channel service (uses Socket.IO)
     ///   - authService: Auth service instance (defaults to shared)
     init(
         apiClient: APIClientProtocol? = nil,
-        webSocketManager: WebSocketManagerProtocol? = nil,
+        clawbotChannelService: ClawbotChannelServiceProtocol? = nil,
         authService: AuthServiceProtocol? = nil
     ) {
         self.apiClient = apiClient ?? APIClient.shared
-        self.webSocketManager = webSocketManager ?? WebSocketManager.shared
+        self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
         self.authService = authService ?? AuthService.shared
 
-        setupWebSocketListeners()
         loadPendingOfflineSessions()
     }
 
@@ -264,54 +263,29 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
         lastError = nil
 
-        // Use WebSocket to create room
-        return await withCheckedContinuation { continuation in
-            webSocketManager.createStudyRoom(
+        // Use ClawbotChannelService (Socket.IO) to create room - same as Web
+        do {
+            let roomState = try await clawbotChannelService.createStudyRoom(
                 displayName: user.displayName ?? user.username,
                 avatarUrl: user.avatarUrl,
                 maxMembers: maxMembers
-            ) { result in
-                switch result {
-                case .success(let payload):
-                    if let roomState = payload.room {
-                        Task { @MainActor in
-                            // Convert StudyRoomState to StudyRoom
-                            let room = self.convertRoomStateToRoom(roomState)
-                            self.currentRoomState = roomState
-                            self.currentRoomCode = roomState.roomCode
+            )
 
-                            continuation.resume(returning: .success(room))
-                        }
-                    } else if let code = payload.roomCode {
-                        // Room created successfully, fetch state
-                        Task {
-                            let stateResult = await self.fetchRoomState(roomCode: code)
-                            switch stateResult {
-                            case .success(let state):
-                                let room = self.convertRoomStateToRoom(state)
-                                self.currentRoomState = state
-                                self.currentRoomCode = state.roomCode
-                                continuation.resume(returning: .success(room))
-                            case .failure(let error):
-                                continuation.resume(returning: .failure(error))
-                            }
-                        }
-                    } else {
-                        Task { @MainActor in
-                            let error = StudyError.unknown(underlying: nil)
-                            self.lastError = error
-                            continuation.resume(returning: .failure(error))
-                        }
-                    }
+            // Convert ClawbotStudyRoomState to StudyRoom
+            let room = convertClawbotRoomStateToRoom(roomState)
 
-                case .failure(let error):
-                    Task { @MainActor in
-                        let studyError = self.mapWebSocketError(error)
-                        self.lastError = studyError
-                        continuation.resume(returning: .failure(studyError))
-                    }
-                }
+            await MainActor.run {
+                self.currentRoomState = convertClawbotRoomStateToStudyRoomState(roomState)
+                self.currentRoomCode = roomState.roomCode
             }
+
+            return .success(room)
+        } catch {
+            let studyError = mapClawbotError(error)
+            await MainActor.run {
+                self.lastError = studyError
+            }
+            return .failure(studyError)
         }
     }
 
@@ -341,37 +315,28 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             return .failure(error)
         }
 
-        // Use WebSocket to join room
-        return await withCheckedContinuation { continuation in
-            webSocketManager.joinStudyRoom(
+        // Use ClawbotChannelService (Socket.IO) to join room - same as Web
+        do {
+            let roomState = try await clawbotChannelService.joinStudyRoom(
                 roomCode: trimmedCode,
                 displayName: user.displayName ?? user.username,
                 avatarUrl: user.avatarUrl
-            ) { result in
-                switch result {
-                case .success(let payload):
-                    if let roomState = payload.room {
-                        Task { @MainActor in
-                            self.currentRoomState = roomState
-                            self.currentRoomCode = roomState.roomCode
-                            continuation.resume(returning: .success(roomState))
-                        }
-                    } else {
-                        Task { @MainActor in
-                            let error = StudyError.roomNotFound
-                            self.lastError = error
-                            continuation.resume(returning: .failure(error))
-                        }
-                    }
+            )
 
-                case .failure(let error):
-                    Task { @MainActor in
-                        let studyError = self.mapWebSocketError(error)
-                        self.lastError = studyError
-                        continuation.resume(returning: .failure(studyError))
-                    }
-                }
+            let convertedState = convertClawbotRoomStateToStudyRoomState(roomState)
+
+            await MainActor.run {
+                self.currentRoomState = convertedState
+                self.currentRoomCode = roomState.roomCode
             }
+
+            return .success(convertedState)
+        } catch {
+            let studyError = mapClawbotError(error)
+            await MainActor.run {
+                self.lastError = studyError
+            }
+            return .failure(studyError)
         }
     }
 
@@ -391,28 +356,25 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             _ = await endStudySession()
         }
 
-        // Use WebSocket to leave room
-        return await withCheckedContinuation { continuation in
-            webSocketManager.leaveStudyRoom(roomCode: currentRoomCode) { result in
-                Task { @MainActor in
-                    switch result {
-                    case .success:
-                        self.currentRoomState = nil
-                        self.currentRoomCode = nil
-                        continuation.resume(returning: .success(()))
+        // Use ClawbotChannelService (Socket.IO) to leave room - same as Web
+        do {
+            try await clawbotChannelService.leaveStudyRoom(roomCode: currentRoomCode)
 
-                    case .failure(let error):
-                        let studyError = self.mapWebSocketError(error)
-                        self.lastError = studyError
-
-                        // Even if API call fails, clear local state
-                        self.currentRoomState = nil
-                        self.currentRoomCode = nil
-
-                        continuation.resume(returning: .failure(studyError))
-                    }
-                }
+            await MainActor.run {
+                self.currentRoomState = nil
+                self.currentRoomCode = nil
             }
+
+            return .success(())
+        } catch {
+            let studyError = mapClawbotError(error)
+            await MainActor.run {
+                self.lastError = studyError
+                // Even if API call fails, clear local state
+                self.currentRoomState = nil
+                self.currentRoomCode = nil
+            }
+            return .failure(studyError)
         }
     }
 
@@ -967,22 +929,82 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         }
     }
 
-    /// Map WebSocket errors to study errors
-    private func mapWebSocketError(_ error: any Error) -> StudyError {
-        // If it's already a WebSocketError, extract message
-        if let wsError = error as? WebSocketError {
-            if wsError.message.contains("Not connected") {
+    /// Map Clawbot errors to study errors
+    private func mapClawbotError(_ error: any Error) -> StudyError {
+        // If it's a ClawbotError, extract message
+        if let clawError = error as? ClawbotError {
+            switch clawError {
+            case .notConnected:
                 return .webSocketNotConnected
-            } else if wsError.message.contains("not found") {
-                return .roomNotFound
-            } else if wsError.message.contains("full") {
-                return .roomFull
-            } else {
+            case .notPaired:
+                return .notAuthenticated
+            case .messageFailed(let message):
+                if message.contains("not found") {
+                    return .roomNotFound
+                } else if message.contains("full") {
+                    return .roomFull
+                }
+                return .unknown(underlying: error)
+            case .invalidResponse:
+                return .unknown(underlying: error)
+            default:
                 return .unknown(underlying: error)
             }
         }
         // For other errors, wrap in networkError
         return .networkError(underlying: error)
+    }
+
+    /// Convert ClawbotStudyRoomState to StudyRoom
+    private func convertClawbotRoomStateToRoom(_ state: ClawbotStudyRoomState) -> StudyRoom {
+        let members = state.participants.map { participant in
+            StudyRoomMember(
+                userId: participant.userId,
+                displayName: participant.displayName,
+                avatarUrl: participant.avatarUrl,
+                joinedAt: participant.joinedAt ?? Date(),
+                lastActiveAt: participant.joinedAt ?? Date(),
+                status: .online
+            )
+        }
+
+        return StudyRoom(
+            id: state.roomCode,
+            roomCode: state.roomCode,
+            name: state.roomName,
+            hostUserId: state.hostId,
+            maxMembers: 4, // Default max members
+            members: members,
+            sessionState: StudyRoomSessionState(rawValue: state.status) ?? .idle,
+            createdAt: state.createdAt ?? Date(),
+            updatedAt: state.createdAt ?? Date()
+        )
+    }
+
+    /// Convert ClawbotStudyRoomState to StudyRoomState
+    private func convertClawbotRoomStateToStudyRoomState(_ state: ClawbotStudyRoomState) -> StudyRoomState {
+        let members = state.participants.map { participant in
+            StudyRoomMember(
+                userId: participant.userId,
+                displayName: participant.displayName,
+                avatarUrl: participant.avatarUrl,
+                joinedAt: participant.joinedAt ?? Date(),
+                lastActiveAt: participant.joinedAt ?? Date(),
+                status: .online
+            )
+        }
+
+        return StudyRoomState(
+            roomCode: state.roomCode,
+            hostUserId: state.hostId,
+            sessionState: StudyRoomSessionState(rawValue: state.status) ?? .idle,
+            members: members,
+            maxMembers: 4,
+            version: 1,
+            createdAt: state.createdAt ?? Date(),
+            updatedAt: state.createdAt ?? Date(),
+            timer: nil
+        )
     }
 
     /// Convert StudyRoomState to StudyRoom
