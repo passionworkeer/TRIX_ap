@@ -109,16 +109,11 @@ final class ChatListViewModel: ObservableObject {
         await loadChatRooms()
     }
 
-    /// Load recommended users
+    /// Load recommended users - use real API for 真机测试
     func loadRecommendedUsers() async {
-        // Sample data - replace with actual API call
-        recommendedUsers = [
-            RecommendedUser(id: "1", name: "Sarah Chen", avatar: "SC", mutualFriends: 5, avatarColor: .pink),
-            RecommendedUser(id: "2", name: "Mike Johnson", avatar: "MJ", mutualFriends: 3, avatarColor: .blue),
-            RecommendedUser(id: "3", name: "Emma Wilson", avatar: "EW", mutualFriends: 8, avatarColor: .purple),
-            RecommendedUser(id: "4", name: "David Lee", avatar: "DL", mutualFriends: 2, avatarColor: .green),
-            RecommendedUser(id: "5", name: "Lisa Park", avatar: "LP", mutualFriends: 6, avatarColor: .orange)
-        ]
+        // TODO: Replace with actual API call when available
+        // For now, clear sample data
+        recommendedUsers = []
     }
 
     // MARK: - Public Methods - Filtering

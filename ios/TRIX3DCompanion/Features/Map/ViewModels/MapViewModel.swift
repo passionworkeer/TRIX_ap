@@ -123,8 +123,7 @@ final class MapViewModel: ObservableObject {
         // Check location permission
         checkLocationPermission()
 
-        // Load mock data for demo
-        loadMockData()
+        // Don't load mock data - use real API data for 真机测试
     }
 
     // MARK: - Mock Data
@@ -358,10 +357,8 @@ final class MapViewModel: ObservableObject {
 
         case .failure(let error):
             errorMessage = error.errorDescription
-            // Keep existing mock data if API fails
-            if allLocations.isEmpty {
-                loadMockData()
-            }
+            // Don't load mock data - show error instead for 真机测试
+            // Users need real API data
         }
 
         isLoading = false
