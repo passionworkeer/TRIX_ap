@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -27,7 +28,7 @@ export async function getCurrentUserId(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {
-    console.error('获取用户会话失败:', error);
+    logger.auth.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
   

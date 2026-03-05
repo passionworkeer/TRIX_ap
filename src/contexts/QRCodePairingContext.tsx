@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import clawbotPairingService from '../services/clawbotPairingService';
+import { logger } from '../utils/logger';
 import { PairingRequest, PairingResponse } from '../types/clawbot';
 
 /**
@@ -49,17 +50,17 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
       // 更新 service 的 gatewayUrl（用户可能输入了新的配对码）
       if (savedGatewayUrl) {
         clawbotPairingService.setGatewayUrl(savedGatewayUrl);
-        console.log('[QRCodePairing] 使用用户输入的 Gateway:', savedGatewayUrl);
+        logger.pairing.debug('[QRCodePairing] 使用用户输入的 Gateway:', savedGatewayUrl);
       }
 
       // 1. 生成配对请求（传入 pairingToken 用于自动确认模式）
-      console.log('[QRCodePairing] 生成配对请求...');
+      logger.pairing.debug('[QRCodePairing] 生成配对请求...');
       const request = await clawbotPairingService.generatePairingRequest(deviceName, pairingToken || undefined);
       setPairingRequest(request);
 
       // 如果请求已经被自动确认（Gateway 直接返回了 device_token）
       if (request.status === 'approved' && request.device_token) {
-        console.log('[QRCodePairing] ✅ Gateway 自动确认，配对成功！');
+        logger.pairing.debug('[QRCodePairing] ✅ Gateway 自动确认，配对成功！');
         setPairingStatus('approved');
         setDeviceToken(request.device_token);
         setIsPairing(false);
@@ -74,14 +75,14 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
       // 2. 生成二维码内容（用于手动扫码场景）
       const qrContent = clawbotPairingService.getQRCodeContent(request.requestId);
       setQRCodeContent(qrContent);
-      console.log('[QRCodePairing] 二维码内容已生成');
+      logger.pairing.debug('[QRCodePairing] 二维码内容已生成');
 
       // 3. 开始轮询配对状态（使用 Gateway HTTP API 替代 Supabase）
-      console.log('[QRCodePairing] 开始轮询配对状态...');
+      logger.pairing.debug('[QRCodePairing] 开始轮询配对状态...');
       await clawbotPairingService.pollPairingStatusViaGateway(
         request.requestId,
         (response: PairingResponse) => {
-          console.log('[QRCodePairing] 状态更新:', response);
+          logger.pairing.debug('[QRCodePairing] 状态更新:', response);
           setPairingStatus(response.status);
 
           if (response.status === 'approved') {
@@ -95,7 +96,7 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
               if (savedGatewayUrl) {
                 localStorage.setItem('clawbot_gateway_url', savedGatewayUrl);
               }
-              console.log('[QRCodePairing] ✅ 配对成功！Token 已保存');
+              logger.pairing.debug('[QRCodePairing] ✅ 配对成功！Token 已保存');
             }
           } else if (response.status === 'denied' || response.status === 'cancelled' || response.status === 'expired') {
             // 配对失败
@@ -105,7 +106,7 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       );
     } catch (error) {
-      console.error('[QRCodePairing] 配对失败:', error);
+      logger.pairing.error('[QRCodePairing] 配对失败:', error);
       setErrorMessage(error instanceof Error ? error.message : '配对失败，请重试');
       setIsPairing(false);
       setPairingStatus('denied');
@@ -118,12 +119,12 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
   const cancelPairing = useCallback(async () => {
     if (pairingRequest) {
       try {
-        console.log('[QRCodePairing] 取消配对...');
+        logger.pairing.debug('[QRCodePairing] 取消配对...');
         await clawbotPairingService.cancelPairingRequest(pairingRequest.requestId);
         setIsPairing(false);
         setPairingStatus('cancelled');
       } catch (error) {
-        console.error('[QRCodePairing] 取消配对失败:', error);
+        logger.pairing.error('[QRCodePairing] 取消配对失败:', error);
         setErrorMessage('取消配对失败');
       }
     }

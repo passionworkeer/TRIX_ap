@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { AUTH_VALIDATION, validateString, getValidationErrorMessage } from '../lib/validation';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -14,13 +15,23 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('请输入邮箱和密码');
+    setError('');
+
+    // Validate email
+    const emailError = validateString(email, AUTH_VALIDATION.email, 'email');
+    if (emailError) {
+      setError(getValidationErrorMessage(emailError));
+      return;
+    }
+
+    // Validate password
+    const passwordError = validateString(password, AUTH_VALIDATION.password, 'password');
+    if (passwordError) {
+      setError(getValidationErrorMessage(passwordError));
       return;
     }
 
     setLoading(true);
-    setError('');
 
     const { error: signInError } = await signIn(email, password);
 
@@ -65,6 +76,7 @@ export const Login: React.FC = () => {
                  placeholder="邮箱"
                  value={email}
                  onChange={(e) => setEmail(e.target.value)}
+                 maxLength={AUTH_VALIDATION.email.max}
                  className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium"
                />
             </GlassPanel>
@@ -78,6 +90,7 @@ export const Login: React.FC = () => {
                  value={password}
                  onChange={(e) => setPassword(e.target.value)}
                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                 maxLength={AUTH_VALIDATION.password.max}
                  className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-[17px] font-medium"
                />
             </GlassPanel>
@@ -138,18 +151,30 @@ export const Register: React.FC = () => {
    const [success, setSuccess] = useState(false);
 
    const handleRegister = async () => {
-     if (!email || !password || !username) {
-       setError('请填写所有字段');
+     setError('');
+
+     // Validate username
+     const usernameError = validateString(username, AUTH_VALIDATION.username, 'username');
+     if (usernameError) {
+       setError(getValidationErrorMessage(usernameError));
        return;
      }
 
-     if (password.length < 6) {
-       setError('密码至少需要 6 个字符');
+     // Validate email
+     const emailError = validateString(email, AUTH_VALIDATION.email, 'email');
+     if (emailError) {
+       setError(getValidationErrorMessage(emailError));
+       return;
+     }
+
+     // Validate password
+     const passwordError = validateString(password, AUTH_VALIDATION.password, 'password');
+     if (passwordError) {
+       setError(getValidationErrorMessage(passwordError));
        return;
      }
 
      setLoading(true);
-     setError('');
 
      const { error: signUpError } = await signUp(email, password, username);
 
@@ -195,33 +220,36 @@ export const Register: React.FC = () => {
           <div className="space-y-4">
              <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/40 !rounded-2xl transition-all focus-within:!bg-white/60 group">
                 <User className="text-gray-400 group-focus-within:text-cyan-500 transition-colors" size={22} />
-                <input 
-                  type="text" 
-                  placeholder="用户名" 
+                <input
+                  type="text"
+                  placeholder="用户名"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6" 
+                  maxLength={AUTH_VALIDATION.username.max}
+                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6"
                 />
              </GlassPanel>
              <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/40 !rounded-2xl transition-all focus-within:!bg-white/60 group">
                 <Smartphone className="text-gray-400 group-focus-within:text-cyan-500 transition-colors" size={22} />
-                <input 
-                  type="email" 
-                  placeholder="邮箱" 
+                <input
+                  type="email"
+                  placeholder="邮箱"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6" 
+                  maxLength={AUTH_VALIDATION.email.max}
+                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6"
                 />
              </GlassPanel>
              <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/40 !rounded-2xl transition-all focus-within:!bg-white/60 group">
                 <Lock className="text-gray-400 group-focus-within:text-cyan-500 transition-colors" size={22} />
-                <input 
-                  type="password" 
-                  placeholder="设置密码 (至少 6 位)" 
+                <input
+                  type="password"
+                  placeholder="设置密码 (至少 6 位)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
-                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6" 
+                  maxLength={AUTH_VALIDATION.password.max}
+                  className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base font-medium h-6"
                 />
              </GlassPanel>
           </div>

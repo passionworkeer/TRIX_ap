@@ -9,6 +9,7 @@ import Avatar from '../components/Avatar';
 import { AppRoutes } from '../types';
 import { getFriends, addFriend } from '../services/databaseService';
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
 import { formatRelative } from '../utils/dateFormat';
@@ -49,7 +50,7 @@ const Chat: React.FC = () => {
       const data = await getFriends();
       setFriends(data);
     } catch (error) {
-      console.error('加载好友列表失败:', error);
+      logger.chat.error('加载好友列表失败:', error);
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ const Chat: React.FC = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        console.log('未登录，跳过加载推荐用户');
+        logger.chat.debug('未登录，跳过加载推荐用户');
         return;
       }
 
@@ -75,7 +76,7 @@ const Chat: React.FC = () => {
         .limit(10);
 
       if (usersError) {
-        console.error('获取推荐用户失败:', usersError);
+        logger.chat.error('获取推荐用户失败:', usersError);
         return;
       }
 
@@ -86,7 +87,7 @@ const Chat: React.FC = () => {
         .eq('user_id', currentUserId);
 
       if (friendsError) {
-        console.error('获取好友列表失败:', friendsError);
+        logger.chat.error('获取好友列表失败:', friendsError);
         return;
       }
 
@@ -109,7 +110,7 @@ const Chat: React.FC = () => {
 
       setRecommendedUsers(normalizedUsers.slice(0, 5));
     } catch (error) {
-      console.error('加载推荐用户失败:', error);
+      logger.chat.error('加载推荐用户失败:', error);
     }
   };
 

@@ -8,6 +8,7 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { logger } from '../utils/logger';
 import { getFriends } from '../services/databaseService';
 import { getFriendsLocations } from '../services/locationService';
 import { getNearbyPlaces, searchPlaces } from '../services/placeService';
@@ -240,7 +241,7 @@ const SnapMapScreen: React.FC = () => {
   const [locationVisibility, setLocationVisibility] = useState<'everyone' | 'friends_only' | 'nobody'>('friends_only');
 
   // 使用 t 避免未使用变量警告
-  console.debug('[SnapMapScreen] Translation loaded:', t('map.virtualSpace'));
+  logger.location.debug('[SnapMapScreen] Translation loaded:', t('map.virtualSpace'));
 
   // 加载好友数据
   useEffect(() => {
@@ -250,7 +251,7 @@ const SnapMapScreen: React.FC = () => {
         const data = await getFriends();
         setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);
       } catch (error) {
-        console.error('加载好友失败:', error);
+        logger.location.error('加载好友失败:', error);
         setFriends(mockFriends);
       } finally {
         setLoading(false);
@@ -268,7 +269,7 @@ const SnapMapScreen: React.FC = () => {
           setFriendLocations(locations);
         }
       } catch (error) {
-        console.error('加载好友位置失败:', error);
+        logger.location.error('加载好友位置失败:', error);
         // 使用 mock 数据作为备选
       }
     };
@@ -293,7 +294,7 @@ const SnapMapScreen: React.FC = () => {
         setLocationEnabled(settings.enabled);
         setLocationVisibility(settings.visibility as 'everyone' | 'friends_only' | 'nobody');
       } catch (error) {
-        console.error('加载位置设置失败:', error);
+        logger.location.error('加载位置设置失败:', error);
       }
     };
     loadLocationSettings();
@@ -318,7 +319,7 @@ const SnapMapScreen: React.FC = () => {
           setFilteredPlaces(mockPlaces);
         }
       } catch (error) {
-        console.error('加载地点失败:', error);
+        logger.location.error('加载地点失败:', error);
         // 使用 mock 数据作为备选
         setPlaces(mockPlaces);
         setFilteredPlaces(mockPlaces);
@@ -357,7 +358,7 @@ const SnapMapScreen: React.FC = () => {
         setFilteredPlaces(filtered);
       }
     } catch (error) {
-      console.error('搜索失败:', error);
+      logger.location.error('搜索失败:', error);
       // 本地搜索作为备选
       const filtered = places.filter(p =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -376,7 +377,7 @@ const SnapMapScreen: React.FC = () => {
         visibility: locationVisibility,
       });
     } catch (error) {
-      console.error('更新位置设置失败:', error);
+      logger.location.error('更新位置设置失败:', error);
     }
   };
 
@@ -447,7 +448,7 @@ const SnapMapScreen: React.FC = () => {
                   navigate(`/profile/${location.friendId}`);
                 }}
                 onInvite={() => {
-                  console.log('邀请', location.name, '一起自习');
+                  logger.location.debug('邀请', location.name, '一起自习');
                 }}
               />
             </Popup>
@@ -488,7 +489,7 @@ const SnapMapScreen: React.FC = () => {
               onInvite={() => {
                 // 邀请功能需要实现：发送自习邀请通知给好友
                 // 需要集成通知系统（如 Supabase Realtime 或推送服务）
-                console.log('邀请', friend.name, '一起自习');
+                logger.location.debug('邀请', friend.name, '一起自习');
               }}
             />
           </Popup>

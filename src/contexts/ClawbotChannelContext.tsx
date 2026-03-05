@@ -22,6 +22,7 @@ import {
 } from '../services/clawbotHistoryService';
 import { useAuth } from './AuthContext';
 import { useVoiceSettings } from './VoiceSettingsContext';
+import { logger } from '../utils/logger';
 
 /**
  * 生成安全的随机字符串
@@ -336,7 +337,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             setDeviceId('');
           }
         } catch (error) {
-          console.warn('[ClawbotChannel] 同步配对状态失败', error);
+          logger.clawbot.warn('同步配对状态失败', error);
           setLastError(resolveChannelErrorMessage(error));
         }
       });
@@ -402,7 +403,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       }) as (data: unknown) => void);
 
       clawbotChannelBridge.on('error', ((error: ErrorPayload) => {
-        console.error('[ClawbotChannel] 错误:', error);
+        logger.clawbot.error('错误', error);
         const message = resolveChannelErrorMessage(error);
         setStatus('ERROR');
         setLastError(message);
@@ -499,7 +500,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             setLatestBotMessage(latestMissedBotMessage);
           }
         } catch (error) {
-          console.error('[ClawbotChannel] 消息同步失败:', error);
+          logger.clawbot.error('消息同步失败', error);
         }
       });
     };
@@ -507,7 +508,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     setupListeners();
 
     clawbotChannelBridge.connect().catch((err) => {
-      console.error('[ClawbotChannel] 连接失败:', err);
+      logger.clawbot.error('连接失败', err);
       setLastError(resolveChannelErrorMessage(err));
     });
 
@@ -649,7 +650,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl, mediaMimeType);
       setLastError(null);
     } catch (error) {
-      console.error('[ClawbotChannel] 发送消息失败:', error);
+      logger.clawbot.error('发送消息失败', error);
       setMessages((prev) => prev.filter((message) => toPersistedMessageId(message) !== optimisticMessageId));
       if (user?.id) {
         void deleteClawbotMessage(user.id, optimisticMessageId);

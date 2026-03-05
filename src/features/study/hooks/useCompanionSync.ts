@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../../../config/supabase';
+import { logger } from '../../../utils/logger';
 
 export interface CompanionInfo {
   id: string;
@@ -56,14 +57,14 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
         .single();
 
       if (profileError) {
-        console.error('❌ [useCompanionSync] 查询 companion_id 失败:', profileError);
+        logger.study.error('❌ [useCompanionSync] 查询 companion_id 失败:', profileError);
         return;
       }
 
-      console.log('📊 [useCompanionSync] 我的 companion_id:', myProfile?.companion_id);
+      logger.study.debug('📊 [useCompanionSync] 我的 companion_id:', myProfile?.companion_id);
 
       if (!myProfile?.companion_id) {
-        console.log('⚠️ [useCompanionSync] 没有 companion_id，单人自习模式');
+        logger.study.debug('⚠️ [useCompanionSync] 没有 companion_id，单人自习模式');
         setCompanion(prev => prev ? undefined : prev);
         lastCompanionIdRef.current = null;
         return;
@@ -83,11 +84,11 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
         .single();
 
       if (companionError) {
-        console.error('❌ [useCompanionSync] 查询好友信息失败:', companionError);
+        logger.study.error('❌ [useCompanionSync] 查询好友信息失败:', companionError);
         return;
       }
 
-      console.log('✅ [useCompanionSync] 成功查询到好友信息:', companionProfile);
+      logger.study.debug('✅ [useCompanionSync] 成功查询到好友信息:', companionProfile);
 
       // 3. 设置 companion 状态
       const newCompanion: CompanionInfo = {
@@ -107,7 +108,7 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
       });
 
     } catch (err) {
-      console.error('❌ [useCompanionSync] 查询 companion 异常:', err);
+      logger.study.error('❌ [useCompanionSync] 查询 companion 异常:', err);
     }
   }, [userId]);
 
@@ -116,11 +117,11 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
     if (!isTimerPage) return;
 
     if ((location.state as any)?.companion) {
-      console.log('📦 [useCompanionSync] 使用 location.state 的 companion 数据');
+      logger.study.debug('📦 [useCompanionSync] 使用 location.state 的 companion 数据');
       setCompanion((location.state as any).companion);
       lastCompanionIdRef.current = ((location.state as any).companion as CompanionInfo).id;
     } else {
-      console.log('🔍 [useCompanionSync] location.state 没有 companion，从数据库查询...');
+      logger.study.debug('🔍 [useCompanionSync] location.state 没有 companion，从数据库查询...');
       fetchCompanionInfo();
     }
   }, [isTimerPage, fetchCompanionInfo, location.state]);
@@ -129,7 +130,7 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
   useEffect(() => {
     if (!isTimerPage || !userId) return;
 
-    console.log('🔌 [useCompanionSync] 启动 Realtime 监听 companion_id 变化');
+    logger.study.debug('🔌 [useCompanionSync] 启动 Realtime 监听 companion_id 变化');
 
     const channel = supabase
       .channel(`study-companion-${userId}`)
@@ -142,15 +143,15 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
           filter: `id=eq.${userId}`
         },
         (payload) => {
-          console.log('🔥 [useCompanionSync] 检测到自己的 profile 更新:', payload);
+          logger.study.debug('🔥 [useCompanionSync] 检测到自己的 profile 更新:', payload);
 
           if ('companion_id' in payload.new && payload.old?.companion_id !== payload.new.companion_id) {
             const newCompanionId = payload.new.companion_id;
-            console.log(`📊 [useCompanionSync] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
+            logger.study.debug(`📊 [useCompanionSync] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
 
             if (newCompanionId) {
               // 有人加入了自习室
-              console.log('🎉 [useCompanionSync] 有好友加入了自习室，查询信息...');
+              logger.study.debug('🎉 [useCompanionSync] 有好友加入了自习室，查询信息...');
 
               supabase
                 .from('profiles')
@@ -159,12 +160,12 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
                 .single()
                 .then(({ data, error }) => {
                   if (error) {
-                    console.error('❌ [useCompanionSync] 查询加入者信息失败:', error);
+                    logger.study.error('❌ [useCompanionSync] 查询加入者信息失败:', error);
                     return;
                   }
 
                   if (data) {
-                    console.log('✅ [useCompanionSync] 成功获取加入者信息，更新显示');
+                    logger.study.debug('✅ [useCompanionSync] 成功获取加入者信息，更新显示');
                     lastCompanionIdRef.current = newCompanionId;
                     setCompanion({
                       id: data.id,
@@ -175,7 +176,7 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
                 });
             } else {
               // 好友离开了自习室
-              console.log('👋 [useCompanionSync] 好友离开了自习室');
+              logger.study.debug('👋 [useCompanionSync] 好友离开了自习室');
               lastCompanionIdRef.current = null;
               setCompanion(undefined);
             }
@@ -183,11 +184,11 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
         }
       )
       .subscribe((status) => {
-        console.log(`📡 [useCompanionSync] Realtime 订阅状态: ${status}`);
+        logger.study.debug(`📡 [useCompanionSync] Realtime 订阅状态: ${status}`);
       });
 
     return () => {
-      console.log('🧹 [useCompanionSync] 清理 Realtime 订阅');
+      logger.study.debug('🧹 [useCompanionSync] 清理 Realtime 订阅');
       supabase.removeChannel(channel);
     };
   }, [isTimerPage, userId]);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../config/supabase';
+import { logger } from '../../../utils/logger';
 import { rewardStudyCompletion } from '../../../services/pointsService';
 
 interface UseStudySessionOptions {
@@ -62,7 +63,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (isStudyingRef.current && userIdRef.current) {
-        console.log('🌐 [useStudySession] 浏览器关闭，清理自习状态...');
+        logger.study.debug('🌐 [useStudySession] 浏览器关闭，清理自习状态...');
 
         // 获取当前用户的 companion_id
         const { data: myProfile } = await supabase
@@ -107,21 +108,21 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
     setFocusStartTime(startTime);
 
     try {
-      console.log('🚀 [useStudySession] 开始自习，更新数据库状态...');
+      logger.study.debug('🚀 [useStudySession] 开始自习，更新数据库状态...');
       const { error } = await supabase
         .from('profiles')
         .update({ is_studying: true })
         .eq('id', userId);
 
       if (error) {
-        console.error('❌ [useStudySession] 更新 is_studying 失败:', error);
+        logger.study.error('❌ [useStudySession] 更新 is_studying 失败:', error);
       } else {
-        console.log('✅ [useStudySession] 已更新 is_studying = true');
+        logger.study.debug('✅ [useStudySession] 已更新 is_studying = true');
         setIsStudying(true);
         isStudyingRef.current = true;
       }
     } catch (err) {
-      console.error('❌ [useStudySession] 数据库更新异常:', err);
+      logger.study.error('❌ [useStudySession] 数据库更新异常:', err);
     }
   }, [userId]);
 
@@ -142,11 +143,11 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
       const elapsedMs = Date.now() - focusStartTime;
       const elapsedMinutes = Math.floor(elapsedMs / 60000);
       studiedMinutes = Math.min(elapsedMinutes, initialDuration);
-      console.log(`📊 [useStudySession] 本次专注时长: ${studiedMinutes} 分钟`);
+      logger.study.debug(`📊 [useStudySession] 本次专注时长: ${studiedMinutes} 分钟`);
     }
 
     try {
-      console.log('🛑 [useStudySession] 停止自习，更新数据库状态...');
+      logger.study.debug('🛑 [useStudySession] 停止自习，更新数据库状态...');
 
       // 获取当前用户的 companion_id 和 total_study_time
       const { data: myProfile } = await supabase
@@ -160,7 +161,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
 
       // 累加专注时长
       const newTotal = currentTotal + studiedMinutes;
-      console.log(`🏅 [useStudySession] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
+      logger.study.debug(`🏅 [useStudySession] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
 
       // 更新自己的状态
       const { error } = await supabase
@@ -173,24 +174,24 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
         .eq('id', userId);
 
       if (error) {
-        console.error('❌ [useStudySession] 更新自己的状态失败:', error);
+        logger.study.error('❌ [useStudySession] 更新自己的状态失败:', error);
         return studiedMinutes;
       } else {
-        console.log('✅ [useStudySession] 已更新状态, total_study_time =', newTotal);
+        logger.study.debug('✅ [useStudySession] 已更新状态, total_study_time =', newTotal);
       }
 
       // 如果有好友，清除好友的关联
       if (companionId) {
-        console.log(`🔗 [useStudySession] 清除好友 ${companionId} 的关联`);
+        logger.study.debug(`🔗 [useStudySession] 清除好友 ${companionId} 的关联`);
         const { error: companionError } = await supabase
           .from('profiles')
           .update({ companion_id: null })
           .eq('id', companionId);
 
         if (companionError) {
-          console.error('❌ [useStudySession] 清除好友关联失败:', companionError);
+          logger.study.error('❌ [useStudySession] 清除好友关联失败:', companionError);
         } else {
-          console.log('✅ [useStudySession] 已清除好友的 companion_id');
+          logger.study.debug('✅ [useStudySession] 已清除好友的 companion_id');
         }
       }
 
@@ -198,9 +199,9 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
       if (studiedMinutes > 0) {
         try {
           const pointsEarned = await rewardStudyCompletion(userId, studiedMinutes);
-          console.log(`💎 [useStudySession] 已奖励 ${pointsEarned} 积分`);
+          logger.study.debug(`💎 [useStudySession] 已奖励 ${pointsEarned} 积分`);
         } catch (error) {
-          console.error('❌ [useStudySession] 奖励积分失败:', error);
+          logger.study.error('❌ [useStudySession] 奖励积分失败:', error);
         }
       }
 
@@ -211,7 +212,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
 
       return studiedMinutes;
     } catch (err) {
-      console.error('❌ [useStudySession] 数据库更新异常:', err);
+      logger.study.error('❌ [useStudySession] 数据库更新异常:', err);
       return studiedMinutes;
     }
   }, [userId, focusStartTime, initialDuration]);

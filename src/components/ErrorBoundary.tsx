@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { isDev } from '../utils/env';
+import { logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -45,12 +46,12 @@ class ErrorBoundary extends Component<Props, State> {
    */
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // 记录错误到控制台
-    console.error('ErrorBoundary caught an error:', error);
-    console.error('Error Info:', errorInfo);
+    logger.ui.error('ErrorBoundary caught an error:', error);
+    logger.ui.error('Error Info:', errorInfo);
 
     // 开发环境显示完整堆栈
     if (isDev()) {
-      console.error('Component Stack:', errorInfo.componentStack);
+      logger.ui.error('Component Stack:', errorInfo.componentStack);
     }
 
     // 生产环境可以发送错误到监控服务

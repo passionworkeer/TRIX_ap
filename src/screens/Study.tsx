@@ -15,6 +15,7 @@ import { FocusStartAnimation } from "../features/study/components/FocusStartAnim
 import { rewardStudyCompletion, initializeUserPoints } from "../services/pointsService";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import { DynamicBackground } from "../components/DynamicBackground";
+import { logger } from "../utils/logger";
 
 const BG_IMAGE = IMAGES.ROOM_BG;
 
@@ -89,19 +90,19 @@ export default function Study() {
           .single();
 
         if (error) {
-          console.error('❌ [Study] 查询 total_study_time 失败:', error);
+          logger.study.error('❌ [Study] 查询 total_study_time 失败:', error);
         } else {
           setTotalStudyTime(data?.total_study_time || 0);
-          console.log('📊 [Study] 累计专注时长:', data?.total_study_time, '分钟');
+          logger.study.debug('📊 [Study] 累计专注时长:', data?.total_study_time, '分钟');
         }
       } catch (err) {
-        console.error('❌ [Study] 查询时长异常:', err);
+        logger.study.error('❌ [Study] 查询时长异常:', err);
       }
     };
 
     // 💎 初始化用户积分（如果是新用户）
     initializeUserPoints(user.id).catch(err => {
-      console.error('❌ [Study] 初始化积分失败:', err);
+      logger.study.error('❌ [Study] 初始化积分失败:', err);
     });
 
     fetchTotalStudyTime();
@@ -111,7 +112,7 @@ export default function Study() {
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (isStudyingRef.current && userIdRef.current) {
-        console.log('🌐 [Study] 浏览器关闭，清理自习状态...');
+        logger.study.debug('🌐 [Study] 浏览器关闭，清理自习状态...');
         
         // 🎯 获取当前用户的 companion_id
         const { data: myProfile } = await supabase
@@ -158,14 +159,14 @@ export default function Study() {
         .single();
 
       if (profileError) {
-        console.error('❌ [Study] 查询 companion_id 失败:', profileError);
+        logger.study.error('❌ [Study] 查询 companion_id 失败:', profileError);
         return;
       }
 
-      console.log('📊 [Study] 我的 companion_id:', myProfile?.companion_id);
+      logger.study.debug('📊 [Study] 我的 companion_id:', myProfile?.companion_id);
 
       if (!myProfile?.companion_id) {
-        console.log('⚠️ [Study] 没有 companion_id，单人自习模式');
+        logger.study.debug('⚠️ [Study] 没有 companion_id，单人自习模式');
         // 🎯 使用函数式更新，避免依赖 companion 状态
         setCompanion(prev => {
           // 只有当前有 companion 时才清除，避免不必要的重渲染
@@ -182,11 +183,11 @@ export default function Study() {
         .single();
 
       if (companionError) {
-        console.error('❌ [Study] 查询好友信息失败:', companionError);
+        logger.study.error('❌ [Study] 查询好友信息失败:', companionError);
         return;
       }
 
-      console.log('✅ [Study] 成功查询到好友信息:', companionProfile);
+      logger.study.debug('✅ [Study] 成功查询到好友信息:', companionProfile);
 
       // 3. 设置 companion 状态（使用函数式更新）
       const newCompanion = {
@@ -207,7 +208,7 @@ export default function Study() {
       });
 
     } catch (err) {
-      console.error('❌ [Study] 查询 companion 异常:', err);
+      logger.study.error('❌ [Study] 查询 companion 异常:', err);
     }
   }, [user?.id]); // 依赖数组保持简单
 
@@ -217,11 +218,11 @@ export default function Study() {
     
     // 如果 location.state 有数据，直接使用
     if ((location.state as any)?.companion) {
-      console.log('📦 [Study] 使用 location.state 的 companion 数据');
+      logger.study.debug('📦 [Study] 使用 location.state 的 companion 数据');
       setCompanion((location.state as any).companion);
     } else {
       // 否则从数据库查询
-      console.log('🔍 [Study] location.state 没有 companion，从数据库查询...');
+      logger.study.debug('🔍 [Study] location.state 没有 companion，从数据库查询...');
       fetchCompanionInfo();
     }
   }, [isTimer, fetchCompanionInfo]); // 添加 fetchCompanionInfo 依赖
@@ -230,7 +231,7 @@ export default function Study() {
   useEffect(() => {
     if (!isTimer || !user?.id) return;
 
-    console.log('🔌 [Study] 启动 Realtime 监听 companion_id 变化');
+    logger.study.debug('🔌 [Study] 启动 Realtime 监听 companion_id 变化');
 
     const channel = supabase
       .channel(`study-companion-${user.id}`)
@@ -243,16 +244,16 @@ export default function Study() {
           filter: `id=eq.${user.id}` // 只监听自己的记录
         },
         (payload) => {
-          console.log('🔥 [Study] 检测到自己的 profile 更新:', payload);
+          logger.study.debug('🔥 [Study] 检测到自己的 profile 更新:', payload);
 
           // 🎯 检查 companion_id 是否真的变化了
           if ('companion_id' in payload.new && payload.old?.companion_id !== payload.new.companion_id) {
             const newCompanionId = payload.new.companion_id;
-            console.log(`📊 [Study] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
+            logger.study.debug(`📊 [Study] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
             
             if (newCompanionId) {
               // 有人加入了我的自习室，查询好友信息
-              console.log('🎉 [Study] 有好友加入了自习室，查询信息...');
+              logger.study.debug('🎉 [Study] 有好友加入了自习室，查询信息...');
               
               supabase
                 .from('profiles')
@@ -261,12 +262,12 @@ export default function Study() {
                 .single()
                 .then(({ data, error }) => {
                   if (error) {
-                    console.error('❌ [Study] 查询加入者信息失败:', error);
+                    logger.study.error('❌ [Study] 查询加入者信息失败:', error);
                     return;
                   }
                   
                   if (data) {
-                    console.log('✅ [Study] 成功获取加入者信息，更新显示');
+                    logger.study.debug('✅ [Study] 成功获取加入者信息，更新显示');
                     setCompanion({
                       id: data.id,
                       username: data.username || 'Unknown',
@@ -276,31 +277,31 @@ export default function Study() {
                 });
             } else {
               // 好友离开了自习室
-              console.log('👋 [Study] 好友离开了自习室');
+              logger.study.debug('👋 [Study] 好友离开了自习室');
               setCompanion(undefined);
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log(`📡 [Study] Realtime 订阅状态: ${status}`);
+        logger.study.debug(`📡 [Study] Realtime 订阅状态: ${status}`);
       });
 
     return () => {
-      console.log('🧹 [Study] 清理 Realtime 订阅');
+      logger.study.debug('🧹 [Study] 清理 Realtime 订阅');
       supabase.removeChannel(channel);
     };
   }, [isTimer, user?.id]);
 
   // 🔍 调试：打印 companion 最终状态
   useEffect(() => {
-    console.log('=== [Study] Companion 状态调试 ===');
-    console.log('📍 Is Timer Page:', isTimer);
-    console.log('👤 User ID:', user?.id);
-    console.log('🤝 Companion Data:', companion);
-    console.log('⏱️ Focus Start Time:', focusStartTime ? new Date(focusStartTime).toLocaleTimeString() : 'null');
-    console.log('⏱️ Initial Duration:', initialDuration);
-    console.log('================================');
+    logger.study.debug('=== [Study] Companion 状态调试 ===');
+    logger.study.debug('📍 Is Timer Page:', isTimer);
+    logger.study.debug('👤 User ID:', user?.id);
+    logger.study.debug('🤝 Companion Data:', companion);
+    logger.study.debug('⏱️ Focus Start Time:', focusStartTime ? new Date(focusStartTime).toLocaleTimeString() : 'null');
+    logger.study.debug('⏱️ Initial Duration:', initialDuration);
+    logger.study.debug('================================');
   }, [isTimer, user?.id, companion, focusStartTime, initialDuration]);
 
   useEffect(() => {
@@ -312,7 +313,7 @@ export default function Study() {
 
       // 🎯 每次进入计时器页面时都重新初始化开始时间
       const startTime = Date.now();
-      console.log('⏱️ [Study] 初始化专注计时:', { duration, startTime });
+      logger.study.debug('⏱️ [Study] 初始化专注计时:', { duration, startTime });
       setFocusStartTime(startTime);
       setInitialDuration(duration);
 
@@ -332,7 +333,7 @@ export default function Study() {
       }, 1000);
     } else if (timeLeft === 0 && isActive && !hasCompletedRef.current) {
       // ⚡ 倒计时结束，触发完成逻辑（只执行一次）
-      console.log('🛑 [Study] 倒计时结束，触发结算');
+      logger.study.debug('🛑 [Study] 倒计时结束，触发结算');
       
       hasCompletedRef.current = true; // 🔒 立即上锁
       setIsActive(false);
@@ -350,7 +351,7 @@ export default function Study() {
   // 🎉 监听完成状态，触发结算（使用独立的 useEffect）
   useEffect(() => {
     if (isCompleted && isTimer && !hasTriggeredSummaryRef.current) {
-      console.log('🎊 [Study] 专注完成，触发结算Modal');
+      logger.study.debug('🎊 [Study] 专注完成，触发结算Modal');
       hasTriggeredSummaryRef.current = true;
       handleStopFocus();
     }
@@ -381,21 +382,21 @@ export default function Study() {
     // 更新数据库：标记用户开始自习
     if (user?.id) {
       try {
-        console.log('🚀 [Study] 开始自习，更新数据库状态...');
+        logger.study.debug('🚀 [Study] 开始自习，更新数据库状态...');
         const { error } = await supabase
           .from('profiles')
           .update({ is_studying: true })
           .eq('id', user.id);
 
         if (error) {
-          console.error('❌ [Study] 更新 is_studying 失败:', error);
+          logger.study.error('❌ [Study] 更新 is_studying 失败:', error);
         } else {
-          console.log('✅ [Study] 已更新 is_studying = true');
+          logger.study.debug('✅ [Study] 已更新 is_studying = true');
           // 🎯 标记正在自习
           isStudyingRef.current = true;
         }
       } catch (err) {
-        console.error('❌ [Study] 数据库更新异常:', err);
+        logger.study.error('❌ [Study] 数据库更新异常:', err);
       }
     }
 
@@ -416,7 +417,7 @@ export default function Study() {
   const handleStopFocus = async () => {
     // 🛡️ 防止重复调用（更强的检查：检查标记和弹窗状态）
     if (hasTriggeredSummaryRef.current || showSummaryModal) {
-      console.log('⚠️ [Study] 结算已触发或弹窗已显示，跳过重复调用');
+      logger.study.debug('⚠️ [Study] 结算已触发或弹窗已显示，跳过重复调用');
       return;
     }
 
@@ -428,7 +429,7 @@ export default function Study() {
     // 🏅 计算本次专注时长并保存
     let studiedMinutes = 0;
     
-    console.log('🔍 [Study] 计算专注时长 - 当前状态:', {
+    logger.study.debug('🔍 [Study] 计算专注时长 - 当前状态:', {
       focusStartTime,
       initialDuration,
       currentTime: Date.now(),
@@ -440,7 +441,7 @@ export default function Study() {
       const elapsedMinutes = Math.floor(elapsedMs / 60000); // 转换为分钟
       // 至少完成1分钟才算有效专注
       studiedMinutes = Math.min(elapsedMinutes, initialDuration);
-      console.log(`📊 [Study] 本次专注时长计算:`, {
+      logger.study.debug(`📊 [Study] 本次专注时长计算:`, {
         开始时间: new Date(focusStartTime).toLocaleTimeString(),
         当前时间: new Date().toLocaleTimeString(),
         经过毫秒: elapsedMs,
@@ -449,7 +450,7 @@ export default function Study() {
         最终时长: studiedMinutes
       });
     } else {
-      console.warn('⚠️ [Study] 无法计算时长 - 缺少必要数据:', {
+      logger.study.warn('⚠️ [Study] 无法计算时长 - 缺少必要数据:', {
         focusStartTime,
         initialDuration
       });
@@ -462,9 +463,9 @@ export default function Study() {
     if (user?.id && studiedMinutes > 0) {
       try {
         const pointsEarned = await rewardStudyCompletion(user.id, studiedMinutes);
-        console.log(`💎 [Study] 已奖励 ${pointsEarned} 积分`);
+        logger.study.debug(`💎 [Study] 已奖励 ${pointsEarned} 积分`);
       } catch (error) {
-        console.error('❌ [Study] 奖励积分失败:', error);
+        logger.study.error('❌ [Study] 奖励积分失败:', error);
         // 积分奖励失败不影响学习流程，仅记录错误
       }
     }
@@ -472,7 +473,7 @@ export default function Study() {
     // 更新数据库：标记用户停止自习,并清除双向关联
     if (user?.id) {
       try {
-        console.log('🛑 [Study] 停止自习,更新数据库状态...');
+        logger.study.debug('🛑 [Study] 停止自习,更新数据库状态...');
         
         // 🎯 获取当前用户的 companion_id 和 total_study_time
         const { data: myProfile } = await supabase
@@ -489,7 +490,7 @@ export default function Study() {
         
         // 🏅 累加专注时长
         const newTotal = currentTotal + studiedMinutes;
-        console.log(`🏅 [Study] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
+        logger.study.debug(`🏅 [Study] 累计专注时长: ${currentTotal} + ${studiedMinutes} = ${newTotal} 分钟`);
         
         // 1. 更新自己的状态：清除 is_studying 和 companion_id,累加时长
         const { error } = await supabase
@@ -502,30 +503,30 @@ export default function Study() {
           .eq('id', user.id);
         
         if (error) {
-          console.error('❌ [Study] 更新自己的状态失败:', error);
+          logger.study.error('❌ [Study] 更新自己的状态失败:', error);
           return; // 停止执行，避免数据不一致
         } else {
-          console.log('✅ [Study] 已更新 is_studying = false, companion_id = null, total_study_time =', newTotal);
+          logger.study.debug('✅ [Study] 已更新 is_studying = false, companion_id = null, total_study_time =', newTotal);
           // 🎉 更新前端显示的总时长
           setTotalStudyTime(newTotal);
         }
 
         // 2. 如果有好友在一起自习,也清除好友的 companion_id
         if (companionId) {
-          console.log(`🔗 [Study] 清除好友 ${companionId} 的关联`);
+          logger.study.debug(`🔗 [Study] 清除好友 ${companionId} 的关联`);
           const { error: companionError } = await supabase
             .from('profiles')
             .update({ companion_id: null })
             .eq('id', companionId);
           
           if (companionError) {
-            console.error('❌ [Study] 清除好友关联失败:', companionError);
+            logger.study.error('❌ [Study] 清除好友关联失败:', companionError);
           } else {
-            console.log('✅ [Study] 已清除好友的 companion_id');
+            logger.study.debug('✅ [Study] 已清除好友的 companion_id');
           }
         }
       } catch (err) {
-        console.error('❌ [Study] 数据库更新异常:', err);
+        logger.study.error('❌ [Study] 数据库更新异常:', err);
       }
     }
     // ⚠️ 不需要在这里再次调用 setShowSummaryModal(true)

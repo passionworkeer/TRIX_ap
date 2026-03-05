@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 
 export interface StudySession {
   id: string;
@@ -77,7 +78,7 @@ class StudyHistoryService {
 
       return data || [];
     } catch (error) {
-      console.error('Failed to get study history:', error);
+      logger.study.error('Failed to get study history:', error);
       return [];
     }
   }
@@ -112,7 +113,7 @@ class StudyHistoryService {
         averageDuration
       };
     } catch (error) {
-      console.error('Failed to get today summary:', error);
+      logger.study.error('Failed to get today summary:', error);
       return {
         date: today,
         totalMinutes: 0,
@@ -177,7 +178,7 @@ class StudyHistoryService {
         streakDays
       };
     } catch (error) {
-      console.error('Failed to get weekly summary:', error);
+      logger.study.error('Failed to get weekly summary:', error);
       return {
         weekStart: monday.toISOString().slice(0, 10),
         weekEnd: sunday.toISOString().slice(0, 10),
@@ -205,7 +206,7 @@ class StudyHistoryService {
 
       return data;
     } catch (error) {
-      console.error('Failed to save study session:', error);
+      logger.study.error('Failed to save study session:', error);
       return null;
     }
   }
@@ -225,7 +226,7 @@ class StudyHistoryService {
 
       return data?.current_streak || 0;
     } catch (error) {
-      console.error('Failed to get current streak:', error);
+      logger.study.error('Failed to get current streak:', error);
       return 0;
     }
   }

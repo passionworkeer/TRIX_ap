@@ -11,6 +11,7 @@ import {
   Loader,
 } from 'lucide-react';
 import { useQRCodePairing } from '../contexts/QRCodePairingContext';
+import { logger } from '../utils/logger';
 import { AppRoutes } from '../types';
 import QRScanner from '../components/QRScanner';
 import clawbotPairingService from '../services/clawbotPairingService';
@@ -107,7 +108,7 @@ const QRCodePairing: React.FC = () => {
         deviceId: payload.deviceId,
       });
 
-      console.log('[QRCodePairing] 配对信息已保存', {
+      logger.pairing.debug('[QRCodePairing] 配对信息已保存', {
         gatewayUrl: payload.gatewayUrl,
         hasToken: Boolean(payload.pairingToken),
         deviceId: payload.deviceId,
@@ -125,7 +126,7 @@ const QRCodePairing: React.FC = () => {
       setManualCode('');
       setShowManualInput(false);
     } catch (error) {
-      console.error('[QRCodePairing] 处理配对码失败:', error);
+      logger.pairing.error('[QRCodePairing] 处理配对码失败:', error);
       showError(error instanceof Error ? error.message : '配对码格式错误，请检查后重试');
     }
   };
@@ -149,7 +150,7 @@ const QRCodePairing: React.FC = () => {
       await startPairing(getDeviceName());
       setShowScanner(false);
     } catch (error) {
-      console.error('[QRCodePairing] 处理扫描结果失败:', error);
+      logger.pairing.error('[QRCodePairing] 处理扫描结果失败:', error);
       showError(error instanceof Error ? error.message : '二维码格式错误，请重新扫描');
     }
   };
@@ -475,7 +476,7 @@ const QRCodePairing: React.FC = () => {
         onClose={() => setShowScanner(false)}
         onScanSuccess={handleScanSuccess}
         onScanError={(error) => {
-          console.error('[QRCodePairing] 扫描错误:', error);
+          logger.pairing.error('[QRCodePairing] 扫描错误:', error);
         }}
       />
     </div>

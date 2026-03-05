@@ -1,5 +1,7 @@
 import { supabase } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
+import { CHAT_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
 import type { ChatMessage, UnreadCount } from '../config/supabase';
 
 // ============================================
@@ -15,7 +17,7 @@ async function getCurrentUserId(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error('获取用户会话失败:', error);
+    logger.chat.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
 
@@ -46,7 +48,7 @@ async function updateUnreadCount(
     });
 
   if (error) {
-    console.error('更新未读计数失败:', error);
+    logger.chat.error('更新未读计数失败:', error);
   }
 }
 
@@ -111,6 +113,14 @@ export async function sendMessage(
   try {
     const userId = await getCurrentUserId();
 
+    // Validate message text if provided
+    if (text) {
+      const textError = validateString(text, CHAT_VALIDATION.messageText, 'messageText');
+      if (textError) {
+        throw new Error(getValidationErrorMessage(textError));
+      }
+    }
+
     // Build conversation ID
     const conversationId = userId < friendId
       ? `${userId}_${friendId}`
@@ -124,7 +134,7 @@ export async function sendMessage(
       conversation_id: conversationId,
       sender_id: senderId,
       receiver_id: receiverId,
-      text: text,
+      text: sanitizeString(text, CHAT_VALIDATION.messageText.max),
       is_read: false
     };
 
@@ -207,7 +217,7 @@ export async function sendMessageWithMedia(
       .single();
 
     if (error) {
-      console.error('发送媒体消息失败:', error);
+      logger.chat.error('发送媒体消息失败:', error);
       return null;
     }
 
@@ -217,7 +227,7 @@ export async function sendMessageWithMedia(
 
     return data?.id || null;
   } catch (error: unknown) {
-    console.error('发送媒体消息失败:', error);
+    logger.chat.error('发送媒体消息失败:', error);
     return null;
   }
 }
@@ -234,10 +244,10 @@ export async function markMessagesAsRead(friendId: string): Promise<void> {
       });
 
     if (error) {
-      console.error('标记消息已读失败:', error);
+      logger.chat.error('标记消息已读失败:', error);
     }
   } catch (error) {
-    console.error('标记消息已读失败:', error);
+    logger.chat.error('标记消息已读失败:', error);
   }
 }
 
@@ -257,10 +267,10 @@ export async function clearChatHistory(friendId: string): Promise<void> {
       .eq('conversation_id', conversationId);
 
     if (error) {
-      console.error('清空聊天记录失败:', error);
+      logger.chat.error('清空聊天记录失败:', error);
     }
   } catch (error) {
-    console.error('清空聊天记录失败:', error);
+    logger.chat.error('清空聊天记录失败:', error);
   }
 }
 
@@ -279,13 +289,13 @@ export async function getUnreadCounts(): Promise<UnreadCount[]> {
       .eq('user_id', userId);
 
     if (error) {
-      console.error('获取未读计数失败:', error);
+      logger.chat.error('获取未读计数失败:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取未读计数失败:', error);
+    logger.chat.error('获取未读计数失败:', error);
     return [];
   }
 }
@@ -301,13 +311,13 @@ export async function getTotalUnreadCount(): Promise<number> {
       .eq('user_id', userId);
 
     if (error) {
-      console.error('获取总未读数失败:', error);
+      logger.chat.error('获取总未读数失败:', error);
       return 0;
     }
 
     return data?.reduce((sum, item) => sum + item.unread_count, 0) || 0;
   } catch (error) {
-    console.error('获取总未读数失败:', error);
+    logger.chat.error('获取总未读数失败:', error);
     return 0;
   }
 }
@@ -357,7 +367,7 @@ export async function subscribeToChatMessages(
       supabase.removeChannel(channel);
     };
   } catch (error) {
-    console.error('订阅聊天消息失败:', error);
+    logger.chat.error('订阅聊天消息失败:', error);
     return () => {}; // 返回空的清理函数
   }
 }
@@ -389,7 +399,7 @@ export async function subscribeToUnreadCounts(
       supabase.removeChannel(channel);
     };
   } catch (error) {
-    console.error('订阅未读计数更新失败:', error);
+    logger.chat.error('订阅未读计数更新失败:', error);
     return () => {}; // 返回空的清理函数
   }
 }

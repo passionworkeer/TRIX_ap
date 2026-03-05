@@ -12,6 +12,7 @@ import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import WorkbenchCard from './WorkbenchCard';
+import { logger } from '../utils/logger';
 import { DEFAULT_WORKBENCH_ITEMS, WorkbenchItem } from '../types/workbench';
 
 interface WorkbenchModalProps {
@@ -40,27 +41,27 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
       onCardClick?.(item.id);
 
       // Placeholder actions - will be replaced with actual implementations
-      console.log(`[WorkbenchModal] Card clicked: ${item.id}`);
+      logger.ui.debug(`[WorkbenchModal] Card clicked: ${item.id}`);
 
       switch (item.id) {
         case 'snapshot':
           // TODO: Open snapshot modal/camera
-          console.log('[WorkbenchModal] Opening snapshot...');
+          logger.ui.debug('[WorkbenchModal] Opening snapshot...');
           break;
         case 'location':
           // TODO: Open location picker
-          console.log('[WorkbenchModal] Opening location picker...');
+          logger.ui.debug('[WorkbenchModal] Opening location picker...');
           break;
         case 'schedule':
           // TODO: Open schedule manager
-          console.log('[WorkbenchModal] Opening schedule...');
+          logger.ui.debug('[WorkbenchModal] Opening schedule...');
           break;
         case 'todo':
           // TODO: Open todo list
-          console.log('[WorkbenchModal] Opening todo list...');
+          logger.ui.debug('[WorkbenchModal] Opening todo list...');
           break;
         default:
-          console.log('[WorkbenchModal] Unknown action:', item.id);
+          logger.ui.debug('[WorkbenchModal] Unknown action:', item.id);
       }
 
       // Close modal after action (optional, can be removed based on UX preference)
