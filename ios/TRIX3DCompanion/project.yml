@@ -47,6 +47,7 @@ targets:
       - package: Firebase
         product: FirebasePerformance
       - package: Sentry
+      - package: SocketIO
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion
@@ -145,6 +146,9 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa.git
     from: "8.0.0"
+  SocketIO:
+    url: https://github.com/socketio/socket.io-client-swift.git
+    from: "16.0.0"
 
 entitlements:
   path: TRIX3DCompanion.entitlements

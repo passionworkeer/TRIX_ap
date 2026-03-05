@@ -4,13 +4,11 @@
 //
 //  Clawbot Channel Service - 连接 OpenClaw 后端配对服务
 //  基于 Web 端 ClawbotChannelBridge.ts 实现
-//
-//  注意: 当前使用 Starscream WebSocket 库，不支持 Socket.IO 协议
-//        需要添加 Socket.IO 库或使用其他方式实现完整功能
+//  使用 Socket.IO 协议
 //
 
 import Foundation
-import Starscream
+import SocketIO
 import Combine
 import AVFoundation
 
@@ -42,7 +40,7 @@ struct ClawbotMessage: Codable, Identifiable, Equatable {
 }
 
 /// 连接状态
-enum ClawbotConnectionState {
+enum ClawbotConnectionState: Equatable {
     case disconnected
     case connecting
     case connected
@@ -51,7 +49,7 @@ enum ClawbotConnectionState {
 }
 
 /// 配对状态
-struct ClawbotPairingStatus {
+struct ClawbotPairingStatus: Equatable {
     let paired: Bool
     let deviceId: String?
     let deviceName: String?
@@ -59,23 +57,11 @@ struct ClawbotPairingStatus {
     let pairedAt: String?
 }
 
-/// 学习房间状态 (WebSocket 通信用)
-struct ClawbotStudyRoomState: Codable {
-    let roomCode: String
-    let roomName: String
-    let hostId: String
-    let hostName: String
-    let participants: [StudyRoomParticipant]
-    let status: String
-    let createdAt: Date?
-
-    struct StudyRoomParticipant: Codable {
-        let userId: String
-        let displayName: String
-        let avatarUrl: String?
-        let isHost: Bool
-        let joinedAt: Date?
-    }
+/// Bot 状态
+enum BotState: String {
+    case idle
+    case thinking
+    case speaking
 }
 
 // MARK: - Protocol
@@ -108,17 +94,27 @@ protocol ClawbotChannelServiceProtocol {
     func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> ClawbotStudyRoomState
     func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?) async throws -> ClawbotStudyRoomState
     func leaveStudyRoom(roomCode: String?) async throws
-
-    // Publishers
-    var connectionStatePublisher: Published<ClawbotConnectionState>.Publisher { get }
-    var pairingStatePublisher: Published<Bool>.Publisher { get }
-    var messagePublisher: Published<ClawbotMessage?>.Publisher { get }
-    var botStatePublisher: Published<BotState>.Publisher { get }
 }
 
-// MARK: - Event Handlers
+// MARK: - Study Room State
 
-typealias ClawbotEventHandler<T> = (T) -> Void
+struct ClawbotStudyRoomState: Codable {
+    let roomCode: String
+    let roomName: String
+    let hostId: String
+    let hostName: String
+    let participants: [StudyRoomParticipant]
+    let status: String
+    let createdAt: Date?
+
+    struct StudyRoomParticipant: Codable {
+        let userId: String
+        let displayName: String
+        let avatarUrl: String?
+        let isHost: Bool
+        let joinedAt: Date?
+    }
+}
 
 // MARK: - Service Implementation
 
@@ -135,33 +131,27 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     @Published private(set) var lastMessage: ClawbotMessage?
     @Published private(set) var botState: BotState = .idle
 
-    // MARK: - Publishers (for Combine)
-
-    var connectionStatePublisher: Published<ClawbotConnectionState>.Publisher { $connectionState }
-    var pairingStatePublisher: Published<Bool>.Publisher { $isPaired }
-    var messagePublisher: Published<ClawbotMessage?>.Publisher { $lastMessage }
-    var botStatePublisher: Published<BotState>.Publisher { $botState }
-
     // MARK: - Private Properties
 
-    private var socket: Starscream.WebSocket?
+    private var manager: SocketManager?
+    private var socket: SocketIOClient?
     private var userId: String?
     private(set) var deviceId: String?
 
+    // Reconnect
+    private var reconnectAttempts: Int = 0
+    private let maxReconnectAttempts: Int = 10
+
+    // Heartbeat
     private var heartbeatTimer: Timer?
     private var lastPongTime: Date = Date()
     private let heartbeatInterval: TimeInterval = 30
 
-    private var reconnectAttempts: Int = 0
-    private let maxReconnectAttempts: Int = 10
+    // Event handlers storage
+    private var eventHandlers: [String: [(Any) -> Void]] = [:]
+    private let handlerLock = NSLock()
 
-    private var pendingMessageHandlers: [String: (Result<Void, Error>) -> Void] = [:]
-    private let messageHandlerLock = NSLock()
-
-    // Event handlers
-    private var eventHandlers: [String: Any] = [:]
-
-    // TTS for bot messages
+    // TTS
     private let ttsService = TTSService.shared
     @Published var ttsEnabled: Bool = true
     @Published var ttsLanguage: TTSLanguage = .chinese
@@ -170,9 +160,9 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     private var channelUrl: String {
         #if DEBUG
-        return "ws://localhost:8765"
+        return "http://localhost:8765"
         #else
-        return "wss://api.trix3d.com"
+        return "https://api.trix3d.com"
         #endif
     }
 
@@ -183,7 +173,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         loadPersistedState()
     }
 
-    // MARK: - Public Methods
+    // MARK: - Computed Properties
 
     var isConnected: Bool {
         if case .connected = connectionState {
@@ -191,6 +181,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
         return false
     }
+
+    // MARK: - Public Methods
 
     func connect() async throws {
         guard let supabaseUserId = await getSupabaseUserId() else {
@@ -203,12 +195,19 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             connectionState = .connecting
         }
 
-        // Create WebSocket connection
-        var request = URLRequest(url: URL(string: channelUrl)!)
-        request.timeoutInterval = 10
+        // Create Socket.IO manager
+        let config: SocketIOClientConfiguration = [
+            .log(false),
+            .compress,
+            .forceWebsockets(true),
+            .reconnects(false), // Handle reconnection manually
+        ]
 
-        socket = Starscream.WebSocket(request: request)
-        socket?.delegate = self
+        manager = SocketManager(socketURL: URL(string: channelUrl)!, config: config)
+        socket = manager?.defaultSocket
+
+        setupEventHandlers()
+
         socket?.connect()
     }
 
@@ -216,6 +215,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         stopHeartbeat()
         socket?.disconnect()
         socket = nil
+        manager = nil
 
         DispatchQueue.main.async {
             self.connectionState = .disconnected
@@ -223,50 +223,74 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
     }
 
-    // MARK: - Pairing (Simplified - needs Socket.IO support)
+    // MARK: - Pairing
 
     func checkPairingStatus() async throws -> ClawbotPairingStatus {
-        // Simplified implementation - requires Socket.IO for full functionality
-        guard isConnected else {
+        guard isConnected, let socket = socket, let userId = userId else {
             throw ClawbotError.notConnected
         }
-        return ClawbotPairingStatus(paired: isPaired, deviceId: deviceId, deviceName: nil, botOnline: nil, pairedAt: nil)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "check_pairing_status", ["userId": userId]) { response in
+                guard let dict = response as? [String: Any],
+                      let success = dict["success"] as? Bool, success else {
+                    continuation.resume(returning: ClawbotPairingStatus(
+                        paired: false,
+                        deviceId: nil,
+                        deviceName: nil,
+                        botOnline: nil,
+                        pairedAt: nil
+                    ))
+                    return
+                }
+
+                let data = dict["data"] as? [String: Any] ?? [:]
+                let paired = data["paired"] as? Bool ?? false
+                let deviceId = data["deviceId"] as? String
+                let deviceName = data["deviceName"] as? String
+                let botOnline = data["botOnline"] as? Bool
+                let pairedAt = data["pairedAt"] as? String
+
+                continuation.resume(returning: ClawbotPairingStatus(
+                    paired: paired,
+                    deviceId: deviceId,
+                    deviceName: deviceName,
+                    botOnline: botOnline,
+                    pairedAt: pairedAt
+                ))
+            }
+        }
     }
 
     func pairWithCode(_ code: String) async throws -> Bool {
-        // Ensure connected
-        guard isConnected else {
+        guard isConnected, let socket = socket, let userId = userId else {
             throw ClawbotError.notConnected
         }
 
-        // Validate code format (6 alphanumeric characters)
         let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard normalizedCode.count == 6, normalizedCode.range(of: "^[A-Z0-9]+$", options: .regularExpression) != nil else {
+        guard normalizedCode.count == 6 else {
             throw ClawbotError.invalidResponse
         }
 
-        // Send pairing request via WebSocket
-        let message: [String: Any] = [
-            "event": "pair_with_code",
-            "data": [
-                "code": normalizedCode,
-                "deviceId": deviceId ?? ""
-            ]
-        ]
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "pair_with_code", ["code": normalizedCode, "userId": userId]) { response in
+                guard let dict = response as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
 
-        if let jsonData = try? JSONSerialization.data(withJSONObject: message),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            socket?.write(string: jsonString)
+                if let success = dict["success"] as? Bool, success {
+                    continuation.resume(returning: true)
+                } else {
+                    let error = dict["error"] as? String ?? "配对失败"
+                    continuation.resume(throwing: ClawbotError.messageFailed(error))
+                }
+            }
         }
-
-        // Wait for pairing success event (handled in handleTextMessage)
-        // Return true immediately as the actual result comes via WebSocket callback
-        return true
     }
 
     func pairWithToken(_ token: String) async throws -> Bool {
-        // Ensure connected
-        guard isConnected else {
+        guard isConnected, let socket = socket, let userId = userId else {
             throw ClawbotError.notConnected
         }
 
@@ -277,16 +301,14 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         // Try to parse as JSON
         if let data = normalizedData.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            // Extract token from JSON (supports both "token" and "pairingToken" keys)
             qrToken = json["token"] as? String ?? json["pairingToken"] as? String
         }
 
-        // If not JSON, check if it's a direct token or "trix:pair:" prefix
+        // Check prefix
         if qrToken == nil {
             if normalizedData.hasPrefix("trix:pair:") {
                 qrToken = String(normalizedData.dropFirst(10))
             } else if normalizedData.count >= 10 {
-                // Direct token
                 qrToken = normalizedData
             }
         }
@@ -295,46 +317,42 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.invalidResponse
         }
 
-        // Send pairing request via WebSocket with token
-        let message: [String: Any] = [
-            "event": "pair_with_qr",
-            "data": [
-                "token": finalToken,
-                "deviceId": deviceId ?? ""
-            ]
-        ]
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "pair_with_token", ["token": finalToken, "userId": userId]) { response in
+                guard let dict = response as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
 
-        if let jsonData = try? JSONSerialization.data(withJSONObject: message),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            socket?.write(string: jsonString)
+                if let success = dict["success"] as? Bool, success {
+                    continuation.resume(returning: true)
+                } else {
+                    let error = dict["error"] as? String ?? "配对失败"
+                    continuation.resume(throwing: ClawbotError.messageFailed(error))
+                }
+            }
         }
-
-        // Return true immediately as the actual result comes via WebSocket callback
-        return true
     }
 
-    /// Pair with QR code data (convenience method that calls pairWithToken)
     func pairWithQR(_ qrData: String) async throws -> Bool {
         return try await pairWithToken(qrData)
     }
 
     func unpair() {
-        if isConnected {
-            // Use basic WebSocket send
-            let message = "{\"event\":\"unpair\",\"data\":{}}"
-            socket?.write(string: message)
-        }
+        socket?.emit("unpair")
 
-        isPaired = false
-        deviceId = nil
-        botState = .idle
-        clearPersistedState()
+        DispatchQueue.main.async {
+            self.isPaired = false
+            self.deviceId = nil
+            self.botState = .idle
+            self.clearPersistedState()
+        }
     }
 
     // MARK: - Messages
 
     func sendMessage(_ content: String, contentType: ClawbotMessageContentType = .text, mediaUrl: String? = nil, mediaMimeType: String? = nil) async throws {
-        guard isConnected else {
+        guard isConnected, let socket = socket else {
             throw ClawbotError.notConnected
         }
 
@@ -342,65 +360,99 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.notPaired
         }
 
-        // Use basic WebSocket send
-        let messageData: [String: Any] = [
-            "event": "app_message",
-            "data": [
-                "content": content,
-                "contentType": contentType.rawValue
-            ]
-        ]
+        let messageId = generateMessageId()
 
-        if let jsonData = try? JSONSerialization.data(withJSONObject: messageData),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            socket?.write(string: jsonString)
+        // Set bot state to thinking
+        DispatchQueue.main.async {
+            self.botState = .thinking
+        }
 
-            // Set bot state to thinking
-            DispatchQueue.main.async {
-                self.botState = .thinking
+        // Emit message with ACK
+        socket.emitWithAck(with: "app_message", [
+            "content": content,
+            "contentType": contentType.rawValue,
+            "mediaUrl": mediaUrl as Any,
+            "mediaMimeType": mediaMimeType as Any,
+            "messageId": messageId
+        ])
+    }
+
+    // MARK: - Study Room
+
+    func createStudyRoom(displayName: String, avatarUrl: String? = nil, maxMembers: Int? = nil) async throws -> ClawbotStudyRoomState {
+        guard isConnected, let socket = socket, let userId = userId else {
+            throw ClawbotError.notConnected
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "study_room_create", [
+                "userId": userId,
+                "displayName": displayName,
+                "avatarUrl": avatarUrl as Any,
+                "maxMembers": maxMembers as Any
+            ]) { response in
+                guard let dict = response as? [String: Any],
+                      let success = dict["success"] as? Bool, success,
+                      let roomData = dict["room"] as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
+
+                if let room = self.parseStudyRoomState(roomData) {
+                    continuation.resume(returning: room)
+                } else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                }
             }
         }
     }
 
-    // MARK: - Study Room (Simplified)
-
-    func createStudyRoom(displayName: String, avatarUrl: String? = nil, maxMembers: Int? = nil) async throws -> ClawbotStudyRoomState {
-        guard isConnected else {
-            throw ClawbotError.notConnected
-        }
-        // Simplified implementation
-        return ClawbotStudyRoomState(
-            roomCode: "",
-            roomName: displayName,
-            hostId: userId ?? "",
-            hostName: displayName,
-            participants: [],
-            status: "waiting",
-            createdAt: Date()
-        )
-    }
-
     func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String? = nil) async throws -> ClawbotStudyRoomState {
-        guard isConnected else {
+        guard isConnected, let socket = socket, let userId = userId else {
             throw ClawbotError.notConnected
         }
-        // Simplified implementation
-        return ClawbotStudyRoomState(
-            roomCode: roomCode,
-            roomName: "Study Room",
-            hostId: "",
-            hostName: displayName,
-            participants: [],
-            status: "studying",
-            createdAt: Date()
-        )
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "study_room_join", [
+                "userId": userId,
+                "roomCode": roomCode,
+                "displayName": displayName,
+                "avatarUrl": avatarUrl as Any
+            ]) { response in
+                guard let dict = response as? [String: Any],
+                      let success = dict["success"] as? Bool, success,
+                      let roomData = dict["room"] as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
+
+                if let room = self.parseStudyRoomState(roomData) {
+                    continuation.resume(returning: room)
+                } else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                }
+            }
+        }
     }
 
     func leaveStudyRoom(roomCode: String?) async throws {
-        guard isConnected else {
+        guard isConnected, let socket = socket, let userId = userId else {
             throw ClawbotError.notConnected
         }
-        // Simplified implementation
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck(with: "study_room_leave", [
+                "userId": userId,
+                "roomCode": roomCode as Any
+            ]) { response in
+                guard let dict = response as? [String: Any],
+                      let success = dict["success"] as? Bool, success else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
+                continuation.resume()
+            }
+        }
     }
 
     // MARK: - Private Methods
@@ -416,18 +468,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     }
 
     private func generateSecureRandomString(_ length: Int) -> String {
-        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        var randomString = ""
-
         let uuid = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        let uuidChars = Array(uuid)
-
-        for i in 0..<length {
-            let index = i % uuidChars.count
-            randomString.append(uuidChars[index])
-        }
-
-        return String(randomString.prefix(length))
+        return String(uuid.prefix(length))
     }
 
     private func generateMessageId() -> String {
@@ -440,107 +482,75 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
     }
 
-    // MARK: - Persistence
+    // MARK: - Event Handlers Setup
 
-    private func persistPairingState() {
-        if let deviceId = deviceId {
-            UserDefaults.standard.set(deviceId, forKey: "clawbot_device_id")
+    private func setupEventHandlers() {
+        guard let socket = socket else { return }
+
+        // Connect
+        socket.on(clientEvent: .connect) { [weak self] _, _ in
+            self?.handleConnected()
         }
-        UserDefaults.standard.set(isPaired, forKey: "clawbot_paired")
-    }
 
-    private func loadPersistedState() {
-        isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
-        deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
-    }
-
-    private func clearPersistedState() {
-        UserDefaults.standard.removeObject(forKey: "clawbot_paired")
-        UserDefaults.standard.removeObject(forKey: "clawbot_device_id")
-    }
-
-    // MARK: - Heartbeat
-
-    private func startHeartbeat() {
-        stopHeartbeat()
-        lastPongTime = Date()
-
-        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-
-            if Date().timeIntervalSince(self.lastPongTime) > 60 {
-                self.socket?.disconnect()
-                self.socket?.connect()
-                return
+        // Disconnect
+        socket.on(clientEvent: .disconnect) { [weak self] _, _ in
+            DispatchQueue.main.async {
+                self?.connectionState = .disconnected
+                self?.stopHeartbeat()
             }
-
-            self.socket?.write(ping: Data())
         }
-    }
 
-    private func stopHeartbeat() {
-        heartbeatTimer?.invalidate()
-        heartbeatTimer = nil
-    }
-
-    // MARK: - Event Emission
-
-    private func emitEvent<T>(_ event: String, data: T) {
-        // Event handling implementation
-    }
-}
-
-// MARK: - WebSocketDelegate
-
-extension ClawbotChannelService: Starscream.WebSocketDelegate {
-    func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
-        switch event {
-        case .connected(_):
-            handleConnected()
-
-        case .disconnected(let reason, _):
+        // Reconnecting
+        socket.on(clientEvent: .reconnect) { [weak self] data, _ in
+            guard let attempt = (data.first as? Int) else { return }
             DispatchQueue.main.async {
-                self.connectionState = .disconnected
-                self.stopHeartbeat()
+                self?.connectionState = .reconnecting(attempt: attempt)
             }
-            SecureLogger.shared.info("[ClawbotChannel] Disconnected: \(reason)")
+        }
 
-        case .text(let string):
-            handleTextMessage(string)
+        // Custom events
+        socket.on("pairing_success") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any],
+                  let deviceId = dict["deviceId"] as? String else { return }
 
-        case .binary(let data):
-            handleBinaryMessage(data)
-
-        case .ping(_):
-            break
-
-        case .pong(_):
             DispatchQueue.main.async {
-                self.lastPongTime = Date()
+                self?.isPaired = true
+                self?.deviceId = deviceId
+                self?.persistPairingState()
             }
+        }
 
-        case .viabilityChanged(let viable):
-            SecureLogger.shared.info("[ClawbotChannel] Viability changed: \(viable)")
-
-        case .reconnectSuggested(let suggested):
-            if suggested {
-                handleReconnect()
-            }
-
-        case .cancelled:
+        socket.on("unpaired") { [weak self] _, _ in
             DispatchQueue.main.async {
-                self.connectionState = .disconnected
+                self?.isPaired = false
+                self?.deviceId = nil
+                self?.clearPersistedState()
             }
+        }
 
-        case .error(let error):
-            DispatchQueue.main.async {
-                self.connectionState = .error(error?.localizedDescription ?? "Unknown error")
-            }
-            SecureLogger.shared.error("[ClawbotChannel] Error: \(error?.localizedDescription ?? "Unknown")")
+        socket.on("bot_message") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any] else { return }
+            self?.handleBotMessage(dict)
+        }
 
-        case .peerClosed:
-            DispatchQueue.main.async {
-                self.connectionState = .disconnected
+        socket.on("bot_online") { [weak self] data, _ in
+            SecureLogger.shared.info("[ClawbotChannel] Bot online: \(data)")
+        }
+
+        socket.on("bot_offline") { [weak self] data, _ in
+            SecureLogger.shared.info("[ClawbotChannel] Bot offline: \(data)")
+        }
+
+        socket.on("pong") { [weak self] _, _ in
+            self?.lastPongTime = Date()
+        }
+
+        socket.on("error") { [weak self] data, _ in
+            if let error = data.first as? String {
+                SecureLogger.shared.error("[ClawbotChannel] Error: \(error)")
+                DispatchQueue.main.async {
+                    self?.connectionState = .error(error)
+                }
             }
         }
     }
@@ -554,50 +564,7 @@ extension ClawbotChannelService: Starscream.WebSocketDelegate {
 
         // Register with user ID
         if let userId = userId {
-            let message = "{\"event\":\"app_register\",\"data\":{\"userId\":\"\(userId)\"}}"
-            socket?.write(string: message)
-        }
-    }
-
-    private func handleTextMessage(_ text: String) {
-        guard let data = text.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let eventType = json["event"] as? String else {
-            return
-        }
-
-        switch eventType {
-        case "pairing_success":
-            if let deviceId = json["deviceId"] as? String,
-               let deviceName = json["deviceName"] as? String {
-                DispatchQueue.main.async {
-                    self.isPaired = true
-                    self.deviceId = deviceId
-                    self.persistPairingState()
-                }
-            }
-
-        case "unpaired":
-            DispatchQueue.main.async {
-                self.isPaired = false
-                self.deviceId = nil
-                self.clearPersistedState()
-            }
-
-        case "bot_message":
-            handleBotMessage(json)
-
-        case "bot_online", "bot_offline":
-            break
-
-        case "study_room_state":
-            break
-
-        case "message_sent":
-            break
-
-        default:
-            break
+            socket?.emit("app_register", ["userId": userId])
         }
     }
 
@@ -623,7 +590,7 @@ extension ClawbotChannelService: Starscream.WebSocketDelegate {
         DispatchQueue.main.async {
             self.lastMessage = message
 
-            // State machine
+            // State machine for TTS
             if self.ttsEnabled && contentType == .text && !content.isEmpty {
                 self.botState = .thinking
 
@@ -667,27 +634,79 @@ extension ClawbotChannelService: Starscream.WebSocketDelegate {
         }
     }
 
-    private func handleBinaryMessage(_ data: Data) {
-        // Handle binary messages if needed
+    private func parseStudyRoomState(_ data: [String: Any]) -> ClawbotStudyRoomState? {
+        guard let roomCode = data["roomCode"] as? String,
+              let roomName = data["roomName"] as? String,
+              let hostId = data["hostId"] as? String,
+              let hostName = data["hostName"] as? String,
+              let status = data["status"] as? String else {
+            return nil
+        }
+
+        let participants = (data["participants"] as? [[String: Any]] ?? []).compactMap { p -> ClawbotStudyRoomState.StudyRoomParticipant? in
+            guard let userId = p["userId"] as? String,
+                  let displayName = p["displayName"] as? String else { return nil }
+            return ClawbotStudyRoomState.StudyRoomParticipant(
+                userId: userId,
+                displayName: displayName,
+                avatarUrl: p["avatarUrl"] as? String,
+                isHost: p["isHost"] as? Bool ?? false,
+                joinedAt: nil
+            )
+        }
+
+        return ClawbotStudyRoomState(
+            roomCode: roomCode,
+            roomName: roomName,
+            hostId: hostId,
+            hostName: hostName,
+            participants: participants,
+            status: status,
+            createdAt: nil
+        )
     }
 
-    private func handleReconnect() {
-        guard reconnectAttempts < maxReconnectAttempts else {
-            DispatchQueue.main.async {
-                self.connectionState = .error("Max reconnection attempts reached")
+    // MARK: - Persistence
+
+    private func persistPairingState() {
+        if let deviceId = deviceId {
+            UserDefaults.standard.set(deviceId, forKey: "clawbot_device_id")
+        }
+        UserDefaults.standard.set(isPaired, forKey: "clawbot_paired")
+    }
+
+    private func loadPersistedState() {
+        isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
+        deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
+    }
+
+    private func clearPersistedState() {
+        UserDefaults.standard.removeObject(forKey: "clawbot_paired")
+        UserDefaults.standard.removeObject(forKey: "clawbot_device_id")
+    }
+
+    // MARK: - Heartbeat
+
+    private func startHeartbeat() {
+        stopHeartbeat()
+        lastPongTime = Date()
+
+        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+
+            if Date().timeIntervalSince(self.lastPongTime) > 60 {
+                self.socket?.disconnect()
+                self.socket?.connect()
+                return
             }
-            return
-        }
 
-        DispatchQueue.main.async {
-            self.reconnectAttempts += 1
-            self.connectionState = .reconnecting(attempt: self.reconnectAttempts)
+            self.socket?.emit("ping")
         }
+    }
 
-        let delay = min(pow(2.0, Double(reconnectAttempts)), 30.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.socket?.connect()
-        }
+    private func stopHeartbeat() {
+        heartbeatTimer?.invalidate()
+        heartbeatTimer = nil
     }
 }
 
