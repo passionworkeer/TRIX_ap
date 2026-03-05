@@ -432,10 +432,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             if let roomCode = targetRoomCode,
                let roomState = currentRoomState,
                roomState.hostUserId == user.id {
-                webSocketManager.hostActionStudyRoom(
-                    roomCode: roomCode,
-                    action: StudyRoomHostAction.startFocus.rawValue
-                ) { _ in }
+                Task {
+                    try? await clawbotChannelService.hostActionStudyRoom(
+                        roomCode: roomCode,
+                        action: .startFocus
+                    )
+                }
             }
 
             return .success(session)
@@ -500,10 +502,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                let roomCode = currentRoomCode,
                let roomState = currentRoomState,
                roomState.hostUserId == user.id {
-                webSocketManager.hostActionStudyRoom(
-                    roomCode: roomCode,
-                    action: StudyRoomHostAction.end.rawValue
-                ) { _ in }
+                Task {
+                    try? await clawbotChannelService.hostActionStudyRoom(
+                        roomCode: roomCode,
+                        action: .end
+                    )
+                }
             }
 
             return .success(updatedSession)
@@ -645,10 +649,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
            let roomCode = currentRoomCode,
            let roomState = currentRoomState,
            roomState.hostUserId == user.id {
-            webSocketManager.hostActionStudyRoom(
-                roomCode: roomCode,
-                action: StudyRoomHostAction.pause.rawValue
-            ) { _ in }
+            Task {
+                try? await clawbotChannelService.hostActionStudyRoom(
+                    roomCode: roomCode,
+                    action: .pause
+                )
+            }
         }
     }
 
@@ -664,10 +670,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
            let roomCode = currentRoomCode,
            let roomState = currentRoomState,
            roomState.hostUserId == user.id {
-            webSocketManager.hostActionStudyRoom(
-                roomCode: roomCode,
-                action: StudyRoomHostAction.startFocus.rawValue
-            ) { _ in }
+            Task {
+                try? await clawbotChannelService.hostActionStudyRoom(
+                    roomCode: roomCode,
+                    action: .startFocus
+                )
+            }
         }
     }
 
@@ -728,87 +736,6 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             let studyError = StudyError.unknown(underlying: error)
             lastError = studyError
             return .failure(studyError)
-        }
-    }
-
-    // MARK: - Private Methods - WebSocket
-
-    /// Set up WebSocket event listeners
-    private func setupWebSocketListeners() {
-        // Listen for connection events
-        webSocketManager.on("connected") { [weak self] _ in
-            Task { @MainActor in
-                self?.isWebSocketConnected = true
-
-                // Re-fetch room state if was in a room
-                if let roomCode = self?.currentRoomCode {
-                    _ = await self?.fetchRoomState(roomCode: roomCode)
-                }
-            }
-        }
-
-        webSocketManager.on("disconnected") { [weak self] _ in
-            Task { @MainActor in
-                self?.isWebSocketConnected = false
-            }
-        }
-
-        // Listen for study room state updates
-        webSocketManager.on("study_room_state") { [weak self] result in
-            Task { @MainActor in
-                self?.handleStudyRoomStateEvent(result)
-            }
-        }
-    }
-
-    /// Handle study room state event from WebSocket
-    private func handleStudyRoomStateEvent(_ result: Any) {
-        guard let event = result as? StudyRoomStateEvent else { return }
-
-        // Update room state
-        if let roomState = event.room {
-            currentRoomState = roomState
-
-            // Update session state based on room state
-            switch roomState.sessionState {
-            case .focusing:
-                if isActiveSession {
-                    sessionState = .focusing
-                }
-            case .resting:
-                if isActiveSession {
-                    sessionState = .resting
-                }
-            case .idle:
-                break
-            }
-        }
-    }
-
-    /// Fetch room state via WebSocket
-    private func fetchRoomState(roomCode: String) async -> StudyResult<StudyRoomState> {
-        return await withCheckedContinuation { continuation in
-            webSocketManager.getStudyRoomState(roomCode: roomCode) { result in
-                switch result {
-                case .success(let payload):
-                    if let roomState = payload.room {
-                        continuation.resume(returning: .success(roomState))
-                    } else {
-                        Task { @MainActor in
-                            let error = StudyError.roomNotFound
-                            self.lastError = error
-                            continuation.resume(returning: .failure(error))
-                        }
-                    }
-
-                case .failure(let error):
-                    Task { @MainActor in
-                        let studyError = self.mapWebSocketError(error)
-                        self.lastError = studyError
-                        continuation.resume(returning: .failure(studyError))
-                    }
-                }
-            }
         }
     }
 
