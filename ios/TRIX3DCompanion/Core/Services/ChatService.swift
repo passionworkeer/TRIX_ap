@@ -107,7 +107,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     // MARK: - Dependencies
 
     private let apiClient: APIClient
-    private let webSocketManager: WebSocketManager
+    private let clawbotChannelService: ClawbotChannelServiceProtocol
     private let authService: AuthService
 
     // MARK: - Private Properties
@@ -132,18 +132,18 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// Initialize with dependencies
     /// - Parameters:
     ///   - apiClient: API client instance (defaults to shared)
-    ///   - webSocketManager: WebSocket manager instance (defaults to shared)
+    ///   - clawbotChannelService: Clawbot Channel service (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
         apiClient: APIClient = .shared,
-        webSocketManager: WebSocketManager = .shared,
+        clawbotChannelService: ClawbotChannelServiceProtocol? = nil,
         authService: AuthService = .shared
     ) {
         self.apiClient = apiClient
-        self.webSocketManager = webSocketManager
+        self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
         self.authService = authService
 
-        setupWebSocketListeners()
+        setupClawbotChannelListeners()
     }
 
     // MARK: - Public Methods - Chat Rooms
