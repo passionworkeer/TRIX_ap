@@ -67,7 +67,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
   // 如果有头像 URL 且不为空，尝试渲染图片
   if (avatar && avatar.trim()) {
     return (
-      <div className={`${sizeClass} rounded-full overflow-hidden ${className}`}>
+      <div className={`${sizeClass} rounded-full overflow-hidden relative ${className}`}>
         <LazyImage
           src={avatar}
           alt={name}
@@ -75,7 +75,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
           height={sizeValue}
           priority={priority}
           fallbackSrc=""
-          className="w-full h-full"
+          className="w-full h-full object-cover"
           placeholderClassName=""
           onError={() => {
             // 图片加载失败时不显示任何内容，会fallback到首字母
@@ -93,7 +93,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
 
   // 没有头像，直接显示首字母
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${getGradient(name)} flex items-center justify-center font-bold text-white shadow-lg ${className}`}>
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${getGradient(name)} flex items-center justify-center font-bold text-white shadow-lg ${className} hover:scale-105 transition-transform duration-300`}>
       {getInitial(name)}
     </div>
   );
