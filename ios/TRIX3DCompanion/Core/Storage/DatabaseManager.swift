@@ -89,12 +89,18 @@ final class DatabaseManager {
     private init() {
         // 创建数据库文件路径
         let fileManager = FileManager.default
-        let appSupportURL = try! fileManager.url(
+        let appSupportURL: URL
+        if let url = try? fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        )
+        ) {
+            appSupportURL = url
+        } else {
+            // Fallback to documents directory if application support fails
+            appSupportURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        }
         dbPath = appSupportURL.appendingPathComponent("trix3d.sqlite").path
 
         // 初始化加密密钥
@@ -122,7 +128,10 @@ final class DatabaseManager {
             // Generate new key
             var keyData = Data(count: 32) // 256-bit key
             let result = keyData.withUnsafeMutableBytes { pointer in
-                SecRandomCopyBytes(kSecRandomDefault, 32, pointer.baseAddress!)
+                guard let baseAddress = pointer.baseAddress else {
+                    return errSecAllocate
+                }
+                return SecRandomCopyBytes(kSecRandomDefault, 32, baseAddress)
             }
 
             if result == errSecSuccess {
@@ -143,7 +152,10 @@ final class DatabaseManager {
         // Generate random IV
         var iv = Data(count: 16)
         let ivResult = iv.withUnsafeMutableBytes { pointer in
-            SecRandomCopyBytes(kSecRandomDefault, 16, pointer.baseAddress!)
+            guard let baseAddress = pointer.baseAddress else {
+                return errSecAllocate
+            }
+            return SecRandomCopyBytes(kSecRandomDefault, 16, baseAddress)
         }
 
         guard ivResult == errSecSuccess else { return nil }
@@ -410,7 +422,7 @@ final class DatabaseManager {
             messageSenderId <- message.senderId,
             messageSenderType <- message.sender.rawValue,
             messageContent <- encryptedContent,
-            messageType <- message.type.rawValue,
+            messageType <- message.messageType.rawValue,
             messageMediaUrl <- message.mediaUrl,
             messageMediaMimeType <- message.mediaMimeType,
             messageMediaDuration <- message.mediaDuration,

@@ -688,7 +688,7 @@ struct ChatMessage: Codable, Identifiable {
     let senderId: String
     let sender: MessageSender
     let content: String
-    let type: MessageType
+    let messageType: MessageType
     let mediaUrl: String?
     let mediaMimeType: String?
     let mediaDuration: Int?
@@ -701,7 +701,7 @@ struct ChatMessage: Codable, Identifiable {
         case senderId = "sender_id"
         case sender
         case content
-        case type
+        case messageType = "message_type"
         case mediaUrl = "media_url"
         case mediaMimeType = "media_mime_type"
         case mediaDuration = "media_duration"
@@ -748,6 +748,9 @@ struct StudySession: Codable, Identifiable {
     let completedAt: Date?
     let earnedPoints: Int?
     let isCompleted: Bool
+    let subject: String?
+    let notes: String?
+    let createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -757,6 +760,9 @@ struct StudySession: Codable, Identifiable {
         case completedAt = "completed_at"
         case earnedPoints = "earned_points"
         case isCompleted = "is_completed"
+        case subject
+        case notes
+        case createdAt = "created_at"
     }
 }
 
@@ -1319,6 +1325,9 @@ struct APIFriend: Codable, Identifiable {
     let avatarUrl: String?
     let status: String
     let addedAt: Date
+    let bio: String?
+    let studyTime: Int?
+    let isStudying: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -1328,6 +1337,9 @@ struct APIFriend: Codable, Identifiable {
         case avatarUrl = "avatar_url"
         case status
         case addedAt = "added_at"
+        case bio
+        case studyTime = "study_time"
+        case isStudying = "is_studying"
     }
 }
 

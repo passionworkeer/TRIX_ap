@@ -132,11 +132,12 @@ final class MemoryLeakDetector {
 
             // Check for object count growth
             for (type, timestamps) in self.objectCounts {
-                guard timestamps.count > 10 else { continue }
+                guard timestamps.count > 10,
+                      let firstTimestamp = timestamps.first,
+                      let lastTimestamp = timestamps.last else { continue }
 
-                let recent = timestamps.suffix(10)
-                let timeSpan = recent.last! - recent.first!
-                let rate = Double(recent.count) / max(timeSpan, 1.0)
+                let timeSpan = lastTimestamp - firstTimestamp
+                let rate = Double(timestamps.count) / max(timeSpan, 1.0)
 
                 if rate > 1.0 { // More than 1 object per second
                     suspects.append(.growthDetected(type: type, count: timestamps.count, rate: rate))
@@ -170,8 +171,9 @@ final class MemoryLeakDetector {
         }
 
         let recent = memorySnapshots.suffix(5)
-        let first = recent.first!
-        let last = recent.last!
+        guard let first = recent.first, let last = recent.last else {
+            return .stable
+        }
 
         let growth = last.memoryUsage - first.memoryUsage
         let percentChange = Double(growth) / Double(first.memoryUsage)

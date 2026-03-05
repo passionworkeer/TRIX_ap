@@ -54,7 +54,7 @@ struct MessageBubbleView: View {
 
     @ViewBuilder
     private var messageContent: some View {
-        switch message.type {
+        switch message.messageType {
         case .text:
             textMessageView
         case .image:

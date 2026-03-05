@@ -402,7 +402,7 @@ struct MessageRow: View {
     @ViewBuilder
     private var messageContent: some View {
         VStack(alignment: message.isIncoming ? .leading : .trailing, spacing: 4) {
-            switch message.type {
+            switch message.messageType {
             case .text:
                 Text(message.text ?? "")
                     .padding(.horizontal, 16)

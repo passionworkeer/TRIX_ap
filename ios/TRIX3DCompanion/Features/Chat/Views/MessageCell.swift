@@ -77,7 +77,7 @@ struct MessageCell: View {
     /// Message bubble
     @ViewBuilder
     private var messageBubble: some View {
-        switch message.type {
+        switch message.messageType {
         case .image:
             ImageMessageView(
                 imageURL: message.mediaUrl ?? "",

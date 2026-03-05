@@ -143,6 +143,12 @@ final class BatteryConsumptionOptimizer {
 
         powerStateCallback?(state)
     }
+
+    // MARK: - Deinitialization
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
 
 // MARK: - Battery Consumption Report
