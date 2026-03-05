@@ -21,41 +21,76 @@ struct MainTabView: View {
     @State private var isTabBarVisible = true
     @State private var isWorkbenchPresented = false
     @State private var isChatPresented = false
+    @State private var navigationPath = NavigationPath()
+    @State private var showingPairingSheet = false
+    @State private var showingTrixBotSheet = false
 
     // MARK: - Body
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Tab content using ZStack for overlay navigation
-            ZStack {
-                // 根据选择的 tab 显示内容
-                switch appState.selectedTab {
-                case .home, .core:
-                    // Both home and core show the same HomeView with workbench
-                    HomeView(
-                        isWorkbenchPresented: $isWorkbenchPresented,
-                        isChatPresented: $isChatPresented
-                    )
-                case .map:
-                    MapView()
-                case .study:
-                    StudyListView()
-                case .chat:
-                    ChatListView()
-                case .profile:
-                    ProfileView()
+            // Tab content using NavigationStack for proper navigation
+            NavigationStack(path: $navigationPath) {
+                ZStack {
+                    // 根据选择的 tab 显示内容
+                    switch appState.selectedTab {
+                    case .home, .core:
+                        // Both home and core show the same HomeView with workbench
+                        HomeView(
+                            isWorkbenchPresented: $isWorkbenchPresented,
+                            isChatPresented: $isChatPresented
+                        )
+                    case .map:
+                        MapView()
+                    case .study:
+                        StudyListView()
+                    case .chat:
+                        ChatListView(
+                            onNavigateToChat: { conversation in
+                                navigationPath.append(conversation)
+                            },
+                            onNavigateToPairing: {
+                                showingPairingSheet = true
+                            },
+                            onNavigateToTrixBot: {
+                                showingTrixBotSheet = true
+                            }
+                        )
+                    case .profile:
+                        ProfileView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationDestination(for: ChatConversation.self) { conversation in
+                    ChatDetailView(conversation: conversation)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea()
+            .navigationBarHidden(true)
+            .allowsHitTesting(true)
+            .onChange(of: navigationPath) { newPath in
+                // Hide tab bar when navigating to detail views
+                isTabBarVisible = newPath.isEmpty
+            }
+            .sheet(isPresented: $showingPairingSheet) {
+                NavigationStack {
+                    PairingView()
+                        .environmentObject(ClawbotChannelViewModel.shared)
+                }
+            }
+            .sheet(isPresented: $showingTrixBotSheet) {
+                NavigationStack {
+                    TrixBotChatView()
+                        .environmentObject(ClawbotChannelViewModel.shared)
+                }
+            }
 
-            // GlassDock Navigation - 根据工作台状态显示/隐藏
+            // GlassDock Navigation - 根据导航状态显示/隐藏
             GlassDockView(
                 selectedTab: $appState.selectedTab,
                 isWorkbenchPresented: $isWorkbenchPresented,
                 isChatPresented: $isChatPresented
             )
-            .opacity(appState.selectedTab == .home || appState.selectedTab == .core ? (isWorkbenchPresented ? 1 : 0) : 1)
+            .opacity(shouldShowTabBar ? 1 : 0)
             .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
         }
         .ignoresSafeArea(.keyboard)
@@ -72,6 +107,19 @@ struct MainTabView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Computed Properties
+
+    private var shouldShowTabBar: Bool {
+        // Hide tab bar when:
+        // 1. Navigating to detail views (navigationPath is not empty)
+        // 2. Showing sheets (pairing or trixbot)
+        // 3. In home/core tab with workbench presented
+        let isNavigating = !navigationPath.isEmpty
+        let isShowingSheet = showingPairingSheet || showingTrixBotSheet
+        let isHomeWithWorkbench = (appState.selectedTab == .home || appState.selectedTab == .core) && isWorkbenchPresented
+        return !isNavigating && !isShowingSheet && !isHomeWithWorkbench
     }
 
     // MARK: - Trix Bot Conversation

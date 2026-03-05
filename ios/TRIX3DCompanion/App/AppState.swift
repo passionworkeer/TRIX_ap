@@ -68,7 +68,7 @@ final class AppState: ObservableObject {
     // MARK: - Published Properties - UI State
 
     /// Currently selected tab
-    @Published var selectedTab: MainTab = .home
+    @Published var selectedTab: MainTab = .chat
 
     /// Dark mode setting
     @Published var isDarkMode: Bool = false

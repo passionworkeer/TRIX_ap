@@ -169,11 +169,11 @@ struct ChatInputBar: View {
         Button(action: toggleSpeechRecognition) {
             ZStack {
                 Circle()
-                    .fill(isListening ? Color.red.opacity(0.2) : .ultraThinMaterial)
+                    .fill(isListening ? AnyShapeStyle(Color.red.opacity(0.2)) : AnyShapeStyle(.ultraThinMaterial))
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(isListening ? Color.red.opacity(0.5) : .gray.opacity(0.2), lineWidth: 1)
+                            .stroke(isListening ? Color.red.opacity(0.5) : Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: isListening ? "waveform" : "text.bubble")
@@ -214,11 +214,7 @@ struct ChatInputBar: View {
                             text = text + " " + newValue
                         }
                         // Reset recognized text
-                        Task {
-                            await MainActor.run {
-                                speechService.recognizedText = ""
-                            }
-                        }
+                        speechService.resetRecognizedText()
                     }
                 }
 
@@ -441,11 +437,7 @@ struct ChatInputBar: View {
                 text = text + " " + speechService.recognizedText
             }
             // Clear recognized text after appending
-            Task {
-                await MainActor.run {
-                    speechService.recognizedText = ""
-                }
-            }
+            speechService.resetRecognizedText()
         }
     }
 }

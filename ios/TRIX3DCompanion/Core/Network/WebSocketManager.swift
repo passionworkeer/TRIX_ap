@@ -21,7 +21,7 @@ protocol WebSocketManagerProtocol {
     func pairWithCode(_ code: String)
     func pairWithToken(_ token: String)
     func unpair()
-    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void)
+    func checkPairingStatus(completion: @escaping (Result<WebSocketResponse, WebSocketError>) -> Void)
     func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
     func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
     func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void)
@@ -148,7 +148,7 @@ struct StudyRoomGetStateRequest: Codable {
 
 // MARK: - Response Types
 
-struct SocketResponse: Codable {
+struct WebSocketResponse: Codable {
     let success: Bool
     let paired: Bool?
     let error: String?
@@ -157,10 +157,10 @@ struct SocketResponse: Codable {
     let message: String?
     let pairingId: String?
     let status: String?
-    let data: SocketResponseData?
+    let data: WebSocketResponseData?
 }
 
-struct SocketResponseData: Codable {
+struct WebSocketResponseData: Codable {
     let paired: Bool?
     let deviceId: String?
     let deviceName: String?
@@ -388,7 +388,7 @@ final class WebSocketManager: NSObject, WebSocketManagerProtocol {
     }
 
     /// Check pairing status
-    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
+    func checkPairingStatus(completion: @escaping (Result<WebSocketResponse, WebSocketError>) -> Void) {
         guard let userId = userId else {
             completion(.failure(WebSocketError(code: nil, message: "User not logged in")))
             return
