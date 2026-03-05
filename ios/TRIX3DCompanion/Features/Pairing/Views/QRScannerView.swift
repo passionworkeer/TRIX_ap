@@ -53,11 +53,12 @@ struct QRScannerView: View {
                 .ignoresSafeArea()
 
             if cameraPermission == .authorized {
-                // Scanner
+                // Scanner - real camera for 真机测试
                 CodeScannerView(
                     codeTypes: [.qr],
                     scanMode: .continuous,
-                    simulatedData: "trix:pair:abc123def456",
+                    shouldVibrateOnSuccess: true,
+                    isTorchOn: isTorchOn,
                     completion: handleScanResult
                 )
                 .ignoresSafeArea()
