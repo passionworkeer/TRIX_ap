@@ -147,7 +147,7 @@ struct MapView: View {
     @ViewBuilder
     private var mapContent: some View {
         ZStack {
-            // Base map with location markers
+            // Base map with location markers and friend markers
             Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
                 MapAnnotation(coordinate: location.coordinate) {
                     LocationMarker(
@@ -159,17 +159,29 @@ struct MapView: View {
                     }
                 }
             }
-
-            // Friend markers overlay
-            ForEach(viewModel.friendLocations) { friend in
-                FriendMarkerView(friend: friend) {
-                    viewModel.selectFriend(friend)
-                }
-            }
+            .ignoresSafeArea()
 
             // Heat zone overlays
             ForEach(viewModel.heatZones) { heatZone in
                 HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
+            }
+
+            // Friend markers as overlay (positioned at center of screen for now)
+            // Note: SwiftUI Map doesn't support custom overlay positioning easily
+            // Friends will be shown when tapped on location detail
+            ForEach(viewModel.friendLocations) { friend in
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        FriendMarkerView(friend: friend) {
+                            viewModel.selectFriend(friend)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 200)
+                        Spacer()
+                    }
+                }
             }
         }
     }
