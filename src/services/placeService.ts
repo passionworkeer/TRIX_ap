@@ -2,6 +2,7 @@
  * Place service for map features
  */
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type {
   Place,
   PlaceCategory,
@@ -28,7 +29,7 @@ export async function getNearbyPlaces(request: PlaceNearbyRequest): Promise<Plac
   const { data: places, error } = await query;
 
   if (error || !places) {
-    console.error('Failed to fetch places:', error);
+    logger.location.error('Failed to fetch places:', error);
     return [];
   }
 
@@ -81,7 +82,7 @@ export async function searchPlaces(request: PlaceSearchRequest): Promise<Place[]
   const { data: places, error } = await dbQuery;
 
   if (error || !places) {
-    console.error('Failed to search places:', error);
+    logger.location.error('Failed to search places:', error);
     return [];
   }
 
@@ -108,7 +109,7 @@ export async function getPlacesByCategory(category: PlaceCategory): Promise<Plac
     .eq('category', category);
 
   if (error || !places) {
-    console.error('Failed to fetch places by category:', error);
+    logger.location.error('Failed to fetch places by category:', error);
     return [];
   }
 

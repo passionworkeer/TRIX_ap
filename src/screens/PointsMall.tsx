@@ -11,6 +11,7 @@ import GlassPanel from '../components/GlassPanel';
 import { getMallItems, getUserPointsBalance, purchaseItem } from '../services/mallService';
 import type { MallItem, MallCategory, PointsBalance } from '../types/mall';
 import { useTheme } from '../contexts/ThemeContext';
+import { logger } from '../utils/logger';
 import { IMAGES } from '../constants';
 import toast from 'react-hot-toast';
 
@@ -59,7 +60,7 @@ const PointsMall: React.FC = () => {
     try {
       await Promise.all([loadItems(), loadPointsBalance()]);
     } catch (error) {
-      console.error('Failed to load mall data:', error);
+      logger.points.error('Failed to load mall data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +72,7 @@ const PointsMall: React.FC = () => {
       const data = await getMallItems(filter);
       setItems(data);
     } catch (error) {
-      console.error('Failed to load items:', error);
+      logger.points.error('Failed to load items:', error);
       toast.error('加载商品失败');
     }
   };
@@ -81,7 +82,7 @@ const PointsMall: React.FC = () => {
       const balance = await getUserPointsBalance();
       setPointsBalance(balance);
     } catch (error) {
-      console.error('Failed to load points balance:', error);
+      logger.points.error('Failed to load points balance:', error);
     }
   };
 
@@ -108,7 +109,7 @@ const PointsMall: React.FC = () => {
         toast.error(result.message);
       }
     } catch (error) {
-      console.error('Purchase failed:', error);
+      logger.points.error('Purchase failed:', error);
       toast.error('购买失败，请稍后重试');
     } finally {
       setIsPurchasing(null);

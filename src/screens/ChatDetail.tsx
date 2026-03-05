@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Mic, MicOff, MoreVertical, Bot, X } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { IMAGES } from '../constants';
+import { logger } from '../utils/logger';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
 import { useErrorHandler } from '../utils/errorHandler';
@@ -135,7 +136,7 @@ const ChatDetail: React.FC = () => {
       setInput(prev => prev + text);
     },
     onError: (err) => {
-      console.error('Speech error:', err);
+      logger.chat.error('Speech error:', err);
     }
   });
 
@@ -326,9 +327,9 @@ const ChatDetail: React.FC = () => {
         if (status === 'SUBSCRIBED') {
           // Subscription successful
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('频道错误');
+          logger.chat.error('频道错误');
         } else if (status === 'TIMED_OUT') {
-          console.error('连接超时');
+          logger.chat.error('连接超时');
         } else if (status === 'CLOSED') {
           // Connection closed
         }
@@ -408,7 +409,7 @@ const ChatDetail: React.FC = () => {
           mediaData?.type
         );
       } catch (error) {
-        console.error('Bot 消息发送失败:', error);
+        logger.chat.error('Bot 消息发送失败:', error);
         showError('发送失败，请重试');
 
         // 发送失败，移除临时消息
@@ -480,7 +481,7 @@ const ChatDetail: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('保存用户消息失败:', error);
+      logger.chat.error('保存用户消息失败:', error);
       // 发送失败，移除临时消息
       setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
       showError('发送消息失败，请检查网络连接');

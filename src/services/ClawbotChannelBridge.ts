@@ -8,6 +8,7 @@
 import { io, Socket } from 'socket.io-client';
 import ossService from './OSSService';
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import type {
   StudyRoomAckPayload,
@@ -196,7 +197,7 @@ class ClawbotChannelBridge {
         try {
           callback(data);
         } catch (error) {
-          console.error(`[ClawbotChannel] 浜嬩欢鍥炶皟閿欒 (${event}):`, error);
+          logger.clawbot.error(`[ClawbotChannel] 浜嬩欢鍥炶皟閿欒 (${event}):`, error);
         }
       });
     }
@@ -229,18 +230,18 @@ class ClawbotChannelBridge {
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('[ClawbotChannel] Get session error:', error);
+        logger.clawbot.error('[ClawbotChannel] Get session error:', error);
         return null;
       }
 
       if (!session || !session.user) {
-        console.warn('[ClawbotChannel] user is not logged in');
+        logger.clawbot.warn('[ClawbotChannel] user is not logged in');
         return null;
       }
 
       return session.user.id;
     } catch (error) {
-      console.error('[ClawbotChannel] getSupabaseUserId 閿欒:', error);
+      logger.clawbot.error('[ClawbotChannel] getSupabaseUserId 閿欒:', error);
       return null;
     }
   }
@@ -252,7 +253,7 @@ class ClawbotChannelBridge {
     // Get user ID
     this.userId = await this.getSupabaseUserId();
     if (!this.userId) {
-      console.error('[ClawbotChannel] 鐢ㄦ埛鏈櫥褰曪紝鏃犳硶杩炴帴');
+      logger.clawbot.error('[ClawbotChannel] 鐢ㄦ埛鏈櫥褰曪紝鏃犳硶杩炴帴');
       this.emit('error', { message: '璇峰厛鐧诲綍' });
       return;
     }
@@ -289,12 +290,12 @@ class ClawbotChannelBridge {
 
     this.visibilityChangeHandler = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[ClawbotChannel] 🎉 App 切回前台，检查连接...');
+        logger.clawbot.debug('[ClawbotChannel] 🎉 App 切回前台，检查连接...');
         // 强制重置心跳时间，防止刚接收就被判定超时断开
         this.lastPongTime = Date.now();
 
         if (this.socket && this.socket.disconnected) {
-          console.log('[ClawbotChannel] detected disconnected socket, reconnecting');
+          logger.clawbot.debug('[ClawbotChannel] detected disconnected socket, reconnecting');
           this.socket.connect();
         }
       }
@@ -381,13 +382,13 @@ class ClawbotChannelBridge {
 
     // 閿欒
     this.socket.on('error', (err: unknown) => {
-      console.error('[ClawbotChannel] 閿欒:', err);
+      logger.clawbot.error('[ClawbotChannel] 閿欒:', err);
       this.emit('error', this.toErrorPayload(err, '杩炴帴閿欒'));
     });
 
     // 杩炴帴閿欒
     this.socket.on('connect_error', (err: Error) => {
-      console.error('[ClawbotChannel] 杩炴帴閿欒:', err);
+      logger.clawbot.error('[ClawbotChannel] 杩炴帴閿欒:', err);
       this.reconnectAttempts++;
       this.emit('reconnecting', { attempt: this.reconnectAttempts });
     });
@@ -484,7 +485,7 @@ class ClawbotChannelBridge {
       // 瑙ｅ喅绉诲姩绔垏鍚庡彴/閿佸睆鏈熼棿鐨勬秷鎭粦娲為棶棰?
       // UI 灞傚簲璇ョ洃鍚?'sync_missed_messages' 浜嬩欢骞朵粠 Supabase 鎷夊彇鏈€鏂版秷鎭?
       // UI 层应监听 'sync_missed_messages' 事件并从 Supabase 拉取最新消息
-      console.log('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
+      logger.clawbot.debug('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
 
     } catch (error: unknown) {
       this.connected = false;
@@ -842,7 +843,7 @@ class ClawbotChannelBridge {
       const result = await ossService.uploadFile(file);
       return result.url;
     } catch (error) {
-      console.error('[ClawbotChannel] File upload failed:', error);
+      logger.clawbot.error('[ClawbotChannel] File upload failed:', error);
       throw error;
     }
   }

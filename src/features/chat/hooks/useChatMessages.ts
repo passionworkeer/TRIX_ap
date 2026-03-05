@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../config/supabase';
+import { logger } from '../../../utils/logger';
 import {
   getChatHistory,
   sendMessage as dbSendMessage,
@@ -98,7 +99,7 @@ export const useChatMessages = ({
         // 标记已读
         await markMessagesAsRead(friendId);
       } catch (error) {
-        console.error('[useChatMessages] 加载历史失败:', error);
+        logger.chat.error('[useChatMessages] 加载历史失败:', error);
       } finally {
         setLoading(false);
       }
@@ -195,7 +196,7 @@ export const useChatMessages = ({
       // 移除临时消息，等待实时订阅更新
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
     } catch (error) {
-      console.error('[useChatMessages] 发送消息失败:', error);
+      logger.chat.error('[useChatMessages] 发送消息失败:', error);
       // 保留临时消息，但标记为发送失败
       setMessages((prev) =>
         prev.map((msg) =>
@@ -213,7 +214,7 @@ export const useChatMessages = ({
     try {
       await markMessagesAsRead(friendId);
     } catch (error) {
-      console.error('[useChatMessages] 标记已读失败:', error);
+      logger.chat.error('[useChatMessages] 标记已读失败:', error);
     }
   };
 

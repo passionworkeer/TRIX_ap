@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type { StudySession } from '../config/supabase';
 
 // ============================================
@@ -14,7 +15,7 @@ async function getCurrentUserId(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error('获取用户会话失败:', error);
+    logger.study.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
 
@@ -47,13 +48,13 @@ export async function getStudySessions(limit?: number): Promise<StudySession[]> 
     const { data, error } = await query;
 
     if (error) {
-      console.error('获取学习记录失败:', error);
+      logger.study.error('获取学习记录失败:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取学习记录失败:', error);
+    logger.study.error('获取学习记录失败:', error);
     return [];
   }
 }
@@ -83,13 +84,13 @@ export async function createStudySession(
       .single();
 
     if (error) {
-      console.error('创建学习记录失败:', error);
+      logger.study.error('创建学习记录失败:', error);
       return null;
     }
 
     return data?.id || null;
   } catch (error) {
-    console.error('创建学习记录失败:', error);
+    logger.study.error('创建学习记录失败:', error);
     return null;
   }
 }
@@ -108,13 +109,13 @@ export async function getTodayStudyTime(): Promise<number> {
       .gte('started_at', today.toISOString());
 
     if (error) {
-      console.error('获取今日学习时长失败:', error);
+      logger.study.error('获取今日学习时长失败:', error);
       return 0;
     }
 
     return data?.reduce((sum, session) => sum + session.duration, 0) || 0;
   } catch (error) {
-    console.error('获取今日学习时长失败:', error);
+    logger.study.error('获取今日学习时长失败:', error);
     return 0;
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import imageCompression from 'browser-image-compression';
 
 // ============================================
@@ -169,13 +170,13 @@ async function generateThumbnail(file: File): Promise<string | null> {
 
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        console.warn('Failed to generate thumbnail');
+        logger.upload.warn('Failed to generate thumbnail');
         resolve(null);
       };
 
       img.src = url;
     } catch (error) {
-      console.warn('Error generating thumbnail:', error);
+      logger.upload.warn('Error generating thumbnail:', error);
       resolve(null);
     }
   });
@@ -198,7 +199,7 @@ async function extractMetadata(file: File, category: 'image' | 'video'): Promise
       };
 
       img.onerror = () => {
-        console.warn('Failed to extract image metadata');
+        logger.upload.warn('Failed to extract image metadata');
         URL.revokeObjectURL(url);
         resolve(metadata);
       };
@@ -222,7 +223,7 @@ async function extractMetadata(file: File, category: 'image' | 'video'): Promise
       };
 
       video.onerror = () => {
-        console.warn('Failed to extract video metadata');
+        logger.upload.warn('Failed to extract video metadata');
         URL.revokeObjectURL(url);
         resolve(metadata);
       };
@@ -269,7 +270,7 @@ export async function uploadFile(
       try {
         compressedFile = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
       } catch (compressError) {
-        console.warn('[Upload] Compression failed, using original:', compressError);
+        logger.upload.warn('[Upload] Compression failed, using original:', compressError);
         compressedFile = file;
       }
     }
@@ -290,7 +291,7 @@ export async function uploadFile(
           metadata.thumbnail = thumbnailUrl;
         }
       } catch (thumbError) {
-        console.warn('[Upload] Thumbnail generation failed:', thumbError);
+        logger.upload.warn('[Upload] Thumbnail generation failed:', thumbError);
       }
     }
 
@@ -309,7 +310,7 @@ export async function uploadFile(
       });
 
     if (uploadError) {
-      console.error('[Upload] Upload error:', uploadError);
+      logger.upload.error('[Upload] Upload error:', uploadError);
       throw new Error(`上传失败: ${uploadError.message}`);
     }
 
@@ -330,7 +331,7 @@ export async function uploadFile(
     return result;
 
   } catch (error: unknown) {
-    console.error('[Upload] Error:', error);
+    logger.upload.error('[Upload] Error:', error);
     throw error;
   }
 }
@@ -350,11 +351,11 @@ export async function deleteFile(path: string): Promise<void> {
       .remove([path]);
 
     if (error) {
-      console.error('[Delete] Error:', error);
+      logger.upload.error('[Delete] Error:', error);
       throw new Error(`删除失败: ${error.message}`);
     }
   } catch (error: unknown) {
-    console.error('[Delete] Error:', error);
+    logger.upload.error('[Delete] Error:', error);
     throw error;
   }
 }
@@ -403,10 +404,10 @@ export function isValidFile(file: File): boolean {
  * const file = event.target.files[0];
  * try {
  *   const result = await uploadFile(file, 'image');
- *   console.log('Image uploaded:', result.uri);
+ *   logger.upload.debug('Image uploaded:', result.uri);
  *   // Use result.uri to save to database
  * } catch (error) {
- *   console.error('Upload failed:', error.message);
+ *   logger.upload.error('Upload failed:', error.message);
  * }
  * ```
  */
@@ -418,12 +419,12 @@ export function isValidFile(file: File): boolean {
  * const category = getFileCategory(file.type);
  *
  * if (!category) {
- *   console.warn('请选择图片或视频文件');
+ *   logger.upload.warn('请选择图片或视频文件');
  *   return;
  * }
  *
  * if (!isValidFile(file)) {
- *   console.warn('文件过大或格式不支持');
+ *   logger.upload.warn('文件过大或格式不支持');
  *   return;
  * }
  *
@@ -436,9 +437,9 @@ export function isValidFile(file: File): boolean {
  * ```typescript
  * try {
  *   await deleteFile('user-id/images/uuid.jpg');
- *   console.log('File deleted');
+ *   logger.upload.debug('File deleted');
  * } catch (error) {
- *   console.error('Delete failed:', error.message);
+ *   logger.upload.error('Delete failed:', error.message);
  * }
  * ```
  */

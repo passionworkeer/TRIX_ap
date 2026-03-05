@@ -10,6 +10,7 @@ import { Calendar, ChevronDown, Check, X, Flag, Save } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNotification } from '../../../hooks/useNotification';
 import { useTodoStore } from '../store/todoStore';
+import { TODO_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../../../lib/validation';
 import type { Todo, TodoPriority, CreateTodoInput, UpdateTodoInput } from '../../../types/workbench';
 
 // 优先级配置
@@ -73,15 +74,15 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
   const validate = useCallback((): boolean => {
     const errors: FormState['errors'] = {};
 
-    if (!form.title.trim()) {
-      errors.title = t('todo.validation.titleRequired');
-    } else if (form.title.length > 200) {
-      errors.title = t('todo.validation.titleTooLong');
+    // Validate title
+    const titleError = validateString(form.title, TODO_VALIDATION.title, 'title');
+    if (titleError) {
+      errors.title = getValidationErrorMessage(titleError);
     }
 
     setForm((prev) => ({ ...prev, errors }));
     return Object.keys(errors).length === 0;
-  }, [form.title, t]);
+  }, [form.title]);
 
   // Handle input change
   const handleChange = useCallback(
@@ -127,16 +128,16 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
       try {
         if (isEditing && todo) {
           const input: UpdateTodoInput = {
-            title: form.title.trim(),
-            description: form.description.trim() || undefined,
+            title: sanitizeString(form.title, TODO_VALIDATION.title.max),
+            description: sanitizeString(form.description, TODO_VALIDATION.description.max) || undefined,
             priority: form.priority,
             due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
           };
           await updateTodo(todo.id, input);
         } else {
           const input: CreateTodoInput = {
-            title: form.title.trim(),
-            description: form.description.trim() || undefined,
+            title: sanitizeString(form.title, TODO_VALIDATION.title.max),
+            description: sanitizeString(form.description, TODO_VALIDATION.description.max) || undefined,
             priority: form.priority,
             due_date: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
             completed: false,
@@ -239,6 +240,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
               value={form.title}
               onChange={(e) => handleChange('title', e.target.value)}
               placeholder={t('todo.form.titlePlaceholder')}
+              maxLength={TODO_VALIDATION.title.max}
               className={`w-full rounded-xl border bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:ring-1 ${
                 form.errors.title
                   ? 'border-rose-400/50 focus:border-rose-400 focus:ring-rose-400/20'
@@ -265,6 +267,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ todo, onClose, onSuccess }) => {
               onChange={(e) => handleChange('description', e.target.value)}
               placeholder={t('todo.form.descriptionPlaceholder')}
               rows={3}
+              maxLength={TODO_VALIDATION.description.max}
               className="w-full resize-none rounded-xl border border-white/15 bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-white/35 focus:ring-1 focus:ring-cyan-500/20"
             />
           </div>

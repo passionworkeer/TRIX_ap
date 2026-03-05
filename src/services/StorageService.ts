@@ -9,6 +9,8 @@
  * - 统一的错误处理
  */
 
+import { logger } from '../utils/logger';
+
 type StorageKey = string;
 
 interface StorageOptions {
@@ -65,17 +67,17 @@ class StorageService {
         const serialized = JSON.stringify(value);
         localStorage.setItem(key, serialized);
       } catch (error) {
-        console.error(`[StorageService] 存储失败: ${key}`, error);
+        logger.database.error(`[StorageService] 存储失败: ${key}`, error);
 
         // 配额超限时的处理
         if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-          console.warn('[StorageService] localStorage 配额超限，尝试清理');
+          logger.database.warn('[StorageService] localStorage 配额超限，尝试清理');
           this.cleanup();
           // 重试一次
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (retryError) {
-            console.error('[StorageService] 重试存储失败', retryError);
+            logger.database.error('[StorageService] 重试存储失败', retryError);
           }
         }
       }
@@ -93,7 +95,7 @@ class StorageService {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.error(`[StorageService] 删除失败: ${key}`, error);
+      logger.database.error(`[StorageService] 删除失败: ${key}`, error);
     }
   }
 
@@ -139,7 +141,7 @@ class StorageService {
     try {
       localStorage.clear();
     } catch (error) {
-      console.error('[StorageService] 清空失败', error);
+      logger.database.error('[StorageService] 清空失败', error);
     }
   }
 
@@ -241,7 +243,7 @@ class StorageService {
 
       return value as T;
     } catch (error) {
-      console.error(`[StorageService] 读取失败: ${key}`, error);
+      logger.database.error(`[StorageService] 读取失败: ${key}`, error);
 
       // 数据损坏，删除
       localStorage.removeItem(key);

@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type { Notification, Mail } from '../config/supabase';
 
 // ============================================
@@ -19,7 +20,7 @@ async function getCurrentUserId(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error('获取用户会话失败:', error);
+    logger.notification.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
 
@@ -46,13 +47,13 @@ export async function getNotifications(): Promise<Notification[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('获取通知失败:', error);
+      logger.notification.error('获取通知失败:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取通知失败:', error);
+    logger.notification.error('获取通知失败:', error);
     return [];
   }
 }
@@ -65,7 +66,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
     .eq('id', notificationId);
 
   if (error) {
-    console.error('标记通知已读失败:', error);
+    logger.notification.error('标记通知已读失败:', error);
   }
 }
 
@@ -77,7 +78,7 @@ export async function deleteNotification(notificationId: string): Promise<void> 
     .eq('id', notificationId);
 
   if (error) {
-    console.error('删除通知失败:', error);
+    logger.notification.error('删除通知失败:', error);
   }
 }
 
@@ -93,13 +94,13 @@ export async function getUnreadNotificationCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('获取未读通知数失败:', error);
+      logger.notification.error('获取未读通知数失败:', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('获取未读通知数失败:', error);
+    logger.notification.error('获取未读通知数失败:', error);
     return 0;
   }
 }
@@ -131,7 +132,7 @@ export async function subscribeToNotifications(
       supabase.removeChannel(channel);
     };
   } catch (error) {
-    console.error('订阅通知更新失败:', error);
+    logger.notification.error('订阅通知更新失败:', error);
     return () => {}; // 返回空的清理函数
   }
 }
@@ -152,13 +153,13 @@ export async function getMails(): Promise<Mail[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('获取邮件失败:', error);
+      logger.notification.error('获取邮件失败:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取邮件失败:', error);
+    logger.notification.error('获取邮件失败:', error);
     return [];
   }
 }
@@ -171,7 +172,7 @@ export async function markMailAsRead(mailId: string): Promise<void> {
     .eq('id', mailId);
 
   if (error) {
-    console.error('标记邮件已读失败:', error);
+    logger.notification.error('标记邮件已读失败:', error);
   }
 }
 
@@ -183,7 +184,7 @@ export async function deleteMail(mailId: string): Promise<void> {
     .eq('id', mailId);
 
   if (error) {
-    console.error('删除邮件失败:', error);
+    logger.notification.error('删除邮件失败:', error);
   }
 }
 
@@ -199,13 +200,13 @@ export async function getUnreadMailCount(): Promise<number> {
       .eq('is_read', false);
 
     if (error) {
-      console.error('获取未读邮件数失败:', error);
+      logger.notification.error('获取未读邮件数失败:', error);
       return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('获取未读邮件数失败:', error);
+    logger.notification.error('获取未读邮件数失败:', error);
     return 0;
   }
 }

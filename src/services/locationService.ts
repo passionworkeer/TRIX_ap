@@ -2,6 +2,7 @@
  * Location service for map features
  */
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type {
   LocationShareSettings,
   FriendLocation,
@@ -26,7 +27,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
     .eq('status', 'accepted');
 
   if (friendError) {
-    console.error('Failed to fetch friendships:', friendError);
+    logger.location.error('Failed to fetch friendships:', friendError);
     return [];
   }
 
@@ -44,7 +45,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
     .eq('is_sharing', true);
 
   if (locationError || !locations) {
-    console.error('Failed to fetch friend locations:', locationError);
+    logger.location.error('Failed to fetch friend locations:', locationError);
     return [];
   }
 
@@ -105,7 +106,7 @@ export async function updateMyLocation(request: LocationUpdateRequest): Promise<
     });
 
   if (error) {
-    console.error('Failed to update location:', error);
+    logger.location.error('Failed to update location:', error);
     throw new Error('更新位置失败');
   }
 }
@@ -175,7 +176,7 @@ export async function updateLocationShareSettings(
     });
 
   if (error) {
-    console.error('Failed to update location settings:', error);
+    logger.location.error('Failed to update location settings:', error);
     throw new Error('更新位置设置失败');
   }
 

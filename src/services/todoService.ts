@@ -7,6 +7,7 @@
 import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
 import { perfMonitor } from '../utils/performance';
+import { TODO_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
 import type {
   Todo,
   CreateTodoInput,
@@ -98,12 +99,26 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
       throw new Error('请先登录');
     }
 
+    // Validate title
+    const titleError = validateString(input.title, TODO_VALIDATION.title, 'title');
+    if (titleError) {
+      throw new Error(getValidationErrorMessage(titleError));
+    }
+
+    // Validate description if provided
+    if (input.description) {
+      const descError = validateString(input.description, TODO_VALIDATION.description, 'description');
+      if (descError) {
+        throw new Error(getValidationErrorMessage(descError));
+      }
+    }
+
     const { data, error } = await supabase
       .from('todos')
       .insert({
         user_id: user.id,
-        title: input.title,
-        description: input.description ?? null,
+        title: sanitizeString(input.title, TODO_VALIDATION.title.max),
+        description: input.description ? sanitizeString(input.description, TODO_VALIDATION.description.max) : null,
         completed: input.completed ?? false,
         priority: input.priority ?? 'medium',
         due_date: input.due_date ?? null,
@@ -140,26 +155,43 @@ export async function updateTodo(id: string, input: UpdateTodoInput): Promise<To
       throw new Error('请先登录');
     }
 
-    // 构建更新对象
+    // Build update object with validation
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
     if (input.title !== undefined) {
-      updateData.title = input.title;
+      // Validate title
+      const titleError = validateString(input.title, TODO_VALIDATION.title, 'title');
+      if (titleError) {
+        throw new Error(getValidationErrorMessage(titleError));
+      }
+      updateData.title = sanitizeString(input.title, TODO_VALIDATION.title.max);
     }
+
     if (input.description !== undefined) {
-      updateData.description = input.description;
+      // Validate description if provided
+      if (input.description) {
+        const descError = validateString(input.description, TODO_VALIDATION.description, 'description');
+        if (descError) {
+          throw new Error(getValidationErrorMessage(descError));
+        }
+      }
+      updateData.description = input.description ? sanitizeString(input.description, TODO_VALIDATION.description.max) : null;
     }
+
     if (input.completed !== undefined) {
       updateData.completed = input.completed;
     }
+
     if (input.priority !== undefined) {
       updateData.priority = input.priority;
     }
+
     if (input.due_date !== undefined) {
       updateData.due_date = input.due_date;
     }
+
     if (input.sync_status !== undefined) {
       updateData.sync_status = input.sync_status;
     }

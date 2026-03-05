@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 
 export interface MusicTrack {
   id: string;
@@ -129,7 +130,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       setIsLoading(false);
       if (isPlaying) {
         audio.play().catch(err => {
-          console.error('播放失败:', err);
+          logger.media.error('播放失败:', err);
           setError('播放失败');
           setIsPlaying(false);
         });
@@ -174,7 +175,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     if (currentTrack?.id === track.id) {
       if (!isPlaying) {
         audioRef.current.play().catch(err => {
-          console.error('播放失败:', err);
+          logger.media.error('播放失败:', err);
           setError('播放失败');
         });
         setIsPlaying(true);
@@ -193,7 +194,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
         setIsLoading(false);
       })
       .catch(err => {
-        console.error('播放失败:', err);
+        logger.media.error('播放失败:', err);
         setError('播放失败');
         setIsLoading(false);
         setIsPlaying(false);
@@ -215,7 +216,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       audioRef.current.play()
         .then(() => setIsPlaying(true))
         .catch(err => {
-          console.error('播放失败:', err);
+          logger.media.error('播放失败:', err);
           setError('播放失败');
         });
     }

@@ -9,6 +9,8 @@
  * - 自动清理
  */
 
+import { logger } from '../utils/logger';
+
 interface ConnectionOptions {
   heartbeatInterval?: number; // 心跳间隔（ms）
   reconnect?: boolean; // 是否自动重连
@@ -46,14 +48,14 @@ class ConnectionManager {
     if (this.connections.has(id)) {
       const existing = this.connections.get(id)!;
       if (existing.isConnected && existing.socket?.readyState === WebSocket.OPEN) {
-        console.log(`[ConnectionManager] 复用现有连接: ${id}`);
+        logger.websocket.debug(`[ConnectionManager] 复用现有连接: ${id}`);
         return existing.socket;
       }
       // 连接已断开，清理后重新创建
       this.disconnect(id);
     }
 
-    console.log(`[ConnectionManager] 创建新连接: ${id} -> ${url}`);
+    logger.websocket.debug(`[ConnectionManager] 创建新连接: ${id} -> ${url}`);
 
     // 创建新连接状态
     const state: ConnectionState = {
@@ -83,7 +85,7 @@ class ConnectionManager {
       socket.onopen = () => {
         if (!this.isMounted) return;
 
-        console.log(`[ConnectionManager] 连接成功: ${id}`);
+        logger.websocket.debug(`[ConnectionManager] 连接成功: ${id}`);
         state.isConnected = true;
         state.reconnectAttempts = 0;
         this.startHeartbeat(id);
@@ -110,7 +112,7 @@ class ConnectionManager {
           this.emit(id, 'message', data);
           state.options.onMessage?.(data);
         } catch (error) {
-          console.error(`[ConnectionManager] 消息解析错误: ${id}`, error);
+          logger.websocket.error(`[ConnectionManager] 消息解析错误: ${id}`, error);
         }
       };
 
@@ -118,7 +120,7 @@ class ConnectionManager {
       socket.onclose = (event) => {
         if (!this.isMounted) return;
 
-        console.log(`[ConnectionManager] 连接关闭: ${id}, code=${event.code}`);
+        logger.websocket.debug(`[ConnectionManager] 连接关闭: ${id}, code=${event.code}`);
         state.isConnected = false;
         this.stopHeartbeat(id);
 
@@ -136,7 +138,7 @@ class ConnectionManager {
       socket.onerror = (error) => {
         if (!this.isMounted) return;
 
-        console.error(`[ConnectionManager] 连接错误: ${id}`, error);
+        logger.websocket.error(`[ConnectionManager] 连接错误: ${id}`, error);
         this.emit(id, 'error', error);
         state.options.onError?.(error);
       };
@@ -146,7 +148,7 @@ class ConnectionManager {
 
       return socket;
     } catch (error) {
-      console.error(`[ConnectionManager] 创建连接失败: ${id}`, error);
+      logger.websocket.error(`[ConnectionManager] 创建连接失败: ${id}`, error);
       return null;
     }
   }
@@ -158,7 +160,7 @@ class ConnectionManager {
     const state = this.connections.get(id);
     if (!state) return;
 
-    console.log(`[ConnectionManager] 断开连接: ${id}`);
+    logger.websocket.debug(`[ConnectionManager] 断开连接: ${id}`);
 
     // 停止心跳
     this.stopHeartbeat(id);
@@ -186,7 +188,7 @@ class ConnectionManager {
    * 断开所有连接
    */
   disconnectAll(): void {
-    console.log(`[ConnectionManager] 断开所有连接 (${this.connections.size} 个)`);
+    logger.websocket.debug(`[ConnectionManager] 断开所有连接 (${this.connections.size} 个)`);
 
     this.connections.forEach((_state, id) => {
       this.disconnect(id);
@@ -201,7 +203,7 @@ class ConnectionManager {
   send(id: string, data: unknown): boolean {
     const state = this.connections.get(id);
     if (!state || !state.isConnected || !state.socket) {
-      console.warn(`[ConnectionManager] 无法发送消息，连接未就绪: ${id}`);
+      logger.websocket.warn(`[ConnectionManager] 无法发送消息，连接未就绪: ${id}`);
       return false;
     }
 
@@ -210,7 +212,7 @@ class ConnectionManager {
       state.socket.send(message);
       return true;
     } catch (error) {
-      console.error(`[ConnectionManager] 发送消息失败: ${id}`, error);
+      logger.websocket.error(`[ConnectionManager] 发送消息失败: ${id}`, error);
       return false;
     }
   }
@@ -251,7 +253,7 @@ class ConnectionManager {
   on(id: string, event: string, callback: (data: unknown) => void): void {
     const state = this.connections.get(id);
     if (!state) {
-      console.warn(`[ConnectionManager] 连接不存在: ${id}`);
+      logger.websocket.warn(`[ConnectionManager] 连接不存在: ${id}`);
       return;
     }
 
@@ -297,7 +299,7 @@ class ConnectionManager {
         try {
           callback(data);
         } catch (error) {
-          console.error(`[ConnectionManager] 事件回调错误 (${id}:${event}):`, error);
+          logger.websocket.error(`[ConnectionManager] 事件回调错误 (${id}:${event}):`, error);
         }
       });
     }
@@ -322,7 +324,7 @@ class ConnectionManager {
       const timeoutThreshold = (state.options.heartbeatInterval || 30000) * 2;
 
       if (timeSinceLastPong > timeoutThreshold) {
-        console.warn(`[ConnectionManager] 心跳超时: ${id}，重新连接`);
+        logger.websocket.warn(`[ConnectionManager] 心跳超时: ${id}，重新连接`);
         state.socket?.close();
         return;
       }
@@ -356,13 +358,13 @@ class ConnectionManager {
       30000
     );
 
-    console.log(`[ConnectionManager] 安排重连: ${id}, 尝试 ${state.reconnectAttempts}/${state.options.reconnectAttempts}, 延迟 ${delay}ms`);
+    logger.websocket.debug(`[ConnectionManager] 安排重连: ${id}, 尝试 ${state.reconnectAttempts}/${state.options.reconnectAttempts}, 延迟 ${delay}ms`);
 
     this.emit(id, 'reconnecting', { attempt: state.reconnectAttempts, delay });
 
     state.reconnectTimer = setTimeout(() => {
       if (this.isMounted && this.connections.has(id)) {
-        console.log(`[ConnectionManager] 开始重连: ${id}`);
+        logger.websocket.debug(`[ConnectionManager] 开始重连: ${id}`);
         this.connect(id, state.url, state.options);
       }
     }, delay);

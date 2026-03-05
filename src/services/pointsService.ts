@@ -9,6 +9,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 
 export interface UserPointsStats {
   total_points: number;
@@ -52,7 +53,7 @@ export async function getUserPointsStats(userId: string): Promise<UserPointsStat
 
     return data[0] as UserPointsStats;
   } catch (error) {
-    console.error('[PointsService] 获取积分统计失败:', error);
+    logger.points.error('[PointsService] 获取积分统计失败:', error);
     throw error;
   }
 }
@@ -85,7 +86,7 @@ export async function addUserPoints(
     if (error) throw error;
     return data === true;
   } catch (error) {
-    console.error('[PointsService] 添加积分失败:', error);
+    logger.points.error('[PointsService] 添加积分失败:', error);
     throw error;
   }
 }
@@ -111,7 +112,7 @@ export async function getPointsHistory(
     if (error) throw error;
     return (data || []) as PointsTransaction[];
   } catch (error) {
-    console.error('[PointsService] 获取积分历史失败:', error);
+    logger.points.error('[PointsService] 获取积分历史失败:', error);
     throw error;
   }
 }
@@ -132,7 +133,7 @@ export async function getPointsLeaderboard(limit: number = 10): Promise<any[]> {
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('[PointsService] 获取排行榜失败:', error);
+    logger.points.error('[PointsService] 获取排行榜失败:', error);
     throw error;
   }
 }
@@ -190,7 +191,7 @@ export async function initializeUserPoints(userId: string): Promise<void> {
       if (error) throw error;
     }
   } catch (error) {
-    console.error('[PointsService] 初始化积分失败:', error);
+    logger.points.error('[PointsService] 初始化积分失败:', error);
     throw error;
   }
 }

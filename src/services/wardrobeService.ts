@@ -2,6 +2,7 @@
  * Wardrobe/Avatar system service
  */
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import type {
   Outfit,
   OutfitCategory,
@@ -30,7 +31,7 @@ export async function getUserOutfits(): Promise<Outfit[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Failed to fetch outfits:', error);
+    logger.ui.error('Failed to fetch outfits:', error);
     throw new Error('获取服装列表失败');
   }
 
@@ -156,7 +157,7 @@ export async function equipOutfit(outfitId: string): Promise<EquipResponse> {
     .eq('outfit_id', outfitId);
 
   if (error) {
-    console.error('Failed to equip outfit:', error);
+    logger.ui.error('Failed to equip outfit:', error);
     return {
       success: false,
       message: '装备失败，请重试',
@@ -193,7 +194,7 @@ export async function unequipOutfit(outfitId: string): Promise<UnequipResponse> 
     .eq('outfit_id', outfitId);
 
   if (error) {
-    console.error('Failed to unequip outfit:', error);
+    logger.ui.error('Failed to unequip outfit:', error);
     return {
       success: false,
       message: '卸下失败，请重试',

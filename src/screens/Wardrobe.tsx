@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { logger } from '../utils/logger';
 import {
   getOutfitsByCategory,
   equipOutfit,
@@ -39,7 +40,7 @@ const Wardrobe: React.FC = () => {
       const data = await getOutfitsByCategory(selectedCategory);
       setOutfits(data);
     } catch (error) {
-      console.error('Failed to load outfits:', error);
+      logger.ui.error('Failed to load outfits:', error);
       toast.error('加载服装失败');
     } finally {
       setLoading(false);
@@ -52,7 +53,7 @@ const Wardrobe: React.FC = () => {
       const summary = await getUserWardrobeSummary();
       setWardrobeSummary(summary);
     } catch (error) {
-      console.error('Failed to load wardrobe summary:', error);
+      logger.ui.error('Failed to load wardrobe summary:', error);
     }
   }, []);
 
@@ -99,7 +100,7 @@ const Wardrobe: React.FC = () => {
       await loadOutfits();
       await loadWardrobeSummary();
     } catch (error) {
-      console.error('Failed to toggle outfit:', error);
+      logger.ui.error('Failed to toggle outfit:', error);
       toast.error('操作失败，请重试');
     } finally {
       setPurchasing(null);

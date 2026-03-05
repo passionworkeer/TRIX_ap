@@ -9,6 +9,8 @@ import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
 import { getErrorMessage } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
+import { PAIRING_VALIDATION, validateString, getValidationErrorMessage } from '../lib/validation';
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
@@ -38,7 +40,7 @@ const Pairing: React.FC = () => {
       try {
         await scannerRef.current.stop();
       } catch (error) {
-        console.error('Stop scanner failed:', error);
+        logger.pairing.error('Stop scanner failed:', error);
       }
     }
 
@@ -48,7 +50,7 @@ const Pairing: React.FC = () => {
       try {
         await scannerRef.current.clear();
       } catch (error) {
-        console.error('Clear scanner failed:', error);
+        logger.pairing.error('Clear scanner failed:', error);
       } finally {
         scannerRef.current = null;
       }
@@ -80,7 +82,7 @@ const Pairing: React.FC = () => {
       isScanning.current = true;
       toast.success('摄像头已启动');
     } catch (error) {
-      console.error('Start scanner failed:', error);
+      logger.pairing.error('Start scanner failed:', error);
       toast.error('无法访问摄像头，请检查权限设置');
     }
   };
@@ -134,8 +136,10 @@ const Pairing: React.FC = () => {
   };
 
   const handlePairWithCode = async () => {
-    if (!codeInput || codeInput.length !== 6) {
-      toast.error('请输入 6 位配对码');
+    // Validate pairing code
+    const codeError = validateString(codeInput, PAIRING_VALIDATION.code, 'code');
+    if (codeError) {
+      toast.error(getValidationErrorMessage(codeError));
       return;
     }
 

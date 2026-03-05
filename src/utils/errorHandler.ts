@@ -9,6 +9,7 @@
  */
 
 import { useNotification } from '../hooks/useNotification';
+import { logger } from './logger';
 
 // 错误类型枚举
 export enum ErrorType {
@@ -168,7 +169,7 @@ function parseError(error: unknown): AppError {
 function logError(error: AppError): void {
   // 开发环境：在控制台输出详细错误信息
   if (import.meta.env.DEV) {
-    console.error('🔴 Error:', {
+    logger.ui.error('🔴 Error:', {
       type: error.type,
       message: error.userMessage,
       originalError: error.originalError,
@@ -186,7 +187,7 @@ function logError(error: AppError): void {
     // Sentry.captureException(error.originalError);
 
     // 简单的生产环境日志
-    console.error('Error:', {
+    logger.ui.error('Error:', {
       type: error.type,
       message: error.userMessage,
       timestamp: new Date().toISOString(),
@@ -344,7 +345,7 @@ export const ErrorFactory = {
  *   await someOperation();
  * } catch (error: unknown) {
  *   if (hasErrorMessage(error)) {
- *     console.error(error.message);
+ *     logger.ui.error(error.message);
  *   }
  * }
  * ```

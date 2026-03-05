@@ -11,6 +11,7 @@
 
 import React, { useState } from 'react';
 import { Image as ImageIcon, Video, X } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 interface MediaMessageProps {
   uri: string;
@@ -36,7 +37,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
   const loadStart = React.useRef<number>(0);
 
   // Debug log
-  console.log('🖼️ [MediaMessage] Rendering:', {
+  logger.media.debug('🖼️ [MediaMessage] Rendering:', {
     type,
     uri,
     thumbnail,
@@ -86,11 +87,11 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }`}
           onLoad={() => {
             const loadTime = performance.now() - loadStart.current;
-            console.log(`✅ [MediaMessage] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+            logger.media.debug(`✅ [MediaMessage] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
             setIsLoading(false);
           }}
           onError={() => {
-            console.error('❌ [MediaMessage] Image load failed:', uri);
+            logger.media.error('❌ [MediaMessage] Image load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}
@@ -124,7 +125,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }`}
           onLoadedData={() => setIsLoading(false)}
           onError={() => {
-            console.error('❌ [MediaMessage] Video load failed:', uri);
+            logger.media.error('❌ [MediaMessage] Video load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}
@@ -188,11 +189,11 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
             }`}
             onLoad={() => {
               const loadTime = performance.now() - loadStart.current;
-              console.log(`✅ [MediaMessageInline] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+              logger.media.debug(`✅ [MediaMessageInline] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
               setIsLoading(false);
             }}
             onError={() => {
-              console.error('❌ [MediaMessageInline] Image load failed:', uri);
+              logger.media.error('❌ [MediaMessageInline] Image load failed:', uri);
               setIsLoading(false);
               setError(true);
             }}

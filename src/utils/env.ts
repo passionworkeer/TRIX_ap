@@ -1,4 +1,5 @@
 import { getClawbotEndpoints, maskSecret } from '../config/clawbotEndpoints';
+import { logger } from './logger';
 
 const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_URL',
@@ -126,29 +127,29 @@ function validateEnvVars(): ValidationError[] {
 function displayErrors(errors: ValidationError[]): void {
   const separator = '='.repeat(60);
 
-  console.error(`\n${separator}`);
-  console.error('  Environment Variable Validation Failed');
-  console.error(`${separator}\n`);
-  console.error('The application cannot start because required environment variables are missing or invalid.\n');
-  console.error('Validation Errors:\n');
+  logger.ui.error(`\n${separator}`);
+  logger.ui.error('  Environment Variable Validation Failed');
+  logger.ui.error(`${separator}\n`);
+  logger.ui.error('The application cannot start because required environment variables are missing or invalid.\n');
+  logger.ui.error('Validation Errors:\n');
 
   errors.forEach((error, index) => {
-    console.error(`  ${index + 1}. ${error.variable}`);
-    console.error(`     ${error.message}\n`);
+    logger.ui.error(`  ${index + 1}. ${error.variable}`);
+    logger.ui.error(`     ${error.message}\n`);
   });
 
-  console.error('How to Fix:\n');
-  console.error('  1. Copy the example file:');
-  console.error('     cp .env.example .env\n');
-  console.error('  2. Edit .env and fill in the required values:');
+  logger.ui.error('How to Fix:\n');
+  logger.ui.error('  1. Copy the example file:');
+  logger.ui.error('     cp .env.example .env\n');
+  logger.ui.error('  2. Edit .env and fill in the required values:');
 
   errors.forEach((error) => {
-    console.error(`     ${error.variable}=<your-value-here>`);
+    logger.ui.error(`     ${error.variable}=<your-value-here>`);
   });
 
-  console.error('\n  3. For Supabase keys, see:');
-  console.error('     https://supabase.com/dashboard/project/YOUR_PROJECT_ID/settings/api\n');
-  console.error(`${separator}\n`);
+  logger.ui.error('\n  3. For Supabase keys, see:');
+  logger.ui.error('     https://supabase.com/dashboard/project/YOUR_PROJECT_ID/settings/api\n');
+  logger.ui.error(`${separator}\n`);
 }
 
 function displayOptionalInfo(): void {
@@ -163,19 +164,19 @@ function displayOptionalInfo(): void {
   }
 
   if (optionalSet.length > 0) {
-    console.log(`Environment Variables: ${REQUIRED_ENV_VARS.length + optionalSet.length} variables loaded`);
-    console.log(`  - Required: ${REQUIRED_ENV_VARS.length} (all present)`);
-    console.log(`  - Optional: ${optionalSet.length} (${optionalSet.join(', ')})`);
+    logger.ui.debug(`Environment Variables: ${REQUIRED_ENV_VARS.length + optionalSet.length} variables loaded`);
+    logger.ui.debug(`  - Required: ${REQUIRED_ENV_VARS.length} (all present)`);
+    logger.ui.debug(`  - Optional: ${optionalSet.length} (${optionalSet.join(', ')})`);
   } else {
-    console.log('Environment Variables: All required variables loaded');
+    logger.ui.debug('Environment Variables: All required variables loaded');
   }
 
-  console.log(`  - Clawbot Channel URL: ${endpoints.channelUrl}`);
-  console.log(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl}`);
-  console.log(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
+  logger.ui.debug(`  - Clawbot Channel URL: ${endpoints.channelUrl}`);
+  logger.ui.debug(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl}`);
+  logger.ui.debug(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
 
   if (import.meta.env.VITE_OSS_ENDPOINT?.trim()) {
-    console.warn(
+    logger.ui.warn(
       'Environment Variables: VITE_OSS_ENDPOINT is deprecated; prefer VITE_ALIYUN_OSS_* for OSS config.'
     );
   }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import GlassPanel from './GlassPanel';
 import { getErrorMessage } from '../utils/errorHandler';
+import { FRIEND_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
 
 interface AddFriendModalProps {
   isOpen: boolean;
@@ -19,13 +20,17 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
   const handleSend = async () => {
     setError('');
     setSuccess('');
-    if (!account.trim()) {
-      setError('请输入对方账号（邮箱或用户名）');
+
+    // Validate account
+    const validationError = validateString(account, FRIEND_VALIDATION.account, 'account');
+    if (validationError) {
+      setError(getValidationErrorMessage(validationError));
       return;
     }
+
     setLoading(true);
     try {
-      await onSend(account.trim());
+      await onSend(sanitizeString(account, FRIEND_VALIDATION.account.max));
       setSuccess('好友请求已发送！');
       setAccount('');
     } catch (e: unknown) {
@@ -61,6 +66,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
           value={account}
           onChange={e => setAccount(e.target.value)}
           disabled={loading}
+          maxLength={FRIEND_VALIDATION.account.max}
           aria-label="对方账号"
         />
         {error && (

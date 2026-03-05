@@ -6,6 +6,7 @@
  */
 
 import { getAliyunOssEnv } from '../utils/env';
+import { logger } from '../utils/logger';
 
 interface OSSConfig {
   region: string;
@@ -29,7 +30,7 @@ class AliyunOSSService {
     };
 
     if (env.usingLegacyEndpointFallback) {
-      console.warn('[OSS] VITE_OSS_ENDPOINT is deprecated; please migrate to VITE_ALIYUN_OSS_ENDPOINT');
+      logger.upload.warn('[OSS] VITE_OSS_ENDPOINT is deprecated; please migrate to VITE_ALIYUN_OSS_ENDPOINT');
     }
   }
 
@@ -109,7 +110,7 @@ class AliyunOSSService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[OSS] 上传失败:', errorText);
+        logger.upload.error('[OSS] 上传失败:', errorText);
         throw new Error(`上传失败: ${response.status} ${response.statusText}`);
       }
 
@@ -118,7 +119,7 @@ class AliyunOSSService {
         name: objectName,
       };
     } catch (error) {
-      console.error('[OSS] 上传错误:', error);
+      logger.upload.error('[OSS] 上传错误:', error);
       throw error;
     }
   }

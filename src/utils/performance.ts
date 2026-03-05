@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { logger } from './logger';
 
 // ============================================
 // Performance Monitoring Types
@@ -95,7 +96,7 @@ class PerformanceMonitorImpl {
 
     const metric = this.activeMeasures.get(name);
     if (!metric) {
-      console.warn(`[Performance] No active measurement found for ${name}`);
+      logger.ui.warn(`[Performance] No active measurement found for ${name}`);
       return null;
     }
 
@@ -115,7 +116,7 @@ class PerformanceMonitorImpl {
     this.activeMeasures.delete(name);
 
     // Log to console
-    console.log(
+    logger.ui.debug(
       `[Performance] ${name}: ${duration.toFixed(2)}ms`,
       metric.metadata || ''
     );
@@ -178,7 +179,7 @@ class PerformanceMonitorImpl {
 
       // Only log slow renders (>16ms = 60fps frame time)
       if (actualDuration > 16) {
-        console.warn(
+        logger.ui.warn(
           `[Performance] Slow render: ${componentName} took ${actualDuration.toFixed(2)}ms`,
           { id, phase, baseDuration }
         );
@@ -299,7 +300,7 @@ export function usePerformanceTracking(componentName: string): void {
   // Use React.Profiler on parent component instead.
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
-    console.warn(
+    logger.ui.warn(
       `[Performance] usePerformanceTracking('${componentName}') is deprecated. ` +
       'Use React.Profiler or perfMonitor.createRenderProfilerCallback() instead.'
     );
@@ -325,7 +326,7 @@ export function useRenderProfiler(
 
       // Log slow renders
       if (actualDuration > 16) {
-        console.warn(
+        logger.ui.warn(
           `[Performance] Slow render: ${componentName}`,
           { phase, actualDuration, baseDuration }
         );

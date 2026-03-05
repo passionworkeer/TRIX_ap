@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Image, Mic, MicOff, Send } from 'lucide-react';
 import { useSpeechToText } from '../../../hooks/useSpeechToText';
 import { useNotification } from '../../../hooks/useNotification';
+import { CHAT_VALIDATION } from '../../../lib/validation';
 import MediaPreview from './MediaPreview';
 
 interface MediaData {
@@ -51,6 +52,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSend = () => {
     if ((!value.trim() && !pendingMedia) || disabled) return;
+
+    // Validate message length
+    if (value.length > CHAT_VALIDATION.messageText.max) {
+      showWarning(`消息内容不能超过 ${CHAT_VALIDATION.messageText.max} 个字符`);
+      return;
+    }
 
     onSend(value, pendingMedia || undefined);
     onChange('');
@@ -142,6 +149,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
+            maxLength={CHAT_VALIDATION.messageText.max}
             className="w-full resize-none rounded-full border border-white/20 bg-white/10 px-4 py-3 pr-12 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50"
             style={{
               minHeight: '48px',

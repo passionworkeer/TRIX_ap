@@ -1,5 +1,7 @@
 import { supabase } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
+import { FRIEND_VALIDATION, validateString, getValidationErrorMessage } from '../lib/validation';
 import type { Notification, FriendLatestMessage } from '../config/supabase';
 
 // ============================================
@@ -161,7 +163,7 @@ async function getCurrentUserId(): Promise<string> {
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error('获取用户会话失败:', error);
+    logger.chat.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
 
@@ -182,7 +184,7 @@ async function markNotificationAsRead(notificationId: string): Promise<void> {
     .eq('id', notificationId);
 
   if (error) {
-    console.error('标记通知已读失败:', error);
+    logger.chat.error('标记通知已读失败:', error);
   }
 }
 
@@ -211,6 +213,13 @@ export async function addFriend(account: string): Promise<void> {
 export async function sendFriendRequest(account: string): Promise<void> {
   try {
     const normalizedAccount = account.trim();
+
+    // Validate account
+    const accountError = validateString(normalizedAccount, FRIEND_VALIDATION.account, 'account');
+    if (accountError) {
+      throw new Error(getValidationErrorMessage(accountError));
+    }
+
     if (!normalizedAccount) {
       throw new Error('请输入用户名或邮箱');
     }
@@ -480,13 +489,13 @@ export async function getFriendById(friendId: string): Promise<FriendLatestMessa
       .single();
 
     if (error) {
-      console.error('获取好友信息失败:', error);
+      logger.chat.error('获取好友信息失败:', error);
       return null;
     }
 
     return data as FriendLatestMessage;
   } catch (error) {
-    console.error('获取好友信息失败:', error);
+    logger.chat.error('获取好友信息失败:', error);
     return null;
   }
 }
@@ -508,10 +517,10 @@ export async function updateFriendStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('更新好友状态失败:', error);
+      logger.chat.error('更新好友状态失败:', error);
     }
   } catch (error) {
-    console.error('更新好友状态失败:', error);
+    logger.chat.error('更新好友状态失败:', error);
   }
 }
 
@@ -548,9 +557,9 @@ export async function updateFriendStudyStatus(
       .eq('friend_id', friendId);
 
     if (error) {
-      console.error('更新好友学习状态失败:', error);
+      logger.chat.error('更新好友学习状态失败:', error);
     }
   } catch (error) {
-    console.error('更新好友学习状态失败:', error);
+    logger.chat.error('更新好友学习状态失败:', error);
   }
 }

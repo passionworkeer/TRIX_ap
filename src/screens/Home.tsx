@@ -5,6 +5,7 @@ import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
+import { logger } from '../utils/logger';
 import MailPanel from '../components/MailPanel';
 import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
@@ -87,7 +88,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
         setShowTodo(true);
         break;
       default:
-        console.log('Unknown workbench action:', itemId);
+        logger.ui.debug('Unknown workbench action:', itemId);
     }
   };
 
@@ -197,7 +198,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
         isOpen={showLocation}
         onClose={() => setShowLocation(false)}
         onLocationSelected={(location) => {
-          console.log('Selected location:', location);
+          logger.ui.debug('Selected location:', location);
           // TODO: Handle location selection (e.g., send to chat)
         }}
       />

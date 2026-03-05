@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 import { ACHIEVEMENTS, Achievement, AchievementType } from '../types/achievement';
 
 interface UserAchievement {
@@ -47,7 +48,7 @@ class AchievementService {
 
       return newlyUnlocked;
     } catch (error) {
-      console.error('Failed to check achievements:', error);
+      logger.study.error('Failed to check achievements:', error);
       return [];
     }
   }
@@ -129,7 +130,7 @@ class AchievementService {
         night_owl_count: 0   // TODO: 实现
       };
     } catch (error) {
-      console.error('Failed to get user stats:', error);
+      logger.study.error('Failed to get user stats:', error);
       return {
         total_minutes: 0,
         total_sessions: 0,
@@ -156,7 +157,7 @@ class AchievementService {
 
       return (data || []).map(item => item.achievement_id);
     } catch (error) {
-      console.error('Failed to get unlocked achievements:', error);
+      logger.study.error('Failed to get unlocked achievements:', error);
       return [];
     }
   }
@@ -176,9 +177,9 @@ class AchievementService {
 
       if (error) throw error;
 
-      console.log(`🏆 Achievement unlocked: ${achievementId}`);
+      logger.study.debug(`🏆 Achievement unlocked: ${achievementId}`);
     } catch (error) {
-      console.error('Failed to unlock achievement:', error);
+      logger.study.error('Failed to unlock achievement:', error);
     }
   }
 
@@ -196,7 +197,7 @@ class AchievementService {
           : undefined
       }));
     } catch (error) {
-      console.error('Failed to get user achievements:', error);
+      logger.study.error('Failed to get user achievements:', error);
       return ACHIEVEMENTS;
     }
   }
