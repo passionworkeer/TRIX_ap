@@ -6,38 +6,47 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
+  const productionBuild = {
+    target: 'es2015',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.debug'],
+        passes: 2,
+      },
+      mangle: {
+        safari10: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          leaflet: ['leaflet', 'react-leaflet'],
+          motion: ['framer-motion'],
+          qrcode: ['html5-qrcode'],
+          utils: ['socket.io-client', 'i18next', 'i18next-browser-languagedetector'],
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+    sourcemap: false,
+    cssCodeSplit: true,
+    modulePreload: {
+      polyfill: true,
+    },
+    reportCompressedSize: true,
+  };
+
   return {
     root: '.',
-    build: isProduction
-      ? {
-          target: 'es2015',
-          minify: 'terser',
-          terserOptions: {
-            compress: {
-              drop_console: true,
-              drop_debugger: true,
-            },
-          },
-          rollupOptions: {
-            output: {
-              manualChunks: {
-                'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-                supabase: ['@supabase/supabase-js'],
-                leaflet: ['leaflet', 'react-leaflet'],
-                motion: ['framer-motion'],
-              },
-            },
-          },
-          chunkSizeWarningLimit: 1000,
-          sourcemap: false,
-          // 性能优化
-          cssCodeSplit: true,
-          modulePreload: {
-            polyfill: true,
-          },
-          reportCompressedSize: true,
-        }
-      : undefined,
+    build: isProduction ? productionBuild : undefined,
     server: {
       host: '0.0.0.0',
       strictPort: false,
@@ -48,9 +57,16 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    // 优化依赖预构建
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        '@supabase/supabase-js',
+        'framer-motion',
+        'i18next',
+      ],
+      exclude: ['html5-qrcode'],
     },
   };
 });

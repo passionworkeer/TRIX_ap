@@ -1,11 +1,13 @@
 /**
  * 积分历史记录组件 - Points History
  * 显示用户的积分获得和消费历史
+ * 使用虚拟化列表优化性能
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, History } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
 
@@ -129,18 +131,21 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                 </div>
               </div>
 
-              {/* 内容区域 */}
-              <div className="p-4 overflow-y-auto flex-1">
+              {/* 内容区域 - 使用虚拟化列表 */}
+              <div className="flex-1 overflow-hidden">
                 {transactions.length === 0 && !loading ? (
                   <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                     <p>暂无积分记录</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {transactions.map((tx) => (
+                  <Virtuoso
+                    className="h-full"
+                    data={transactions}
+                    overscan={100}
+                    itemContent={(index, tx) => (
                       <div
                         key={tx.id}
-                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl"
+                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl mx-4 first:mt-4 last:mb-4"
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                           tx.points_change > 0 ? 'bg-green-500' : 'bg-red-500'
@@ -170,20 +175,19 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                           </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  />
                 )}
               </div>
 
               {/* 加载更多 */}
-              {hasMore && transactions.length > 0 && (
+              {hasMore && transactions.length > 0 && !loading && (
                 <div className="p-4 flex-shrink-0">
                   <button
                     onClick={() => setPage(p => p + 1)}
-                    disabled={loading}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white font-semibold rounded-2xl transition-colors disabled:opacity-50"
+                    className="w-full px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white font-semibold rounded-2xl transition-colors"
                   >
-                    {loading ? '加载中...' : '加载更多'}
+                    加载更多
                   </button>
                 </div>
               )}
