@@ -20,9 +20,9 @@ export default function GlassDock() {
       aria-label="主导航"
       // iOS 风格的弹性进出动画
       initial={{ y: 150, opacity: 0, scale: 0.9 }}
-      animate={{ 
-        y: 0, 
-        opacity: 1, 
+      animate={{
+        y: 0,
+        opacity: 1,
         scale: 1,
         transition: {
           type: "spring",
@@ -31,9 +31,9 @@ export default function GlassDock() {
           mass: 0.8
         }
       }}
-      exit={{ 
-        y: 150, 
-        opacity: 0, 
+      exit={{
+        y: 150,
+        opacity: 0,
         scale: 0.9,
         transition: {
           type: "spring",
@@ -112,6 +112,7 @@ export default function GlassDock() {
                 padding: 0,
                 WebkitTapHighlightColor: "transparent",
               }}
+              className="group"
             >
               {/* 🌟 选中状态背景光晕 */}
               {isActive && !tab.isCore && (
@@ -131,7 +132,7 @@ export default function GlassDock() {
                   }}
                 />
               )}
-              
+
               <div style={{ position: "relative", zIndex: 1 }}>
                 {tab.isCore ? (
                   // 🌞 核心按钮：升级为发光宝石效果
@@ -174,6 +175,7 @@ export default function GlassDock() {
                         transform: isActive ? "scale(1.1)" : "scale(1)",
                         filter: isActive ? "drop-shadow(0 2px 4px rgba(55, 65, 81, 0.2))" : "none",
                       }}
+                      className="transition-transform duration-300"
                     />
                     {/* 选中指示器 */}
                     {isActive && (
@@ -198,6 +200,11 @@ export default function GlassDock() {
                   </div>
                 )}
               </div>
+
+              {/* 触摸反馈效果 */}
+              <div
+                className="absolute inset-0 rounded-2xl opacity-0 group-active:opacity-100 bg-black/5 transition-opacity duration-150"
+              />
             </button>
           );
         })}

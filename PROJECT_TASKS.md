@@ -8,41 +8,33 @@
 
 ## 任务列表
 
-### 阶段一：国际化 (i18n)
+### 阶段一：环境准备
+- [ ] TASK-001: 启动后端服务 (server/clawbot-channel) | type: devops | priority: P0
+- [ ] TASK-002: 启动前端开发服务器 | type: devops | priority: P0
 
-- [x] TASK-001: 添加繁体中文 (zh-TW) 翻译文件 | type: frontend | priority: P0 | commit: 8ec098e
-- [x] TASK-002: 补全日文 (ja) 翻译至 100% | type: frontend | priority: P1 | commit: 8ec098e
-- [x] TASK-003: 配置语言切换功能支持繁体/简体/英文/日文 | type: frontend | priority: P0 | commit: 8ec098e
+### 阶段二：界面测试开发
+- [ ] TASK-003: 首页测试 (Home) | type: testing | priority: P0
+- [ ] TASK-004: 拍照页面测试 (Snapshot) | type: testing | priority: P1
+- [ ] TASK-005: 学习页面测试 (Study) | type: testing | priority: P0
+- [ ] TASK-006: 聊天列表测试 (Chat) | type: testing | priority: P0
+- [ ] TASK-007: 个人资料测试 (Profile) | type: testing | priority: P1
+- [ ] TASK-008: 配对页面测试 (Pairing) | type: testing | priority: P1
+- [ ] TASK-009: 二维码配对测试 (QRCodePairing) | type: testing | priority: P1
+- [ ] TASK-010: 地图页面测试 (SnapMapScreen) | type: testing | priority: P1
+- [ ] TASK-011: 诊断页面测试 (Diagnostic) | type: testing | priority: P2
+- [ ] TASK-012: 积分商城测试 (PointsMall) | type: testing | priority: P1
+- [ ] TASK-013: 衣柜页面测试 (Wardrobe) | type: testing | priority: P1
 
-### 阶段二：iOS 后端对接验证
-
-- [x] TASK-004: 验证 iOS 所有 API 端点与后端同步 | type: backend | priority: P0
-- [x] TASK-005: 补充 iOS 缺失的 API 端点 | type: backend | priority: P0
-- [x] TASK-006: 添加 iOS WebSocket 重连机制 | type: backend | priority: P1 (已存在)
-
-### 阶段三：前端隐藏问题排查
-
-- [x] TASK-007: 排查并修复前端权限隐藏问题 | type: frontend | priority: P0
-- [x] TASK-008: 排查并修复 UI 样式隐藏问题 | type: frontend | priority: P0
-
-### 阶段四：文档补全
-
-- [x] TASK-009: 补充详细的 API 文档 (AI 可读格式) | type: pm | priority: P0 | commit: 8ec098e
-- [x] TASK-010: 补充组件文档 | type: pm | priority: P1 | commit: a6cfd88
-- [x] TASK-011: 补充数据库文档 | type: pm | priority: P1
-- [x] TASK-012: 补充 iOS 架构文档 | type: pm | priority: P1
-
-### 阶段五：测试补全
-
-- [x] TASK-013: 补充前端单元测试 (覆盖率 80%+) | type: testing | priority: P0 (96%覆盖)
-- [x] TASK-014: 补充 iOS 单元测试 (覆盖率 80%+) | type: testing | priority: P0 (29测试文件)
-- [x] TASK-015: 补充 E2E 测试用例 | type: testing | priority: P1 (36测试用例)
+### 阶段三：执行与验收
+- [ ] TASK-014: 运行所有测试并生成报告 | type: testing | priority: P0
 
 ---
 
 ## 执行中 (In Progress)
 
-### 待验收 (Pending Review)
+### 待处理 (Pending)
 
-### 已完成 (Done)
+---
+
+## 已完成 (Done)
 
