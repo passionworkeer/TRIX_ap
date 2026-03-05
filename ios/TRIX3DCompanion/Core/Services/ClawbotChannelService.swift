@@ -489,18 +489,55 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // MARK: - Private Methods
 
     private func getOrCreateDeviceId() -> String {
-        if let existingId = UserDefaults.standard.string(forKey: "clawbot_channel_device_id") {
-            return existingId
+        let key = "clawbot_channel_device_id"
+
+        // 尝试从 Keychain 读取
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+        if status == errSecSuccess, let data = item as? Data,
+           let deviceId = String(data: data, encoding: .utf8) {
+            return deviceId
         }
 
+        // 创建新的设备 ID
         let newId = "app_\(generateSecureRandomString(9))_\(Int(Date().timeIntervalSince1970))"
-        UserDefaults.standard.set(newId, forKey: "clawbot_channel_device_id")
+
+        // 存储到 Keychain
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: newId.data(using: .utf8)!
+        ]
+
+        // 如果已存在，先删除
+        SecItemDelete(query as CFDictionary)
+
+        // 添加新值
+        SecItemAdd(addQuery as CFDictionary, nil)
+
         return newId
     }
 
     private func generateSecureRandomString(_ length: Int) -> String {
-        let uuid = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        return String(uuid.prefix(length))
+        // 使用密码学安全的随机数生成器
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        let status = SecRandomCopyBytes(kSecRandomDefault, length, &randomBytes)
+
+        guard status == errSecSuccess else {
+            // Fallback to UUID (less secure but better than failing)
+            let uuid = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            return String(uuid.prefix(length))
+        }
+
+        return randomBytes.map { String(format: "%02x", $0) }.joined()
     }
 
     private func generateMessageId() -> String {
