@@ -113,8 +113,8 @@ struct ProfileView: View {
                     .font(.title2)
                     .fontWeight(.bold)
 
-                if appState.currentUser?.email != nil {
-                    Text(appState.currentUser!.email!)
+                if let email = appState.currentUser?.email {
+                    Text(email)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

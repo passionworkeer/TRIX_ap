@@ -625,7 +625,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         }
 
         // Check if message already exists
-        if !messagesCache[roomId]!.contains(where: { $0.id == message.id }) {
+        if let messages = messagesCache[roomId], !messages.contains(where: { $0.id == message.id }) {
             messagesCache[roomId]?.append(message)
 
             // Sort by timestamp

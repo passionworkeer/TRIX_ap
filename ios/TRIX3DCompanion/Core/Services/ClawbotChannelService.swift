@@ -131,6 +131,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var lastMessage: ClawbotMessage?
     @Published private(set) var botState: BotState = .idle
+    @Published private(set) var currentStudyRoomState: StudyRoomState?
 
     // MARK: - Private Properties
 
@@ -613,6 +614,21 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             self?.lastPongTime = Date()
         }
 
+        // Study Room State
+        socket.on("study_room_state") { [weak self] data, _ in
+            guard let data = data.first else { return }
+
+            // Handle different data formats (Socket.IO can send different types)
+            if let jsonData = data as? [String: Any] {
+                // Already parsed JSON
+                self?.handleStudyRoomStateEvent(jsonData)
+            } else if let jsonString = data as? String,
+                      let jsonData = jsonString.data(using: .utf8),
+                      let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                self?.handleStudyRoomStateEvent(parsed)
+            }
+        }
+
         socket.on("error") { [weak self] data, _ in
             if let error = data.first as? String {
                 SecureLogger.shared.error("[ClawbotChannel] Error: \(error)")
@@ -688,6 +704,29 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 self.botState = .idle
             }
         }
+    }
+
+    private func handleStudyRoomStateEvent(_ json: [String: Any]) {
+        // Try to decode as StudyRoomState directly
+        if let jsonData = try? JSONSerialization.data(withJSONObject: json),
+           let state = try? JSONDecoder().decode(StudyRoomState.self, from: jsonData) {
+            DispatchQueue.main.async {
+                self.currentStudyRoomState = state
+            }
+            return
+        }
+
+        // Try to decode as StudyRoomStateEvent (wrapper with room property)
+        if let jsonData = try? JSONSerialization.data(withJSONObject: json),
+           let event = try? JSONDecoder().decode(StudyRoomStateEvent.self, from: jsonData),
+           let room = event.room {
+            DispatchQueue.main.async {
+                self.currentStudyRoomState = room
+            }
+            return
+        }
+
+        SecureLogger.shared.warning("[ClawbotChannel] Failed to parse study_room_state event: \(json)")
     }
 
     @MainActor

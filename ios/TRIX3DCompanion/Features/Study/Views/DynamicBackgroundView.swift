@@ -19,6 +19,8 @@ struct ParticleView: View {
 
     // MARK: - Properties
 
+    private var timer: Timer?
+
     let particleCount: Int
     let primaryColor: Color
     let secondaryColor: Color
@@ -73,6 +75,29 @@ struct ParticleView: View {
     private func stopAnimation() {
         animationTimer?.invalidate()
         animationTimer = nil
+    }
+
+    // MARK: - Timer Management
+
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
+            self.updateBackground()
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func updateBackground() {
+        // Background update logic
+    }
+
+    // MARK: - Lifecycle
+
+    deinit {
+        stopTimer()
     }
 
     private func updateParticles(in size: CGSize) {
