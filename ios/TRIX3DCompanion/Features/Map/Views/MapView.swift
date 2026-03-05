@@ -147,7 +147,7 @@ struct MapView: View {
     @ViewBuilder
     private var mapContent: some View {
         ZStack {
-            // Base map with markers
+            // Base map with location markers
             Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
                 MapAnnotation(coordinate: location.coordinate) {
                     LocationMarker(
@@ -157,6 +157,13 @@ struct MapView: View {
                     ) {
                         viewModel.selectLocation(location)
                     }
+                }
+            }
+
+            // Friend markers overlay
+            ForEach(viewModel.friendLocations) { friend in
+                FriendMarkerView(friend: friend) {
+                    viewModel.selectFriend(friend)
                 }
             }
 
@@ -611,6 +618,87 @@ private struct FriendAvatarAnnotation: View {
 }
 
 /// Friend map pin that positions itself based on coordinate region
+// MARK: - Friend Marker View
+
+/// Friend marker view for map annotations
+private struct FriendMarkerView: View {
+    let friend: FriendMapLocation
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 2) {
+                // Avatar with glow for studying friends
+                ZStack(alignment: .bottomTrailing) {
+                    // Glow ring for studying friends
+                    if friend.isStudying {
+                        Circle()
+                            .fill(Color.green.opacity(0.4))
+                            .frame(width: 44, height: 44)
+                            .blur(radius: 4)
+                    }
+
+                    // Avatar background
+                    Circle()
+                        .fill(avatarGradient)
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white, lineWidth: 2)
+                        )
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+
+                    // Avatar initial
+                    Text(String(friend.name.prefix(1)))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+
+                    // Status indicator
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white, lineWidth: 1.5)
+                        )
+                        .offset(x: 2, y: 2)
+                }
+
+                // Name tag
+                Text(friend.name)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Capsule())
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var avatarGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colorIndex = abs(friend.name.hashValue) % colors.count
+        let color = colors[colorIndex]
+
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var statusColor: Color {
+        switch friend.status {
+        case "online": return .green
+        case "away": return .orange
+        default: return .gray
+        }
+    }
+}
+
 private struct FriendMapPin: View {
     let friend: FriendMapLocation
     let region: MKCoordinateRegion

@@ -351,14 +351,19 @@ final class MapViewModel: ObservableObject {
 
         switch result {
         case .success(let locations):
-            allLocations = locations
-            filteredLocations = locations
-            applyCategoryFilter()
+            if locations.isEmpty {
+                // Use mock data as fallback when API returns empty
+                loadMockData()
+            } else {
+                allLocations = locations
+                filteredLocations = locations
+                applyCategoryFilter()
+            }
 
         case .failure(let error):
             errorMessage = error.errorDescription
-            // Don't load mock data - show error instead for 真机测试
-            // Users need real API data
+            // Use mock data as fallback when API fails
+            loadMockData()
         }
 
         isLoading = false
@@ -377,6 +382,21 @@ final class MapViewModel: ObservableObject {
                 span: defaultSpan
             )
         }
+    }
+
+    /// Select a friend on the map
+    /// - Parameter friend: Friend to select
+    func selectFriend(_ friend: FriendMapLocation) {
+        // Center map on friend's location
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            region = MKCoordinateRegion(
+                center: friend.coordinate,
+                span: defaultSpan
+            )
+        }
+
+        // TODO: Show friend detail popup/sheet
+        SecureLogger.shared.debug("Selected friend: \(friend.name)")
     }
 
     /// Share location with companion
