@@ -94,17 +94,6 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
     [onCardClick]
   );
 
-  // Handle backdrop click to close
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Only close if clicking the backdrop, not the content
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
   // Handle keyboard escape
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -125,12 +114,12 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={handleBackdropClick}
+            onClick={onClose}
             onKeyDown={handleKeyDown}
             role="dialog"
             aria-modal="true"
             aria-label="工作台"
-            className="fixed inset-0 z-[60]"
+            className="fixed inset-0 z-[60] cursor-pointer"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.3)',
               backdropFilter: 'blur(4px)',
