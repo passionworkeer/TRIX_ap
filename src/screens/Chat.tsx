@@ -177,7 +177,7 @@ const Chat: React.FC = () => {
        {/* 内容层：z-index: 10 */}
        <div className="relative z-10 h-full flex flex-col overflow-hidden">
           {/* 顶部导航与搜索 */}
-          <div className="pt-24 pb-4 px-4 flex-shrink-0">
+          <div className="pt-12 pb-4 px-4 flex-shrink-0">
              {/* 标题 */}
              <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">{t('chat.title')}</h1>
 

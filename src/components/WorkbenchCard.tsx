@@ -46,65 +46,49 @@ const WorkbenchCard: React.FC<WorkbenchCardProps> = ({
     <motion.button
       onClick={onClick}
       aria-label={ariaLabel || label}
-      className="flex-shrink-0 w-20 h-24 flex flex-col items-center justify-center gap-2 rounded-2xl cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+      className="flex-shrink-0 w-20 h-24 flex flex-col items-center justify-center gap-3 rounded-[1.25rem] cursor-pointer focus:outline-none"
       style={{
-        background: `linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)`,
-        backdropFilter: 'blur(10px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(10px) saturate(150%)',
-        border: '1px solid rgba(255,255,255,0.3)',
+        background: 'rgba(255, 255, 255, 0.4)',
         boxShadow: `
-          0 4px 16px rgba(0, 0, 0, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.4)
+          0 4px 16px rgba(0, 0, 0, 0.04),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.5)
         `,
       }}
       whileHover={{
-        scale: 1.05,
-        y: -2,
-        transition: {
-          type: 'spring',
-          stiffness: 400,
-          damping: 25,
-        },
+        scale: 1.03,
+        y: -1,
       }}
       whileTap={{
         scale: 0.95,
-        transition: {
-          type: 'spring',
-          stiffness: 500,
-          damping: 30,
-        },
       }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         type: 'spring',
-        stiffness: 300,
+        stiffness: 400,
         damping: 25,
       }}
     >
       {/* Icon container with gradient background */}
       <div
-        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg`}
+        className={`w-12 h-12 rounded-[1rem] bg-gradient-to-br ${color} flex items-center justify-center`}
         style={{
           boxShadow: `
-            0 4px 12px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3)
+            0 6px 12px -2px rgba(0, 0, 0, 0.15),
+            inset 0 1px 1px rgba(255, 255, 255, 0.4)
           `,
         }}
       >
         <IconComponent
-          size={24}
-          className="text-white drop-shadow-sm"
+          size={22}
+          className="text-white"
           strokeWidth={2}
         />
       </div>
 
       {/* Label */}
       <span
-        className="text-xs font-medium text-gray-700 tracking-tight"
-        style={{
-          textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
-        }}
+        className="text-[12px] font-medium text-gray-700/90 tracking-wide"
       >
         {label}
       </span>

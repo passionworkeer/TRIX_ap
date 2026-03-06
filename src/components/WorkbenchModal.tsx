@@ -151,27 +151,25 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
           >
             {/* Main container with glassmorphism */}
             <div
-              className="relative overflow-hidden rounded-3xl p-4"
+              className="relative overflow-hidden rounded-[2rem] p-5 pb-4"
               style={{
-                background:
-                  'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%)',
-                backdropFilter: 'blur(25px) saturate(200%)',
-                WebkitBackdropFilter: 'blur(25px) saturate(200%)',
-                border: '1px solid rgba(255,255,255,0.6)',
+                background: 'rgba(250, 250, 250, 0.75)',
+                backdropFilter: 'blur(30px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
                 boxShadow: `
-                  0 25px 50px -12px rgba(0, 0, 0, 0.2),
-                  0 0 0 1px rgba(255, 255, 255, 0.4) inset,
-                  0 1px 0 rgba(255, 255, 255, 0.8) inset
+                  0 24px 48px -12px rgba(0, 0, 0, 0.15),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.8),
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.5)
                 `,
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center justify-between mb-4 px-2">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800 tracking-tight">
+                  <h2 className="text-[1.125rem] font-bold text-gray-800/90 tracking-tight leading-none mb-1">
                     工作台
                   </h2>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-[0.75rem] text-gray-500/80 font-medium">
                     快捷功能入口
                   </p>
                 </div>
@@ -312,7 +310,7 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
                       ref={scrollContainerRef}
-                      className="flex gap-3 overflow-x-auto pb-2 px-1 scroll-smooth"
+                      className="flex gap-4 overflow-x-auto pb-2 px-1 pt-1 scroll-smooth"
                       style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
@@ -349,16 +347,16 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               </div>
 
               {/* Bottom hint */}
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <div className="w-1 h-1 rounded-full bg-gray-400/40" />
-                <span className="text-[10px] text-gray-400">
+              <div className="flex items-center justify-center gap-2 mt-4 opacity-60">
+                <div className="w-[3px] h-[3px] rounded-full bg-gray-400" />
+                <span className="text-[10px] font-medium text-gray-500 tracking-wider uppercase">
                   左右滑动查看更多
                 </span>
-                <div className="w-1 h-1 rounded-full bg-gray-400/40" />
+                <div className="w-[3px] h-[3px] rounded-full bg-gray-400" />
               </div>
 
               {/* Top handle bar */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-300/50 rounded-full mt-2" />
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-1 bg-gray-300 rounded-full opacity-60" />
             </div>
           </motion.div>
         </>

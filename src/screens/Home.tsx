@@ -64,10 +64,9 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
 
   // Handle workbench card clicks
   const handleWorkbenchCardClick = (itemId: string) => {
-    onToggleUI?.(); // Close UI
     switch (itemId) {
       case 'snapshot':
-        setShowSnapshot(true);
+        // setShowSnapshot(true); // handled internally within WorkbenchModal if embedded
         break;
       case 'location':
         setShowLocation(true);
