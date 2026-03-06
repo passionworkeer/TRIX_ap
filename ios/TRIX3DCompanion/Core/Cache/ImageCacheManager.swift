@@ -279,4 +279,10 @@ extension ImageCacheManager {
 
         return image
     }
+
+    // MARK: - Cleanup
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }

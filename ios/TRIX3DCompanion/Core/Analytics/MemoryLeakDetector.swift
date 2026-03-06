@@ -53,6 +53,7 @@ final class MemoryLeakDetector {
 
     private var memorySnapshots: [MemorySnapshot] = []
     private var lastSnapshotTime: CFAbsoluteTime?
+    private var monitoringTimer: Timer?
 
     // MARK: - Initialization
 
@@ -218,7 +219,7 @@ final class MemoryLeakDetector {
 
     private func startMonitoring() {
         // Take periodic snapshots
-        Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        monitoringTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             self?.takeSnapshot()
         }
 
@@ -230,6 +231,14 @@ final class MemoryLeakDetector {
         ) { [weak self] _ in
             self?.handleMemoryWarning()
         }
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        monitoringTimer?.invalidate()
+        monitoringTimer = nil
+        NotificationCenter.default.removeObserver(self)
     }
 
     private func handleMemoryWarning() {
