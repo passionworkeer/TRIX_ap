@@ -153,7 +153,7 @@ enum DesignSystem {
         static let quick = SwiftUI.Animation.easeInOut(duration: 0.2)
 
         /// 标准动画 - 300ms
-        static let standard = SwiftUI.Animation.easeInOut(duration: 0.3)
+        static let defaultAnimation = SwiftUI.Animation.easeInOut(duration: 0.3)
 
         /// 慢速动画 - 500ms
         static let slow = SwiftUI.Animation.easeInOut(duration: 0.5)
@@ -326,7 +326,7 @@ extension View {
     }
 
     /// 应用标准动画
-    func animate(_ animation: DesignSystem.Animation = .standard) -> some View {
+    func animate(_ animation: SwiftUI.Animation = SwiftUI.Animation.easeInOut(duration: 0.3)) -> some View {
         self.animation(animation, value: UUID())
     }
 }

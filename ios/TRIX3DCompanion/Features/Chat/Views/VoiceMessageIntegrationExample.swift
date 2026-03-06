@@ -204,7 +204,7 @@ struct VoiceMessageIntegrationExample: View {
 
         let newMessage = DemoChatMessage(
             id: UUID().uuidString,
-            type: .text,
+            messageType: .text,
             text: text,
             imageURL: nil,
             audioURL: nil,
@@ -228,7 +228,7 @@ struct VoiceMessageIntegrationExample: View {
         // Create voice message
         let voiceMessage = DemoChatMessage(
             id: UUID().uuidString,
-            type: .voice,
+            messageType: .voice,
             text: nil,
             imageURL: nil,
             audioURL: audioURL,
@@ -372,7 +372,7 @@ enum DemoMessageType {
 /// Uses simplified structure different from APIEndpoints.ChatMessage
 struct DemoChatMessage: Identifiable {
     let id: String
-    let type: DemoMessageType
+    let messageType: DemoMessageType
     let text: String?
     let imageURL: URL?
     let audioURL: URL?
@@ -529,7 +529,7 @@ struct VoiceUploadRequest: Codable {
 
         // Create message
         let message = DemoChatMessage(
-            type: .voice,
+            messageType: .voice,
             audioURL: url,
             duration: duration,
             isIncoming: false

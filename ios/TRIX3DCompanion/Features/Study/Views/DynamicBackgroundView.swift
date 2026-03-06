@@ -96,10 +96,6 @@ struct ParticleView: View {
 
     // MARK: - Lifecycle
 
-    deinit {
-        stopTimer()
-    }
-
     private func updateParticles(in size: CGSize) {
         for index in particles.indices {
             particles[index].x += particles[index].speedX

@@ -193,6 +193,27 @@ enum ScheduleFilter: String, CaseIterable {
     }
 }
 
+// MARK: - Create Schedule Request
+
+/// Request model for creating a new schedule
+struct CreateScheduleRequest: Codable {
+    let title: String
+    let description: String?
+    let startTime: Date
+    let endTime: Date?
+    let reminderMinutesBefore: Int?
+    let location: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case reminderMinutesBefore = "reminder_minutes_before"
+        case location
+    }
+}
+
 // MARK: - Preview Helpers
 
 #if DEBUG

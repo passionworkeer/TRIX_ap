@@ -183,6 +183,42 @@ enum TodoFilter: String, CaseIterable {
     }
 }
 
+// MARK: - Create Todo Request
+
+/// Request model for creating a new todo
+struct CreateTodoRequest: Codable {
+    let title: String
+    let description: String?
+    let priority: Todo.Priority
+    let dueDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case priority
+        case dueDate = "due_date"
+    }
+}
+
+// MARK: - Update Todo Request
+
+/// Request model for updating an existing todo
+struct UpdateTodoRequest: Codable {
+    let title: String?
+    let description: String?
+    let completed: Bool?
+    let priority: Todo.Priority?
+    let dueDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case completed
+        case priority
+        case dueDate = "due_date"
+    }
+}
+
 // MARK: - Todo Sort Option
 
 /// Sort options for todo list

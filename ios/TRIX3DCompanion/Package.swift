@@ -33,6 +33,9 @@ let package = Package(
 
         // QR Code Scanner
         .package(url: "https://github.com/twostraws/CodeScanner.git", from: "2.0.0"),
+
+        // Socket.IO for real-time communication
+        .package(url: "https://github.com/socketio/socket.io-swift.git", from: "16.0.0"),
     ],
     targets: [
         .target(
@@ -45,6 +48,7 @@ let package = Package(
                 .product(name: "KeychainAccess", package: "KeychainAccess"),
                 .product(name: "SQLite", package: "SQLite.swift"),
                 .product(name: "CodeScanner", package: "CodeScanner"),
+                .product(name: "SocketIO", package: "socket.io-swift"),
             ]
         ),
         .testTarget(

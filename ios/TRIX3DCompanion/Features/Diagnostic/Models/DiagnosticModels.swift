@@ -41,18 +41,18 @@ struct NetworkDiagnosticResult: Identifiable, Equatable {
 }
 
 /// API endpoint for testing
-struct APIEndpoint: Identifiable {
+struct DiagnosticAPIEndpoint: Identifiable {
     let id: String
     let name: String
     let url: String
     let method: String
 
-    static let defaultEndpoints: [APIEndpoint] = [
-        APIEndpoint(id: "health", name: "Health Check", url: "/health", method: "GET"),
-        APIEndpoint(id: "auth", name: "Auth", url: "/api/v1/auth/me", method: "GET"),
-        APIEndpoint(id: "user", name: "User Profile", url: "/api/v1/users/me", method: "GET"),
-        APIEndpoint(id: "study", name: "Study Sessions", url: "/api/v1/study/sessions", method: "GET"),
-        APIEndpoint(id: "chat", name: "Chat Messages", url: "/api/v1/chat/messages", method: "GET")
+    static let defaultEndpoints: [DiagnosticAPIEndpoint] = [
+        DiagnosticAPIEndpoint(id: "health", name: "Health Check", url: "/health", method: "GET"),
+        DiagnosticAPIEndpoint(id: "auth", name: "Auth", url: "/api/v1/auth/me", method: "GET"),
+        DiagnosticAPIEndpoint(id: "user", name: "User Profile", url: "/api/v1/users/me", method: "GET"),
+        DiagnosticAPIEndpoint(id: "study", name: "Study Sessions", url: "/api/v1/study/sessions", method: "GET"),
+        DiagnosticAPIEndpoint(id: "chat", name: "Chat Messages", url: "/api/v1/chat/messages", method: "GET")
     ]
 }
 
@@ -214,14 +214,14 @@ enum PerformanceMetricType: String, CaseIterable, Identifiable {
 /// Log entry for log viewer
 struct LogEntry: Identifiable {
     let id: UUID
-    let level: LogLevel
+    let level: DiagnosticLogLevel
     let message: String
     let source: String
     let timestamp: Date
 
     init(
         id: UUID = UUID(),
-        level: LogLevel,
+        level: DiagnosticLogLevel,
         message: String,
         source: String,
         timestamp: Date = Date()
@@ -241,7 +241,7 @@ struct LogEntry: Identifiable {
 }
 
 /// Log level
-enum LogLevel: String, CaseIterable {
+enum DiagnosticLogLevel: String, CaseIterable {
     case debug = "DEBUG"
     case info = "INFO"
     case warning = "WARNING"

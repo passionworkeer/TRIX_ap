@@ -33,17 +33,6 @@ enum UserServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - User Service Protocol
-
-protocol UserServiceProtocol {
-    var currentUser: User? { get }
-    var isLoading: Bool { get }
-
-    func fetchProfile() async throws -> User
-    func updateProfile(_ update: ProfileUpdate) async throws -> User
-    func fetchStats() async throws -> UserStats
-}
-
 // MARK: - User Service
 
 @MainActor
