@@ -80,7 +80,7 @@ struct HomeView: View {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top - 10)  // 再向上移动
+                        .padding(.top, geometry.safeAreaInsets.top - 30)  // 继续向上移动
                         .opacity(isWorkbenchPresented ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
