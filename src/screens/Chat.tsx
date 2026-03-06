@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
+import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { AppRoutes } from '../types';
 import { getFriends, addFriend } from '../services/databaseService';
 import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
@@ -149,7 +150,7 @@ const Chat: React.FC = () => {
 
   // 获取好友头像
   const getFriendAvatar = (friendId: string, avatarUrl: string | null): string => {
-    if (friendId === 'clawbot') return IMAGES.WIZARD_BOY;
+    if (friendId === 'clawbot') return botAvatarImg;
     return avatarUrl || '';
   };
 
@@ -275,7 +276,7 @@ const Chat: React.FC = () => {
                               navigate(AppRoutes.CHAT_DETAIL, {
                                 state: {
                                   name: 'TRIX Bot',
-                                  avatar: IMAGES.WIZARD_BOY,
+                                  avatar: botAvatarImg,
                                   isBot: true,
                                   friendId: 'clawbot'
                                 }
@@ -288,7 +289,7 @@ const Chat: React.FC = () => {
                         >
                           {/* 头像 */}
                           <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
-                             <Avatar name="TRIX Bot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                             <img src={botAvatarImg} alt="TRIX Bot" className="w-12 h-12 rounded-full border border-white/10 object-cover" />
                              {/* 连接状态指示器 */}
                              {isClawbotChannelConnected && isClawbotPaired ? (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
@@ -368,7 +369,15 @@ const Chat: React.FC = () => {
                             >
                               {/* 头像 */}
                               <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
-                                 <Avatar name={friend.name} avatar={avatar} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                                 {isBot ? (
+                                  <img 
+                                    src={botAvatarImg} 
+                                    alt="TRIX Bot" 
+                                    className="w-12 h-12 rounded-full border border-white/10 object-cover" 
+                                  />
+                                ) : (
+                                  <Avatar name={friend.name} avatar={avatar} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                                )}
                                  {/* 在线状态指示器 - 根据真实活跃时间 */}
                                  {(() => {
                                    const lastActive = friendActiveTimes[friend.friend_id];
@@ -430,7 +439,7 @@ const Chat: React.FC = () => {
 
           {/* 右上角添加好友按钮 */}
           <button
-             className="absolute top-[5.5rem] right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
+             className="absolute top-11 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
              onClick={() => setShowAddModal(true)}
              aria-label="添加好友"
           >
