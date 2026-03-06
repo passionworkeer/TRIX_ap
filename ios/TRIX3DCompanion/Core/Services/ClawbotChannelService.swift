@@ -57,12 +57,32 @@ struct ClawbotPairingStatus: Equatable {
     let pairedAt: String?
 }
 
-/// Bot 状态
-enum BotState: String {
+/// Bot 连接状态
+enum BotConnectionState: String {
+    case online
+    case offline
+    case connecting
+    case unknown
+}
+
+/// Bot 行为状态
+enum BotBehaviorState: String {
     case idle
     case thinking
     case speaking
 }
+
+/// 消息发送状态
+enum MessageSendStatus: String {
+    case pending
+    case sent
+    case failed
+}
+
+// MARK: - Backward Compatibility
+
+/// BotState - 保留旧名称作为 BotBehaviorState 的别名，保持向后兼容
+typealias BotState = BotBehaviorState
 
 // MARK: - Protocol
 
@@ -70,6 +90,9 @@ protocol ClawbotChannelServiceProtocol {
     var connectionState: ClawbotConnectionState { get }
     var isConnected: Bool { get }
     var isPaired: Bool { get }
+    var isBotOnline: Bool { get }
+    var botConnectionState: BotConnectionState { get }
+    var botBehaviorState: BotBehaviorState { get }
     var deviceId: String? { get }
 
     // TTS
@@ -89,6 +112,7 @@ protocol ClawbotChannelServiceProtocol {
 
     // Messages
     func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?) async throws
+    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, completion: @escaping (Result<String, Error>) -> Void) async throws
 
     // Study Room
     func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> ClawbotStudyRoomState
@@ -130,8 +154,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var lastMessage: ClawbotMessage?
-    @Published private(set) var botState: BotState = .idle
+    @Published private(set) var botBehaviorState: BotBehaviorState = .idle
+    @Published private(set) var botConnectionState: BotConnectionState = .unknown
+    @Published private(set) var isBotOnline: Bool = false
     @Published private(set) var currentStudyRoomState: StudyRoomState?
+    @Published private(set) var pendingMessages: [String: MessageSendStatus] = [:]
+
+    /// Backward compatible botState - alias for botBehaviorState
+    /// Note: This property is kept for backward compatibility.
+    /// Use botBehaviorState for new code.
+    @Published private(set) var botState: BotBehaviorState = .idle
 
     // MARK: - Private Properties
 
@@ -148,6 +180,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private var heartbeatTimer: Timer?
     private var lastPongTime: Date = Date()
     private let heartbeatInterval: TimeInterval = 30
+    private var isConnectionActive: Bool = false
+
+    // Pending message callbacks
+    private var pendingMessageCompletions: [String: (Result<String, Error>) -> Void] = [:]
+    private let messageCompletionLock = NSLock()
 
     // Event handlers storage
     private var eventHandlers: [String: [(Any) -> Void]] = [:]
@@ -221,7 +258,14 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         DispatchQueue.main.async {
             self.connectionState = .disconnected
-            self.botState = .idle
+            self.setBotBehaviorState(.idle)
+            self.botConnectionState = .unknown
+            self.isBotOnline = false
+            self.isConnectionActive = false
+            self.pendingMessages.removeAll()
+            self.messageCompletionLock.lock()
+            self.pendingMessageCompletions.removeAll()
+            self.messageCompletionLock.unlock()
         }
     }
 
@@ -346,7 +390,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         DispatchQueue.main.async {
             self.isPaired = false
             self.deviceId = nil
-            self.botState = .idle
+            self.setBotBehaviorState(.idle)
             self.clearPersistedState()
         }
     }
@@ -366,8 +410,48 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         // Set bot state to thinking
         DispatchQueue.main.async {
-            self.botState = .thinking
+            self.setBotBehaviorState(.thinking)
+            self.pendingMessages[messageId] = .pending
         }
+
+        // Emit message with ACK
+        socket.emitWithAck(with: "app_message", [
+            "content": content,
+            "contentType": contentType.rawValue,
+            "mediaUrl": mediaUrl as Any,
+            "mediaMimeType": mediaMimeType as Any,
+            "messageId": messageId
+        ])
+    }
+
+    /// Send message with callback for status updates
+    func sendMessageWithCallback(
+        _ content: String,
+        contentType: ClawbotMessageContentType = .text,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) async throws {
+        guard isConnected, let socket = socket else {
+            completion(.failure(ClawbotError.notConnected))
+            throw ClawbotError.notConnected
+        }
+
+        guard isPaired else {
+            completion(.failure(ClawbotError.notPaired))
+            throw ClawbotError.notPaired
+        }
+
+        let messageId = generateMessageId()
+
+        // Set bot state to thinking and mark as pending
+        DispatchQueue.main.async {
+            self.setBotBehaviorState(.thinking)
+            self.pendingMessages[messageId] = .pending
+        }
+
+        // Store completion handler
+        pendingMessageCompletions[messageId] = completion
 
         // Emit message with ACK
         socket.emitWithAck(with: "app_message", [
@@ -489,6 +573,12 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // MARK: - Private Methods
 
+    /// Helper method to set bot behavior state and sync with backward compatible botState
+    private func setBotBehaviorState(_ state: BotBehaviorState) {
+        botBehaviorState = state
+        botState = state
+    }
+
     private func getOrCreateDeviceId() -> String {
         let key = "clawbot_channel_device_id"
 
@@ -603,15 +693,53 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         socket.on("bot_online") { [weak self] data, _ in
-            SecureLogger.shared.info("[ClawbotChannel] Bot online: \(data)")
+            SecureLogger.shared.info("[ClawbotChannel] Bot online event received")
+
+            DispatchQueue.main.async {
+                self?.isBotOnline = true
+                self?.botConnectionState = .online
+            }
         }
 
         socket.on("bot_offline") { [weak self] data, _ in
-            SecureLogger.shared.info("[ClawbotChannel] Bot offline: \(data)")
+            SecureLogger.shared.info("[ClawbotChannel] Bot offline event received")
+
+            DispatchQueue.main.async {
+                self?.isBotOnline = false
+                self?.botConnectionState = .offline
+            }
         }
 
+        // TASK-006: message_sent event - handle message send confirmation
+        socket.on("message_sent") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any],
+                  let messageId = dict["messageId"] as? String else {
+                SecureLogger.shared.warning("[ClawbotChannel] message_sent event missing messageId")
+                return
+            }
+
+            SecureLogger.shared.info("[ClawbotChannel] Message sent confirmation: \(messageId)")
+
+            DispatchQueue.main.async {
+                self?.pendingMessages[messageId] = .sent
+
+                // Invoke completion handler if exists
+                self?.messageCompletionLock.lock()
+                if let completion = self?.pendingMessageCompletions.removeValue(forKey: messageId) {
+                    self?.messageCompletionLock.unlock()
+                    completion(.success(messageId))
+                } else {
+                    self?.messageCompletionLock.unlock()
+                }
+            }
+        }
+
+        // TASK-007: pong - handle heartbeat response
         socket.on("pong") { [weak self] _, _ in
-            self?.lastPongTime = Date()
+            guard let self = self else { return }
+            self.lastPongTime = Date()
+            self.isConnectionActive = true
+            SecureLogger.shared.debug("[ClawbotChannel] Pong received, connection active")
         }
 
         // Study Room State
@@ -637,12 +765,39 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 }
             }
         }
+
+        // Handle message send failure
+        socket.on("message_failed") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any],
+                  let messageId = dict["messageId"] as? String else {
+                SecureLogger.shared.warning("[ClawbotChannel] message_failed event missing messageId")
+                return
+            }
+
+            let errorMessage = dict["error"] as? String ?? "Message send failed"
+            SecureLogger.shared.error("[ClawbotChannel] Message failed: \(messageId), error: \(errorMessage)")
+
+            DispatchQueue.main.async {
+                self?.pendingMessages[messageId] = .failed
+
+                // Invoke completion handler with error if exists
+                self?.messageCompletionLock.lock()
+                if let completion = self?.pendingMessageCompletions.removeValue(forKey: messageId) {
+                    self?.messageCompletionLock.unlock()
+                    completion(.failure(ClawbotError.messageFailed(errorMessage)))
+                } else {
+                    self?.messageCompletionLock.unlock()
+                }
+            }
+        }
     }
 
     private func handleConnected() {
         DispatchQueue.main.async {
             self.connectionState = .connected
             self.reconnectAttempts = 0
+            self.botConnectionState = .connecting
+            self.isConnectionActive = true
             self.startHeartbeat()
         }
 
@@ -676,11 +831,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
             // State machine for TTS
             if self.ttsEnabled && contentType == .text && !content.isEmpty {
-                self.botState = .thinking
+                self.setBotBehaviorState(.thinking)
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if self.botState == .thinking {
-                        self.botState = .speaking
+                    if self.botBehaviorState == .thinking {
+                        self.setBotBehaviorState(.speaking)
                     }
                 }
 
@@ -692,8 +847,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 let speakingDuration = min(max(baseMs + Double(contentLength) * perCharMs, minMs), maxMs)
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + (speakingDuration / 1000)) {
-                    if self.botState == .speaking {
-                        self.botState = .idle
+                    if self.botBehaviorState == .speaking {
+                        self.setBotBehaviorState(.idle)
                     }
                 }
 
@@ -701,7 +856,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                     await self.speakBotMessage(content)
                 }
             } else {
-                self.botState = .idle
+                self.setBotBehaviorState(.idle)
             }
         }
     }
@@ -797,23 +952,54 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private func startHeartbeat() {
         stopHeartbeat()
         lastPongTime = Date()
+        isConnectionActive = true
 
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
 
-            if Date().timeIntervalSince(self.lastPongTime) > 60 {
-                self.socket?.disconnect()
-                self.socket?.connect()
+            // Check if pong hasn't been received within timeout (60 seconds = 2 intervals)
+            let timeSinceLastPong = Date().timeIntervalSince(self.lastPongTime)
+
+            if timeSinceLastPong > 60 {
+                SecureLogger.shared.warning("[ClawbotChannel] No pong received for \(timeSinceLastPong)s, reconnecting...")
+                self.handleConnectionLost()
                 return
             }
 
+            // Send ping to keep connection alive
             self.socket?.emit("ping")
+            SecureLogger.shared.debug("[ClawbotChannel] Ping sent")
         }
+
+        // Ensure timer runs on common run loop modes
+        if let timer = heartbeatTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func handleConnectionLost() {
+        DispatchQueue.main.async {
+            self.connectionState = .reconnecting(attempt: self.reconnectAttempts + 1)
+            self.botConnectionState = .connecting
+            self.isConnectionActive = false
+        }
+
+        // Attempt to reconnect
+        socket?.disconnect()
+        socket?.connect()
     }
 
     private func stopHeartbeat() {
         heartbeatTimer?.invalidate()
         heartbeatTimer = nil
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        stopHeartbeat()
+        pendingMessageCompletions.removeAll()
+        SecureLogger.shared.info("[ClawbotChannel] Service deallocated")
     }
 }
 

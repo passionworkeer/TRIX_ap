@@ -223,6 +223,7 @@ enum APIEndpoint {
     case clawbotConversationMessages(conversationId: String)
     case clawbotSendMessage(conversationId: String)
     case clawbotDeleteConversation(conversationId: String)
+    case clawbotHistory(roomId: String)
 
     // MARK: - Study Goals
     case studyGoals
@@ -426,6 +427,7 @@ enum APIEndpoint {
         case .clawbotConversationMessages(let conversationId): return "/clawbot/conversations/\(conversationId)/messages"
         case .clawbotSendMessage(let conversationId): return "/clawbot/conversations/\(conversationId)/messages"
         case .clawbotDeleteConversation(let conversationId): return "/clawbot/conversations/\(conversationId)"
+        case .clawbotHistory(let roomId): return "/clawbot/history?room_id=\(roomId)"
 
         // Study Goals
         case .studyGoals: return "/study/goals"
