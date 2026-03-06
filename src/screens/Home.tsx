@@ -11,7 +11,6 @@ import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
 import HomeBotBubble from '../components/HomeBotBubble';
 import WorkbenchModal from '../components/WorkbenchModal';
-import SnapshotModal from '../components/SnapshotModal';
 import { TodoList, TodoProvider } from '../features/todo';
 import { ScheduleList, ScheduleProvider } from '../features/schedule';
 import { LocationPicker } from '../features/location';
@@ -143,12 +142,6 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
         isOpen={showWorkbench}
         onClose={() => setShowWorkbench(false)}
         onCardClick={handleWorkbenchCardClick}
-      />
-
-      {/* Snapshot Modal */}
-      <SnapshotModal
-        isOpen={showSnapshot}
-        onImageSelect={handleImageSelect}
       />
 
       {/* Todo Panel */}
