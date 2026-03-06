@@ -481,7 +481,7 @@ final class DatabaseManager {
                 senderId: row[messageSenderId],
                 sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
                 content: decryptedContent,
-                type: MessageType(rawValue: row[messageType]) ?? .text,
+                messageType: MessageType(rawValue: row[messageType]) ?? .text,
                 mediaUrl: row[messageMediaUrl],
                 mediaMimeType: row[messageMediaMimeType],
                 mediaDuration: row[messageMediaDuration],
@@ -677,7 +677,10 @@ final class DatabaseManager {
                 startedAt: row[sessionStartedAt],
                 completedAt: row[sessionEndedAt],
                 earnedPoints: row[sessionEarnedPoints],
-                isCompleted: row[sessionIsCompleted]
+                isCompleted: row[sessionIsCompleted],
+                subject: nil,
+                notes: nil,
+                createdAt: nil
             )
             sessions.append(session)
         }

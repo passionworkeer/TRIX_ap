@@ -246,8 +246,7 @@ struct WardrobeView: View {
     }
 
     private func purchaseOutfit(_ item: WardrobeItem) {
-        if appState.userPoints >= item.points {
-            appState.userPoints -= item.points
+        if appState.spendPoints(item.points) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 ownedOutfits.insert(item.id)
             }

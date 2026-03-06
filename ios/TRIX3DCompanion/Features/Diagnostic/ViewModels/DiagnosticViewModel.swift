@@ -34,7 +34,7 @@ final class DiagnosticViewModel: ObservableObject {
 
     // Logs
     @Published private(set) var logEntries: [LogEntry] = []
-    @Published var selectedLogLevel: LogLevel?
+    @Published var selectedLogLevel: DiagnosticLogLevel?
 
     // General
     @Published private(set) var isRefreshing: Bool = false
@@ -86,7 +86,7 @@ final class DiagnosticViewModel: ObservableObject {
         errorMessage = nil
 
         // Test each endpoint
-        for endpoint in APIEndpoint.defaultEndpoints {
+        for endpoint in DiagnosticAPIEndpoint.defaultEndpoints {
             let result = await testEndpoint(endpoint)
             networkTests.append(result)
         }
@@ -101,7 +101,7 @@ final class DiagnosticViewModel: ObservableObject {
     }
 
     /// Test a single API endpoint
-    private func testEndpoint(_ endpoint: APIEndpoint) async -> NetworkDiagnosticResult {
+    private func testEndpoint(_ endpoint: DiagnosticAPIEndpoint) async -> NetworkDiagnosticResult {
         // Create test result with testing status
         var result = NetworkDiagnosticResult(
             endpoint: endpoint.name,
@@ -134,7 +134,7 @@ final class DiagnosticViewModel: ObservableObject {
     }
 
     /// Measure latency for an endpoint
-    private func measureLatency(for endpoint: APIEndpoint) async throws -> Double {
+    private func measureLatency(for endpoint: DiagnosticAPIEndpoint) async throws -> Double {
         // Use API base URL from configuration
         let baseURL = APIBaseURL.production
         guard let url = URL(string: baseURL + endpoint.url) else {
@@ -180,7 +180,8 @@ final class DiagnosticViewModel: ObservableObject {
             type: .userDefaults,
             status: .success,
             sizeBytes: userDefaultsSize,
-            details: "\(userDefaultsSize > 0 ? "Contains data" : "Empty")"
+            details: "\(userDefaultsSize > 0 ? "Contains data" : "Empty")",
+            errorMessage: nil
         ))
 
         // Check File Storage
@@ -190,7 +191,8 @@ final class DiagnosticViewModel: ObservableObject {
             type: .fileStorage,
             status: .success,
             sizeBytes: fileStorageSize,
-            details: "Documents directory"
+            details: "Documents directory",
+            errorMessage: nil
         ))
 
         // Check Cache
@@ -200,7 +202,8 @@ final class DiagnosticViewModel: ObservableObject {
             type: .cache,
             status: cacheSize > 100 * 1024 * 1024 ? .warning : .success,
             sizeBytes: cacheSize,
-            details: cacheSize > 100 * 1024 * 1024 ? "Cache size is large" : "Cache is normal"
+            details: cacheSize > 100 * 1024 * 1024 ? "Cache size is large" : "Cache is normal",
+            errorMessage: nil
         ))
 
         // Get cache info
@@ -544,9 +547,9 @@ extension DiagnosticViewModel {
             NetworkDiagnosticResult(endpoint: "User Profile", status: .error, errorMessage: "Timeout")
         ]
         vm.storageResults = [
-            StorageDiagnosticResult(id: UUID(), type: .userDefaults, status: .success, sizeBytes: 125_000),
-            StorageDiagnosticResult(id: UUID(), type: .fileStorage, status: .success, sizeBytes: 52_428_800),
-            StorageDiagnosticResult(id: UUID(), type: .cache, status: .warning, sizeBytes: 150_000_000)
+            StorageDiagnosticResult(id: UUID(), type: .userDefaults, status: .success, sizeBytes: 125_000, details: "UserDefaults storage", errorMessage: nil),
+            StorageDiagnosticResult(id: UUID(), type: .fileStorage, status: .success, sizeBytes: 52_428_800, details: "Documents directory", errorMessage: nil),
+            StorageDiagnosticResult(id: UUID(), type: .cache, status: .warning, sizeBytes: 150_000_000, details: "Cache size is large", errorMessage: nil)
         ]
         vm.performanceMetrics = [
             PerformanceMetrics(id: UUID(), type: .memoryUsage, value: 145_000_000, unit: "MB", timestamp: Date(), isHealthy: true),

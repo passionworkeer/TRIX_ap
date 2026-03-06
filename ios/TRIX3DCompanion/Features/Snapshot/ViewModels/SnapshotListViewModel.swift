@@ -257,7 +257,7 @@ final class SnapshotListViewModel: ObservableObject {
 // MARK: - SnapshotParameters Type Alias
 
 /// Type alias for snapshot parameters
-typealias SnapshotSnapshotParameters = [String: Any]
+typealias SnapshotParameters = [String: Any]
 
 // MARK: - Preview Helpers
 

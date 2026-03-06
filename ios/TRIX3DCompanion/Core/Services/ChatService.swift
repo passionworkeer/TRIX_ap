@@ -107,7 +107,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     // MARK: - Dependencies
 
     private let apiClient: APIClient
-    private let clawbotChannelService: ClawbotChannelServiceProtocol
+    private let clawbotChannelService: ClawbotChannelService
     private let authService: AuthService
 
     // MARK: - Private Properties
@@ -136,7 +136,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     ///   - authService: Auth service instance (defaults to shared)
     init(
         apiClient: APIClient = .shared,
-        clawbotChannelService: ClawbotChannelServiceProtocol? = nil,
+        clawbotChannelService: ClawbotChannelService? = nil,
         authService: AuthService = .shared
     ) {
         self.apiClient = apiClient
@@ -423,8 +423,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     // MARK: - Public Methods - WebSocket
 
     /// Connect to ClawbotChannel for real-time updates
+    /// - Parameter userId: The user ID for authentication
     /// - Returns: ChatResult indicating success or failure
-    func connectWebSocket() async -> ChatResult<Void> {
+    func connectWebSocket(userId: String) async -> ChatResult<Void> {
         // Verify authentication
         guard authService.isLoggedIn else {
             let error = ChatError.notAuthenticated
@@ -587,7 +588,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             senderId: "bot",
             sender: .bot,
             content: clawbotMessage.content,
-            type: messageType,
+            messageType: messageType,
             mediaUrl: clawbotMessage.mediaUrl,
             mediaMimeType: clawbotMessage.mediaMimeType,
             mediaDuration: nil,
@@ -699,7 +700,7 @@ private extension ChatMessage {
             senderId: senderId,
             sender: sender,
             content: content,
-            type: type,
+            messageType: messageType,
             mediaUrl: mediaUrl,
             mediaMimeType: mediaMimeType,
             mediaDuration: mediaDuration,

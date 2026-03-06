@@ -36,6 +36,12 @@ enum NetworkError: Error, LocalizedError, Hashable {
     /// Not found (404)
     case notFound
 
+    /// Bad request (400)
+    case badRequest
+
+    /// Conflict (409)
+    case conflict
+
     /// Custom error with message
     case custom(message: String)
 
@@ -69,6 +75,10 @@ enum NetworkError: Error, LocalizedError, Hashable {
             hasher.combine(7)
         case .notFound:
             hasher.combine(8)
+        case .badRequest:
+            hasher.combine(12)
+        case .conflict:
+            hasher.combine(13)
         case .custom(let message):
             hasher.combine(9)
             hasher.combine(message)
@@ -134,6 +144,10 @@ enum NetworkError: Error, LocalizedError, Hashable {
             return "Access forbidden"
         case .notFound:
             return "Resource not found"
+        case .badRequest:
+            return "Bad request. Please check your input."
+        case .conflict:
+            return "Conflict. The resource already exists."
         case .custom(let message):
             return message
         case .unknown(let error):

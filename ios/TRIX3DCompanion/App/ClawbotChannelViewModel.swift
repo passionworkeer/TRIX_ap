@@ -187,6 +187,13 @@ final class ClawbotChannelViewModel: ObservableObject {
         // Bind bot state
         service.$botState
             .receive(on: DispatchQueue.main)
+            .map { botBehaviorState -> BotState in
+                switch botBehaviorState {
+                case .idle: return .idle
+                case .thinking: return .thinking
+                case .speaking: return .speaking
+                }
+            }
             .assign(to: &$botState)
     }
 
