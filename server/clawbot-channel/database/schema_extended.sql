@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS user_points (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
     total_points INTEGER DEFAULT 0,
-    lifetime_points INTEGER DEFAULT 0,
+    total_earned INTEGER DEFAULT 0,
     level INTEGER DEFAULT 1,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -1344,7 +1344,7 @@ async function addPoints(userId, amount, type, reason) {
       .from('user_points')
       .update({
         total_points: existingPoints.total_points + amount,
-        lifetime_points: existingPoints.lifetime_points + amount,
+        total_earned: existingPoints.total_earned + amount,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
@@ -1354,7 +1354,7 @@ async function addPoints(userId, amount, type, reason) {
       .insert({
         user_id: userId,
         total_points: amount,
-        lifetime_points: amount
+        total_earned: amount
       });
   }
 
