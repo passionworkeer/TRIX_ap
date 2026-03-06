@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase, updateLastActive } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { FRIEND_VALIDATION, validateString, getValidationErrorMessage } from '../lib/validation';
@@ -441,10 +441,17 @@ export async function rejectFriendRequest(notificationId: string): Promise<void>
 
 /**
  * 获取所有好友（包含未读消息信息）
+ * 同时自动更新当前用户的活跃时间
  */
 export async function getFriends(): Promise<FriendLatestMessage[]> {
   try {
     const userId = await getCurrentUserId();
+
+    // 自动更新当前用户的活跃时间
+    // 忽略错误，不影响获取好友列表
+    updateLastActive().catch(() => {
+      // 静默处理更新失败
+    });
 
     const { data, error } = await supabase
       .from('friend_latest_messages')
