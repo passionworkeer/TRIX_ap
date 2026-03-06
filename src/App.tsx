@@ -280,7 +280,7 @@ const App: React.FC = () => {
         <ClawbotChannelProvider>
           <HashRouter>
             <AppContent />
-            <PerformanceDashboard />
+            {/* <PerformanceDashboard /> */}
           </HashRouter>
         </ClawbotChannelProvider>
       </AuthProvider>

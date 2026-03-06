@@ -111,7 +111,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
     >
-      {isDev && (
+      {/* isDev && (
         <div className="fixed top-3 left-3 z-[110] pointer-events-none">
           <div className="rounded-lg border border-white/20 bg-black/45 px-3 py-2 text-[11px] text-white/95 backdrop-blur-sm shadow-lg">
             <div className="font-semibold tracking-wide">DEV</div>
@@ -119,7 +119,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
             <div>video: {devVideoSource || 'unknown'}</div>
           </div>
         </div>
-      )}
+      ) */}
 
       <HomeBotBubble onClick={handleOpenTrixBot} />
 
