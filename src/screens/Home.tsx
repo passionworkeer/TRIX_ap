@@ -21,11 +21,12 @@ import {
 } from '../utils/pairingToast';
 
 interface HomeProps {
-  onBackgroundClick?: () => void;
+  isUIVisible?: boolean;
+  onToggleUI?: () => void;
   devVideoSource?: string;
 }
 
-const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
+const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) => {
   const isDev = import.meta.env.DEV;
   const navigate = useNavigate();
   const { isConnected, isPaired, botState } = useClawbotChannel();
@@ -34,7 +35,6 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
-  const [showWorkbench, setShowWorkbench] = useState(false);
   const [showSnapshot, setShowSnapshot] = useState(false);
   const [showTodo, setShowTodo] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
@@ -62,17 +62,9 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
     });
   };
 
-  // Handle background click to show workbench
-  const handleBackgroundClick = () => {
-    setShowWorkbench(true);
-    // Also call the parent handler if provided
-    onBackgroundClick?.();
-  };
-
   // Handle workbench card clicks
   const handleWorkbenchCardClick = (itemId: string) => {
-    setShowWorkbench(false); // Close workbench first
-
+    onToggleUI?.(); // Close UI
     switch (itemId) {
       case 'snapshot':
         setShowSnapshot(true);
@@ -94,14 +86,12 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
   // Handle image selection from SnapshotModal
   const handleImageSelect = (imageUri: string) => {
     setShowSnapshot(false);
-    setShowWorkbench(false);
 
     if (!isConnected || !isPaired) {
       showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
         ...PAIRING_REQUIRED_TOAST_OPTIONS,
         id: PAIRING_REQUIRED_TOAST_ID,
       });
-      navigate(AppRoutes.PAIRING);
       return;
     }
 
@@ -120,7 +110,6 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
     <div
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
-      onClick={handleBackgroundClick}
     >
       {isDev && (
         <div className="fixed top-3 left-3 z-[110] pointer-events-none">
@@ -139,8 +128,8 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />
 
       <WorkbenchModal
-        isOpen={showWorkbench}
-        onClose={() => setShowWorkbench(false)}
+        isOpen={!!isUIVisible}
+        onClose={() => onToggleUI?.()}
         onCardClick={handleWorkbenchCardClick}
       />
 
@@ -148,7 +137,10 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       {showTodo && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowTodo(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.target === e.currentTarget) setShowTodo(false);
+          }}
         >
           <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
             <button
@@ -169,7 +161,10 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       {showSchedule && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowSchedule(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.target === e.currentTarget) setShowSchedule(false);
+          }}
         >
           <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
             <button
