@@ -38,6 +38,11 @@ struct HomeView: View {
     @State private var showLocation = false
     @State private var useRobotBackground = true
 
+    // 追踪组件显示状态 - 用于点击逻辑
+    // 0: 初始状态（只显示视频和聊天气泡）
+    // 1: 点击后（显示顶部工具栏和工作台）
+    @State private var componentState: Int = 0
+
     // MARK: - Body
 
     var body: some View {
@@ -70,8 +75,16 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // 点击背景切换工作台显示状态
-                    isWorkbenchPresented.toggle()
+                    // 点击逻辑：
+                    // 第一次点击：显示顶部工具栏和工作台
+                    // 第二次点击：隐藏两者，只保留视频和聊天气泡
+                    if componentState == 0 {
+                        componentState = 1
+                        isWorkbenchPresented = true
+                    } else {
+                        componentState = 0
+                        isWorkbenchPresented = false
+                    }
                 }
 
                 // 顶部工具栏 - 点击主界面后显示
@@ -79,15 +92,15 @@ struct HomeView: View {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 10)  // 避开状态栏和灵动岛
-                        .opacity(isWorkbenchPresented ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
+                        .padding(.top, geometry.safeAreaInsets.top + 20)  // 向上移动 - 避开状态栏和灵动岛
+                        .opacity(componentState == 1 ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.3), value: componentState)
 
                     Spacer()
                 }
 
                 // Workbench Modal (appears on background tap) - 底部浮窗效果
-                if isWorkbenchPresented {
+                if componentState == 1 {
                     WorkbenchOverlay(
                         isPresented: $isWorkbenchPresented,
                         onCardClick: handleWorkbenchCardClick
@@ -106,7 +119,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.size.height * 0.18 + geometry.safeAreaInsets.top)  // 屏幕上方位置 + 避开灵动岛
+                    .padding(.top, geometry.safeAreaInsets.top + 50)  // 向上移动 - 靠近顶部
                     Spacer()
                 }
             }
