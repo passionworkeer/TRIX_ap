@@ -16,11 +16,20 @@ import AVFoundation
 
 public typealias SocketIOClientConfiguration = [String: Any]
 
+public enum SocketIOClientEvent: String {
+    case connect
+    case disconnect
+    case reconnect
+    case error
+}
+
 public protocol SocketIOClientProtocol: AnyObject {
     func connect()
     func disconnect()
     func emit(_ event: String, _ data: Any...)
-    func on(_ event: String, callback: @escaping (Any...) -> Void)
+    func emitWithAck(_ event: String, _ data: Any..., completion: @escaping (Any) -> Void)
+    func on(_ event: String, callback: @escaping ([Any]) -> Void)
+    func on(clientEvent event: SocketIOClientEvent, callback: @escaping ([Any], [String: Any]) -> Void)
     func off(_ event: String)
 }
 
@@ -42,7 +51,9 @@ public class StubSocketIOClient: SocketIOClientProtocol {
     public func connect() {}
     public func disconnect() {}
     public func emit(_ event: String, _ data: Any...) {}
-    public func on(_ event: String, callback: @escaping (Any...) -> Void) {}
+    public func emitWithAck(_ event: String, _ data: Any..., completion: @escaping (Any) -> Void) { completion(NSNull()) }
+    public func on(_ event: String, callback: @escaping ([Any]) -> Void) {}
+    public func on(clientEvent event: SocketIOClientEvent, callback: @escaping ([Any], [String: Any]) -> Void) {}
     public func off(_ event: String) {}
 }
 
@@ -269,10 +280,10 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         // Create Socket.IO manager
         let config: SocketIOClientConfiguration = [
-            .log(false),
-            .compress,
-            .forceWebsockets(true),
-            .reconnects(false), // Handle reconnection manually
+            "log": false,
+            "compress": true,
+            "forceWebsockets": true,
+            "reconnects": false
         ]
 
         manager = SocketManager(socketURL: URL(string: channelUrl)!, config: config)
@@ -310,7 +321,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "check_pairing_status", ["userId": userId]) { response in
+            socket.emitWithAck("check_pairing_status", ["userId": userId]) { response in
                 guard let dict = response as? [String: Any],
                       let success = dict["success"] as? Bool, success else {
                     continuation.resume(returning: ClawbotPairingStatus(
@@ -352,7 +363,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "pair_with_code", ["code": normalizedCode, "userId": userId]) { response in
+            socket.emitWithAck("pair_with_code", ["code": normalizedCode, "userId": userId]) { response in
                 guard let dict = response as? [String: Any] else {
                     continuation.resume(throwing: ClawbotError.invalidResponse)
                     return
@@ -397,7 +408,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "pair_with_token", ["token": finalToken, "userId": userId]) { response in
+            socket.emitWithAck("pair_with_token", ["token": finalToken, "userId": userId]) { response in
                 guard let dict = response as? [String: Any] else {
                     continuation.resume(throwing: ClawbotError.invalidResponse)
                     return
@@ -448,13 +459,13 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // Emit message with ACK
-        socket.emitWithAck(with: "app_message", [
+        socket.emitWithAck("app_message", [
             "content": content,
             "contentType": contentType.rawValue,
             "mediaUrl": mediaUrl as Any,
             "mediaMimeType": mediaMimeType as Any,
             "messageId": messageId
-        ])
+        ]) { _ in }
     }
 
     /// Send message with callback for status updates
@@ -487,13 +498,13 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         pendingMessageCompletions[messageId] = completion
 
         // Emit message with ACK
-        socket.emitWithAck(with: "app_message", [
+        socket.emitWithAck("app_message", [
             "content": content,
             "contentType": contentType.rawValue,
             "mediaUrl": mediaUrl as Any,
             "mediaMimeType": mediaMimeType as Any,
             "messageId": messageId
-        ])
+        ]) { _ in }
     }
 
     // MARK: - Study Room
@@ -504,7 +515,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "study_room_create", [
+            socket.emitWithAck("study_room_create", [
                 "userId": userId,
                 "displayName": displayName,
                 "avatarUrl": avatarUrl as Any,
@@ -532,7 +543,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "study_room_join", [
+            socket.emitWithAck("study_room_join", [
                 "userId": userId,
                 "roomCode": roomCode,
                 "displayName": displayName,
@@ -560,7 +571,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "study_room_leave", [
+            socket.emitWithAck("study_room_leave", [
                 "userId": userId,
                 "roomCode": roomCode as Any
             ]) { response in
@@ -583,7 +594,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            socket.emitWithAck(with: "study_room_host_action", [
+            socket.emitWithAck("study_room_host_action", [
                 "userId": userId,
                 "roomCode": roomCode,
                 "action": action.rawValue
@@ -701,7 +712,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // Custom events
-        socket.on("pairing_success") { [weak self] data, _ in
+        socket.on("pairing_success") { [weak self] data in
             guard let dict = data.first as? [String: Any],
                   let deviceId = dict["deviceId"] as? String else { return }
 
@@ -712,7 +723,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        socket.on("unpaired") { [weak self] _, _ in
+        socket.on("unpaired") { [weak self] _ in
             DispatchQueue.main.async {
                 self?.isPaired = false
                 self?.deviceId = nil
@@ -720,12 +731,12 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        socket.on("bot_message") { [weak self] data, _ in
+        socket.on("bot_message") { [weak self] data in
             guard let dict = data.first as? [String: Any] else { return }
             self?.handleBotMessage(dict)
         }
 
-        socket.on("bot_online") { [weak self] data, _ in
+        socket.on("bot_online") { [weak self] data in
             SecureLogger.shared.info("[ClawbotChannel] Bot online event received")
 
             DispatchQueue.main.async {
@@ -734,7 +745,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        socket.on("bot_offline") { [weak self] data, _ in
+        socket.on("bot_offline") { [weak self] data in
             SecureLogger.shared.info("[ClawbotChannel] Bot offline event received")
 
             DispatchQueue.main.async {
@@ -744,7 +755,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // TASK-006: message_sent event - handle message send confirmation
-        socket.on("message_sent") { [weak self] data, _ in
+        socket.on("message_sent") { [weak self] data in
             guard let dict = data.first as? [String: Any],
                   let messageId = dict["messageId"] as? String else {
                 SecureLogger.shared.warning("[ClawbotChannel] message_sent event missing messageId")
@@ -768,7 +779,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // TASK-007: pong - handle heartbeat response
-        socket.on("pong") { [weak self] _, _ in
+        socket.on("pong") { [weak self] _ in
             guard let self = self else { return }
             self.lastPongTime = Date()
             self.isConnectionActive = true
@@ -776,7 +787,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // Study Room State
-        socket.on("study_room_state") { [weak self] data, _ in
+        socket.on("study_room_state") { [weak self] data in
             guard let data = data.first else { return }
 
             // Handle different data formats (Socket.IO can send different types)
@@ -790,7 +801,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        socket.on("error") { [weak self] data, _ in
+        socket.on("error") { [weak self] data in
             if let error = data.first as? String {
                 SecureLogger.shared.error("[ClawbotChannel] Error: \(error)")
                 DispatchQueue.main.async {
@@ -800,7 +811,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // Handle message send failure
-        socket.on("message_failed") { [weak self] data, _ in
+        socket.on("message_failed") { [weak self] data in
             guard let dict = data.first as? [String: Any],
                   let messageId = dict["messageId"] as? String else {
                 SecureLogger.shared.warning("[ClawbotChannel] message_failed event missing messageId")

@@ -81,11 +81,10 @@ final class AchievementService: ObservableObject, AchievementServiceProtocol {
         do {
             let response: AchievementCheckResponse = try await apiClient.post(.achievementCheck)
             // Refresh achievements list after check
-            if let unlocked = response.newlyUnlocked {
-                for achievement in unlocked {
-                    if !self.achievements.contains(where: { $0.id == achievement.id }) {
-                        self.achievements.append(achievement)
-                    }
+            let unlocked = response.newlyUnlocked
+            for achievement in unlocked {
+                if !self.achievements.contains(where: { $0.id == achievement.id }) {
+                    self.achievements.append(achievement)
                 }
             }
             isLoading = false

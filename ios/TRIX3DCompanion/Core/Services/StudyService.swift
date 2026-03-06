@@ -997,7 +997,7 @@ extension StudyService {
             return .failure(.roomNotFound)
         }
 
-        return await fetchRoomState(roomCode: roomCode)
+        return await joinStudyRoom(roomCode: roomCode)
     }
 }
 

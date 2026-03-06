@@ -93,15 +93,23 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
     }
 
     /// Create a new todo
-    func createTodo(_ request: APICreateTodoRequest) async throws -> APITodo {
+    func createTodo(_ request: CreateTodoRequest) async throws -> Todo {
         isLoading = true
         lastError = nil
 
         do {
-            let response: APITodo = try await apiClient.post(.todoCreate, body: request)
-            self.todos.append(convertToLocal(response))
+            let apiRequest = APICreateTodoRequest(
+                title: request.title,
+                description: request.description,
+                dueDate: request.dueDate,
+                priority: priorityToInt(request.priority),
+                tags: nil
+            )
+            let response: APITodo = try await apiClient.post(.todoCreate, body: apiRequest)
+            let todo = convertToLocal(response)
+            self.todos.append(todo)
             isLoading = false
-            return response
+            return todo
         } catch {
             let serviceError = TodoServiceError.createFailed(underlying: error)
             lastError = serviceError
@@ -111,17 +119,27 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
     }
 
     /// Update an existing todo
-    func updateTodo(id: String, request: APIUpdateTodoRequest) async throws -> APITodo {
+    func updateTodo(id: String, request: UpdateTodoRequest) async throws -> Todo {
         isLoading = true
         lastError = nil
 
         do {
-            let response: APITodo = try await apiClient.put(.todoUpdate(id: id), body: request)
-            if let index = self.todos.firstIndex(where: { $0.id == id }) {
-                self.todos[index] = convertToLocal(response)
+            let apiRequest = APIUpdateTodoRequest(
+                title: request.title,
+                description: request.description,
+                isCompleted: request.completed,
+                dueDate: request.dueDate,
+                priority: request.priority.map { priorityToInt($0) },
+                tags: nil
+            )
+            let response: APITodo = try await apiClient.put(.todoUpdate(id: id), body: apiRequest)
+            let todo = convertToLocal(response)
+            if let uuid = UUID(uuidString: id),
+               let index = self.todos.firstIndex(where: { $0.id == uuid }) {
+                self.todos[index] = todo
             }
             isLoading = false
-            return response
+            return todo
         } catch {
             let serviceError = TodoServiceError.updateFailed(underlying: error)
             lastError = serviceError
@@ -137,7 +155,9 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
 
         do {
             let _: EmptyResponse = try await apiClient.delete(.todoDelete(id: id))
-            self.todos.removeAll { $0.id == id }
+            if let uuid = UUID(uuidString: id) {
+                self.todos.removeAll { $0.id == uuid }
+            }
             isLoading = false
         } catch {
             let serviceError = TodoServiceError.deleteFailed(underlying: error)
@@ -148,17 +168,19 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
     }
 
     /// Toggle todo completion status
-    func toggleTodo(id: String) async throws -> APITodo {
+    func toggleTodo(id: String) async throws -> Todo {
         isLoading = true
         lastError = nil
 
         do {
             let response: APITodo = try await apiClient.post(.todoToggle(id: id))
-            if let index = self.todos.firstIndex(where: { $0.id == id }) {
-                self.todos[index] = convertToLocal(response)
+            let todo = convertToLocal(response)
+            if let uuid = UUID(uuidString: id),
+               let index = self.todos.firstIndex(where: { $0.id == uuid }) {
+                self.todos[index] = todo
             }
             isLoading = false
-            return response
+            return todo
         } catch {
             let serviceError = TodoServiceError.toggleFailed(underlying: error)
             lastError = serviceError
@@ -184,27 +206,37 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
         )
     }
 
+    /// Convert local priority to API priority integer
+    private func priorityToInt(_ priority: Todo.Priority) -> Int {
+        switch priority {
+        case .low: return 0
+        case .medium: return 1
+        case .high: return 2
+        }
+    }
+
     // MARK: - Helper Methods
 
     /// Get todo by ID
     func todo(byId id: String) -> Todo? {
-        return todos.first { $0.id == id }
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        return todos.first { $0.id == uuid }
     }
 
     /// Get pending todos (not completed)
     func pendingTodos() -> [Todo] {
-        return todos.filter { !$0.isCompleted }
+        return todos.filter { !$0.completed }
     }
 
     /// Get completed todos
     func completedTodos() -> [Todo] {
-        return todos.filter { $0.isCompleted }
+        return todos.filter { $0.completed }
     }
 
     /// Get overdue todos
     func overdueTodos() -> [Todo] {
         let now = Date()
-        return todos.filter { !$0.isCompleted && ($0.dueDate ?? Date.distantFuture) < now }
+        return todos.filter { !$0.completed && ($0.dueDate ?? Date.distantFuture) < now }
     }
 
     /// Get incomplete todos count

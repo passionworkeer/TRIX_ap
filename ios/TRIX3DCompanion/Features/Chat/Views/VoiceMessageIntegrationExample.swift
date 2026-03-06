@@ -342,11 +342,11 @@ struct VoiceMessageIntegrationExample: View {
 
     private func updateMessageWithServerURL(_ serverURL: String) {
         // Find the last voice message and update its audioURL to the server URL
-        if let lastIndex = messages.lastIndex(where: { !$0.isIncoming && $0.type == .voice }) {
+        if let lastIndex = messages.lastIndex(where: { !$0.isIncoming && $0.messageType == .voice }) {
             let oldMessage = messages[lastIndex]
             let updatedMessage = DemoChatMessage(
                 id: oldMessage.id,
-                type: oldMessage.type,
+                messageType: oldMessage.messageType,
                 text: oldMessage.text,
                 imageURL: oldMessage.imageURL,
                 audioURL: URL(string: serverURL), // Update to server URL

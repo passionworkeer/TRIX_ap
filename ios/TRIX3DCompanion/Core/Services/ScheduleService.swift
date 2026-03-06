@@ -154,7 +154,8 @@ final class ScheduleService: ObservableObject, ScheduleServiceProtocol {
 
         do {
             let response: Schedule = try await apiClient.put(.scheduleUpdate(id: id), body: request)
-            if let index = self.schedules.firstIndex(where: { $0.id == id }) {
+            if let uuid = UUID(uuidString: id),
+               let index = self.schedules.firstIndex(where: { $0.id == uuid }) {
                 self.schedules[index] = response
             }
             isLoading = false
@@ -174,7 +175,9 @@ final class ScheduleService: ObservableObject, ScheduleServiceProtocol {
 
         do {
             let _: EmptyResponse = try await apiClient.delete(.scheduleDelete(id: id))
-            self.schedules.removeAll { $0.id == id }
+            if let uuid = UUID(uuidString: id) {
+                self.schedules.removeAll { $0.id == uuid }
+            }
             isLoading = false
         } catch {
             let serviceError = ScheduleServiceError.deleteFailed(underlying: error)
@@ -188,7 +191,8 @@ final class ScheduleService: ObservableObject, ScheduleServiceProtocol {
 
     /// Get schedule by ID
     func schedule(byId id: String) -> Schedule? {
-        return schedules.first { $0.id == id }
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        return schedules.first { $0.id == uuid }
     }
 
     /// Get today's schedules

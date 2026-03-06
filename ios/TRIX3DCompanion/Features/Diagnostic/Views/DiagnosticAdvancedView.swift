@@ -172,7 +172,7 @@ struct LogViewerView: View {
                 Button("All Levels") {
                     viewModel.selectedLogLevel = nil
                 }
-                ForEach(LogLevel.allCases, id: \.self) { level in
+                ForEach(DiagnosticLogLevel.allCases, id: \.self) { level in
                     Button(action: {
                         viewModel.selectedLogLevel = level
                     }) {
@@ -280,7 +280,7 @@ struct LogEntryRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private func colorForLevel(_ level: LogLevel) -> Color {
+    private func colorForLevel(_ level: DiagnosticLogLevel) -> Color {
         switch level {
         case .debug: return .gray
         case .info: return .blue

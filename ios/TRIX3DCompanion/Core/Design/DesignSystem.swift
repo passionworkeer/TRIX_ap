@@ -101,8 +101,10 @@ enum DesignSystem {
             let x: CGFloat
             let y: CGFloat
 
-            var layer: AnyShapeStyle {
-                AnyShapeStyle(.shadow(color: color, radius: radius, x: x, y: y))
+            /// 应用阴影到视图
+            @ViewBuilder
+            func apply(to view: some View) -> some View {
+                view.shadow(color: color, radius: radius, x: x, y: y)
             }
         }
 
@@ -321,8 +323,8 @@ extension View {
     }
 
     /// 应用内边距
-    func applyPadding(_ padding: DesignSystem.Padding) -> some View {
-        self.padding(padding.rawValue)
+    func applyPadding(_ padding: CGFloat) -> some View {
+        self.padding(padding)
     }
 
     /// 应用标准动画

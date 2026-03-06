@@ -336,6 +336,38 @@ extension AppState {
         currentUser?.points ?? 0
     }
 
+    /// Spend points (for in-app purchases)
+    /// - Parameter amount: Amount of points to spend
+    /// - Returns: True if points were successfully spent
+    @discardableResult
+    func spendPoints(_ amount: Int) -> Bool {
+        guard var user = currentUser, user.points >= amount else {
+            return false
+        }
+
+        // Create updated user with new points
+        let updatedUser = User(
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+            fullName: user.fullName,
+            displayName: user.displayName,
+            bio: user.bio,
+            points: user.points - amount,
+            isStudying: user.isStudying,
+            companionId: user.companionId,
+            totalStudyTime: user.totalStudyTime,
+            school: user.school,
+            grade: user.grade,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+        )
+
+        currentUser = updatedUser
+        return true
+    }
+
     /// Check if user is currently studying
     var isStudying: Bool {
         currentUser?.isStudying ?? false

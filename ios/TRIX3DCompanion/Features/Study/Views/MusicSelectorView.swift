@@ -122,7 +122,7 @@ struct MusicSelectorView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 // 全部按钮
-                CategoryButton(
+                MusicCategoryButton(
                     title: "全部",
                     isSelected: selectedCategory == nil,
                     action: { selectedCategory = nil }
@@ -130,7 +130,7 @@ struct MusicSelectorView: View {
 
                 // 分类按钮
                 ForEach(AudioTrack.AudioCategory.allCases, id: \.self) { category in
-                    CategoryButton(
+                    MusicCategoryButton(
                         title: category.rawValue,
                         isSelected: selectedCategory == category,
                         action: { selectedCategory = category }
@@ -161,9 +161,9 @@ struct MusicSelectorView: View {
     }
 }
 
-// MARK: - Category Button
+// MARK: - Music Category Button
 
-private struct CategoryButton: View {
+private struct MusicCategoryButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
