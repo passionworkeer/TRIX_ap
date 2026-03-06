@@ -75,12 +75,12 @@ struct HomeView: View {
                     isWorkbenchPresented = true
                 }
 
-                // 顶部工具栏 - 工作台显示时显示
+                // 顶部工具栏 - 工作台显示时显示（在聊天气泡下方）
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 向上移动更多 - 避开状态栏和灵动岛
+                        .padding(.top, geometry.safeAreaInsets.top + 10)  // 避开状态栏，在聊天气泡下方
                         .opacity(isWorkbenchPresented ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
@@ -95,7 +95,7 @@ struct HomeView: View {
                     )
                 }
 
-                // 右上角聊天气泡 - 始终显示，不受工作台影响
+                // 右上角聊天气泡 - 始终显示在最上层
                 VStack {
                     HStack {
                         Spacer()
@@ -107,7 +107,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 80)  // 向上移动更多 - 靠近顶部
+                    .padding(.top, geometry.safeAreaInsets.top + 20)  // 聊天气泡位置
                     Spacer()
                 }
             }

@@ -116,11 +116,10 @@ struct MainTabView: View {
         // Hide tab bar when:
         // 1. Navigating to detail views (navigationPath is not empty)
         // 2. Showing sheets (pairing or trixbot)
-        // 3. In home/core tab with workbench presented
+        // Note: Bottom Dock should ALWAYS be visible, even when workbench is shown
         let isNavigating = !navigationPath.isEmpty
         let isShowingSheet = showingPairingSheet || showingTrixBotSheet
-        let isHomeWithWorkbench = (appState.selectedTab == .home || appState.selectedTab == .core) && isWorkbenchPresented
-        return !isNavigating && !isShowingSheet && !isHomeWithWorkbench
+        return !isNavigating && !isShowingSheet
     }
 
     // MARK: - Trix Bot Conversation
