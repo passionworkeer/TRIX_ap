@@ -38,11 +38,6 @@ struct HomeView: View {
     @State private var showLocation = false
     @State private var useRobotBackground = true
 
-    // 追踪组件显示状态 - 用于点击逻辑
-    // 0: 初始状态（只显示视频和聊天气泡）
-    // 1: 点击后（显示顶部工具栏和工作台）
-    @State private var componentState: Int = 0
-
     // MARK: - Body
 
     var body: some View {
@@ -75,39 +70,32 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // 点击逻辑：
-                    // 第一次点击：显示顶部工具栏和工作台
-                    // 第二次点击：隐藏两者，只保留视频和聊天气泡
-                    if componentState == 0 {
-                        componentState = 1
-                        isWorkbenchPresented = true
-                    } else {
-                        componentState = 0
-                        isWorkbenchPresented = false
-                    }
+                    // Web端逻辑：点击背景显示工作台
+                    // 工作台带有半透明背景，点击半透明背景可以关闭工作台
+                    isWorkbenchPresented = true
                 }
 
-                // 顶部工具栏 - 点击主界面后显示
+                // 顶部工具栏 - 工作台显示时显示
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 20)  // 向上移动 - 避开状态栏和灵动岛
-                        .opacity(componentState == 1 ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3), value: componentState)
+                        .padding(.top, geometry.safeAreaInsets.top + 50)  // 向上移动更多 - 避开状态栏和灵动岛
+                        .opacity(isWorkbenchPresented ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
                     Spacer()
                 }
 
                 // Workbench Modal (appears on background tap) - 底部浮窗效果
-                if componentState == 1 {
+                if isWorkbenchPresented {
                     WorkbenchOverlay(
                         isPresented: $isWorkbenchPresented,
                         onCardClick: handleWorkbenchCardClick
                     )
                 }
 
-                // 右上角聊天气泡 - 在最上层，确保点击不被拦截
+                // 右上角聊天气泡 - 始终显示，不受工作台影响
                 VStack {
                     HStack {
                         Spacer()
@@ -119,7 +107,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 50)  // 向上移动 - 靠近顶部
+                    .padding(.top, geometry.safeAreaInsets.top + 80)  // 向上移动更多 - 靠近顶部
                     Spacer()
                 }
             }
