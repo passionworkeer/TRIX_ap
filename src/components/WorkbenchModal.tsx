@@ -130,7 +130,7 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label="工作台"
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[60]"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.3)',
               backdropFilter: 'blur(4px)',
