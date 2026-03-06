@@ -6,6 +6,7 @@
  */
 
 import React, { useRef, useEffect, memo, useCallback } from 'react';
+import botAvatarImg from '../../../../assets/roles/role1/AvatarHead.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';

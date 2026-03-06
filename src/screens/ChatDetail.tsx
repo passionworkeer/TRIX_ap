@@ -1,6 +1,10 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
+import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Mic, MicOff, MoreVertical, Bot, X } from 'lucide-react';
+import { 
+  ArrowLeft, Send, Mic, MicOff, MoreVertical, X, 
+  Presentation, Table, FileText, MessageSquare, Image as ImageIcon, Video, Plus
+} from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { logger } from '../utils/logger';
@@ -142,6 +146,7 @@ const ChatDetail: React.FC = () => {
 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [selectedAIAction, setSelectedAIAction] = useState<AIActionId>('chat');
   const [loading, setLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -586,7 +591,7 @@ const ChatDetail: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full flex-col bg-slate-50 font-sans dark:bg-slate-950">
-      <header className="z-40 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 pb-4 pt-16 shadow-sm backdrop-blur-xl transition-all duration-300 dark:border-slate-700 dark:bg-slate-900/90">
+      <header className="z-40 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 pb-4 pt-12 shadow-sm backdrop-blur-xl transition-all duration-300 dark:border-slate-700 dark:bg-slate-900/90">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
@@ -599,8 +604,8 @@ const ChatDetail: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="relative">
               {isBot ? (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-200/50">
-                  <Bot className="text-white" size={24} />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-md dark:border-slate-700 dark:bg-slate-800">
+                  <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />
                 </div>
               ) : (
                 <div className="relative">
@@ -719,8 +724,8 @@ const ChatDetail: React.FC = () => {
                 {msg.sender !== 'user' && (
                   <div className="mr-2 mt-auto shrink-0">
                     {isBot ? (
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-[10px] text-white">
-                        <Bot size={14} />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                        <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />
                       </div>
                     ) : (
                       <Avatar name={name} avatar={avatar} size="xs" />
@@ -778,8 +783,8 @@ const ChatDetail: React.FC = () => {
             {isBotConversation && botState === 'THINKING' && (
               <div className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start">
                 <div className="mr-2 mt-auto shrink-0">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-[10px] text-white">
-                    <Bot size={14} />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                    <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />
                   </div>
                 </div>
                 <div className="flex max-w-[75%] flex-col gap-1">
@@ -849,7 +854,28 @@ const ChatDetail: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <div className="rounded-2xl bg-slate-100 p-2 dark:bg-slate-800">
+          <div className={`flex flex-col gap-2 rounded-3xl bg-slate-100 p-2 transition-all duration-300 dark:bg-slate-800 ${isInputFocused || input.trim().length > 0 ? "shadow-md" : ""}`}>
+            <AnimatePresence>
+              {(isInputFocused || input.trim().length > 0 || attachmentPreviews.length > 0) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden px-1"
+                >
+                  <AIActionSelector
+                    value={selectedAIAction}
+                    onSelect={(action) => {
+                      setSelectedAIAction(action);
+                      setInput((previous) => applyAIActionPrefix(previous, action));
+                      setIsInputFocused(true);
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
@@ -861,24 +887,32 @@ const ChatDetail: React.FC = () => {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white transition-colors hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
                 aria-label="添加附件"
               >
-                <span className="text-sm text-slate-600 dark:text-slate-200">+</span>
+                <span className="text-xl text-slate-600 dark:text-slate-200" style={{ lineHeight: '1' }}>+</span>
               </button>
 
-              <input
-                type="text"
+              <textarea
                 value={isListening ? transcript : input}
                 onChange={(event) => setInput(event.target.value)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => {
+                  setTimeout(() => setIsInputFocused(false), 200);
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault();
                     handleSend();
                   }
                 }}
                 placeholder={isListening ? 'Listening...' : '输入消息，或使用 AI 指令'}
-                className="flex-1 rounded-xl border-0 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                rows={isInputFocused || input.trim().length > 0 ? 4 : 1}
+                className="flex-1 resize-none rounded-xl border-0 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-500 transition-all dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                style={{ 
+                  minHeight: isInputFocused || input.trim().length > 0 ? '96px' : '32px',
+                  maxHeight: '160px'
+                }}
               />
 
               {isSpeechSupported && (
@@ -887,7 +921,7 @@ const ChatDetail: React.FC = () => {
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
                     isListening
                       ? 'bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-100'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                      : 'bg-white text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                   }`}
                   aria-label={isListening ? '停止语音输入' : '开始语音输入'}
                 >
@@ -912,31 +946,11 @@ const ChatDetail: React.FC = () => {
                 {uploadingFile ? (
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
-                  <Send size={14} className={input.trim() ? '-rotate-45' : ''} />
+                  <Send size={14} className={input.trim() ? '-rotate-45 transition-transform' : 'transition-transform'} />
                 )}
               </button>
             </div>
           </div>
-
-          <AnimatePresence>
-            {attachmentPreviews.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="mt-2"
-              >
-                <AIActionSelector
-                  value={selectedAIAction}
-                  onSelect={(action) => {
-                    setSelectedAIAction(action);
-                    setInput((previous) => applyAIActionPrefix(previous, action));
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
 
