@@ -23,6 +23,9 @@ export default defineConfig({
   // Reporter to use
   reporter: 'html',
 
+  // Timeout for each test (increased for Supabase login)
+  timeout: 60 * 1000,
+
   // Shared settings for all tests
   use: {
     // Base URL for navigation
@@ -33,6 +36,9 @@ export default defineConfig({
 
     // Screenshot on failure
     screenshot: 'only-on-failure',
+
+    // Action timeout for individual actions
+    actionTimeout: 30 * 1000,
   },
 
   // Configure projects for major browsers
