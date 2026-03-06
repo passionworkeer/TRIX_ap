@@ -32,7 +32,7 @@ struct GlassDockView: View {
     @Binding var isWorkbenchPresented: Bool
     @Binding var isChatPresented: Bool
 
-    @State private var selectedIndex: Int = 0
+    @State private var selectedIndex: Int = 2  // 默认选中中间的核心按钮（摄像头）- 主界面
     @State private var animateGlow = false
 
     private let dockHeight: CGFloat = 70
