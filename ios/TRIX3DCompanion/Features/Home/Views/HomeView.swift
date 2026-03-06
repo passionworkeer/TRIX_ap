@@ -82,6 +82,7 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, geometry.safeAreaInsets.top - 50)  // 继续向上移动
                         .opacity(isWorkbenchPresented ? 1 : 0)
+                        .allowsHitTesting(isWorkbenchPresented)  // 只有显示时才能点击
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
                     Spacer()
@@ -137,9 +138,22 @@ struct HomeView: View {
                 LocationPickerView()
             }
 
-            // Schedule View - 直接显示
+            // Schedule View - 直接显示，加关闭按钮
             if showSchedule {
-                ScheduleListView()
+                ZStack(alignment: .topTrailing) {
+                    ScheduleListView(showAsSheet: false)
+
+                    Button {
+                        showSchedule = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .padding()
+                    }
+                    .padding(.top, 50)
+                    .padding(.trailing, 16)
+                }
             }
 
             // Todo View - 直接显示
