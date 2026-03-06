@@ -80,7 +80,7 @@ struct HomeView: View {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 10)  // 避开状态栏，在聊天气泡下方
+                        .padding(.top, geometry.safeAreaInsets.top)  // 向上移动到顶
                         .opacity(isWorkbenchPresented ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
@@ -107,7 +107,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 20)  // 聊天气泡位置
+                    .padding(.top, geometry.safeAreaInsets.top + 10)  // 在工具栏下方
                     Spacer()
                 }
             }
@@ -156,30 +156,30 @@ struct HomeView: View {
             // Spacer to balance the layout (removed welcome text)
             Spacer()
 
-            // Mail button
+            // Mail button - 加大按钮
             Button {
                 showMailPanel = true
             } label: {
                 Image(systemName: "envelope.fill")
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.2))
+                    .frame(width: 50, height: 50)  // 加大
+                    .background(Color.gray.opacity(0.3))
                     .clipShape(Circle())
             }
 
             Spacer()
-                .frame(width: 12)
+                .frame(width: 16)
 
-            // Notification button
+            // Notification button - 加大
             Button {
                 showNotificationPanel = true
             } label: {
                 Image(systemName: "bell.fill")
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.2))
+                    .frame(width: 50, height: 50)  // 加大
+                    .background(Color.gray.opacity(0.3))
                     .clipShape(Circle())
             }
         }
