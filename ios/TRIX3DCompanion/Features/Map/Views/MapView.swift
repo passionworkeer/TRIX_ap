@@ -47,7 +47,7 @@ struct MapView: View {
             VStack {
                 searchBarOverlay
                     .padding(.horizontal)
-                    .padding(.top, 80)  // Move even higher
+                    .padding(.top, 100)  // Move much higher
 
                 Spacer()
             }
@@ -179,7 +179,7 @@ struct MapView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 90)  // Move up a bit
+            .padding(.bottom, 80)  // Move up more
         }
     }
 
