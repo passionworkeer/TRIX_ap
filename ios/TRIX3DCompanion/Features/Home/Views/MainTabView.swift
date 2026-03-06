@@ -113,13 +113,20 @@ struct MainTabView: View {
     // MARK: - Computed Properties
 
     private var shouldShowTabBar: Bool {
-        // 初始状态：隐藏底部按钮
-        // 点击后（isWorkbenchPresented=true）：显示底部按钮
-        // 再次点击：隐藏
+        // Bottom dock always shows on all tabs except:
+        // 1. When navigating to detail views
+        // 2. When showing sheets (pairing or trixbot)
+        // Exception: On home/core, bottom dock only shows when workbench is presented
         let isNavigating = !navigationPath.isEmpty
         let isShowingSheet = showingPairingSheet || showingTrixBotSheet
+
+        // For home/core tabs - show only when workbench is shown
         let isHomeWithWorkbench = (appState.selectedTab == .home || appState.selectedTab == .core) && isWorkbenchPresented
-        return !isNavigating && !isShowingSheet && isHomeWithWorkbench
+
+        // For other tabs (map, study, chat, profile) - always show
+        let isOtherTab = appState.selectedTab == .map || appState.selectedTab == .study || appState.selectedTab == .chat || appState.selectedTab == .profile
+
+        return !isNavigating && !isShowingSheet && (isHomeWithWorkbench || isOtherTab)
     }
 
     // MARK: - Trix Bot Conversation
