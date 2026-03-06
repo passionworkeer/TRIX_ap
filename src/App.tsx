@@ -4,7 +4,6 @@ import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
-import SnapshotModal from './components/SnapshotModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import { AppRoutes } from './types';
@@ -140,26 +139,6 @@ function AppContent() {
     }
   };
 
-  const handleImageSelect = (imageUri: string) => {
-    setShowDockOnHome(false);
-
-    if (!isClawbotConnected || !isClawbotPaired) {
-      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, PAIRING_REQUIRED_TOAST_OPTIONS);
-      navigate(AppRoutes.PAIRING);
-      return;
-    }
-
-    navigate(AppRoutes.CHAT_DETAIL, {
-      state: {
-        friendId: 'clawbot',
-        name: 'TRIX Bot',
-        avatar: IMAGES.WIZARD_BOY_LOGIN,
-        isBot: true,
-        photoUri: imageUri
-      }
-    });
-  };
-
   useEffect(() => {
     if (!isHomePage) {
       setShowDockOnHome(false);
@@ -269,11 +248,6 @@ function AppContent() {
           <GlassDock key="dock" />
         )}
       </AnimatePresence>
-
-      <SnapshotModal
-        isOpen={isHomePage && showDockOnHome}
-        onImageSelect={handleImageSelect}
-      />
 
       <Toaster
         position="top-center"
