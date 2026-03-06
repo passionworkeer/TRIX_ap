@@ -228,7 +228,7 @@ TASK-011 ──┴──> TASK-012 ──> 阶段四完成
 - [x] ClawbotHistoryService 返回聊天历史
 - [x] ClawbotPairingService 管理设备配对
 - [x] UserStatsService 返回用户统计
-- [ ] 所有服务有单元测试
+- [x] 所有服务有单元测试
 
 ### 阶段四：UI 美化
 - [x] DesignSystem 常量统一
