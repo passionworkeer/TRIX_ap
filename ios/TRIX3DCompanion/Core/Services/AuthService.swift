@@ -148,6 +148,21 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
         // Restore session on initialization
         restoreSession()
+
+        // Auto login with demo mode for testing (skip login screen)
+        Task {
+            await autoDemoLogin()
+        }
+    }
+
+    // Auto login with demo mode
+    private func autoDemoLogin() async {
+        // Wait a moment for the app to fully load
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+        if !isLoggedIn {
+            _ = await demoLogin()
+        }
     }
 
     // MARK: - Internal Methods
