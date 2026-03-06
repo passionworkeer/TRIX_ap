@@ -75,12 +75,12 @@ struct HomeView: View {
                     isWorkbenchPresented = true
                 }
 
-                // 顶部工具栏 - 工作台显示时显示（在聊天气泡下方）
+                // 顶部工具栏 - 工作台显示时显示（在最顶端）
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top)  // 向上移动到顶
+                        .padding(.top, geometry.safeAreaInsets.top - 10)  // 再向上移动
                         .opacity(isWorkbenchPresented ? 1 : 0)
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
