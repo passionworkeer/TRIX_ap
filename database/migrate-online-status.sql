@@ -31,14 +31,8 @@ CREATE POLICY "Users can update own last_active_at" ON profiles
 -- 允许用户读取好友的 last_active_at
 DROP POLICY IF EXISTS "Friends can view last_active_at" ON profiles;
 CREATE POLICY "Friends can view last_active_at" ON profiles
-  FOR SELECT TO authenticated
+  FOR SELECT
   USING (
-    id IN (
-      SELECT friend_id FROM friends WHERE user_id = auth.uid()
-    )
-    OR id = auth.uid()
-  )
-  WITH CHECK (
     id IN (
       SELECT friend_id FROM friends WHERE user_id = auth.uid()
     )
