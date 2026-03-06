@@ -198,7 +198,11 @@ function AppContent() {
                 path={AppRoutes.HOME}
                 element={
                   <ProtectedRoute>
-                    <Home devVideoSource={isDev ? devActiveVideoSource : undefined} />
+                    <Home 
+                      devVideoSource={isDev ? devActiveVideoSource : undefined}
+                      isUIVisible={showDockOnHome}
+                      onToggleUI={toggleDock}
+                    />
                   </ProtectedRoute>
                 }
               />

@@ -108,28 +108,11 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop overlay with glassmorphism */}
+          {/* Cards container - positioned above GlassDock */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            onKeyDown={handleKeyDown}
             role="dialog"
             aria-modal="true"
             aria-label="工作台"
-            className="fixed inset-0 z-[60] cursor-pointer"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-            }}
-            tabIndex={-1}
-          />
-
-          {/* Cards container - positioned above GlassDock */}
-          <motion.div
             initial={{ opacity: 0, y: 60, scale: 0.9 }}
             animate={{
               opacity: 1,
@@ -162,6 +145,9 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               maxWidth: '420px',
               zIndex: 50,
             }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
+            tabIndex={-1}
           >
             {/* Main container with glassmorphism */}
             <div
@@ -189,20 +175,6 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                     快捷功能入口
                   </p>
                 </div>
-
-                {/* Close button */}
-                <motion.button
-                  onClick={onClose}
-                  aria-label="关闭工作台"
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100/80 hover:bg-gray-200/80 transition-colors"
-                  style={{
-                    border: '1px solid rgba(0,0,0,0.05)',
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <X size={18} className="text-gray-600" strokeWidth={2} />
-                </motion.button>
               </div>
 
               {/* Scrollable cards container with fade indicators */}
