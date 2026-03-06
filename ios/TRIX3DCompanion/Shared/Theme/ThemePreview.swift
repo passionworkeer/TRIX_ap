@@ -300,11 +300,11 @@ struct ThemePreviewView: View {
 
 #Preview("Light Theme") {
     ThemePreviewView()
-        .themed(with: .preview)
+        .themed(with: ThemeManager.preview)
 }
 
 #Preview("Dark Theme") {
     ThemePreviewView()
-        .themed(with: .previewDark)
+        .themed(with: ThemeManager.previewDark)
 }
 #endif

@@ -30,17 +30,6 @@ enum MallServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Mall Service Protocol
-
-protocol MallServiceProtocol {
-    var items: [MallItem] { get }
-    var isLoading: Bool { get }
-
-    func fetchItems(category: MallCategory?) async throws -> [MallItem]
-    func purchaseItem(itemId: String, quantity: Int?) async throws -> PurchaseResponse
-    func fetchPurchaseHistory() async throws -> [PurchaseHistoryItem]
-}
-
 // MARK: - Mall Service
 
 @MainActor

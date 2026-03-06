@@ -11,7 +11,7 @@ import Combine
 // MARK: - Type Aliases
 
 /// Type alias for API parameters
-private typealias Parameters = [String: Any]
+private typealias HistoryParameters = [String: Any]
 
 // MARK: - Error Types
 
@@ -115,7 +115,7 @@ final class ClawbotHistoryService: ObservableObject, ClawbotHistoryServiceProtoc
 
         do {
             // Fetch from API
-            let params: Parameters = ["limit": limit, "offset": offset]
+            let params: HistoryParameters = ["limit": limit, "offset": offset]
             let messages: [ChatMessage] = try await apiClient.get(
                 .clawbotHistory(roomId: roomId),
                 parameters: params

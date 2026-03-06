@@ -603,7 +603,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     }
 
     /// Convert WebSocket message type to chat message type
-    private func convertMessageType(_ type: BotMessage.MessageContentType) -> BotMessage.MessageContentType {
+    private func convertMessageType(_ type: ClawbotMessageContentType) -> ClawbotMessageContentType {
         switch type {
         case .text:
             return .text

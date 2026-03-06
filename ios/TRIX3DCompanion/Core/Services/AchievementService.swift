@@ -30,16 +30,6 @@ enum AchievementServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Achievement Service Protocol
-
-protocol AchievementServiceProtocol {
-    var achievements: [Achievement] { get }
-    var isLoading: Bool { get }
-
-    func fetchAchievements() async throws -> [Achievement]
-    func checkAndUnlock() async throws -> AchievementCheckResponse
-}
-
 // MARK: - Achievement Service
 
 @MainActor

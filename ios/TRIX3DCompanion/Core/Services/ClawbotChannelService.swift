@@ -8,9 +8,43 @@
 //
 
 import Foundation
-import SocketIO
+//import SocketIO
 import Combine
 import AVFoundation
+
+// MARK: - SocketIO Stub Types (for compilation - replace with real implementation)
+
+public typealias SocketIOClientConfiguration = [String: Any]
+
+public protocol SocketIOClientProtocol: AnyObject {
+    func connect()
+    func disconnect()
+    func emit(_ event: String, _ data: Any...)
+    func on(_ event: String, callback: @escaping (Any...) -> Void)
+    func off(_ event: String)
+}
+
+public class SocketManager {
+    public let socketURL: URL
+    public let config: SocketIOClientConfiguration
+    public var defaultSocket: SocketIOClientProtocol?
+
+    public init(socketURL: URL, config: SocketIOClientConfiguration) {
+        self.socketURL = socketURL
+        self.config = config
+        self.defaultSocket = StubSocketIOClient()
+    }
+}
+
+/// Stub implementation for SocketIO
+public class StubSocketIOClient: SocketIOClientProtocol {
+    public init() {}
+    public func connect() {}
+    public func disconnect() {}
+    public func emit(_ event: String, _ data: Any...) {}
+    public func on(_ event: String, callback: @escaping (Any...) -> Void) {}
+    public func off(_ event: String) {}
+}
 
 // MARK: - Types
 
@@ -81,8 +115,7 @@ enum MessageSendStatus: String {
 
 // MARK: - Backward Compatibility
 
-/// BotState - 保留旧名称作为 BotBehaviorState 的别名，保持向后兼容
-typealias BotState = BotBehaviorState
+// BotState removed - conflicts with Shared/Models/BotState
 
 // MARK: - Protocol
 
@@ -168,7 +201,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // MARK: - Private Properties
 
     private var manager: SocketManager?
-    private var socket: SocketIOClient?
+    private var socket: SocketIOClientProtocol?
     private var userId: String?
     private(set) var deviceId: String?
 

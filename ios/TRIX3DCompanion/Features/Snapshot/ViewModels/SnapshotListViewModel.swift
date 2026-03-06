@@ -93,7 +93,7 @@ final class SnapshotListViewModel: ObservableObject {
         currentPage = 1
 
         do {
-            let parameters: Parameters = [
+            let parameters: SnapshotParameters = [
                 "page": 1,
                 "limit": pageSize
             ]
@@ -125,7 +125,7 @@ final class SnapshotListViewModel: ObservableObject {
         currentPage = 1
 
         do {
-            let parameters = buildParameters()
+            let parameters = buildSnapshotParameters()
 
             let response: SnapshotsResponse = try await apiClient.get(
                 .snapshots,
@@ -153,7 +153,7 @@ final class SnapshotListViewModel: ObservableObject {
         currentPage += 1
 
         do {
-            let parameters = buildParameters()
+            let parameters = buildSnapshotParameters()
 
             let response: SnapshotsResponse = try await apiClient.get(
                 .snapshots,
@@ -238,8 +238,8 @@ final class SnapshotListViewModel: ObservableObject {
     // MARK: - Private Methods
 
     /// Build parameters for API call
-    private func buildParameters() -> Parameters {
-        var params: Parameters = [
+    private func buildSnapshotParameters() -> SnapshotParameters {
+        var params: SnapshotParameters = [
             "page": currentPage,
             "limit": pageSize
         ]
@@ -254,10 +254,10 @@ final class SnapshotListViewModel: ObservableObject {
     }
 }
 
-// MARK: - Parameters Type Alias
+// MARK: - SnapshotParameters Type Alias
 
-/// Type alias for Alamofire Parameters
-typealias Parameters = [String: Any]
+/// Type alias for snapshot parameters
+typealias SnapshotSnapshotParameters = [String: Any]
 
 // MARK: - Preview Helpers
 

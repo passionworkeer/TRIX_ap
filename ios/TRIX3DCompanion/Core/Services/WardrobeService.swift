@@ -33,17 +33,6 @@ enum WardrobeServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Wardrobe Service Protocol
-
-protocol WardrobeServiceProtocol {
-    var outfits: [Outfit] { get }
-    var isLoading: Bool { get }
-
-    func fetchOutfits() async throws -> [Outfit]
-    func equipOutfit(outfitId: String) async throws -> EquipResponse
-    func unequipOutfit(outfitId: String) async throws -> EquipResponse
-}
-
 // MARK: - Wardrobe Service
 
 @MainActor

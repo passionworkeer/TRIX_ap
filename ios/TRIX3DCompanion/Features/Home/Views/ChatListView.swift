@@ -48,18 +48,6 @@ struct ChatListView: View {
     @State private var showQuickAdd = true
     @State private var showPairingAlert = false
 
-    // MARK: - Initialization
-
-    init(
-        onNavigateToChat: ((ChatConversation) -> Void)? = nil,
-        onNavigateToPairing: (() -> Void)? = nil,
-        onNavigateToTrixBot: (() -> Void)? = nil
-    ) {
-        self.onNavigateToChat = onNavigateToChat
-        self.onNavigateToPairing = onNavigateToPairing
-        self.onNavigateToTrixBot = onNavigateToTrixBot
-    }
-
     // MARK: - Body
 
     var body: some View {

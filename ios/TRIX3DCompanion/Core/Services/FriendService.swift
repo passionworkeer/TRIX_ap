@@ -45,21 +45,6 @@ enum FriendServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Friend Service Protocol
-
-protocol FriendServiceProtocol {
-    var friends: [Friend] { get }
-    var friendRequests: [FriendRequest] { get }
-    var isLoading: Bool { get }
-
-    func fetchFriends() async throws -> [Friend]
-    func fetchFriendRequests() async throws -> [FriendRequest]
-    func addFriend(friendId: String) async throws
-    func removeFriend(friendId: String) async throws
-    func acceptFriendRequest(requestId: String) async throws
-    func declineFriendRequest(requestId: String) async throws
-}
-
 // MARK: - Friend Service
 
 @MainActor
