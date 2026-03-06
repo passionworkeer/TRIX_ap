@@ -75,7 +75,15 @@ struct HomeView: View {
                     isWorkbenchPresented = true
                 }
 
-                // 顶部工具栏 - 工作台显示时显示（在最顶端）
+                // Workbench Modal (appears on background tap) - 底部浮窗效果
+                if isWorkbenchPresented {
+                    WorkbenchOverlay(
+                        isPresented: $isWorkbenchPresented,
+                        onCardClick: handleWorkbenchCardClick
+                    )
+                }
+
+                // 顶部工具栏 - 放在工作台后面，确保在最上层可点击
                 VStack(spacing: 0) {
                     // Top bar with mail and notification buttons
                     topBar
@@ -86,14 +94,6 @@ struct HomeView: View {
                         .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
 
                     Spacer()
-                }
-
-                // Workbench Modal (appears on background tap) - 底部浮窗效果
-                if isWorkbenchPresented {
-                    WorkbenchOverlay(
-                        isPresented: $isWorkbenchPresented,
-                        onCardClick: handleWorkbenchCardClick
-                    )
                 }
 
                 // 右上角聊天气泡 - 始终显示在最上层
