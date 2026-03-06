@@ -43,12 +43,13 @@ struct MapView: View {
             // Map
             mapContent
 
-            // Top safe area content - search bar at top
-            VStack(spacing: 8) {
-                // Search bar - moved up
+            // Top search bar - at the very top
+            VStack {
                 searchBarOverlay
                     .padding(.horizontal)
-                    .padding(.top, 8)  // Small padding from top
+                    .padding(.top, 60)  // Move to very top - above status bar
+
+                Spacer()
             }
 
             // Bottom content
@@ -167,10 +168,10 @@ struct MapView: View {
         }
     }
 
-    /// Friend markers bar at bottom - made bigger
+    /// Friend markers bar at bottom
     private var friendMarkersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 ForEach(viewModel.friendLocations) { friend in
                     FriendMarkerView(friend: friend) {
                         viewModel.selectFriend(friend)
@@ -178,7 +179,7 @@ struct MapView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 110)  // Above GlassDock
+            .padding(.bottom, 100)
         }
     }
 
@@ -728,54 +729,54 @@ private struct FriendAvatarAnnotation: View {
 /// Friend map pin that positions itself based on coordinate region
 // MARK: - Friend Marker View
 
-/// Friend marker view for map annotations - bigger avatar
+/// Friend marker view for map annotations - proper size with letter
 private struct FriendMarkerView: View {
     let friend: FriendMapLocation
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 // Avatar with glow for studying friends
                 ZStack(alignment: .bottomTrailing) {
                     // Glow ring for studying friends
                     if friend.isStudying {
                         Circle()
                             .fill(Color.green.opacity(0.4))
-                            .frame(width: 64, height: 64)  // Bigger glow
-                            .blur(radius: 6)
+                            .frame(width: 36, height: 36)
+                            .blur(radius: 3)
                     }
 
-                    // Avatar background - bigger
+                    // Avatar background - colored circle with letter
                     Circle()
                         .fill(avatarGradient)
-                        .frame(width: 56, height: 56)  // Bigger avatar
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Text(String(friend.name.prefix(1)).uppercased())
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                        )
                         .overlay(
                             Circle()
-                                .strokeBorder(.white, lineWidth: 3)
+                                .strokeBorder(.white, lineWidth: 1.5)
                         )
-                        .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
-
-                    // Avatar initial
-                    Text(String(friend.name.prefix(1)))
-                        .font(.system(size: 22, weight: .bold))  // Bigger font
-                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
 
                     // Status indicator
                     Circle()
                         .fill(statusColor)
-                        .frame(width: 14, height: 14)  // Bigger indicator
+                        .frame(width: 10, height: 10)
                         .overlay(
                             Circle()
-                                .strokeBorder(.white, lineWidth: 2)
+                                .strokeBorder(.white, lineWidth: 1)
                         )
-                        .offset(x: 3, y: 3)
+                        .offset(x: 1, y: 1)
                 }
 
                 // Name tag
                 Text(friend.name)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                    .font(.caption2)
+                    .fontWeight(.medium)
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
