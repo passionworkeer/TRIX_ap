@@ -16,6 +16,7 @@ import {
   MoreVertical,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from '../../../hooks/useNotification';
@@ -223,7 +224,11 @@ const GroupHeader: React.FC<{ group: ScheduleGroup; count: number }> = ({ group,
   );
 };
 
-const ScheduleList: React.FC = () => {
+interface ScheduleListProps {
+  onClose?: () => void;
+}
+
+const ScheduleList: React.FC<ScheduleListProps> = ({ onClose }) => {
   // Track component render performance
   usePerformanceTracking('ScheduleList');
 
@@ -336,9 +341,19 @@ const ScheduleList: React.FC = () => {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <h2 className="text-sm font-medium tracking-wide text-white/90">日程安排</h2>
+      <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-5 py-4">
+        <div className="flex items-center gap-2"><div className="w-1 h-3.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div><h2 className="text-[16px] font-bold tracking-wider text-white/90">日程安排</h2></div>
         <div className="flex items-center gap-2">
+          {/* 漂亮的极简关闭按钮 */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.02] text-white/50 transition hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          )}
           {/* Notification Permission Button */}
           {permissionStatus !== 'unsupported' && (
             <button
@@ -407,20 +422,23 @@ const ScheduleList: React.FC = () => {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-blue-500" />
           </div>
         ) : !hasAnySchedules ? (
-          <div className="flex h-40 flex-col items-center justify-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.02]">
-              <Calendar size={20} className="text-white/30" />
+          <div className="flex h-56 flex-col items-center justify-center text-center mt-4">
+            <div className="mb-4 relative flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.02] shadow-xl">
+              <div className="absolute inset-0 rounded-full bg-blue-500/10 blur-xl"></div>
+              <Calendar size={24} className="text-blue-400/80 relative z-10" />
             </div>
-            <p className="text-sm text-white/40">
+            <p className="text-[15px] font-bold tracking-wide text-white/70 mb-1.5">
               {filter === 'all' ? '暂无日程安排' : '没有符合条件的日程'}
             </p>
+            <p className="text-[12px] text-white/30 mb-6">开始规划你的重要事项</p>
             {filter === 'all' && (
               <button
                 onClick={handleAddNew}
-                className="mt-3 flex items-center gap-1 rounded-full bg-blue-500/20 px-4 py-1.5 text-xs text-blue-400 transition hover:bg-blue-500/30"
+                className="group relative flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600/60 to-indigo-600/60 px-6 py-2.5 text-[13px] font-bold tracking-wider text-white transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-[0_4px_20px_rgba(37,99,235,0.3)] hover:shadow-[0_4px_25px_rgba(37,99,235,0.5)]"
               >
-                <Plus size={12} />
-                添加日程
+                <div className="absolute inset-0 rounded-full bg-blue-400/20 opacity-0 blur transition-opacity group-hover:opacity-100"></div>
+                <Plus size={14} className="relative z-10" />
+                <span className="relative z-10 pt-px">添加日程</span>
               </button>
             )}
           </div>

@@ -141,16 +141,10 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
             if (e.target === e.currentTarget) setShowTodo(false);
           }}
         >
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
-            <button
-              onClick={() => setShowTodo(false)}
-              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
+            
             <TodoProvider>
-              <TodoList />
+              <TodoList onClose={() => setShowTodo(false)} />
             </TodoProvider>
           </div>
         </div>
@@ -165,16 +159,10 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
             if (e.target === e.currentTarget) setShowSchedule(false);
           }}
         >
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
-            <button
-              onClick={() => setShowSchedule(false)}
-              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
+            
             <ScheduleProvider>
-              <ScheduleList />
+              <ScheduleList onClose={() => setShowSchedule(false)} />
             </ScheduleProvider>
           </div>
         </div>
