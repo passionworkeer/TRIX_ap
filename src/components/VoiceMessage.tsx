@@ -220,14 +220,7 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
         <button
           onClick={togglePlayPause}
           disabled={isLoading}
-          className={`
-            flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
-            transition-all duration-200
-            ${isLoading
-              ? 'bg-slate-100 dark:bg-slate-800 cursor-wait'
-              : 'bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 dark:hover:bg-violet-800/40 active:scale-95 cursor-pointer'
-            }
-          `}
+          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${playBtnClass}`}
           aria-label={isPlaying ? '暂停' : '播放'}
         >
           {isLoading ? (
