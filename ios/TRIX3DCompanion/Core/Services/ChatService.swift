@@ -61,7 +61,13 @@ protocol ChatServiceProtocol {
 
     func fetchChatRooms() async -> ChatResult<[ChatRoom]>
     func fetchMessages(roomId: String, before: Date?) async -> ChatResult<[ChatMessage]>
-    func sendMessage(roomId: String, content: String, type: MessageType) async -> ChatResult<ChatMessage>
+    func sendMessage(
+        roomId: String,
+        content: String,
+        type: MessageType,
+        mediaUrl: String?,
+        mediaMimeType: String?
+    ) async -> ChatResult<ChatMessage>
     func connectWebSocket(userId: String) async -> ChatResult<Void>
     func disconnectWebSocket()
     func markAsRead(roomId: String, messageId: String) async -> ChatResult<Void>
@@ -323,7 +329,13 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     ///   - content: The message content
     ///   - type: The message type (text, image, etc.)
     /// - Returns: ChatResult containing the sent message
-    func sendMessage(roomId: String, content: String, type: MessageType = .text) async -> ChatResult<ChatMessage> {
+    func sendMessage(
+        roomId: String,
+        content: String,
+        type: MessageType = .text,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil
+    ) async -> ChatResult<ChatMessage> {
         // Verify authentication
         guard authService.isLoggedIn else {
             let error = ChatError.notAuthenticated
@@ -351,14 +363,17 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             contentType = .file
         }
 
+        let resolvedMediaUrl = mediaUrl ?? ((type == .image || type == .video || type == .file) ? content : nil)
+        let resolvedMediaMimeType = mediaMimeType ?? ((type == .image) ? "image/jpeg" : nil)
+
         // Send via ClawbotChannelService for bot messages (if paired)
         if clawbotChannelService.isPaired {
             do {
                 try await clawbotChannelService.sendMessage(
                     content,
                     contentType: contentType,
-                    mediaUrl: nil,
-                    mediaMimeType: nil
+                    mediaUrl: resolvedMediaUrl,
+                    mediaMimeType: resolvedMediaMimeType
                 )
             } catch {
                 // Log error but don't fail - API will handle persistence
@@ -371,7 +386,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             let message = try await apiClient.sendMessage(
                 roomId: roomId,
                 content: content,
-                contentType: type
+                contentType: type,
+                mediaUrl: resolvedMediaUrl,
+                mediaMimeType: resolvedMediaMimeType
             )
 
             // Add to cache if this is the current room
