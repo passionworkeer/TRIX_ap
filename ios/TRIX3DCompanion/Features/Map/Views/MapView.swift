@@ -47,7 +47,7 @@ struct MapView: View {
             VStack {
                 searchBarOverlay
                     .padding(.horizontal)
-                    .padding(.top, 100)  // Move much higher
+                    .padding(.top, 180)  // Move much higher
 
                 Spacer()
             }
@@ -56,9 +56,13 @@ struct MapView: View {
             VStack {
                 Spacer()
 
+                // Friend markers bar - above status bar
+                friendMarkersBar
+                    .padding(.bottom, 10)
+
                 // Bottom status bar - moved up
                 bottomStatusBar
-                    .padding(.bottom, 50) // Above GlassDock
+                    .padding(.bottom, 120) // Above GlassDock
             }
 
             // Location button (right side)
@@ -159,28 +163,22 @@ struct MapView: View {
             ForEach(viewModel.heatZones) { heatZone in
                 HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
             }
-
-            // Friend markers list at bottom
-            VStack {
-                Spacer()
-                friendMarkersBar
-            }
         }
     }
 
     /// Friend markers bar at bottom
     private var friendMarkersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: 4) {
                 ForEach(viewModel.friendLocations) { friend in
                     FriendMarkerView(friend: friend) {
                         viewModel.selectFriend(friend)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 80)  // Move up more
+            .padding(.horizontal, 16)
         }
+        .frame(height: 70)
     }
 
     /// Search bar overlay
@@ -750,17 +748,17 @@ private struct FriendMarkerView: View {
                     // Avatar background - colored circle with letter
                     Circle()
                         .fill(avatarGradient)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 24, height: 24)
                         .overlay(
                             Text(String(friend.name.prefix(1)).uppercased())
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(.white)
                         )
                         .overlay(
                             Circle()
-                                .strokeBorder(.white, lineWidth: 1.5)
+                                .strokeBorder(.white, lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
 
                     // Status indicator
                     Circle()
