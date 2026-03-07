@@ -850,7 +850,7 @@ const ChatDetail: React.FC = () => {
                       <div className="-ml-2 -mt-2 mb-2">
                         <MediaMessage
                           uri={msg.mediaUri}
-                          type={msg.messageType === 'video' ? 'video' : 'image'}
+                          type={msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? 'video' : 'image'}
                           alt="Attachment"
                           maxSize="sm"
                           className="rounded-lg"
@@ -862,7 +862,7 @@ const ChatDetail: React.FC = () => {
                     {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && (
                       <div className="-mr-2 -mt-2 mb-2">
                         <div className="relative h-[120px] w-[120px] overflow-hidden rounded-lg bg-transparent">
-                          {msg.messageType === 'video' ? (
+                          {msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? (
                             <video src={msg.mediaUri} className="h-full w-full object-cover" controls />
                           ) : (
                             <img src={msg.mediaUri} alt="Attachment" className="h-full w-full object-cover" />
@@ -938,11 +938,18 @@ const ChatDetail: React.FC = () => {
                   {attachmentPreviews.map((preview, index) => (
                     <div key={index} className="relative shrink-0">
                       <div className="h-[80px] w-[80px] overflow-hidden rounded-lg border-2 border-slate-300 shadow-lg dark:border-slate-600">
-                        <img
-                          src={preview.uri}
-                          alt={`附件预览 ${index + 1}`}
-                          className="h-full w-full object-cover"
-                        />
+                        {preview.category === 'video' ? (
+                          <video
+                            src={preview.uri}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={preview.uri}
+                            alt={`附件预览 ${index + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
                       </div>
                       <button
                         onClick={() => {
