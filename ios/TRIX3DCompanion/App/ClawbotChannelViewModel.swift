@@ -123,7 +123,12 @@ final class ClawbotChannelViewModel: ObservableObject {
     }
 
     /// Send message to bot
-    func sendMessage(_ content: String) async -> Bool {
+    func sendMessage(
+        _ content: String,
+        contentType: ClawbotMessageContentType = .text,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil
+    ) async -> Bool {
         guard isPaired else {
             lastError = "Not paired with any device"
             return false
@@ -133,14 +138,19 @@ final class ClawbotChannelViewModel: ObservableObject {
         lastError = nil
 
         do {
-            try await service.sendMessage(content, contentType: .text)
+            try await service.sendMessage(
+                content,
+                contentType: contentType,
+                mediaUrl: mediaUrl,
+                mediaMimeType: mediaMimeType
+            )
             // Add user message to local list
             let userMessage = ClawbotMessage(
                 id: generateMessageId(),
                 content: content,
-                contentType: .text,
-                mediaUrl: nil,
-                mediaMimeType: nil,
+                contentType: contentType,
+                mediaUrl: mediaUrl,
+                mediaMimeType: mediaMimeType,
                 timestamp: Date(),
                 sender: .user
             )
