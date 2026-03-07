@@ -28,7 +28,7 @@ import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, mar
 import { uploadFile, IMAGE_COMPRESSION_OPTIONS } from '../services/uploadService';
 import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/serverOssUploadService';
 import imageCompression from 'browser-image-compression';
-import { supabase } from '../config/supabase';
+import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import type { ChatMessage } from '../config/supabase';
 
@@ -79,6 +79,28 @@ const ChatDetail: React.FC = () => {
 
   const { name, avatar, isBot, friendId, photoUri } = friendData;
   const isBotConversation = friendId === 'clawbot' || friendId === 'clawbot_channel';
+
+  const [friendLastActive, setFriendLastActive] = useState<string | null>(null);
+
+  // 获取好友最后活跃时间（如果不是机器人）
+  useEffect(() => {
+    if (isBotConversation) return;
+
+    const fetchActiveTime = async () => {
+      try {
+        const times = await getUsersLastActive([friendId]);
+        if (times && times[friendId] !== undefined) {
+          setFriendLastActive(times[friendId]);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    fetchActiveTime();
+    const interval = setInterval(fetchActiveTime, 30000);
+    return () => clearInterval(interval);
+  }, [friendId, isBotConversation]);
 
   // 如果存在 URL 参数且不是 state 传入，则从数据库加载好友信息。
   useEffect(() => {
@@ -155,6 +177,7 @@ const ChatDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
   const autoPromptPrefilledRef = useRef(false);
   const autoSendTriggeredRef = useRef(false);
@@ -224,6 +247,7 @@ const ChatDetail: React.FC = () => {
 
   // 加载聊天历史。
   useEffect(() => {
+    isFirstScrollRef.current = true;
     const loadChatHistory = async () => {
       // 特殊处理：机器人会话不从数据库加载历史，直接监听通道消息。
       if (isBotConversation) {
@@ -367,10 +391,47 @@ const ChatDetail: React.FC = () => {
   // 关键：依赖数组只保留 conversationId，避免重复订阅
   }, [conversationId]);
 
-  // Scroll to bottom
+  const isFirstScrollRef = useRef(true);
+
+  // 更可靠的滚动到底部逻辑：直接控制容器的 scrollTop 以及多级延迟防御
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // 还在加载中时不要结束 firstScroll，也不引发滚动
+    if (loading) return;
+
+    const scroll = () => {
+      // 优先使用容器本身的 scrollTop，它是比 scrollIntoView 更可靠的实现（不受动画过程中的 transform 等属性影响）
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: isFirstScrollRef.current ? 'auto' : 'smooth'
+        });
+      } else if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: isFirstScrollRef.current ? 'auto' : 'smooth'
+        });
+      }
+    };
+
+    // 立即执行一次
+    scroll();
+
+    // 在接下来的半秒内多次触发滚动，这是对抗组件入场动画 (duration-300 / slide-in) 和布局变动的终极保障 
+    const timers = [
+      setTimeout(() => {
+        scroll();
+        if (messages.length > 0) {
+          isFirstScrollRef.current = false;
+        }
+      }, 50),
+      setTimeout(scroll, 150),
+      setTimeout(scroll, 350)
+    ];
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [messages, loading]);
 
   // ESC 閿叧闂彍鍗?
   useEffect(() => {
@@ -659,7 +720,12 @@ const ChatDetail: React.FC = () => {
   };
 
   const getStatusColor = () => {
-    if (!isBotConversation) return 'bg-green-500';
+    if (!isBotConversation) {
+      const activeStatus = calculateOnlineStatus(friendLastActive);
+      if (activeStatus === UserOnlineStatus.ONLINE) return 'bg-green-500';
+      if (activeStatus === UserOnlineStatus.AWAY) return 'bg-yellow-500';
+      return 'bg-gray-400';
+    }
 
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
@@ -672,6 +738,9 @@ const ChatDetail: React.FC = () => {
   };
 
   const getStatusText = () => {
+    if (!isBotConversation) {
+      return getOnlineStatusText(friendLastActive);
+    }
     switch (status) {
       case 'CONNECTED': return 'Online';
       case 'CONNECTING':
@@ -713,7 +782,7 @@ const ChatDetail: React.FC = () => {
             <div className="flex flex-col">
               <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100">{name}</h1>
               <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                {isBot ? getStatusText() : 'Online'}
+                {getStatusText()}
               </p>
             </div>
           </div>
@@ -796,7 +865,10 @@ const ChatDetail: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex-1 space-y-6 overflow-y-auto bg-slate-50/60 px-4 py-6 pb-6 dark:bg-slate-900/40">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 space-y-6 overflow-y-auto bg-slate-50/60 px-4 py-6 pb-6 dark:bg-slate-900/40"
+      >
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500 animate-pulse dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, Profile } from '../config/supabase';
+import { supabase, Profile, updateLastActive } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
 
 // 错误类型枚举
@@ -73,12 +73,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state
   useEffect(() => {
+    let heartbeatInterval: ReturnType<typeof setInterval>;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+        updateLastActive().catch(() => {});
+        heartbeatInterval = setInterval(() => {
+          updateLastActive().catch(() => {});
+        }, 60000);
       }
       setLoading(false);
     });
@@ -89,15 +95,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      
       if (session?.user) {
         fetchProfile(session.user.id);
+        updateLastActive().catch(() => {});
+        heartbeatInterval = setInterval(() => {
+          updateLastActive().catch(() => {});
+        }, 60000);
       } else {
         setProfile(null);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
