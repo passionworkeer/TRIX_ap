@@ -200,8 +200,8 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
         {isLoading && (
           <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
         )}
-        {/* 黑色外框 */}
-        <div className="absolute inset-0 rounded-lg border-2 border-black overflow-hidden shadow-sm">
+        {/* 图片容器 */}
+        <div className="absolute inset-0 rounded-lg overflow-hidden shadow-sm">
           <img
             src={uri}
             alt="Image"
@@ -271,7 +271,7 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
         {isLoading && (
           <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
         )}
-        <div className="absolute inset-0 rounded-lg border-2 border-black overflow-hidden shadow-sm">
+        <div className="absolute inset-0 rounded-lg overflow-hidden shadow-sm">
           <video
             ref={inlineVideoRef}
             src={blobUrl || uri}
