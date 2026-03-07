@@ -79,8 +79,8 @@ export async function loginWithSupabase(page: Page) {
     console.log('Warning: No Supabase session found in localStorage');
   }
 
-  // 等待页面完全稳定
-  await page.waitForLoadState('networkidle');
+  // 等待页面加载完成（不使用 networkidle，因为开发环境可能有持续的后台请求）
+  await page.waitForLoadState('load');
   await page.waitForTimeout(2000);
 
   console.log('Final URL:', page.url());

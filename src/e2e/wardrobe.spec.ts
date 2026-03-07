@@ -28,6 +28,10 @@ test.describe('Wardrobe E2E Tests', () => {
     // Navigate to wardrobe page with hash routing
     await page.goto('/#/wardrobe');
     await page.waitForLoadState('domcontentloaded');
+
+    // Wait for page to be ready before running tests
+    // Use element wait instead of networkidle to avoid timeout
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
   });
 
   /**
@@ -35,11 +39,11 @@ test.describe('Wardrobe E2E Tests', () => {
    * 验证能够成功进入衣柜页面
    */
   test('T2.1: should enter wardrobe page successfully', async ({ page }) => {
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    // Wait for page to load - use domcontentloaded + element wait instead of networkidle
+    await page.waitForLoadState('domcontentloaded');
 
-    // Check page title
-    await expect(page.locator('text=我的衣柜')).toBeVisible({ timeout: 10000 });
+    // Wait for the main title to appear (reliable indicator of page load)
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
 
     // Check that category tabs are visible
     await expect(page.locator('button:has-text("全部")')).toBeVisible({ timeout: 5000 });
@@ -54,8 +58,11 @@ test.describe('Wardrobe E2E Tests', () => {
    * 验证服装商品在网格中显示
    */
   test('T2.2: should display outfit items in grid', async ({ page }) => {
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    // Wait for page to load
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for the main title to appear
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Wait for either grid with items or empty state to appear
@@ -92,7 +99,10 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.3: should display outfit preview section', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for the main title to appear
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Check for summary card with owned and equipped counts
@@ -118,7 +128,10 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.4: should equip owned outfit', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for the main title to appear
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Find an outfit that is owned but not equipped
@@ -143,7 +156,10 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.5: should unequip equipped outfit', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for the main title to appear
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // First, equip an outfit if none is equipped
@@ -172,7 +188,10 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.6: should display outfit details in card', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for the main title to appear
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Find any outfit card
@@ -195,7 +214,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.7: should display empty state when no outfits', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Navigate to a category that might be empty
@@ -216,7 +236,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.8: should display owned count in summary', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Check that summary section exists - look for the "已拥有" text
@@ -238,7 +259,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.9: should navigate back when clicking back button', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Find and click the back button
@@ -260,7 +282,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.10: should display equipped badge on equipped outfits', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Look for outfits with "已装备" badge
@@ -281,7 +304,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.11: should switch between categories correctly', async ({ page }) => {
     // Wait for initial load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Click on hat category
@@ -323,7 +347,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.12: should display equipped count in summary', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Check that equipped count is displayed
@@ -345,7 +370,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.13: should show unowned outfit status correctly', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Look for outfits with "未拥有" status
@@ -367,7 +393,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.14: should handle category with mixed owned/unowned items', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Check that we have both types of items or empty state
@@ -386,7 +413,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.15: should display outfit preview when items are equipped', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // First, equip some outfits
@@ -412,7 +440,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.16: should handle rapid category switching', async ({ page }) => {
     // Wait for initial load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Rapidly switch between categories
@@ -435,7 +464,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.17: should show loading state during equip/unequip', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Find an owned outfit
@@ -462,7 +492,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.18: should display outfit images correctly', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Find outfit cards with images
@@ -488,7 +519,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.19: should maintain state after category switch', async ({ page }) => {
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
 
     // Get initial equipped count
@@ -512,7 +544,8 @@ test.describe('Wardrobe E2E Tests', () => {
    */
   test('T2.20: should handle page refresh correctly', async ({ page }) => {
     // Wait for initial load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1:has-text("我的衣柜")')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Refresh the page

@@ -294,20 +294,20 @@ router.post('/pairing/request', authMiddleware, async (req, res) => {
 
 ### P0 - 必须立即修复 (影响功能)
 
-| # | 问题 | 修复方案 | 影响 |
+| # | 问题 | 修复方案 | 状态 |
 |---|------|---------|------|
-| ~~1~~ | ~~chat_messages 字段不匹配~~ | ~~已验证存在~~ | ~~聊天功能~~ |
-| ~~2~~ | ~~profiles last_active_at~~ | ~~已验证存在~~ | ~~在线状态~~ |
-| 1 | **user_points 缺少字段** | 添加 total_earned, total_spent | 积分功能 ⚠️ |
-| 2 | **iOS APIEndpoints 编译错误** | 删除重复 case | iOS 编译 ❌ |
+| ~~1~~ | ~~chat_messages 字段不匹配~~ | ~~已验证存在~~ | ✅ |
+| ~~2~~ | ~~profiles last_active_at~~ | ~~已验证存在~~ | ✅ |
+| ~~1~~ | ~~user_points 缺少字段~~ | ~~数据库添加 total_earned, total_spent~~ | ✅ 已修复 |
+| ~~2~~ | ~~iOS APIEndpoints 编译错误~~ | ~~删除重复 case~~ | ⚠️ 暂不处理 |
 
 ### P1 - 建议近期修复
 
-| # | 问题 | 影响 |
+| # | 问题 | 状态 |
 |---|------|------|
-| 1 | 学习数据未写入 study_sessions | 学习记录不完整 |
-| 2 | 商品购买流程未实现 | 商城功能不完整 |
-| 3 | 配对 API 路径 | 配对功能 |
+| ~~1~~ | ~~学习数据未写入 study_sessions~~ | ⚠️ 前端问题，暂不处理 |
+| ~~2~~ | ~~商品购买流程未实现~~ | ⚠️ P2优先级，MVP暂不处理 |
+| ~~3~~ | ~~配对 API 路径~~ | ✅ 后端已添加 /pairing/deny/:id |
 
 ### P2 - 优化项
 
