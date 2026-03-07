@@ -52,11 +52,17 @@ struct ChatListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            searchBar.padding(.horizontal).padding(.top, 8)
-            trixBotEntry.padding(.horizontal).padding(.bottom, 8)
+            searchBar
+                .padding(.horizontal)
+                .padding(.top, 8)
+            trixBotEntry
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .padding(.bottom, 10)
 
             if showQuickAdd && !recommendedUsers.isEmpty {
-                quickAddSection.padding(.bottom, 8)
+                quickAddSection
+                    .padding(.bottom, 10)
             }
 
             if filteredConversations.isEmpty {
@@ -66,12 +72,17 @@ struct ChatListView: View {
             }
         }
         .background(backgroundGradient)
-        .navigationTitle("Messages")
+        .navigationTitle("nav.chat".localized)
         .navigationBarTitleDisplayMode(.large)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 100)
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: createNewChat) {
-                    Image(systemName: "square.and.pencil").foregroundColor(.purple)
+                    Image(systemName: "square.and.pencil")
+                        .foregroundColor(.brandPurple)
                 }
             }
         }
@@ -99,16 +110,20 @@ struct ChatListView: View {
 
     private var searchBar: some View {
         HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-            TextField("搜索对话...", text: $searchText).textFieldStyle(.plain)
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            TextField("搜索对话...", text: $searchText)
+                .textFieldStyle(.plain)
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
-                    Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
                 }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(Color.gray.opacity(0.2)).clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.2, shadowOpacity: 0.04, shadowRadius: 6)
     }
 
     // MARK: - TRIX Bot Entry
@@ -171,8 +186,22 @@ struct ChatListView: View {
                     }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.white.opacity(0.05))
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.brandPurple.opacity(0.28),
+                        Color.brandPink.opacity(0.2),
+                        Color.white.opacity(0.08)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.22), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
@@ -189,9 +218,12 @@ struct ChatListView: View {
     // MARK: - Quick Add Section
 
     private var quickAddSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Quick Add").font(.caption).fontWeight(.semibold).foregroundColor(.white.opacity(0.7)).textCase(.uppercase)
+                Text("推荐好友")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.72))
                 Spacer()
                 // 删除整个推荐区域按钮
                 Button(action: {
@@ -201,16 +233,18 @@ struct ChatListView: View {
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.5))
                 }
-            }.padding(.horizontal, 16)
+            }
+            .padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(recommendedUsers) { user in
                         QuickAddUserCard(
                             user: user,
                             onAdd: { addUser(user) }
                         )
                     }
-                }.padding(.horizontal, 16)
+                }
+                .padding(.horizontal, 16)
             }
         }
     }
@@ -224,7 +258,7 @@ struct ChatListView: View {
 
     private var conversationList: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 10) {
                 ForEach(filteredConversations) { conversation in
                     Button {
                         onNavigateToChat?(conversation)
@@ -232,11 +266,10 @@ struct ChatListView: View {
                         ConversationRow(conversation: conversation)
                     }
                     .buttonStyle(.plain)
-                    if conversation.id != filteredConversations.last?.id {
-                        Divider().padding(.leading, 72)
-                    }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
         }
     }
 
@@ -244,16 +277,30 @@ struct ChatListView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "message.circle").font(.system(size: 60)).foregroundColor(.purple.opacity(0.3))
-            Text("没有找到对话").font(.headline).foregroundColor(.secondary)
-            Text("开始新对话一起学习吧").font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center)
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            Image(systemName: "message.circle")
+                .font(.system(size: 58))
+                .foregroundColor(.purple.opacity(0.35))
+            Text("没有找到对话")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            Text("开始新对话一起学习吧")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Background Gradient
 
     private var backgroundGradient: some View {
-        LinearGradient(colors: [Color.purple.opacity(0.15), Color.pink.opacity(0.1), Color.black.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+        Color.clear.trixPageBackground(
+            colors: [
+                Color.brandPurple.opacity(0.24),
+                Color.brandPink.opacity(0.14),
+                Color.black.opacity(0.22)
+            ]
+        )
     }
 
     // MARK: - Actions
@@ -356,7 +403,7 @@ struct QuickAddUserCard: View {
     @State private var isAdded = false
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             // Avatar
             Circle()
                 .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -395,11 +442,10 @@ struct QuickAddUserCard: View {
                     .foregroundColor(.white.opacity(0.6))
             }
         }
-        .frame(width: 55)
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .background(.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(width: 58)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .trixSurfaceCard(cornerRadius: 10, borderOpacity: 0.15, shadowOpacity: 0.04, shadowRadius: 4)
     }
 }
 
@@ -450,20 +496,24 @@ struct ConversationRow: View {
                     .clipShape(Circle())
                     .shadow(color: .yellow.opacity(0.3), radius: 4)
             } else {
-                // Camera icon (Web style)
-                Circle()
-                    .fill(.white.opacity(0.1))
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.gray.opacity(0.5))
-                    }
+                VStack(spacing: 8) {
+                    Text(conversation.time)
+                        .font(.caption2)
+                        .foregroundColor(.gray.opacity(0.7))
+                    Circle()
+                        .fill(.white.opacity(0.1))
+                        .frame(width: 34, height: 34)
+                        .overlay {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray.opacity(0.5))
+                        }
+                }
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(.white.opacity(0.05))
+        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.14, shadowOpacity: 0.05, shadowRadius: 6)
         .contentShape(Rectangle())
     }
 }

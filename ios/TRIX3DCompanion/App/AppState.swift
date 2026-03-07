@@ -37,6 +37,40 @@ enum MainTab: String, CaseIterable {
     }
 }
 
+/// Supported in-app languages
+enum AppDisplayLanguage: String, CaseIterable, Identifiable {
+    case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
+    case english = "en"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .simplifiedChinese:
+            return "简体中文"
+        case .traditionalChinese:
+            return "繁體中文"
+        case .english:
+            return "English"
+        }
+    }
+
+    static func from(localeIdentifier: String) -> AppDisplayLanguage {
+        let lowercased = localeIdentifier.lowercased()
+        if lowercased.hasPrefix("zh-hant") || lowercased.contains("zh-tw") || lowercased.contains("zh-hk") {
+            return .traditionalChinese
+        }
+        if lowercased.hasPrefix("zh") {
+            return .simplifiedChinese
+        }
+        if lowercased.hasPrefix("en") {
+            return .english
+        }
+        return .english
+    }
+}
+
 // MARK: - Network Status
 
 /// Network connection status (App-specific simplified version)
@@ -75,6 +109,9 @@ final class AppState: ObservableObject {
 
     /// Push notification setting
     @Published var isPushNotificationEnabled: Bool = true
+
+    /// In-app language setting
+    @Published var appLanguage: AppDisplayLanguage = .simplifiedChinese
 
     // MARK: - Published Properties - Network
 
@@ -129,6 +166,12 @@ final class AppState: ObservableObject {
         // Load dark mode preference
         if #available(iOS 16.0, *) {
             isDarkMode = defaults.bool(forKey: "isDarkMode")
+        }
+        if let rawLanguage = defaults.string(forKey: "appLanguage"),
+           let language = AppDisplayLanguage(rawValue: rawLanguage) {
+            appLanguage = language
+        } else {
+            appLanguage = AppDisplayLanguage.from(localeIdentifier: Locale.preferredLanguages.first ?? "en")
         }
 
         // Always start with Home tab by default
@@ -209,6 +252,14 @@ final class AppState: ObservableObject {
         // Load push notification preference
         isPushNotificationEnabled = defaults.bool(forKey: "isPushNotificationEnabled")
 
+        // Load language preference
+        if let rawLanguage = defaults.string(forKey: "appLanguage"),
+           let language = AppDisplayLanguage(rawValue: rawLanguage) {
+            appLanguage = language
+        } else {
+            appLanguage = AppDisplayLanguage.from(localeIdentifier: Locale.preferredLanguages.first ?? "en")
+        }
+
         // Load last selected tab
         if let tabRawValue = defaults.string(forKey: "selectedTab"),
            let tab = MainTab(rawValue: tabRawValue) {
@@ -272,13 +323,32 @@ final class AppState: ObservableObject {
 
     /// Toggle dark mode
     func toggleDarkMode() {
-        isDarkMode.toggle()
+        setDarkMode(!isDarkMode)
+    }
+
+    /// Set dark mode
+    func setDarkMode(_ isEnabled: Bool) {
+        guard isDarkMode != isEnabled else { return }
+        isDarkMode = isEnabled
         saveUserPreferences()
     }
 
     /// Toggle push notifications
     func togglePushNotifications() {
-        isPushNotificationEnabled.toggle()
+        setPushNotificationsEnabled(!isPushNotificationEnabled)
+    }
+
+    /// Set push notifications enabled state
+    func setPushNotificationsEnabled(_ isEnabled: Bool) {
+        guard isPushNotificationEnabled != isEnabled else { return }
+        isPushNotificationEnabled = isEnabled
+        saveUserPreferences()
+    }
+
+    /// Set app language
+    func setAppLanguage(_ language: AppDisplayLanguage) {
+        guard appLanguage != language else { return }
+        appLanguage = language
         saveUserPreferences()
     }
 
@@ -299,6 +369,7 @@ final class AppState: ObservableObject {
 
         defaults.set(isDarkMode, forKey: "isDarkMode")
         defaults.set(isPushNotificationEnabled, forKey: "isPushNotificationEnabled")
+        defaults.set(appLanguage.rawValue, forKey: "appLanguage")
         defaults.set(selectedTab.rawValue, forKey: "selectedTab")
     }
 

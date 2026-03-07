@@ -11,7 +11,7 @@ import UIKit
 
 // Helper function for localization
 private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
 }
 
 // MARK: - Home View
@@ -221,8 +221,18 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .frame(width: 50, height: 50)  // 加大
-                    .background(Color.gray.opacity(0.3))
-                    .clipShape(Circle())
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPurple.opacity(0.32), Color.brandPink.opacity(0.24)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
             }
 
             Spacer()
@@ -236,8 +246,18 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .frame(width: 50, height: 50)  // 加大
-                    .background(Color.gray.opacity(0.3))
-                    .clipShape(Circle())
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPurple.opacity(0.32), Color.brandPink.opacity(0.24)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
             }
         }
     }
@@ -363,9 +383,13 @@ struct WorkbenchOverlay: View {
                 .frame(height: 200)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(.ultraThinMaterial)
                 )
-                .shadow(color: .black.opacity(0.3), radius: 20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.24), radius: 20)
             }
             .padding(.bottom, dockHeight)  // 避开底部 Dock
             .offset(y: offset)
@@ -430,7 +454,21 @@ struct WorkbenchOverlayCard: View {
             .frame(width: 80, height: 90)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.22),
+                                color.opacity(0.14),
+                                Color.black.opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
@@ -472,7 +510,11 @@ struct StudyRoomOverlay: View {
             .padding(30)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
         }
     }

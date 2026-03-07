@@ -51,15 +51,14 @@ struct PairingView: View {
     var body: some View {
         ZStack {
             // Background gradient
-            LinearGradient(
+            Color.clear.trixPageBackground(
                 colors: [
-                    Color.brandPurple.opacity(0.1),
-                    Color.brandPink.opacity(0.1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                    Color.brandPurple.opacity(0.16),
+                    Color.brandPink.opacity(0.12),
+                    Color.cyan.opacity(0.08),
+                    Color.clear
+                ]
             )
-            .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header
@@ -83,6 +82,10 @@ struct PairingView: View {
             }
             .padding(.horizontal, 24)
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 12)
+        }
         .sheet(isPresented: $showQRScanner) {
             QRScannerView(
                 onCodeScanned: handleQRScanned,
@@ -105,6 +108,7 @@ struct PairingView: View {
             }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
+                    .fontWeight(.semibold)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.brandPurple, .brandPink],
@@ -113,6 +117,7 @@ struct PairingView: View {
                         )
                     )
                     .frame(width: 44, height: 44)
+                    .trixSurfaceCard(cornerRadius: 22, borderOpacity: 0.24, shadowOpacity: 0.07, shadowRadius: 8)
             }
 
             Spacer()
@@ -138,10 +143,6 @@ struct PairingView: View {
         VStack(spacing: 32) {
             // QR Scanner preview area
             ZStack {
-                RoundedRectangle(cornerRadius: 32)
-                    .fill(.white)
-                    .shadow(color: .brandPurple.opacity(0.15), radius: 20, x: 0, y: 8)
-
                 VStack(spacing: 16) {
                     Image(systemName: "qrcode.viewfinder")
                         .font(.system(size: 80))
@@ -162,6 +163,7 @@ struct PairingView: View {
             }
             .frame(maxWidth: 300)
             .frame(height: 300)
+            .trixSurfaceCard(cornerRadius: 32, borderOpacity: 0.32, shadowOpacity: 0.1, shadowRadius: 18)
             .onTapGesture {
                 showQRScanner = true
             }
@@ -185,7 +187,8 @@ struct PairingView: View {
                         endPoint: .trailing
                     )
                 )
-                .cornerRadius(28)
+                .clipShape(Capsule())
+                .shadow(color: .brandPurple.opacity(0.25), radius: 10, x: 0, y: 4)
             }
             .frame(maxWidth: 300)
 
@@ -243,13 +246,13 @@ struct PairingView: View {
                     .multilineTextAlignment(.center)
                     .textInputAutocapitalization(.characters)
                     .disableAutocorrection(true)
-                    .padding()
-                    .background(Color.tertiaryBackground)
-                    .cornerRadius(16)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(Color.brandPurple.opacity(0.5), lineWidth: 2)
                     )
+                    .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
                     .onChange(of: codeInput) { newValue in
                         codeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
                     }
@@ -285,11 +288,7 @@ struct PairingView: View {
                 .disabled(codeInput.count != 6 || isLoading)
             }
             .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
-            )
+            .trixSurfaceCard(cornerRadius: 24, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)
             .frame(maxWidth: 320)
 
             // Back to scan button
@@ -338,6 +337,10 @@ struct PairingView: View {
             }
             .padding(.top, 16)
         }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .trixSurfaceCard(cornerRadius: 28, borderOpacity: 0.24, shadowOpacity: 0.08, shadowRadius: 12)
+        .frame(maxWidth: 320)
     }
 
     // MARK: - Success Content
@@ -385,6 +388,10 @@ struct PairingView: View {
             .frame(maxWidth: 280)
             .padding(.top, 16)
         }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .trixSurfaceCard(cornerRadius: 28, borderOpacity: 0.24, shadowOpacity: 0.08, shadowRadius: 12)
+        .frame(maxWidth: 340)
     }
 
     // MARK: - Actions

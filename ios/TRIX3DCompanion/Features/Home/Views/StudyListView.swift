@@ -94,13 +94,17 @@ struct StudyListView: View {
                 }
             }
             .background(backgroundGradient)
+            .safeAreaInset(edge: .bottom) {
+                Color.clear
+                    .frame(height: 100)
+            }
             .navigationTitle("Study")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { isCreatingRoom = true }) {
                         Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.purple)
+                            .foregroundColor(.brandPurple)
                             .font(.title2)
                     }
                 }
@@ -123,6 +127,8 @@ struct StudyListView: View {
             Text("study.my.sessions".localized).tag(1)
         }
         .pickerStyle(.segmented)
+        .padding(4)
+        .trixSurfaceCard(cornerRadius: 12, borderOpacity: 0.2, shadowOpacity: 0.05, shadowRadius: 6)
     }
 
     /// Active study rooms section
@@ -130,6 +136,11 @@ struct StudyListView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Stats header
             statsHeader
+
+            Text("正在进行中的自习房")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
 
             // Rooms list
             VStack(spacing: 12) {
@@ -165,7 +176,7 @@ struct StudyListView: View {
 
     /// Statistics header
     private var statsHeader: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             StatBox(
                 title: "study.active.rooms".localized,
                 value: "\(activeRooms.count)",
@@ -222,16 +233,14 @@ struct StudyListView: View {
 
     /// Background gradient
     private var backgroundGradient: some View {
-        LinearGradient(
+        Color.clear.trixPageBackground(
             colors: [
-                Color.purple.opacity(0.1),
-                Color.pink.opacity(0.05),
+                Color.brandPurple.opacity(0.16),
+                Color.brandPink.opacity(0.1),
+                Color.cyan.opacity(0.08),
                 Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            ]
         )
-        .ignoresSafeArea()
     }
 
     // MARK: - Actions
@@ -334,9 +343,18 @@ struct StudyRoomCard: View {
             .buttonStyle(.plain)
         }
         .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.brandPurple.opacity(0.12),
+                    Color.brandPink.opacity(0.08),
+                    Color.white.opacity(0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.22, shadowOpacity: 0.06, shadowRadius: 10)
     }
 }
 
@@ -388,8 +406,7 @@ struct StudySessionCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .trixSurfaceCard(cornerRadius: 12, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 6)
     }
 }
 
@@ -418,8 +435,14 @@ struct StatBox: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(
+            LinearGradient(
+                colors: [color.opacity(0.18), Color.white.opacity(0.12)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .trixSurfaceCard(cornerRadius: 12, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 6)
     }
 }
 

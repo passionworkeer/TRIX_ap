@@ -7,6 +7,42 @@
 
 import SwiftUI
 
+// MARK: - TRIX Design System
+
+struct TrixSurfaceCardModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let borderOpacity: Double
+    let shadowOpacity: Double
+    let shadowRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.white.opacity(borderOpacity), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: 4)
+    }
+}
+
+struct TrixGradientBackgroundModifier: ViewModifier {
+    let colors: [Color]
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                LinearGradient(
+                    colors: colors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            )
+    }
+}
+
 // MARK: - Glass Panel Style
 
 /// Different styles for glass panels
@@ -115,6 +151,33 @@ struct StyledGlassPanel: ViewModifier {
 // MARK: - View Extensions
 
 extension View {
+    func trixSurfaceCard(
+        cornerRadius: CGFloat = 16,
+        borderOpacity: Double = 0.18,
+        shadowOpacity: Double = 0.08,
+        shadowRadius: CGFloat = 10
+    ) -> some View {
+        self.modifier(
+            TrixSurfaceCardModifier(
+                cornerRadius: cornerRadius,
+                borderOpacity: borderOpacity,
+                shadowOpacity: shadowOpacity,
+                shadowRadius: shadowRadius
+            )
+        )
+    }
+
+    func trixPageBackground(
+        colors: [Color] = [
+            Color.brandPurple.opacity(0.16),
+            Color.brandPink.opacity(0.1),
+            Color.cyan.opacity(0.06),
+            Color.clear
+        ]
+    ) -> some View {
+        self.modifier(TrixGradientBackgroundModifier(colors: colors))
+    }
+
     /// Apply a styled glass panel
     func glassPanel(
         style: GlassPanelStyle = .default,
