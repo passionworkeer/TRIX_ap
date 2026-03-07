@@ -38,6 +38,8 @@ export interface VoiceMessageProps {
   showProgress?: boolean;
   /** Whether to auto-play when loaded */
   autoPlay?: boolean;
+  /** Styling variant based on who sent the message */
+  variant?: 'sender' | 'receiver';
   /** Callback when playback starts */
   onPlay?: () => void;
   /** Callback when playback pauses */
@@ -53,6 +55,7 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
   className = '',
   showProgress = true,
   autoPlay = false,
+  variant = 'receiver',
   onPlay,
   onPause,
   onEnded,
@@ -170,6 +173,33 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
   // Calculate progress percentage
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  // Determine variant-specific classes
+  const isSender = variant === 'sender';
+  
+  const playBtnClass = isSender
+    ? (isLoading ? 'bg-blue-400/20 cursor-wait' : 'bg-white hover:bg-blue-50 active:scale-95 cursor-pointer')
+    : (isLoading ? 'bg-slate-100 dark:bg-slate-800 cursor-wait' : 'bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 dark:hover:bg-violet-800/40 active:scale-95 cursor-pointer');
+
+  const iconClass = isSender
+    ? 'text-blue-500'
+    : 'text-violet-600 dark:text-violet-400';
+
+  const spinnerClass = isSender
+    ? 'border-blue-200 border-t-blue-500'
+    : 'border-violet-300 dark:border-violet-600 border-t-violet-600 dark:border-t-violet-400';
+    
+  const trackClass = isSender ? 'bg-blue-400/30' : 'bg-slate-200 dark:bg-slate-700';
+  const progressFillClass = isSender ? 'bg-white' : 'bg-violet-500 dark:bg-violet-400';
+  const thumbClass = isSender ? 'bg-white' : 'bg-white dark:bg-slate-200';
+  const timeTextClass = isSender ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400';
+  const durationTextClass = isSender ? 'text-white' : 'text-slate-600 dark:text-slate-300';
+  
+  const transcriptBtnClass = isSender 
+    ? 'text-blue-100 hover:text-white' 
+    : 'text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400';
+  const transcriptBgClass = isSender ? 'bg-blue-600/30' : 'bg-slate-50 dark:bg-slate-800/50';
+  const transcriptTextClass = isSender ? 'text-white' : 'text-slate-700 dark:text-slate-300';
+
   // Error state
   if (error) {
     return (
@@ -201,11 +231,11 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
           aria-label={isPlaying ? '暂停' : '播放'}
         >
           {isLoading ? (
-            <div className="w-5 h-5 border-2 border-violet-300 dark:border-violet-600 border-t-violet-600 dark:border-t-violet-400 rounded-full animate-spin" />
+            <div className={`w-5 h-5 border-2 rounded-full animate-spin ${spinnerClass}`} />
           ) : isPlaying ? (
-            <Pause className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <Pause className={`w-5 h-5 ${iconClass}`} />
           ) : (
-            <Play className="w-5 h-5 text-violet-600 dark:text-violet-400 ml-0.5" />
+            <Play className={`w-5 h-5 ml-0.5 ${iconClass}`} />
           )}
         </button>
 
@@ -217,7 +247,7 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
               {/* Progress bar */}
               <div
                 onClick={handleProgressClick}
-                className="relative h-2 bg-slate-200 dark:bg-slate-700 rounded-full cursor-pointer group"
+                className={`relative h-2 rounded-full cursor-pointer group ${trackClass}`}
                 role="slider"
                 aria-label="播放进度"
                 aria-valuenow={Math.round(progress)}
@@ -227,14 +257,14 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
               >
                 {/* Progress fill */}
                 <div
-                  className="absolute left-0 top-0 h-full bg-violet-500 dark:bg-violet-400 rounded-full transition-all duration-100"
+                  className={`absolute left-0 top-0 h-full rounded-full transition-all duration-100 ${progressFillClass}`}
                   style={{ width: `${progress}%` }}
                 />
                 {/* Thumb indicator */}
                 <div
                   className={`
                     absolute top-1/2 -translate-y-1/2 w-3 h-3
-                    bg-white dark:bg-slate-200 rounded-full shadow-sm
+                    ${thumbClass} rounded-full shadow-sm
                     transition-opacity duration-150
                     ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
                   `}
@@ -242,14 +272,14 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
                 />
               </div>
               {/* Time display */}
-              <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+              <div className={`flex justify-between text-xs ${timeTextClass}`}>
                 <span>{formatDuration(currentTime)}</span>
                 <span>{formatDuration(duration)}</span>
               </div>
             </div>
           ) : (
             /* Simple duration mode */
-            <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">
+            <span className={`text-sm font-medium ${durationTextClass}`}>
               {formatDuration(duration)}
             </span>
           )}
@@ -261,15 +291,15 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
         <div className="mt-2">
           <button
             onClick={() => setShowTranscript(!showTranscript)}
-            className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+            className={`flex items-center gap-1.5 text-xs transition-colors ${transcriptBtnClass}`}
           >
             <FileText className="w-3.5 h-3.5" />
             <span>{showTranscript ? '隐藏转文字' : '显示转文字'}</span>
           </button>
 
           {showTranscript && (
-            <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            <div className={`mt-2 p-3 rounded-lg ${transcriptBgClass}`}>
+              <p className={`text-sm leading-relaxed ${transcriptTextClass}`}>
                 {transcript ? escapeHtml(transcript) : '无转文字内容'}
               </p>
             </div>

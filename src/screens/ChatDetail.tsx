@@ -827,55 +827,59 @@ const ChatDetail: React.FC = () => {
                 )}
 
                 <div className="flex max-w-[75%] flex-col gap-1">
-                  <div
-                    className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
-                      msg.sender === 'user'
-                        ? 'rounded-2xl rounded-tr-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white'
-                        : 'rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
-                    }`}
-                  >
-                    {/* 语音消息 */}
-                    {msg.messageType === 'voice' && msg.mediaUri && (
-                      <div className="-mx-2 -my-1">
-                        <VoiceMessage
-                          url={msg.mediaUri}
-                          duration={msg.mediaMetadata?.duration || 0}
-                          className={msg.sender === 'user' ? 'invert' : ''}
-                        />
-                      </div>
-                    )}
+                  
+                  {/* 图片/视频消息 - 接收者 */}
+                  {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && (
+                    <div className="mb-1 overflow-hidden rounded-2xl rounded-tl-sm bg-slate-100 dark:bg-slate-800">
+                      <MediaMessage
+                        uri={msg.mediaUri}
+                        type={msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? 'video' : 'image'}
+                        alt="Attachment"
+                        maxSize="sm"
+                        className="w-full max-w-[240px] h-auto object-cover"
+                      />
+                    </div>
+                  )}
 
-                    {/* 图片/视频消息 - 接收者 */}
-                    {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && (
-                      <div className="-ml-2 -mt-2 mb-2">
-                        <MediaMessage
-                          uri={msg.mediaUri}
-                          type={msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? 'video' : 'image'}
-                          alt="Attachment"
-                          maxSize="sm"
-                          className="rounded-lg"
-                        />
+                  {/* 图片/视频消息 - 发送者 */}
+                  {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && (
+                    <div className="mb-1 flex justify-end">
+                      <div className="relative overflow-hidden rounded-2xl rounded-tr-sm bg-slate-100 dark:bg-slate-800 shadow-sm">
+                        {msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? (
+                          <video src={msg.mediaUri} className="max-w-[240px] max-h-[300px] object-cover" controls />
+                        ) : (
+                          <img src={msg.mediaUri} alt="Attachment" className="max-w-[240px] max-h-[240px] object-cover" />
+                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* 图片/视频消息 - 发送者 */}
-                    {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && (
-                      <div className="-mr-2 -mt-2 mb-2">
-                        <div className="relative h-[120px] w-[120px] overflow-hidden rounded-lg bg-transparent">
-                          {msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? (
-                            <video src={msg.mediaUri} className="h-full w-full object-cover" controls />
-                          ) : (
-                            <img src={msg.mediaUri} alt="Attachment" className="h-full w-full object-cover" />
-                          )}
+                  {/* Bubble for Voice or Text */}
+                  {(msg.messageType === 'voice' || (msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]')) && (
+                    <div
+                      className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
+                        msg.sender === 'user'
+                          ? 'rounded-2xl rounded-tr-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm'
+                          : 'rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                      }`}
+                    >
+                      {/* 语音消息 */}
+                      {msg.messageType === 'voice' && msg.mediaUri && (
+                        <div className="-mx-2 -my-1">
+                          <VoiceMessage
+                            url={msg.mediaUri}
+                            duration={msg.mediaMetadata?.duration || 0}
+                            variant={msg.sender === 'user' ? 'sender' : 'receiver'}
+                          />
                         </div>
-                      </div>
-                    )}
-
-                    {/* 文本消息 */}
-                    {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && (
-                      <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                    )}
-                  </div>
+                      )}
+                      
+                      {/* 文本消息 */}
+                      {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && (
+                        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                      )}
+                    </div>
+                  )}
                   <span
                     className={`px-1 text-[10px] text-slate-400 dark:text-slate-500 ${
                       msg.sender === 'user' ? 'text-right' : 'text-left'
