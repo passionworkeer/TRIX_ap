@@ -120,14 +120,38 @@ class AchievementService {
         .eq('user_id', userId)
         .not('companion_id', 'is', null);
 
+      // 获取所有会话的开始时间以计算早鸟和夜猫子
+      const { data: allSessions } = await supabase
+        .from('study_sessions')
+        .select('start_time')
+        .eq('user_id', userId);
+
+      let earlyBirdCount = 0;
+      let nightOwlCount = 0;
+
+      if (allSessions) {
+        allSessions.forEach(session => {
+          if (!session.start_time) return;
+          const startHour = new Date(session.start_time).getHours();
+          // 早鸟：4:00 - 8:00 (含4不含8)
+          if (startHour >= 4 && startHour < 8) {
+            earlyBirdCount++;
+          } 
+          // 夜猫子：22:00 - 3:00
+          else if (startHour >= 22 || startHour < 3) {
+            nightOwlCount++;
+          }
+        });
+      }
+
       return {
         total_minutes: profile?.total_study_time || 0,
         total_sessions: totalSessions || 0,
         daily_streak: profile?.current_streak || 0,
         friends_studied_count: friendsCount || 0,
         longest_single_session: longestSession?.duration_minutes || 0,
-        early_bird_count: 0, // TODO: 实现
-        night_owl_count: 0   // TODO: 实现
+        early_bird_count: earlyBirdCount,
+        night_owl_count: nightOwlCount
       };
     } catch (error) {
       logger.study.error('Failed to get user stats:', error);

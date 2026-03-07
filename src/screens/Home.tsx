@@ -29,8 +29,8 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) => {
   const isDev = import.meta.env.DEV;
   const navigate = useNavigate();
-  const { isConnected, isPaired, botState } = useClawbotChannel();
-  const { showWarning } = useNotification();
+  const { isConnected, isPaired, botState, sendMessage } = useClawbotChannel();
+  const { showWarning, showSuccess } = useNotification();
 
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
@@ -174,7 +174,20 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
         onClose={() => setShowLocation(false)}
         onLocationSelected={(location) => {
           logger.ui.debug('Selected location:', location);
-          // TODO: Handle location selection (e.g., send to chat)
+          
+          if (!isConnected || !isPaired) {
+             showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
+             return;
+          }
+          
+          try {
+            sendMessage(`我当前的位置是: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
+            showSuccess('位置信息已发送');
+            setShowLocation(false);
+          } catch (error) {
+            showWarning('发送位置失败，请重试');
+            logger.ui.error('Failed to send location message:', error);
+          }
         }}
       />
     </div>

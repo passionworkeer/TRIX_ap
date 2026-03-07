@@ -216,11 +216,33 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   }, [selectedLocation, locationName, notification, onLocationSelected]);
 
   // Handle search (simple implementation - just shows placeholder)
-  const handleSearch = useCallback((query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
-    // Note: For a full implementation, integrate with a geocoding service
-    // such as Nominatim (OSM) or a Chinese geocoding service
-  }, []);
+    if (!query) return;
+    
+    try {
+      // Use Nominatim for geocoding
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const results = await response.json();
+      
+      if (results && results.length > 0) {
+        const firstResult = results[0];
+        const newLocation: SelectedLocation = {
+          latitude: parseFloat(firstResult.lat),
+          longitude: parseFloat(firstResult.lon),
+          name: firstResult.display_name.split(',')[0],
+        };
+        setSelectedLocation(newLocation);
+        setLocationName(firstResult.display_name);
+        // We do not auto-share since they might just be searching, they can click "Share" explicitly
+      } else {
+        notification.showWarning('未找到匹配的地点');
+      }
+    } catch (error) {
+      console.error('Search failed', error);
+      notification.showWarning('搜索异常，请稍后再试');
+    }
+  }, [notification]);
 
   // Handle backdrop click
   const handleBackdropClick = useCallback(

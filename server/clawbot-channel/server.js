@@ -984,7 +984,7 @@ io.on('connection', (socket) => {
   }
 
   socket.on('pair_with_code', handlePairWithCode);
-  socket.on('app_pair_with_code', handlePairWithCode);
+  // socket.on('app_pair_with_code', handlePairWithCode);
   socket.on('pair_with_token', handlePairWithToken);
   socket.on('app_pair_with_token', handlePairWithToken);
 

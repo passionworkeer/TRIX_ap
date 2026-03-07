@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AppRoutes } from '../types';
 import Avatar from './Avatar';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -298,7 +299,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     }
 
     onClose();
-    navigate('/study/timer', { state: { duration: selectedDuration } });
+    navigate(AppRoutes.STUDY_TIMER, { state: { duration: selectedDuration } });
   }, [navigate, onClose, room, selectedDuration, showWarning]);
 
   const handleCreateRoom = useCallback(async () => {

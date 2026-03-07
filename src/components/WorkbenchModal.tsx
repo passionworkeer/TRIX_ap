@@ -63,7 +63,6 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
       // Call the onCardClick callback if provided
       onCardClick?.(item.id);
 
-      // Placeholder actions - will be replaced with actual implementations
       logger.ui.debug(`[WorkbenchModal] Card clicked: ${item.id}`);
 
       switch (item.id) {
@@ -73,25 +72,16 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
           logger.ui.debug('[WorkbenchModal] Opening snapshot panel...');
           break;
         case 'location':
-          // TODO: Open location picker
-          logger.ui.debug('[WorkbenchModal] Opening location picker...');
-          break;
         case 'schedule':
-          // TODO: Open schedule manager
-          logger.ui.debug('[WorkbenchModal] Opening schedule...');
-          break;
         case 'todo':
-          // TODO: Open todo list
-          logger.ui.debug('[WorkbenchModal] Opening todo list...');
+          // Close workbench modal for external panels
+          onClose();
           break;
         default:
           logger.ui.debug('[WorkbenchModal] Unknown action:', item.id);
       }
-
-      // Close modal after action (optional, can be removed based on UX preference)
-      // onClose();
     },
-    [onCardClick]
+    [onCardClick, onClose]
   );
 
   // Handle keyboard escape

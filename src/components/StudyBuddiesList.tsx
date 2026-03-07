@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Users } from 'lucide-react';
+import { AppRoutes } from '../types';
 import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
@@ -174,7 +175,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       }
 
       onClose();
-      navigate('/study/timer', {
+      navigate(AppRoutes.STUDY_TIMER, {
         state: {
           duration: 25,
           companion: {
