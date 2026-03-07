@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhotosUI
+import UIKit
 
 // Helper function for localization
 private func loc(_ key: String) -> String {
@@ -42,6 +43,9 @@ struct HomeView: View {
     @State private var showLocation = false
     @State private var useRobotBackground = true
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showTrixBotFromSnapshot = false
+    @State private var pendingSnapshotImage: UIImage?
+    @State private var pendingSnapshotImageURL: String?
 
     // MARK: - Body
 
@@ -77,8 +81,11 @@ struct HomeView: View {
                 .onTapGesture {
                     // Web端逻辑：点击背景显示工作台
                     // 工作台带有半透明背景，点击半透明背景可以关闭工作台
-                    isWorkbenchPresented = true
+                    if !isWorkbenchPresented {
+                        isWorkbenchPresented = true
+                    }
                 }
+                .allowsHitTesting(!isWorkbenchPresented)
 
                 // Workbench Modal (appears on background tap) - 底部浮窗效果
                 if isWorkbenchPresented {
@@ -133,33 +140,6 @@ struct HomeView: View {
                 NotificationPanelView(isPresented: $showNotificationPanel)
             }
 
-            // Location View - 直接显示
-            if showLocation {
-                LocationPickerView()
-            }
-
-            // Schedule View - 直接显示，加关闭按钮
-            if showSchedule {
-                ZStack(alignment: .topTrailing) {
-                    ScheduleListView(showAsSheet: false)
-
-                    Button {
-                        showSchedule = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                            .padding()
-                    }
-                    .padding(.top, 50)
-                    .padding(.trailing, 16)
-                }
-            }
-
-            // Todo View - 直接显示
-            if showTodo {
-                TodoListView()
-            }
         }
         .confirmationDialog("快拍", isPresented: $showQuickSnapOptions, titleVisibility: .visible) {
             Button("拍照") {
@@ -176,11 +156,23 @@ struct HomeView: View {
 
             Button("取消", role: .cancel) {}
         }
-        .fullScreenCover(isPresented: $showCameraCapture) {
-            CameraView()
+        .fullScreenCover(isPresented: $showCameraCapture, onDismiss: presentPendingSnapshotChatIfNeeded) {
+            CameraView { image, uploadedImageURL in
+                pendingSnapshotImage = image
+                pendingSnapshotImageURL = uploadedImageURL
+            }
         }
         .fullScreenCover(isPresented: $showSnapshot) {
             SnapshotListView()
+        }
+        .fullScreenCover(isPresented: $showTrixBotFromSnapshot, onDismiss: clearPendingSnapshotSelection) {
+            NavigationStack {
+                TrixBotChatView(
+                    initialAttachedImage: pendingSnapshotImage,
+                    initialAttachedImageURL: pendingSnapshotImageURL
+                )
+                .environmentObject(clawbotChannel)
+            }
         }
         .photosPicker(
             isPresented: $showPhotoPicker,
@@ -192,11 +184,25 @@ struct HomeView: View {
             guard let item else { return }
 
             Task {
-                _ = try? await item.loadTransferable(type: Data.self)
+                let imageData = try? await item.loadTransferable(type: Data.self)
+                let selectedImage = imageData.flatMap { UIImage(data: $0) }
+
                 await MainActor.run {
+                    pendingSnapshotImage = selectedImage
+                    pendingSnapshotImageURL = nil
+                    showTrixBotFromSnapshot = selectedImage != nil
                     selectedPhotoItem = nil
                 }
             }
+        }
+        .sheet(isPresented: $showLocation) {
+            LocationPickerView(showAsSheet: true)
+        }
+        .sheet(isPresented: $showSchedule) {
+            ScheduleListView(showAsSheet: true)
+        }
+        .sheet(isPresented: $showTodo) {
+            TodoListView(showAsSheet: true)
         }
     }
 
@@ -253,6 +259,16 @@ struct HomeView: View {
         default:
             break
         }
+    }
+
+    private func presentPendingSnapshotChatIfNeeded() {
+        guard pendingSnapshotImage != nil else { return }
+        showTrixBotFromSnapshot = true
+    }
+
+    private func clearPendingSnapshotSelection() {
+        pendingSnapshotImage = nil
+        pendingSnapshotImageURL = nil
     }
 }
 

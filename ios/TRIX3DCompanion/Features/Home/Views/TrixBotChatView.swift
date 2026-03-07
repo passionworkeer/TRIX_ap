@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - TrixBot Chat View
 
@@ -15,12 +16,33 @@ struct TrixBotChatView: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
+    @Environment(\.dismiss) private var dismiss
 
     // MARK: - State
 
     @State private var messageText: String = ""
     @State private var scrollToBottom = false
+    @State private var attachedImage: UIImage?
+    @State private var attachedImageURL: String?
+    @State private var isUploadingAttachment = false
+    @State private var localErrorMessage: String?
     @FocusState private var isInputFocused: Bool
+
+    // MARK: - Dependencies
+
+    private let imageUploadService: ImageUploadService = .shared
+
+    // MARK: - Initialization
+
+    init(
+        initialMessage: String = "",
+        initialAttachedImage: UIImage? = nil,
+        initialAttachedImageURL: String? = nil
+    ) {
+        _messageText = State(initialValue: initialMessage)
+        _attachedImage = State(initialValue: initialAttachedImage)
+        _attachedImageURL = State(initialValue: initialAttachedImageURL)
+    }
 
     // MARK: - Body
 
@@ -51,6 +73,12 @@ struct TrixBotChatView: View {
                         .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
                 }
             }
+
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("关闭") {
+                    dismiss()
+                }
+            }
         }
         .onAppear {
             Task {
@@ -59,6 +87,13 @@ struct TrixBotChatView: View {
         }
         .onChange(of: clawbotChannel.messages) { _ in
             scrollToBottom = true
+        }
+        .alert("Error", isPresented: localErrorPresented) {
+            Button("OK") {
+                localErrorMessage = nil
+            }
+        } message: {
+            Text(localErrorMessage ?? "")
         }
     }
 
@@ -138,53 +173,135 @@ struct TrixBotChatView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            // Text input
-            HStack(alignment: .bottom, spacing: 8) {
-                TextField("发送消息...", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...6)
-                    .disabled(!clawbotChannel.isPaired)
+        VStack(spacing: 10) {
+            if attachedImage != nil || attachedImageURL != nil {
+                HStack(spacing: 10) {
+                    if let image = attachedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 56, height: 56)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    } else if let remoteImageURL = attachedImageURL, let url = URL(string: remoteImageURL) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure:
+                                Image(systemName: "photo")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            @unknown default:
+                                Image(systemName: "photo")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .frame(width: 56, height: 56)
+                        .background(Color(.systemGray5))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
 
-                if !messageText.isEmpty {
-                    Button(action: { messageText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("已附加图片")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+
+                        Text(attachedImageURL == nil ? "发送时上传" : "上传完成")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    if isUploadingAttachment {
+                        ProgressView()
+                    } else {
+                        Button {
+                            attachedImage = nil
+                            attachedImageURL = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                                .font(.title3)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemGray6))
-            )
 
-            // Send button
-            if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button(action: sendMessage) {
-                    ZStack {
-                        Circle()
-                            .fill(clawbotChannel.isPaired ? Color.purple : Color.gray)
-                            .frame(width: 40, height: 40)
+            HStack(alignment: .bottom, spacing: 12) {
+                // Text input
+                HStack(alignment: .bottom, spacing: 8) {
+                    TextField("发送消息...", text: $messageText, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...6)
+                        .disabled(!clawbotChannel.isPaired || isUploadingAttachment)
 
-                        if clawbotChannel.isSending {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.up.fill")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
+                    if !messageText.isEmpty {
+                        Button(action: { messageText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(.systemGray6))
+                )
+
+                // Send button
+                if canSend {
+                    Button(action: sendMessage) {
+                        ZStack {
+                            Circle()
+                                .fill(clawbotChannel.isPaired ? Color.purple : Color.gray)
+                                .frame(width: 40, height: 40)
+
+                            if clawbotChannel.isSending || isUploadingAttachment {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.up.fill")
+                                    .font(.body)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                            }
                         }
                     }
+                    .disabled(!clawbotChannel.isPaired || clawbotChannel.isSending || isUploadingAttachment)
                 }
-                .disabled(!clawbotChannel.isPaired || clawbotChannel.isSending)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
+    }
+
+    private var canSend: Bool {
+        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || attachedImage != nil || attachedImageURL != nil
+    }
+
+    private var localErrorPresented: Binding<Bool> {
+        Binding(
+            get: { localErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    localErrorMessage = nil
+                }
+            }
+        )
     }
 
     // MARK: - Background Gradient
@@ -207,13 +324,46 @@ struct TrixBotChatView: View {
 
     private func sendMessage() {
         let trimmedText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedText.isEmpty, clawbotChannel.isPaired else { return }
+        guard clawbotChannel.isPaired else { return }
 
         Task {
-            let success = await clawbotChannel.sendMessage(trimmedText)
+            var mediaURLToSend = attachedImageURL
+
+            if mediaURLToSend == nil, let image = attachedImage {
+                await MainActor.run { isUploadingAttachment = true }
+
+                let uploadResult = await imageUploadService.uploadImage(image)
+                switch uploadResult {
+                case .success(let url):
+                    mediaURLToSend = url
+                    await MainActor.run {
+                        attachedImageURL = url
+                        isUploadingAttachment = false
+                    }
+                case .failure(let error):
+                    await MainActor.run {
+                        isUploadingAttachment = false
+                        localErrorMessage = error.localizedDescription
+                    }
+                    return
+                }
+            }
+
+            let contentToSend = trimmedText.isEmpty ? "请帮我分析这张图片，并给我可执行建议。" : trimmedText
+            let contentType: ClawbotMessageContentType = (mediaURLToSend == nil) ? .text : .image
+
+            let success = await clawbotChannel.sendMessage(
+                contentToSend,
+                contentType: contentType,
+                mediaUrl: mediaURLToSend,
+                mediaMimeType: mediaURLToSend == nil ? nil : "image/jpeg"
+            )
+
             if success {
                 await MainActor.run {
                     messageText = ""
+                    attachedImage = nil
+                    attachedImageURL = nil
                     scrollToBottom = true
                 }
             }
@@ -240,6 +390,32 @@ struct MessageBubble: View {
                 Text(message.sender == .user ? "你" : "TRIX Bot")
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                if let mediaUrl = message.mediaUrl, let url = URL(string: mediaUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(width: 180, height: 180)
+                                .background(Color(.systemGray5))
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 180, height: 180)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        case .failure:
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .frame(width: 180, height: 180)
+                                .background(Color(.systemGray5))
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                }
 
                 Text(message.content)
                     .font(.body)
