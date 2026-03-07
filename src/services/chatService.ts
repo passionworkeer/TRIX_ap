@@ -90,10 +90,22 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
       // Add media fields if present
       if (msg.message_type && msg.message_type !== 'text') {
         uiMessage.message_type = msg.message_type;
-        uiMessage.media_uri = msg.media_uri;
-        uiMessage.media_type = msg.media_type;
-        uiMessage.media_size = msg.media_size;
-        uiMessage.media_metadata = msg.media_metadata;
+
+        // 对于语音消息，使用 voice_url；其他使用 media_uri
+        if (msg.message_type === 'voice') {
+          uiMessage.voice_url = msg.voice_url;
+          uiMessage.voice_duration = msg.voice_duration;
+          uiMessage.voice_transcript = msg.voice_transcript;
+          uiMessage.voice_mime_type = msg.voice_mime_type;
+          // 兼容旧数据：优先使用 voice_url，回退到 media_uri
+          uiMessage.media_uri = msg.voice_url || msg.media_uri;
+          uiMessage.media_metadata = { duration: msg.voice_duration || msg.media_metadata?.duration || 0 };
+        } else {
+          uiMessage.media_uri = msg.media_uri;
+          uiMessage.media_type = msg.media_type;
+          uiMessage.media_size = msg.media_size;
+          uiMessage.media_metadata = msg.media_metadata;
+        }
       }
 
       return uiMessage;
@@ -165,7 +177,7 @@ export async function sendMessage(
  * @param sender - 发送者类型
  * @param text - 消息文本（可以为空）
  * @param mediaData - 媒体数据
- * @param messageType - 消息类型 ('image' | 'video' | 'mixed')
+ * @param messageType - 消息类型 ('image' | 'video' | 'mixed' | 'voice')
  * @returns 消息 ID 或 null
  */
 export async function sendMessageWithMedia(
@@ -176,14 +188,14 @@ export async function sendMessageWithMedia(
     uri: string;
     type: string;
     size: number;
-    category: 'image' | 'video';
+    category: 'image' | 'video' | 'audio';
     metadata?: {
       width?: number;
       height?: number;
       duration?: number;
     };
   },
-  messageType: 'image' | 'video' | 'mixed'
+  messageType: 'image' | 'video' | 'mixed' | 'voice'
 ): Promise<string | null> {
   try {
     const userId = await getCurrentUserId();
@@ -197,18 +209,28 @@ export async function sendMessageWithMedia(
     const senderId = sender === 'user' ? userId : friendId;
     const receiverId = sender === 'user' ? friendId : userId;
 
-    const messageData = {
+    // 根据消息类型构建数据
+    const isVoice = messageType === 'voice';
+
+    const messageData: Record<string, unknown> = {
       conversation_id: conversationId,
       sender_id: senderId,
       receiver_id: receiverId,
       text: text || '', // 允许纯媒体消息为空文本
       is_read: false,
       message_type: messageType,
-      media_uri: mediaData.uri,
-      media_type: mediaData.type,
-      media_size: mediaData.size,
-      media_metadata: mediaData.metadata || null
+      media_uri: isVoice ? null : mediaData.uri,
+      media_type: isVoice ? null : mediaData.type,
+      media_size: isVoice ? null : mediaData.size,
+      media_metadata: isVoice ? null : (mediaData.metadata || null)
     };
+
+    // 如果是语音消息，添加语音字段
+    if (isVoice) {
+      messageData.voice_url = mediaData.uri;
+      messageData.voice_duration = mediaData.metadata?.duration || 0;
+      messageData.voice_mime_type = mediaData.type;
+    }
 
     const { data, error } = await supabase
       .from('chat_messages')
@@ -222,7 +244,8 @@ export async function sendMessageWithMedia(
     }
 
     // 更新未读计数（使用预览文本）
-    const previewText = text || `[${messageType === 'image' ? '图片' : '视频'}]`;
+    const typeLabel = messageType === 'image' ? '图片' : messageType === 'video' ? '视频' : messageType === 'voice' ? '语音' : '媒体';
+    const previewText = text || `[${typeLabel}]`;
     await updateUnreadCount(receiverId, senderId, previewText);
 
     return data?.id || null;

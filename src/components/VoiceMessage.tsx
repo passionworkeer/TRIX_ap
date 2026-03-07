@@ -92,7 +92,23 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
       logger.media.debug('[VoiceMessage] Playback ended');
     });
 
-    audio.addEventListener('error', (e) => {
+    audio.addEventListener('error', async (e) => {
+      // 尝试通过 fetch 加载音频以绕过 CORS 问题
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          audio.src = blobUrl;
+          audio.load();
+          setIsLoading(true);
+          logger.media.debug('[VoiceMessage] Loaded via fetch + blob URL');
+          return;
+        }
+      } catch (fetchError) {
+        logger.media.error('[VoiceMessage] Fetch fallback failed:', fetchError);
+      }
+
       const errorMsg = '音频加载失败';
       setError(errorMsg);
       setIsLoading(false);
