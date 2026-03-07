@@ -403,7 +403,24 @@ const Chat: React.FC = () => {
                                       <MessageSquare size={14} className="text-gray-500" strokeWidth={2.5} />
                                     )}
                                     <span className={`text-sm truncate ${hasUnread ? 'text-white font-medium' : 'text-gray-400'}`}>
-                                      {friend.last_message || (isBot ? 'Tap to chat' : '新快照')}
+                                      {(() => {
+                                        const msg = friend.last_message;
+                                        if (!msg) return isBot ? 'Tap to chat' : '新快照';
+                                        // If it's already a string, check if it looks like [object Object]
+                                        if (typeof msg === 'string') {
+                                          if (msg === '[object Object]' || msg.startsWith('[object')) {
+                                            return '[图片]';
+                                          }
+                                          // Try to parse as JSON
+                                          try {
+                                            const parsed = JSON.parse(msg);
+                                            return parsed.text || parsed.content || '[图片]';
+                                          } catch {
+                                            return msg;
+                                          }
+                                        }
+                                        return '[图片]';
+                                      })()}
                                       {friend.last_message_time && (
                                          <>
                                            <span className="text-gray-600 mx-0.5">•</span>

@@ -76,6 +76,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX idx_chat_messages_friend_id ON chat_messages(friend_id);
 CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
 
+-- 添加语音消息相关字段（保持向后兼容）
+ALTER TABLE chat_messages
+ADD COLUMN IF NOT EXISTS voice_url TEXT,
+ADD COLUMN IF NOT EXISTS voice_duration INTEGER,
+ADD COLUMN IF NOT EXISTS voice_transcript TEXT,
+ADD COLUMN IF NOT EXISTS voice_mime_type TEXT;
+
 -- 插入 mock 聊天记录 - Alice (设计师好友)
 INSERT INTO chat_messages (friend_id, sender, text, created_at) VALUES
 ('alice', 'user', '嗨 Alice！昨天的设计评审怎么样？', NOW() - INTERVAL '8 hours'),
