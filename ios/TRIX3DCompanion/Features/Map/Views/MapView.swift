@@ -25,6 +25,7 @@ struct MapView: View {
     // MARK: - State
 
     @State private var showPermissionAlert = false
+    @State private var selectedFriendId: String?
 
     // MARK: - Focus State
 
@@ -39,50 +40,56 @@ struct MapView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            // Map
-            mapContent
+        GeometryReader { proxy in
+            let mapOverlayBottomInset = bottomOverlayInset(for: proxy.safeAreaInsets.bottom)
+            let locationButtonBottomInset = max(56, mapOverlayBottomInset - 56)
 
-            // Top search bar - at the very top
-            VStack {
-                searchBarOverlay
-                    .padding(.horizontal)
-                    .padding(.top, 180)  // Move much higher
+            ZStack {
+                // Map
+                mapContent
 
-                Spacer()
-            }
+                // Top search area - pinned right below status bar/safe area
+                VStack {
+                    searchBarOverlay
+                        .padding(.top, 8)
 
-            // Bottom content
-            VStack {
-                Spacer()
+                    Spacer()
+                }
 
-                // Friend markers bar - above status bar
-                friendMarkersBar
-                    .padding(.bottom, 10)
-
-                // Bottom status bar - moved up
-                bottomStatusBar
-                    .padding(.bottom, 120) // Above GlassDock
-            }
-
-            // Location button (right side)
-            VStack {
-                Spacer()
-
-                HStack {
+                // Bottom content
+                VStack {
                     Spacer()
 
-                    VStack(spacing: 12) {
-                        // Locate me button
-                        Button(action: { centerOnUserLocation() }) {
+                    // Friend markers bar
+                    friendMarkersBar
+                        .padding(.bottom, 8)
+
+                    // Bottom status bar - always above GlassDock
+                    bottomStatusBar
+                        .padding(.bottom, mapOverlayBottomInset)
+                }
+
+                // Location button (right side)
+                VStack {
+                    Spacer()
+
+                    HStack {
+                        Spacer()
+
+                        Button(action: centerOnUserLocation) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.gray.opacity(0.3))
+                                    .fill(.ultraThinMaterial)
                                     .frame(width: 56, height: 56)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                                    )
                                     .shadow(color: .shadow, radius: 8, x: 0, y: 4)
 
                                 Image(systemName: viewModel.isUserLocationAvailable ? "location.fill" : "location")
-                                    .font(.title2)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .symbolRenderingMode(.hierarchical)
                                     .foregroundStyle(
                                         viewModel.isUserLocationAvailable
                                             ? Color.brandPurple
@@ -91,16 +98,17 @@ struct MapView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .padding(.trailing, 16)
+                        .padding(.bottom, locationButtonBottomInset)
                     }
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 60) // Above GlassDock
+                }
+
+                // Loading overlay
+                if viewModel.isLoading {
+                    loadingOverlay
                 }
             }
-
-            // Loading overlay
-            if viewModel.isLoading {
-                loadingOverlay
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .ignoresSafeArea(edges: .bottom)
         .task {
@@ -169,25 +177,39 @@ struct MapView: View {
     /// Friend markers bar at bottom
     private var friendMarkersBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: 10) {
                 ForEach(viewModel.friendLocations) { friend in
-                    FriendMarkerView(friend: friend) {
+                    FriendMarkerView(
+                        friend: friend,
+                        isSelected: selectedFriendId == friend.id
+                    ) {
+                        selectedFriendId = friend.id
                         viewModel.selectFriend(friend)
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .frame(height: 70)
+        .background(.ultraThinMaterial)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.28), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .shadow, radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 16)
+        .frame(height: 64)
     }
 
     /// Search bar overlay
     private var searchBarOverlay: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             // Search bar
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.textSecondary)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.textSecondary)
 
                 TextField("Search locations...", text: $viewModel.searchQuery)
                     .textFieldStyle(.plain)
@@ -199,17 +221,22 @@ struct MapView: View {
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: { viewModel.clearSearch() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.textTertiary)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.textTertiary)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.gray.opacity(0.2))
+            .background(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: .shadow, radius: 8, x: 0, y: 4)
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
 
             // Search results list
             if isSearchFocused && !viewModel.filteredLocations.isEmpty {
@@ -218,7 +245,6 @@ struct MapView: View {
 
             // Category filters
             categoryFilterBar
-                .padding(.top, 8)
         }
     }
 
@@ -229,7 +255,7 @@ struct MapView: View {
                 // All categories
                 CategoryFilterChip(
                     title: "All",
-                    icon: "mappin.circle.fill",
+                    icon: "line.3.horizontal.decrease.circle.fill",
                     isSelected: viewModel.selectedCategory == nil
                 ) {
                     viewModel.setCategoryFilter(nil)
@@ -246,7 +272,8 @@ struct MapView: View {
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 2)
         }
     }
 
@@ -265,9 +292,9 @@ struct MapView: View {
             .padding(.top, 8)
         }
         .frame(maxHeight: 200)
-        .background(Color.white.shadow(color: .shadow, radius: 8, x: 0, y: 4))
+        .background(Color.cardBackground.shadow(color: .shadow, radius: 8, x: 0, y: 4))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
     }
 
     /// Bottom status bar showing places and friends count
@@ -369,6 +396,14 @@ struct MapView: View {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    /// Keep overlays above the floating bottom dock on every iPhone size.
+    private func bottomOverlayInset(for safeBottom: CGFloat) -> CGFloat {
+        let dockHeight: CGFloat = 70
+        let dockBottomPadding: CGFloat = 8
+        let spacingAboveDock: CGFloat = 56
+        return safeBottom + dockHeight + dockBottomPadding + spacingAboveDock
     }
 }
 
@@ -507,21 +542,31 @@ struct CategoryFilterChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 16, height: 16)
+                    .symbolRenderingMode(.hierarchical)
 
                 Text(title)
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
             }
-            .foregroundColor(isSelected ? .white : .textPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .foregroundStyle(isSelected ? Color.white : Color.textPrimary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .background(
                 isSelected
                     ? Color.brandPurple
-                    : Color.cardBackground
+                    : Color.cardBackground.opacity(0.95)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? Color.brandPurple.opacity(0.35) : Color.separator.opacity(0.6),
+                        lineWidth: 1
+                    )
             )
             .clipShape(Capsule())
             .shadow(color: isSelected ? .brandPurple.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
@@ -730,57 +775,65 @@ private struct FriendAvatarAnnotation: View {
 /// Friend marker view for map annotations - proper size with letter
 private struct FriendMarkerView: View {
     let friend: FriendMapLocation
+    let isSelected: Bool
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 2) {
-                // Avatar with glow for studying friends
+            HStack(spacing: 8) {
+                // Avatar with status
                 ZStack(alignment: .bottomTrailing) {
-                    // Glow ring for studying friends
-                    if friend.isStudying {
-                        Circle()
-                            .fill(Color.green.opacity(0.4))
-                            .frame(width: 36, height: 36)
-                            .blur(radius: 3)
-                    }
-
-                    // Avatar background - colored circle with letter
                     Circle()
                         .fill(avatarGradient)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 26, height: 26)
                         .overlay(
                             Text(String(friend.name.prefix(1)).uppercased())
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
                         )
                         .overlay(
                             Circle()
-                                .strokeBorder(.white, lineWidth: 1)
+                                .strokeBorder(.white.opacity(0.9), lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
 
-                    // Status indicator
                     Circle()
                         .fill(statusColor)
-                        .frame(width: 10, height: 10)
+                        .frame(width: 9, height: 9)
                         .overlay(
                             Circle()
                                 .strokeBorder(.white, lineWidth: 1)
                         )
-                        .offset(x: 1, y: 1)
+                        .offset(x: 2, y: 2)
                 }
 
-                // Name tag
                 Text(friend.name)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Capsule())
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.textPrimary)
+
+                if friend.isStudying {
+                    Image(systemName: "book.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.green)
+                }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                isSelected
+                    ? Color.brandPurple.opacity(0.18)
+                    : Color.cardBackground.opacity(0.92)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? Color.brandPurple.opacity(0.65) : Color.separator.opacity(0.55),
+                        lineWidth: 1
+                    )
+            )
+            .clipShape(Capsule())
+            .shadow(color: isSelected ? Color.brandPurple.opacity(0.28) : .clear, radius: 6, x: 0, y: 3)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }

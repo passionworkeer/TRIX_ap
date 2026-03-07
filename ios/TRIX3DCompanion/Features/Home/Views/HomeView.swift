@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 // Helper function for localization
 private func loc(_ key: String) -> String {
@@ -33,10 +34,14 @@ struct HomeView: View {
     @State private var showNotificationPanel = false
     @State private var showStudyRoom = false
     @State private var showSnapshot = false
+    @State private var showQuickSnapOptions = false
+    @State private var showCameraCapture = false
+    @State private var showPhotoPicker = false
     @State private var showTodo = false
     @State private var showSchedule = false
     @State private var showLocation = false
     @State private var useRobotBackground = true
+    @State private var selectedPhotoItem: PhotosPickerItem?
 
     // MARK: - Body
 
@@ -128,11 +133,6 @@ struct HomeView: View {
                 NotificationPanelView(isPresented: $showNotificationPanel)
             }
 
-            // Snapshot View - 直接显示，使用子视图自带的关闭按钮
-            if showSnapshot {
-                SnapshotListView()
-            }
-
             // Location View - 直接显示
             if showLocation {
                 LocationPickerView()
@@ -159,6 +159,43 @@ struct HomeView: View {
             // Todo View - 直接显示
             if showTodo {
                 TodoListView()
+            }
+        }
+        .confirmationDialog("快拍", isPresented: $showQuickSnapOptions, titleVisibility: .visible) {
+            Button("拍照") {
+                showCameraCapture = true
+            }
+
+            Button("从相册选择") {
+                showPhotoPicker = true
+            }
+
+            Button("查看快拍相册") {
+                showSnapshot = true
+            }
+
+            Button("取消", role: .cancel) {}
+        }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraView()
+        }
+        .fullScreenCover(isPresented: $showSnapshot) {
+            SnapshotListView()
+        }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhotoItem,
+            matching: .images,
+            preferredItemEncoding: .automatic
+        )
+        .onChange(of: selectedPhotoItem) { item in
+            guard let item else { return }
+
+            Task {
+                _ = try? await item.loadTransferable(type: Data.self)
+                await MainActor.run {
+                    selectedPhotoItem = nil
+                }
             }
         }
     }
@@ -206,7 +243,7 @@ struct HomeView: View {
 
         switch itemId {
         case "snapshot":
-            showSnapshot = true
+            showQuickSnapOptions = true
         case "location":
             showLocation = true
         case "schedule":
