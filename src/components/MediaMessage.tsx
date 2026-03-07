@@ -9,7 +9,7 @@
  * - Loading skeleton states
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Image as ImageIcon, Video, X } from 'lucide-react';
 import { logger } from '../utils/logger';
 
@@ -107,6 +107,30 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
 
   // Video rendering
   if (type === 'video') {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+    // 尝试加载视频，失败则尝试 fetch + blob
+    const handleVideoError = async () => {
+      if (blobUrl) return; // 已经尝试过了
+
+      try {
+        const response = await fetch(uri);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+          logger.media.debug('[MediaMessage] Video loaded via fetch + blob URL');
+        } else {
+          throw new Error('Fetch failed');
+        }
+      } catch (fetchError) {
+        logger.media.error('[MediaMessage] Video fetch fallback failed:', fetchError);
+        setIsLoading(false);
+        setError(true);
+      }
+    };
+
     return (
       <div className={`relative ${className} ${sizeClass}`}>
         {/* Loading skeleton */}
@@ -118,17 +142,14 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
 
         {/* Video */}
         <video
-          src={uri}
+          ref={videoRef}
+          src={blobUrl || uri}
           controls
           className={`w-full h-auto rounded-lg shadow-sm transition-opacity duration-300 ${
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
           onLoadedData={() => setIsLoading(false)}
-          onError={() => {
-            logger.media.error('❌ [MediaMessage] Video load failed:', uri);
-            setIsLoading(false);
-            setError(true);
-          }}
+          onError={handleVideoError}
           preload="metadata"
           style={{ display: isLoading ? 'none' : 'block' }}
         />
@@ -223,6 +244,28 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
   }
 
   if (type === 'video') {
+    const inlineVideoRef = useRef<HTMLVideoElement>(null);
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+    // 尝试加载视频，失败则尝试 fetch + blob
+    const handleVideoError = async () => {
+      if (blobUrl) return;
+
+      try {
+        const response = await fetch(uri);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+        } else {
+          throw new Error('Fetch failed');
+        }
+      } catch {
+        setIsLoading(false);
+        setError(true);
+      }
+    };
+
     return (
       <div className="relative w-[80px] h-[80px] flex-shrink-0">
         {isLoading && (
@@ -230,15 +273,13 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
         )}
         <div className="absolute inset-0 rounded-lg border-2 border-black overflow-hidden shadow-sm">
           <video
-            src={uri}
+            ref={inlineVideoRef}
+            src={blobUrl || uri}
             className={`w-full h-full object-cover cursor-pointer ${
               isLoading ? 'opacity-0' : 'opacity-100'
             }`}
             onLoadedData={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setError(true);
-            }}
+            onError={handleVideoError}
             preload="metadata"
             onClick={onClick}
             style={{ display: isLoading ? 'none' : 'block' }}
