@@ -83,6 +83,27 @@ ADD COLUMN IF NOT EXISTS voice_duration INTEGER,
 ADD COLUMN IF NOT EXISTS voice_transcript TEXT,
 ADD COLUMN IF NOT EXISTS voice_mime_type TEXT;
 
+-- 添加 message_type 字段（如果不存在）
+ALTER TABLE chat_messages
+ADD COLUMN IF NOT EXISTS message_type TEXT DEFAULT 'text';
+
+-- 修复 message_type CHECK 约束，允许 'voice' 类型
+-- 注意：这需要先删除旧约束再创建新约束
+DO $$
+BEGIN
+  -- 删除旧约束（如果存在）
+  ALTER TABLE chat_messages DROP CONSTRAINT IF EXISTS chat_messages_message_type_check;
+EXCEPTION
+  WHEN undefined_object THEN
+    NULL;
+END
+$$;
+
+-- 添加新的约束，包含所有消息类型
+ALTER TABLE chat_messages
+ADD CONSTRAINT chat_messages_message_type_check
+CHECK (message_type IN ('text', 'image', 'video', 'mixed', 'voice'));
+
 -- 插入 mock 聊天记录 - Alice (设计师好友)
 INSERT INTO chat_messages (friend_id, sender, text, created_at) VALUES
 ('alice', 'user', '嗨 Alice！昨天的设计评审怎么样？', NOW() - INTERVAL '8 hours'),
