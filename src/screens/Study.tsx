@@ -148,7 +148,7 @@ export default function Study() {
     setInitialDuration(selectedDuration);
 
     // 跳转到计时器页面
-    navigate('/study/timer', {
+    navigate(AppRoutes.STUDY_TIMER, {
       state: {
         duration: selectedDuration,
         companion
