@@ -460,12 +460,18 @@ extension APIClient {
         return response.data
     }
 
-    func sendMessage(roomId: String, content: String, contentType: MessageType = .text, mediaUrl: String? = nil) async throws -> ChatMessage {
+    func sendMessage(
+        roomId: String,
+        content: String,
+        contentType: MessageType = .text,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil
+    ) async throws -> ChatMessage {
         let request = SendMessageRequest(
             content: content,
             contentType: contentType,
             mediaUrl: mediaUrl,
-            mediaMimeType: nil
+            mediaMimeType: mediaMimeType
         )
         return try await post(.chatRoomMessagesSend(roomId: roomId), body: request)
     }
