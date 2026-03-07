@@ -15,14 +15,21 @@ import { test, expect, loginWithSupabase } from './test-config';
 
 test.describe('Study Room E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Set language to Chinese before any navigation
+    // This ensures i18n translations are in Chinese
+    await page.addInitScript(() => {
+      localStorage.setItem('language', 'zh');
+      localStorage.setItem('i18nextLng', 'zh');
+    });
+
     // Use mock Supabase session
     await loginWithSupabase(page);
 
     // Use hash router format - navigate to study page
     await page.goto('/#/study');
     await page.waitForLoadState('domcontentloaded');
-    // Wait for React to hydrate and auth to initialize
-    await page.waitForTimeout(1500);
+    // Wait for React to hydrate and i18n to initialize
+    await page.waitForTimeout(2000);
   });
 
   /**
