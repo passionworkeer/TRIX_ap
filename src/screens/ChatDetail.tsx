@@ -1,8 +1,8 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, Send, Mic, MicOff, MoreVertical, X, 
+import {
+  ArrowLeft, Send, Mic, MicOff, MoreVertical, X,
   Presentation, Table, FileText, MessageSquare, Image as ImageIcon, Video, Plus
 } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
@@ -16,14 +16,18 @@ import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
 import AIActionSelector from '../components/AIActionSelector';
 import { useConfirmModal } from '../hooks/useConfirmModal';
+import VoiceRecorder from '../components/VoiceRecorder';
+import VoiceMessage from '../components/VoiceMessage';
+import { uploadAudio } from '../services/uploadService';
 import {
   AIActionId,
   applyAIActionPrefix,
   detectAIActionFromInput,
 } from '../features/chat/utils/aiPrompt';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
-import { uploadFile } from '../services/uploadService';
+import { uploadFile, IMAGE_COMPRESSION_OPTIONS } from '../services/uploadService';
 import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/serverOssUploadService';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import type { ChatMessage } from '../config/supabase';
@@ -34,7 +38,7 @@ interface UIMessage {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
-  messageType?: 'text' | 'image' | 'video' | 'mixed';
+  messageType?: 'text' | 'image' | 'video' | 'mixed' | 'voice';
   mediaUri?: string;
   mediaType?: string;
   mediaMetadata?: {
@@ -155,6 +159,10 @@ const ChatDetail: React.FC = () => {
   const autoPromptPrefilledRef = useRef(false);
   const autoSendTriggeredRef = useRef(false);
 
+  // 语音录音状态
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+
   // 当 photoUri 变化时，将其加入附件列表。
   useEffect(() => {
     if (photoUri && !attachmentPreviews.some(p => p.uri === photoUri)) {
@@ -199,7 +207,7 @@ const ChatDetail: React.FC = () => {
     const uiMessage: UIMessage = {
       id: dbMsg.id,
       sender: dbMsg.sender,
-      text: dbMsg.text,
+      text: typeof dbMsg.text === 'string' ? dbMsg.text : '',
       timestamp: formatTime(dbMsg.created_at)
     };
 
@@ -264,7 +272,7 @@ const ChatDetail: React.FC = () => {
     setMessages(clawbotMessages.map(msg => ({
       id: msg.id || `bot-${msg.timestamp}`,
       sender: msg.sender,
-      text: msg.content,
+      text: typeof msg.content === 'string' ? msg.content : '',
       timestamp: formatTime(new Date(msg.timestamp)),
       messageType: msg.contentType === 'file' ? 'image' : msg.contentType || 'text',
       mediaUri: msg.mediaUrl
@@ -319,9 +327,17 @@ const ChatDetail: React.FC = () => {
               const uiMessage: UIMessage = {
                 id: newMessage.id,
                 sender: 'friend',
-                text: newMessage.text,
+                text: newMessage.text || '',
                 timestamp: formatTime(newMessage.created_at)
               };
+
+              // 处理媒体消息类型（包括语音）
+              if (newMessage.message_type && newMessage.message_type !== 'text') {
+                uiMessage.messageType = newMessage.message_type;
+                uiMessage.mediaUri = newMessage.media_uri;
+                uiMessage.mediaType = newMessage.media_type;
+                uiMessage.mediaMetadata = newMessage.media_metadata;
+              }
 
               return [...prev, uiMessage];
             });
@@ -371,7 +387,7 @@ const ChatDetail: React.FC = () => {
 
   const handleSend = async (overrideText?: string) => {
     // 检查是否有媒体或文本
-    const draftText = overrideText ?? input;
+    const draftText = String(overrideText ?? input ?? '');
     const hasMedia = attachmentPreviews.length > 0;
     const hasText = draftText.trim().length > 0;
 
@@ -495,6 +511,75 @@ const ChatDetail: React.FC = () => {
     // 对于好友聊天，好友回复会通过实时订阅自动显示
   };
 
+  // 处理语音消息发送
+  const handleVoiceSend = async (audioBlob: Blob, duration: number) => {
+    // 机器人会话不支持语音消息
+    if (isBotConversation) {
+      showError('Clawbot 暂不支持语音消息');
+      return;
+    }
+
+    setIsUploadingVoice(true);
+    setShowVoiceRecorder(false);
+
+    try {
+      // 将 Blob 转换为 File
+      const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
+        type: audioBlob.type || 'audio/webm'
+      });
+
+      // 上传音频文件
+      const result = await uploadAudio(audioFile);
+
+      const timeString = formatTime(new Date());
+
+      // 临时显示用户消息(乐观更新 UI)
+      const tempUserMessage: UIMessage = {
+        id: `temp-${Date.now()}`,
+        sender: 'user',
+        text: '',
+        timestamp: timeString,
+        messageType: 'voice',
+        mediaUri: result.uri,
+        mediaType: result.type,
+        mediaMetadata: { duration },
+      };
+
+      setMessages(prev => [...prev, tempUserMessage]);
+
+      // 保存语音消息到数据库
+      const messageId = await sendMessageWithMedia(
+        friendId,
+        'user',
+        '',
+        {
+          uri: result.uri,
+          type: result.type,
+          size: result.size,
+          category: 'audio',
+          metadata: { duration },
+        },
+        'voice'
+      );
+
+      // 用真实数据库 ID 替换临时 ID
+      if (messageId) {
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempUserMessage.id
+              ? { ...msg, id: messageId }
+              : msg
+          )
+        );
+      }
+    } catch (error) {
+      logger.chat.error('发送语音消息失败:', error);
+      showError('发送语音消息失败，请重试');
+    } finally {
+      setIsUploadingVoice(false);
+    }
+  };
+
   // 快照入口：图片预览就绪后自动发送一次到 Clawbot
   useEffect(() => {
     if (!autoSendPrompt || autoSendTriggeredRef.current) return;
@@ -519,7 +604,15 @@ const ChatDetail: React.FC = () => {
         }
 
         if (isServerOssUploadEnabled()) {
-          const result = await uploadFileToServerOss(file);
+          // Compress image before upload for better performance
+          let fileToUpload = file;
+          try {
+            fileToUpload = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+          } catch (compressError) {
+            console.warn('[Upload] Compression failed, using original:', compressError);
+          }
+
+          const result = await uploadFileToServerOss(fileToUpload);
           setAttachmentPreviews(prev => [...prev, {
             uri: result.url,
             type: result.mimeType,
@@ -735,13 +828,25 @@ const ChatDetail: React.FC = () => {
 
                 <div className="flex max-w-[75%] flex-col gap-1">
                   <div
-                    className={`relative px-4 py-3 text-sm leading-relaxed shadow-sm transition-all duration-200 ${
+                    className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
                       msg.sender === 'user'
                         ? 'rounded-2xl rounded-tr-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white'
                         : 'rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
                     }`}
                   >
-                    {msg.mediaUri && msg.sender !== 'user' && (
+                    {/* 语音消息 */}
+                    {msg.messageType === 'voice' && msg.mediaUri && (
+                      <div className="-mx-2 -my-1">
+                        <VoiceMessage
+                          url={msg.mediaUri}
+                          duration={msg.mediaMetadata?.duration || 0}
+                          className={msg.sender === 'user' ? 'invert' : ''}
+                        />
+                      </div>
+                    )}
+
+                    {/* 图片/视频消息 - 接收者 */}
+                    {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && (
                       <div className="-ml-2 -mt-2 mb-2">
                         <MediaMessage
                           uri={msg.mediaUri}
@@ -753,21 +858,23 @@ const ChatDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {msg.mediaUri && msg.sender === 'user' && (
+                    {/* 图片/视频消息 - 发送者 */}
+                    {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && (
                       <div className="-mr-2 -mt-2 mb-2">
-                        <div className="relative h-[80px] w-[80px]">
-                          <div className="absolute inset-0 overflow-hidden rounded-lg border-2 border-white/30 shadow-sm">
-                            {msg.messageType === 'video' ? (
-                              <video src={msg.mediaUri} className="h-full w-full object-cover" controls />
-                            ) : (
-                              <img src={msg.mediaUri} alt="Attachment" className="h-full w-full object-cover" />
-                            )}
-                          </div>
+                        <div className="relative h-[120px] w-[120px] overflow-hidden rounded-lg bg-transparent">
+                          {msg.messageType === 'video' ? (
+                            <video src={msg.mediaUri} className="h-full w-full object-cover" controls />
+                          ) : (
+                            <img src={msg.mediaUri} alt="Attachment" className="h-full w-full object-cover" />
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
+                    {/* 文本消息 */}
+                    {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && (
+                      <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                    )}
                   </div>
                   <span
                     className={`px-1 text-[10px] text-slate-400 dark:text-slate-500 ${
@@ -915,7 +1022,7 @@ const ChatDetail: React.FC = () => {
                 }}
               />
 
-              {isSpeechSupported && (
+              {isSpeechSupported && isBotConversation && (
                 <button
                   onClick={() => (isListening ? stopListening() : startListening())}
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
@@ -926,6 +1033,26 @@ const ChatDetail: React.FC = () => {
                   aria-label={isListening ? '停止语音输入' : '开始语音输入'}
                 >
                   {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                </button>
+              )}
+
+              {/* 语音录制按钮 - 仅在非机器人会话显示 */}
+              {!isBotConversation && (
+                <button
+                  onClick={() => setShowVoiceRecorder(true)}
+                  disabled={isUploadingVoice}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
+                    isUploadingVoice
+                      ? 'bg-slate-300 text-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'
+                      : 'bg-white text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                  aria-label="录制语音消息"
+                >
+                  {isUploadingVoice ? (
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
+                  ) : (
+                    <Mic size={14} />
+                  )}
                 </button>
               )}
 
@@ -955,6 +1082,13 @@ const ChatDetail: React.FC = () => {
       </div>
 
       <ConfirmModalRenderer />
+
+      {/* 语音录制弹窗 */}
+      <VoiceRecorder
+        isOpen={showVoiceRecorder}
+        onClose={() => setShowVoiceRecorder(false)}
+        onComplete={handleVoiceSend}
+      />
     </div>
   );
 };

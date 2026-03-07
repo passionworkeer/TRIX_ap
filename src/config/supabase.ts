@@ -64,7 +64,7 @@ export interface ChatMessage {
   text: string;
   created_at: string;
   // Media fields (optional)
-  message_type?: 'text' | 'image' | 'video' | 'mixed';
+  message_type?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
   media_size?: number;
@@ -74,6 +74,15 @@ export interface ChatMessage {
     duration?: number;
     thumbnail?: string;
   };
+  // Voice message fields (optional)
+  /** 语音文件 URL */
+  voice_url?: string;
+  /** 语音时长（秒） */
+  voice_duration?: number;
+  /** 语音转文字结果 */
+  voice_transcript?: string;
+  /** 音频格式（如 audio/mp3, audio/webm） */
+  voice_mime_type?: string;
 }
 
 // 数据库实际存储的消息格式
@@ -86,7 +95,7 @@ export interface ChatMessageDB {
   is_read: boolean;
   created_at: string;
   // Media fields
-  message_type?: 'text' | 'image' | 'video' | 'mixed';
+  message_type?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
   media_size?: number;
@@ -96,6 +105,15 @@ export interface ChatMessageDB {
     duration?: number;
     thumbnail?: string;
   };
+  // Voice message fields (database storage)
+  /** 语音文件 URL */
+  voice_url?: string;
+  /** 语音时长（秒） */
+  voice_duration?: number;
+  /** 语音转文字结果 */
+  voice_transcript?: string;
+  /** 音频格式（如 audio/mp3, audio/webm） */
+  voice_mime_type?: string;
 }
 
 export interface UnreadCount {

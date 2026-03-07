@@ -1,49 +1,47 @@
-# PROJECT_TASKS.md - TRIX 3D Companion 好友在线状态功能
+# PROJECT_TASKS.md - 语音消息功能
 
-> 项目目标: 实现好友最后活跃时间功能，显示真实在线状态
-> 创建时间: 2026-03-06
-> 状态: 已完成
+> 项目目标: 好友之间发送语音消息，支持播放和语音转文字
+> 创建时间: 2026-03-07
+> 状态: 执行中
 
 ---
 
 ## 任务列表
 
-### 阶段一：数据库设计
-- [x] TASK-001: 在 profiles 表添加 last_active_at 字段 | type: database | priority: P0 | commit: a8f0516
-- [x] TASK-002: 创建获取多个用户活跃时间的 API | type: backend | priority: P0 | commit: a8f0516
+### 阶段一：数据库与类型定义
+- [ ] TASK-001: 数据库添加语音字段 | type: backend | priority: P0 | estimate: 1h
+- [ ] TASK-002: 更新 TypeScript 类型定义 | type: frontend | priority: P0 | estimate: 0.5h
 
-### 阶段二：后端 API
-- [x] TASK-003: 创建更新用户活跃时间的接口 | type: backend | priority: P0 | commit: a8f0516
+### 阶段二：录音与上传
+- [ ] TASK-003: 实现浏览器录音功能 | type: frontend | priority: P0 | estimate: 2h
+- [ ] TASK-004: 音频文件上传服务 | type: backend | priority: P0 | estimate: 1.5h
 
-### 阶段三：前端实现
-- [x] TASK-004: 实现轮询获取好友活跃状态 Hook | type: frontend | priority: P0 | commit: a8f0516
-- [x] TASK-005: 修改好友列表显示最后活跃时间 | type: frontend | priority: P0 | commit: a8f0516
-- [x] TASK-006: 用户活跃时自动更新最后活跃时间 | type: frontend | priority: P1 | commit: a8f0516
+### 阶段三：语音消息 UI
+- [ ] TASK-005: 聊天页面麦克风按钮 | type: frontend | priority: P0 | estimate: 1h
+- [ ] TASK-006: 录音弹窗 UI | type: frontend | priority: P0 | estimate: 2h
+- [ ] TASK-007: 语音消息播放组件 | type: frontend | priority: P0 | estimate: 2h
 
-### 阶段四：测试与提交
-- [x] TASK-007: 安全审核 | type: security | priority: P0 | assignee: senior-dev
-- [x] TASK-008: 测试验证 | type: testing | priority: P0 | assignee: junior-dev
+### 阶段四：语音转文字
+- [ ] TASK-008: Web Speech API 集成 | type: frontend | priority: P1 | estimate: 2h
 
----
-
-## 已完成 (Done)
-
-- [x] 全任务完成 ✅ | commit: a8f0516
+### 阶段五：测试
+- [ ] TASK-009: 单元测试 | type: test | priority: P0 | estimate: 1h
+- [ ] TASK-010: E2E 测试 | type: test | priority: P0 | estimate: 1h
 
 ---
 
-## 技术方案
+## 执行状态
 
-### 数据库
-- profiles 表添加 `last_active_at` 字段 (TIMESTAMPTZ)
-- profiles 表添加 `show_online_status` 字段 (BOOLEAN) - 隐私控制
-- RLS 策略：只有好友能查看在线状态
+### In Progress
+- (none yet)
 
-### 前端显示逻辑
-- 🟢 **在线**: 5分钟内活跃
-- 🟡 **离开**: 5-30分钟前活跃
-- ⚪ **离线**: 30分钟以上无活动
+### Done
+- (none yet)
 
-### 轮询机制
-- 每30秒轮询获取好友活跃时间
-- 用户每次获取好友列表时自动更新自己的活跃时间
+---
+
+## 技术栈
+- 录音: MediaRecorder API
+- 存储: Supabase Storage + Server OSS
+- 转文字: Web Speech API
+- 播放: HTML5 Audio API
