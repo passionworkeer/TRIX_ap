@@ -7,12 +7,16 @@
 
 import SwiftUI
 
+private enum LocalizationConfig {
+    static let appLanguageKey = "appLanguage"
+}
+
 // MARK: - LocalizedStringKey Extension
 
 extension String {
     /// Get localized string from key
     var localized: String {
-        NSLocalizedString(self, comment: "")
+        localizationBundle.localizedString(forKey: self, value: nil, table: nil)
     }
 
     /// Get localized string with format arguments
@@ -20,6 +24,15 @@ extension String {
     /// - Returns: Localized formatted string
     func localized(_ arguments: CVarArg...) -> String {
         String(format: self.localized, arguments: arguments)
+    }
+
+    private var localizationBundle: Bundle {
+        guard let languageCode = UserDefaults.standard.string(forKey: LocalizationConfig.appLanguageKey),
+              let path = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            return .main
+        }
+        return bundle
     }
 }
 

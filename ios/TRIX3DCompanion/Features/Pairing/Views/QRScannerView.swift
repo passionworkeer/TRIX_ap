@@ -27,6 +27,9 @@ struct QRScannerView: View {
     /// Whether scanning is in progress
     @State private var isScanning = true
 
+    /// Animated scan line position (0-1)
+    @State private var scanLineProgress: CGFloat = 0.1
+
     /// Camera permission status
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
 
@@ -62,6 +65,9 @@ struct QRScannerView: View {
                     completion: handleScanResult
                 )
                 .ignoresSafeArea()
+                .onAppear {
+                    startScanLineAnimation()
+                }
                 .overlay(
                     // Scanner overlay
                     scannerOverlay
@@ -101,10 +107,23 @@ struct QRScannerView: View {
             let size = min(geometry.size.width, geometry.size.height) * 0.7
             let frameWidth: CGFloat = size
             let frameHeight: CGFloat = size
+            let scanRect = CGRect(
+                x: (geometry.size.width - frameWidth) / 2,
+                y: (geometry.size.height - frameHeight) / 2,
+                width: frameWidth,
+                height: frameHeight
+            )
 
             ZStack {
-                // Dimmed overlay
-                Color.black.opacity(0.6)
+                // Dimmed overlay with transparent center so live camera feed remains visible
+                Path { path in
+                    path.addRect(CGRect(origin: .zero, size: geometry.size))
+                    path.addRoundedRect(
+                        in: scanRect,
+                        cornerSize: CGSize(width: 16, height: 16)
+                    )
+                }
+                .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
 
                 // Clear scanning frame
                 RoundedRectangle(cornerRadius: 16)
@@ -135,6 +154,7 @@ struct QRScannerView: View {
                 }
             }
         }
+        .compositingGroup()
     }
 
     // MARK: - Corner Accents
@@ -239,12 +259,7 @@ struct QRScannerView: View {
                 .frame(height: 2)
                 .frame(width: lineWidth)
                 .shadow(color: Color.brandPurple.opacity(0.5), radius: 8)
-                .offset(y: -frameHeight / 2 + frameHeight * 0.1)
-                .animation(
-                    Animation.linear(duration: 2)
-                        .repeatForever(autoreverses: true),
-                    value: isScanning
-                )
+                .offset(y: -frameHeight / 2 + frameHeight * scanLineProgress)
         }
         .frame(height: frameHeight)
     }
@@ -262,8 +277,7 @@ struct QRScannerView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.5))
-                        .clipShape(Circle())
+                        .trixSurfaceCard(cornerRadius: 22, borderOpacity: 0.22, shadowOpacity: 0.08, shadowRadius: 8)
                 }
 
                 Spacer()
@@ -272,6 +286,9 @@ struct QRScannerView: View {
                 Text("Scan QR Code")
                     .font(.headline)
                     .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.2, shadowOpacity: 0.05, shadowRadius: 6)
 
                 Spacer()
 
@@ -281,8 +298,7 @@ struct QRScannerView: View {
                         .font(.title2)
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.5))
-                        .clipShape(Circle())
+                        .trixSurfaceCard(cornerRadius: 22, borderOpacity: 0.22, shadowOpacity: 0.08, shadowRadius: 8)
                 }
             }
             .padding()
@@ -405,6 +421,14 @@ struct QRScannerView: View {
     private func openSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
+        }
+    }
+
+    /// Start vertical scan line animation
+    private func startScanLineAnimation() {
+        scanLineProgress = 0.1
+        withAnimation(.linear(duration: 2).repeatForever(autoreverses: true)) {
+            scanLineProgress = 0.9
         }
     }
 

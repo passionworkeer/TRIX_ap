@@ -58,10 +58,21 @@ struct TrixBotChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             modeBanner
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
             messagesList
             inputArea
         }
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .background(
+            Color.clear.trixPageBackground(
+                colors: [
+                    Color.brandPurple.opacity(0.14),
+                    Color.brandPink.opacity(0.1),
+                    Color.cyan.opacity(0.05),
+                    Color.clear
+                ]
+            )
+        )
         .navigationTitle("TRIX Bot")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -114,12 +125,9 @@ struct TrixBotChatView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemBackground))
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
+        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.2, shadowOpacity: 0.05, shadowRadius: 8)
     }
 
     // MARK: - Messages
@@ -162,7 +170,7 @@ struct TrixBotChatView: View {
         VStack(spacing: 10) {
             Image(systemName: "message.badge")
                 .font(.system(size: 30))
-                .foregroundColor(.secondary)
+                .foregroundColor(.brandPurple.opacity(0.7))
 
             Text("上传图片并输入提示词，TRIX 会给你处理建议")
                 .font(.subheadline)
@@ -170,8 +178,11 @@ struct TrixBotChatView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
         }
+        .padding(.vertical, 18)
+        .padding(.horizontal, 12)
+        .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 6)
         .frame(maxWidth: .infinity)
-        .padding(.top, 80)
+        .padding(.top, 48)
     }
 
     // MARK: - Input
@@ -202,8 +213,7 @@ struct TrixBotChatView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
 
                 Button(action: sendMessage) {
                     ZStack {
@@ -228,10 +238,13 @@ struct TrixBotChatView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(Color.white.opacity(0.15))
+                .frame(height: 1),
+            alignment: .top
+        )
     }
 
     private var attachmentPreview: some View {
@@ -291,8 +304,7 @@ struct TrixBotChatView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .trixSurfaceCard(cornerRadius: 12, borderOpacity: 0.18, shadowOpacity: 0.03, shadowRadius: 4)
     }
 
     // MARK: - Derived State
@@ -535,10 +547,28 @@ private struct TrixDisplayMessageBubble: View {
                         .padding(.vertical, 10)
                         .background(
                             message.isFromUser
-                                ? AnyView(LinearGradient(colors: [.brandPurple, .brandPink], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                : AnyView(Color(.systemGray6))
+                                ? AnyView(
+                                    LinearGradient(
+                                        colors: [.brandPurple, .brandPink],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyView(Color.white.opacity(0.14))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(message.isFromUser ? 0.16 : 0.22), lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(
+                            color: message.isFromUser
+                                ? Color.brandPurple.opacity(0.18)
+                                : Color.black.opacity(0.06),
+                            radius: 6,
+                            x: 0,
+                            y: 3
+                        )
                 }
 
                 Text(formatTime(message.timestamp))

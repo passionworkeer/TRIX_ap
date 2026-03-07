@@ -13,15 +13,19 @@ struct GlassDockTab: Identifiable, Hashable {
     let id = UUID()
     let tab: MainTab
     let icon: String
-    let label: String
+    let localizationKey: String
     let isCore: Bool
 
+    var label: String {
+        localizationKey.localized
+    }
+
     static let tabs: [GlassDockTab] = [
-        GlassDockTab(tab: .map, icon: "map.fill", label: NSLocalizedString("nav.map", comment: ""), isCore: false),
-        GlassDockTab(tab: .study, icon: "book.fill", label: NSLocalizedString("nav.study", comment: ""), isCore: false),
-        GlassDockTab(tab: .core, icon: "camera.fill", label: NSLocalizedString("nav.core", comment: ""), isCore: true),
-        GlassDockTab(tab: .chat, icon: "message.fill", label: NSLocalizedString("nav.chat", comment: ""), isCore: false),
-        GlassDockTab(tab: .profile, icon: "person.fill", label: NSLocalizedString("nav.profile", comment: ""), isCore: false)
+        GlassDockTab(tab: .map, icon: "map.fill", localizationKey: "nav.map", isCore: false),
+        GlassDockTab(tab: .study, icon: "book.fill", localizationKey: "nav.study", isCore: false),
+        GlassDockTab(tab: .core, icon: "camera.fill", localizationKey: "nav.core", isCore: true),
+        GlassDockTab(tab: .chat, icon: "message.fill", localizationKey: "nav.chat", isCore: false),
+        GlassDockTab(tab: .profile, icon: "person.fill", localizationKey: "nav.profile", isCore: false)
     ]
 }
 

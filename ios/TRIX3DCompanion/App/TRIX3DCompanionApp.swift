@@ -21,11 +21,18 @@ struct TRIX3DCompanionApp: App {
                 .environmentObject(appState)
                 .environmentObject(chatService)
                 .environmentObject(clawbotChannel)
+                .environment(\.locale, Locale(identifier: appState.appLanguage.rawValue))
+                .id(appState.appLanguage.rawValue)
                 .themed(with: themeManager)
+                .preferredColorScheme(appState.isDarkMode ? .dark : .light)
                 .onAppear {
                     // End services phase when first view appears
                     launchOptimizer.endPhase(.services)
                     launchOptimizer.startPhase(.initialView)
+                    themeManager.setTheme(appState.isDarkMode ? .dark : .light)
+                }
+                .onChange(of: appState.isDarkMode) { isDarkMode in
+                    themeManager.setTheme(isDarkMode ? .dark : .light)
                 }
                 .task {
                     // Execute deferred initialization tasks

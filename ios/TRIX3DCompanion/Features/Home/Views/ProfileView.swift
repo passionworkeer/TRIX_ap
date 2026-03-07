@@ -21,6 +21,7 @@ struct ProfileView: View {
     @State private var isEditingProfile = false
     @State private var showingSettings = false
     @State private var showingAbout = false
+    @State private var showingWardrobeCenter = false
     @State private var equippedOutfits: Set<String> = ["hat1"]
 
     // MARK: - Body
@@ -53,6 +54,7 @@ struct ProfileView: View {
                     logoutButton
                         .padding(.horizontal)
                 }
+                .padding(.bottom, 130)
             }
             .background(backgroundGradient)
             .navigationTitle("Profile")
@@ -73,6 +75,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showingAbout) {
                 AboutView()
+            }
+            .sheet(isPresented: $showingWardrobeCenter) {
+                WardrobeCenterView(equippedOutfits: $equippedOutfits)
             }
         }
     }
@@ -222,41 +227,106 @@ struct ProfileView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
+                Button("管理") {
+                    showingWardrobeCenter = true
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.brandPurple, .brandPink],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
             }
             .padding(.horizontal, 4)
 
-            HStack(spacing: 12) {
-                // Equipped items preview
-                ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.brandPurple, Color.brandPink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+            Button {
+                showingWardrobeCenter = true
+            } label: {
+                HStack(spacing: 12) {
+                    // Equipped items preview
+                    ForEach(Array(equippedOutfits.prefix(3)), id: \.self) { _ in
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.brandPurple, Color.brandPink],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
+                            .frame(width: 50, height: 50)
+                            .overlay {
+                                Image(systemName: "sparkles")
+                                    .font(.title3)
+                                    .foregroundColor(.white)
+                            }
+                    }
+
+                    // Add more button
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
                         .frame(width: 50, height: 50)
                         .overlay {
-                            Image(systemName: "sparkles")
+                            Image(systemName: "plus")
                                 .font(.title3)
-                                .foregroundColor(.white)
+                                .foregroundColor(.secondary)
                         }
-                }
 
-                // Add more button
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 50, height: 50)
-                    .overlay {
-                        Image(systemName: "plus")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.trailing, 2)
+                }
+                .padding(12)
+                .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.22, shadowOpacity: 0.06, shadowRadius: 8)
             }
-            .padding(12)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var darkModeBinding: Binding<Bool> {
+        Binding(
+            get: { appState.isDarkMode },
+            set: { appState.setDarkMode($0) }
+        )
+    }
+
+    private var notificationBinding: Binding<Bool> {
+        Binding(
+            get: { appState.isPushNotificationEnabled },
+            set: { appState.setPushNotificationsEnabled($0) }
+        )
+    }
+
+    private var languageMenu: some View {
+        Menu {
+            ForEach(AppDisplayLanguage.allCases) { language in
+                Button {
+                    appState.setAppLanguage(language)
+                } label: {
+                    if language == appState.appLanguage {
+                        Label(language.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(language.displayName)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(appState.appLanguage.displayName)
+                Image(systemName: "chevron.up.chevron.down")
+            }
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(.brandPurple)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.brandPurple.opacity(0.12))
+            .clipShape(Capsule())
         }
     }
 
@@ -274,7 +344,22 @@ struct ProfileView: View {
                     title: "settings.appearance".localized,
                     description: appState.isDarkMode ? "settings.theme.dark".localized : "settings.theme.light".localized,
                     color: .purple,
-                    trailing: AnyView(Toggle("", isOn: $appState.isDarkMode))
+                    trailing: AnyView(
+                        Toggle("", isOn: darkModeBinding)
+                            .labelsHidden()
+                            .tint(.brandPurple)
+                    )
+                )
+
+                Divider()
+                    .padding(.leading, 60)
+
+                SettingsRow(
+                    icon: "globe",
+                    title: "settings.language".localized,
+                    description: appState.appLanguage.displayName,
+                    color: .blue,
+                    trailing: AnyView(languageMenu)
                 )
 
                 Divider()
@@ -285,7 +370,11 @@ struct ProfileView: View {
                     title: "settings.notifications".localized,
                     description: appState.isPushNotificationEnabled ? "Enabled" : "Disabled",
                     color: .red,
-                    trailing: AnyView(Toggle("", isOn: $appState.isPushNotificationEnabled))
+                    trailing: AnyView(
+                        Toggle("", isOn: notificationBinding)
+                            .labelsHidden()
+                            .tint(.brandPurple)
+                    )
                 )
 
                 Divider()
@@ -310,8 +399,7 @@ struct ProfileView: View {
                     action: { showingAbout = true }
                 )
             }
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.2, shadowOpacity: 0.06, shadowRadius: 8)
         }
     }
 
@@ -329,10 +417,14 @@ struct ProfileView: View {
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: [.red.opacity(0.8), .red.opacity(0.6)],
+                    colors: [.red.opacity(0.85), .red.opacity(0.62)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -341,16 +433,14 @@ struct ProfileView: View {
 
     /// Background gradient
     private var backgroundGradient: some View {
-        LinearGradient(
+        Color.clear.trixPageBackground(
             colors: [
-                Color.purple.opacity(0.1),
-                Color.pink.opacity(0.05),
+                Color.brandPurple.opacity(0.14),
+                Color.brandPink.opacity(0.1),
+                Color.cyan.opacity(0.06),
                 Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            ]
         )
-        .ignoresSafeArea()
     }
 
     // MARK: - Helpers
@@ -391,8 +481,7 @@ struct ProfileStatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .trixSurfaceCard(cornerRadius: 12, borderOpacity: 0.2, shadowOpacity: 0.04, shadowRadius: 6)
     }
 }
 
@@ -453,41 +542,49 @@ struct SettingsRow: View {
         self.action = action
     }
 
+    @ViewBuilder
     var body: some View {
-        Button(action: action ?? {}) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(color)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-
-                    Text(description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                if let trailing = trailing {
-                    trailing
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+        if let action {
+            Button(action: action) {
+                rowContent
             }
-            .padding()
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+        } else {
+            rowContent
         }
-        .buttonStyle(.plain)
-        .disabled(action == nil)
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(.white)
+                .frame(width: 36, height: 36)
+                .background(color)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if let trailing = trailing {
+                trailing
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .contentShape(Rectangle())
     }
 }
 
@@ -682,6 +779,116 @@ struct FormField: View {
                     )
             }
         }
+    }
+}
+
+// MARK: - Wardrobe Center
+
+private struct ProfileWardrobeItem: Identifiable {
+    let id: String
+    let title: String
+    let icon: String
+    let gradient: [Color]
+}
+
+struct WardrobeCenterView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var equippedOutfits: Set<String>
+
+    private let items: [ProfileWardrobeItem] = [
+        ProfileWardrobeItem(id: "hat1", title: "星光帽", icon: "sparkles", gradient: [.brandPurple, .brandPink]),
+        ProfileWardrobeItem(id: "book1", title: "学霸眼镜", icon: "eyeglasses", gradient: [.blue, .cyan]),
+        ProfileWardrobeItem(id: "fire1", title: "连胜火焰", icon: "flame.fill", gradient: [.orange, .red]),
+        ProfileWardrobeItem(id: "leaf1", title: "森系风格", icon: "leaf.fill", gradient: [.green, .mint]),
+        ProfileWardrobeItem(id: "moon1", title: "夜猫徽章", icon: "moon.stars.fill", gradient: [.indigo, .purple]),
+        ProfileWardrobeItem(id: "crown1", title: "荣耀皇冠", icon: "crown.fill", gradient: [.yellow, .orange])
+    ]
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(items) { item in
+                        Button {
+                            toggle(item.id)
+                        } label: {
+                            VStack(spacing: 10) {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: item.gradient,
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 62, height: 62)
+                                    .overlay {
+                                        Image(systemName: item.icon)
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                    }
+                                    .overlay(alignment: .bottomTrailing) {
+                                        if equippedOutfits.contains(item.id) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                                .background(Color.white, in: Circle())
+                                        }
+                                    }
+
+                                Text(item.title)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        equippedOutfits.contains(item.id) ? Color.brandPurple.opacity(0.6) : Color.white.opacity(0.2),
+                                        lineWidth: equippedOutfits.contains(item.id) ? 2 : 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding()
+            }
+            .background(
+                LinearGradient(
+                    colors: [Color.brandPurple.opacity(0.08), Color.brandPink.opacity(0.05), Color.clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .navigationTitle("我的装扮")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func toggle(_ outfitId: String) {
+        if equippedOutfits.contains(outfitId) {
+            if equippedOutfits.count > 1 {
+                equippedOutfits.remove(outfitId)
+            }
+            return
+        }
+        equippedOutfits.insert(outfitId)
     }
 }
 
