@@ -76,7 +76,6 @@ docs/
 | [PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 配对输入功能 |
 | [UNPAIR_FEATURE_GUIDE.md](./guides/UNPAIR_FEATURE_GUIDE.md) | 解绑设备操作 |
 | [SSH_SETUP.md](./guides/SSH-SETUP.md) | SSH 免密登录配置 |
-| [server/SSH_CONNECTION.md](./server/SSH_CONNECTION.md) | **服务器连接与部署指南** |
 
 ### 🔧 开发参考
 
