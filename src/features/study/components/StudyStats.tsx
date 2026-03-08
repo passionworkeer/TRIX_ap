@@ -22,7 +22,7 @@ const StudyStats: React.FC<StudyStatsProps> = React.memo(({ totalStudyTime }) =>
       className="absolute bottom-32 right-6 z-10"
       style={{ maxWidth: '200px' }}
     >
-      <div className="bg-white/10 backdrop-blur-xl border border-transparent rounded-xl p-3 flex items-center gap-3 shadow-[0_0_15px_rgba(255,255,255,0.1)] relative before:absolute before:inset-0 before:-z-10 before:rounded-xl before:p-[1px] before:bg-gradient-to-r before:from-blue-500/50 before:to-purple-500/50 before:mask-composite">
+      <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-xl p-3 flex items-center gap-3 shadow-lg">
         {/* 图标 */}
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-md">
           <Zap size={16} fill="white" className="text-white" aria-hidden="true" />

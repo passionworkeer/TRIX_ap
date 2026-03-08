@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, FlipHorizontal2, Check, X, Sparkles, Send } from 'lucide-react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ArrowLeft, FlipHorizontal2, Check, X, Sparkles, Send, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { IMAGES } from '../constants';
@@ -45,6 +45,7 @@ const Snapshot: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState<SnapshotActionKey | null>(null);
   const [promptText, setPromptText] = useState('');
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const fallbackTriggeredRef = useRef(false);
   const navigate = useNavigate();
   const { isConnected, isPaired } = useClawbotChannel();
@@ -58,6 +59,7 @@ const Snapshot: React.FC = () => {
     capture,
     switchCamera,
     clearPhoto,
+    setExtPhoto,
     error: cameraError,
     isSupported: isCameraSupported,
   } = useCamera({
@@ -105,6 +107,25 @@ const Snapshot: React.FC = () => {
     window.setTimeout(() => {
       setIsScanning(false);
     }, 450);
+  };
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        setExtPhoto({ url, blob: file, timestamp: Date.now() });
+      }
+      // Reset input value to allow selecting the same file again
+      if (e.target) {
+        e.target.value = '';
+      }
+    },
+    [setExtPhoto]
+  );
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleEnterResult = () => {
@@ -386,7 +407,24 @@ const Snapshot: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center w-full mb-8">
+        <div className="flex justify-center items-center w-full mb-8 relative">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          
+          <button
+            onClick={triggerFileUpload}
+            disabled={!!capturedPhoto}
+            className="absolute left-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+            title="上传图片"
+          >
+            <ImageIcon size={22} />
+          </button>
+
           <button
             onClick={capturedPhoto ? undefined : handleCapture}
             disabled={!!capturedPhoto}

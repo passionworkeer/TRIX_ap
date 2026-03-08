@@ -8,9 +8,8 @@
  * - Todo (task management)
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera } from 'lucide-react';
 import WorkbenchCard from './WorkbenchCard';
 import { logger } from '../utils/logger';
 import { DEFAULT_WORKBENCH_ITEMS, WorkbenchItem } from '../types/workbench';
@@ -33,31 +32,8 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
   onCardClick,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [showSnapshotPanel, setShowSnapshotPanel] = useState(false);
 
-  // Handle camera button click
-  const handleCameraClick = useCallback(() => {
-    cameraInputRef.current?.click();
-  }, []);
-
-  // Handle file selection from camera
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const imageUri = URL.createObjectURL(file);
-        // Call onCardClick with snapshot id, parent component handles the image
-        onCardClick?.('snapshot');
-        logger.ui.debug('[WorkbenchModal] Image captured:', imageUri);
-      }
-      // Reset input value to allow selecting the same file again
-      e.target.value = '';
-    },
-    [onCardClick]
-  );
-
-  // Handle card click - placeholder for now
+  // Handle card click
   const handleCardClick = useCallback(
     (item: WorkbenchItem) => {
       // Call the onCardClick callback if provided
@@ -67,10 +43,6 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
 
       switch (item.id) {
         case 'snapshot':
-          // Open embedded snapshot panel
-          setShowSnapshotPanel(true);
-          logger.ui.debug('[WorkbenchModal] Opening snapshot panel...');
-          break;
         case 'location':
         case 'schedule':
         case 'todo':
@@ -183,157 +155,40 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                   }}
                 />
 
-                {/* Embedded Snapshot Panel */}
-                <AnimatePresence mode="wait">
-                  {showSnapshotPanel ? (
+                <div
+                  className="flex gap-4 overflow-x-auto pb-2 px-1 pt-1 scroll-smooth"
+                  ref={scrollContainerRef}
+                  style={{
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch',
+                  }}
+                >
+                  {items.map((item, index) => (
                     <motion.div
-                      key="snapshot-panel"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{
-                        type: 'spring',
-                        stiffness: 400,
-                        damping: 30,
+                      key={item.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        transition: {
+                          delay: index * 0.05,
+                          type: 'spring',
+                          stiffness: 300,
+                          damping: 25,
+                        },
                       }}
-                      className="flex flex-col items-center justify-center py-4 px-2"
                     >
-                      {/* Hidden file inputs */}
-                      <input
-                        ref={cameraInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileChange}
-                        className="hidden"
+                      <WorkbenchCard
+                        icon={item.icon}
+                        label={item.label}
+                        color={item.color}
+                        onClick={() => handleCardClick(item)}
+                        ariaLabel={item.label}
                       />
-
-                      {/* Compact camera button with skeuomorphic design */}
-                      <div className="flex items-center gap-4">
-                        {/* Small camera button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handleCameraClick}
-                          className="relative w-16 h-16 flex-shrink-0"
-                          aria-label="打开相机"
-                        >
-                          {/* Outer ring - metallic */}
-                          <div
-                            className="absolute inset-0 rounded-full"
-                            style={{
-                              background:
-                                'linear-gradient(145deg, #e6e6e6 0%, #c0c0c0 50%, #a0a0a0 100%)',
-                              boxShadow:
-                                '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.8)',
-                            }}
-                          />
-                          {/* Inner ring - black */}
-                          <div
-                            className="absolute inset-1 rounded-full"
-                            style={{
-                              background:
-                                'linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%)',
-                            }}
-                          />
-                          {/* Lens - blue gradient */}
-                          <div
-                            className="absolute inset-2 rounded-full overflow-hidden"
-                            style={{
-                              background:
-                                'radial-gradient(circle at 30% 30%, rgba(100,150,255,0.5) 0%, rgba(50,100,200,0.3) 40%, rgba(20,50,100,0.7) 100%)',
-                            }}
-                          >
-                            {/* Lens reflection */}
-                            <div
-                              className="absolute top-1 left-1 w-3 h-2 rounded-full opacity-60"
-                              style={{
-                                background:
-                                  'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%)',
-                                transform: 'rotate(-45deg)',
-                              }}
-                            />
-                          </div>
-                          {/* Camera icon */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Camera
-                              size={16}
-                              className="text-white/90 drop-shadow-md"
-                              strokeWidth={1.5}
-                            />
-                          </div>
-                          {/* Flash effect on tap */}
-                          <motion.div
-                            className="absolute inset-0 rounded-full bg-white"
-                            initial={{ opacity: 0 }}
-                            whileTap={{ opacity: 0.4 }}
-                            transition={{ duration: 0.1 }}
-                            style={{ pointerEvents: 'none' }}
-                          />
-                        </motion.button>
-
-                        {/* Close button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowSnapshotPanel(false)}
-                          className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100/80 hover:bg-gray-200/80 transition-colors"
-                          style={{
-                            border: '1px solid rgba(0,0,0,0.05)',
-                          }}
-                          aria-label="返回工作台"
-                        >
-                          <X size={18} className="text-gray-600" strokeWidth={2} />
-                        </motion.button>
-                      </div>
-
-                      {/* Hint text */}
-                      <p className="text-xs text-gray-500 mt-3">
-                        点击相机按钮拍照
-                      </p>
                     </motion.div>
-                  ) : (
-                    <motion.div
-                      key="cards-container"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      ref={scrollContainerRef}
-                      className="flex gap-4 overflow-x-auto pb-2 px-1 pt-1 scroll-smooth"
-                      style={{
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                        WebkitOverflowScrolling: 'touch',
-                      }}
-                    >
-                      {items.map((item, index) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{
-                            opacity: 1,
-                            x: 0,
-                            transition: {
-                              delay: index * 0.05,
-                              type: 'spring',
-                              stiffness: 300,
-                              damping: 25,
-                            },
-                          }}
-                        >
-                          <WorkbenchCard
-                            icon={item.icon}
-                            label={item.label}
-                            color={item.color}
-                            onClick={() => handleCardClick(item)}
-                            ariaLabel={item.label}
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                  ))}
+                </div>
               </div>
 
               {/* Bottom hint */}

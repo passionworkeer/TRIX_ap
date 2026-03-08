@@ -5,7 +5,8 @@ import { Camera } from "lucide-react";
 interface SnapshotModalProps {
   isOpen: boolean;
   onImageSelect: (imageUri: string) => void;
-  onImageCaptured?: (imageUri: string) => void; // 新增：图片选择后的回调
+  onImageCaptured?: (imageUri: string) => void;
+  onClose?: () => void; // 新增：图片选择后的回调
 }
 
 // 模拟最近相册的缩略图数据
@@ -50,6 +51,8 @@ const SnapshotModal: React.FC<SnapshotModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Clickable backdrop to close */}
+          <div className="fixed inset-0 z-40" onClick={onClose} />
           {/* 快拍卡片 - 与 GlassDock 同层级，位于其上方 */}
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}

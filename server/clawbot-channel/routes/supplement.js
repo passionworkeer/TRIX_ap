@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authMiddleware } = require('../middleware/auth');
+const gatewayService = require('../services/gatewayService');
 
 // ============================================
 // 通用响应函数
@@ -234,11 +235,33 @@ router.post('/clawbot/conversations/:conversationId/messages', authMiddleware, a
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    // TODO: 这里可以集成 AI 服务来生成回复
-    // 暂时返回简单的响应
+    // 通过 Gateway 发送消息到 OpenClaw AI
+    let assistantContent = '';
+    try {
+      const gatewayResult = await gatewayService.sendChatMessage(content);
+      // 从 Gateway 响应中提取 AI 回复
+      // Gateway 可能返回不同格式的响应
+      if (gatewayResult && gatewayResult.response) {
+        assistantContent = gatewayResult.response;
+      } else if (gatewayResult && gatewayResult.message) {
+        assistantContent = gatewayResult.message;
+      } else if (gatewayResult && gatewayResult.content) {
+        assistantContent = gatewayResult.content;
+      } else if (typeof gatewayResult === 'string') {
+        assistantContent = gatewayResult;
+      } else {
+        // 如果没有返回响应，生成默认回复
+        assistantContent = '消息已发送到 OpenClaw，正在等待响应...';
+      }
+      console.log(`[AI对话] Gateway 响应: ${assistantContent.slice(0, 100)}...`);
+    } catch (gatewayError) {
+      console.error('[AI对话] Gateway 调用失败:', gatewayError.message);
+      assistantContent = `抱歉，AI 服务暂时不可用: ${gatewayError.message}`;
+    }
+
     const assistantResponse = {
       role: 'assistant',
-      content: '收到消息！这个是 AI 对话的占位响应。'
+      content: assistantContent
     };
 
     const { data: assistantMessage, error: assistantError } = await supabase
