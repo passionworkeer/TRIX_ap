@@ -5,7 +5,6 @@ import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import ErrorBoundary from './components/ErrorBoundary';
-import PerformanceDashboard from './components/PerformanceDashboard';
 import { AppRoutes } from './types';
 import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -280,7 +279,6 @@ const App: React.FC = () => {
         <ClawbotChannelProvider>
           <HashRouter>
             <AppContent />
-            {/* <PerformanceDashboard /> */}
           </HashRouter>
         </ClawbotChannelProvider>
       </AuthProvider>

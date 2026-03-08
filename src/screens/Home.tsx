@@ -35,7 +35,6 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
-  const [showSnapshot, setShowSnapshot] = useState(false);
   const [showTodo, setShowTodo] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -66,7 +65,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
   const handleWorkbenchCardClick = (itemId: string) => {
     switch (itemId) {
       case 'snapshot':
-        // setShowSnapshot(true); // handled internally within WorkbenchModal if embedded
+        navigate(AppRoutes.SNAPSHOT);
         break;
       case 'location':
         setShowLocation(true);
@@ -80,29 +79,6 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) 
       default:
         logger.ui.debug('Unknown workbench action:', itemId);
     }
-  };
-
-  // Handle image selection from SnapshotModal
-  const handleImageSelect = (imageUri: string) => {
-    setShowSnapshot(false);
-
-    if (!isConnected || !isPaired) {
-      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
-        ...PAIRING_REQUIRED_TOAST_OPTIONS,
-        id: PAIRING_REQUIRED_TOAST_ID,
-      });
-      return;
-    }
-
-    navigate(AppRoutes.CHAT_DETAIL, {
-      state: {
-        friendId: 'clawbot',
-        name: 'TRIX Bot',
-        avatar: IMAGES.WIZARD_BOY_LOGIN,
-        isBot: true,
-        photoUri: imageUri
-      }
-    });
   };
 
   return (
