@@ -459,14 +459,6 @@ struct LocationMarker: View {
         }
         .buttonStyle(.plain)
         .frame(width: 50, height: 60) // Make tappable area larger
-        .contentShape(Rectangle()) // Make entire area tappable
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded { _ in
-                    SecureLogger.shared.debug("LocationMarker tapped via gesture: \(location.name)")
-                    action()
-                }
-        )
     }
 }
 
