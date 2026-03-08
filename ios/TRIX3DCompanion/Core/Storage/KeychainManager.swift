@@ -75,6 +75,10 @@ final class KeychainManager: KeychainManagerProtocol {
         static let pairedDeviceId = "com.trix3d.pairedDeviceId"
         static let pairedDeviceName = "com.trix3d.pairedDeviceName"
         static let isPaired = "com.trix3d.isPaired"
+
+        // Sensitive cache keys (migrated from UserDefaults)
+        static let cachedUser = "com.trix3d.cachedUser"
+        static let cachedChatRooms = "com.trix3d.cachedChatRooms"
     }
 
     // MARK: - Initialization
@@ -364,6 +368,56 @@ final class KeychainManager: KeychainManagerProtocol {
     /// - Parameter key: 键名
     func remove(forKey key: String) throws {
         try keychain.remove(key)
+    }
+
+    // MARK: - User Cache (Sensitive Data)
+
+    /// 保存用户对象到 Keychain
+    /// - Parameter user: 用户对象
+    func saveUser(_ user: User) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(user)
+        try saveData(data, forKey: Key.cachedUser)
+    }
+
+    /// 从 Keychain 获取用户对象
+    /// - Returns: 用户对象，如果不存在则返回 nil
+    func getUser() -> User? {
+        guard let data = getData(forKey: Key.cachedUser) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(User.self, from: data)
+    }
+
+    /// 删除缓存的用户
+    func removeUser() {
+        try? remove(forKey: Key.cachedUser)
+    }
+
+    // MARK: - ChatRoom Cache (Sensitive Data)
+
+    /// 保存聊天房间数组到 Keychain
+    /// - Parameter rooms: 聊天房间数组
+    func saveChatRooms(_ rooms: [ChatRoom]) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(rooms)
+        try saveData(data, forKey: Key.cachedChatRooms)
+    }
+
+    /// 从 Keychain 获取聊天房间数组
+    /// - Returns: 聊天房间数组，如果不存在则返回 nil
+    func getChatRooms() -> [ChatRoom]? {
+        guard let data = getData(forKey: Key.cachedChatRooms) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode([ChatRoom].self, from: data)
+    }
+
+    /// 删除缓存的聊天房间
+    func removeChatRooms() {
+        try? remove(forKey: Key.cachedChatRooms)
     }
 
     /// 删除指定键的数据（别名方法，与 remove 功能相同）
