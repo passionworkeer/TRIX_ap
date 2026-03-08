@@ -1,20 +1,31 @@
 {
-  "name": "trix-channel",
+  "name": "@openclaw/trix-channel",
   "version": "2.0.0",
-  "description": "TRIX 3D Companion App Channel for OpenClaw - 实时双向通信（生产级版本）",
+  "description": "TRIX App Channel for OpenClaw - 连接手机 App 到 OpenClaw Gateway",
   "main": "index.js",
+  "bin": {
+    "trix-channel": "./cli.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
   "author": "TRIX Team",
   "license": "MIT",
+  "preferGlobal": true,
   "dependencies": {
     "socket.io-client": "^4.7.2",
     "ws": "^8.18.0"
   },
   "keywords": [
     "openclaw",
-    "channel",
     "trix",
-    "websocket",
-    "real-time",
-    "production"
-  ]
+    "channel",
+    "gateway",
+    "pairing",
+    "websocket"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
