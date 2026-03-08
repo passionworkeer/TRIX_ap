@@ -98,7 +98,8 @@ struct ProfileView: View {
         do {
             achievements = try await achievementService.fetchAchievements()
         } catch {
-            // Silently fail - show empty achievements on error
+            // Log error and show empty achievements on failure
+            SecureLogger.shared.error("Failed to load achievements: \(error.localizedDescription)")
             achievements = []
         }
         isLoadingAchievements = false
