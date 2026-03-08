@@ -49,7 +49,10 @@ router.get('/unread/counts', authMiddleware, async (req, res) => {
 
     success(res, {
       counts: counts || [],
-      total: totalUnread
+      total: totalUnread,
+      chat: totalUnread,
+      notifications: 0,
+      friend_requests: 0
     });
   } catch (err) {
     serverError(res, err);
@@ -70,24 +73,25 @@ router.get('/unread/counts/:friendId', authMiddleware, async (req, res) => {
 
     if (error && error.code !== 'PGRST116') throw error;
 
-    success(res, count || { unread_count: 0 });
+    success(res, count?.unread_count || 0);
   } catch (err) {
     serverError(res, err);
   }
 });
 
 // 更新未读计数
-router.put('/unread/counts/:friendId', authMiddleware, async (req, res) => {
+async function handleUnreadCountUpdate(req, res) {
   try {
     const { friendId } = req.params;
-    const { unread_count, last_message, last_message_at } = req.body;
+    const { unread_count, count: countInput, last_message, last_message_at } = req.body || {};
+    const finalCount = Number(unread_count ?? countInput ?? 0);
 
-    const { data: count, error } = await supabase
+    const { data: countRow, error } = await supabase
       .from('unread_counts')
       .upsert({
         user_id: req.userId,
         friend_id: friendId,
-        unread_count: unread_count || 0,
+        unread_count: finalCount,
         last_message,
         last_message_at: last_message_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -97,11 +101,14 @@ router.put('/unread/counts/:friendId', authMiddleware, async (req, res) => {
 
     if (error) throw error;
 
-    success(res, count);
+    success(res, countRow);
   } catch (err) {
     serverError(res, err);
   }
-});
+}
+
+router.put('/unread/counts/:friendId', authMiddleware, handleUnreadCountUpdate);
+router.post('/unread/counts/:friendId', authMiddleware, handleUnreadCountUpdate);
 
 // 标记全部已读
 router.post('/unread/read-all', authMiddleware, async (req, res) => {
@@ -276,6 +283,57 @@ router.delete('/clawbot/conversations/:id', authMiddleware, async (req, res) => 
     if (error) throw error;
 
     success(res, null, '删除成功');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 兼容历史接口：按房间获取聊天历史
+router.get('/clawbot/history', authMiddleware, async (req, res) => {
+  try {
+    const roomId = req.query.room_id || req.query.roomId;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const offset = Math.max(0, parseInt(req.query.offset || '0', 10));
+
+    if (!roomId) {
+      return error(res, '缺少 room_id', 400);
+    }
+
+    const { data: participant } = await supabase
+      .from('chat_room_participants')
+      .select('id')
+      .eq('room_id', roomId)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!participant) {
+      return notFound(res, '你不在该房间中');
+    }
+
+    const { data: messages, error: messagesError } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (messagesError) throw messagesError;
+
+    const normalized = (messages || []).map((m) => ({
+      id: m.id,
+      room_id: m.room_id,
+      sender_id: m.sender_id,
+      sender: m.sender_type === 'bot' ? 'bot' : 'user',
+      content: m.content,
+      message_type: m.content_type || 'text',
+      media_url: m.media_url || null,
+      media_mime_type: m.media_mime_type || null,
+      media_duration: m.media_duration || null,
+      is_read: Boolean(m.is_read),
+      created_at: m.created_at
+    }));
+
+    success(res, normalized.reverse());
   } catch (err) {
     serverError(res, err);
   }

@@ -376,6 +376,18 @@ messageService.initMessageTable().catch((error) => {
 });
 
 // ============================================
+// Auth API Routes
+// ============================================
+const authRoutes = require('./routes/auth');
+app.use('/api', authRoutes);
+
+// ============================================
+// Payments API Routes
+// ============================================
+const paymentsRoutes = require('./routes/payments');
+app.use('/api', paymentsRoutes);
+
+// ============================================
 // MVP API Routes
 // ============================================
 const mvpRoutes = require('./routes/mvp');
@@ -505,7 +517,7 @@ app.get('/oss/signed-url', async (req, res) => {
   }
 });
 
-app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
+async function handleUpload(req, res) {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -521,6 +533,7 @@ app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
     return res.json({
       success: true,
       url: result.url,
+      key: result.objectKey,
       objectKey: result.objectKey,
       filename: originalname,
       size: buffer.length,
@@ -530,16 +543,18 @@ app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-});
+}
 
-app.post('/upload/base64', async (req, res) => {
+async function handleBase64Upload(req, res) {
   try {
-    const { base64Data } = req.body;
-    if (!base64Data) {
+    const { base64Data, data, image } = req.body || {};
+    const payload = base64Data || data || image;
+
+    if (!payload) {
       return res.status(400).json({ error: 'No base64 data provided' });
     }
 
-    const result = await ossService.uploadBase64(base64Data);
+    const result = await ossService.uploadBase64(payload);
     if (!result) {
       return res.status(500).json({ error: 'Upload failed' });
     }
@@ -547,16 +562,22 @@ app.post('/upload/base64', async (req, res) => {
     return res.json({
       success: true,
       url: result.url,
+      key: result.objectKey,
       objectKey: result.objectKey,
       filename: 'upload.jpg',
-      size: Buffer.from(base64Data.split(',').pop() || '', 'base64').length,
+      size: Buffer.from(payload.split(',').pop() || '', 'base64').length,
       mimeType: 'image/jpeg',
       contentType: 'image/jpeg'
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-});
+}
+
+app.post('/upload', uploadLimiter, upload.single('file'), handleUpload);
+app.post('/api/upload', uploadLimiter, upload.single('file'), handleUpload);
+app.post('/upload/base64', handleBase64Upload);
+app.post('/api/upload/base64', handleBase64Upload);
 
 app.get('/api/messages/sync', async (req, res) => {
   try {

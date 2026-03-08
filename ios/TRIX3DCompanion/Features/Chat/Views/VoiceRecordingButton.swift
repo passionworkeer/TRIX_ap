@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVFoundation
+import UIKit
 
 // MARK: - Recording State
 
@@ -377,9 +378,11 @@ struct VoiceRecordingButton: View {
 
     // MARK: - Properties
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = VoiceRecordingViewModel()
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
+    @State private var hasAutoStarted = false
 
     let onRecordingComplete: (URL) -> Void
     let onCancelled: (() -> Void)?
@@ -397,11 +400,31 @@ struct VoiceRecordingButton: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            if viewModel.isRecording {
-                recordingOverlay
+        recordingOverlay
+            .task {
+                await autoStartRecordingIfNeeded()
             }
+    }
+
+    private func autoStartRecordingIfNeeded() async {
+        guard !hasAutoStarted else { return }
+        hasAutoStarted = true
+        await viewModel.startRecording()
+    }
+
+    private func closeRecorder() async {
+        if viewModel.isRecording {
+            await viewModel.cancelRecording()
         }
+        onCancelled?()
+        dismiss()
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            return
+        }
+        UIApplication.shared.open(url)
     }
 
     // MARK: - Recording Overlay
@@ -413,6 +436,19 @@ struct VoiceRecordingButton: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
+                HStack {
+                    Spacer()
+                    Button {
+                        Task { await closeRecorder() }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                }
+                .padding(.top, 18)
+                .padding(.horizontal, 18)
+
                 Spacer()
 
                 // Recording indicator
@@ -454,27 +490,37 @@ struct VoiceRecordingButton: View {
         VStack(spacing: 16) {
             // Pulsing circle
             ZStack {
-                Circle()
-                    .fill(Color.red.opacity(0.3))
-                    .frame(width: 100, height: 100)
-                    .scaleEffect(viewModel.isRecording ? 1.5 : 1.0)
-                    .animation(
-                        .easeInOut(duration: 1.0)
-                        .repeatForever(autoreverses: true),
-                        value: viewModel.isRecording
-                    )
+                if viewModel.isRecording {
+                    Circle()
+                        .fill(Color.red.opacity(0.3))
+                        .frame(width: 100, height: 100)
+                        .scaleEffect(1.5)
+                        .animation(
+                            .easeInOut(duration: 1.0)
+                            .repeatForever(autoreverses: true),
+                            value: viewModel.isRecording
+                        )
 
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 60, height: 60)
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 60, height: 60)
 
-                Image(systemName: "mic.fill")
-                    .font(.title)
-                    .foregroundColor(.white)
+                    Image(systemName: "mic.fill")
+                        .font(.title)
+                        .foregroundColor(.white)
+                } else {
+                    Circle()
+                        .fill(Color.orange.opacity(0.25))
+                        .frame(width: 80, height: 80)
+
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                }
             }
 
             // Duration
-            Text(viewModel.formattedDuration)
+            Text(viewModel.isRecording ? viewModel.formattedDuration : "00:00")
                 .font(.system(.title, design: .rounded))
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
@@ -486,18 +532,44 @@ struct VoiceRecordingButton: View {
 
     private var recordingInstructions: some View {
         VStack(spacing: 8) {
-            Text("松开发送，上滑取消")
-                .font(.subheadline)
-                .foregroundColor(.white)
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            } else if viewModel.isRecording {
+                Text("松开发送，上滑取消")
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+            } else {
+                Text("正在准备录音...")
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+            }
 
-            if dragOffset < -30 {
+            if !viewModel.isRecording {
+                Text("可点击麦克风重试")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+
+            if viewModel.isRecording && dragOffset < -30 {
                 Text("松开取消")
                     .font(.subheadline)
                     .foregroundColor(.red)
                     .transition(.opacity)
             }
+
+            if !viewModel.hasPermission {
+                Button("Open Settings") {
+                    openAppSettings()
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
         .animation(.easeInOut, value: dragOffset)
+        .animation(.easeInOut, value: viewModel.isRecording)
     }
 
     // MARK: - Cancel Indicator
@@ -518,7 +590,17 @@ struct VoiceRecordingButton: View {
     // MARK: - Recording Button
 
     private var recordingButton: some View {
-        Button(action: {}) {
+        Button {
+            Task {
+                if viewModel.isRecording {
+                    if let url = await viewModel.stopRecording() {
+                        onRecordingComplete(url)
+                    }
+                } else {
+                    await viewModel.startRecording()
+                }
+            }
+        } label: {
             ZStack {
                 Circle()
                     .fill(Color.white)
@@ -527,16 +609,16 @@ struct VoiceRecordingButton: View {
 
                 Image(systemName: "mic.fill")
                     .font(.title2)
-                    .foregroundColor(.red)
+                    .foregroundColor(viewModel.isRecording ? .red : .orange)
                     .offset(y: -dragOffset * 0.3)
             }
         }
-        .disabled(!viewModel.canRecord)
     }
 
     // MARK: - Drag Handling
 
     private func handleDragChanged(_ value: DragGesture.Value) {
+        guard viewModel.isRecording else { return }
         isDragging = true
 
         // Calculate vertical offset
@@ -547,6 +629,11 @@ struct VoiceRecordingButton: View {
     }
 
     private func handleDragEnded(_ value: DragGesture.Value) async {
+        guard viewModel.isRecording else {
+            dragOffset = 0
+            return
+        }
+
         isDragging = false
 
         // Check if cancel threshold reached

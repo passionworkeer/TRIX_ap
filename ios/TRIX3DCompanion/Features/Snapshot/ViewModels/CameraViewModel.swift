@@ -226,6 +226,16 @@ final class CameraViewModel: ObservableObject {
         return await uploadCapturedImage(quality: quality)
     }
 
+    /// Use an image picked from photo library as captured image.
+    /// This reuses the same preview/upload flow as camera capture.
+    /// - Parameter image: Picked UIImage
+    func useImportedImage(_ image: UIImage) {
+        capturedImage = image
+        showPreview = true
+        uploadedImageURL = nil
+        errorMessage = nil
+    }
+
     /// Clear error message
     func clearError() {
         errorMessage = nil

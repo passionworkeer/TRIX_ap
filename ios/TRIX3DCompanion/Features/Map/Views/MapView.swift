@@ -128,6 +128,19 @@ struct MapView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .sheet(
+            isPresented: $viewModel.showFriendDetail,
+            onDismiss: {
+                selectedFriendId = nil
+                viewModel.clearSelectedFriend()
+            }
+        ) {
+            if let friend = viewModel.selectedFriend {
+                FriendDetailSheet(friend: friend)
+                    .presentationDetents([.fraction(0.35), .medium])
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .alert("Location Permission Required", isPresented: $showPermissionAlert) {
             Button("Settings") {
                 openAppSettings()
@@ -611,6 +624,97 @@ extension LocationCategory {
             return "tree.fill"
         case .other:
             return "mappin.circle.fill"
+        }
+    }
+}
+
+private struct FriendDetailSheet: View {
+    let friend: FriendMapLocation
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(avatarGradient)
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Text(String(friend.name.prefix(1)).uppercased())
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(friend.name)
+                        .font(.headline)
+                        .foregroundStyle(Color.textPrimary)
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 8, height: 8)
+                        Text(statusText)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                }
+
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                Label(
+                    friend.isStudying ? "正在学习" : "暂未学习",
+                    systemImage: friend.isStudying ? "book.fill" : "moon.zzz.fill"
+                )
+                .font(.subheadline)
+                .foregroundStyle(friend.isStudying ? Color.green : Color.textSecondary)
+
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(Color.brandPurple)
+                Text(String(format: "纬度 %.4f，经度 %.4f", friend.latitude, friend.longitude))
+                    .font(.caption)
+                    .foregroundStyle(Color.textSecondary)
+                Spacer()
+            }
+        }
+        .padding(20)
+        .background(Color.background)
+    }
+
+    private var avatarGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let color = colors[abs(friend.name.hashValue) % colors.count]
+        return LinearGradient(
+            colors: [color, color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var statusColor: Color {
+        switch friend.status {
+        case "online":
+            return .green
+        case "away":
+            return .orange
+        default:
+            return .gray
+        }
+    }
+
+    private var statusText: String {
+        switch friend.status {
+        case "online":
+            return "在线"
+        case "away":
+            return "离开中"
+        default:
+            return "离线"
         }
     }
 }

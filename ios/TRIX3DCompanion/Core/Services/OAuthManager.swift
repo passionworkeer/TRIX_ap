@@ -175,9 +175,8 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
 
         // Call unlink API
         do {
-            let endpoint = APIEndpoint.userProfile // POST /user/oauth/unlink
             let request = OAuthUnlinkRequest(provider: account.provider.rawValue, accountID: accountID)
-            let _: EmptyResponse = try await apiClient.post(endpoint, body: request)
+            let _: EmptyResponse = try await apiClient.post(.oauthUnlink, body: request)
 
             // Remove from local storage
             linkedAccounts.removeAll { $0.id == accountID }
@@ -232,8 +231,7 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
         }
 
         do {
-            let endpoint = APIEndpoint.userProfile // GET /user/oauth/accounts
-            let accounts: [OAuthAccount] = try await apiClient.get(endpoint)
+            let accounts: [OAuthAccount] = try await apiClient.get(.oauthAccounts)
             linkedAccounts = accounts
             return .success(accounts)
 
@@ -358,11 +356,17 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
         switch result {
         case .success(let credential):
             do {
-                let request = AppleLinkRequest(
-                    identityToken: credential.identityToken,
-                    authorizationCode: credential.authorizationCode
+                let request = OAuthLinkRequest(
+                    provider: OAuthProvider.apple.rawValue,
+                    providerUserID: credential.userIdentifier,
+                    email: authService.currentUser?.email,
+                    displayName: authService.currentUser?.displayName ?? authService.currentUser?.username,
+                    avatarURL: authService.currentUser?.avatarUrl,
+                    accessToken: credential.identityToken,
+                    refreshToken: nil,
+                    expiresAt: nil
                 )
-                let _: EmptyResponse = try await apiClient.post(.userProfile, body: request)
+                let _: OAuthAccount = try await apiClient.post(.oauthLink, body: request)
 
                 // Save token
                 let token = OAuthToken(
@@ -459,11 +463,17 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
         switch result {
         case .success(let credential):
             do {
-                let request = WeChatLinkRequest(
-                    openID: credential.openID,
-                    accessToken: credential.accessToken
+                let request = OAuthLinkRequest(
+                    provider: OAuthProvider.wechat.rawValue,
+                    providerUserID: credential.openID,
+                    email: credential.unionID,
+                    displayName: authService.currentUser?.displayName ?? authService.currentUser?.username,
+                    avatarURL: authService.currentUser?.avatarUrl,
+                    accessToken: credential.accessToken,
+                    refreshToken: credential.refreshToken,
+                    expiresAt: credential.expirationDate
                 )
-                let _: EmptyResponse = try await apiClient.post(.userProfile, body: request)
+                let _: OAuthAccount = try await apiClient.post(.oauthLink, body: request)
 
                 // Save token
                 let token = OAuthToken(
@@ -672,6 +682,29 @@ struct AppleLinkRequest: Codable {
     enum CodingKeys: String, CodingKey {
         case identityToken = "identity_token"
         case authorizationCode = "authorization_code"
+    }
+}
+
+/// OAuth link request
+struct OAuthLinkRequest: Codable {
+    let provider: String
+    let providerUserID: String
+    let email: String?
+    let displayName: String?
+    let avatarURL: String?
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case providerUserID = "provider_user_id"
+        case email
+        case displayName = "display_name"
+        case avatarURL = "avatar_url"
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresAt = "expires_at"
     }
 }
 

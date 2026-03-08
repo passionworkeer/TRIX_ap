@@ -33,14 +33,25 @@ struct ContentView: View {
             // Background gradient - simplified for performance
             backgroundView
 
-            // Main content - Always show MainTabView for demo
-            MainTabView()
-                .transition(.asymmetric(
-                    insertion: .opacity,
-                    removal: .opacity
-                ))
+            // Main content based on authentication state
+            if authService.isLoggedIn {
+                MainTabView()
+                    .transition(.asymmetric(
+                        insertion: .opacity,
+                        removal: .opacity
+                    ))
+            } else {
+                AuthRootView()
+                    .transition(.asymmetric(
+                        insertion: .opacity,
+                        removal: .opacity
+                    ))
+            }
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
+        .onChange(of: authService.isLoggedIn) { isLoggedIn in
+            handleAuthStateChange(isLoggedIn: isLoggedIn)
+        }
         .onAppear {
             handleInitialSetup()
         }

@@ -148,21 +148,6 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
         // Restore session on initialization
         restoreSession()
-
-        // Auto login with demo mode for testing (skip login screen)
-        Task {
-            await autoDemoLogin()
-        }
-    }
-
-    // Auto login with demo mode
-    private func autoDemoLogin() async {
-        // Wait a moment for the app to fully load
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        if !isLoggedIn {
-            _ = await demoLogin()
-        }
     }
 
     // MARK: - Internal Methods
@@ -187,13 +172,6 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     ///   - password: User's password
     /// - Returns: AuthResult containing the authenticated user
     func login(email: String, password: String) async -> AuthResult<User> {
-        // DEMO MODE: Allow demo login for testing (DEBUG builds only)
-        #if DEBUG
-        if email.lowercased() == getDemoEmail() && password == getDemoPassword() {
-            return await demoLogin()
-        }
-        #endif
-
         // Validate input
         guard isValidEmail(email) else {
             let error = AuthError.validationError(message: "Invalid email format")
@@ -236,55 +214,6 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             return .failure(authError)
         }
     }
-
-    /// Demo login for testing without backend (DEBUG builds only)
-    #if DEBUG
-    private func demoLogin() async -> AuthResult<User> {
-        isLoading = true
-
-        // Create a demo user
-        let demoUser = User(
-            id: "demo-user-001",
-            username: "demo_user",
-            email: getDemoEmail(),
-            avatarUrl: nil,
-            fullName: "演示用户",
-            displayName: "demo_user",
-            bio: nil,
-            points: 0,
-            isStudying: false,
-            companionId: nil,
-            totalStudyTime: 0,
-            school: nil,
-            grade: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
-        // Create a demo session
-        let demoSession = UserSession(
-            id: "demo-session-001",
-            userId: demoUser.id,
-            accessToken: "demo_access_token_12345",
-            refreshToken: "demo_refresh_token_67890",
-            expiresAt: Date().addingTimeInterval(86400 * 7) // 7 days
-        )
-
-        // Save session
-        do {
-            try saveSession(demoSession)
-        } catch {
-            // Continue even if save fails
-        }
-
-        // Set current user
-        currentUser = demoUser
-        isLoggedIn = true
-        isLoading = false
-
-        return .success(demoUser)
-    }
-    #endif
 
     /// Register a new user account
     /// - Parameters:
@@ -518,20 +447,6 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             return .failure(.refreshFailed)
         }
     }
-
-    // MARK: - Environment Variables (DEBUG only)
-
-    #if DEBUG
-    /// Get demo email from environment or use default
-    private func getDemoEmail() -> String {
-        return ProcessInfo.processInfo.environment["DEMO_EMAIL"] ?? "demo@trix3d.com"
-    }
-
-    /// Get demo password from environment or use default
-    private func getDemoPassword() -> String {
-        return ProcessInfo.processInfo.environment["DEMO_PASSWORD"] ?? "demo123"
-    }
-    #endif
 
     // MARK: - Validation Helpers
 

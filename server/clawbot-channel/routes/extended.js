@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authMiddleware, optionalAuthMiddleware } = require('../middleware/auth');
+const { dbRun, dbGet, dbAll } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
 // ============================================
@@ -34,6 +35,46 @@ function serverError(res, err) {
   error(res, '服务器错误', 500);
 }
 
+async function upsertRoomPreference(userId, roomId, isMuted, isArchived) {
+  await dbRun(
+    `INSERT INTO chat_room_user_preferences (
+      user_id, room_id, is_muted, is_archived, updated_at
+    ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id, room_id) DO UPDATE SET
+      is_muted = excluded.is_muted,
+      is_archived = excluded.is_archived,
+      updated_at = CURRENT_TIMESTAMP`,
+    [userId, roomId, isMuted ? 1 : 0, isArchived ? 1 : 0]
+  );
+}
+
+function formatSQLiteDate(value) {
+  if (!value) {
+    return new Date().toISOString();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString();
+  }
+  return parsed.toISOString();
+}
+
+function mapLocalMessageRow(row, currentUserId) {
+  return {
+    id: row.id,
+    room_id: row.room_id,
+    sender_id: row.sender_id,
+    sender: row.sender_id === currentUserId ? 'user' : 'friend',
+    content: row.content || '',
+    message_type: row.content_type || 'text',
+    media_url: row.media_url || null,
+    media_mime_type: row.media_mime_type || null,
+    media_duration: row.media_duration ?? null,
+    is_read: true,
+    created_at: formatSQLiteDate(row.created_at)
+  };
+}
+
 // ============================================
 // 聊天模块 /chat
 // ============================================
@@ -41,47 +82,69 @@ function serverError(res, err) {
 // 获取用户的聊天房间列表
 router.get('/chat/rooms', authMiddleware, async (req, res) => {
   try {
-    const { data: rooms, error } = await supabase
-      .from('chat_room_participants')
-      .select(`
-        room:chat_rooms(
-          id,
-          name,
-          type,
-          avatar_url,
-          last_message_id,
-          last_message_at,
-          created_at
-        )
-      `)
-      .eq('user_id', req.userId);
+    const roomRows = await dbAll(
+      `SELECT r.id, r.name, r.type, r.created_at, r.updated_at
+       FROM chat_rooms_local r
+       INNER JOIN chat_room_participants_local p ON p.room_id = r.id
+       WHERE p.user_id = ?
+       ORDER BY r.updated_at DESC`,
+      [req.userId]
+    );
 
-    if (error) throw error;
+    const roomIds = (roomRows || []).map((row) => row.id);
+    if (roomIds.length === 0) {
+      return success(res, []);
+    }
 
-    // 获取每个房间的最后一条消息
-    const roomIds = rooms.map(r => r.room.id);
-    let messagesMap = {};
+    const placeholders = roomIds.map(() => '?').join(',');
 
-    if (roomIds.length > 0) {
-      const { data: messages } = await supabase
-        .from('chat_messages')
-        .select('id, content, content_type, created_at, room_id, sender_id')
-        .in('room_id', roomIds)
-        .order('created_at', { ascending: false });
+    const messageRows = await dbAll(
+      `SELECT id, room_id, sender_id, content, content_type, media_url, media_mime_type, media_duration, created_at
+       FROM chat_messages_local
+       WHERE room_id IN (${placeholders})
+       ORDER BY created_at DESC`,
+      roomIds
+    );
 
-      if (messages) {
-        messages.forEach(msg => {
-          if (!messagesMap[msg.room_id]) {
-            messagesMap[msg.room_id] = msg;
-          }
-        });
+    const messagesMap = {};
+    for (const row of (messageRows || [])) {
+      if (!messagesMap[row.room_id]) {
+        messagesMap[row.room_id] = mapLocalMessageRow(row, req.userId);
       }
     }
 
-    const result = rooms.map(r => ({
-      ...r.room,
-      last_message: messagesMap[r.room.id] || null
-    }));
+    const preferenceRows = await dbAll(
+      `SELECT room_id, is_muted, is_archived
+       FROM chat_room_user_preferences
+       WHERE user_id = ? AND room_id IN (${placeholders})`,
+      [req.userId, ...roomIds]
+    );
+
+    const preferenceMap = (preferenceRows || []).reduce((acc, row) => {
+      acc[row.room_id] = {
+        is_muted: Boolean(row.is_muted),
+        is_archived: Boolean(row.is_archived)
+      };
+      return acc;
+    }, {});
+
+    const result = roomRows
+      .map((row) => {
+        const preference = preferenceMap[row.id] || { is_muted: false, is_archived: false };
+        return {
+          id: row.id,
+          name: row.name,
+          type: row.type || 'group',
+          participants: [],
+          last_message: messagesMap[row.id] || null,
+          unread_count: 0,
+          is_muted: preference.is_muted,
+          is_archived: preference.is_archived,
+          created_at: formatSQLiteDate(row.created_at),
+          updated_at: formatSQLiteDate(row.updated_at)
+        };
+      })
+      .filter((room) => !room.is_archived);
 
     success(res, result);
   } catch (err) {
@@ -93,40 +156,50 @@ router.get('/chat/rooms', authMiddleware, async (req, res) => {
 router.post('/chat/rooms', authMiddleware, async (req, res) => {
   try {
     const { name, type = 'direct', participantIds = [] } = req.body;
-
-    // 创建房间
-    const { data: room, error: roomError } = await supabase
-      .from('chat_rooms')
-      .insert({
-        name,
-        type,
-        created_by: req.userId
-      })
-      .select()
-      .single();
-
-    if (roomError) throw roomError;
-
-    // 添加创建者
-    await supabase
-      .from('chat_room_participants')
-      .insert({
-        room_id: room.id,
-        user_id: req.userId,
-        role: 'owner'
-      });
-
-    // 添加其他参与者
-    if (participantIds.length > 0) {
-      const participants = participantIds.map(userId => ({
-        room_id: room.id,
-        user_id: userId,
-        role: 'member'
-      }));
-      await supabase.from('chat_room_participants').insert(participants);
+    const normalizedName = (name || '').trim();
+    if (!normalizedName) {
+      return error(res, 'name 不能为空', 400);
     }
 
-    success(res, room, '创建成功');
+    const roomId = uuidv4();
+    const now = new Date().toISOString();
+    const normalizedType = ['ai', 'group', 'private'].includes(type) ? type : 'group';
+
+    await dbRun(
+      `INSERT INTO chat_rooms_local (id, name, type, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [roomId, normalizedName, normalizedType, req.userId, now, now]
+    );
+
+    await dbRun(
+      `INSERT INTO chat_room_participants_local (room_id, user_id, role, joined_at)
+       VALUES (?, ?, 'owner', ?)`,
+      [roomId, req.userId, now]
+    );
+
+    const uniqueParticipants = Array.from(new Set((participantIds || []).filter(Boolean)))
+      .filter((userId) => userId !== req.userId);
+
+    for (const userId of uniqueParticipants) {
+      await dbRun(
+        `INSERT OR IGNORE INTO chat_room_participants_local (room_id, user_id, role, joined_at)
+         VALUES (?, ?, 'member', ?)`,
+        [roomId, userId, now]
+      );
+    }
+
+    const response = {
+      id: roomId,
+      name: normalizedName,
+      type: normalizedType,
+      participants: [],
+      last_message: null,
+      unread_count: 0,
+      created_at: now,
+      updated_at: now
+    };
+
+    success(res, response, '创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -138,34 +211,32 @@ router.get('/chat/rooms/:roomId/messages', authMiddleware, async (req, res) => {
     const { roomId } = req.params;
     const { limit = 50, before } = req.query;
 
-    // 验证用户是否在房间中
-    const { data: participant } = await supabase
-      .from('chat_room_participants')
-      .select('id')
-      .eq('room_id', roomId)
-      .eq('user_id', req.userId)
-      .single();
-
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
     if (!participant) {
       return unauthorized(res, '你不在此房间中');
     }
 
-    let query = supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .limit(parseInt(limit));
-
+    const normalizedLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    const params = [roomId];
+    let sql = `
+      SELECT id, room_id, sender_id, content, content_type, media_url, media_mime_type, media_duration, created_at
+      FROM chat_messages_local
+      WHERE room_id = ?
+    `;
     if (before) {
-      query = query.lt('created_at', before);
+      sql += ' AND created_at < ?';
+      params.push(before);
     }
+    sql += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(normalizedLimit);
 
-    const { data: messages, error } = await query;
-
-    if (error) throw error;
-
-    success(res, messages || []);
+    const rows = await dbAll(sql, params);
+    const messages = (rows || []).map((row) => mapLocalMessageRow(row, req.userId));
+    success(res, messages);
   } catch (err) {
     serverError(res, err);
   }
@@ -177,42 +248,44 @@ router.post('/chat/rooms/:roomId/messages', authMiddleware, async (req, res) => 
     const { roomId } = req.params;
     const { content, content_type = 'text', media_url, reply_to_id } = req.body;
 
-    // 验证用户是否在房间中
-    const { data: participant } = await supabase
-      .from('chat_room_participants')
-      .select('id')
-      .eq('room_id', roomId)
-      .eq('user_id', req.userId)
-      .single();
-
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
     if (!participant) {
       return unauthorized(res, '你不在此房间中');
     }
 
-    // 插入消息
-    const { data: message, error } = await supabase
-      .from('chat_messages')
-      .insert({
-        room_id: roomId,
-        sender_id: req.userId,
-        content,
-        content_type,
-        media_url,
-        reply_to_id
-      })
-      .select()
-      .single();
+    const messageId = uuidv4();
+    const now = new Date().toISOString();
+    const normalizedContent = typeof content === 'string' ? content : '';
 
-    if (error) throw error;
+    await dbRun(
+      `INSERT INTO chat_messages_local (
+        id, room_id, sender_id, content, content_type, media_url, reply_to_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [messageId, roomId, req.userId, normalizedContent, content_type, media_url || null, reply_to_id || null, now]
+    );
 
-    // 更新房间的最后消息
-    await supabase
-      .from('chat_rooms')
-      .update({
-        last_message_id: message.id,
-        last_message_at: new Date().toISOString()
-      })
-      .eq('id', roomId);
+    await dbRun(
+      `UPDATE chat_rooms_local
+       SET updated_at = ?
+       WHERE id = ?`,
+      [now, roomId]
+    );
+
+    const message = mapLocalMessageRow({
+      id: messageId,
+      room_id: roomId,
+      sender_id: req.userId,
+      content: normalizedContent,
+      content_type,
+      media_url: media_url || null,
+      media_mime_type: null,
+      media_duration: null,
+      created_at: now
+    }, req.userId);
 
     success(res, message, '发送成功');
   } catch (err) {
@@ -225,16 +298,117 @@ router.post('/chat/rooms/:roomId/messages/read', authMiddleware, async (req, res
   try {
     const { roomId } = req.params;
 
-    // 更新房间的最后阅读时间
-    const { error } = await supabase
-      .from('chat_room_participants')
-      .update({ joined_at: new Date().toISOString() })
-      .eq('room_id', roomId)
-      .eq('user_id', req.userId);
-
-    if (error) throw error;
+    await dbRun(
+      `UPDATE chat_room_participants_local
+       SET last_read_at = ?
+       WHERE room_id = ? AND user_id = ?`,
+      [new Date().toISOString(), roomId, req.userId]
+    );
 
     success(res, null, '已标记已读');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 归档聊天房间（仅对当前用户隐藏）
+router.post('/chat/rooms/:roomId/archive', authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
+    if (!participant) {
+      return unauthorized(res, '你不在此房间中');
+    }
+
+    await upsertRoomPreference(req.userId, roomId, false, true);
+    success(res, null, '已归档');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 静音聊天房间
+router.post('/chat/rooms/:roomId/mute', authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
+    if (!participant) {
+      return unauthorized(res, '你不在此房间中');
+    }
+
+    await upsertRoomPreference(req.userId, roomId, true, false);
+    success(res, null, '已静音');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 取消静音聊天房间
+router.post('/chat/rooms/:roomId/unmute', authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
+    if (!participant) {
+      return unauthorized(res, '你不在此房间中');
+    }
+
+    await upsertRoomPreference(req.userId, roomId, false, false);
+    success(res, null, '已取消静音');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 删除聊天房间（当前用户退出房间；若房间无人则清理）
+router.delete('/chat/rooms/:roomId', authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const participant = await dbGet(
+      `SELECT room_id FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
+    if (!participant) {
+      return unauthorized(res, '你不在此房间中');
+    }
+
+    await dbRun(
+      `DELETE FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
+
+    await dbRun(
+      'DELETE FROM chat_room_user_preferences WHERE user_id = ? AND room_id = ?',
+      [req.userId, roomId]
+    );
+
+    const row = await dbGet(
+      `SELECT COUNT(1) AS count FROM chat_room_participants_local
+       WHERE room_id = ?`,
+      [roomId]
+    );
+    const participantCount = Number(row?.count || 0);
+
+    if (participantCount === 0) {
+      await dbRun('DELETE FROM chat_messages_local WHERE room_id = ?', [roomId]);
+      await dbRun('DELETE FROM chat_rooms_local WHERE id = ?', [roomId]);
+      await dbRun('DELETE FROM chat_room_user_preferences WHERE room_id = ?', [roomId]);
+    }
+
+    success(res, null, '已删除');
   } catch (err) {
     serverError(res, err);
   }
@@ -563,25 +737,27 @@ router.delete('/pairing/devices/:id', authMiddleware, async (req, res) => {
 // 获取附近地点
 router.get('/places/nearby', optionalAuthMiddleware, async (req, res) => {
   try {
-    const { latitude, longitude, radius = 5000 } = req.query;
+    const { latitude, longitude, lat, lng, radius = 5000 } = req.query;
+    const finalLatitude = latitude ?? lat;
+    const finalLongitude = longitude ?? lng;
 
-    if (!latitude || !longitude) {
+    if (!finalLatitude || !finalLongitude) {
       return error(res, '需要提供经纬度');
     }
 
     // 简单计算 - PostgreSQL 中应该使用 PostGIS
     // 这里使用简单的矩形过滤
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
+    const latValue = parseFloat(finalLatitude);
+    const lngValue = parseFloat(finalLongitude);
     const rad = parseFloat(radius) / 111000; // 转换为度数
 
     const { data: places, error } = await supabase
       .from('places')
       .select('*')
-      .gte('latitude', lat - rad)
-      .lte('latitude', lat + rad)
-      .gte('longitude', lng - rad)
-      .lte('longitude', lng + rad)
+      .gte('latitude', latValue - rad)
+      .lte('latitude', latValue + rad)
+      .gte('longitude', lngValue - rad)
+      .lte('longitude', lngValue + rad)
       .limit(20);
 
     if (error) throw error;
@@ -590,8 +766,8 @@ router.get('/places/nearby', optionalAuthMiddleware, async (req, res) => {
     const result = (places || []).map(place => ({
       ...place,
       distance: Math.sqrt(
-        Math.pow((place.latitude - lat) * 111000, 2) +
-        Math.pow((place.longitude - lng) * 111000 * Math.cos(lat * Math.PI / 180), 2)
+        Math.pow((place.latitude - latValue) * 111000, 2) +
+        Math.pow((place.longitude - lngValue) * 111000 * Math.cos(latValue * Math.PI / 180), 2)
       )
     })).sort((a, b) => a.distance - b.distance);
 
@@ -830,13 +1006,15 @@ router.get('/points/history', authMiddleware, async (req, res) => {
 // 增加积分
 router.post('/points/add', authMiddleware, async (req, res) => {
   try {
-    const { amount, reason } = req.body;
+    const { amount, points: pointsInput, reason, description } = req.body;
+    const finalAmount = Number(amount ?? pointsInput ?? 0);
+    const finalReason = reason || description || '积分增加';
 
-    if (!amount || amount <= 0) {
+    if (!finalAmount || finalAmount <= 0) {
       return error(res, '积分必须大于0');
     }
 
-    await addPoints(req.userId, amount, 'bonus', reason);
+    await addPoints(req.userId, finalAmount, 'bonus', finalReason);
 
     // 获取最新积分
     const { data: points } = await supabase
@@ -845,7 +1023,13 @@ router.post('/points/add', authMiddleware, async (req, res) => {
       .eq('user_id', req.userId)
       .single();
 
-    success(res, { total_points: points?.total_points || 0 }, '积分添加成功');
+    success(res, {
+      total_points: points?.total_points || 0,
+      level: 1,
+      today_earned: 0,
+      week_earned: 0,
+      total_transactions: 0
+    }, '积分添加成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -854,9 +1038,11 @@ router.post('/points/add', authMiddleware, async (req, res) => {
 // 扣除积分
 router.post('/points/deduct', authMiddleware, async (req, res) => {
   try {
-    const { amount, reason } = req.body;
+    const { amount, points: pointsInput, reason, description } = req.body;
+    const finalAmount = Number(amount ?? pointsInput ?? 0);
+    const finalReason = reason || description || '积分扣除';
 
-    if (!amount || amount <= 0) {
+    if (!finalAmount || finalAmount <= 0) {
       return error(res, '积分必须大于0');
     }
 
@@ -867,12 +1053,12 @@ router.post('/points/deduct', authMiddleware, async (req, res) => {
       .eq('user_id', req.userId)
       .single();
 
-    if (!currentPoints || currentPoints.total_points < amount) {
+    if (!currentPoints || currentPoints.total_points < finalAmount) {
       return error(res, '积分不足');
     }
 
     // 扣除积分
-    await addPoints(req.userId, -amount, 'deduct', reason);
+    await addPoints(req.userId, -finalAmount, 'deduct', finalReason);
 
     // 获取最新积分
     const { data: points } = await supabase
@@ -881,7 +1067,13 @@ router.post('/points/deduct', authMiddleware, async (req, res) => {
       .eq('user_id', req.userId)
       .single();
 
-    success(res, { total_points: points?.total_points || 0 }, '积分扣除成功');
+    success(res, {
+      total_points: points?.total_points || 0,
+      level: 1,
+      today_earned: 0,
+      week_earned: 0,
+      total_transactions: 0
+    }, '积分扣除成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -1019,7 +1211,7 @@ router.get('/notifications', authMiddleware, async (req, res) => {
 });
 
 // 标记通知为已读
-router.put('/notifications/:id/read', authMiddleware, async (req, res) => {
+async function handleMarkNotificationRead(req, res) {
   try {
     const { id } = req.params;
 
@@ -1038,7 +1230,10 @@ router.put('/notifications/:id/read', authMiddleware, async (req, res) => {
   } catch (err) {
     serverError(res, err);
   }
-});
+}
+
+router.put('/notifications/:id/read', authMiddleware, handleMarkNotificationRead);
+router.post('/notifications/:id/read', authMiddleware, handleMarkNotificationRead);
 
 // 标记所有通知为已读
 router.post('/notifications/read-all', authMiddleware, async (req, res) => {
@@ -1136,40 +1331,45 @@ router.get('/chat/rooms/:roomId', authMiddleware, async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    // 验证用户是否在房间中
-    const { data: participant } = await supabase
-      .from('chat_room_participants')
-      .select('*')
-      .eq('room_id', roomId)
-      .eq('user_id', req.userId)
-      .single();
-
+    const participant = await dbGet(
+      `SELECT room_id, role, joined_at
+       FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
     if (!participant) {
       return unauthorized(res, '你不在此房间中');
     }
 
-    // 获取房间信息
-    const { data: room, error } = await supabase
-      .from('chat_rooms')
-      .select('*')
-      .eq('id', roomId)
-      .single();
-
-    if (error) throw error;
+    const room = await dbGet(
+      `SELECT id, name, type, created_at, updated_at
+       FROM chat_rooms_local
+       WHERE id = ?`,
+      [roomId]
+    );
     if (!room) return notFound(res, '房间不存在');
 
-    // 获取参与者信息
-    const { data: participants } = await supabase
-      .from('chat_room_participants')
-      .select(`
-        user_id,
-        role,
-        joined_at,
-        user:profiles(id, username, full_name, avatar_url)
-      `)
-      .eq('room_id', roomId);
+    const lastMessageRow = await dbGet(
+      `SELECT id, room_id, sender_id, content, content_type, media_url, media_mime_type, media_duration, created_at
+       FROM chat_messages_local
+       WHERE room_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [roomId]
+    );
 
-    success(res, { ...room, participants });
+    const response = {
+      id: room.id,
+      name: room.name,
+      type: room.type || 'group',
+      participants: [],
+      last_message: lastMessageRow ? mapLocalMessageRow(lastMessageRow, req.userId) : null,
+      unread_count: 0,
+      created_at: formatSQLiteDate(room.created_at),
+      updated_at: formatSQLiteDate(room.updated_at)
+    };
+
+    success(res, response);
   } catch (err) {
     serverError(res, err);
   }

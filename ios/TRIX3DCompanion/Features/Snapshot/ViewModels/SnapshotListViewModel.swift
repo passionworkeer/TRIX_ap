@@ -98,14 +98,22 @@ final class SnapshotListViewModel: ObservableObject {
                 "limit": pageSize
             ]
 
-            let response: SnapshotsResponse = try await apiClient.get(
+            if let response: SnapshotsResponse = try? await apiClient.get(
                 .snapshots,
                 parameters: parameters
-            )
-
-            snapshots = response.snapshots
-            totalCount = response.totalCount
-            hasMorePages = response.snapshots.count >= pageSize
+            ) {
+                snapshots = response.snapshots
+                totalCount = response.totalCount
+                hasMorePages = response.snapshots.count >= pageSize
+            } else {
+                let snapshotList: [Snapshot] = try await apiClient.get(
+                    .snapshots,
+                    parameters: parameters
+                )
+                snapshots = snapshotList
+                totalCount = snapshotList.count
+                hasMorePages = snapshotList.count >= pageSize
+            }
 
             errorMessage = nil
 
@@ -127,14 +135,22 @@ final class SnapshotListViewModel: ObservableObject {
         do {
             let parameters = buildSnapshotParameters()
 
-            let response: SnapshotsResponse = try await apiClient.get(
+            if let response: SnapshotsResponse = try? await apiClient.get(
                 .snapshots,
                 parameters: parameters
-            )
-
-            snapshots = response.snapshots
-            totalCount = response.totalCount
-            hasMorePages = response.snapshots.count >= pageSize
+            ) {
+                snapshots = response.snapshots
+                totalCount = response.totalCount
+                hasMorePages = response.snapshots.count >= pageSize
+            } else {
+                let snapshotList: [Snapshot] = try await apiClient.get(
+                    .snapshots,
+                    parameters: parameters
+                )
+                snapshots = snapshotList
+                totalCount = snapshotList.count
+                hasMorePages = snapshotList.count >= pageSize
+            }
 
             errorMessage = nil
 
@@ -155,14 +171,22 @@ final class SnapshotListViewModel: ObservableObject {
         do {
             let parameters = buildSnapshotParameters()
 
-            let response: SnapshotsResponse = try await apiClient.get(
+            if let response: SnapshotsResponse = try? await apiClient.get(
                 .snapshots,
                 parameters: parameters
-            )
-
-            // Append new snapshots
-            snapshots.append(contentsOf: response.snapshots)
-            hasMorePages = response.snapshots.count >= pageSize
+            ) {
+                snapshots.append(contentsOf: response.snapshots)
+                hasMorePages = response.snapshots.count >= pageSize
+            } else {
+                let snapshotList: [Snapshot] = try await apiClient.get(
+                    .snapshots,
+                    parameters: parameters
+                )
+                let existingIDs = Set(snapshots.map(\.id))
+                let newItems = snapshotList.filter { !existingIDs.contains($0.id) }
+                snapshots.append(contentsOf: newItems)
+                hasMorePages = newItems.count >= pageSize
+            }
 
             errorMessage = nil
 
@@ -192,10 +216,7 @@ final class SnapshotListViewModel: ObservableObject {
         let removedSnapshot = snapshots.remove(at: index)
 
         do {
-            // API call would go here in production
-            // try await apiClient.delete(.snapshots(id: snapshot.id))
-
-            // For now, just remove from list
+            try await apiClient.deleteSnapshot(id: snapshot.id)
             errorMessage = nil
 
         } catch {

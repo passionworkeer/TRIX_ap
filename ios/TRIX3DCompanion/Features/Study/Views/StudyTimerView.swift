@@ -59,9 +59,11 @@ struct StudyTimerView: View {
     @State private var isFocusMode = false
     @State private var notificationPermissionGranted = false
     @State private var showMusicSelector = false
+    @State private var showTimerSettings = false
     @State private var showCelebration = false
     @State private var earnedPoints = 0
     @State private var actualStudyDuration = 0
+    @State private var focusDurationMinutes = 25
 
     // MARK: - Dependencies
 
@@ -79,7 +81,9 @@ struct StudyTimerView: View {
 
         // Initialize timer state from room state
         self._remainingSeconds = State(initialValue: roomState.wrappedValue.timer?.remainingSeconds ?? 0)
-        self._totalSeconds = State(initialValue: roomState.wrappedValue.timer?.durationSeconds ?? 1500)
+        let initialDuration = roomState.wrappedValue.timer?.durationSeconds ?? 1500
+        self._totalSeconds = State(initialValue: initialDuration)
+        self._focusDurationMinutes = State(initialValue: max(1, initialDuration / 60))
     }
 
     // MARK: - Body
@@ -169,7 +173,7 @@ struct StudyTimerView: View {
 
             // Settings button (hidden in focus mode)
             if !isFocusMode {
-                Button(action: { /* Show settings */ }) {
+                Button(action: { showTimerSettings = true }) {
                     Image(systemName: "gearshape.fill")
                         .font(.title2)
                         .foregroundColor(.textSecondary)
@@ -179,6 +183,12 @@ struct StudyTimerView: View {
         .padding()
         .sheet(isPresented: $showMusicSelector) {
             MusicSelectorView()
+        }
+        .sheet(isPresented: $showTimerSettings) {
+            TimerSettingsSheet(
+                focusMinutes: $focusDurationMinutes,
+                onApply: applyTimerSettings
+            )
         }
     }
 
@@ -562,6 +572,18 @@ struct StudyTimerView: View {
         startSession()
     }
 
+    private func applyTimerSettings() {
+        let newDuration = max(1, focusDurationMinutes) * 60
+        totalSeconds = newDuration
+
+        if timerState == .idle || timerState == .completed {
+            remainingSeconds = newDuration
+            return
+        }
+
+        remainingSeconds = min(remainingSeconds, newDuration)
+    }
+
     /// 更新计时器
     private func updateTimer() {
         if timerState == .focusing || timerState == .resting {
@@ -657,6 +679,41 @@ struct StudyTimerView: View {
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+    }
+}
+
+private struct TimerSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var focusMinutes: Int
+    let onApply: () -> Void
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Focus Duration") {
+                    Stepper(value: $focusMinutes, in: 1...180) {
+                        Text("\(focusMinutes) minutes")
+                    }
+                }
+            }
+            .navigationTitle("Timer Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Apply") {
+                        onApply()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
     }
 }
 

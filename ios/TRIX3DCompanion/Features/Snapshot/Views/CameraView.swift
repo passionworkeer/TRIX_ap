@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVFoundation
+import PhotosUI
 
 // MARK: - Camera View
 
@@ -24,6 +25,7 @@ struct CameraView: View {
     // MARK: - State
 
     @State private var showPermissionDenied = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
 
     // MARK: - Callbacks
 
@@ -58,6 +60,11 @@ struct CameraView: View {
         }
         .onDisappear {
             viewModel.stopCamera()
+        }
+        .onChange(of: selectedPhotoItem) { newValue in
+            Task {
+                await handlePhotoSelection(newValue)
+            }
         }
         .alert("Camera Permission Required", isPresented: $showPermissionDenied) {
             Button("Settings") {
@@ -192,7 +199,9 @@ struct CameraView: View {
     private var bottomControlsBar: some View {
         HStack(spacing: 40) {
             // Album shortcut
-            AlbumButton()
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                AlbumButton()
+            }
 
             // Capture button
             CaptureButton(isCapturing: viewModel.isCapturing) {
@@ -388,6 +397,24 @@ struct CameraView: View {
             UIApplication.shared.open(url)
         }
     }
+
+    private func handlePhotoSelection(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else {
+                return
+            }
+
+            await MainActor.run {
+                viewModel.useImportedImage(image)
+            }
+        } catch {
+            await MainActor.run {
+                viewModel.errorMessage = "Failed to load selected photo."
+            }
+        }
+    }
 }
 
 // MARK: - Camera Preview View
@@ -478,16 +505,14 @@ struct CaptureButton: View {
 /// Photo album shortcut button
 struct AlbumButton: View {
     var body: some View {
-        Button(action: {}) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                )
-        }
+        RoundedRectangle(cornerRadius: 8)
+            .fill(.ultraThinMaterial)
+            .frame(width: 60, height: 60)
+            .overlay(
+                Image(systemName: "photo.on.rectangle")
+                    .font(.title3)
+                    .foregroundColor(.white)
+            )
     }
 }
 
