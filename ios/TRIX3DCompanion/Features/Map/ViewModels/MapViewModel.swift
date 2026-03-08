@@ -158,9 +158,11 @@ final class MapViewModel: ObservableObject {
     }
 
     /// Load friend locations from API
+    /// - Note: Requires backend API endpoint (e.g., GET /friends/locations)
+    /// - Currently returns empty until API is implemented
     private func loadFriendLocationsFromAPI() async {
-        // TODO: Implement friend locations API
-        // For now, keep empty until API is available
+        // Friend locations API not yet implemented
+        // Will be added when backend endpoint is available
         friendLocations = []
     }
 
