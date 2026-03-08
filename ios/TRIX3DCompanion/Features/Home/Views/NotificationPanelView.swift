@@ -59,9 +59,9 @@ struct NotificationPanelView: View {
                 .frame(maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(Color(.systemBackground))
                 )
-                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
+                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: -5)
             }
             .padding(.top, geometry.safeAreaInsets.top) // Respect safe area
             .ignoresSafeArea(edges: .bottom)
