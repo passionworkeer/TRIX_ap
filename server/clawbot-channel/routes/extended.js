@@ -850,6 +850,30 @@ router.post('/pairing/confirm', authMiddleware, async (req, res) => {
   }
 });
 
+// 拒绝配对请求
+router.post('/pairing/deny/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 更新配对请求状态为已拒绝
+    const { error } = await supabase
+      .from('pairing_requests')
+      .update({
+        status: 'rejected',
+        updated_at: new Date().toISOString(),
+        rejected_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', req.userId);
+
+    if (error) throw error;
+
+    success(res, null, '配对请求已拒绝');
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 // 获取配对设备列表
 router.get('/pairing/devices', authMiddleware, async (req, res) => {
   try {
@@ -1208,7 +1232,7 @@ async function addPoints(userId, amount, type, reason) {
       .from('user_points')
       .update({
         total_points: existingPoints.total_points + amount,
-        lifetime_points: existingPoints.lifetime_points + amount,
+        total_earned: existingPoints.total_earned + amount,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
@@ -1218,7 +1242,7 @@ async function addPoints(userId, amount, type, reason) {
       .insert({
         user_id: userId,
         total_points: amount,
-        lifetime_points: amount
+        total_earned: amount
       });
   }
 
@@ -1244,7 +1268,7 @@ router.get('/points', authMiddleware, async (req, res) => {
 
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
 
-    success(res, points || { total_points: 0, lifetime_points: 0, level: 1 });
+    success(res, points || { total_points: 0, total_earned: 0, level: 1 });
   } catch (err) {
     serverError(res, err);
   }

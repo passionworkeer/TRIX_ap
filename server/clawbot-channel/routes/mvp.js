@@ -426,11 +426,18 @@ router.post('/friends', authMiddleware, async (req, res) => {
       return error(res, '已经是好友了');
     }
 
-    // 创建双向好友关系（friends 表只保留关系与状态字段）
+    // 获取当前用户资料
+    const { data: myProfile } = await supabase
+      .from('profiles')
+      .select('username, full_name, avatar_url, bio')
+      .eq('id', req.userId)
+      .single();
+
+    // 创建双向好友关系
     const now = new Date().toISOString();
     const friendsData = [
-      { user_id: req.userId, friend_id: friendId, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
-      { user_id: friendId, friend_id: req.userId, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
+      { user_id: req.userId, friend_id: friendId, name: friendProfile.full_name || friendProfile.username, avatar_url: friendProfile.avatar_url, bio: friendProfile.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
+      { user_id: friendId, friend_id: req.userId, name: myProfile?.full_name || myProfile?.username, avatar_url: myProfile?.avatar_url, bio: myProfile?.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
     ];
 
     const { error: insertError } = await supabase
@@ -1668,7 +1675,7 @@ async function addPoints(userId, amount, type, reason) {
       .from('user_points')
       .update({
         total_points: existingPoints.total_points + amount,
-        lifetime_points: existingPoints.lifetime_points + amount,
+        total_earned: existingPoints.total_earned + amount,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
@@ -1678,7 +1685,7 @@ async function addPoints(userId, amount, type, reason) {
       .insert({
         user_id: userId,
         total_points: amount,
-        lifetime_points: amount
+        total_earned: amount
       });
   }
 

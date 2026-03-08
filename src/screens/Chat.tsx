@@ -6,9 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
+import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { AppRoutes } from '../types';
 import { getFriends, addFriend } from '../services/databaseService';
-import { supabase } from '../config/supabase';
+import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
 import { logger } from '../utils/logger';
 import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
@@ -32,6 +33,7 @@ const Chat: React.FC = () => {
   const { t } = useTranslation();
   const { showError } = useNotification();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
+  const [friendActiveTimes, setFriendActiveTimes] = useState<Record<string, string | null>>({});
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -44,6 +46,15 @@ const Chat: React.FC = () => {
     loadRecommendedUsers();
   }, []);
 
+  // 定期获取好友活跃时间（每30秒）
+  useEffect(() => {
+    if (friends.length > 0) {
+      fetchFriendActiveTimes();
+      const interval = setInterval(fetchFriendActiveTimes, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [friends]);
+
   const loadFriends = async () => {
     try {
       setLoading(true);
@@ -53,6 +64,18 @@ const Chat: React.FC = () => {
       logger.chat.error('加载好友列表失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 获取所有好友的活跃时间
+  const fetchFriendActiveTimes = async () => {
+    try {
+      const friendIds = friends.map(f => f.friend_id).filter(id => id !== 'clawbot');
+      if (friendIds.length === 0) return;
+      const times = await getUsersLastActive(friendIds);
+      setFriendActiveTimes(times);
+    } catch (error) {
+      logger.chat.error('获取好友活跃时间失败:', error);
     }
   };
 
@@ -127,7 +150,7 @@ const Chat: React.FC = () => {
 
   // 获取好友头像
   const getFriendAvatar = (friendId: string, avatarUrl: string | null): string => {
-    if (friendId === 'clawbot') return IMAGES.WIZARD_BOY;
+    if (friendId === 'clawbot') return botAvatarImg;
     return avatarUrl || '';
   };
 
@@ -155,7 +178,7 @@ const Chat: React.FC = () => {
        {/* 内容层：z-index: 10 */}
        <div className="relative z-10 h-full flex flex-col overflow-hidden">
           {/* 顶部导航与搜索 */}
-          <div className="pt-24 pb-4 px-4 flex-shrink-0">
+          <div className="pt-12 pb-4 px-4 flex-shrink-0">
              {/* 标题 */}
              <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">{t('chat.title')}</h1>
 
@@ -253,7 +276,7 @@ const Chat: React.FC = () => {
                               navigate(AppRoutes.CHAT_DETAIL, {
                                 state: {
                                   name: 'TRIX Bot',
-                                  avatar: IMAGES.WIZARD_BOY,
+                                  avatar: botAvatarImg,
                                   isBot: true,
                                   friendId: 'clawbot'
                                 }
@@ -266,7 +289,7 @@ const Chat: React.FC = () => {
                         >
                           {/* 头像 */}
                           <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
-                             <Avatar name="TRIX Bot" avatar={IMAGES.WIZARD_BOY} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                             <img src={botAvatarImg} alt="TRIX Bot" className="w-12 h-12 rounded-full border border-white/10 object-cover" />
                              {/* 连接状态指示器 */}
                              {isClawbotChannelConnected && isClawbotPaired ? (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
@@ -346,11 +369,28 @@ const Chat: React.FC = () => {
                             >
                               {/* 头像 */}
                               <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
-                                 <Avatar name={friend.name} avatar={avatar} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
-                                 {/* 在线状态指示器 */}
-                                 {friend.status === 'online' && (
-                                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
-                                 )}
+                                 {isBot ? (
+                                  <img 
+                                    src={botAvatarImg} 
+                                    alt="TRIX Bot" 
+                                    className="w-12 h-12 rounded-full border border-white/10 object-cover" 
+                                  />
+                                ) : (
+                                  <Avatar name={friend.name} avatar={avatar} size="lg" className="w-12 h-12 rounded-full border border-white/10" />
+                                )}
+                                 {/* 在线状态指示器 - 根据真实活跃时间 */}
+                                 {(() => {
+                                   const lastActive = friendActiveTimes[friend.friend_id];
+                                   const status = calculateOnlineStatus(lastActive || null);
+                                   const statusText = getOnlineStatusText(lastActive || null);
+                                   if (status === UserOnlineStatus.ONLINE) {
+                                     return <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50" title={statusText}></div>;
+                                   } else if (status === UserOnlineStatus.AWAY) {
+                                     return <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-yellow-400 rounded-full border-2 border-black/30 shadow-lg shadow-yellow-400/50" title={statusText}></div>;
+                                   } else {
+                                     return <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-black/30" title={statusText}></div>;
+                                   }
+                                 })()}
                               </div>
 
                               {/* 文本区域 */}
@@ -363,7 +403,24 @@ const Chat: React.FC = () => {
                                       <MessageSquare size={14} className="text-gray-500" strokeWidth={2.5} />
                                     )}
                                     <span className={`text-sm truncate ${hasUnread ? 'text-white font-medium' : 'text-gray-400'}`}>
-                                      {friend.last_message || (isBot ? 'Tap to chat' : '新快照')}
+                                      {(() => {
+                                        const msg = friend.last_message;
+                                        if (!msg) return isBot ? 'Tap to chat' : '新快照';
+                                        // If it's already a string, check if it looks like [object Object]
+                                        if (typeof msg === 'string') {
+                                          if (msg === '[object Object]' || msg.startsWith('[object')) {
+                                            return '[图片]';
+                                          }
+                                          // Try to parse as JSON
+                                          try {
+                                            const parsed = JSON.parse(msg);
+                                            return parsed.text || parsed.content || '[图片]';
+                                          } catch {
+                                            return msg;
+                                          }
+                                        }
+                                        return '[图片]';
+                                      })()}
                                       {friend.last_message_time && (
                                          <>
                                            <span className="text-gray-600 mx-0.5">•</span>
@@ -399,7 +456,7 @@ const Chat: React.FC = () => {
 
           {/* 右上角添加好友按钮 */}
           <button
-             className="absolute top-[5.5rem] right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
+             className="absolute top-11 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
              onClick={() => setShowAddModal(true)}
              aria-label="添加好友"
           >

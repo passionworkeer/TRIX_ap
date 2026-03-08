@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import GlassPanel from './GlassPanel';
 import { getErrorMessage } from '../utils/errorHandler';
 import { FRIEND_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
@@ -14,8 +15,6 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  if (!isOpen) return null;
 
   const handleSend = async () => {
     setError('');
@@ -41,13 +40,25 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-    >
-      <GlassPanel className="w-full max-w-[340px] p-6 flex flex-col items-center relative mx-4">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="w-full max-w-[340px] relative mx-4"
+          >
+            <GlassPanel className="w-full p-6 flex flex-col items-center">
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center"
           onClick={onClose}
@@ -86,8 +97,11 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
         >
           {loading ? '发送中...' : '发送请求'}
         </button>
-      </GlassPanel>
-    </div>
+            </GlassPanel>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

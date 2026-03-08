@@ -7,6 +7,7 @@ export enum AppRoutes {
   SNAPSHOT = '/snapshot',
   SNAPSHOT_RESULT = '/snapshot/result',
   STUDY = '/study',
+  STUDY_TIMER = '/study/timer',
   CHAT = '/chat',
   CHAT_DETAIL = '/chat/detail',
   CHAT_WITH_FRIEND = '/chat/:friendId',  // 动态路由：与特定好友聊天

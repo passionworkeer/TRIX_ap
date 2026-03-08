@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, MessageCircle, UserPlus, AlertCircle, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -117,19 +118,28 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
     return date.toLocaleDateString('zh-CN');
   };
 
-  if (!isOpen) return null;
-
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="notification-panel-title"
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
-    >
-      <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col animate-slideIn">
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="notification-panel-title"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
+        >
+          <motion.div 
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
               <Bell className="text-white" size={20} />
@@ -244,8 +254,10 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
             })
           )}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

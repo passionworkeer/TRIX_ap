@@ -40,6 +40,17 @@ const Profile: React.FC = () => {
     ja: '日本語'
   };
 
+  // 获取标准化后的当前语言
+  const getCurrentLang = () => {
+    if (!i18n.language) return 'zh';
+    return i18n.language.includes('zh-TW') ? 'zh-TW' :
+           i18n.language.includes('zh') ? 'zh' :
+           i18n.language.includes('ja') ? 'ja' :
+           i18n.language.includes('en') ? 'en' :
+           i18n.language; // fallback
+  };
+  const currentLangValue = getCurrentLang();
+
   // 从认证信息中获取用户名
   const username = profile?.username || (user?.email ? user.email.split('@')[0] : 'User');
   const email = user?.email || '';
@@ -64,13 +75,13 @@ const Profile: React.FC = () => {
 
   const handleLanguageChange = () => {
     const languages = ['zh', 'zh-TW', 'en', 'ja'];
-    // 处理可能的语言代码变体
-    const currentLang = i18n.language.includes('zh-TW') ? 'zh-TW' :
-                        i18n.language.includes('zh') ? 'zh' :
-                        i18n.language;
+    const currentLang = getCurrentLang();
     const currentIndex = languages.indexOf(currentLang);
-    const nextLanguage = languages[(currentIndex + 1) % languages.length];
+    // 如果不在列表中，默认跳转到第一个
+    const nextLanguage = currentIndex >= 0 ? languages[(currentIndex + 1) % languages.length] : languages[0];
     i18n.changeLanguage(nextLanguage);
+    localStorage.setItem('language', nextLanguage);
+    localStorage.setItem('i18nextLng', nextLanguage);
   };
 
   const handleVoiceToggle = () => {
@@ -185,81 +196,62 @@ const Profile: React.FC = () => {
        {/* 内容层：z-index: 10 - 所有可交互内容 */}
        <div className="relative z-10 h-full flex flex-col overflow-hidden">
           {/* 头部标题 - 固定不滚动 */}
-          <div className="pt-24 pb-4 px-6 flex-shrink-0">
-             <h1 className={`text-base font-bold tracking-tight uppercase text-center ${titleTextClass}`}>{t('profile.title')}</h1>
+          <div className="pt-14 pb-2 px-6 flex-shrink-0">
+             <h1 className={`text-[15px] font-black tracking-widest uppercase text-center ${titleTextClass}`}>{t('profile.title')}</h1>
           </div>
 
           {/* 滚动内容区域 */}
           <div className="flex-1 overflow-y-auto px-6 pb-28">
-             {/* 头像区域 */}
-             <div className="flex flex-col items-center pt-6">
-                <div className="relative group">
-                   {/* 🌟 外层：旋转装饰环 */}
-                   <div className="absolute -inset-4 rounded-full border border-amber-500/20 animate-[spin_10s_linear_infinite]">
-                      <div className="absolute inset-0 rounded-full border border-dashed border-amber-400/30 animate-[spin_15s_linear_infinite_reverse]"></div>
-                   </div>
-
-                   {/* 🌟 中层：发光神环 */}
-                   <div className="absolute -inset-2 rounded-full">
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-400/20 via-yellow-500/30 to-amber-400/20 blur-md animate-pulse"></div>
-                      <div className="absolute inset-0 rounded-full border-2 border-amber-400/40 shadow-[0_0_40px_rgba(251,191,36,0.4)]"></div>
-                   </div>
-
-                   {/* 🌟 内层：核心头像 */}
-                   <div className="relative w-32 h-32 rounded-full overflow-hidden bg-black/30 backdrop-blur-sm shadow-[0_0_30px_rgba(251,191,36,0.3)] border-2 border-amber-300/50">
-                      <div className="w-full h-full bg-cover bg-center transform transition-transform group-hover:scale-110 duration-700"
-                           style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }}></div>
-                      {/* 头像内发光 */}
-                      <div className="absolute inset-0 rounded-full shadow-[inset_0_0_20px_rgba(251,191,36,0.2)]"></div>
-                   </div>
-
-                   {/* 💫 VIP 徽章 */}
-                   <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-amber-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg border-2 border-white/20 flex items-center gap-1 shadow-[0_0_20px_rgba(251,191,36,0.5)]">
-                      <Verified size={12} fill="currentColor" className="text-amber-700" /> VIP
-                   </div>
-
-                   {/* ✨ 光点装饰 */}
-                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
-                   <div className="absolute bottom-4 left-0 w-1 h-1 bg-amber-300 rounded-full animate-ping delay-300"></div>
-                   <div className="absolute bottom-4 right-0 w-1 h-1 bg-amber-300 rounded-full animate-ping delay-700"></div>
-                </div>
-             </div>
-
-             {/* 用户信息 */}
-             <div className="mt-4 text-center mb-8 w-full max-w-xs mx-auto">
-                <h2 className={`text-2xl font-black tracking-tight capitalize drop-shadow-md ${primaryTextClass}`}>{username}</h2>
-                <p className={`text-xs mt-1 ${secondaryTextClass}`}>{email}</p>
-
-                <div className="mt-3 flex justify-center">
-                   <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md cursor-pointer transition-colors ${isDark ? 'bg-white/10 border border-white/20 hover:bg-white/15' : 'bg-white/75 border border-slate-200 hover:bg-white'}`}
-                        onClick={() => setIsPointsHistoryOpen(true)}>
-                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-                      <span className={`font-bold text-xs tracking-wide ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{t('profile.points')}: {points}</span>
+             {/* 现代极简玻璃拟物风用户信息区 */}
+             <div className="w-full max-w-md mx-auto mt-4 mb-8 flex flex-col items-center">
+                {/* 简约风头像 */}
+                <div className="relative group cursor-pointer mb-5">
+                   {/* 极简呼吸晕 */}
+                   <div className="absolute -inset-2 rounded-full opacity-30 blur-lg bg-gradient-to-tr from-white/20 to-white/10 transition-all duration-700 group-hover:opacity-50" />  
+                   {/* 纤细冰透边框外壳 */}
+                   <div className={`relative w-[110px] h-[110px] rounded-full overflow-hidden border-[1.5px] ${isDark ? 'border-white/10' : 'border-black/5'} shadow-xl z-10 transform transition-transform duration-500 group-hover:scale-105`}>
+                      <div className="w-full h-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
+                           style={{ backgroundImage: `url(${IMAGES.SHIBA_AVATAR})` }} />
                    </div>
                 </div>
 
-                {/* Stats Row - 数据统计栏 */}
-                <div className={`flex items-center justify-center gap-0 mt-6 w-full divide-x ${isDark ? 'divide-white/10' : 'divide-slate-300/70'}`}>
-                   <div
-                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
-                      onClick={() => handleStatClick('陪伴天数', daysActive)}
-                   >
-                      <div className={`text-xl font-black ${primaryTextClass}`}>{daysActive}</div>
-                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.daysActive')}</div>
+                {/* 用户文本信息 */}
+                <div className="text-center w-full px-5">
+                   <div className="flex items-center justify-center gap-2 mb-1">
+                       <h2 className={`text-[24px] font-bold tracking-tight capitalize ${primaryTextClass}`}>{username}</h2>
+                       <div className="bg-gradient-to-r from-amber-200 to-amber-500 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-md shadow-sm flex items-center gap-1 transform transition-transform hover:scale-105 cursor-pointer">
+                           <Verified size={12} fill="currentColor" />
+                           <span className="leading-none pr-0.5 pt-px uppercase">VIP</span>
+                       </div>
                    </div>
-                   <div
-                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
-                      onClick={() => handleStatClick('积分', points)}
-                   >
-                      <div className={`text-xl font-black ${primaryTextClass}`}>{points}</div>
-                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.points')}</div>
-                   </div>
-                   <div
-                      className="text-center cursor-pointer hover:scale-105 transition-transform active:scale-95 px-6"
-                      onClick={() => handleStatClick('互动', interactionCount)}
-                   >
-                      <div className={`text-xl font-black ${primaryTextClass}`}>{interactionCount}</div>
-                      <div className={`text-[10px] font-bold uppercase tracking-wider ${mutedTextClass}`}>{t('profile.interactions')}</div>
+                   <p className={`text-[13px] font-medium opacity-60 ${secondaryTextClass}`}>{email}</p>
+                   
+                   {/* 高级玻璃拟物风 数据卡片 */}
+                   <div className={`mt-6 w-full grid grid-cols-3 divide-x ${isDark ? 'divide-white/10 bg-white/5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]' : 'divide-black/5 bg-white/60 border border-white shadow-[0_8px_32px_rgba(0,0,0,0.05)]'} rounded-[24px] backdrop-blur-xl overflow-hidden`}>
+                      
+                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('陪伴天数', daysActive)}>
+                         <div className={`text-[20px] font-bold tabular-nums leading-none mb-1.5 ${primaryTextClass}`}>{daysActive}</div>
+                         <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.daysActive')}</div>
+                      </div>
+
+                      {/* 积分合并进统计区域 */}
+                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors relative ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => setIsPointsHistoryOpen(true)}>
+                         {/* 积分发光小点提示 */}
+                         <div className="absolute top-3 right-5 flex h-2 w-2">
+                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                           <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                         </div>
+                         <div className={`text-[20px] font-bold tabular-nums leading-none mb-1.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                           {points}
+                         </div>
+                         <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.points')}</div>
+                      </div>
+
+                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('互动', interactionCount)}>
+                         <div className={`text-[20px] font-bold tabular-nums leading-none mb-1.5 ${primaryTextClass}`}>{interactionCount}</div>
+                         <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.interactions')}</div>
+                      </div>
+                      
                    </div>
                 </div>
              </div>
@@ -344,7 +336,7 @@ const Profile: React.FC = () => {
                             <span className={`font-bold text-sm ${secondaryTextClass}`}>{t('profile.language')}</span>
                          </div>
                          <div className={`flex items-center gap-2 ${mutedTextClass}`}>
-                            <span className="text-xs font-medium">{languageNames[i18n.language] || i18n.language}</span>
+                            <span className="text-xs font-medium">{languageNames[currentLangValue] || currentLangValue}</span>
                             <ChevronRight size={16} />
                          </div>
                       </GlassPanel>

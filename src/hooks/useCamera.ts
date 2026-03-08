@@ -219,6 +219,10 @@ export function useCamera(options: UseCameraOptions = {}) {
     }
   }, [capturedPhoto]);
 
+  const setExtPhoto = useCallback((photo: CapturedPhoto) => {
+    setCapturedPhoto(photo);
+  }, []);
+
   return {
     videoRef,
     status,
@@ -230,6 +234,7 @@ export function useCamera(options: UseCameraOptions = {}) {
     stopCamera,
     capture,
     clearPhoto,
+    setExtPhoto,
     switchCamera: startCamera, // 简单实现，重新启动即可
   };
 }

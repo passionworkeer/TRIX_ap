@@ -18,6 +18,7 @@ export default function GlassDock() {
     <motion.div
       role="navigation"
       aria-label="主导航"
+      onClick={(e) => e.stopPropagation()}
       // iOS 风格的弹性进出动画
       initial={{ y: 150, opacity: 0, scale: 0.9 }}
       animate={{

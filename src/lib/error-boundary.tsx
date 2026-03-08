@@ -102,14 +102,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // 生产环境可以发送错误到监控服务
     if (!isDev()) {
-      // 集成监控服务（如 Sentry/DataDog）以跟踪生产环境错误
-      // Sentry.captureException(error, {
-      //   contexts: {
-      //     react: {
-      //       componentStack: errorInfo.componentStack,
-      //     },
-      //   },
-      // });
+      // 在此处集成生产环境监控服务（如 Sentry/DataDog）
     }
   }
 
