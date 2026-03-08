@@ -2,11 +2,12 @@
 //  TodoViewModel.swift
 //  TRIX3DCompanion
 //
-//  Todo ViewModel for managing todo items with CRUD operations and local storage
+//  Todo ViewModel for managing todo items with CRUD operations and backend API
 //
 
 import Foundation
 import UIKit
+import Combine
 
 // MARK: - Todo View Model
 
@@ -42,8 +43,9 @@ final class TodoViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let userDefaultsKey = "workbench_todos"
+    private let todoService: TodoServiceProtocol
     private let hapticProvider: HapticFeedbackProvider
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Computed Properties
 
@@ -85,8 +87,10 @@ final class TodoViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    /// Initialize with optional haptic provider for dependency injection
-    init(hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()) {
+    /// Initialize with optional todo service for dependency injection
+    /// Uses TodoService for backend API by default
+    init(todoService: TodoServiceProtocol = TodoService.shared, hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()) {
+        self.todoService = todoService
         self.hapticProvider = hapticProvider
         loadTodos()
     }
@@ -96,54 +100,90 @@ final class TodoViewModel: ObservableObject {
     /// Add a new todo
     /// - Parameter todo: Todo to add
     func addTodo(_ todo: Todo) {
-        var newTodo = todo
-        newTodo.syncStatus = .pending
-        todos.append(newTodo)
-        saveTodos()
-        successMessage = "Todo added successfully"
+        Task {
+            do {
+                isLoading = true
+                let request = CreateTodoRequest(
+                    title: todo.title,
+                    description: todo.description,
+                    priority: todo.priority,
+                    dueDate: todo.dueDate
+                )
+                let created = try await todoService.createTodo(request)
+                todos.append(created)
+                isLoading = false
+                successMessage = "Todo added successfully"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     /// Update an existing todo
     /// - Parameter todo: Todo with updated values
     func updateTodo(_ todo: Todo) {
-        guard let index = todos.firstIndex(where: { $0.id == todo.id }) else {
-            errorMessage = "Todo not found"
-            return
+        Task {
+            do {
+                isLoading = true
+                let request = UpdateTodoRequest(
+                    title: todo.title,
+                    description: todo.description,
+                    completed: todo.completed,
+                    priority: todo.priority,
+                    dueDate: todo.dueDate
+                )
+                let updated = try await todoService.updateTodo(id: todo.id.uuidString, request: request)
+                if let index = todos.firstIndex(where: { $0.id == todo.id }) {
+                    todos[index] = updated
+                }
+                isLoading = false
+                successMessage = "Todo updated successfully"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
         }
-
-        var updatedTodo = todo
-        updatedTodo.updatedAt = Date()
-        updatedTodo.syncStatus = .pending
-        todos[index] = updatedTodo
-        saveTodos()
-        successMessage = "Todo updated successfully"
     }
 
     /// Delete a todo
     /// - Parameter id: Todo ID to delete
     func deleteTodo(_ id: UUID) {
-        todos.removeAll { $0.id == id }
-        saveTodos()
-        successMessage = "Todo deleted"
+        Task {
+            do {
+                isLoading = true
+                try await todoService.deleteTodo(id: id.uuidString)
+                todos.removeAll { $0.id == id }
+                isLoading = false
+                successMessage = "Todo deleted"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     /// Toggle todo completion status
     /// - Parameter id: Todo ID to toggle
     func toggleComplete(_ id: UUID) {
-        guard let index = todos.firstIndex(where: { $0.id == id }) else { return }
-
-        var todo = todos[index]
-        todo.completed.toggle()
-        todo.updatedAt = Date()
-        todo.syncStatus = .pending
-        todos[index] = todo
-        saveTodos()
+        Task {
+            do {
+                let updated = try await todoService.toggleTodo(id: id.uuidString)
+                if let index = todos.firstIndex(where: { $0.id == id }) {
+                    todos[index] = updated
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     /// Batch delete completed todos
     func deleteCompletedTodos() {
-        todos.removeAll { $0.completed }
-        saveTodos()
+        let completedIds = todos.filter { $0.completed }.map { $0.id }
+        for id in completedIds {
+            deleteTodo(id)
+        }
         successMessage = "Completed todos cleared"
     }
 
@@ -222,35 +262,25 @@ final class TodoViewModel: ObservableObject {
         }
     }
 
-    /// Save todos to UserDefaults
-    private func saveTodos() {
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(todos)
-            UserDefaults.standard.set(data, forKey: userDefaultsKey)
-        } catch {
-            SecureLogger.shared.error("Failed to save todos: \(error)")
-            errorMessage = "Failed to save todos"
+    /// Load todos from backend API
+    func loadTodos() {
+        Task {
+            isLoading = true
+            do {
+                let fetchedTodos = try await todoService.fetchTodos()
+                todos = fetchedTodos
+                isLoading = false
+            } catch {
+                isLoading = false
+                // Silent fail - keep existing data or empty array
+                errorMessage = "Failed to load todos: \(error.localizedDescription)"
+            }
         }
     }
 
-    /// Load todos from UserDefaults
-    private func loadTodos() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            // No saved data, start with empty array
-            return
-        }
-
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            todos = try decoder.decode([Todo].self, from: data)
-        } catch {
-            SecureLogger.shared.error("Failed to load todos: \(error)")
-            // Start fresh if data is corrupted
-            todos = []
-        }
+    /// Refresh todos from backend
+    func refresh() {
+        loadTodos()
     }
 }
 
