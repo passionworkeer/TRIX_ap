@@ -426,8 +426,8 @@ struct CameraPreviewView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = CameraPreviewUIView()
         view.backgroundColor = .black
-        view.videoPreviewLayer.session = CameraService.shared.previewCaptureSession
-        view.videoPreviewLayer.videoGravity = .resizeAspectFill
+        view.videoPreviewLayer?.session = CameraService.shared.previewCaptureSession
+        view.videoPreviewLayer?.videoGravity = .resizeAspectFill
         return view
     }
 
@@ -435,7 +435,7 @@ struct CameraPreviewView: UIViewRepresentable {
         // Ensure the preview layer frame is updated
         if let previewView = uiView as? CameraPreviewUIView {
             DispatchQueue.main.async {
-                previewView.videoPreviewLayer.frame = previewView.bounds
+                previewView.videoPreviewLayer?.frame = previewView.bounds
             }
         }
     }
@@ -449,16 +449,13 @@ class CameraPreviewUIView: UIView {
     }
 
     /// Convenience accessor for the video preview layer
-    var videoPreviewLayer: AVCaptureVideoPreviewLayer {
-        guard let previewLayer = layer as? AVCaptureVideoPreviewLayer else {
-            fatalError("Unable to convert layer to AVCaptureVideoPreviewLayer")
-        }
-        return previewLayer
+    var videoPreviewLayer: AVCaptureVideoPreviewLayer? {
+        return layer as? AVCaptureVideoPreviewLayer
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        videoPreviewLayer.frame = bounds
+        videoPreviewLayer?.frame = bounds
     }
 }
 
