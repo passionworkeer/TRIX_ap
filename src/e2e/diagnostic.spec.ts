@@ -196,10 +196,6 @@ test.describe('Diagnostic Page E2E Tests', () => {
     await page.waitForTimeout(500);
 
     // Get the disabled attribute after clicking
-    const buttonDisabled = await testButton.getAttribute('disabled');
-
-    // Check if button state changed
-    const isTesting = buttonDisabled !== null && buttonDisabled !== undefined;
 
     // Button should have changed state during test
     await page.waitForTimeout(1000);
@@ -222,15 +218,7 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for potential result (may take time due to network)
     await page.waitForTimeout(8000);
 
-    // Check for success or failure message
-    const successMessage = page.locator('text=Success').or(page.locator('text=Authenticated Successfully'));
-    const failureMessage = page.locator('text=Failed').or(page.locator('text=Connection Failed'));
-
     // At least one result should be visible after test
-    const hasSuccess = await successMessage.isVisible().catch(() => false);
-    const hasFailure = await failureMessage.isVisible().catch(() => false);
-
-    // Either success or failure should be shown
   });
 
   test('T4.1.10: should have proper visual layout', async ({ page }) => {

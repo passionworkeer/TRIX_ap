@@ -1,6 +1,5 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
@@ -26,10 +25,9 @@ interface HomeProps {
   devVideoSource?: string;
 }
 
-const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) => {
-  const isDev = import.meta.env.DEV;
+const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _devVideoSource }) => {
   const navigate = useNavigate();
-  const { isConnected, isPaired, botState, sendMessage } = useClawbotChannel();
+  const { isConnected, isPaired, botState: _botState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
 
   const [showMailPanel, setShowMailPanel] = useState(false);

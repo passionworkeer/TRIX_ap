@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import { Navigation, Map as MapIcon, X, Send, Heart, Clock } from 'lucide-react';
@@ -8,10 +7,8 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { logger } from '../utils/logger';
 import { getFriends } from '../services/databaseService';
 import { getFriendsLocations } from '../services/locationService';
-import { getNearbyPlaces, searchPlaces } from '../services/placeService';
 import type { FriendLatestMessage } from '../config/supabase';
 import type { FriendLocation } from '../types/location';
 import type { Place, PlaceCategory } from '../types/place';
@@ -29,15 +26,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const HERO_3D_IMAGE = IMAGES.HERO_RENDER;
-
-interface FriendStatus {
-  emoji: string;
-  text: string;
-}
-
-const friendStatuses: Record<string, FriendStatus> = {
-  'clawbot': { emoji: '🤖', text: 'Coding...' },
-};
 
 const mockFriends: FriendLatestMessage[] = [
   { user_id: 'mock-user', friend_id: 'mock-friend-1', name: 'Ava', avatar_url: IMAGES.WIZARD_BOY_LOGIN, status: 'online', bio: 'Map mock user 1', study_time: 45, is_studying: true, unread_count: 0, last_message: 'Hi!', last_message_time: new Date().toISOString() },
@@ -123,10 +111,11 @@ const LocationButton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 export type MapSelectedItem = (Place & { type: 'place' }) | (FriendLatestMessage & { type: 'friend'; lat?: number; lng?: number });
 
 const SnapMapScreen: React.FC = () => {
-  const navigate = useNavigate();
-  const { t } = useTranslation();    const { isDark } = useTheme();  const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
+  const { t } = useTranslation();
+  const { isDark } = useTheme();
+  const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
-  const [places, setPlaces] = useState<Place[]>(mockPlaces);
+  const [places] = useState<Place[]>(mockPlaces);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[]>(mockPlaces);
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');

@@ -6,10 +6,6 @@
 
 import { Page } from '@playwright/test';
 
-// Supabase 配置
-const SUPABASE_URL = 'https://hmbukjvrbyhbuqumqdug.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYnVranZyYnloYnVxdW1xZHVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDY5NTgsImV4cCI6MjA4NjI4Mjk1OH0.i6xwAotL826Dob_P71YrnhW6jITyVMV3xU5zmIbNs20';
-
 // 测试用户凭据（请确保在 Supabase 中存在此用户）
 const TEST_USER = {
   email: 'test@example.com',

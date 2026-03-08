@@ -1,12 +1,11 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AppRoutes } from './types';
-import { IMAGES } from './constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
 import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
@@ -15,10 +14,6 @@ import { useImmersiveVoice } from './hooks/useImmersiveVoice';
 import { ResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
 import { useWebVitals, usePageLoadTiming } from './hooks/useWebVitals';
-import {
-  PAIRING_REQUIRED_TOAST_MESSAGE,
-  PAIRING_REQUIRED_TOAST_OPTIONS
-} from './utils/pairingToast';
 
 const Home = lazy(() => import('./screens/Home'));
 const Snapshot = lazy(() => import('./screens/Snapshot'));
@@ -112,12 +107,11 @@ function AppContent() {
 
   const isDev = import.meta.env.DEV;
   const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { showWarning } = useNotification();
+  const { showWarning: _showWarning } = useNotification();
   const {
-    isConnected: isClawbotConnected,
-    isPaired: isClawbotPaired,
+    isConnected: _isClawbotConnected,
+    isPaired: _isClawbotPaired,
     botState,
   } = useClawbotChannel();
   const [showDockOnHome, setShowDockOnHome] = useState(false);

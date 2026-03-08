@@ -5,8 +5,7 @@
  * 使用虚拟化优化大量消息渲染性能
  */
 
-import React, { useRef, useEffect, memo, useCallback } from 'react';
-import botAvatarImg from '../../../../assets/roles/role1/AvatarHead.png';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
@@ -18,7 +17,7 @@ export interface Message {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
-  messageType?: 'text' | 'image' | 'video' | 'mixed';
+  messageType?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
   mediaUri?: string;
   mediaType?: string;
   mediaMetadata?: {
@@ -50,17 +49,6 @@ const MessageList: React.FC<MessageListProps> = ({
         index: messages.length - 1,
         align: 'end',
         behavior: 'auto',
-      });
-    }
-  }, [messages.length]);
-
-  // 滚动到底部方法
-  const scrollToBottom = useCallback((smooth = false) => {
-    if (messages.length > 0 && virtuosoRef.current) {
-      virtuosoRef.current.scrollToIndex({
-        index: messages.length - 1,
-        align: 'end',
-        behavior: smooth ? 'smooth' : 'auto',
       });
     }
   }, [messages.length]);

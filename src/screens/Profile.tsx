@@ -79,9 +79,11 @@ const Profile: React.FC = () => {
     const currentIndex = languages.indexOf(currentLang);
     // 如果不在列表中，默认跳转到第一个
     const nextLanguage = currentIndex >= 0 ? languages[(currentIndex + 1) % languages.length] : languages[0];
-    i18n.changeLanguage(nextLanguage);
-    localStorage.setItem('language', nextLanguage);
-    localStorage.setItem('i18nextLng', nextLanguage);
+    if (nextLanguage) {
+      i18n.changeLanguage(nextLanguage);
+      localStorage.setItem('language', nextLanguage);
+      localStorage.setItem('i18nextLng', nextLanguage);
+    }
   };
 
   const handleVoiceToggle = () => {

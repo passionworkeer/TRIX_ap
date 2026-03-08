@@ -17,22 +17,15 @@ import {
   ErrorCode,
   AppError as NewAppError,
   parseError as newParseError,
-  ERROR_MESSAGES,
-  ErrorFactory,
-  hasErrorMessage,
-  getErrorMessage,
 } from '../lib/errors';
 
 // 重新导出新系统的类型和函数，保持向后兼容
-export { ErrorCode, AppError, ErrorFactory, hasErrorMessage, getErrorMessage } from '../lib/errors';
+export { ErrorCode, getErrorMessage } from '../lib/errors';
 
 /**
  * @deprecated 使用 lib/errors.ts 中的 NewAppError
  */
 export type AppError = NewAppError;
-
-// 用户友好的错误消息映射（中文）- 已迁移到 lib/errors.ts
-const DEPRECATED_ERROR_MESSAGES: Record<ErrorCode, string> = ERROR_MESSAGES;
 
 /**
  * @deprecated 使用 lib/errors.ts 中的 ErrorCode
@@ -69,27 +62,6 @@ export enum ErrorType {
   // 未知错误
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
-
-// 兼容旧代码的错误类型映射
-const ERROR_TYPE_TO_CODE: Record<string, ErrorCode> = {
-  [ErrorType.NETWORK_ERROR]: ErrorCode.NETWORK_ERROR,
-  [ErrorType.TIMEOUT_ERROR]: ErrorCode.TIMEOUT_ERROR,
-  [ErrorType.AUTH_ERROR]: ErrorCode.AUTH_ERROR,
-  [ErrorType.UNAUTHORIZED]: ErrorCode.UNAUTHORIZED,
-  [ErrorType.SESSION_EXPIRED]: ErrorCode.SESSION_EXPIRED,
-  [ErrorType.DATABASE_ERROR]: ErrorCode.DATABASE_ERROR,
-  [ErrorType.NOT_FOUND]: ErrorCode.NOT_FOUND,
-  [ErrorType.DUPLICATE_ENTRY]: ErrorCode.DUPLICATE_ENTRY,
-  [ErrorType.CONSTRAINT_VIOLATION]: ErrorCode.VALIDATION_ERROR,
-  [ErrorType.FILE_UPLOAD_ERROR]: ErrorCode.FILE_UPLOAD_ERROR,
-  [ErrorType.FILE_TOO_LARGE]: ErrorCode.FILE_TOO_LARGE,
-  [ErrorType.INVALID_FILE_TYPE]: ErrorCode.INVALID_FILE_TYPE,
-  [ErrorType.VALIDATION_ERROR]: ErrorCode.VALIDATION_ERROR,
-  [ErrorType.INVALID_INPUT]: ErrorCode.INVALID_INPUT,
-  [ErrorType.PERMISSION_DENIED]: ErrorCode.PERMISSION_DENIED,
-  [ErrorType.FORBIDDEN]: ErrorCode.FORBIDDEN,
-  [ErrorType.UNKNOWN_ERROR]: ErrorCode.UNKNOWN_ERROR,
-};
 
 /**
  * 解析错误并返回 AppError（使用新系统）

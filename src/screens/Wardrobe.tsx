@@ -190,7 +190,6 @@ const Wardrobe: React.FC = () => {
                 selectedCategory === category
                   ? 'white'
                   : 'var(--text-secondary)',
-              ringColor: 'var(--color-primary)',
             }}
           >
             {OUTFIT_CATEGORY_LABELS[category]}
