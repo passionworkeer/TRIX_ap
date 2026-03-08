@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authMiddleware, optionalAuthMiddleware } = require('../middleware/auth');
+const { dbRun, dbGet, dbAll } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 // ============================================
 // 通用响应格式
@@ -33,6 +35,82 @@ function serverError(res, err) {
   error(res, '服务器错误', 500);
 }
 
+function isSchemaMismatchError(err) {
+  if (!err || typeof err !== 'object') return false;
+  return ['PGRST204', 'PGRST205', '42703'].includes(err.code);
+}
+
+function normalizeTodoRow(row) {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    title: row.title,
+    description: row.description || null,
+    is_completed: Boolean(row.is_completed),
+    due_date: row.due_date || null,
+    priority: Number.isFinite(Number(row.priority)) ? Number(row.priority) : 1,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    created_at: row.created_at,
+    updated_at: row.updated_at || row.created_at
+  };
+}
+
+async function fetchUserAchievementsWithFallback(userId) {
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .select('achievement_id, unlocked_at')
+    .eq('user_id', userId);
+
+  if (!error) return data || [];
+  if (!isSchemaMismatchError(error)) throw error;
+
+  const localRows = await dbAll(
+    `SELECT achievement_id, unlocked_at
+     FROM user_achievements_local
+     WHERE user_id = ?`,
+    [userId]
+  );
+  return localRows || [];
+}
+
+async function insertUserAchievementWithFallback(userId, achievementId) {
+  const payload = {
+    user_id: userId,
+    achievement_id: achievementId,
+    unlocked_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (!error) {
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      achievement_id: data.achievement_id,
+      unlocked_at: data.unlocked_at
+    };
+  }
+  if (!isSchemaMismatchError(error)) throw error;
+
+  const id = uuidv4();
+  await dbRun(
+    `INSERT OR IGNORE INTO user_achievements_local (id, user_id, achievement_id, unlocked_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+    [id, userId, achievementId]
+  );
+  const row = await dbGet(
+    `SELECT id, user_id, achievement_id, unlocked_at
+     FROM user_achievements_local
+     WHERE user_id = ? AND achievement_id = ?`,
+    [userId, achievementId]
+  );
+  return row;
+}
+
 // ============================================
 // 用户模块 /user
 // ============================================
@@ -49,7 +127,16 @@ router.get('/user/profile', authMiddleware, async (req, res) => {
     if (error) throw error;
     if (!profile) return notFound(res, '用户资料不存在');
 
-    success(res, profile);
+    const extras = await dbGet(
+      `SELECT school, grade FROM user_profile_extras WHERE user_id = ?`,
+      [req.userId]
+    );
+
+    success(res, {
+      ...profile,
+      school: extras?.school || null,
+      grade: extras?.grade || null
+    });
   } catch (err) {
     serverError(res, err);
   }
@@ -58,26 +145,61 @@ router.get('/user/profile', authMiddleware, async (req, res) => {
 // 更新用户资料
 router.put('/user/profile', authMiddleware, async (req, res) => {
   try {
-    const { username, full_name, bio, school, grade, avatar_url } = req.body;
+    const { username, full_name, display_name, bio, school, grade, avatar_url } = req.body || {};
 
     const updates = {};
     if (username) updates.username = username;
     if (full_name !== undefined) updates.full_name = full_name;
+    if (display_name !== undefined) updates.display_name = display_name;
     if (bio !== undefined) updates.bio = bio;
-    if (school !== undefined) updates.school = school;
-    if (grade !== undefined) updates.grade = grade;
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
-    updates.updated_at = new Date().toISOString();
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+    }
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', req.userId)
-      .select()
-      .single();
+    let profile = null;
+    if (Object.keys(updates).length > 0) {
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', req.userId)
+        .select()
+        .single();
 
-    if (error) throw error;
-    success(res, profile);
+      if (updateError) throw updateError;
+      profile = updatedProfile;
+    } else {
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', req.userId)
+        .single();
+      if (profileError) throw profileError;
+      profile = currentProfile;
+    }
+
+    if (school !== undefined || grade !== undefined) {
+      await dbRun(
+        `INSERT INTO user_profile_extras (user_id, school, grade, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET
+          school = excluded.school,
+          grade = excluded.grade,
+          updated_at = CURRENT_TIMESTAMP`,
+        [req.userId, school ?? null, grade ?? null]
+      );
+    }
+
+    const extras = await dbGet(
+      `SELECT school, grade FROM user_profile_extras WHERE user_id = ?`,
+      [req.userId]
+    );
+
+    success(res, {
+      ...profile,
+      school: extras?.school || null,
+      grade: extras?.grade || null
+    });
   } catch (err) {
     serverError(res, err);
   }
@@ -473,7 +595,11 @@ router.get('/schedules', authMiddleware, async (req, res) => {
       .order('start_time', { ascending: true });
 
     if (error) throw error;
-    success(res, data || []);
+    const schedules = (data || []).map((item) => ({
+      ...item,
+      sync_status: item.sync_status || 'synced'
+    }));
+    success(res, schedules);
   } catch (err) {
     serverError(res, err);
   }
@@ -486,23 +612,27 @@ router.post('/schedules', authMiddleware, async (req, res) => {
 
     if (!title || !start_time) return error(res, '缺少必需字段');
 
+    const insertPayload = {
+      user_id: req.userId,
+      title,
+      description,
+      start_time,
+      end_time,
+      location,
+      reminder_minutes_before
+    };
+
     const { data, error } = await supabase
       .from('schedules')
-      .insert({
-        user_id: req.userId,
-        title,
-        description,
-        start_time,
-        end_time,
-        location,
-        reminder_minutes_before,
-        sync_status: 'synced'
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (error) throw error;
-    success(res, data, '日程创建成功');
+    success(res, {
+      ...data,
+      sync_status: data?.sync_status || 'synced'
+    }, '日程创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -532,7 +662,10 @@ router.put('/schedules/:id', authMiddleware, async (req, res) => {
 
     if (error) throw error;
     if (!data) return notFound(res, '日程不存在');
-    success(res, data, '日程更新成功');
+    success(res, {
+      ...data,
+      sync_status: data?.sync_status || 'synced'
+    }, '日程更新成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -571,7 +704,11 @@ router.get('/schedules/range', authMiddleware, async (req, res) => {
       .order('start_time', { ascending: true });
 
     if (error) throw error;
-    success(res, data || []);
+    const schedules = (data || []).map((item) => ({
+      ...item,
+      sync_status: item.sync_status || 'synced'
+    }));
+    success(res, schedules);
   } catch (err) {
     serverError(res, err);
   }
@@ -593,7 +730,11 @@ router.get('/schedules/upcoming', authMiddleware, async (req, res) => {
       .order('start_time', { ascending: true });
 
     if (error) throw error;
-    success(res, data || []);
+    const schedules = (data || []).map((item) => ({
+      ...item,
+      sync_status: item.sync_status || 'synced'
+    }));
+    success(res, schedules);
   } catch (err) {
     serverError(res, err);
   }
@@ -613,7 +754,7 @@ router.get('/todos', authMiddleware, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    success(res, data || []);
+    success(res, (data || []).map(normalizeTodoRow));
   } catch (err) {
     serverError(res, err);
   }
@@ -625,21 +766,37 @@ router.post('/todos', authMiddleware, async (req, res) => {
     const { title, description, due_date, priority, tags } = req.body;
     if (!title) return error(res, '缺少标题');
 
-    const { data, error } = await supabase
+    const insertPayload = {
+      user_id: req.userId,
+      title,
+      description,
+      due_date,
+      priority: priority || 1,
+      tags: tags || []
+    };
+
+    let { data, error } = await supabase
       .from('todos')
-      .insert({
-        user_id: req.userId,
-        title,
-        description,
-        due_date,
-        priority: priority || 1,
-        tags: tags || []
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
+    if (error && isSchemaMismatchError(error) && /tags/.test(error.message || '')) {
+      ({ data, error } = await supabase
+        .from('todos')
+        .insert({
+          user_id: req.userId,
+          title,
+          description,
+          due_date,
+          priority: priority || 1
+        })
+        .select()
+        .single());
+    }
+
     if (error) throw error;
-    success(res, data, '待办创建成功');
+    success(res, normalizeTodoRow(data), '待办创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -659,7 +816,7 @@ router.put('/todos/:id', authMiddleware, async (req, res) => {
     if (priority !== undefined) updates.priority = priority;
     if (tags !== undefined) updates.tags = tags;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('todos')
       .update(updates)
       .eq('id', id)
@@ -667,9 +824,20 @@ router.put('/todos/:id', authMiddleware, async (req, res) => {
       .select()
       .single();
 
+    if (error && isSchemaMismatchError(error) && /tags/.test(error.message || '')) {
+      const { tags: _ignoredTags, ...updatesWithoutTags } = updates;
+      ({ data, error } = await supabase
+        .from('todos')
+        .update(updatesWithoutTags)
+        .eq('id', id)
+        .eq('user_id', req.userId)
+        .select()
+        .single());
+    }
+
     if (error) throw error;
     if (!data) return notFound(res, '待办不存在');
-    success(res, data, '待办更新成功');
+    success(res, normalizeTodoRow(data), '待办更新成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -718,7 +886,7 @@ router.post('/todos/:id/toggle', authMiddleware, async (req, res) => {
       .single();
 
     if (error) throw error;
-    success(res, data);
+    success(res, normalizeTodoRow(data));
   } catch (err) {
     serverError(res, err);
   }
@@ -732,18 +900,16 @@ router.post('/todos/:id/toggle', authMiddleware, async (req, res) => {
 router.get('/achievements', authMiddleware, async (req, res) => {
   try {
     // 获取所有成就
-    const { data: achievements } = await supabase
+    const { data: achievements, error: achievementsError } = await supabase
       .from('achievements')
       .select('*')
       .order('rarity', { ascending: true });
+    if (achievementsError) throw achievementsError;
 
     // 获取用户已解锁成就
-    const { data: userAchievements } = await supabase
-      .from('user_achievements')
-      .select('achievement_id, unlocked_at')
-      .eq('user_id', req.userId);
+    const userAchievements = await fetchUserAchievementsWithFallback(req.userId);
 
-    const unlockedMap = new Map((userAchievements || []).map(ua => [ua.achievement_id, ua.unlocked_at]));
+    const unlockedMap = new Map((userAchievements || []).map((ua) => [ua.achievement_id, ua.unlocked_at]));
 
     // 合并数据
     const result = (achievements || []).map(a => ({
@@ -804,11 +970,11 @@ router.post('/achievements/check', authMiddleware, async (req, res) => {
     };
 
     // 获取所有成就和已解锁的
-    const { data: achievements } = await supabase.from('achievements').select('*');
-    const { data: userAchievements } = await supabase
-      .from('user_achievements')
-      .select('achievement_id')
-      .eq('user_id', req.userId);
+    const { data: achievements, error: achievementsError } = await supabase
+      .from('achievements')
+      .select('*');
+    if (achievementsError) throw achievementsError;
+    const userAchievements = await fetchUserAchievementsWithFallback(req.userId);
 
     const unlockedIds = new Set((userAchievements || []).map(ua => ua.achievement_id));
     const newlyUnlocked = [];
@@ -836,19 +1002,13 @@ router.post('/achievements/check', authMiddleware, async (req, res) => {
       }
 
       if (shouldUnlock) {
-        await supabase.from('user_achievements').insert({
-          user_id: req.userId,
-          achievement_id: achievement.id
-        });
+        await insertUserAchievementWithFallback(req.userId, achievement.id);
         newlyUnlocked.push(achievement);
       }
     }
 
     // 获取更新后的成就列表
-    const { data: updatedUserAchievements } = await supabase
-      .from('user_achievements')
-      .select('achievement_id')
-      .eq('user_id', req.userId);
+    const updatedUserAchievements = await fetchUserAchievementsWithFallback(req.userId);
 
     success(res, {
       newlyUnlocked,
@@ -991,7 +1151,7 @@ router.post('/mall/purchase', authMiddleware, async (req, res) => {
     }
 
     // 扣除积分
-    await supabase
+    let { error: deductError } = await supabase
       .from('user_points')
       .update({
         total_points: userPoints - item.price,
@@ -1000,6 +1160,17 @@ router.post('/mall/purchase', authMiddleware, async (req, res) => {
       })
       .eq('user_id', req.userId);
 
+    if (deductError && isSchemaMismatchError(deductError) && /total_spent/.test(deductError.message || '')) {
+      ({ error: deductError } = await supabase
+        .from('user_points')
+        .update({
+          total_points: userPoints - item.price,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', req.userId));
+    }
+    if (deductError) throw deductError;
+
     // 添加购买记录
     await supabase.from('user_purchased_items').insert({
       user_id: req.userId,
@@ -1007,7 +1178,7 @@ router.post('/mall/purchase', authMiddleware, async (req, res) => {
     });
 
     // 添加积分消费记录
-    await supabase.from('points_transactions').insert({
+    let { error: transactionError } = await supabase.from('points_transactions').insert({
       user_id: req.userId,
       amount: -item.price,
       type: 'spend',
@@ -1015,12 +1186,32 @@ router.post('/mall/purchase', authMiddleware, async (req, res) => {
       related_item_id: itemId
     });
 
+    if (transactionError && isSchemaMismatchError(transactionError)) {
+      ({ error: transactionError } = await supabase.from('points_transactions').insert({
+        user_id: req.userId,
+        amount: -item.price,
+        type: 'spend',
+        reason: `购买商品: ${item.name}`
+      }));
+    }
+    if (transactionError) throw transactionError;
+
     // 添加购买历史
-    await supabase.from('purchase_history').insert({
+    let { error: historyError } = await supabase.from('purchase_history').insert({
       user_id: req.userId,
       item_id: itemId,
       points_spent: item.price
     });
+
+    if (historyError && isSchemaMismatchError(historyError)) {
+      await dbRun(
+        `INSERT INTO purchase_history_local (id, user_id, item_id, points_spent, purchased_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [uuidv4(), req.userId, itemId, Number(item.price || 0)]
+      );
+      historyError = null;
+    }
+    if (historyError) throw historyError;
 
     success(res, {
       success: true,
@@ -1036,7 +1227,7 @@ router.post('/mall/purchase', authMiddleware, async (req, res) => {
 // 获取购买历史
 router.get('/mall/purchase/history', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('purchase_history')
       .select(`
         *,
@@ -1044,6 +1235,37 @@ router.get('/mall/purchase/history', authMiddleware, async (req, res) => {
       `)
       .eq('user_id', req.userId)
       .order('purchased_at', { ascending: false });
+
+    if (error && isSchemaMismatchError(error)) {
+      const localRows = await dbAll(
+        `SELECT id, item_id, points_spent, purchased_at
+         FROM purchase_history_local
+         WHERE user_id = ?
+         ORDER BY purchased_at DESC`,
+        [req.userId]
+      );
+
+      const itemIds = (localRows || []).map((row) => row.item_id);
+      let itemMap = {};
+      if (itemIds.length > 0) {
+        const { data: items } = await supabase
+          .from('mall_items')
+          .select('id, name, description, image_url, price, category')
+          .in('id', itemIds);
+        itemMap = (items || []).reduce((acc, item) => {
+          acc[item.id] = item;
+          return acc;
+        }, {});
+      }
+
+      data = (localRows || []).map((row) => ({
+        id: row.id,
+        item: itemMap[row.item_id] || null,
+        purchased_at: row.purchased_at,
+        points_spent: row.points_spent
+      }));
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -1412,29 +1634,15 @@ router.post('/achievements/:id/unlock', authMiddleware, async (req, res) => {
     }
 
     // 检查是否已经解锁
-    const { data: existing } = await supabase
-      .from('user_achievements')
-      .select('*')
-      .eq('user_id', req.userId)
-      .eq('achievement_id', id)
-      .single();
+    const userAchievements = await fetchUserAchievementsWithFallback(req.userId);
+    const existing = (userAchievements || []).find((item) => item.achievement_id === id);
 
     if (existing) {
       return error(res, '成就已经解锁');
     }
 
     // 解锁成就
-    const { data: userAchievement, error: unlockError } = await supabase
-      .from('user_achievements')
-      .insert({
-        user_id: req.userId,
-        achievement_id: id,
-        unlocked_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (unlockError) throw unlockError;
+    const userAchievement = await insertUserAchievementWithFallback(req.userId, id);
 
     // 奖励积分
     if (achievement.points > 0) {

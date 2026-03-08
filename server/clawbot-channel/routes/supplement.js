@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { authMiddleware } = require('../middleware/auth');
+const { dbRun, dbGet, dbAll } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 // ============================================
 // 通用响应函数
@@ -27,6 +29,18 @@ function notFound(res, message = '资源不存在') {
 function serverError(res, err) {
   console.error('[API Error]', err);
   error(res, '服务器错误', 500);
+}
+
+function isSchemaMismatchError(err) {
+  if (!err || typeof err !== 'object') return false;
+  return ['PGRST204', 'PGRST205', '42703'].includes(err.code);
+}
+
+function formatSQLiteDate(value) {
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
+  return parsed.toISOString();
 }
 
 // ============================================
@@ -86,18 +100,32 @@ async function handleUnreadCountUpdate(req, res) {
     const { unread_count, count: countInput, last_message, last_message_at } = req.body || {};
     const finalCount = Number(unread_count ?? countInput ?? 0);
 
-    const { data: countRow, error } = await supabase
+    let { data: countRow, error } = await supabase
       .from('unread_counts')
       .upsert({
         user_id: req.userId,
         friend_id: friendId,
         unread_count: finalCount,
         last_message,
-        last_message_at: last_message_at || new Date().toISOString(),
+        last_message_time: last_message_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,friend_id' })
       .select()
       .single();
+
+    if (error && isSchemaMismatchError(error) && /(last_message_time|last_message_at)/.test(error.message || '')) {
+      ({ data: countRow, error } = await supabase
+        .from('unread_counts')
+        .upsert({
+          user_id: req.userId,
+          friend_id: friendId,
+          unread_count: finalCount,
+          last_message,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,friend_id' })
+        .select()
+        .single());
+    }
 
     if (error) throw error;
 
@@ -136,16 +164,51 @@ router.post('/unread/read-all', authMiddleware, async (req, res) => {
 // 获取对话列表
 router.get('/clawbot/conversations', authMiddleware, async (req, res) => {
   try {
-    const { data: conversations, error } = await supabase
+    let { data: conversations, error } = await supabase
       .from('clawbot_conversations')
       .select('*')
       .eq('user_id', req.userId)
       .order('updated_at', { ascending: false })
       .limit(20);
 
+    if (error && isSchemaMismatchError(error)) {
+      conversations = await dbAll(
+        `SELECT id, title, created_at, updated_at
+         FROM clawbot_conversations_local
+         WHERE user_id = ?
+         ORDER BY updated_at DESC
+         LIMIT 20`,
+        [req.userId]
+      );
+      error = null;
+    }
+
     if (error) throw error;
 
-    success(res, conversations || []);
+    const mapped = [];
+    for (const conversation of (conversations || [])) {
+      const message = await dbGet(
+        `SELECT content, created_at
+         FROM clawbot_messages_local
+         WHERE conversation_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [conversation.id]
+      );
+
+      mapped.push({
+        id: conversation.id,
+        name: conversation.name || conversation.title || '新对话',
+        avatar_url: conversation.avatar_url || null,
+        last_message: conversation.last_message || message?.content || null,
+        last_message_at: conversation.last_message_at || message?.created_at || conversation.updated_at || conversation.created_at,
+        unread_count: Number(conversation.unread_count || 0),
+        created_at: conversation.created_at || new Date().toISOString(),
+        updated_at: conversation.updated_at || conversation.created_at || new Date().toISOString()
+      });
+    }
+
+    success(res, mapped);
   } catch (err) {
     serverError(res, err);
   }
@@ -154,20 +217,46 @@ router.get('/clawbot/conversations', authMiddleware, async (req, res) => {
 // 创建对话
 router.post('/clawbot/conversations', authMiddleware, async (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, name } = req.body || {};
+    const conversationTitle = title || name || '新对话';
 
-    const { data: conversation, error } = await supabase
+    let { data: conversation, error } = await supabase
       .from('clawbot_conversations')
       .insert({
         user_id: req.userId,
-        title: title || '新对话'
+        title: conversationTitle
       })
       .select()
       .single();
 
+    if (error && isSchemaMismatchError(error)) {
+      const id = uuidv4();
+      await dbRun(
+        `INSERT INTO clawbot_conversations_local (id, user_id, title, created_at, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [id, req.userId, conversationTitle]
+      );
+      conversation = await dbGet(
+        `SELECT id, title, created_at, updated_at
+         FROM clawbot_conversations_local
+         WHERE id = ?`,
+        [id]
+      );
+      error = null;
+    }
+
     if (error) throw error;
 
-    success(res, conversation, '创建成功');
+    success(res, {
+      id: conversation.id,
+      name: conversation.name || conversation.title || conversationTitle,
+      avatar_url: null,
+      last_message: null,
+      last_message_at: null,
+      unread_count: 0,
+      created_at: conversation.created_at || new Date().toISOString(),
+      updated_at: conversation.updated_at || conversation.created_at || new Date().toISOString()
+    }, '创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -177,28 +266,80 @@ router.post('/clawbot/conversations', authMiddleware, async (req, res) => {
 router.get('/clawbot/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '50', 10)));
+    const offset = (page - 1) * limit;
 
     // 验证对话属于用户
-    const { data: conversation } = await supabase
+    let { data: conversation, error: conversationError } = await supabase
       .from('clawbot_conversations')
       .select('id')
       .eq('id', conversationId)
       .eq('user_id', req.userId)
       .single();
 
+    if (conversationError && isSchemaMismatchError(conversationError)) {
+      conversation = await dbGet(
+        `SELECT id
+         FROM clawbot_conversations_local
+         WHERE id = ? AND user_id = ?`,
+        [conversationId, req.userId]
+      );
+      conversationError = null;
+    }
+    if (conversationError && conversationError.code !== 'PGRST116') throw conversationError;
+
     if (!conversation) {
       return notFound(res, '对话不存在');
     }
 
-    const { data: messages, error } = await supabase
+    let { data: messages, error } = await supabase
       .from('clawbot_messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    let total = 0;
+    if (error && isSchemaMismatchError(error)) {
+      messages = await dbAll(
+        `SELECT id, role, content, created_at
+         FROM clawbot_messages_local
+         WHERE conversation_id = ?
+         ORDER BY created_at ASC
+         LIMIT ? OFFSET ?`,
+        [conversationId, limit, offset]
+      );
+      const countRow = await dbGet(
+        `SELECT COUNT(*) AS total
+         FROM clawbot_messages_local
+         WHERE conversation_id = ?`,
+        [conversationId]
+      );
+      total = Number(countRow?.total || 0);
+      error = null;
+    } else {
+      total = (messages || []).length;
+    }
 
     if (error) throw error;
 
-    success(res, messages || []);
+    const mapped = (messages || []).map((message) => ({
+      id: message.id,
+      content: message.content || '',
+      content_type: 'text',
+      media_url: null,
+      media_mime_type: null,
+      timestamp: message.created_at || new Date().toISOString(),
+      sender: message.role === 'assistant' || message.role === 'bot' ? 'bot' : 'user'
+    }));
+
+    success(res, {
+      data: mapped,
+      total,
+      page,
+      limit
+    });
   } catch (err) {
     serverError(res, err);
   }
@@ -211,19 +352,30 @@ router.post('/clawbot/conversations/:conversationId/messages', authMiddleware, a
     const { content, role = 'user' } = req.body;
 
     // 验证对话属于用户
-    const { data: conversation } = await supabase
+    let { data: conversation, error: conversationError } = await supabase
       .from('clawbot_conversations')
       .select('id')
       .eq('id', conversationId)
       .eq('user_id', req.userId)
       .single();
 
+    if (conversationError && isSchemaMismatchError(conversationError)) {
+      conversation = await dbGet(
+        `SELECT id
+         FROM clawbot_conversations_local
+         WHERE id = ? AND user_id = ?`,
+        [conversationId, req.userId]
+      );
+      conversationError = null;
+    }
+    if (conversationError && conversationError.code !== 'PGRST116') throw conversationError;
+
     if (!conversation) {
       return notFound(res, '对话不存在');
     }
 
     // 保存用户消息
-    const { data: userMessage, error: userError } = await supabase
+    let { data: userMessage, error: userError } = await supabase
       .from('clawbot_messages')
       .insert({
         conversation_id: conversationId,
@@ -233,13 +385,39 @@ router.post('/clawbot/conversations/:conversationId/messages', authMiddleware, a
       .select()
       .single();
 
+    if (userError && isSchemaMismatchError(userError)) {
+      const userMessageId = uuidv4();
+      await dbRun(
+        `INSERT INTO clawbot_messages_local (id, conversation_id, role, content, created_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [userMessageId, conversationId, role, content]
+      );
+      userMessage = await dbGet(
+        `SELECT id, role, content, created_at
+         FROM clawbot_messages_local
+         WHERE id = ?`,
+        [userMessageId]
+      );
+      userError = null;
+    }
+
     if (userError) throw userError;
 
     // 更新对话时间
-    await supabase
+    let { error: touchError } = await supabase
       .from('clawbot_conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId);
+    if (touchError && isSchemaMismatchError(touchError)) {
+      await dbRun(
+        `UPDATE clawbot_conversations_local
+         SET updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [conversationId]
+      );
+      touchError = null;
+    }
+    if (touchError) throw touchError;
 
     // TODO: 这里可以集成 AI 服务来生成回复
     // 暂时返回简单的响应
@@ -248,7 +426,7 @@ router.post('/clawbot/conversations/:conversationId/messages', authMiddleware, a
       content: '收到消息！这个是 AI 对话的占位响应。'
     };
 
-    const { data: assistantMessage, error: assistantError } = await supabase
+    let { data: assistantMessage, error: assistantError } = await supabase
       .from('clawbot_messages')
       .insert({
         conversation_id: conversationId,
@@ -258,11 +436,32 @@ router.post('/clawbot/conversations/:conversationId/messages', authMiddleware, a
       .select()
       .single();
 
+    if (assistantError && isSchemaMismatchError(assistantError)) {
+      const assistantMessageId = uuidv4();
+      await dbRun(
+        `INSERT INTO clawbot_messages_local (id, conversation_id, role, content, created_at)
+         VALUES (?, ?, 'assistant', ?, CURRENT_TIMESTAMP)`,
+        [assistantMessageId, conversationId, assistantResponse.content]
+      );
+      assistantMessage = await dbGet(
+        `SELECT id, role, content, created_at
+         FROM clawbot_messages_local
+         WHERE id = ?`,
+        [assistantMessageId]
+      );
+      assistantError = null;
+    }
+
     if (assistantError) throw assistantError;
 
     success(res, {
-      user_message: userMessage,
-      assistant_message: assistantMessage
+      id: assistantMessage.id,
+      content: assistantMessage.content || '',
+      content_type: 'text',
+      media_url: null,
+      media_mime_type: null,
+      timestamp: assistantMessage.created_at || new Date().toISOString(),
+      sender: 'bot'
     });
   } catch (err) {
     serverError(res, err);
@@ -274,11 +473,23 @@ router.delete('/clawbot/conversations/:id', authMiddleware, async (req, res) => 
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('clawbot_conversations')
       .delete()
       .eq('id', id)
       .eq('user_id', req.userId);
+
+    if (error && isSchemaMismatchError(error)) {
+      await dbRun(
+        `DELETE FROM clawbot_messages_local WHERE conversation_id = ?`,
+        [id]
+      );
+      await dbRun(
+        `DELETE FROM clawbot_conversations_local WHERE id = ? AND user_id = ?`,
+        [id, req.userId]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -299,38 +510,38 @@ router.get('/clawbot/history', authMiddleware, async (req, res) => {
       return error(res, '缺少 room_id', 400);
     }
 
-    const { data: participant } = await supabase
-      .from('chat_room_participants')
-      .select('id')
-      .eq('room_id', roomId)
-      .eq('user_id', req.userId)
-      .single();
+    const participant = await dbGet(
+      `SELECT room_id
+       FROM chat_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [roomId, req.userId]
+    );
 
     if (!participant) {
       return notFound(res, '你不在该房间中');
     }
 
-    const { data: messages, error: messagesError } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    const rows = await dbAll(
+      `SELECT id, room_id, sender_id, content, content_type, media_url, media_mime_type, media_duration, created_at
+       FROM chat_messages_local
+       WHERE room_id = ?
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [roomId, limit, offset]
+    );
 
-    if (messagesError) throw messagesError;
-
-    const normalized = (messages || []).map((m) => ({
-      id: m.id,
-      room_id: m.room_id,
-      sender_id: m.sender_id,
-      sender: m.sender_type === 'bot' ? 'bot' : 'user',
-      content: m.content,
-      message_type: m.content_type || 'text',
-      media_url: m.media_url || null,
-      media_mime_type: m.media_mime_type || null,
-      media_duration: m.media_duration || null,
-      is_read: Boolean(m.is_read),
-      created_at: m.created_at
+    const normalized = (rows || []).map((row) => ({
+      id: row.id,
+      room_id: row.room_id,
+      sender_id: row.sender_id,
+      sender: row.sender_id === req.userId ? 'user' : 'bot',
+      content: row.content || '',
+      message_type: row.content_type || 'text',
+      media_url: row.media_url || null,
+      media_mime_type: row.media_mime_type || null,
+      media_duration: row.media_duration || null,
+      is_read: true,
+      created_at: formatSQLiteDate(row.created_at)
     }));
 
     success(res, normalized.reverse());
@@ -346,15 +557,31 @@ router.get('/clawbot/history', authMiddleware, async (req, res) => {
 // 获取学习目标列表
 router.get('/study/goals', authMiddleware, async (req, res) => {
   try {
-    const { data: goals, error } = await supabase
+    let { data: goals, error } = await supabase
       .from('study_goals')
       .select('*')
       .eq('user_id', req.userId)
       .order('created_at', { ascending: false });
 
+    if (error && isSchemaMismatchError(error)) {
+      goals = await dbAll(
+        `SELECT id, user_id, title, description, target_minutes, current_minutes, start_date, end_date, is_completed, created_at, updated_at
+         FROM study_goals_local
+         WHERE user_id = ?
+         ORDER BY created_at DESC`,
+        [req.userId]
+      );
+      error = null;
+    }
+
     if (error) throw error;
 
-    success(res, goals || []);
+    success(res, (goals || []).map((goal) => ({
+      ...goal,
+      is_completed: Boolean(goal.is_completed),
+      created_at: goal.created_at || new Date().toISOString(),
+      updated_at: goal.updated_at || goal.created_at || new Date().toISOString()
+    })));
   } catch (err) {
     serverError(res, err);
   }
@@ -363,13 +590,14 @@ router.get('/study/goals', authMiddleware, async (req, res) => {
 // 创建学习目标
 router.post('/study/goals', authMiddleware, async (req, res) => {
   try {
-    const { title, target_minutes, start_date, end_date } = req.body;
+    const { title, description, target_minutes, start_date, end_date } = req.body || {};
 
-    const { data: goal, error } = await supabase
+    let { data: goal, error } = await supabase
       .from('study_goals')
       .insert({
         user_id: req.userId,
         title,
+        description,
         target_minutes,
         start_date,
         end_date,
@@ -378,9 +606,30 @@ router.post('/study/goals', authMiddleware, async (req, res) => {
       .select()
       .single();
 
+    if (error && isSchemaMismatchError(error)) {
+      const id = uuidv4();
+      const now = new Date().toISOString();
+      await dbRun(
+        `INSERT INTO study_goals_local (
+          id, user_id, title, description, target_minutes, current_minutes, start_date, end_date, is_completed, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?)`,
+        [id, req.userId, title, description || null, Number(target_minutes || 0), start_date, end_date, now, now]
+      );
+      goal = await dbGet(
+        `SELECT id, user_id, title, description, target_minutes, current_minutes, start_date, end_date, is_completed, created_at, updated_at
+         FROM study_goals_local
+         WHERE id = ?`,
+        [id]
+      );
+      error = null;
+    }
+
     if (error) throw error;
 
-    success(res, goal, '创建成功');
+    success(res, {
+      ...goal,
+      is_completed: Boolean(goal.is_completed)
+    }, '创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -390,24 +639,62 @@ router.post('/study/goals', authMiddleware, async (req, res) => {
 router.put('/study/goals/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { current_minutes, is_completed } = req.body;
+    const {
+      title,
+      description,
+      target_minutes,
+      current_minutes,
+      start_date,
+      end_date,
+      is_completed
+    } = req.body || {};
 
-    const { data: goal, error } = await supabase
+    const updates = {
+      updated_at: new Date().toISOString()
+    };
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (target_minutes !== undefined) updates.target_minutes = target_minutes;
+    if (current_minutes !== undefined) updates.current_minutes = current_minutes;
+    if (start_date !== undefined) updates.start_date = start_date;
+    if (end_date !== undefined) updates.end_date = end_date;
+    if (is_completed !== undefined) updates.is_completed = is_completed;
+
+    let { data: goal, error } = await supabase
       .from('study_goals')
-      .update({
-        current_minutes,
-        is_completed,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', id)
       .eq('user_id', req.userId)
       .select()
       .single();
 
+    if (error && isSchemaMismatchError(error)) {
+      const keys = Object.keys(updates);
+      if (keys.length > 0) {
+        const setSql = keys.map((key) => `${key} = ?`).join(', ');
+        await dbRun(
+          `UPDATE study_goals_local
+           SET ${setSql}
+           WHERE id = ? AND user_id = ?`,
+          [...keys.map((key) => updates[key]), id, req.userId]
+        );
+      }
+      goal = await dbGet(
+        `SELECT id, user_id, title, description, target_minutes, current_minutes, start_date, end_date, is_completed, created_at, updated_at
+         FROM study_goals_local
+         WHERE id = ? AND user_id = ?`,
+        [id, req.userId]
+      );
+      error = null;
+    }
+
     if (error) throw error;
     if (!goal) return notFound(res, '目标不存在');
 
-    success(res, goal, '更新成功');
+    success(res, {
+      ...goal,
+      is_completed: Boolean(goal.is_completed)
+    }, '更新成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -418,11 +705,19 @@ router.delete('/study/goals/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('study_goals')
       .delete()
       .eq('id', id)
       .eq('user_id', req.userId);
+
+    if (error && isSchemaMismatchError(error)) {
+      await dbRun(
+        `DELETE FROM study_goals_local WHERE id = ? AND user_id = ?`,
+        [id, req.userId]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
