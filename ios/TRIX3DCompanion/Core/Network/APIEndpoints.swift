@@ -192,6 +192,7 @@ enum APIEndpoint {
     case placeSearch
     case placeFavorite
     case placeFavoriteToggle(placeId: String)
+    case placeCheckIn(placeId: String)
 
     // MARK: - Points
     case points
@@ -368,6 +369,7 @@ enum APIEndpoint {
         case .placeSearch: return "/places/search"
         case .placeFavorite: return "/places/favorites"
         case .placeFavoriteToggle(let placeId): return "/places/\(placeId)/favorite"
+        case .placeCheckIn(let placeId): return "/places/\(placeId)/check-in"
 
         // Points
         case .points: return "/points"
