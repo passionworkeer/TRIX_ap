@@ -10,7 +10,6 @@
 
 import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
 import WorkbenchCard from './WorkbenchCard';
 import { logger } from '../utils/logger';
 import { DEFAULT_WORKBENCH_ITEMS, WorkbenchItem } from '../types/workbench';
@@ -34,51 +33,27 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle card click - placeholder for now
+  // Handle card click
   const handleCardClick = useCallback(
     (item: WorkbenchItem) => {
       // Call the onCardClick callback if provided
       onCardClick?.(item.id);
 
-      // Placeholder actions - will be replaced with actual implementations
       logger.ui.debug(`[WorkbenchModal] Card clicked: ${item.id}`);
 
       switch (item.id) {
         case 'snapshot':
-          // TODO: Open snapshot modal/camera
-          logger.ui.debug('[WorkbenchModal] Opening snapshot...');
-          break;
         case 'location':
-          // TODO: Open location picker
-          logger.ui.debug('[WorkbenchModal] Opening location picker...');
-          break;
         case 'schedule':
-          // TODO: Open schedule manager
-          logger.ui.debug('[WorkbenchModal] Opening schedule...');
-          break;
         case 'todo':
-          // TODO: Open todo list
-          logger.ui.debug('[WorkbenchModal] Opening todo list...');
+          // Close workbench modal for external panels
+          onClose();
           break;
         default:
           logger.ui.debug('[WorkbenchModal] Unknown action:', item.id);
       }
-
-      // Close modal after action (optional, can be removed based on UX preference)
-      // onClose();
     },
-    [onCardClick]
-  );
-
-  // Handle backdrop click to close
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Only close if clicking the backdrop, not the content
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
+    [onCardClick, onClose]
   );
 
   // Handle keyboard escape
@@ -95,28 +70,11 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop overlay with glassmorphism */}
+          {/* Cards container - positioned above GlassDock */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={handleBackdropClick}
-            onKeyDown={handleKeyDown}
             role="dialog"
             aria-modal="true"
             aria-label="工作台"
-            className="fixed inset-0 z-40"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-            }}
-            tabIndex={-1}
-          />
-
-          {/* Cards container - positioned above GlassDock */}
-          <motion.div
             initial={{ opacity: 0, y: 60, scale: 0.9 }}
             animate={{
               opacity: 1,
@@ -149,47 +107,34 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               maxWidth: '420px',
               zIndex: 50,
             }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
+            tabIndex={-1}
           >
             {/* Main container with glassmorphism */}
             <div
-              className="relative overflow-hidden rounded-3xl p-4"
+              className="relative overflow-hidden rounded-[2rem] p-5 pb-4"
               style={{
-                background:
-                  'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%)',
-                backdropFilter: 'blur(25px) saturate(200%)',
-                WebkitBackdropFilter: 'blur(25px) saturate(200%)',
-                border: '1px solid rgba(255,255,255,0.6)',
+                background: 'rgba(250, 250, 250, 0.75)',
+                backdropFilter: 'blur(30px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
                 boxShadow: `
-                  0 25px 50px -12px rgba(0, 0, 0, 0.2),
-                  0 0 0 1px rgba(255, 255, 255, 0.4) inset,
-                  0 1px 0 rgba(255, 255, 255, 0.8) inset
+                  0 24px 48px -12px rgba(0, 0, 0, 0.15),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.8),
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.5)
                 `,
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center justify-between mb-4 px-2">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800 tracking-tight">
+                  <h2 className="text-[1.125rem] font-bold text-gray-800/90 tracking-tight leading-none mb-1">
                     工作台
                   </h2>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-[0.75rem] text-gray-500/80 font-medium">
                     快捷功能入口
                   </p>
                 </div>
-
-                {/* Close button */}
-                <motion.button
-                  onClick={onClose}
-                  aria-label="关闭工作台"
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100/80 hover:bg-gray-200/80 transition-colors"
-                  style={{
-                    border: '1px solid rgba(0,0,0,0.05)',
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <X size={18} className="text-gray-600" strokeWidth={2} />
-                </motion.button>
               </div>
 
               {/* Scrollable cards container with fade indicators */}
@@ -211,12 +156,12 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                 />
 
                 <div
+                  className="flex gap-4 overflow-x-auto pb-2 px-1 pt-1 scroll-smooth"
                   ref={scrollContainerRef}
-                  className="flex gap-3 overflow-x-auto pb-2 px-1 scroll-smooth"
                   style={{
-                    scrollbarWidth: 'none', // Firefox
-                    msOverflowStyle: 'none', // IE/Edge
-                    WebkitOverflowScrolling: 'touch', // iOS smooth scroll
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch',
                   }}
                 >
                   {items.map((item, index) => (
@@ -247,16 +192,16 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               </div>
 
               {/* Bottom hint */}
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <div className="w-1 h-1 rounded-full bg-gray-400/40" />
-                <span className="text-[10px] text-gray-400">
+              <div className="flex items-center justify-center gap-2 mt-4 opacity-60">
+                <div className="w-[3px] h-[3px] rounded-full bg-gray-400" />
+                <span className="text-[10px] font-medium text-gray-500 tracking-wider uppercase">
                   左右滑动查看更多
                 </span>
-                <div className="w-1 h-1 rounded-full bg-gray-400/40" />
+                <div className="w-[3px] h-[3px] rounded-full bg-gray-400" />
               </div>
 
               {/* Top handle bar */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-300/50 rounded-full mt-2" />
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-1 bg-gray-300 rounded-full opacity-60" />
             </div>
           </motion.div>
         </>

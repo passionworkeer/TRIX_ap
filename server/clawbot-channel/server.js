@@ -16,7 +16,7 @@ const { studyRoomService } = require('./services/studyRoomService');
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
-// Empty or unset defaults to '*' (development)
+// Empty or unset defaults to '*' (development only)
 const parseCorsOrigins = (envValue) => {
   if (!envValue || typeof envValue !== 'string') {
     return '*';
@@ -34,7 +34,15 @@ const parseCorsOrigins = (envValue) => {
 };
 
 const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
-console.log(`[CORS] Allowed origins: ${Array.isArray(CORS_ORIGINS) ? CORS_ORIGINS.join(', ') : CORS_ORIGINS}`);
+const originsDisplay = Array.isArray(CORS_ORIGINS) ? CORS_ORIGINS.join(', ') : CORS_ORIGINS;
+console.log(`[CORS] Allowed origins: ${originsDisplay}`);
+
+// Warn about insecure CORS in production
+const isProduction = process.env.NODE_ENV === 'production';
+if (CORS_ORIGINS === '*' && isProduction) {
+  console.warn('[WARNING] CORS is set to wildcard (*) in production mode. This is insecure!');
+  console.warn('[WARNING] Please set CORS_ORIGINS environment variable to restrict allowed origins.');
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -997,7 +1005,7 @@ io.on('connection', (socket) => {
   }
 
   socket.on('pair_with_code', handlePairWithCode);
-  socket.on('app_pair_with_code', handlePairWithCode);
+  // socket.on('app_pair_with_code', handlePairWithCode);
   socket.on('pair_with_token', handlePairWithToken);
   socket.on('app_pair_with_token', handlePairWithToken);
 

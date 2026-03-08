@@ -48,9 +48,18 @@ export const ACCEPTED_VIDEO_TYPES = [
   'video/x-msvideo'  // .avi
 ];
 
+export const ACCEPTED_AUDIO_TYPES = [
+  'audio/webm',
+  'audio/mp3',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/wav'
+];
+
 export const MAX_FILE_SIZE = {
-  image: 10 * 1024 * 1024, // 10MB
-  video: 50 * 1024 * 1024  // 50MB
+  image: 10 * 1024 * 1024,  // 10MB
+  video: 50 * 1024 * 1024,  // 50MB
+  audio: 10 * 1024 * 1024   // 10MB
 };
 
 // ============================================
@@ -62,7 +71,7 @@ export interface UploadResult {
   path: string;         // Storage path
   type: string;         // MIME type
   size: number;         // File size in bytes
-  category: 'image' | 'video';
+  category: 'image' | 'video' | 'audio';
   metadata?: UploadMetadata;
 }
 
@@ -82,8 +91,12 @@ export interface UploadError {
 // ✅ Validation
 // ============================================
 
-function validateFile(file: File, category: 'image' | 'video'): UploadError | null {
-  const acceptedTypes = category === 'image' ? ACCEPTED_IMAGE_TYPES : ACCEPTED_VIDEO_TYPES;
+function validateFile(file: File, category: 'image' | 'video' | 'audio'): UploadError | null {
+  const acceptedTypes = category === 'image'
+    ? ACCEPTED_IMAGE_TYPES
+    : category === 'video'
+      ? ACCEPTED_VIDEO_TYPES
+      : ACCEPTED_AUDIO_TYPES;
   const maxSize = MAX_FILE_SIZE[category];
 
   // Check file type
@@ -182,7 +195,7 @@ async function generateThumbnail(file: File): Promise<string | null> {
   });
 }
 
-async function extractMetadata(file: File, category: 'image' | 'video'): Promise<UploadMetadata> {
+async function extractMetadata(file: File, category: 'image' | 'video' | 'audio'): Promise<UploadMetadata> {
   const metadata: UploadMetadata = {};
 
   if (category === 'image') {
@@ -232,6 +245,28 @@ async function extractMetadata(file: File, category: 'image' | 'video'): Promise
     });
   }
 
+  // Audio metadata extraction
+  if (category === 'audio') {
+    return new Promise((resolve) => {
+      const audio = document.createElement('audio');
+      const url = URL.createObjectURL(file);
+
+      audio.onloadedmetadata = () => {
+        metadata.duration = audio.duration;
+        URL.revokeObjectURL(url);
+        resolve(metadata);
+      };
+
+      audio.onerror = () => {
+        logger.upload.warn('Failed to extract audio metadata');
+        URL.revokeObjectURL(url);
+        resolve(metadata);
+      };
+
+      audio.src = url;
+    });
+  }
+
   return metadata;
 }
 
@@ -242,13 +277,13 @@ async function extractMetadata(file: File, category: 'image' | 'video'): Promise
 /**
  * Upload a file to Supabase Storage
  * @param file - File to upload
- * @param category - 'image' or 'video'
+ * @param category - 'image', 'video', or 'audio'
  * @returns UploadResult with public URL and metadata
  * @throws Error if upload fails
  */
 export async function uploadFile(
   file: File,
-  category: 'image' | 'video'
+  category: 'image' | 'video' | 'audio'
 ): Promise<UploadResult> {
   let compressedFile = file;
 
@@ -337,6 +372,20 @@ export async function uploadFile(
 }
 
 // ============================================
+// 🎵 Audio Upload Function
+// ============================================
+
+/**
+ * Upload an audio file to Supabase Storage
+ * @param file - Audio file to upload
+ * @returns UploadResult with public URL and metadata
+ * @throws Error if upload fails
+ */
+export async function uploadAudio(file: File): Promise<UploadResult> {
+  return uploadFile(file, 'audio');
+}
+
+// ============================================
 // 🗑️ Delete Function
 // ============================================
 
@@ -367,9 +416,10 @@ export async function deleteFile(path: string): Promise<void> {
 /**
  * Get file category from MIME type
  */
-export function getFileCategory(mimeType: string): 'image' | 'video' | null {
-  if (ACCEPTED_IMAGE_TYPES.includes(mimeType)) return 'image';
-  if (ACCEPTED_VIDEO_TYPES.includes(mimeType)) return 'video';
+export function getFileCategory(mimeType: string): 'image' | 'video' | 'audio' | null {
+  if (ACCEPTED_IMAGE_TYPES.includes(mimeType as any)) return 'image';
+  if (ACCEPTED_VIDEO_TYPES.includes(mimeType as any)) return 'video';
+  if (ACCEPTED_AUDIO_TYPES.includes(mimeType as any)) return 'audio';
   return null;
 }
 

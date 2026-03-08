@@ -116,12 +116,6 @@ function logError(error: NewAppError): void {
 
   // 生产环境：可接入监控服务
   if (import.meta.env.PROD) {
-    // 集成监控服务（如 Sentry、LogRocket 等）以跟踪生产环境错误
-    // 需要配置监控服务的 SDK 和 API 密钥
-    // 示例：
-    // Sentry.captureException(error);
-    // Sentry.captureException(error.originalError);
-
     // 简单的生产环境日志
     logger.ui.error('Error:', {
       code: error.code,

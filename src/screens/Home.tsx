@@ -11,7 +11,6 @@ import NotificationPanel from '../components/NotificationPanel';
 import StudyRoom from '../components/StudyRoom';
 import HomeBotBubble from '../components/HomeBotBubble';
 import WorkbenchModal from '../components/WorkbenchModal';
-import SnapshotModal from '../components/SnapshotModal';
 import { TodoList, TodoProvider } from '../features/todo';
 import { ScheduleList, ScheduleProvider } from '../features/schedule';
 import { LocationPicker } from '../features/location';
@@ -22,21 +21,20 @@ import {
 } from '../utils/pairingToast';
 
 interface HomeProps {
-  onBackgroundClick?: () => void;
+  isUIVisible?: boolean;
+  onToggleUI?: () => void;
   devVideoSource?: string;
 }
 
-const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
+const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource }) => {
   const isDev = import.meta.env.DEV;
   const navigate = useNavigate();
-  const { isConnected, isPaired, botState } = useClawbotChannel();
-  const { showWarning } = useNotification();
+  const { isConnected, isPaired, botState, sendMessage } = useClawbotChannel();
+  const { showWarning, showSuccess } = useNotification();
 
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [showStudyRoom, setShowStudyRoom] = useState(false);
-  const [showWorkbench, setShowWorkbench] = useState(false);
-  const [showSnapshot, setShowSnapshot] = useState(false);
   const [showTodo, setShowTodo] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -63,20 +61,11 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
     });
   };
 
-  // Handle background click to show workbench
-  const handleBackgroundClick = () => {
-    setShowWorkbench(true);
-    // Also call the parent handler if provided
-    onBackgroundClick?.();
-  };
-
   // Handle workbench card clicks
   const handleWorkbenchCardClick = (itemId: string) => {
-    setShowWorkbench(false); // Close workbench first
-
     switch (itemId) {
       case 'snapshot':
-        setShowSnapshot(true);
+        navigate(AppRoutes.SNAPSHOT);
         break;
       case 'location':
         setShowLocation(true);
@@ -92,38 +81,12 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
     }
   };
 
-  // Handle image selection from SnapshotModal
-  const handleImageSelect = (imageUri: string) => {
-    setShowSnapshot(false);
-    setShowWorkbench(false);
-
-    if (!isConnected || !isPaired) {
-      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
-        ...PAIRING_REQUIRED_TOAST_OPTIONS,
-        id: PAIRING_REQUIRED_TOAST_ID,
-      });
-      navigate(AppRoutes.PAIRING);
-      return;
-    }
-
-    navigate(AppRoutes.CHAT_DETAIL, {
-      state: {
-        friendId: 'clawbot',
-        name: 'TRIX Bot',
-        avatar: IMAGES.WIZARD_BOY_LOGIN,
-        isBot: true,
-        photoUri: imageUri
-      }
-    });
-  };
-
   return (
     <div
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
-      onClick={handleBackgroundClick}
     >
-      {isDev && (
+      {/* isDev && (
         <div className="fixed top-3 left-3 z-[110] pointer-events-none">
           <div className="rounded-lg border border-white/20 bg-black/45 px-3 py-2 text-[11px] text-white/95 backdrop-blur-sm shadow-lg">
             <div className="font-semibold tracking-wide">DEV</div>
@@ -131,7 +94,7 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
             <div>video: {devVideoSource || 'unknown'}</div>
           </div>
         </div>
-      )}
+      ) */}
 
       <HomeBotBubble onClick={handleOpenTrixBot} />
 
@@ -140,33 +103,24 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />
 
       <WorkbenchModal
-        isOpen={showWorkbench}
-        onClose={() => setShowWorkbench(false)}
+        isOpen={!!isUIVisible}
+        onClose={() => onToggleUI?.()}
         onCardClick={handleWorkbenchCardClick}
-      />
-
-      {/* Snapshot Modal */}
-      <SnapshotModal
-        isOpen={showSnapshot}
-        onImageSelect={handleImageSelect}
       />
 
       {/* Todo Panel */}
       {showTodo && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowTodo(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.target === e.currentTarget) setShowTodo(false);
+          }}
         >
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
-            <button
-              onClick={() => setShowTodo(false)}
-              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
+            
             <TodoProvider>
-              <TodoList />
+              <TodoList onClose={() => setShowTodo(false)} />
             </TodoProvider>
           </div>
         </div>
@@ -176,18 +130,15 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
       {showSchedule && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowSchedule(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.target === e.currentTarget) setShowSchedule(false);
+          }}
         >
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl">
-            <button
-              onClick={() => setShowSchedule(false)}
-              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
+            
             <ScheduleProvider>
-              <ScheduleList />
+              <ScheduleList onClose={() => setShowSchedule(false)} />
             </ScheduleProvider>
           </div>
         </div>
@@ -199,7 +150,20 @@ const Home: React.FC<HomeProps> = ({ onBackgroundClick, devVideoSource }) => {
         onClose={() => setShowLocation(false)}
         onLocationSelected={(location) => {
           logger.ui.debug('Selected location:', location);
-          // TODO: Handle location selection (e.g., send to chat)
+          
+          if (!isConnected || !isPaired) {
+             showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
+             return;
+          }
+          
+          try {
+            sendMessage(`我当前的位置是: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
+            showSuccess('位置信息已发送');
+            setShowLocation(false);
+          } catch (error) {
+            showWarning('发送位置失败，请重试');
+            logger.ui.error('Failed to send location message:', error);
+          }
         }}
       />
     </div>

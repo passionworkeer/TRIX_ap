@@ -173,9 +173,6 @@ function logAppError(error: AppError, context: string): void {
       timestamp: new Date().toISOString(),
       url: window.location.href,
     });
-
-    // 可以在这里集成 Sentry 等监控服务
-    // Sentry.captureException(error.originalError || error);
   }
 }
 
