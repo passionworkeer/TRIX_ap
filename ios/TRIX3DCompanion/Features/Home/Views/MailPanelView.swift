@@ -12,6 +12,10 @@ struct MailPanelView: View {
 
     @State private var messages: [MailMessage] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    // Use shared API client for notifications
+    private let apiClient = APIClient.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -30,6 +34,14 @@ struct MailPanelView: View {
 
                     // Header
                     headerSection
+
+                    // Error message if any
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
 
                     // Messages list
                     messagesList
@@ -70,6 +82,14 @@ struct MailPanelView: View {
             Spacer()
 
             Button {
+                markAllAsRead()
+            } label: {
+                Text("全部已读")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+            }
+
+            Button {
                 isPresented = false
             } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -93,7 +113,9 @@ struct MailPanelView: View {
                     emptyState
                 } else {
                     ForEach(messages) { message in
-                        MailMessageRow(message: message)
+                        MailMessageRow(message: message) {
+                            markAsRead(message.id)
+                        }
                     }
                 }
             }
@@ -120,17 +142,80 @@ struct MailPanelView: View {
     // MARK: - Actions
 
     private func loadMessages() {
-        // Load messages from local storage or API
         isLoading = true
+        errorMessage = nil
 
-        // Simulated data
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            messages = [
-                MailMessage(id: UUID(), sender: "TRIX", title: "欢迎使用", content: "欢迎来到 TRIX 3D Companion!", time: "2小时前", isRead: false),
-                MailMessage(id: UUID(), sender: "系统", title: "积分变动", content: "您获得了 +50 积分", time: "昨天", isRead: true)
-            ]
-            isLoading = false
+        Task {
+            do {
+                // Fetch notifications from backend API
+                let notifications: [APIAppNotification] = try await apiClient.get(.notificationList)
+
+                // Map API notifications to mail messages
+                messages = notifications.map { notification in
+                    MailMessage(
+                        id: UUID(uuidString: notification.id) ?? UUID(),
+                        sender: notification.title,
+                        title: notification.title,
+                        content: notification.body ?? "",
+                        time: formatTime(notification.createdAt),
+                        isRead: notification.isRead
+                    )
+                }
+                isLoading = false
+            } catch {
+                isLoading = false
+                errorMessage = "加载失败: \(error.localizedDescription)"
+            }
         }
+    }
+
+    private func markAsRead(_ id: UUID) {
+        Task {
+            do {
+                try await apiClient.markNotificationAsRead(notificationId: id.uuidString)
+                // Update local state
+                if let index = messages.firstIndex(where: { $0.id == id }) {
+                    var updatedMessage = messages[index]
+                    messages[index] = MailMessage(
+                        id: updatedMessage.id,
+                        sender: updatedMessage.sender,
+                        title: updatedMessage.title,
+                        content: updatedMessage.content,
+                        time: updatedMessage.time,
+                        isRead: true
+                    )
+                }
+            } catch {
+                // Silent fail for mark as read
+            }
+        }
+    }
+
+    private func markAllAsRead() {
+        Task {
+            do {
+                try await apiClient.markAllNotificationsAsRead()
+                // Update local state
+                messages = messages.map { message in
+                    MailMessage(
+                        id: message.id,
+                        sender: message.sender,
+                        title: message.title,
+                        content: message.content,
+                        time: message.time,
+                        isRead: true
+                    )
+                }
+            } catch {
+                // Silent fail
+            }
+        }
+    }
+
+    private func formatTime(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -149,47 +234,53 @@ struct MailMessage: Identifiable, Hashable {
 
 struct MailMessageRow: View {
     let message: MailMessage
+    var onTap: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(message.sender)
+        Button(action: {
+            onTap?()
+        }) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(message.sender)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(message.isRead ? .secondary : .primary)
+
+                    Spacer()
+
+                    Text(message.time)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if !message.isRead {
+                        Circle()
+                            .fill(Color.brandPurple)
+                            .frame(width: 8, height: 8)
+                    }
+                }
+
+                Text(message.title)
                     .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(message.isRead ? .secondary : .primary)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
 
-                Spacer()
-
-                Text(message.time)
+                Text(message.content)
                     .font(.caption)
                     .foregroundColor(.secondary)
-
-                if !message.isRead {
-                    Circle()
-                        .fill(Color.brandPurple)
-                        .frame(width: 8, height: 8)
-                }
+                    .lineLimit(2)
             }
-
-            Text(message.title)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-                .lineLimit(1)
-
-            Text(message.content)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(message.isRead ? Color.clear : Color.brandPurple.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(message.isRead ? Color.clear : Color.brandPurple.opacity(0.2), lineWidth: 1)
+            )
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(message.isRead ? Color.clear : Color.brandPurple.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(message.isRead ? Color.clear : Color.brandPurple.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
     }
 }
 
