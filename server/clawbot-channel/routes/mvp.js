@@ -171,14 +171,105 @@ router.get('/user/stats', authMiddleware, async (req, res) => {
 // 获取好友列表
 router.get('/friends', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: rows, error } = await supabase
       .from('friends')
       .select('*')
       .eq('user_id', req.userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    success(res, data || []);
+
+    const friendIds = (rows || []).map((item) => item.friend_id).filter(Boolean);
+    let profileMap = {};
+
+    if (friendIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, bio')
+        .in('id', friendIds);
+
+      profileMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+    }
+
+    const data = (rows || []).map((item) => {
+      const profile = profileMap[item.friend_id] || {};
+      return {
+        ...item,
+        name: profile.full_name || profile.username || `用户${String(item.friend_id).slice(0, 6)}`,
+        avatar_url: profile.avatar_url || null,
+        bio: profile.bio || null
+      };
+    });
+
+    success(res, data);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// 获取推荐好友
+router.get('/friends/recommendations', authMiddleware, async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(30, Number(req.query.limit || 8)));
+
+    const { data: myFriends, error: friendError } = await supabase
+      .from('friends')
+      .select('friend_id')
+      .eq('user_id', req.userId);
+
+    if (friendError) throw friendError;
+
+    const friendIds = (myFriends || [])
+      .map((item) => item.friend_id)
+      .filter(Boolean);
+
+    let profilesQuery = supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, is_studying, updated_at')
+      .neq('id', req.userId)
+      .order('updated_at', { ascending: false })
+      .limit(limit * 3);
+
+    if (friendIds.length > 0) {
+      const inClause = `(${friendIds.map((id) => `"${id}"`).join(',')})`;
+      profilesQuery = profilesQuery.not('id', 'in', inClause);
+    }
+
+    const { data: candidates, error: candidateError } = await profilesQuery;
+    if (candidateError) throw candidateError;
+
+    const slicedCandidates = (candidates || []).slice(0, limit);
+    const candidateIds = slicedCandidates.map((item) => item.id);
+
+    let mutualCountMap = {};
+    if (candidateIds.length > 0 && friendIds.length > 0) {
+      const { data: mutualRows, error: mutualError } = await supabase
+        .from('friends')
+        .select('user_id, friend_id')
+        .in('user_id', candidateIds)
+        .in('friend_id', friendIds);
+
+      if (mutualError) throw mutualError;
+
+      mutualCountMap = (mutualRows || []).reduce((acc, row) => {
+        const key = row.user_id;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    const recommendations = slicedCandidates.map((profile) => ({
+      id: profile.id,
+      name: profile.full_name || profile.username || `用户${String(profile.id).slice(0, 6)}`,
+      avatar_url: profile.avatar_url || null,
+      mutual_friends: Number(mutualCountMap[profile.id] || 0),
+      is_online: Boolean(profile.is_studying || false)
+    }));
+
+    success(res, recommendations);
   } catch (err) {
     serverError(res, err);
   }
@@ -187,7 +278,7 @@ router.get('/friends', authMiddleware, async (req, res) => {
 // 添加好友
 router.post('/friends', authMiddleware, async (req, res) => {
   try {
-    const { friendId } = req.body;
+    const friendId = req.body?.friendId || req.body?.friend_id;
     if (!friendId) return error(res, '缺少 friendId');
 
     // 获取好友资料
@@ -213,11 +304,11 @@ router.post('/friends', authMiddleware, async (req, res) => {
       return error(res, '已经是好友了');
     }
 
-    // 创建双向好友关系
+    // 创建双向好友关系（friends 表只保留关系与状态字段）
     const now = new Date().toISOString();
     const friendsData = [
-      { user_id: req.userId, friend_id: friendId, name: friendProfile.full_name || friendProfile.username, avatar_url: friendProfile.avatar_url, bio: friendProfile.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
-      { user_id: friendId, friend_id: req.userId, name: profile?.full_name || profile?.username, avatar_url: profile?.avatar_url, bio: profile?.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
+      { user_id: req.userId, friend_id: friendId, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
+      { user_id: friendId, friend_id: req.userId, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
     ];
 
     const { error: insertError } = await supabase
@@ -236,19 +327,36 @@ router.delete('/friends/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 获取好友的 friend_id
-    const { data: friend, error: friendError } = await supabase
+    // 兼容两种删除参数：
+    // 1) 直接传 friend_id（iOS 当前实现）
+    // 2) 传 friends 表记录 id（历史实现）
+    let friendId = null;
+
+    const { data: byDirectFriendId } = await supabase
       .from('friends')
       .select('friend_id')
-      .eq('id', id)
       .eq('user_id', req.userId)
+      .eq('friend_id', id)
       .single();
 
-    if (friendError || !friend) return notFound(res, '好友不存在');
+    if (byDirectFriendId?.friend_id) {
+      friendId = byDirectFriendId.friend_id;
+    } else {
+      const { data: byRowId } = await supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('id', id)
+        .eq('user_id', req.userId)
+        .single();
+
+      friendId = byRowId?.friend_id || null;
+    }
+
+    if (!friendId) return notFound(res, '好友不存在');
 
     // 删除双向关系
-    await supabase.from('friends').delete().eq('user_id', req.userId).eq('friend_id', friend.friend_id);
-    await supabase.from('friends').delete().eq('user_id', friend.friend_id).eq('friend_id', req.userId);
+    await supabase.from('friends').delete().eq('user_id', req.userId).eq('friend_id', friendId);
+    await supabase.from('friends').delete().eq('user_id', friendId).eq('friend_id', req.userId);
 
     success(res, null, '删除成功');
   } catch (err) {
@@ -261,22 +369,33 @@ router.get('/friends/requests', authMiddleware, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('friend_requests')
-      .select(`
-        *,
-        from_user:from_user_id(id, username, full_name, avatar_url)
-      `)
+      .select('id, from_user_id, to_user_id, status, created_at')
       .eq('to_user_id', req.userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
+    const fromUserIds = (data || []).map((item) => item.from_user_id).filter(Boolean);
+    let profileMap = {};
+    if (fromUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', fromUserIds);
+
+      profileMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+    }
+
     // 格式化返回
     const requests = (data || []).map(r => ({
       id: r.id,
       fromUserId: r.from_user_id,
-      fromUsername: r.from_user?.username || '',
-      fromAvatarUrl: r.from_user?.avatar_url || null,
+      fromUsername: profileMap[r.from_user_id]?.username || '',
+      fromAvatarUrl: profileMap[r.from_user_id]?.avatar_url || null,
       toUserId: r.to_user_id,
       status: r.status,
       createdAt: r.created_at
@@ -303,26 +422,12 @@ router.post('/friends/requests/:id/accept', authMiddleware, async (req, res) => 
 
     if (requestError || !request) return notFound(res, '好友请求不存在');
 
-    // 获取当前用户资料
-    const { data: myProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', req.userId)
-      .single();
-
-    // 获取请求者资料
-    const { data: fromProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', request.from_user_id)
-      .single();
-
     const now = new Date().toISOString();
 
-    // 创建双向好友关系
+    // 创建双向好友关系（friends 表只保留关系与状态字段）
     const friendsData = [
-      { user_id: req.userId, friend_id: request.from_user_id, name: fromProfile?.full_name || fromProfile?.username, avatar_url: fromProfile?.avatar_url, bio: fromProfile?.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
-      { user_id: request.from_user_id, friend_id: req.userId, name: myProfile?.full_name || myProfile?.username, avatar_url: myProfile?.avatar_url, bio: myProfile?.bio, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
+      { user_id: req.userId, friend_id: request.from_user_id, status: 'offline', study_time: 0, is_studying: false, updated_at: now },
+      { user_id: request.from_user_id, friend_id: req.userId, status: 'offline', study_time: 0, is_studying: false, updated_at: now }
     ];
 
     await supabase.from('friends').upsert(friendsData, { onConflict: 'user_id,friend_id' });
@@ -763,17 +868,25 @@ router.get('/mall/items', optionalAuthMiddleware, async (req, res) => {
   try {
     const { category } = req.query;
 
-    let query = supabase
-      .from('mall_items')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
+    const fetchItems = async (orderColumn, ascending) => {
+      let query = supabase
+        .from('mall_items')
+        .select('*')
+        .eq('is_active', true)
+        .order(orderColumn, { ascending });
 
-    if (category) {
-      query = query.eq('category', category);
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      return query;
+    };
+
+    // Some environments don't have display_order column; fallback to created_at.
+    let { data: items, error } = await fetchItems('display_order', true);
+    if (error && error.code === '42703') {
+      ({ data: items, error } = await fetchItems('created_at', false));
     }
-
-    const { data: items, error } = await query;
 
     if (error) throw error;
 
@@ -1054,8 +1167,7 @@ router.post('/wardrobe/outfits/:id/equip', authMiddleware, async (req, res) => {
   }
 });
 
-// 卸下装扮
-router.post('/wardrobe/outfits/:id/unequip', authMiddleware, async (req, res) => {
+async function handleUnequipOutfit(req, res) {
   try {
     const { id } = req.params;
 
@@ -1069,7 +1181,11 @@ router.post('/wardrobe/outfits/:id/unequip', authMiddleware, async (req, res) =>
   } catch (err) {
     serverError(res, err);
   }
-});
+}
+
+// 卸下装扮（兼容 POST / DELETE）
+router.post('/wardrobe/outfits/:id/unequip', authMiddleware, handleUnequipOutfit);
+router.delete('/wardrobe/outfits/:id/unequip', authMiddleware, handleUnequipOutfit);
 
 // ============================================
 // 学习历史模块 /study/history

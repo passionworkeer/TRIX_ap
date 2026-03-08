@@ -45,12 +45,20 @@ final class ChatListViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let chatService: ChatService
+    private let apiClient: APIClient
+    private let friendService: FriendServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
-    init(chatService: ChatService = .shared) {
+    init(
+        chatService: ChatService = .shared,
+        apiClient: APIClient = .shared,
+        friendService: FriendServiceProtocol = FriendService.shared
+    ) {
         self.chatService = chatService
+        self.apiClient = apiClient
+        self.friendService = friendService
         setupBindings()
     }
 
@@ -111,9 +119,14 @@ final class ChatListViewModel: ObservableObject {
 
     /// Load recommended users - use real API for 真机测试
     func loadRecommendedUsers() async {
-        // TODO: Replace with actual API call when available
-        // For now, clear sample data
-        recommendedUsers = []
+        do {
+            let users = try await apiClient.getFriendRecommendations(limit: 8)
+            recommendedUsers = users.map(RecommendedUser.init(api:))
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+            recommendedUsers = []
+        }
     }
 
     // MARK: - Public Methods - Filtering
@@ -145,9 +158,14 @@ final class ChatListViewModel: ObservableObject {
     /// Delete a chat room
     /// - Parameter roomId: The room ID to delete
     func deleteRoom(_ roomId: String) async {
-        // Implement deletion via API
-        chatRooms.removeAll { $0.id == roomId }
-        applyFilters()
+        do {
+            try await apiClient.deleteChatRoom(roomId: roomId)
+            chatRooms.removeAll { $0.id == roomId }
+            applyFilters()
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Mark room as read
@@ -159,21 +177,36 @@ final class ChatListViewModel: ObservableObject {
     /// Archive a chat room
     /// - Parameter roomId: The room ID to archive
     func archiveRoom(_ roomId: String) async {
-        // Implement archiving via API
-        chatRooms.removeAll { $0.id == roomId }
-        applyFilters()
+        do {
+            try await apiClient.archiveChatRoom(roomId: roomId)
+            chatRooms.removeAll { $0.id == roomId }
+            applyFilters()
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Mute a chat room
     /// - Parameter roomId: The room ID to mute
     func muteRoom(_ roomId: String) async {
-        // Implement muting via API
+        do {
+            try await apiClient.muteChatRoom(roomId: roomId)
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Unmute a chat room
     /// - Parameter roomId: The room ID to unmute
     func unmuteRoom(_ roomId: String) async {
-        // Implement unmuting via API
+        do {
+            try await apiClient.unmuteChatRoom(roomId: roomId)
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Public Methods - Friend Management
@@ -181,13 +214,18 @@ final class ChatListViewModel: ObservableObject {
     /// Add a recommended user as friend
     /// - Parameter user: The user to add
     func addFriend(_ user: RecommendedUser) async {
-        withAnimation {
-            recommendedUsers.removeAll { $0.id == user.id }
-        }
+        do {
+            try await friendService.addFriend(friendId: user.id)
 
-        // Show success feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+            withAnimation {
+                recommendedUsers.removeAll { $0.id == user.id }
+            }
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        } catch {
+            hasError = true
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Remove a recommended user from suggestions

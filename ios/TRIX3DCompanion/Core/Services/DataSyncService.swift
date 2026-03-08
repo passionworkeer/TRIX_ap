@@ -78,6 +78,11 @@ struct PointTransactionRequest: Codable {
     let description: String
 }
 
+private struct SyncPointsMutationRequest: Codable {
+    let points: Int
+    let description: String
+}
+
 // MARK: - Sync Status
 
 /// Current synchronization status
@@ -535,26 +540,170 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     }
 
     private func syncMessages() async throws -> SyncResult {
-        // Stub implementation - returns success
-        return SyncResult(status: .success, syncedItems: 0, failedItems: 0, conflicts: 0, timestamp: Date(), error: nil)
+        let pendingMessages: [ChatMessage]
+        do {
+            pendingMessages = try databaseManager.getPendingMessages()
+        } catch {
+            throw SyncError.clientError(underlying: error)
+        }
+
+        guard !pendingMessages.isEmpty else {
+            return makeSyncResult(synced: 0, failed: 0, conflicts: 0)
+        }
+
+        var synced = 0
+        var failed = 0
+
+        for message in pendingMessages {
+            do {
+                let request = SendMessageRequest(
+                    content: message.content,
+                    contentType: message.messageType,
+                    mediaUrl: message.mediaUrl,
+                    mediaMimeType: message.mediaMimeType
+                )
+                let _: ChatMessage = try await apiClient.post(.chatRoomMessagesSend(roomId: message.roomId), body: request)
+                try databaseManager.markMessageSynced(message.id)
+                synced += 1
+            } catch {
+                failed += 1
+                SecureLogger.shared.error("Message sync failed (\(message.id)): \(error)")
+            }
+        }
+
+        return makeSyncResult(synced: synced, failed: failed, conflicts: 0)
     }
 
-    /// Sync study sessions (stub)
+    /// Sync locally completed study sessions to backend
     private func syncStudySessions() async throws -> SyncResult {
-        // Stub implementation - returns success
-        return SyncResult(status: .success, syncedItems: 0, failedItems: 0, conflicts: 0, timestamp: Date(), error: nil)
+        let sessions: [StudySession]
+        do {
+            sessions = try databaseManager.getUnsyncedStudySessions()
+        } catch {
+            throw SyncError.clientError(underlying: error)
+        }
+
+        guard !sessions.isEmpty else {
+            return makeSyncResult(synced: 0, failed: 0, conflicts: 0)
+        }
+
+        var synced = 0
+        var failed = 0
+
+        for session in sessions {
+            do {
+                let request = CreateStudySessionRequest(durationMinutes: session.durationMinutes)
+                let _: StudySession = try await apiClient.post(.studySessions, body: request)
+                try databaseManager.markStudySessionSynced(session.id)
+                synced += 1
+            } catch {
+                failed += 1
+                SecureLogger.shared.error("Study session sync failed (\(session.id)): \(error)")
+            }
+        }
+
+        return makeSyncResult(synced: synced, failed: failed, conflicts: 0)
     }
 
-    /// Sync user profile (stub)
+    /// Sync user profile and update offline cache
     private func syncUserProfile() async throws -> SyncResult {
-        // Stub implementation - returns success
-        return SyncResult(status: .success, syncedItems: 0, failedItems: 0, conflicts: 0, timestamp: Date(), error: nil)
+        guard let localUser = authService.currentUser else {
+            return makeSyncResult(synced: 0, failed: 0, conflicts: 0)
+        }
+
+        do {
+            let remoteUser: User = try await apiClient.get(.userProfile)
+            let userToCache: User
+
+            if localUser.updatedAt > remoteUser.updatedAt {
+                let update = ProfileUpdate(
+                    username: localUser.username,
+                    fullName: localUser.fullName,
+                    displayName: localUser.displayName,
+                    bio: localUser.bio,
+                    school: localUser.school,
+                    grade: localUser.grade,
+                    avatarUrl: localUser.avatarUrl
+                )
+                let updated: User = try await apiClient.put(.userUpdateProfile, body: update)
+                userToCache = updated
+            } else {
+                userToCache = remoteUser
+            }
+
+            try await offlineCache.cacheUserProfile(userToCache)
+            return makeSyncResult(synced: 1, failed: 0, conflicts: 0)
+        } catch {
+            throw SyncError.serverError(underlying: error)
+        }
     }
 
-    /// Sync points (stub)
+    /// Sync pending points transactions and refresh local points cache
     private func syncPoints() async throws -> SyncResult {
-        // Stub implementation - returns success
-        return SyncResult(status: .success, syncedItems: 0, failedItems: 0, conflicts: 0, timestamp: Date(), error: nil)
+        var synced = 0
+        var failed = 0
+
+        do {
+            let pending = try databaseManager.getPendingPointTransactions()
+            for transaction in pending {
+                do {
+                    let request = SyncPointsMutationRequest(
+                        points: abs(transaction.pointsChange),
+                        description: transaction.description
+                    )
+                    let endpoint: APIEndpoint = transaction.pointsChange >= 0 ? .pointsAdd : .pointsDeduct
+                    let _: PointsResponse = try await apiClient.post(endpoint, body: request)
+                    try databaseManager.markPointTransactionSynced(transaction.id)
+                    synced += 1
+                } catch {
+                    failed += 1
+                    SecureLogger.shared.error("Point transaction sync failed (\(transaction.id)): \(error)")
+                }
+            }
+        } catch {
+            throw SyncError.clientError(underlying: error)
+        }
+
+        do {
+            let points = try await apiClient.getPoints()
+            if let userId = authService.currentUser?.id {
+                try? databaseManager.updateUserPoints(userId: userId, points: points.totalPoints)
+            }
+
+            let history = try await apiClient.getPointsHistory(page: 1, limit: 100)
+            for transaction in history {
+                if (try? databaseManager.getPointTransaction(transaction.id)) == nil {
+                    try? databaseManager.insertPointTransaction(transaction)
+                }
+                try? databaseManager.markPointTransactionSynced(transaction.id)
+            }
+            synced += history.count
+        } catch {
+            failed += 1
+            SecureLogger.shared.error("Points fetch sync failed: \(error)")
+        }
+
+        return makeSyncResult(synced: synced, failed: failed, conflicts: 0)
+    }
+
+    private func makeSyncResult(synced: Int, failed: Int, conflicts: Int) -> SyncResult {
+        let status: SyncStatus
+        if failed == 0 {
+            status = .success
+        } else if synced > 0 {
+            status = .partial
+        } else {
+            status = .failed
+        }
+
+        return SyncResult(
+            status: status,
+            syncedItems: synced,
+            failedItems: failed,
+            conflicts: conflicts,
+            timestamp: Date(),
+            error: failed > 0 ? .unknown(underlying: nil) : nil
+        )
     }
 
 

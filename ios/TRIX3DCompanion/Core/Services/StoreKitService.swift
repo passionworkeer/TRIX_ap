@@ -236,10 +236,16 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     /// - Returns: Result indicating success or failure with restored transactions
     func restorePurchases() async -> Result<[TransactionInfo], StoreKitError> {
         lastError = nil
-
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation returning empty results
-        return .success([])
+        do {
+            try await AppStore.sync()
+            let restored = await getTransactionHistory()
+            await updateSubscriptionStatus()
+            return .success(restored)
+        } catch {
+            let skError = mapStoreKitError(error)
+            lastError = skError
+            return .failure(skError)
+        }
     }
 
     /// Check current subscription status
@@ -252,9 +258,24 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     /// Get transaction history
     /// - Returns: Array of past transactions
     func getTransactionHistory() async -> [TransactionInfo] {
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation returning empty results
-        return []
+        var history: [TransactionInfo] = []
+        var processed = 0
+
+        for await result in Transaction.all {
+            if processed >= ReceiptFetchConfig.maxTransactions {
+                break
+            }
+            processed += 1
+
+            switch result {
+            case .verified(let transaction):
+                history.append(convertToTransactionInfo(transaction: transaction, status: .verified))
+            case .unverified(let transaction, _):
+                history.append(convertToTransactionInfo(transaction: transaction, status: .unverified))
+            }
+        }
+
+        return history.sorted { $0.purchaseDate > $1.purchaseDate }
     }
 
     /// Clear error state
@@ -266,9 +287,27 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
 
     /// Update subscription status from latest transaction
     private func updateSubscriptionStatus() async {
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation - no subscription status
-        subscriptionStatus = nil
+        var newestTransaction: Transaction?
+        var newestDate = Date.distantPast
+
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  StoreProductConfiguration.productType(for: transaction.productID) == .subscription else {
+                continue
+            }
+
+            let candidateDate = transaction.expirationDate ?? transaction.purchaseDate
+            if candidateDate > newestDate {
+                newestDate = candidateDate
+                newestTransaction = transaction
+            }
+        }
+
+        if let transaction = newestTransaction {
+            subscriptionStatus = convertToSubscriptionStatus(transaction: transaction)
+        } else {
+            subscriptionStatus = nil
+        }
     }
 
     /// Check and verify transaction
@@ -290,10 +329,27 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     private func convertToStoreProduct(product: Product) -> StoreProduct {
         let type = StoreProductConfiguration.productType(for: product.id) ?? .points
         let points = StoreProductConfiguration.pointsForProduct(product.id)
+        let subscriptionPeriod: SubscriptionPeriod? = {
+            guard let period = product.subscription?.subscriptionPeriod else {
+                return nil
+            }
 
-        // TODO: Fix StoreKit 2 API - Product.SubscriptionInfo doesn't have periodUnit/periodNumberOfUnits
-        // Stub implementation - no subscription period info available
-        let subscriptionPeriod: SubscriptionPeriod? = nil
+            let unit: SubscriptionPeriod.PeriodUnit
+            switch period.unit {
+            case .day:
+                unit = .day
+            case .week:
+                unit = .week
+            case .month:
+                unit = .month
+            case .year:
+                unit = .year
+            @unknown default:
+                return nil
+            }
+
+            return SubscriptionPeriod(value: period.value, unit: unit)
+        }()
 
         return StoreProduct(
             id: product.id,
@@ -311,7 +367,10 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     /// Convert Transaction to TransactionInfo
     /// - Parameter transaction: StoreKit transaction
     /// - Returns: TransactionInfo model
-    private func convertToTransactionInfo(transaction: Transaction) -> TransactionInfo {
+    private func convertToTransactionInfo(
+        transaction: Transaction,
+        status: TransactionInfo.TransactionStatus = .verified
+    ) -> TransactionInfo {
         let type = StoreProductConfiguration.productType(for: transaction.productID) ?? .points
         let points = StoreProductConfiguration.pointsForProduct(transaction.productID)
 
@@ -326,7 +385,7 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
             quantity: quantity,
             type: type,
             points: points,
-            status: .verified
+            status: status
         )
     }
 
@@ -336,7 +395,9 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     private func convertToSubscriptionStatus(transaction: Transaction) -> SubscriptionStatus {
         let state: SubscriptionStatus.SubscriptionState
 
-        if let expirationDate = transaction.expirationDate {
+        if transaction.revocationDate != nil {
+            state = .revoked
+        } else if let expirationDate = transaction.expirationDate {
             if expirationDate > Date() {
                 state = .subscribed
             } else {
@@ -364,52 +425,29 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     /// - Parameter currentEntitlements: Current transaction entitlements
     /// - Returns: TransactionInfo model
     private func convertToTransactionInfoFromCurrent(_ currentEntitlements: Transaction) -> TransactionInfo {
-        let type = StoreProductConfiguration.productType(for: currentEntitlements.productID) ?? .points
-        let points = StoreProductConfiguration.pointsForProduct(currentEntitlements.productID)
-
-        // StoreKit 2 doesn't have quantity property, default to 1
-        let quantity = 1
-
-        return TransactionInfo(
-            id: currentEntitlements.id.description,
-            productID: currentEntitlements.productID,
-            purchaseDate: currentEntitlements.purchaseDate,
-            expirationDate: currentEntitlements.expirationDate,
-            quantity: quantity,
-            type: type,
-            points: points,
-            status: .verified
-        )
+        convertToTransactionInfo(transaction: currentEntitlements, status: .verified)
     }
 
     /// Convert current entitlements to SubscriptionStatus
     /// - Parameter currentEntitlements: Current transaction entitlements
     /// - Returns: SubscriptionStatus model
     private func convertToSubscriptionStatusFromCurrent(_ currentEntitlements: Transaction) -> SubscriptionStatus {
-        let state: SubscriptionStatus.SubscriptionState
+        convertToSubscriptionStatus(transaction: currentEntitlements)
+    }
 
-        if let expirationDate = currentEntitlements.expirationDate {
-            if expirationDate > Date() {
-                state = .subscribed
-            } else {
-                state = .expired
-            }
-        } else {
-            state = .subscribed
+    private func mapStoreKitError(_ error: Error) -> StoreKitError {
+        if let skError = error as? StoreKitError {
+            return skError
         }
 
-        let renewalInfo = RenewalInfo(
-            expirationDate: currentEntitlements.expirationDate,
-            willAutoRenew: currentEntitlements.revocationDate == nil,
-            autoRenewPreference: currentEntitlements.revocationDate == nil
-        )
+        let nsError = error as NSError
+        if nsError.domain == SKErrorDomain,
+           let code = SKError.Code(rawValue: nsError.code),
+           code == .paymentCancelled {
+            return .userCancelled
+        }
 
-        return SubscriptionStatus(
-            state: state,
-            renewalInfo: renewalInfo,
-            expirationDate: currentEntitlements.expirationDate,
-            willAutoRenew: currentEntitlements.revocationDate == nil
-        )
+        return .unknown(error)
     }
 }
 
@@ -443,9 +481,65 @@ extension StoreKitService {
     /// - Note: Uses streaming processing with timeout to handle large
     /// transaction histories without data loss.
     func getReceiptData() async -> String? {
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation returning nil
-        return nil
+        struct EncodedReceiptTransaction: Codable {
+            let transactionId: String
+            let productId: String
+            let purchaseDate: Date
+            let expirationDate: Date?
+            let revocationDate: Date?
+            let originalTransactionId: String
+        }
+
+        struct EncodedReceiptPayload: Codable {
+            let bundleIdentifier: String
+            let appVersion: String
+            let generatedAt: Date
+            let transactions: [EncodedReceiptTransaction]
+        }
+
+        var transactions: [EncodedReceiptTransaction] = []
+        var processed = 0
+
+        for await result in Transaction.currentEntitlements {
+            if processed >= ReceiptFetchConfig.maxTransactions {
+                break
+            }
+            processed += 1
+
+            guard case .verified(let transaction) = result else {
+                continue
+            }
+
+            transactions.append(
+                EncodedReceiptTransaction(
+                    transactionId: transaction.id.description,
+                    productId: transaction.productID,
+                    purchaseDate: transaction.purchaseDate,
+                    expirationDate: transaction.expirationDate,
+                    revocationDate: transaction.revocationDate,
+                    originalTransactionId: transaction.originalID.description
+                )
+            )
+        }
+
+        guard !transactions.isEmpty else {
+            return nil
+        }
+
+        let payload = EncodedReceiptPayload(
+            bundleIdentifier: Bundle.main.bundleIdentifier ?? "unknown",
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            generatedAt: Date(),
+            transactions: transactions
+        )
+
+        do {
+            let encoded = try JSONEncoder().encode(payload)
+            return encoded.base64EncodedString()
+        } catch {
+            SecureLogger.shared.error("Failed to encode StoreKit receipt payload: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     /// Get latest transaction ID for verification
@@ -458,9 +552,28 @@ extension StoreKitService {
     /// - Important: Transaction IDs are sensitive data and should never be
     /// logged in production builds.
     func getLatestTransactionId(for productId: String) async -> String? {
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation returning nil
-        return nil
+        var latestTransaction: Transaction?
+        var latestDate = Date.distantPast
+        var processed = 0
+
+        for await result in Transaction.all {
+            if processed >= ReceiptFetchConfig.maxTransactions {
+                break
+            }
+            processed += 1
+
+            guard case .verified(let transaction) = result,
+                  transaction.productID == productId else {
+                continue
+            }
+
+            if transaction.purchaseDate > latestDate {
+                latestDate = transaction.purchaseDate
+                latestTransaction = transaction
+            }
+        }
+
+        return latestTransaction?.id.description
     }
 
     /// Get transaction info for verification
@@ -471,8 +584,26 @@ extension StoreKitService {
     /// This method searches through all entitled transactions to find
     /// the matching transaction ID.
     func getTransactionInfo(transactionId: String) async -> TransactionInfo? {
-        // TODO: Fix StoreKit 2 API - Transaction.currentEntitlements returns AsyncSequence
-        // Stub implementation returning nil
+        var processed = 0
+
+        for await result in Transaction.all {
+            if processed >= ReceiptFetchConfig.maxTransactions {
+                break
+            }
+            processed += 1
+
+            switch result {
+            case .verified(let transaction):
+                if transaction.id.description == transactionId {
+                    return convertToTransactionInfo(transaction: transaction, status: .verified)
+                }
+            case .unverified(let transaction, _):
+                if transaction.id.description == transactionId {
+                    return convertToTransactionInfo(transaction: transaction, status: .unverified)
+                }
+            }
+        }
+
         return nil
     }
 

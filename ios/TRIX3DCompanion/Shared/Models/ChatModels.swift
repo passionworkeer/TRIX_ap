@@ -39,6 +39,26 @@ struct RecommendedUser: Identifiable, Equatable {
     var isOnline: Bool = false
 }
 
+extension RecommendedUser {
+    init(api model: APIFriendRecommendation) {
+        let normalizedName = model.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackName = normalizedName.isEmpty ? "User" : normalizedName
+
+        self.id = model.id
+        self.name = fallbackName
+        self.avatar = String(fallbackName.prefix(1)).uppercased()
+        self.mutualFriends = model.mutualFriends
+        self.avatarColor = RecommendedUser.colorSeeded(by: model.id)
+        self.isOnline = model.isOnline
+    }
+
+    private static func colorSeeded(by seed: String) -> Color {
+        let palette: [Color] = [.blue, .purple, .pink, .orange, .green, .teal, .indigo]
+        let index = abs(seed.hashValue) % palette.count
+        return palette[index]
+    }
+}
+
 // MARK: - Attachment Type
 
 /// Types of attachments that can be sent

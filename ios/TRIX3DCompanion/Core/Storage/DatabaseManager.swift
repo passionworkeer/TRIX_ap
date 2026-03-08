@@ -83,6 +83,8 @@ final class DatabaseManager {
     private let transactionDescription = Expression<String>("description")
     private let transactionBalanceAfter = Expression<Int>("balance_after")
     private let transactionCreatedAt = Expression<Date>("created_at")
+    private let transactionSynced = Expression<Bool>("synced")
+    private let transactionSyncedAt = Expression<Date?>("synced_at")
 
     // MARK: - Initialization
 
@@ -393,13 +395,52 @@ final class DatabaseManager {
                 t.column(transactionDescription)
                 t.column(transactionBalanceAfter)
                 t.column(transactionCreatedAt)
+                t.column(transactionSynced, defaultValue: false)
+                t.column(transactionSyncedAt)
 
                 t.unique(transactionId)
             })
 
             try db?.run(pointsHistoryTable.createIndex(transactionCreatedAt, ifNotExists: true))
+            try db?.run(pointsHistoryTable.createIndex(transactionSynced, ifNotExists: true))
+
+            // Migration for existing installations where sync columns may be missing.
+            ensureColumnExists(
+                tableName: "points_history",
+                columnName: "synced",
+                columnDefinition: "BOOLEAN DEFAULT 0"
+            )
+            ensureColumnExists(
+                tableName: "points_history",
+                columnName: "synced_at",
+                columnDefinition: "DATETIME"
+            )
         } catch {
             SecureLogger.shared.error("Failed to create points_history table: \(error)")
+        }
+    }
+
+    private func ensureColumnExists(
+        tableName: String,
+        columnName: String,
+        columnDefinition: String
+    ) {
+        guard let db = db else { return }
+
+        do {
+            var exists = false
+            for row in try db.prepare("PRAGMA table_info(\(tableName))") {
+                if let existingName = row[1] as? String, existingName == columnName {
+                    exists = true
+                    break
+                }
+            }
+
+            if !exists {
+                try db.run("ALTER TABLE \(tableName) ADD COLUMN \(columnName) \(columnDefinition)")
+            }
+        } catch {
+            SecureLogger.shared.error("Failed to ensure column \(columnName) on \(tableName): \(error)")
         }
     }
 
@@ -853,14 +894,36 @@ final class DatabaseManager {
     /// Get pending point transactions
     /// - Returns: Array of pending PointsTransaction
     func getPendingPointTransactions() throws -> [PointsTransaction] {
-        // Stub implementation - returns empty array
-        return []
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        let query = pointsHistoryTable
+            .filter(transactionSynced == false)
+            .order(transactionCreatedAt.asc)
+
+        var transactions: [PointsTransaction] = []
+        for row in try db.prepare(query) {
+            let transaction = PointsTransaction(
+                id: row[transactionId],
+                pointsChange: row[transactionPointsChange],
+                type: TransactionType(rawValue: row[transactionType]) ?? .adminAdjust,
+                description: row[transactionDescription],
+                balanceAfter: row[transactionBalanceAfter],
+                createdAt: row[transactionCreatedAt]
+            )
+            transactions.append(transaction)
+        }
+        return transactions
     }
 
     /// Mark a point transaction as synced
     /// - Parameter transactionId: Transaction ID
     func markPointTransactionSynced(_ transactionId: String) throws {
-        // Stub implementation - no-op
+        guard let db = db else { throw DatabaseError.notConnected }
+        let query = pointsHistoryTable.filter(self.transactionId == transactionId)
+        try db.run(query.update(
+            transactionSynced <- true,
+            transactionSyncedAt <- Date()
+        ))
     }
 
     /// Update user points
@@ -868,21 +931,58 @@ final class DatabaseManager {
     ///   - userId: User ID
     ///   - points: New points value
     func updateUserPoints(userId: String, points: Int) throws {
-        // Stub implementation - no-op
+        // User points are sourced from remote profile.
+        // We persist a local transaction snapshot for offline display.
+        let snapshot = PointsTransaction(
+            id: "points_snapshot_\(Int(Date().timeIntervalSince1970))",
+            pointsChange: 0,
+            type: .adminAdjust,
+            description: "sync.snapshot",
+            balanceAfter: points,
+            createdAt: Date()
+        )
+        try insertPointTransaction(snapshot)
+        try markPointTransactionSynced(snapshot.id)
     }
 
     /// Get a point transaction by ID
     /// - Parameter transactionId: Transaction ID
     /// - Returns: PointsTransaction if found
     func getPointTransaction(_ transactionId: String) throws -> PointsTransaction? {
-        // Stub implementation - returns nil
-        return nil
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        let query = pointsHistoryTable
+            .filter(self.transactionId == transactionId)
+            .limit(1)
+
+        guard let row = try db.pluck(query) else { return nil }
+        return PointsTransaction(
+            id: row[self.transactionId],
+            pointsChange: row[transactionPointsChange],
+            type: TransactionType(rawValue: row[transactionType]) ?? .adminAdjust,
+            description: row[transactionDescription],
+            balanceAfter: row[transactionBalanceAfter],
+            createdAt: row[transactionCreatedAt]
+        )
     }
 
     /// Insert a new point transaction
     /// - Parameter transaction: PointsTransaction to insert
     func insertPointTransaction(_ transaction: PointsTransaction) throws {
-        // Stub implementation - no-op
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        let insert = pointsHistoryTable.insert(or: .replace,
+            transactionId <- transaction.id,
+            transactionPointsChange <- transaction.pointsChange,
+            transactionType <- transaction.type.rawValue,
+            transactionDescription <- transaction.description,
+            transactionBalanceAfter <- transaction.balanceAfter,
+            transactionCreatedAt <- transaction.createdAt,
+            transactionSynced <- false,
+            transactionSyncedAt <- nil
+        )
+
+        try db.run(insert)
     }
 
     // MARK: - Database Info
@@ -910,34 +1010,98 @@ final class DatabaseManager {
     /// Get pending messages that haven't been synced
     /// - Returns: Array of pending ChatMessage
     func getPendingMessages() throws -> [ChatMessage] {
-        // Stub implementation - returns empty array
-        return []
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        let query = messagesTable
+            .filter(messageSyncedAt == nil)
+            .order(messageCreatedAt.asc)
+
+        var messages: [ChatMessage] = []
+        for row in try db.prepare(query) {
+            let rawContent = row[messageContent]
+            let decryptedContent = isEncrypted(rawContent) ? decryptField(rawContent) : rawContent
+
+            let message = ChatMessage(
+                id: row[messageId],
+                roomId: row[messageRoomId],
+                senderId: row[messageSenderId],
+                sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
+                content: decryptedContent,
+                messageType: MessageType(rawValue: row[messageType]) ?? .text,
+                mediaUrl: row[messageMediaUrl],
+                mediaMimeType: row[messageMediaMimeType],
+                mediaDuration: row[messageMediaDuration],
+                isRead: row[messageIsRead],
+                createdAt: row[messageCreatedAt]
+            )
+            messages.append(message)
+        }
+
+        return messages
     }
 
     /// Mark a message as synced
     /// - Parameter messageId: Message ID to mark
     func markMessageSynced(_ messageId: String) throws {
-        // Stub implementation - no-op
+        guard let db = db else { throw DatabaseError.notConnected }
+        let query = messagesTable.filter(self.messageId == messageId)
+        try db.run(query.update(messageSyncedAt <- Date()))
     }
 
     /// Get a single message by ID
     /// - Parameter messageId: Message ID
     /// - Returns: ChatMessage if found
     func getMessage(_ messageId: String) throws -> ChatMessage? {
-        // Stub implementation - returns nil
-        return nil
+        guard let db = db else { throw DatabaseError.notConnected }
+        let query = messagesTable.filter(self.messageId == messageId).limit(1)
+        guard let row = try db.pluck(query) else { return nil }
+
+        let rawContent = row[messageContent]
+        let decryptedContent = isEncrypted(rawContent) ? decryptField(rawContent) : rawContent
+
+        return ChatMessage(
+            id: row[self.messageId],
+            roomId: row[messageRoomId],
+            senderId: row[messageSenderId],
+            sender: MessageSender(rawValue: row[messageSenderType]) ?? .user,
+            content: decryptedContent,
+            messageType: MessageType(rawValue: row[messageType]) ?? .text,
+            mediaUrl: row[messageMediaUrl],
+            mediaMimeType: row[messageMediaMimeType],
+            mediaDuration: row[messageMediaDuration],
+            isRead: row[messageIsRead],
+            createdAt: row[messageCreatedAt]
+        )
     }
 
     /// Update a message
     /// - Parameter message: ChatMessage to update
     func updateMessage(_ message: ChatMessage) throws {
-        // Stub implementation - no-op
+        guard let db = db else { throw DatabaseError.notConnected }
+
+        let encryptedContent = encryptField(message.content)
+        let query = messagesTable.filter(self.messageId == message.id)
+
+        try db.run(query.update(
+            messageRoomId <- message.roomId,
+            messageSenderId <- message.senderId,
+            messageSenderType <- message.sender.rawValue,
+            messageContent <- encryptedContent,
+            messageType <- message.messageType.rawValue,
+            messageMediaUrl <- message.mediaUrl,
+            messageMediaMimeType <- message.mediaMimeType,
+            messageMediaDuration <- message.mediaDuration,
+            messageIsRead <- message.isRead,
+            messageCreatedAt <- message.createdAt
+        ))
     }
 
     /// Mark a message as having a conflict
     /// - Parameter messageId: Message ID
     func markMessageConflict(_ messageId: String) throws {
-        // Stub implementation - no-op
+        guard let db = db else { throw DatabaseError.notConnected }
+        let query = messagesTable.filter(self.messageId == messageId)
+        try db.run(query.update(messageSyncedAt <- nil))
     }
 
     // MARK: - Database Corruption Recovery Testing

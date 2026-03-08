@@ -102,11 +102,18 @@ enum APIEndpoint {
     case userAvatar
     case userStats
     case userSettings
+    case oauthAccounts
+    case oauthLink
+    case oauthUnlink
 
     // MARK: - Chat
     case chatRooms
     case chatRoomCreate
     case chatRoom(id: String)
+    case chatRoomDelete(id: String)
+    case chatRoomArchive(id: String)
+    case chatRoomMute(id: String)
+    case chatRoomUnmute(id: String)
     case chatRoomMessages(roomId: String)
     case chatRoomMessagesSend(roomId: String)
     case chatRoomMessagesRead(roomId: String)
@@ -144,6 +151,7 @@ enum APIEndpoint {
     case friendAdd
     case friendRemove(friendId: String)
     case friendRequests
+    case friendRecommendations
     case friendAccept(requestId: String)
     case friendDecline(requestId: String)
 
@@ -269,11 +277,18 @@ enum APIEndpoint {
         case .userAvatar: return "/user/avatar"
         case .userStats: return "/user/stats"
         case .userSettings: return "/user/settings"
+        case .oauthAccounts: return "/user/oauth/accounts"
+        case .oauthLink: return "/user/oauth/link"
+        case .oauthUnlink: return "/user/oauth/unlink"
 
         // Chat
         case .chatRooms: return "/chat/rooms"
         case .chatRoomCreate: return "/chat/rooms"
         case .chatRoom(let id): return "/chat/rooms/\(id)"
+        case .chatRoomDelete(let id): return "/chat/rooms/\(id)"
+        case .chatRoomArchive(let id): return "/chat/rooms/\(id)/archive"
+        case .chatRoomMute(let id): return "/chat/rooms/\(id)/mute"
+        case .chatRoomUnmute(let id): return "/chat/rooms/\(id)/unmute"
         case .chatRoomMessages(let roomId): return "/chat/rooms/\(roomId)/messages"
         case .chatRoomMessagesSend(let roomId): return "/chat/rooms/\(roomId)/messages"
         case .chatRoomMessagesRead(let roomId): return "/chat/rooms/\(roomId)/messages/read"
@@ -312,6 +327,7 @@ enum APIEndpoint {
         case .friendAdd: return "/friends"
         case .friendRemove(let friendId): return "/friends/\(friendId)"
         case .friendRequests: return "/friends/requests"
+        case .friendRecommendations: return "/friends/recommendations"
         case .friendAccept(let requestId): return "/friends/requests/\(requestId)/accept"
         case .friendDecline(let requestId): return "/friends/requests/\(requestId)/decline"
 
@@ -449,8 +465,10 @@ enum APIEndpoint {
              .userAvatar, .pairingRequest, .pairingConfirm,
              .studyRoomCreate, .studyRoomJoin, .studyRoomLeave,
              .upload, .uploadBase64, .chatRoomMessagesSend, .chatRoomCreate,
+             .chatRoomArchive, .chatRoomMute, .chatRoomUnmute,
              .deviceToken, .purchasePoints, .verifyReceipt, .restorePurchases,
              .pointsAdd, .pointsDeduct,
+             .oauthLink, .oauthUnlink,
              .achievementUnlock, .achievementCheck,
              .friendAdd, .friendAccept, .friendDecline,
              .mallPurchase,
@@ -471,7 +489,7 @@ enum APIEndpoint {
             return .put
 
         // Read operations - GET methods
-        case .userProfile, .authMe, .userStats, .userSettings,
+        case .userProfile, .authMe, .userStats, .userSettings, .oauthAccounts,
              .chatRooms, .chatRoom, .chatRoomMessages,
              .studySessions, .studyStats, .weeklyStudyData, .studyRoomState,
              .pairingStatus, .pairingDevices,
@@ -481,7 +499,7 @@ enum APIEndpoint {
              .notificationList, .notificationPreferences, .notificationSettings,
              .getOrders, .getOrder, .getSubscription,
              .achievementList,
-             .friendList, .friendRequests,
+             .friendList, .friendRequests, .friendRecommendations,
              .mallItems, .mallItem, .mallPurchaseHistory,
              .wardrobeOutfits,
              .scheduleList, .scheduleByDateRange, .scheduleUpcoming,
@@ -496,6 +514,7 @@ enum APIEndpoint {
 
         // Delete operations - DELETE methods
         case .deleteStudySession, .friendRemove,
+             .chatRoomDelete,
              .studyGoalDelete:
             return .delete
 
@@ -1342,6 +1361,23 @@ struct APIFriend: Codable, Identifiable {
         case bio
         case studyTime = "study_time"
         case isStudying = "is_studying"
+    }
+}
+
+/// Recommended friend model (API response)
+struct APIFriendRecommendation: Codable, Identifiable {
+    let id: String
+    let name: String
+    let avatarUrl: String?
+    let mutualFriends: Int
+    let isOnline: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case avatarUrl = "avatar_url"
+        case mutualFriends = "mutual_friends"
+        case isOnline = "is_online"
     }
 }
 

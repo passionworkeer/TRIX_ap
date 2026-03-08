@@ -293,7 +293,7 @@ final class APIClient: APIClientProtocol {
 
         // Execute request with security validation
         return try await withCheckedThrowingContinuation { continuation in
-            request.responseDecodable(of: T.self, decoder: self.decoder) { response in
+            request.responseData { response in
                 // Calculate request duration
                 let duration = Date().timeIntervalSince(requestStartTime)
 
@@ -314,14 +314,115 @@ final class APIClient: APIClientProtocol {
                 }
 
                 switch response.result {
-                case .success(let value):
-                    continuation.resume(returning: value)
+                case .success(let data):
+                    // HTTP status validation first
+                    if let httpResponse = response.response,
+                       !(200...299).contains(httpResponse.statusCode) {
+                        continuation.resume(throwing: self.mapHTTPStatusError(statusCode: httpResponse.statusCode, data: data))
+                        return
+                    }
+
+                    do {
+                        let value: T = try self.decodeResponse(data, as: T.self)
+                        continuation.resume(returning: value)
+                    } catch {
+                        continuation.resume(throwing: NetworkError.decodingError(underlying: error))
+                    }
 
                 case .failure(let error):
                     let networkError = self.mapError(error: error, response: response.response)
                     continuation.resume(throwing: networkError)
                 }
             }
+        }
+    }
+
+    private func decodeResponse<T: Codable>(_ data: Data, as type: T.Type) throws -> T {
+        // 1) Try direct decoding first
+        if let direct = try? decoder.decode(T.self, from: data) {
+            return direct
+        }
+
+        // 2) Try wrapped decoding: { success, data, ... }
+        if let wrapped = try? decoder.decode(APIResponse<T>.self, from: data) {
+            if let value = wrapped.data {
+                return value
+            }
+            if wrapped.success, let empty = makeEmptyResponse(as: type) {
+                return empty
+            }
+            throw NetworkError.custom(message: wrapped.error ?? wrapped.message ?? "Empty response payload")
+        }
+
+        // 3) Special case for EmptyResponse
+        if let empty = makeEmptyResponse(as: type),
+           let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+           (json["success"] as? Bool) == true {
+            return empty
+        }
+
+        // 4) Special case for UploadResponse variations
+        if type == UploadResponse.self,
+           let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            if let parsed = parseUploadResponse(from: json), let typed = parsed as? T {
+                return typed
+            }
+            if let wrappedData = json["data"] as? [String: Any],
+               let parsed = parseUploadResponse(from: wrappedData),
+               let typed = parsed as? T {
+                return typed
+            }
+        }
+
+        throw NetworkError.decodingError(underlying: NSError(
+            domain: "APIClient",
+            code: -1001,
+            userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]
+        ))
+    }
+
+    private func parseUploadResponse(from json: [String: Any]) -> UploadResponse? {
+        guard let url = json["url"] as? String else {
+            return nil
+        }
+        let key = (json["key"] as? String)
+            ?? (json["objectKey"] as? String)
+            ?? (json["object_key"] as? String)
+            ?? ""
+        return UploadResponse(url: url, key: key)
+    }
+
+    private func makeEmptyResponse<T: Codable>(as type: T.Type) -> T? {
+        guard type == EmptyResponse.self else {
+            return nil
+        }
+        return EmptyResponse() as? T
+    }
+
+    private func mapHTTPStatusError(statusCode: Int, data: Data?) -> NetworkError {
+        let serverMessage: String? = {
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            return (json["error"] as? String)
+                ?? (json["message"] as? String)
+                ?? ((json["data"] as? [String: Any])?["message"] as? String)
+        }()
+
+        switch statusCode {
+        case 400:
+            return .custom(message: serverMessage ?? "Bad request")
+        case 401:
+            return .unauthorized
+        case 403:
+            return .forbidden
+        case 404:
+            return .notFound
+        case 500...599:
+            return .serverError(statusCode: statusCode, message: serverMessage)
+        default:
+            return .custom(message: serverMessage ?? "HTTP \(statusCode)")
         }
     }
 
@@ -446,6 +547,9 @@ extension APIClient {
     // MARK: - Chat
 
     func getChatRooms() async throws -> [ChatRoom] {
+        if let rooms: [ChatRoom] = try? await get(.chatRooms) {
+            return rooms
+        }
         let response: PaginatedResponse<ChatRoom> = try await get(.chatRooms)
         return response.data
     }
@@ -456,8 +560,27 @@ extension APIClient {
 
     func getChatMessages(roomId: String, page: Int = 1, limit: Int = 50) async throws -> [ChatMessage] {
         let params: Parameters = ["page": page, "limit": limit]
+        if let messages: [ChatMessage] = try? await get(.chatRoomMessages(roomId: roomId), parameters: params) {
+            return messages
+        }
         let response: PaginatedResponse<ChatMessage> = try await get(.chatRoomMessages(roomId: roomId), parameters: params)
         return response.data
+    }
+
+    func deleteChatRoom(roomId: String) async throws {
+        let _: EmptyResponse = try await delete(.chatRoomDelete(id: roomId))
+    }
+
+    func archiveChatRoom(roomId: String) async throws {
+        let _: EmptyResponse = try await post(.chatRoomArchive(id: roomId), body: EmptyRequest())
+    }
+
+    func muteChatRoom(roomId: String) async throws {
+        let _: EmptyResponse = try await post(.chatRoomMute(id: roomId), body: EmptyRequest())
+    }
+
+    func unmuteChatRoom(roomId: String) async throws {
+        let _: EmptyResponse = try await post(.chatRoomUnmute(id: roomId), body: EmptyRequest())
     }
 
     func sendMessage(
@@ -489,6 +612,9 @@ extension APIClient {
 
     func getStudySessions(page: Int = 1, limit: Int = 20) async throws -> [StudySession] {
         let params: Parameters = ["page": page, "limit": limit]
+        if let sessions: [StudySession] = try? await get(.studySessions, parameters: params) {
+            return sessions
+        }
         let response: PaginatedResponse<StudySession> = try await get(.studySessions, parameters: params)
         return response.data
     }
@@ -538,6 +664,9 @@ extension APIClient {
     }
 
     func getPairedDevices() async throws -> [PairedDevice] {
+        if let devices: [PairedDevice] = try? await get(.pairingDevices) {
+            return devices
+        }
         let response: PaginatedResponse<PairedDevice> = try await get(.pairingDevices)
         return response.data
     }
@@ -554,6 +683,9 @@ extension APIClient {
 
     func getPointsHistory(page: Int = 1, limit: Int = 20) async throws -> [PointsTransaction] {
         let params: Parameters = ["page": page, "limit": limit]
+        if let transactions: [PointsTransaction] = try? await get(.pointsHistory, parameters: params) {
+            return transactions
+        }
         let response: PaginatedResponse<PointsTransaction> = try await get(.pointsHistory, parameters: params)
         return response.data
     }
@@ -561,6 +693,9 @@ extension APIClient {
     // MARK: - Locations
 
     func getLocations() async throws -> [Location] {
+        if let locations: [Location] = try? await get(.locations) {
+            return locations
+        }
         let response: PaginatedResponse<Location> = try await get(.locations)
         return response.data
     }
@@ -632,8 +767,23 @@ extension APIClient {
     // MARK: - Notifications
 
     func getNotifications() async throws -> [APIAppNotification] {
-        let response: PaginatedResponse<APIAppNotification> = try await get(.notificationList)
-        return response.data
+        struct NotificationListResponse: Codable {
+            let notifications: [APIAppNotification]
+            let unreadCount: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case notifications
+                case unreadCount = "unread_count"
+            }
+        }
+
+        if let response: NotificationListResponse = try? await get(.notificationList) {
+            return response.notifications
+        }
+        if let response: PaginatedResponse<APIAppNotification> = try? await get(.notificationList) {
+            return response.data
+        }
+        return try await get(.notificationList)
     }
 
     func markNotificationAsRead(notificationId: String) async throws {
@@ -713,9 +863,14 @@ extension APIClient {
         return try await get(.friendList)
     }
 
-    func addFriend(friendId: String) async throws -> APIFriend {
+    func getFriendRecommendations(limit: Int = 8) async throws -> [APIFriendRecommendation] {
+        let params: Parameters = ["limit": limit]
+        return try await get(.friendRecommendations, parameters: params)
+    }
+
+    func addFriend(friendId: String) async throws {
         let request = FriendAddRequest(friendId: friendId)
-        return try await post(.friendAdd, body: request)
+        let _: EmptyResponse = try await post(.friendAdd, body: request)
     }
 
     func removeFriend(friendId: String) async throws {
@@ -726,9 +881,9 @@ extension APIClient {
         return try await get(.friendRequests)
     }
 
-    func acceptFriendRequest(requestId: String) async throws -> APIFriend {
+    func acceptFriendRequest(requestId: String) async throws {
         let request = FriendRequestActionRequest(requestId: requestId)
-        return try await post(.friendAccept(requestId: requestId), body: request)
+        let _: EmptyResponse = try await post(.friendAccept(requestId: requestId), body: request)
     }
 
     func declineFriendRequest(requestId: String) async throws {
@@ -901,13 +1056,78 @@ extension APIClient {
     }
 
     func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
-        // Upload functionality would be implemented here
-        throw NetworkError.custom(message: "Upload not implemented")
+        let url = baseURL + endpoint.path
+        let requestStartTime = Date()
+        let logEntryId = networkLogger.logRequest(
+            method: "POST",
+            url: url,
+            headers: ["Content-Type": "multipart/form-data"],
+            body: nil
+        )
+
+        return try await withCheckedThrowingContinuation { continuation in
+            session.upload(
+                multipartFormData: { multipartFormData in
+                    multipartFormData.append(
+                        data,
+                        withName: "file",
+                        fileName: fileName,
+                        mimeType: "application/octet-stream"
+                    )
+                },
+                to: url,
+                method: .post
+            )
+            .responseData { response in
+                let duration = Date().timeIntervalSince(requestStartTime)
+                let statusCode = response.response?.statusCode ?? 0
+
+                self.networkLogger.logResponse(
+                    entryId: logEntryId,
+                    statusCode: statusCode,
+                    body: response.data,
+                    duration: duration,
+                    error: response.error
+                )
+
+                switch response.result {
+                case .success(let responseData):
+                    if let httpResponse = response.response,
+                       !(200...299).contains(httpResponse.statusCode) {
+                        continuation.resume(throwing: self.mapHTTPStatusError(statusCode: httpResponse.statusCode, data: responseData))
+                        return
+                    }
+                    do {
+                        let decoded: T = try self.decodeResponse(responseData, as: T.self)
+                        continuation.resume(returning: decoded)
+                    } catch {
+                        continuation.resume(throwing: NetworkError.decodingError(underlying: error))
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: self.mapError(error: error, response: response.response))
+                }
+            }
+        }
     }
 
     func download(from url: String) async throws -> Data {
-        // Download functionality would be implemented here
-        throw NetworkError.custom(message: "Download not implemented")
+        guard let downloadURL = URL(string: url) else {
+            throw NetworkError.custom(message: "Invalid download URL")
+        }
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(from: downloadURL)
+        } catch {
+            throw NetworkError.noConnection
+        }
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200...299).contains(httpResponse.statusCode) {
+            throw mapHTTPStatusError(statusCode: httpResponse.statusCode, data: data)
+        }
+
+        return data
     }
 }
 

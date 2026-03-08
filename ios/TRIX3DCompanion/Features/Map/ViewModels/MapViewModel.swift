@@ -85,6 +85,12 @@ final class MapViewModel: ObservableObject {
     /// Friend locations on map
     @Published var friendLocations: [FriendMapLocation] = []
 
+    /// Currently selected friend
+    @Published var selectedFriend: FriendMapLocation?
+
+    /// Whether to show friend detail sheet
+    @Published var showFriendDetail: Bool = false
+
     // MARK: - Dependencies
 
     private let locationService: LocationServiceProtocol
@@ -388,6 +394,9 @@ final class MapViewModel: ObservableObject {
     /// Select a friend on the map
     /// - Parameter friend: Friend to select
     func selectFriend(_ friend: FriendMapLocation) {
+        selectedFriend = friend
+        showFriendDetail = true
+
         // Center map on friend's location
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             region = MKCoordinateRegion(
@@ -395,8 +404,6 @@ final class MapViewModel: ObservableObject {
                 span: defaultSpan
             )
         }
-
-        // TODO: Show friend detail popup/sheet
         SecureLogger.shared.debug("Selected friend: \(friend.name)")
     }
 
@@ -419,6 +426,12 @@ final class MapViewModel: ObservableObject {
     func clearSelectedLocation() {
         selectedLocation = nil
         showLocationDetail = false
+    }
+
+    /// Clear selected friend
+    func clearSelectedFriend() {
+        selectedFriend = nil
+        showFriendDetail = false
     }
 
     /// Clear search query

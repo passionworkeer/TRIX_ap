@@ -47,6 +47,7 @@ struct ChatListView: View {
     @State private var recommendedUsers: [RecommendedUser] = []
     @State private var showQuickAdd = true
     @State private var showPairingAlert = false
+    @State private var friendActionError: String?
 
     // MARK: - Body
 
@@ -103,6 +104,20 @@ struct ChatListView: View {
                 TrixBotChatView()
                     .environmentObject(clawbotChannel)
             }
+        }
+        .alert("操作失败", isPresented: Binding(
+            get: { friendActionError != nil },
+            set: { newValue in
+                if !newValue {
+                    friendActionError = nil
+                }
+            }
+        )) {
+            Button("确定", role: .cancel) {
+                friendActionError = nil
+            }
+        } message: {
+            Text(friendActionError ?? "未知错误")
         }
     }
 
@@ -240,7 +255,11 @@ struct ChatListView: View {
                     ForEach(recommendedUsers) { user in
                         QuickAddUserCard(
                             user: user,
-                            onAdd: { addUser(user) }
+                            onAdd: {
+                                Task {
+                                    await addUser(user)
+                                }
+                            }
                         )
                     }
                 }
@@ -323,10 +342,17 @@ struct ChatListView: View {
                 )
             }
 
-            // 加载推荐用户（需要单独实现或使用空数组）
-            recommendedUsers = []
+            do {
+                let recommendations = try await APIClient.shared.getFriendRecommendations(limit: 8)
+                recommendedUsers = recommendations.map(RecommendedUser.init(api:))
+                showQuickAdd = !recommendedUsers.isEmpty
+            } catch {
+                recommendedUsers = []
+                SecureLogger.shared.warning("Failed to load recommendations: \(error.localizedDescription)")
+            }
         } catch {
             SecureLogger.shared.error("Failed to load friends: \(error.localizedDescription)")
+            friendActionError = error.localizedDescription
         }
     }
 
@@ -353,10 +379,15 @@ struct ChatListView: View {
         showingTrixBotChat = true
     }
 
-    private func addUser(_ user: RecommendedUser) {
-        withAnimation { recommendedUsers.removeAll { $0.id == user.id } }
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+    private func addUser(_ user: RecommendedUser) async {
+        do {
+            try await friendService.addFriend(friendId: user.id)
+            withAnimation { recommendedUsers.removeAll { $0.id == user.id } }
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        } catch {
+            friendActionError = error.localizedDescription
+        }
     }
 
     private func createNewChat() {

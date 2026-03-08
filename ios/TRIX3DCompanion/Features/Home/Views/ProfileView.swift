@@ -707,7 +707,8 @@ struct EditProfileView: View {
     }
 
     private func saveProfile() {
-        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDisplayName.isEmpty else {
             errorMessage = "Display name cannot be empty"
             showError = true
             return
@@ -717,25 +718,27 @@ struct EditProfileView: View {
 
         Task {
             do {
-                // Call API to update profile
-                // let _: ProfileUpdateResponse = try await apiClient.request(
-                //     .PUT,
-                //     endpoint: "/users/profile",
-                //     body: ProfileUpdateRequest(
-                //         displayName: displayName,
-                //         bio: bio,
-                //         school: school,
-                //         grade: grade
-                //     )
-                // )
+                let update = ProfileUpdate(
+                    username: appState.currentUser?.username,
+                    fullName: trimmedDisplayName,
+                    displayName: trimmedDisplayName,
+                    bio: bio.nilIfBlank,
+                    school: school.nilIfBlank,
+                    grade: grade.nilIfBlank,
+                    avatarUrl: appState.currentUser?.avatarUrl
+                )
 
-                // Update local state - reload profile to reflect changes
-                isSaving = false
-                dismiss()
+                let updatedUser = try await APIClient.shared.updateUserProfile(update)
+
+                await MainActor.run {
+                    AuthService.shared.updateCurrentUser(updatedUser)
+                    isSaving = false
+                    dismiss()
+                }
             } catch {
                 await MainActor.run {
                     isSaving = false
-                    errorMessage = "Failed to save profile. Please try again."
+                    errorMessage = error.localizedDescription
                     showError = true
                 }
             }
@@ -897,15 +900,64 @@ struct WardrobeCenterView: View {
 /// Additional settings view
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
+    @State private var isSyncing = false
+    @State private var syncMessage: String?
 
     var body: some View {
         NavigationView {
-            VStack {
-                Text("Additional Settings")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Text("Coming soon...")
-                    .foregroundColor(.secondary)
+            Form {
+                Section("Appearance") {
+                    Toggle(
+                        "Dark Mode",
+                        isOn: Binding(
+                            get: { appState.isDarkMode },
+                            set: { appState.setDarkMode($0) }
+                        )
+                    )
+                }
+
+                Section("Notifications") {
+                    Toggle(
+                        "Push Notifications",
+                        isOn: Binding(
+                            get: { appState.isPushNotificationEnabled },
+                            set: { appState.setPushNotificationsEnabled($0) }
+                        )
+                    )
+                }
+
+                Section("Language") {
+                    Picker("App Language", selection: Binding(
+                        get: { appState.appLanguage },
+                        set: { appState.setAppLanguage($0) }
+                    )) {
+                        ForEach(AppDisplayLanguage.allCases) { language in
+                            Text(language.displayName).tag(language)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Section("Data Sync") {
+                    Button {
+                        Task { await runSyncNow() }
+                    } label: {
+                        HStack {
+                            if isSyncing {
+                                ProgressView()
+                            }
+                            Text(isSyncing ? "Syncing..." : "Sync Now")
+                        }
+                    }
+                    .disabled(isSyncing)
+
+                    if let syncMessage {
+                        Text(syncMessage)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -916,6 +968,19 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func runSyncNow() async {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+
+        do {
+            let result = try await DataSyncService.shared.syncAll(priority: .high)
+            syncMessage = "Synced \(result.syncedItems) item(s)."
+        } catch {
+            syncMessage = "Sync failed: \(error.localizedDescription)"
         }
     }
 }
@@ -970,6 +1035,13 @@ struct AboutView: View {
                 }
             }
         }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

@@ -8,22 +8,15 @@
 //
 
 import Foundation
-//import SocketIO
 import Combine
 import AVFoundation
+import SocketIO
 
-// MARK: - SocketIO Stub Types (for compilation - replace with real implementation)
+// MARK: - SocketIO Adapter
 
-public typealias SocketIOClientConfiguration = [String: Any]
+private typealias SocketIOClientEvent = SocketClientEvent
 
-public enum SocketIOClientEvent: String {
-    case connect
-    case disconnect
-    case reconnect
-    case error
-}
-
-public protocol SocketIOClientProtocol: AnyObject {
+private protocol SocketIOClientProtocol: AnyObject {
     func connect()
     func disconnect()
     func emit(_ event: String, _ data: Any...)
@@ -33,28 +26,63 @@ public protocol SocketIOClientProtocol: AnyObject {
     func off(_ event: String)
 }
 
-public class SocketManager {
-    public let socketURL: URL
-    public let config: SocketIOClientConfiguration
-    public var defaultSocket: SocketIOClientProtocol?
+private final class SocketIOClientAdapter: SocketIOClientProtocol {
+    private let socket: SocketIOClient
 
-    public init(socketURL: URL, config: SocketIOClientConfiguration) {
-        self.socketURL = socketURL
-        self.config = config
-        self.defaultSocket = StubSocketIOClient()
+    init(socket: SocketIOClient) {
+        self.socket = socket
     }
-}
 
-/// Stub implementation for SocketIO
-public class StubSocketIOClient: SocketIOClientProtocol {
-    public init() {}
-    public func connect() {}
-    public func disconnect() {}
-    public func emit(_ event: String, _ data: Any...) {}
-    public func emitWithAck(_ event: String, _ data: Any..., completion: @escaping (Any) -> Void) { completion(NSNull()) }
-    public func on(_ event: String, callback: @escaping ([Any]) -> Void) {}
-    public func on(clientEvent event: SocketIOClientEvent, callback: @escaping ([Any], [String: Any]) -> Void) {}
-    public func off(_ event: String) {}
+    func connect() {
+        socket.connect()
+    }
+
+    func disconnect() {
+        socket.disconnect()
+    }
+
+    func emit(_ event: String, _ data: Any...) {
+        socket.emit(event, with: data.map(Self.normalizeSocketData), completion: nil)
+    }
+
+    func emitWithAck(_ event: String, _ data: Any..., completion: @escaping (Any) -> Void) {
+        socket.emitWithAck(event, with: data.map(Self.normalizeSocketData))
+            .timingOut(after: 15) { ackData in
+                completion(ackData.first ?? NSNull())
+            }
+    }
+
+    func on(_ event: String, callback: @escaping ([Any]) -> Void) {
+        socket.on(event) { data, _ in
+            callback(data)
+        }
+    }
+
+    func on(clientEvent event: SocketIOClientEvent, callback: @escaping ([Any], [String: Any]) -> Void) {
+        socket.on(clientEvent: event) { data, _ in
+            callback(data, [:])
+        }
+    }
+
+    func off(_ event: String) {
+        socket.off(event)
+    }
+
+    private static func normalizeSocketData(_ value: Any) -> SocketData {
+        let mirrored = Mirror(reflecting: value)
+        if mirrored.displayStyle == .optional {
+            if let child = mirrored.children.first {
+                return normalizeSocketData(child.value)
+            }
+            return NSNull()
+        }
+
+        if let socketData = value as? SocketData {
+            return socketData
+        }
+
+        return String(describing: value)
+    }
 }
 
 // MARK: - Types
@@ -279,15 +307,17 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // Create Socket.IO manager
-        let config: SocketIOClientConfiguration = [
-            "log": false,
-            "compress": true,
-            "forceWebsockets": true,
-            "reconnects": false
+        let config: SocketIO.SocketIOClientConfiguration = [
+            .log(false),
+            .compress,
+            .forceWebsockets(true),
+            .reconnects(false)
         ]
 
         manager = SocketManager(socketURL: URL(string: channelUrl)!, config: config)
-        socket = manager?.defaultSocket
+        if let rawSocket = manager?.defaultSocket {
+            socket = SocketIOClientAdapter(socket: rawSocket)
+        }
 
         setupEventHandlers()
 
