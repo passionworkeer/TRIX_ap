@@ -314,7 +314,13 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             .reconnects(false)
         ]
 
-        manager = SocketManager(socketURL: URL(string: channelUrl)!, config: config)
+        guard let channelURL = URL(string: channelUrl) else {
+            await MainActor.run {
+                connectionState = .error("Invalid channel URL")
+            }
+            return
+        }
+        manager = SocketManager(socketURL: channelURL, config: config)
         if let rawSocket = manager?.defaultSocket {
             socket = SocketIOClientAdapter(socket: rawSocket)
         }
