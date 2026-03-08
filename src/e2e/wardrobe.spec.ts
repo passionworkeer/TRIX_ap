@@ -115,8 +115,6 @@ test.describe('Wardrobe E2E Tests', () => {
     await expect(equippedText).toBeVisible({ timeout: 5000 });
 
     // Check that numbers are displayed (large text for counts)
-    const countElements = page.locator('[class*="text-2xl"]');
-    const countVisible = await countElements.first().isVisible().catch(() => false);
 
     // At minimum, the labels should be visible
     expect(await ownedText.isVisible()).toBe(true);
@@ -246,8 +244,6 @@ test.describe('Wardrobe E2E Tests', () => {
 
     // Check that there's a number displayed for owned count (look for "件" or a number)
     // Try different approaches to find the count
-    const hasCountNumber = await page.locator('text=/\\d+件/').isVisible().catch(() => false);
-    const hasLargeText = await page.locator('[class*="text-2xl"]').first().isVisible().catch(() => false);
 
     // At minimum, the owned label should be visible
     expect(await ownedText.isVisible()).toBe(true);
@@ -357,8 +353,6 @@ test.describe('Wardrobe E2E Tests', () => {
     await expect(equippedText).toBeVisible({ timeout: 10000 });
 
     // Check that there's a number next to it - try different approaches
-    const hasNumberText = await page.locator('text=/\\d+/').first().isVisible().catch(() => false);
-    const hasLargeText = await page.locator('[class*="text-2xl"]').nth(1).isVisible().catch(() => false);
 
     // At minimum, the equipped label should be visible
     expect(await equippedText.isVisible()).toBe(true);
@@ -429,7 +423,7 @@ test.describe('Wardrobe E2E Tests', () => {
     const previewSection = page.locator('text=当前装备');
 
     // It may or may not appear depending on whether items are equipped
-    const isPreviewVisible = await previewSection.isVisible();
+    await previewSection.isVisible();
 
     // This is acceptable - the preview only shows when items are equipped
   });
@@ -480,7 +474,7 @@ test.describe('Wardrobe E2E Tests', () => {
 
       // Check for loading state (button text changes to "处理中")
       const loadingButton = page.locator('button:has-text("处理中")');
-      const isLoadingVisible = await loadingButton.isVisible();
+      await loadingButton.isVisible();
 
       // Loading state may or may not be visible depending on API response speed
     }

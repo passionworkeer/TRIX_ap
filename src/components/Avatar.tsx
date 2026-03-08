@@ -44,7 +44,7 @@ const getSizeClass = (size: AvatarProps['size']): string => {
 };
 
 const getGradient = (name: string): string => {
-  const gradients = [
+  const gradients: string[] = [
     'from-cyan-500 to-blue-600',
     'from-purple-500 to-pink-600',
     'from-orange-500 to-red-600',
@@ -57,19 +57,20 @@ const getGradient = (name: string): string => {
 
   // 根据名字生成一致的渐变
   const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % gradients.length;
-  return gradients[index];
+  return gradients[index] || gradients[0] || 'from-cyan-500 to-blue-600';
 };
 
 const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = '', priority = false }) => {
   const sizeClass = getSizeClass(size);
   const sizeValue = getSizeValue(size);
+  const avatarSrc = avatar?.trim() || '';
 
   // 如果有头像 URL 且不为空，尝试渲染图片
-  if (avatar && avatar.trim()) {
+  if (avatarSrc) {
     return (
       <div className={`${sizeClass} rounded-full overflow-hidden relative ${className}`}>
         <LazyImage
-          src={avatar}
+          src={avatarSrc}
           alt={name}
           width={sizeValue}
           height={sizeValue}

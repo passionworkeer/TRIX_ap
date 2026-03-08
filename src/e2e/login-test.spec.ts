@@ -4,7 +4,7 @@
  * Run this with: npx playwright test --project=chromium --grep "login"
  */
 
-import { test, expect } from './test-config';
+import { test } from './test-config';
 
 test('E2E Login Test', async ({ page }) => {
   // Navigate to login page

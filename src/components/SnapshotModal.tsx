@@ -19,6 +19,7 @@ const recentThumbnails = [
 const SnapshotModal: React.FC<SnapshotModalProps> = ({
   isOpen,
   onImageSelect,
+  onClose,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);

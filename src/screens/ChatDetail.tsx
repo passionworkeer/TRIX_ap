@@ -2,8 +2,7 @@
 import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Send, Mic, MicOff, MoreVertical, X,
-  Presentation, Table, FileText, MessageSquare, Image as ImageIcon, Video, Plus
+  ArrowLeft, Send, Mic, MicOff, MoreVertical, X
 } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { IMAGES } from '../constants';
@@ -693,7 +692,7 @@ const ChatDetail: React.FC = () => {
         type: result.type,
         size: result.size,
         category,
-        metadata: result.metadata
+        metadata: (result.metadata ?? {}) as Record<string, unknown>
       }]);
 
     } catch (error) {
@@ -1140,7 +1139,7 @@ const ChatDetail: React.FC = () => {
               )}
 
               <button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={
                   (!input.trim() && attachmentPreviews.length === 0) ||
                   (isBotConversation && !isPaired) ||

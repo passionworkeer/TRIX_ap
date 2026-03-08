@@ -109,6 +109,9 @@ export interface SocketResponse {
   deviceId?: string;
   deviceName?: string;
   message?: string;
+  data?: unknown;
+  pairingId?: string;
+  status?: string;
 }
 
 /**
@@ -268,7 +271,7 @@ class ClawbotChannelBridge {
     const { channelUrl } = getClawbotEndpoints();
     const serverUrl = channelUrl;
 
-    this.emit('connecting');
+    this.emit('connect');
 
     this.socket = io(serverUrl, {
       transports: ['websocket'],
@@ -318,7 +321,7 @@ class ClawbotChannelBridge {
     this.socket.on('disconnect', () => {
       this.connected = false;
       this.stopHeartbeat();
-      this.emit('disconnected');
+      this.emit('disconnect');
     });
 
     // 閰嶅鎴愬姛
@@ -327,7 +330,7 @@ class ClawbotChannelBridge {
       this.deviceId = data.deviceId;
       localStorage.setItem('clawbot_device_id', data.deviceId);
       localStorage.setItem('clawbot_paired', 'true');
-      this.emit('paired', data);
+      this.emit('pairing_success', data);
     });
 
     // 鏀跺埌 Bot 娑堟伅
@@ -349,7 +352,7 @@ class ClawbotChannelBridge {
         timestamp: msg.timestamp || Date.now(),
         sender: 'bot'
       };
-      this.emit('message', message);
+      this.emit('bot_message', message);
     });
 
     // Bot 绂荤嚎閫氱煡
@@ -479,7 +482,7 @@ class ClawbotChannelBridge {
       // Wait briefly to ensure app_register is flushed before probing protocol capability.
       await this.wait(150);
       await this.probePairingStatusAck(3000);
-      this.emit('connected');
+      this.emit('connect');
 
       // 鉁?淇 2: 閫氱煡 UI 灞傚幓 Supabase 鎷夊彇鏂綉鏈熼棿鍙兘閬楁紡鐨勬秷鎭?
       // 瑙ｅ喅绉诲姩绔垏鍚庡彴/閿佸睆鏈熼棿鐨勬秷鎭粦娲為棶棰?
@@ -564,7 +567,13 @@ class ClawbotChannelBridge {
           return;
         }
 
-        const data = response.data || response;
+        const data = (response.data || response) as {
+          paired?: boolean;
+          deviceId?: string;
+          deviceName?: string;
+          botOnline?: boolean;
+          pairedAt?: string;
+        };
         const paired = Boolean((data as { paired?: boolean })?.paired);
 
         if (paired) {
@@ -907,7 +916,7 @@ class ClawbotChannelBridge {
       this.socket = null;
     }
     this.connected = false;
-    this.emit('disconnected');
+    this.emit('disconnect');
   }
 
   /**

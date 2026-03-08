@@ -37,7 +37,7 @@ interface VirtualizedListProps<T> {
 function VirtualizedList<T>({
   data,
   renderItem,
-  keyExtractor,
+  keyExtractor: _keyExtractor,
   className = '',
   style,
   height = '100%',
@@ -49,24 +49,15 @@ function VirtualizedList<T>({
   loadMore,
   hasMore = false,
   isLoading = false,
-  loadingComponent,
-  endMessage,
+  loadingComponent: _loadingComponent,
+  endMessage: _endMessage,
 }: VirtualizedListProps<T>) {
   const listRef = React.useRef<VirtuosoHandle>(null);
-  const [atBottom, setAtBottom] = React.useState(true);
-
-  // 滚动到底部
-  const scrollToBottom = useCallback(() => {
-    listRef.current?.scrollToIndex({
-      index: data.length - 1,
-      align: 'end',
-      behavior: 'smooth',
-    });
-  }, [data.length]);
+  const [_atBottom, _setAtBottom] = React.useState(true);
 
   // 监听底部状态变化
   const handleAtBottomStateChange = useCallback((isAtBottom: boolean) => {
-    setAtBottom(isAtBottom);
+    _setAtBottom(isAtBottom);
     atBottomStateChange?.(isAtBottom);
 
     // 自动加载更多
@@ -103,7 +94,7 @@ function VirtualizedList<T>({
       initialTopMostItemIndex={initialTopMostItemIndex}
       followOutput={followOutput}
       atBottomStateChange={handleAtBottomStateChange}
-      components={components}
+      components={components as any}
       itemContent={(index, item) => renderItem(item, index)}
     />
   );
@@ -125,7 +116,7 @@ interface VirtualizedMessageListProps<T> {
 export const VirtualizedMessageList = memo(function VirtualizedMessageList<T>({
   messages,
   renderMessage,
-  keyExtractor,
+  keyExtractor: _keyExtractor,
   className = '',
   style,
   height = '100%',
@@ -164,17 +155,19 @@ export const VirtualizedMessageList = memo(function VirtualizedMessageList<T>({
           {renderMessage(message, index)}
         </div>
       )}
-      components={{
-        Footer: () => {
-          if (isLoading && loadingComponent) {
-            return <>{loadingComponent}</>;
-          }
-          if (endMessage) {
-            return <>{endMessage}</>;
-          }
-          return null;
-        },
-      }}
+      components={
+        {
+          Footer: () => {
+            if (isLoading && loadingComponent) {
+              return <>{loadingComponent}</>;
+            }
+            if (endMessage) {
+              return <>{endMessage}</>;
+            }
+            return null;
+          },
+        } as any
+      }
     />
   );
 });

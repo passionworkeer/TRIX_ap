@@ -26,7 +26,7 @@ export interface Message {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
-  messageType?: 'text' | 'image' | 'video' | 'mixed';
+  messageType?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
   mediaUri?: string;
   mediaType?: string;
   mediaMetadata?: {

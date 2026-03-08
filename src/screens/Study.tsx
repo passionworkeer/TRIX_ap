@@ -60,10 +60,10 @@ export default function Study() {
   // 计时器逻辑
   const {
     timeLeft,
-    isActive,
+    isActive: _isActive,
     isCompleted,
-    initialDuration: timerInitialDuration,
-    startTimer,
+    initialDuration: _timerInitialDuration,
+    startTimer: _startTimer,
     formatTime
   } = useStudyTimer({
     initialDuration: selectedDuration,
@@ -84,7 +84,7 @@ export default function Study() {
 
   // 专注会话管理（处理数据库更新和积分奖励）
   const {
-    focusStartTime,
+    focusStartTime: _focusStartTime,
     initialDuration: sessionInitialDuration,
     startStudy,
     stopStudy,

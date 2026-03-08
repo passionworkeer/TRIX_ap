@@ -112,13 +112,19 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   // Touch event handlers for slide-to-cancel
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isRecording) return;
-    setTouchStartY(e.touches[0].clientY);
+    const touch = e.touches[0];
+    if (touch) {
+      setTouchStartY(touch.clientY);
+    }
   }, [isRecording]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isRecording || touchStartY === null) return;
 
-    const currentY = e.touches[0].clientY;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const currentY = touch.clientY;
     const deltaY = touchStartY - currentY; // Positive = sliding up
 
     if (deltaY > cancelThreshold) {

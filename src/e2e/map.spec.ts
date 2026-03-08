@@ -513,9 +513,6 @@ test.describe('Map Page E2E Tests', () => {
       // Get map position
       const mapBox = await mapContainer.boundingBox();
       if (mapBox) {
-        const centerX = mapBox.x + mapBox.width / 2;
-        const centerY = mapBox.y + mapBox.height / 2;
-
         // Simulate pinch zoom (scroll wheel on desktop acts as zoom)
         await page.mouse.wheel(0, -100);
         await page.waitForTimeout(500);
