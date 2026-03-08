@@ -263,7 +263,10 @@ final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
         let start = Date()
 
         // Simple HTTP HEAD request to measure latency
-        var request = URLRequest(url: URL(string: "https://\(host)")!)
+        guard let url = URL(string: "https://\(host)") else {
+            throw NetworkError.invalidURL
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         request.timeoutInterval = 5
 
@@ -447,4 +450,8 @@ extension NetworkMonitor {
     }
 
     struct TimeoutError: Error {}
+
+    enum NetworkError: Error {
+        case invalidURL
+    }
 }
