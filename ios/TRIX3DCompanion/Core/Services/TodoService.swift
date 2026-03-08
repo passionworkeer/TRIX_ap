@@ -80,10 +80,11 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
         lastError = nil
 
         do {
-            let response: [Todo] = try await apiClient.get(.todoList)
-            self.todos = response
+            let response: [APITodo] = try await apiClient.get(.todoList)
+            let mapped = response.map(convertToLocal)
+            self.todos = mapped
             isLoading = false
-            return response
+            return mapped
         } catch {
             let serviceError = TodoServiceError.fetchFailed(underlying: error)
             lastError = serviceError
@@ -193,12 +194,19 @@ final class TodoService: ObservableObject, TodoServiceProtocol {
 
     /// Convert API todo to local todo
     private func convertToLocal(_ apiTodo: APITodo) -> Todo {
+        let mappedPriority: Todo.Priority
+        switch apiTodo.priority {
+        case 0: mappedPriority = .low
+        case 2: mappedPriority = .high
+        default: mappedPriority = .medium
+        }
+
         return Todo(
             id: UUID(uuidString: apiTodo.id) ?? UUID(),
             title: apiTodo.title,
             description: apiTodo.description,
             completed: apiTodo.isCompleted,
-            priority: Todo.Priority(rawValue: ["low", "medium", "high"][apiTodo.priority]) ?? .medium,
+            priority: mappedPriority,
             dueDate: apiTodo.dueDate,
             createdAt: apiTodo.createdAt,
             updatedAt: apiTodo.updatedAt,

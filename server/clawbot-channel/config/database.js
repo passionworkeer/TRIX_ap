@@ -168,6 +168,183 @@ function initDatabase() {
       )
     `);
 
+    // Optional profile fields not present in some Supabase schemas.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS user_profile_extras (
+        user_id TEXT PRIMARY KEY,
+        school TEXT,
+        grade TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local unlocked achievements fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS user_achievements_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        achievement_id TEXT NOT NULL,
+        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, achievement_id)
+      )
+    `);
+
+    // Local purchase history fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS purchase_history_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        points_spent INTEGER NOT NULL DEFAULT 0,
+        purchased_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local study goals fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS study_goals_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        target_minutes INTEGER NOT NULL DEFAULT 0,
+        current_minutes INTEGER NOT NULL DEFAULT 0,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local pairing devices fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS pairing_devices_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        device_id TEXT NOT NULL,
+        device_name TEXT,
+        device_type TEXT DEFAULT 'mobile',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        paired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local places and favorites fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS places_local (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        address TEXT,
+        image_url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS place_favorites_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        place_id TEXT NOT NULL,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, place_id)
+      )
+    `);
+
+    // Local user locations fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS user_locations_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        accuracy REAL,
+        altitude REAL,
+        speed REAL,
+        heading REAL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME,
+        is_visible INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+
+    // Local notification device tokens fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS device_tokens_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        platform TEXT,
+        app_version TEXT,
+        device_model TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local Clawbot conversation fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS clawbot_conversations_local (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS clawbot_messages_local (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Local study room fallback.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS study_rooms_local (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        host_id TEXT NOT NULL,
+        max_participants INTEGER NOT NULL DEFAULT 5,
+        subject TEXT,
+        status TEXT NOT NULL DEFAULT 'waiting',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS study_room_participants_local (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'participant',
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(room_id, user_id)
+      )
+    `);
+
+    // Seed local places once.
+    db.run(
+      `INSERT OR IGNORE INTO places_local (id, name, description, category, latitude, longitude, address, image_url)
+       VALUES
+        ('place_sh_library', 'Shanghai Central Library', 'Quiet multi-floor study library', 'library', 31.2307, 121.4705, 'No.1555 Huaihai Middle Road, Shanghai', NULL),
+        ('place_xh_cafe', 'Xuhui Study Cafe', 'Cafe with power outlets and stable Wi-Fi', 'cafe', 31.2209, 121.4373, 'Xuhui District, Shanghai', NULL),
+        ('place_pudong_hub', 'Pudong Learning Hub', 'Shared study space near metro', 'study_room', 31.2397, 121.4998, 'Pudong New Area, Shanghai', NULL),
+        ('place_people_park', 'People''s Park Reading Zone', 'Outdoor reading and review spot', 'park', 31.2315, 121.4680, 'People''s Park, Shanghai', NULL)`
+    );
+
     // Create indexes
     db.run('CREATE INDEX IF NOT EXISTS idx_pairing_code ON pairings(pairing_code)');
     db.run('CREATE INDEX IF NOT EXISTS idx_user_id ON pairings(user_id)');
@@ -183,6 +360,19 @@ function initDatabase() {
     db.run('CREATE INDEX IF NOT EXISTS idx_chat_rooms_local_updated_at ON chat_rooms_local(updated_at)');
     db.run('CREATE INDEX IF NOT EXISTS idx_chat_room_participants_local_user ON chat_room_participants_local(user_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_chat_messages_local_room_created ON chat_messages_local(room_id, created_at)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_user_profile_extras_user ON user_profile_extras(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_user_achievements_local_user ON user_achievements_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_purchase_history_local_user ON purchase_history_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_study_goals_local_user ON study_goals_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_pairing_devices_local_user ON pairing_devices_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_place_favorites_local_user ON place_favorites_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_user_locations_local_user ON user_locations_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_device_tokens_local_user ON device_tokens_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_clawbot_conversations_local_user ON clawbot_conversations_local(user_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_clawbot_messages_local_conv ON clawbot_messages_local(conversation_id, created_at)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_study_rooms_local_host ON study_rooms_local(host_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_study_room_participants_local_room ON study_room_participants_local(room_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_study_room_participants_local_user ON study_room_participants_local(user_id)');
   });
 }
 

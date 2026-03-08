@@ -35,6 +35,46 @@ function serverError(res, err) {
   error(res, '服务器错误', 500);
 }
 
+function isSchemaMismatchError(err) {
+  if (!err || typeof err !== 'object') return false;
+  return ['PGRST204', 'PGRST205', '42703'].includes(err.code);
+}
+
+function toStudySessionResponse(row) {
+  const duration = Number(row.duration_minutes ?? row.duration ?? 0);
+  const startedAt = row.started_at || row.start_time || row.created_at || new Date().toISOString();
+  const completedAt = row.completed_at || row.ended_at || row.end_time || null;
+  const earnedPoints = row.earned_points ?? row.points_earned ?? null;
+  const isCompleted = typeof row.is_completed === 'boolean'
+    ? row.is_completed
+    : Boolean(completedAt || row.status === 'completed');
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    duration_minutes: duration,
+    started_at: startedAt,
+    completed_at: completedAt,
+    earned_points: earnedPoints == null ? null : Number(earnedPoints),
+    is_completed: isCompleted,
+    subject: row.subject || null,
+    notes: row.notes || null,
+    created_at: row.created_at || new Date().toISOString()
+  };
+}
+
+function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const r = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return r * c;
+}
+
 async function upsertRoomPreference(userId, roomId, isMuted, isArchived) {
   await dbRun(
     `INSERT INTO chat_room_user_preferences (
@@ -427,12 +467,12 @@ router.get('/study/sessions', authMiddleware, async (req, res) => {
       .from('study_sessions')
       .select('*')
       .eq('user_id', req.userId)
-      .order('start_time', { ascending: false })
+      .order('started_at', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (error) throw error;
 
-    success(res, sessions || []);
+    success(res, (sessions || []).map(toStudySessionResponse));
   } catch (err) {
     serverError(res, err);
   }
@@ -441,24 +481,37 @@ router.get('/study/sessions', authMiddleware, async (req, res) => {
 // 创建学习记录
 router.post('/study/sessions', authMiddleware, async (req, res) => {
   try {
-    const { start_time, subject, topic, notes } = req.body;
+    const {
+      duration_minutes,
+      duration,
+      started_at,
+      start_time,
+      completed_at,
+      end_time,
+      is_completed,
+      status,
+      subject,
+      notes
+    } = req.body || {};
+
+    const endedAt = completed_at || end_time || ((is_completed || status === 'completed') ? new Date().toISOString() : null);
 
     const { data: session, error } = await supabase
       .from('study_sessions')
       .insert({
         user_id: req.userId,
-        start_time: start_time || new Date().toISOString(),
+        started_at: started_at || start_time || new Date().toISOString(),
+        ended_at: endedAt,
+        duration: Number(duration_minutes ?? duration ?? 0),
         subject,
-        topic,
-        notes,
-        status: 'active'
+        notes
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    success(res, session, '创建成功');
+    success(res, toStudySessionResponse(session), '创建成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -468,18 +521,41 @@ router.post('/study/sessions', authMiddleware, async (req, res) => {
 router.put('/study/sessions/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { end_time, duration, status, points_earned, notes } = req.body;
+    const {
+      completed_at,
+      end_time,
+      ended_at,
+      duration,
+      duration_minutes,
+      status,
+      points_earned,
+      earned_points,
+      notes,
+      is_completed
+    } = req.body || {};
+
+    const markCompleted = status === 'completed' || is_completed === true;
+
+    const updates = {};
+    if (completed_at !== undefined || end_time !== undefined || ended_at !== undefined) {
+      updates.ended_at = completed_at || end_time || ended_at || null;
+    } else if (markCompleted) {
+      updates.ended_at = new Date().toISOString();
+    }
+    if (duration !== undefined || duration_minutes !== undefined) {
+      updates.duration = Number(duration_minutes ?? duration ?? 0);
+    }
+    if (notes !== undefined) {
+      updates.notes = notes;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      updates.ended_at = new Date().toISOString();
+    }
 
     const { data: session, error } = await supabase
       .from('study_sessions')
-      .update({
-        end_time,
-        duration,
-        status,
-        points_earned,
-        notes,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', id)
       .eq('user_id', req.userId)
       .select()
@@ -489,11 +565,12 @@ router.put('/study/sessions/:id', authMiddleware, async (req, res) => {
     if (!session) return notFound(res, '学习记录不存在');
 
     // 如果完成学习，增加积分
-    if (status === 'completed' && points_earned > 0) {
-      await addPoints(req.userId, points_earned, 'earn', '学习完成');
+    const pointsEarned = Number(points_earned ?? earned_points ?? 0);
+    if (markCompleted && pointsEarned > 0) {
+      await addPoints(req.userId, pointsEarned, 'earn', '学习完成');
     }
 
-    success(res, session, '更新成功');
+    success(res, toStudySessionResponse(session), '更新成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -526,9 +603,9 @@ router.get('/study/stats', authMiddleware, async (req, res) => {
 
     const { data: todayStats } = await supabase
       .from('study_sessions')
-      .select('duration, points_earned')
+      .select('duration, points_earned, started_at')
       .eq('user_id', req.userId)
-      .gte('start_time', today);
+      .gte('started_at', today);
 
     const todayTime = todayStats?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0;
     const todayPoints = todayStats?.reduce((sum, s) => sum + (s.points_earned || 0), 0) || 0;
@@ -540,10 +617,9 @@ router.get('/study/stats', authMiddleware, async (req, res) => {
 
     const { data: weekStats } = await supabase
       .from('study_sessions')
-      .select('duration, points_earned')
+      .select('duration, points_earned, started_at')
       .eq('user_id', req.userId)
-      .gte('start_time', weekStartStr)
-      .eq('status', 'completed');
+      .gte('started_at', weekStartStr);
 
     const weekTime = weekStats?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0;
     const weekPoints = weekStats?.reduce((sum, s) => sum + (s.points_earned || 0), 0) || 0;
@@ -556,10 +632,9 @@ router.get('/study/stats', authMiddleware, async (req, res) => {
 
     const { data: monthStats } = await supabase
       .from('study_sessions')
-      .select('duration, points_earned')
+      .select('duration, points_earned, started_at')
       .eq('user_id', req.userId)
-      .gte('start_time', monthStartStr)
-      .eq('status', 'completed');
+      .gte('started_at', monthStartStr);
 
     const monthTime = monthStats?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0;
     const monthPoints = monthStats?.reduce((sum, s) => sum + (s.points_earned || 0), 0) || 0;
@@ -567,14 +642,20 @@ router.get('/study/stats', authMiddleware, async (req, res) => {
     // 获取总统计
     const { data: totalStats } = await supabase
       .from('study_sessions')
-      .select('duration, points_earned')
-      .eq('user_id', req.userId)
-      .eq('status', 'completed');
+      .select('duration, points_earned, started_at')
+      .eq('user_id', req.userId);
 
     const totalTime = totalStats?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0;
     const totalPoints = totalStats?.reduce((sum, s) => sum + (s.points_earned || 0), 0) || 0;
+    const sessionCount = totalStats?.length || 0;
 
     success(res, {
+      total_duration: totalTime,
+      session_count: sessionCount,
+      average_duration: sessionCount > 0 ? Math.round(totalTime / sessionCount) : 0,
+      streak_days: 0,
+      today_duration: todayTime,
+      week_duration: weekTime,
       today: { study_time: todayTime, points: todayPoints },
       week: { study_time: weekTime, points: weekPoints, sessions: weekSessions },
       month: { study_time: monthTime, points: monthPoints },
@@ -599,11 +680,10 @@ router.get('/study/stats/weekly', authMiddleware, async (req, res) => {
 
       const { data: sessions } = await supabase
         .from('study_sessions')
-        .select('duration')
+        .select('duration, started_at')
         .eq('user_id', req.userId)
-        .gte('start_time', weekStart.toISOString())
-        .lt('start_time', weekEnd.toISOString())
-        .eq('status', 'completed');
+        .gte('started_at', weekStart.toISOString())
+        .lt('started_at', weekEnd.toISOString());
 
       const totalTime = sessions?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0;
 
@@ -614,7 +694,7 @@ router.get('/study/stats/weekly', authMiddleware, async (req, res) => {
           const dayStart = new Date(weekStart);
           dayStart.setDate(dayStart.getDate() + j);
           const dayStr = dayStart.toISOString().split('T')[0];
-          const daySession = sessions?.find(s => s.start_time?.startsWith(dayStr));
+          const daySession = sessions?.find((s) => s.started_at?.startsWith(dayStr));
           return daySession ? daySession.duration : 0;
         })
       });
@@ -633,27 +713,60 @@ router.get('/study/stats/weekly', authMiddleware, async (req, res) => {
 // 创建配对请求
 router.post('/pairing/request', authMiddleware, async (req, res) => {
   try {
-    const { device_name, device_type = 'bot' } = req.body;
+    const body = req.body || {};
+    const inputCode = typeof body.code === 'string' ? body.code.trim().toUpperCase() : null;
+    const inputToken = typeof body.token === 'string' ? body.token.trim() : null;
+    const deviceName = body.device_name || 'TRIX Bot';
+    const deviceType = body.device_type || 'mobile';
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // 生成配对码
-    const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+    let pairing = null;
+    if (inputCode || inputToken) {
+      pairing = await dbGet(
+        `SELECT id, pairing_code, pairing_token, device_id, device_name, status
+         FROM pairings
+         WHERE (${inputCode ? 'pairing_code = ?' : '1 = 0'} OR ${inputToken ? 'pairing_token = ?' : '1 = 0'})
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [inputCode, inputToken].filter(Boolean)
+      );
+    }
 
-    const { data: pairing, error } = await supabase
-      .from('pairing_requests')
-      .insert({
-        user_id: req.userId,
-        device_name,
-        device_type,
-        token,
-        status: 'pending',
-        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分钟过期
-      })
-      .select()
-      .single();
+    if (pairing) {
+      await dbRun(
+        `UPDATE pairings
+         SET user_id = ?, device_name = COALESCE(?, device_name), expires_at = ?
+         WHERE id = ?`,
+        [req.userId, deviceName, expiresAt, pairing.id]
+      );
+    } else {
+      const id = uuidv4();
+      const pairingCode = inputCode || Math.random().toString(36).substring(2, 8).toUpperCase();
+      const pairingToken = inputToken || `${pairingCode}_${uuidv4().replace(/-/g, '')}`;
+      await dbRun(
+        `INSERT INTO pairings (
+          id, pairing_code, pairing_token, user_id, device_name, status, created_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`,
+        [id, pairingCode, pairingToken, req.userId, deviceName, now, expiresAt]
+      );
+      pairing = {
+        id,
+        pairing_code: pairingCode,
+        pairing_token: pairingToken,
+        device_id: body.device_id || null,
+        device_name: deviceName,
+        status: 'pending'
+      };
+    }
 
-    if (error) throw error;
-
-    success(res, { id: pairing.id, token: pairing.token, expires_at: pairing.expires_at }, '配对请求已创建');
+    success(res, {
+      request_id: pairing.id,
+      code: pairing.pairing_code,
+      token: pairing.pairing_token,
+      expires_in: 300,
+      qr_url: null
+    }, '配对请求已创建');
   } catch (err) {
     serverError(res, err);
   }
@@ -662,32 +775,76 @@ router.post('/pairing/request', authMiddleware, async (req, res) => {
 // 确认配对
 router.post('/pairing/confirm', authMiddleware, async (req, res) => {
   try {
-    const { pairing_id, device_id } = req.body;
+    const body = req.body || {};
+    const pairingId = body.pairing_id || body.request_id || null;
+    const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : null;
+    const confirmed = body.confirmed !== false;
+    const now = new Date().toISOString();
 
-    // 更新配对请求状态
-    const { error: updateError } = await supabase
-      .from('pairing_requests')
-      .update({ status: 'accepted', updated_at: new Date().toISOString() })
-      .eq('id', pairing_id)
-      .eq('user_id', req.userId);
+    let pairing = null;
+    if (pairingId) {
+      pairing = await dbGet(
+        `SELECT id, pairing_code, pairing_token, device_id, device_name
+         FROM pairings
+         WHERE id = ? AND user_id = ?`,
+        [pairingId, req.userId]
+      );
+    } else if (code) {
+      pairing = await dbGet(
+        `SELECT id, pairing_code, pairing_token, device_id, device_name
+         FROM pairings
+         WHERE pairing_code = ? AND user_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [code, req.userId]
+      );
+    }
 
-    if (updateError) throw updateError;
+    if (!pairing) return notFound(res, '配对请求不存在');
 
-    // 创建设备记录
-    const { data: device, error: deviceError } = await supabase
-      .from('paired_devices')
-      .insert({
-        user_id: req.userId,
-        device_id,
-        device_type: 'bot',
-        paired_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    if (!confirmed) {
+      await dbRun(
+        `UPDATE pairings
+         SET status = 'cancelled'
+         WHERE id = ?`,
+        [pairing.id]
+      );
+      return success(res, {
+        request_id: pairing.id,
+        code: pairing.pairing_code,
+        token: pairing.pairing_token,
+        expires_in: 0,
+        qr_url: null
+      }, '已取消配对');
+    }
 
-    if (deviceError) throw deviceError;
+    const deviceId = body.device_id || pairing.device_id || `device_${pairing.id.slice(0, 8)}`;
+    const deviceName = body.device_name || pairing.device_name || 'TRIX Bot';
+    const deviceType = body.device_type || 'mobile';
 
-    success(res, device, '配对成功');
+    await dbRun(
+      `UPDATE pairings
+       SET status = 'paired', device_id = ?, device_name = ?, paired_at = ?
+       WHERE id = ?`,
+      [deviceId, deviceName, now, pairing.id]
+    );
+
+    const localDeviceId = uuidv4();
+    await dbRun(
+      `INSERT INTO pairing_devices_local (
+        id, user_id, device_id, device_name, device_type, is_active, paired_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO NOTHING`,
+      [localDeviceId, req.userId, deviceId, deviceName, deviceType, now, now]
+    );
+
+    success(res, {
+      request_id: pairing.id,
+      code: pairing.pairing_code,
+      token: pairing.pairing_token,
+      expires_in: 300,
+      qr_url: null
+    }, '配对成功');
   } catch (err) {
     serverError(res, err);
   }
@@ -696,16 +853,22 @@ router.post('/pairing/confirm', authMiddleware, async (req, res) => {
 // 获取配对设备列表
 router.get('/pairing/devices', authMiddleware, async (req, res) => {
   try {
-    const { data: devices, error } = await supabase
-      .from('paired_devices')
-      .select('*')
-      .eq('user_id', req.userId)
-      .eq('is_active', true)
-      .order('paired_at', { ascending: false });
+    const devices = await dbAll(
+      `SELECT id, device_id, device_name, device_type, paired_at
+       FROM pairing_devices_local
+       WHERE user_id = ? AND is_active = 1
+       ORDER BY paired_at DESC`,
+      [req.userId]
+    );
 
-    if (error) throw error;
-
-    success(res, devices || []);
+    success(res, (devices || []).map((device) => ({
+      id: device.id,
+      device_id: device.device_id,
+      device_name: device.device_name || 'TRIX Bot',
+      device_type: device.device_type || 'mobile',
+      paired_at: formatSQLiteDate(device.paired_at),
+      is_online: false
+    })));
   } catch (err) {
     serverError(res, err);
   }
@@ -716,13 +879,12 @@ router.delete('/pairing/devices/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from('paired_devices')
-      .update({ is_active: false })
-      .eq('id', id)
-      .eq('user_id', req.userId);
-
-    if (error) throw error;
+    await dbRun(
+      `UPDATE pairing_devices_local
+       SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND user_id = ?`,
+      [id, req.userId]
+    );
 
     success(res, null, '解除配对成功');
   } catch (err) {
@@ -745,13 +907,12 @@ router.get('/places/nearby', optionalAuthMiddleware, async (req, res) => {
       return error(res, '需要提供经纬度');
     }
 
-    // 简单计算 - PostgreSQL 中应该使用 PostGIS
-    // 这里使用简单的矩形过滤
     const latValue = parseFloat(finalLatitude);
     const lngValue = parseFloat(finalLongitude);
-    const rad = parseFloat(radius) / 111000; // 转换为度数
+    const radiusMeters = parseFloat(radius);
+    const rad = radiusMeters / 111000;
 
-    const { data: places, error } = await supabase
+    let { data: places, error } = await supabase
       .from('places')
       .select('*')
       .gte('latitude', latValue - rad)
@@ -760,16 +921,27 @@ router.get('/places/nearby', optionalAuthMiddleware, async (req, res) => {
       .lte('longitude', lngValue + rad)
       .limit(20);
 
+    if (error && isSchemaMismatchError(error)) {
+      places = await dbAll(
+        `SELECT id, name, description, category, latitude, longitude, address, image_url, created_at
+         FROM places_local
+         WHERE latitude BETWEEN ? AND ?
+           AND longitude BETWEEN ? AND ?
+         LIMIT 50`,
+        [latValue - rad, latValue + rad, lngValue - rad, lngValue + rad]
+      );
+      error = null;
+    }
     if (error) throw error;
 
-    // 计算实际距离
-    const result = (places || []).map(place => ({
-      ...place,
-      distance: Math.sqrt(
-        Math.pow((place.latitude - latValue) * 111000, 2) +
-        Math.pow((place.longitude - lngValue) * 111000 * Math.cos(latValue * Math.PI / 180), 2)
-      )
-    })).sort((a, b) => a.distance - b.distance);
+    const result = (places || [])
+      .map((place) => ({
+        ...place,
+        distance: haversineDistanceMeters(latValue, lngValue, Number(place.latitude), Number(place.longitude))
+      }))
+      .filter((place) => place.distance <= radiusMeters)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 20);
 
     success(res, result);
   } catch (err) {
@@ -795,7 +967,20 @@ router.get('/places/search', optionalAuthMiddleware, async (req, res) => {
       query = query.eq('category', category);
     }
 
-    const { data: places, error } = await query;
+    let { data: places, error } = await query;
+    if (error && isSchemaMismatchError(error)) {
+      const keyword = q ? `%${String(q).trim().toLowerCase()}%` : null;
+      const localRows = await dbAll(
+        `SELECT id, name, description, category, latitude, longitude, address, image_url, created_at
+         FROM places_local
+         WHERE (? IS NULL OR LOWER(name) LIKE ? OR LOWER(COALESCE(description, '')) LIKE ?)
+           AND (? IS NULL OR category = ?)
+         LIMIT 20`,
+        [keyword, keyword, keyword, category || null, category || null]
+      );
+      places = localRows || [];
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -808,7 +993,7 @@ router.get('/places/search', optionalAuthMiddleware, async (req, res) => {
 // 获取地点收藏
 router.get('/places/favorites', authMiddleware, async (req, res) => {
   try {
-    const { data: favorites, error } = await supabase
+    let { data: favorites, error } = await supabase
       .from('place_favorites')
       .select(`
         id,
@@ -818,6 +1003,35 @@ router.get('/places/favorites', authMiddleware, async (req, res) => {
       `)
       .eq('user_id', req.userId)
       .order('created_at', { ascending: false });
+
+    if (error && isSchemaMismatchError(error)) {
+      const rows = await dbAll(
+        `SELECT f.id, f.notes, f.created_at,
+                p.id AS place_id, p.name, p.description, p.category, p.latitude, p.longitude, p.address, p.image_url
+         FROM place_favorites_local f
+         LEFT JOIN places_local p ON p.id = f.place_id
+         WHERE f.user_id = ?
+         ORDER BY f.created_at DESC`,
+        [req.userId]
+      );
+
+      favorites = (rows || []).map((row) => ({
+        id: row.id,
+        notes: row.notes,
+        created_at: formatSQLiteDate(row.created_at),
+        place: row.place_id ? {
+          id: row.place_id,
+          name: row.name,
+          description: row.description,
+          category: row.category,
+          latitude: row.latitude,
+          longitude: row.longitude,
+          address: row.address,
+          image_url: row.image_url
+        } : null
+      }));
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -832,7 +1046,7 @@ router.post('/places/favorites', authMiddleware, async (req, res) => {
   try {
     const { place_id, notes } = req.body;
 
-    const { data: favorite, error } = await supabase
+    let { data: favorite, error } = await supabase
       .from('place_favorites')
       .insert({
         user_id: req.userId,
@@ -841,6 +1055,22 @@ router.post('/places/favorites', authMiddleware, async (req, res) => {
       })
       .select()
       .single();
+
+    if (error && isSchemaMismatchError(error)) {
+      const id = uuidv4();
+      await dbRun(
+        `INSERT OR REPLACE INTO place_favorites_local (id, user_id, place_id, notes, created_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [id, req.userId, place_id, notes || null]
+      );
+      favorite = await dbGet(
+        `SELECT id, user_id, place_id, notes, created_at
+         FROM place_favorites_local
+         WHERE user_id = ? AND place_id = ?`,
+        [req.userId, place_id]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -855,11 +1085,19 @@ router.delete('/places/favorites/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('place_favorites')
       .delete()
       .eq('id', id)
       .eq('user_id', req.userId);
+
+    if (error && isSchemaMismatchError(error)) {
+      await dbRun(
+        `DELETE FROM place_favorites_local WHERE id = ? AND user_id = ?`,
+        [id, req.userId]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -878,13 +1116,25 @@ router.get('/locations', authMiddleware, async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const { data: locations, error } = await supabase
+    let { data: locations, error } = await supabase
       .from('user_locations')
       .select('*')
       .eq('user_id', req.userId)
       .eq('is_visible', true)
       .order('timestamp', { ascending: false })
       .limit(parseInt(limit));
+
+    if (error && isSchemaMismatchError(error)) {
+      locations = await dbAll(
+        `SELECT id, user_id, latitude, longitude, accuracy, altitude, speed, heading, timestamp, expires_at, is_visible
+         FROM user_locations_local
+         WHERE user_id = ? AND is_visible = 1
+         ORDER BY timestamp DESC
+         LIMIT ?`,
+        [req.userId, parseInt(limit)]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -899,7 +1149,7 @@ router.post('/locations/share', authMiddleware, async (req, res) => {
   try {
     const { latitude, longitude, accuracy, altitude, speed, heading, expires_in = 3600 } = req.body;
 
-    const { data: location, error } = await supabase
+    let { data: location, error } = await supabase
       .from('user_locations')
       .insert({
         user_id: req.userId,
@@ -914,6 +1164,23 @@ router.post('/locations/share', authMiddleware, async (req, res) => {
       })
       .select()
       .single();
+
+    if (error && isSchemaMismatchError(error)) {
+      const id = uuidv4();
+      await dbRun(
+        `INSERT INTO user_locations_local (
+          id, user_id, latitude, longitude, accuracy, altitude, speed, heading, timestamp, expires_at, is_visible
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1)`,
+        [id, req.userId, latitude, longitude, accuracy || null, altitude || null, speed || null, heading || null, new Date(Date.now() + expires_in * 1000).toISOString()]
+      );
+      location = await dbGet(
+        `SELECT id, user_id, latitude, longitude, accuracy, altitude, speed, heading, timestamp, expires_at, is_visible
+         FROM user_locations_local
+         WHERE id = ?`,
+        [id]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -1215,7 +1482,7 @@ async function handleMarkNotificationRead(req, res) {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('notifications')
       .update({
         is_read: true,
@@ -1223,6 +1490,16 @@ async function handleMarkNotificationRead(req, res) {
       })
       .eq('id', id)
       .eq('user_id', req.userId);
+
+    if (error && isSchemaMismatchError(error) && /read_at/.test(error.message || '')) {
+      ({ error } = await supabase
+        .from('notifications')
+        .update({
+          is_read: true
+        })
+        .eq('id', id)
+        .eq('user_id', req.userId));
+    }
 
     if (error) throw error;
 
@@ -1238,7 +1515,7 @@ router.post('/notifications/:id/read', authMiddleware, handleMarkNotificationRea
 // 标记所有通知为已读
 router.post('/notifications/read-all', authMiddleware, async (req, res) => {
   try {
-    const { error } = await supabase
+    let { error } = await supabase
       .from('notifications')
       .update({
         is_read: true,
@@ -1246,6 +1523,14 @@ router.post('/notifications/read-all', authMiddleware, async (req, res) => {
       })
       .eq('user_id', req.userId)
       .eq('is_read', false);
+
+    if (error && isSchemaMismatchError(error) && /read_at/.test(error.message || '')) {
+      ({ error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', req.userId)
+        .eq('is_read', false));
+    }
 
     if (error) throw error;
 
@@ -1261,13 +1546,19 @@ router.post('/notifications/device-token', authMiddleware, async (req, res) => {
     const { token, platform, app_version, device_model } = req.body;
 
     // 先删除旧令牌
-    await supabase
+    let { error: deleteError } = await supabase
       .from('device_tokens')
       .delete()
       .eq('token', token);
 
+    if (deleteError && isSchemaMismatchError(deleteError)) {
+      await dbRun(`DELETE FROM device_tokens_local WHERE token = ?`, [token]);
+      deleteError = null;
+    }
+    if (deleteError) throw deleteError;
+
     // 插入新令牌
-    const { error } = await supabase
+    let { error } = await supabase
       .from('device_tokens')
       .insert({
         user_id: req.userId,
@@ -1276,6 +1567,22 @@ router.post('/notifications/device-token', authMiddleware, async (req, res) => {
         app_version,
         device_model
       });
+
+    if (error && isSchemaMismatchError(error)) {
+      await dbRun(
+        `INSERT INTO device_tokens_local (
+          id, user_id, token, platform, app_version, device_model, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(token) DO UPDATE SET
+          user_id = excluded.user_id,
+          platform = excluded.platform,
+          app_version = excluded.app_version,
+          device_model = excluded.device_model,
+          updated_at = CURRENT_TIMESTAMP`,
+        [uuidv4(), req.userId, token, platform || null, app_version || null, device_model || null]
+      );
+      error = null;
+    }
 
     if (error) throw error;
 
@@ -1384,24 +1691,42 @@ router.post('/places/:placeId/favorite', authMiddleware, async (req, res) => {
     const { placeId } = req.params;
 
     // 检查是否已经收藏
-    const { data: existing } = await supabase
+    let { data: existing, error: existingError } = await supabase
       .from('place_favorites')
       .select('*')
       .eq('user_id', req.userId)
       .eq('place_id', placeId)
       .single();
 
+    if (existingError && isSchemaMismatchError(existingError)) {
+      existing = await dbGet(
+        `SELECT id, user_id, place_id FROM place_favorites_local
+         WHERE user_id = ? AND place_id = ?`,
+        [req.userId, placeId]
+      );
+      existingError = null;
+    }
+    if (existingError && existingError.code !== 'PGRST116') throw existingError;
+
     if (existing) {
       // 取消收藏
-      await supabase
+      const { error: deleteError } = await supabase
         .from('place_favorites')
         .delete()
         .eq('id', existing.id);
+      if (deleteError && isSchemaMismatchError(deleteError)) {
+        await dbRun(
+          `DELETE FROM place_favorites_local WHERE id = ?`,
+          [existing.id]
+        );
+      } else if (deleteError) {
+        throw deleteError;
+      }
 
       success(res, { is_favorited: false }, '取消收藏成功');
     } else {
       // 添加收藏
-      const { data: favorite, error } = await supabase
+      let { data: favorite, error } = await supabase
         .from('place_favorites')
         .insert({
           user_id: req.userId,
@@ -1409,6 +1734,20 @@ router.post('/places/:placeId/favorite', authMiddleware, async (req, res) => {
         })
         .select()
         .single();
+
+      if (error && isSchemaMismatchError(error)) {
+        const localId = uuidv4();
+        await dbRun(
+          `INSERT INTO place_favorites_local (id, user_id, place_id, created_at)
+           VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+          [localId, req.userId, placeId]
+        );
+        favorite = await dbGet(
+          `SELECT id, user_id, place_id, created_at FROM place_favorites_local WHERE id = ?`,
+          [localId]
+        );
+        error = null;
+      }
 
       if (error) throw error;
 
@@ -1427,17 +1766,24 @@ router.get('/pairing/status/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: pairing, error } = await supabase
-      .from('pairing_requests')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', req.userId)
-      .single();
+    const pairing = await dbGet(
+      `SELECT id, pairing_code, pairing_token, device_id, device_name, status, paired_at
+       FROM pairings
+       WHERE id = ? AND user_id = ?`,
+      [id, req.userId]
+    );
 
-    if (error) throw error;
     if (!pairing) return notFound(res, '配对请求不存在');
 
-    success(res, pairing);
+    const isPaired = pairing.status === 'paired';
+    success(res, {
+      success: true,
+      paired: isPaired,
+      device_id: pairing.device_id || null,
+      device_name: pairing.device_name || null,
+      bot_online: false,
+      paired_at: pairing.paired_at ? formatSQLiteDate(pairing.paired_at) : null
+    });
   } catch (err) {
     serverError(res, err);
   }
@@ -1451,12 +1797,22 @@ router.get('/locations/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: location, error } = await supabase
+    let { data: location, error } = await supabase
       .from('user_locations')
       .select('*')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
+
+    if (error && isSchemaMismatchError(error)) {
+      location = await dbGet(
+        `SELECT id, user_id, latitude, longitude, accuracy, altitude, speed, heading, timestamp, expires_at, is_visible
+         FROM user_locations_local
+         WHERE id = ? AND user_id = ?`,
+        [id, req.userId]
+      );
+      error = null;
+    }
 
     if (error) throw error;
     if (!location) return notFound(res, '位置不存在');
@@ -1527,34 +1883,30 @@ router.put('/notifications/preferences', authMiddleware, async (req, res) => {
 // 创建学习房间
 router.post('/study/room/create', authMiddleware, async (req, res) => {
   try {
-    const { name, max_participants = 5, subject } = req.body;
-
-    // 生成房间码
+    const { name, max_participants = 5, subject } = req.body || {};
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomId = uuidv4();
+    const roomName = name || `学习房间 ${roomCode}`;
 
-    const { data: room, error } = await supabase
-      .from('study_rooms')
-      .insert({
-        code: roomCode,
-        name: name || `学习房间 ${roomCode}`,
-        host_id: req.userId,
-        max_participants,
-        subject,
-        status: 'waiting'
-      })
-      .select()
-      .single();
+    await dbRun(
+      `INSERT INTO study_rooms_local (
+        id, code, name, host_id, max_participants, subject, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'waiting', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [roomId, roomCode, roomName, req.userId, Number(max_participants || 5), subject || null]
+    );
 
-    if (error) throw error;
+    await dbRun(
+      `INSERT INTO study_room_participants_local (id, room_id, user_id, role, joined_at)
+       VALUES (?, ?, ?, 'host', CURRENT_TIMESTAMP)`,
+      [uuidv4(), roomId, req.userId]
+    );
 
-    // 添加创建者为参与者
-    await supabase
-      .from('study_room_participants')
-      .insert({
-        room_id: room.id,
-        user_id: req.userId,
-        role: 'host'
-      });
+    const room = await dbGet(
+      `SELECT id, code, name, host_id, max_participants, subject, status, created_at, updated_at
+       FROM study_rooms_local
+       WHERE id = ?`,
+      [roomId]
+    );
 
     success(res, room, '房间创建成功');
   } catch (err) {
@@ -1565,20 +1917,20 @@ router.post('/study/room/create', authMiddleware, async (req, res) => {
 // 加入学习房间
 router.post('/study/room/join', authMiddleware, async (req, res) => {
   try {
-    const { room_code } = req.body;
+    const { room_code } = req.body || {};
 
     if (!room_code) {
       return error(res, '请提供房间码');
     }
 
-    // 查找房间
-    const { data: room, error: roomError } = await supabase
-      .from('study_rooms')
-      .select('*')
-      .eq('code', room_code.toUpperCase())
-      .single();
+    const room = await dbGet(
+      `SELECT id, code, name, host_id, max_participants, subject, status, created_at, updated_at
+       FROM study_rooms_local
+       WHERE code = ?`,
+      [room_code.toUpperCase()]
+    );
 
-    if (roomError || !room) {
+    if (!room) {
       return notFound(res, '房间不存在');
     }
 
@@ -1586,36 +1938,34 @@ router.post('/study/room/join', authMiddleware, async (req, res) => {
       return error(res, '房间已结束');
     }
 
-    // 检查是否已满
-    const { count } = await supabase
-      .from('study_room_participants')
-      .select('*', { count: 'exact', head: true })
-      .eq('room_id', room.id);
+    const countRow = await dbGet(
+      `SELECT COUNT(*) AS total
+       FROM study_room_participants_local
+       WHERE room_id = ?`,
+      [room.id]
+    );
+    const count = Number(countRow?.total || 0);
 
     if (count >= room.max_participants) {
       return error(res, '房间已满');
     }
 
-    // 检查是否已在房间中
-    const { data: existing } = await supabase
-      .from('study_room_participants')
-      .select('*')
-      .eq('room_id', room.id)
-      .eq('user_id', req.userId)
-      .single();
+    const existing = await dbGet(
+      `SELECT id
+       FROM study_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [room.id, req.userId]
+    );
 
     if (existing) {
       return error(res, '你已在房间中');
     }
 
-    // 加入房间
-    await supabase
-      .from('study_room_participants')
-      .insert({
-        room_id: room.id,
-        user_id: req.userId,
-        role: 'participant'
-      });
+    await dbRun(
+      `INSERT INTO study_room_participants_local (id, room_id, user_id, role, joined_at)
+       VALUES (?, ?, ?, 'participant', CURRENT_TIMESTAMP)`,
+      [uuidv4(), room.id, req.userId]
+    );
 
     success(res, room, '加入成功');
   } catch (err) {
@@ -1628,27 +1978,28 @@ router.post('/study/room/leave', authMiddleware, async (req, res) => {
   try {
     const { room_id } = req.body;
 
-    // 移除参与者
-    const { error } = await supabase
-      .from('study_room_participants')
-      .delete()
-      .eq('room_id', room_id)
-      .eq('user_id', req.userId);
+    await dbRun(
+      `DELETE FROM study_room_participants_local
+       WHERE room_id = ? AND user_id = ?`,
+      [room_id, req.userId]
+    );
 
-    if (error) throw error;
-
-    // 检查房间是否还有参与者
-    const { count } = await supabase
-      .from('study_room_participants')
-      .select('*', { count: 'exact', head: true })
-      .eq('room_id', room_id);
+    const countRow = await dbGet(
+      `SELECT COUNT(*) AS total
+       FROM study_room_participants_local
+       WHERE room_id = ?`,
+      [room_id]
+    );
+    const count = Number(countRow?.total || 0);
 
     // 如果没有参与者，结束房间
     if (count === 0) {
-      await supabase
-        .from('study_rooms')
-        .update({ status: 'ended' })
-        .eq('id', room_id);
+      await dbRun(
+        `UPDATE study_rooms_local
+         SET status = 'ended', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [room_id]
+      );
     }
 
     success(res, null, '离开成功');
