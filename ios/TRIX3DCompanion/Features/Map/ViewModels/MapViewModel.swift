@@ -129,8 +129,39 @@ final class MapViewModel: ObservableObject {
         // Check location permission
         checkLocationPermission()
 
-        // Load mock data immediately for simulator testing
-        loadMockData()
+        // Load data from API (not mock by default)
+        // Mock data is available via loadMockData() for development
+        Task {
+            await loadLocationsFromAPI()
+        }
+    }
+
+    // MARK: - API Data Loading
+
+    /// Load locations from backend API
+    private func loadLocationsFromAPI() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let locations: [Location] = try await APIClient.shared.get(.placeNearby)
+            allLocations = locations
+            filteredLocations = locations
+        } catch {
+            // API failed - show error state instead of fallback to mock
+            errorMessage = "无法加载地点: \(error.localizedDescription)"
+            allLocations = []
+            filteredLocations = []
+        }
+
+        isLoading = false
+    }
+
+    /// Load friend locations from API
+    private func loadFriendLocationsFromAPI() async {
+        // TODO: Implement friend locations API
+        // For now, keep empty until API is available
+        friendLocations = []
     }
 
     // MARK: - Mock Data
@@ -358,19 +389,16 @@ final class MapViewModel: ObservableObject {
 
         switch result {
         case .success(let locations):
-            if locations.isEmpty {
-                // Use mock data as fallback when API returns empty
-                loadMockData()
-            } else {
-                allLocations = locations
-                filteredLocations = locations
-                applyCategoryFilter()
-            }
+            // Use API result - even if empty, don't fallback to mock
+            allLocations = locations
+            filteredLocations = locations
+            applyCategoryFilter()
 
         case .failure(let error):
+            // Show error state, don't fallback to mock
             errorMessage = error.errorDescription
-            // Use mock data as fallback when API fails
-            loadMockData()
+            allLocations = []
+            filteredLocations = []
         }
 
         isLoading = false
