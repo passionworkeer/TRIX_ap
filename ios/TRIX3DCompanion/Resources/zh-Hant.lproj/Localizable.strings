@@ -40,6 +40,12 @@
 "auth.forgot.password" = "忘記密碼？";
 "auth.no.account" = "還沒有帳戶？";
 "auth.has.account" = "已經有帳戶？";
+"auth.signin.apple" = "使用 Apple 登入";
+"auth.signin.wechat" = "使用微信登入";
+"auth.or" = "或";
+"auth.email.required" = "請輸入郵箱";
+"auth.password.required" = "請輸入密碼";
+"auth.username.required" = "請輸入使用者名稱";
 
 // MARK: - Chat
 "chat.title" = "訊息";

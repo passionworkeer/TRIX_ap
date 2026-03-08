@@ -215,7 +215,7 @@ struct LoginView: View {
         HStack(spacing: 16) {
             VStack { Divider().background(Color.white.opacity(0.3)) }
 
-            Text("OR")
+            Text(loc("auth.or"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.6))
 
@@ -250,7 +250,7 @@ struct LoginView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.white)
 
-                Text("Sign in with Apple")
+                Text(loc("auth.signin.apple"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
             }
@@ -275,7 +275,7 @@ struct LoginView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.white)
 
-                Text("Sign in with WeChat")
+                Text(loc("auth.signin.wechat"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
             }
@@ -372,13 +372,13 @@ struct LoginView: View {
     private func handleLogin() async {
         // Validate inputs
         guard !email.isEmpty else {
-            errorMessage = loc("auth.email.placeholder") + " is required"
+            errorMessage = loc("auth.email.required")
             showingError = true
             return
         }
 
         guard !password.isEmpty else {
-            errorMessage = loc("auth.password.placeholder") + " is required"
+            errorMessage = loc("auth.password.required")
             showingError = true
             return
         }
