@@ -40,6 +40,12 @@
 "auth.forgot.password" = "忘记密码？";
 "auth.no.account" = "还没有账号？";
 "auth.has.account" = "已有账号？";
+"auth.signin.apple" = "使用 Apple 登录";
+"auth.signin.wechat" = "使用微信登录";
+"auth.or" = "或";
+"auth.email.required" = "请输入邮箱";
+"auth.password.required" = "请输入密码";
+"auth.username.required" = "请输入用户名";
 
 // MARK: - Chat
 "chat.title" = "消息";
