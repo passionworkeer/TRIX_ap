@@ -25,6 +25,7 @@ struct NewProfileView: View {
     @State private var showEditProfile = false
     @State private var showImagePicker = false
     @State private var showDeleteAlert = false
+    @State private var showOpenClawControl = false
 
     // MARK: - Body
 
@@ -49,6 +50,9 @@ struct NewProfileView: View {
             }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showOpenClawControl) {
+                OpenClawControlPanel()
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") {
@@ -289,6 +293,17 @@ struct NewProfileView: View {
                 description: "View your study sessions",
                 color: .blue,
                 action: { /* TODO: Show study history */ }
+            )
+
+            Divider()
+                .padding(.leading, 60)
+
+            SettingsRow(
+                icon: "robot.fill",
+                title: "OpenClaw 控制面板",
+                description: "远程控制 OpenClaw",
+                color: .orange,
+                action: { showOpenClawControl = true }
             )
 
             Divider()

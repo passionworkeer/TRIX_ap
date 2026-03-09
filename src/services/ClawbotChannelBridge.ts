@@ -126,6 +126,54 @@ export interface SocketError {
 }
 
 /**
+ * OpenClaw 控制命令类型
+ */
+export type OpenClawControlAction =
+  | 'models_status'
+  | 'skills_list'
+  | 'skills_check'
+  | 'cron_list'
+  | 'cron_add'
+  | 'cron_enable'
+  | 'cron_disable'
+  | 'cron_remove'
+  | 'cron_run'
+  | 'status'
+  | 'health'
+  | 'doctor'
+  | 'doctor_repair'
+  | 'logs'
+  | 'config_backup'
+  | 'config_rollback'
+  | 'config_backup_info';
+
+/**
+ * 控制命令参数
+ */
+export interface ControlCommandParams {
+  // cron 相关
+  name?: string;
+  schedule?: string;
+  type?: 'message' | 'system-event';
+  content?: string;
+  channel?: string;
+  to?: string;
+  jobId?: string;
+
+  // logs 相关
+  limit?: number;
+}
+
+/**
+ * 控制命令响应
+ */
+export interface ControlCommandResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
  * Socket 事件回调类型（使用泛型支持不同事件类型）
  */
 type EventCallback<T = unknown> = (data: T) => void;
@@ -841,6 +889,39 @@ class ClawbotChannelBridge {
         mediaUrl,
         mediaMimeType,
         messageId // 鍙戦€佹秷鎭疘D
+      });
+    });
+  }
+
+  /**
+   * 发送控制命令到 OpenClaw
+   */
+  async sendControlCommand<T = unknown>(
+    action: string,
+    params?: Record<string, unknown>
+  ): Promise<{ success: boolean; data?: T; error?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('[ClawbotChannel] not connected, cannot send command'));
+        return;
+      }
+
+      if (!this.paired) {
+        reject(new Error('[ClawbotChannel] not paired, cannot send command'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('control_command timeout'));
+      }, 60000); // 60 秒超时
+
+      this.socket.emit('control_command', { action, params }, (response: { success: boolean; data?: T; error?: string }) => {
+        clearTimeout(timeout);
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error || 'Command failed'));
+        }
       });
     });
   }
