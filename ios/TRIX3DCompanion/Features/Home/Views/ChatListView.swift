@@ -165,6 +165,7 @@ struct ChatListView: View {
                         .overlay(
                             Circle().stroke(.white.opacity(0.1), lineWidth: 1)
                         )
+                        .accessibilityLabel("TRIX Bot 头像")
                     // Online status - show based on pairing
                     Circle()
                         .fill(clawbotChannel.isPaired ? .green : .orange)
@@ -478,6 +479,7 @@ struct QuickAddUserCard: View {
                 .overlay {
                     Text(user.avatar).font(.caption2).fontWeight(.semibold).foregroundColor(.white)
                 }
+                .accessibilityLabel("\(user.name) 的头像")
 
             // Name
             Text(user.name)

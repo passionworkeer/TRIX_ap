@@ -234,6 +234,7 @@ struct TrixBotChatView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
+                .accessibilityLabel("发送消息")
             }
         }
         .padding(.horizontal, 16)
