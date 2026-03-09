@@ -191,7 +191,8 @@ function AppContent() {
                 path={AppRoutes.HOME}
                 element={
                   <ProtectedRoute>
-                    <Home 
+                    <Home
+                      botState={botState}
                       devVideoSource={isDev ? devActiveVideoSource : undefined}
                       isUIVisible={showDockOnHome}
                       onToggleUI={toggleDock}

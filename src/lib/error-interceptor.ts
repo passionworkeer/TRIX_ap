@@ -148,9 +148,7 @@ function showErrorNotification(error: AppError): void {
       },
     });
   }).catch(() => {
-    // 如果导入失败，使用 alert
-    // eslint-disable-next-line no-alert
-    alert(error.message);
+    // 如果导入失败，不显示任何通知（silent fail）
   });
 }
 
@@ -191,9 +189,7 @@ function logAppError(error: AppError, context: string): void {
       },
     });
   }).catch(() => {
-    // 如果导入失败，使用 alert
-    // eslint-disable-next-line no-alert
-    alert(error.message);
+    // 如果导入失败，不显示任何通知（silent fail）
   });
 }
 

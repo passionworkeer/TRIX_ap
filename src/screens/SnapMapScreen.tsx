@@ -123,7 +123,12 @@ const SnapMapScreen: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<MapSelectedItem | null>(null);
 
   useEffect(() => {
-    getFriends().then(data => setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends)).catch(() => setFriends(mockFriends)).finally(() => setLoading(false));
+    getFriends()
+      .then((data) => {
+        setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);
+      })
+      .catch(() => setFriends(mockFriends))
+      .finally(() => setLoading(false));
     getFriendsLocations().then(locations => { if(locations.length) setFriendLocations(locations); }).catch(() => {});
   }, []);
 
