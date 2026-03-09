@@ -135,6 +135,7 @@ struct SnapshotAnalysisView: View {
                             .font(.system(size: 18, weight: .semibold))
                     }
             }
+            .accessibilityLabel("返回")
 
             Text("快照分析")
                 .font(.title3)
