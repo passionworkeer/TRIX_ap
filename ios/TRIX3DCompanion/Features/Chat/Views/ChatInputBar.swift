@@ -260,7 +260,7 @@ struct ChatInputBar: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .shadow(color: .purple.opacity(0.3), radius: 4, y: 2)
 
                 Image(systemName: "arrow.up.fill")

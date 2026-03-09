@@ -195,7 +195,7 @@ struct ChatListView: View {
                 // Camera icon (Web style)
                 Circle()
                     .fill(clawbotChannel.isPaired ? .green.opacity(0.2) : .gray.opacity(0.2))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: clawbotChannel.isPaired ? "camera.fill" : "link")
                             .font(.system(size: 16))
@@ -475,7 +475,7 @@ struct QuickAddUserCard: View {
             // Avatar
             Circle()
                 .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .overlay {
                     Text(user.avatar).font(.caption2).fontWeight(.semibold).foregroundColor(.white)
                 }

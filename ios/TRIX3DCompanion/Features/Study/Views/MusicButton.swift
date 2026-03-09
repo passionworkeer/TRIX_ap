@@ -24,7 +24,7 @@ struct MusicButton: View {
             ZStack {
                 Circle()
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
 
                 if let track = audioPlayer.currentTrack, audioPlayer.state == .playing {
                     // 播放中显示音频可视化
