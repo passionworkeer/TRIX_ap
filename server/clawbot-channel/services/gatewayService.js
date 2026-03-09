@@ -1,198 +1,135 @@
 /**
- * Gateway WebSocket Service
+ * Gateway Service - 长连接方式
  *
- * 与 OpenClaw Gateway 通信，发送消息并获取 AI 响应
+ * 使用 GatewayClient 建立持久连接，支持会话记忆
  */
 
-const WebSocket = require('ws');
+const { randomUUID } = require('crypto');
 
 // Gateway 配置
 const GATEWAY_URL = process.env.GATEWAY_WS_URL || 'ws://127.0.0.1:18789';
-const GATEWAY_AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN || process.env.VITE_GATEWAY_AUTH_TOKEN || '';
-const CLIENT_ID = 'trix-channel-supplement';
-const CLIENT_MODE = 'backend';
-const ROLE = 'operator';
-
-// 固定的 session key 用于主智能体
-const MAIN_AGENT_SESSION = 'agent:main:main';
+const GATEWAY_TOKEN = process.env.GATEWAY_AUTH_TOKEN || '2182a91f677257a06f28ebe9172333aa0df9adad397ac149';
 
 class GatewayService {
   constructor() {
-    this.ws = null;
-    this.requestId = 1;
-    this.pendingRequests = new Map();
+    this.client = null;
+    this.connected = false;
     this.connecting = false;
-    this.messageHandler = null;
+    this.messageQueue = [];
+    this.pendingInit = null;
   }
 
-  /**
-   * 生成请求 ID
-   */
-  generateRequestId() {
-    return `req_${Date.now()}_${this.requestId++}`;
+  async connect() {
+    if (this.connected || this.connecting) {
+      if (this.pendingInit) return this.pendingInit;
+      return;
+    }
+
+    this.connecting = true;
+    this.pendingInit = this._connect();
+
+    try {
+      await this.pendingInit;
+      this.connected = true;
+      console.log('[GatewayService] Connected to Gateway');
+    } catch (e) {
+      console.error('[GatewayService] Connection failed:', e.message);
+      this.connecting = false;
+      throw e;
+    } finally {
+      this.pendingInit = null;
+    }
   }
 
-  /**
-   * 连接到 Gateway
-   */
-  connect() {
-    return new Promise((resolve, reject) => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        resolve();
-        return;
-      }
+  async _connect() {
+    // 动态导入 ESM 模块
+    const { GatewayClient } = await import('file:///C:/nodejs_global/node_modules/openclaw-cn/dist/gateway/client.js');
+    const { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } = await import('file:///C:/nodejs_global/node_modules/openclaw-cn/dist/utils/message-channel.js');
+    const { loadOrCreateDeviceIdentity } = await import('file:///C:/nodejs_global/node_modules/openclaw-cn/dist/infra/device-identity.js');
 
-      if (this.connecting) {
-        // 等待现有连接完成
-        const checkConnection = setInterval(() => {
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            clearInterval(checkConnection);
-            resolve();
-          }
-        }, 100);
-        return;
-      }
+    const deviceIdentity = loadOrCreateDeviceIdentity();
+    console.log('[GatewayService] Device:', deviceIdentity?.deviceId);
 
-      this.connecting = true;
-      console.log(`[GatewayService] Connecting to ${GATEWAY_URL}...`);
+    this.client = new GatewayClient({
+      url: GATEWAY_URL,
+      token: GATEWAY_TOKEN,
+      clientName: GATEWAY_CLIENT_NAMES.CONTROL_UI,
+      clientDisplayName: 'TRIX Channel Server',
+      mode: GATEWAY_CLIENT_MODES.BACKEND,
+      role: 'operator',
+      scopes: ['operator.admin', 'operator.read', 'operator.write'],
+      deviceIdentity: deviceIdentity,
+      onConnectError: (err) => {
+        console.error('[GatewayService] Connect error:', err.message);
+        this.connected = false;
+      },
+      onClose: (code, reason) => {
+        console.log('[GatewayService] Connection closed:', code, reason);
+        this.connected = false;
+      },
+    });
 
-      try {
-        this.ws = new WebSocket(GATEWAY_URL, {
-          headers: {
-            'X-Client-ID': CLIENT_ID,
-            'X-Client-Mode': CLIENT_MODE,
-            'X-Role': ROLE,
-            'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`
-          }
-        });
+    this.client.start();
 
-        this.ws.on('open', () => {
-          console.log('[GatewayService] Connected to Gateway');
-          this.connecting = false;
+    // 等待连接建立
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 15000);
+
+      const checkConnection = () => {
+        if (this.client.ws && this.client.ws.readyState === 1) {
+          clearTimeout(timeout);
           resolve();
-        });
+        } else {
+          setTimeout(checkConnection, 100);
+        }
+      };
 
-        this.ws.on('message', (data) => {
-          this.handleMessage(data);
-        });
-
-        this.ws.on('error', (error) => {
-          console.error('[GatewayService] WebSocket error:', error.message);
-          this.connecting = false;
-          reject(error);
-        });
-
-        this.ws.on('close', () => {
-          console.log('[GatewayService] Gateway disconnected');
-          this.ws = null;
-          // 尝试重连
-          setTimeout(() => this.connect().catch(() => {}), 5000);
-        });
-      } catch (error) {
-        this.connecting = false;
-        reject(error);
-      }
+      checkConnection();
     });
+
+    console.log('[GatewayService] GatewayClient ready');
   }
 
-  /**
-   * 处理收到的消息
-   */
-  handleMessage(data) {
-    try {
-      const msg = JSON.parse(data.toString());
-      // console.log('[GatewayService] Received:', msg.type, msg.id);
-
-      if (msg.type === 'req' && msg.id) {
-        // 这是对之前请求的响应
-        const pending = this.pendingRequests.get(msg.id);
-        if (pending) {
-          this.pendingRequests.delete(msg.id);
-          if (msg.error) {
-            pending.reject(new Error(msg.error.message || msg.error));
-          } else {
-            pending.resolve(msg.result || msg.payload);
-          }
-        }
-      } else if (msg.type === 'event') {
-        // 事件消息
-        if (this.messageHandler) {
-          this.messageHandler(msg);
-        }
-      }
-    } catch (error) {
-      console.error('[GatewayService] Failed to parse message:', error);
+  async sendChatMessage(message, sessionKey = 'agent:main:main') {
+    if (!this.connected || !this.client) {
+      await this.connect();
     }
-  }
 
-  /**
-   * 发送请求并等待响应
-   */
-  sendRequest(method, params = {}) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        await this.connect();
+    const idempotencyKey = randomUUID();
 
-        const requestId = this.generateRequestId();
-        const timeout = setTimeout(() => {
-          this.pendingRequests.delete(requestId);
-          reject(new Error(`Gateway request ${method} timeout`));
-        }, 60000); // 60秒超时
-
-        this.pendingRequests.set(requestId, {
-          resolve: (result) => {
-            clearTimeout(timeout);
-            resolve(result);
-          },
-          reject: (error) => {
-            clearTimeout(timeout);
-            reject(error);
-          }
-        });
-
-        this.ws.send(JSON.stringify({
-          type: 'req',
-          id: requestId,
-          method,
-          params
-        }));
-
-        console.log(`[GatewayService] -> ${method}:`, params.message?.slice(0, 50) || '');
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  /**
-   * 发送聊天消息并获取 AI 响应
-   */
-  async sendChatMessage(message, sessionKey = MAIN_AGENT_SESSION) {
     try {
-      const result = await this.sendRequest('chat.send', {
-        sessionKey,
-        message,
-        idempotencyKey: `trix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      });
+      const result = await this.client.request('agent', {
+        message: message,
+        sessionKey: sessionKey,
+        idempotencyKey: idempotencyKey
+      }, { expectFinal: true });
 
-      console.log('[GatewayService] <- chat.send result');
+      const text = result.result?.payloads?.[0]?.text;
+      console.log('[GatewayService] <- response:', text?.slice(0, 50) || 'ok');
+
       return result;
-    } catch (error) {
-      console.error('[GatewayService] sendChatMessage error:', error);
-      throw error;
+    } catch (e) {
+      // 如果连接断开，尝试重连
+      if (e.message.includes('not connected') || e.message.includes('closed')) {
+        console.log('[GatewayService] Reconnecting...');
+        this.connected = false;
+        this.connecting = false;
+        await this.connect();
+        return this.sendChatMessage(message, sessionKey);
+      }
+      throw e;
     }
   }
 
-  /**
-   * 关闭连接
-   */
   close() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.client) {
+      this.client.stop();
+      this.client = null;
     }
+    this.connected = false;
+    this.connecting = false;
+    console.log('[GatewayService] Closed');
   }
 }
 
-// 导出单例
 module.exports = new GatewayService();
