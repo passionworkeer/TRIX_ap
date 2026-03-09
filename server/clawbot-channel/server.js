@@ -13,6 +13,7 @@ const messageService = require('./services/messageService');
 const ossService = require('./services/ossService');
 const ttsService = require('./services/ttsService');
 const { studyRoomService } = require('./services/studyRoomService');
+const gatewayService = require('./services/gatewayService');
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
@@ -1076,20 +1077,59 @@ io.on('connection', (socket) => {
 
       const botSocket = getConnectedBot(targetDeviceId);
       if (!botSocket) {
-        const mapped = connectedBots.get(targetDeviceId);
-        socket.emit('error', {
-          message: 'Bot is offline',
-          deviceId: targetDeviceId,
-          mappedSocketId: mapped?.id || null,
-          hint: 'Please keep Clawbot connected and try again.'
-        });
-        socket.emit('message_sent', {
-          success: false,
-          messageId,
-          error: 'Bot is offline',
-          deviceId: targetDeviceId
-        });
-        return;
+        // Bot 不在线，尝试通过 Gateway 转发
+        console.log(`[App] Bot 不在线，尝试通过 Gateway 转发消息: ${routedMessage.content.slice(0, 50)}...`);
+
+        try {
+          const gatewayResult = await gatewayService.sendChatMessage(routedMessage.content);
+
+          // 解析 Gateway agent 响应
+          let assistantContent = '';
+          if (gatewayResult && gatewayResult.result && gatewayResult.result.payloads && gatewayResult.result.payloads[0]) {
+            assistantContent = gatewayResult.result.payloads[0].text || gatewayResult.result.payloads[0].content || '';
+          } else if (gatewayResult && gatewayResult.response) {
+            assistantContent = gatewayResult.response;
+          } else if (gatewayResult && gatewayResult.message) {
+            assistantContent = gatewayResult.message;
+          } else if (gatewayResult && gatewayResult.content) {
+            assistantContent = gatewayResult.content;
+          } else if (typeof gatewayResult === 'string') {
+            assistantContent = gatewayResult;
+          } else {
+            assistantContent = '消息已收到';
+          }
+
+          console.log(`[App] Gateway 响应: ${assistantContent.slice(0, 50)}...`);
+
+          // 将 Gateway 响应发送回 App
+          socket.emit('bot_message', {
+            content: assistantContent,
+            contentType: 'text',
+            messageId,
+            timestamp: Date.now(),
+            sourceEvent: 'gateway_response'
+          });
+
+          socket.emit('message_sent', {
+            success: true,
+            messageId
+          });
+          return;
+        } catch (gatewayError) {
+          console.error('[App] Gateway 转发失败:', gatewayError.message);
+          socket.emit('error', {
+            message: 'Bot is offline and Gateway unavailable',
+            deviceId: targetDeviceId,
+            hint: 'Please keep Clawbot connected and try again.'
+          });
+          socket.emit('message_sent', {
+            success: false,
+            messageId,
+            error: 'Bot is offline and Gateway unavailable',
+            deviceId: targetDeviceId
+          });
+          return;
+        }
       }
 
       touchConnectedBot(targetDeviceId, botSocket, pairing.id, 'app_message_route');
@@ -1134,6 +1174,49 @@ io.on('connection', (socket) => {
         messageId,
         error: error.message
       });
+    }
+  }
+
+  // ==================== 控制命令处理 ====================
+
+  /**
+   * 处理控制命令 - 转发给 Bot 端执行
+   */
+  async function handleControlCommand(rawData) {
+    try {
+      const { action, params = {} } = rawData;
+
+      if (!action) {
+        return { success: false, error: 'Missing action' };
+      }
+
+      // 获取用户配对信息
+      const pairing = await pairingService.getPairingByUserId(socket.userId);
+      if (!pairing || !pairing.device_id) {
+        return { success: false, error: 'Not paired with any bot' };
+      }
+
+      const targetDeviceId = pairing.device_id;
+      const botSocket = getConnectedBot(targetDeviceId);
+
+      if (!botSocket) {
+        return { success: false, error: 'Bot is offline' };
+      }
+
+      // 转发给 Bot 端执行
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ success: false, error: 'Command timeout' });
+        }, 60000); // 60秒超时
+
+        botSocket.emit('control_command', { action, params }, (response) => {
+          clearTimeout(timeout);
+          resolve(response);
+        });
+      });
+    } catch (error) {
+      console.error('[Control] handleControlCommand failed:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -1235,6 +1318,17 @@ io.on('connection', (socket) => {
   socket.on('user_message', (data) => handleAppToBotMessage(data, 'user_message'));
   socket.on('bot_message', (data) => handleBotToAppMessage(data, 'bot_message'));
   socket.on('bot_response', (data) => handleBotToAppMessage(data, 'bot_response'));
+
+  // 控制命令
+  socket.on('control_command', async (data, callback) => {
+    try {
+      const result = await handleControlCommand(data);
+      callback?.(result);
+    } catch (error) {
+      console.error('[Control] control_command error:', error);
+      callback?.({ success: false, error: error.message });
+    }
+  });
 
   socket.on('ping', (data, callback) => {
     const pingDeviceId = data?.deviceId ?? socket.deviceId ?? null;
