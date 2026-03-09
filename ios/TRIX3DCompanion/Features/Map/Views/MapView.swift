@@ -98,6 +98,7 @@ struct MapView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("My location")
                         .padding(.trailing, 16)
                         .padding(.bottom, locationButtonBottomInset)
                     }
@@ -230,6 +231,7 @@ struct MapView: View {
                     .focused($isSearchFocused)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                    .accessibilityLabel("Search locations")
 
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: { viewModel.clearSearch() }) {
