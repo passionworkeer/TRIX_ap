@@ -1085,8 +1085,10 @@ io.on('connection', (socket) => {
 
           // 解析 Gateway agent 响应
           let assistantContent = '';
-          if (gatewayResult && gatewayResult.result && gatewayResult.result.payloads && gatewayResult.result.payloads[0]) {
-            assistantContent = gatewayResult.result.payloads[0].text || gatewayResult.result.payloads[0].content || '';
+          // 新版本格式: { payloads: [...] }，旧版本: { result: { payloads: [...] } }
+          const payloads = gatewayResult?.result?.payloads || gatewayResult?.payloads;
+          if (payloads && payloads[0]) {
+            assistantContent = payloads[0].text || payloads[0].content || '';
           } else if (gatewayResult && gatewayResult.response) {
             assistantContent = gatewayResult.response;
           } else if (gatewayResult && gatewayResult.message) {
