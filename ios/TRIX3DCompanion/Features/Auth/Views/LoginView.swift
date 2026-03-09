@@ -119,6 +119,7 @@ struct LoginView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                .accessibilityLabel("App logo")
 
             // Title
             Text(loc("auth.login.title"))
@@ -259,6 +260,7 @@ struct LoginView: View {
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+            .accessibilityLabel("Sign in with Apple")
         }
         .disabled(isOAuthLoading || authService.isLoading)
         .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
@@ -285,6 +287,7 @@ struct LoginView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
         }
+        .accessibilityLabel("Sign in with WeChat")
         .disabled(isOAuthLoading || authService.isLoading)
         .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
     }

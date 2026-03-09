@@ -221,6 +221,7 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .frame(width: 50, height: 50)  // 加大
+                    .accessibilityLabel("Mail")
                     .background(
                         Circle()
                             .fill(
@@ -246,6 +247,7 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundColor(.white)
                     .frame(width: 50, height: 50)  // 加大
+                    .accessibilityLabel("Notifications")
                     .background(
                         Circle()
                             .fill(
