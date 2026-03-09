@@ -922,8 +922,10 @@ io.on('connection', (socket) => {
   });
 
   async function handlePairWithCode(data, callback) {
+    console.log('[handlePairWithCode] 收到配对请求:', JSON.stringify(data));
     try {
       const { code, userId } = data || {};
+      console.log('[handlePairWithCode] code:', code, 'userId:', userId);
       if (!code || typeof code !== 'string') {
         callback?.({ success: false, error: 'Invalid pairing code' });
         return;
