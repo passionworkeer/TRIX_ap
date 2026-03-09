@@ -214,6 +214,7 @@ struct MessageBubbleView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
             }
+            .accessibilityLabel("Avatar for \(message.senderId)")
     }
 
     private var timestampView: some View {
