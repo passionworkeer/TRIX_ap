@@ -122,6 +122,7 @@ struct GlassDockView: View {
                         .foregroundColor(isSelected ? Color.brandPurple : .secondary)
                         .frame(width: 32, height: 32)
                         .scaleEffect(isSelected ? 1.1 : 1.0)
+                        .accessibilityLabel(dockTab.label)
                 }
 
                 Text(dockTab.label)
