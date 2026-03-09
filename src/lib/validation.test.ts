@@ -790,7 +790,8 @@ describe('Validation Boundary Tests', () => {
 
   describe('特殊字符和XSS防护测试', () => {
     it('应该拒绝HTML标签', () => {
-      const result = validateString('<script>alert(1)</script>', AUTH_VALIDATION.username, 'username');
+      const xssInput = '<script>console.log(1)</script>';
+      const result = validateString(xssInput, AUTH_VALIDATION.username, 'username');
       expect(result).not.toBeNull();
     });
 
@@ -805,12 +806,14 @@ describe('Validation Boundary Tests', () => {
     });
 
     it('应该拒绝JavaScript协议', () => {
-      const result = validateString('javascript:alert(1)', AUTH_VALIDATION.username, 'username');
+      const jsProtocol = 'javascript:console.log(1)';
+      const result = validateString(jsProtocol, AUTH_VALIDATION.username, 'username');
       expect(result).not.toBeNull();
     });
 
     it('应该拒绝onload事件', () => {
-      const result = validateString('<img onerror="alert(1)" src="x">', AUTH_VALIDATION.username, 'username');
+      const onerrorEvent = '<img onerror="console.log(1)" src="x">';
+      const result = validateString(onerrorEvent, AUTH_VALIDATION.username, 'username');
       expect(result).not.toBeNull();
     });
 

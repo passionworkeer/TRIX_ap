@@ -23,12 +23,16 @@ interface HomeProps {
   isUIVisible?: boolean;
   onToggleUI?: () => void;
   devVideoSource?: string;
+  botState?: string;
 }
 
-const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _devVideoSource }) => {
+const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, botState: propBotState }) => {
   const navigate = useNavigate();
-  const { isConnected, isPaired, botState: _botState, sendMessage } = useClawbotChannel();
+  const { isClawbotConnected: isClawbotConnected, isClawbotPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
+
+  // 优先使用 prop_botState，否则使用 context 中的 botState
+  const botState = propBotState ?? contextBotState;
 
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
@@ -40,7 +44,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
   const handleOpenTrixBot = (event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
 
-    if (!isConnected || !isPaired) {
+    if (!isClawbotConnected || !isClawbotPaired) {
       showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
         ...PAIRING_REQUIRED_TOAST_OPTIONS,
         id: PAIRING_REQUIRED_TOAST_ID,
@@ -63,6 +67,14 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
   const handleWorkbenchCardClick = (itemId: string) => {
     switch (itemId) {
       case 'snapshot':
+        if (!isClawbotConnected || !isClawbotPaired) {
+          showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
+            ...PAIRING_REQUIRED_TOAST_OPTIONS,
+            id: PAIRING_REQUIRED_TOAST_ID,
+          });
+          navigate(AppRoutes.PAIRING);
+          return;
+        }
         navigate(AppRoutes.SNAPSHOT);
         break;
       case 'location':
@@ -84,7 +96,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
     >
-      {/* isDev && (
+      {import.meta.env.DEV && (
         <div className="fixed top-3 left-3 z-[110] pointer-events-none">
           <div className="rounded-lg border border-white/20 bg-black/45 px-3 py-2 text-[11px] text-white/95 backdrop-blur-sm shadow-lg">
             <div className="font-semibold tracking-wide">DEV</div>
@@ -92,7 +104,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
             <div>video: {devVideoSource || 'unknown'}</div>
           </div>
         </div>
-      ) */}
+      )}
 
       <HomeBotBubble onClick={handleOpenTrixBot} />
 
@@ -149,7 +161,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
         onLocationSelected={(location) => {
           logger.ui.debug('Selected location:', location);
           
-          if (!isConnected || !isPaired) {
+          if (!isClawbotConnected || !isClawbotPaired) {
              showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
              return;
           }
