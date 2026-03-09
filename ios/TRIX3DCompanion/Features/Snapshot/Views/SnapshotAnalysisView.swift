@@ -128,7 +128,7 @@ struct SnapshotAnalysisView: View {
             Button(action: onRetake) {
                 Circle()
                     .fill(Color.white.opacity(0.15))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: "arrow.left")
                             .foregroundColor(.white)
