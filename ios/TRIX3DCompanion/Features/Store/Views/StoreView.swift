@@ -102,6 +102,7 @@ struct StoreView: View {
                 Image(systemName: "star.fill")
                     .font(.title2)
                     .foregroundColor(.orange)
+                    .accessibilityLabel("Points")
 
                 Text("My Points")
                     .font(.headline)
@@ -118,6 +119,7 @@ struct StoreView: View {
                     Image(systemName: "arrow.clockwise")
                         .font(.body)
                         .foregroundColor(.blue)
+                        .accessibilityLabel("Refresh")
                 }
             }
 
