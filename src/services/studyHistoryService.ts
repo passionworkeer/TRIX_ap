@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 export interface StudySession {
   id: string;
   user_id: string;
-  duration_minutes: number;
+  duration: number;
   started_at: string;
   ended_at: string;
   companion_id?: string;
@@ -93,7 +93,7 @@ class StudyHistoryService {
     try {
       const { data, error } = await supabase
         .from('study_sessions')
-        .select('duration_minutes')
+        .select('duration')
         .eq('user_id', userId)
         .gte('started_at', today)
         .lt('started_at', tomorrow);
@@ -101,8 +101,8 @@ class StudyHistoryService {
       if (error) throw error;
 
       const sessions = data || [];
-      const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
-      const longestSession = Math.max(0, ...sessions.map(s => s.duration_minutes));
+      const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
+      const longestSession = Math.max(0, ...sessions.map(s => s.duration));
       const averageDuration = sessions.length > 0 ? totalMinutes / sessions.length : 0;
 
       return {
@@ -148,14 +148,14 @@ class StudyHistoryService {
         endDate: sunday.toISOString()
       });
 
-      const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
+      const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
       const dailyAverage = totalMinutes / 7;
 
       // 找出最佳的一天
       const dailyTotals: Record<string, number> = {};
       sessions.forEach(session => {
         const date = session.started_at.slice(0, 10);
-        dailyTotals[date] = (dailyTotals[date] || 0) + session.duration_minutes;
+        dailyTotals[date] = (dailyTotals[date] || 0) + session.duration;
       });
 
       let bestDay = { date: monday.toISOString().slice(0, 10), minutes: 0 };
