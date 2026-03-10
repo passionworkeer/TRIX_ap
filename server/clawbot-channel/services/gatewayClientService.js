@@ -2,20 +2,14 @@
  * Gateway Client Service
  *
  * WebSocket client for connecting to OpenClaw Gateway
- * Supports:
- * - WebSocket long connection
- * - Ed25519 device signature authentication
- * - Token/Password authentication
- * - Request-response pattern (req/res)
- * - Event subscription (on/off)
- * - Heartbeat (tick)
- * - Auto-reconnect
- * - Message queue
+ * Compatible with ClawPilot NPM package protocol
  */
 
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const EventEmitter = require('events');
+
+const PROTOCOL_VERSION = 3;
 
 class GatewayClientService extends EventEmitter {
   constructor() {
@@ -26,97 +20,169 @@ class GatewayClientService extends EventEmitter {
     this.password = null;
     this.deviceId = null;
     this.deviceKey = null;
+    this.publicKey = null;
     this.connected = false;
     this.authenticated = false;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
-    this.reconnectDelay = 2000;
+    this.reconnectDelay = 1000;
     this.heartbeatInterval = null;
-    this.heartbeatTimeout = null;
+    this.lastTick = 0;
+    this.tickIntervalMs = 30000;
     this.pendingRequests = new Map();
     this.messageQueue = [];
-    this.lastMessageTime = Date.now();
-    this.seq = 0;
+    this.connectNonce = null;
+    this.connectSent = false;
+    this.connectTimer = null;
+    this.tickTimer = null;
+    this.stopped = false;
+    this.storedDeviceToken = null;
   }
 
   /**
-   * Generate unique message ID
+   * Load or create device identity
    */
-  generateId() {
-    return `${Date.now()}-${++this.seq}-${Math.random().toString(36).slice(2, 9)}`;
-  }
+  loadOrCreateDeviceIdentity() {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
 
-  /**
-   * Generate Ed25519 key pair (for device authentication)
-   */
-  generateKeyPair() {
-    const { generateKeyPairSync, randomBytes } = crypto;
+    const IDENTITY_PATH = path.join(os.homedir(), '.clawai', 'device-identity.json');
+    const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
-    // Generate Ed25519 key pair
+    // Ensure directory exists
+    const identityDir = path.dirname(IDENTITY_PATH);
+    if (!fs.existsSync(identityDir)) {
+      fs.mkdirSync(identityDir, { recursive: true });
+    }
+
+    if (fs.existsSync(IDENTITY_PATH)) {
+      try {
+        const stored = JSON.parse(fs.readFileSync(IDENTITY_PATH, 'utf8'));
+        if (stored.deviceId && stored.publicKeyPem && stored.privateKeyPem) {
+          return {
+            deviceId: stored.deviceId,
+            publicKeyPem: stored.publicKeyPem,
+            privateKeyPem: stored.privateKeyPem
+          };
+        }
+      } catch (e) {
+        // fall through
+      }
+    }
+
+    // Generate new key pair
+    const { generateKeyPairSync } = crypto;
     const { publicKey, privateKey } = generateKeyPairSync('ed25519');
 
-    return {
-      publicKey: publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
-      privateKey: privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64'),
-    };
+    const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+
+    // Derive deviceId from public key
+    const spki = publicKey.export({ type: 'spki', format: 'der' });
+    const rawKey = spki.length === ED25519_SPKI_PREFIX.length + 32
+      ? spki.subarray(ED25519_SPKI_PREFIX.length)
+      : spki;
+    const deviceId = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+    const identity = { deviceId, publicKeyPem, privateKeyPem };
+
+    fs.writeFileSync(
+      IDENTITY_PATH,
+      JSON.stringify({ version: 1, ...identity, createdAtMs: Date.now() }, null, 2) + '\n',
+      { mode: 0o600 }
+    );
+
+    return identity;
   }
 
   /**
-   * Sign data with private key
+   * Base64 URL encode
    */
-  sign(data, privateKeyBase64) {
-    const privateKey = crypto.createPrivateKey({
-      key: Buffer.from(privateKeyBase64, 'base64'),
-      type: 'pkcs8',
-      format: 'der'
-    });
+  base64UrlEncode(buf) {
+    return buf.toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
+  }
 
-    const sign = crypto.createSign('SHA512');
-    sign.update(typeof data === 'string' ? data : JSON.stringify(data));
-    return sign.sign(privateKey, 'base64');
+  /**
+   * Get raw public key bytes
+   */
+  rawPublicKeyBytes(publicKeyPem) {
+    const key = crypto.createPublicKey(publicKeyPem);
+    const spki = key.export({ type: 'spki', format: 'der' });
+    const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+    return spki.length === ED25519_SPKI_PREFIX.length + 32
+      ? spki.subarray(ED25519_SPKI_PREFIX.length)
+      : spki;
+  }
+
+  /**
+   * Build signed device payload (matching ClawPilot)
+   */
+  buildSignedDevice(identity, opts) {
+    const version = opts.nonce ? 'v2' : 'v1';
+    const payload = [
+      version,
+      identity.deviceId,
+      opts.clientId,
+      opts.clientMode,
+      opts.role,
+      opts.scopes.join(','),
+      String(opts.signedAtMs),
+      opts.token ?? '',
+      ...(version === 'v2' ? [opts.nonce ?? ''] : []),
+    ].join('|');
+
+    const key = crypto.createPrivateKey(identity.privateKeyPem);
+    const signature = this.base64UrlEncode(crypto.sign(null, Buffer.from(payload, 'utf8'), key));
+
+    return {
+      id: identity.deviceId,
+      publicKey: this.base64UrlEncode(this.rawPublicKeyBytes(identity.publicKeyPem)),
+      signature,
+      signedAt: opts.signedAtMs,
+      nonce: opts.nonce,
+    };
   }
 
   /**
    * Connect to Gateway
    */
-  async connect(url, token = null, password = null, deviceId = null, deviceKey = null) {
+  async connect(url, token = null, password = null) {
     this.url = url;
     this.token = token;
     this.password = password;
 
-    // Generate or use provided device credentials
-    if (!deviceId || !deviceKey) {
-      const keys = this.generateKeyPair();
-      this.deviceId = `device_${crypto.randomBytes(8).toString('hex')}`;
-      this.deviceKey = keys.privateKey;
-    } else {
-      this.deviceId = deviceId;
-      this.deviceKey = deviceKey;
-    }
+    // Load device identity
+    this.identity = this.loadOrCreateDeviceIdentity();
+    this.deviceId = this.identity.deviceId;
 
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.url);
+        this.stopped = false;
+        this.ws = new WebSocket(url, { maxPayload: 25 * 1024 * 1024 });
 
         this.ws.on('open', () => {
           console.log('[GatewayClient] WebSocket connected');
           this.connected = true;
-          this.reconnectAttempts = 0;
-          this.startHeartbeat();
-          this.flushMessageQueue();
+          this.connectNonce = null;
+          this.connectSent = false;
+
+          // Fallback: send connect after 1s if challenge hasn't arrived
+          this.connectTimer = setTimeout(() => this.sendConnect(), 1000);
         });
 
         this.ws.on('message', (data) => {
-          this.handleMessage(data);
+          const raw = typeof data === 'string' ? data : data.toString();
+          this.handleMessage(raw);
         });
 
-        this.ws.on('close', () => {
-          console.log('[GatewayClient] WebSocket closed');
+        this.ws.on('close', (code, reason) => {
+          console.log('[GatewayClient] WebSocket closed:', reason.toString() || `code ${code}`);
           this.connected = false;
           this.authenticated = false;
-          this.stopHeartbeat();
-          this.emit('disconnect');
-          this.attemptReconnect();
+          this.teardown();
+          this.emit('disconnect', reason.toString() || `code ${code}`);
+          this.scheduleReconnect();
         });
 
         this.ws.on('error', (error) => {
@@ -124,18 +190,18 @@ class GatewayClientService extends EventEmitter {
           this.emit('error', error);
         });
 
-        // Wait for connection, then authenticate
-        const onConnect = () => {
+        // Wait for connection
+        const onConnected = () => {
           this.off('error', onError);
-          this.authenticate().then(resolve).catch(reject);
+          resolve();
         };
 
         const onError = (error) => {
-          this.off('connect', onConnect);
+          this.off('connected', onConnected);
           reject(error);
         };
 
-        this.once('connect', onConnect);
+        this.once('connected', onConnected);
         this.once('error', onError);
 
         // Set connection timeout
@@ -153,173 +219,186 @@ class GatewayClientService extends EventEmitter {
   }
 
   /**
-   * Authenticate with Gateway
+   * Send connect request (matching ClawPilot protocol)
    */
-  async authenticate() {
-    const authPayload = {
-      deviceId: this.deviceId,
-      timestamp: Date.now(),
-    };
+  sendConnect() {
+    if (this.connectSent) return;
+    this.connectSent = true;
 
-    // Sign authentication payload
-    const signature = this.sign(authPayload, this.deviceKey);
-
-    const authMessage = {
-      type: 'auth',
-      deviceId: this.deviceId,
-      timestamp: authPayload.timestamp,
-      signature,
-    };
-
-    // Add token or password if provided
-    if (this.token) {
-      authMessage.token = this.token;
-    } else if (this.password) {
-      authMessage.password = this.password;
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
     }
 
-    return new Promise((resolve, reject) => {
-      const id = this.generateId();
+    const role = 'operator';
+    const scopes = ['operator.admin', 'operator.read', 'operator.write', 'operator.approvals', 'operator.pairing'];
+    const clientId = 'trix-web';
+    const clientMode = 'ui';
+    const signedAtMs = Date.now();
+    const nonce = this.connectNonce ?? undefined;
+    const authToken = this.storedDeviceToken ?? this.token;
 
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(id);
-        reject(new Error('Authentication timeout'));
-      }, 10000);
-
-      this.pendingRequests.set(id, { resolve, reject, timeout });
-
-      this.ws.send(JSON.stringify({ ...authMessage, id }));
-
-      // Also wait for first 'tick' event as confirmation
-      const onTick = () => {
-        this.off('tick', onTick);
-        clearTimeout(timeout);
-        this.pendingRequests.delete(id);
-        this.authenticated = true;
-        this.emit('connect');
-        resolve();
-      };
-
-      this.once('tick', onTick);
+    const device = this.buildSignedDevice(this.identity, {
+      clientId,
+      clientMode,
+      role,
+      scopes,
+      signedAtMs,
+      token: authToken,
+      nonce,
     });
+
+    const params = {
+      minProtocol: PROTOCOL_VERSION,
+      maxProtocol: PROTOCOL_VERSION,
+      role,
+      scopes,
+      caps: ['tool-events'],
+      client: {
+        id: clientId,
+        displayName: 'TRIX Web',
+        version: '1.0.0',
+        platform: 'browser',
+        mode: clientMode,
+      },
+      device,
+      auth: (authToken || this.password)
+        ? { token: authToken, password: this.password }
+        : undefined,
+    };
+
+    this.request('connect', params)
+      .then((helloOk) => {
+        // Store device token if provided
+        const deviceToken = helloOk?.auth?.deviceToken;
+        if (typeof deviceToken === 'string') {
+          this.storedDeviceToken = deviceToken;
+        }
+
+        // Update tick interval if provided
+        if (typeof helloOk?.policy?.tickIntervalMs === 'number') {
+          this.tickIntervalMs = helloOk.policy.tickIntervalMs;
+        }
+
+        this.reconnectDelay = 1000;
+        this.lastTick = Date.now();
+        this.startTickWatch();
+        this.authenticated = true;
+        this.flushMessageQueue();
+        this.emit('connected');
+      })
+      .catch((err) => {
+        console.error('[GatewayClient] connect failed:', err.message);
+        this.storedDeviceToken = null;
+        this.ws?.close(1008, 'connect failed');
+      });
   }
 
   /**
    * Handle incoming message
    */
-  handleMessage(data) {
-    this.lastMessageTime = Date.now();
-
+  handleMessage(raw) {
+    let parsed;
     try {
-      const frame = JSON.parse(data.toString());
-
-      switch (frame.type) {
-        case 'res':
-          this.handleResponse(frame);
-          break;
-
-        case 'event':
-          this.handleEvent(frame);
-          break;
-
-        case 'tick':
-          this.handleTick(frame);
-          break;
-
-        case 'auth':
-          // Authentication response
-          if (frame.ok) {
-            this.authenticated = true;
-          }
-          break;
-
-        default:
-          console.log('[GatewayClient] Unknown frame type:', frame.type);
-      }
-    } catch (error) {
-      console.error('[GatewayClient] Failed to parse message:', error);
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
     }
-  }
 
-  /**
-   * Handle response frame
-   */
-  handleResponse(frame) {
-    const pending = this.pendingRequests.get(frame.id);
+    if (typeof parsed?.type !== 'string') return;
 
-    if (pending) {
-      clearTimeout(pending.timeout);
-      this.pendingRequests.delete(frame.id);
+    // Event frame
+    if (parsed.type === 'event') {
+      const evt = parsed;
 
-      if (frame.ok) {
-        pending.resolve(frame.payload);
+      // Handle connect.challenge
+      if (evt.event === 'connect.challenge') {
+        const nonce = evt.payload?.nonce;
+        if (typeof nonce === 'string') {
+          this.connectNonce = nonce;
+          this.sendConnect();
+        }
+        return;
+      }
+
+      // Handle tick
+      if (evt.event === 'tick') {
+        this.lastTick = Date.now();
+        return;
+      }
+
+      // Forward other events
+      this.emit(evt.event, evt.payload ?? null);
+      this.emit('*', evt);
+      return;
+    }
+
+    // Response frame
+    if (parsed.type === 'res') {
+      const pending = this.pendingRequests.get(parsed.id);
+      if (!pending) return;
+
+      this.pendingRequests.delete(parsed.id);
+      if (parsed.ok) {
+        pending.resolve(parsed.payload);
       } else {
-        pending.reject(new Error(frame.error?.message || 'Request failed'));
+        pending.reject(new Error(parsed.error?.message ?? 'gateway error'));
       }
+      return;
+    }
+
+    // Handle incoming req frames from OpenClaw (e.g. chat.push)
+    if (parsed.type === 'req') {
+      const { id, method, params } = parsed;
+      console.log(`[GatewayClient] incoming req: method=${method}`);
+
+      // Ack immediately
+      if (id && this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'res', id, ok: true }));
+      }
+
+      // Forward chat.push
+      if (method === 'chat.push' && params != null) {
+        this.emit('chat', params);
+      }
+      return;
     }
   }
 
   /**
-   * Handle event frame
+   * Send request (no response expected)
    */
-  handleEvent(frame) {
-    this.emit(frame.event, frame.payload);
-    this.emit('*', frame);
-  }
+  send(method, params = {}) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('[GatewayClient] Not connected, queueing message');
+      this.messageQueue.push({ method, params });
+      return;
+    }
 
-  /**
-   * Handle tick (heartbeat)
-   */
-  handleTick(frame) {
-    // Send pong
-    this.ws.send(JSON.stringify({ type: 'tick', timestamp: Date.now() }));
+    const frame = { type: 'req', id: crypto.randomUUID(), method, params };
+    this.ws.send(JSON.stringify(frame));
   }
 
   /**
    * Send request and wait for response
    */
   request(method, params = {}) {
-    if (!this.connected || !this.authenticated) {
-      return Promise.reject(new Error('Not connected or authenticated'));
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error('gateway not connected'));
     }
 
-    const id = this.generateId();
-    const frame = {
-      type: 'req',
-      id,
-      method,
-      params,
-    };
+    const id = crypto.randomUUID();
+    const frame = { type: 'req', id, method, params };
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request ${method} timeout`));
-      }, 60000); // 60 second timeout
+      }, 60000);
 
       this.pendingRequests.set(id, { resolve, reject, timeout });
       this.ws.send(JSON.stringify(frame));
     });
-  }
-
-  /**
-   * Send notification (no response expected)
-   */
-  send(method, params = {}) {
-    if (!this.connected || !this.authenticated) {
-      console.warn('[GatewayClient] Not connected, queueing message');
-      this.messageQueue.push({ method, params });
-      return;
-    }
-
-    const frame = {
-      type: 'req',
-      id: this.generateId(),
-      method,
-      params,
-    };
-
-    this.ws.send(JSON.stringify(frame));
   }
 
   /**
@@ -333,74 +412,66 @@ class GatewayClientService extends EventEmitter {
   }
 
   /**
-   * Start heartbeat
+   * Start tick watch
    */
-  startHeartbeat() {
-    this.stopHeartbeat();
+  startTickWatch() {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+    }
 
-    // Send tick every 30 seconds
-    this.heartbeatInterval = setInterval(() => {
-      if (this.connected) {
-        this.ws.send(JSON.stringify({ type: 'tick', timestamp: Date.now() }));
+    const interval = Math.max(this.tickIntervalMs, 1000);
+    this.tickTimer = setInterval(() => {
+      if (this.stopped || !this.lastTick) return;
 
-        // Check if we've received messages recently
-        if (Date.now() - this.lastMessageTime > 60000) {
-          console.log('[GatewayClient] No messages received for 60 seconds, reconnecting...');
-          this.ws.close();
-        }
+      if (Date.now() - this.lastTick > this.tickIntervalMs * 2) {
+        console.log('[GatewayClient] Tick timeout, reconnecting...');
+        this.ws?.close(4000, 'tick timeout');
       }
-    }, 30000);
+    }, interval);
   }
 
   /**
-   * Stop heartbeat
+   * Schedule reconnect
    */
-  stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-    if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout);
-      this.heartbeatTimeout = null;
-    }
-  }
+  scheduleReconnect() {
+    if (this.stopped) return;
 
-  /**
-   * Attempt to reconnect
-   */
-  attemptReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[GatewayClient] Max reconnection attempts reached');
-      this.emit('reconnect_failed');
-      return;
-    }
-
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-
-    console.log(`[GatewayClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    const delay = this.reconnectDelay;
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
 
     setTimeout(() => {
-      if (!this.connected) {
-        this.connect(this.url, this.token, this.password, this.deviceId, this.deviceKey)
+      if (!this.stopped) {
+        this.connect(this.url, this.token, this.password)
           .then(() => {
             console.log('[GatewayClient] Reconnected successfully');
-            this.emit('reconnect');
           })
-          .catch((error) => {
-            console.error('[GatewayClient] Reconnection failed:', error.message);
+          .catch((err) => {
+            console.error('[GatewayClient] Reconnection failed:', err.message);
           });
       }
-    }, delay);
+    }, delay).unref();
+  }
+
+  /**
+   * Cleanup timers
+   */
+  teardown() {
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
   }
 
   /**
    * Disconnect
    */
   disconnect() {
-    this.stopHeartbeat();
-    this.maxReconnectAttempts = 0; // Prevent reconnection
+    this.stopped = true;
+    this.teardown();
 
     if (this.ws) {
       this.ws.close();
@@ -411,11 +482,13 @@ class GatewayClientService extends EventEmitter {
     this.authenticated = false;
 
     // Reject all pending requests
-    for (const [id, pending] of this.pendingRequests) {
+    for (const [_, pending] of this.pendingRequests) {
       clearTimeout(pending.timeout);
-      pending.reject(new Error('Disconnected'));
+      pending.reject(new Error('gateway client stopped'));
     }
     this.pendingRequests.clear();
+
+    this.emit('disconnect');
   }
 
   /**
