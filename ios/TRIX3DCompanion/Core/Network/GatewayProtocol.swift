@@ -219,3 +219,34 @@ struct PairingStatus: Codable {
     let botOnline: Bool?
     let pairedAt: String?
 }
+
+// MARK: - Relay Types
+
+/// Relay QR Code payload
+struct RelayQRPayload: Codable {
+    let version: Int
+    let server: String
+    let gatewayId: String
+    let accessCode: String
+    let displayName: String
+}
+
+/// Relay device registration response
+struct RelayRegisterResponse: Codable {
+    let gatewayId: String
+    let relaySecret: String
+    let accessCode: String
+}
+
+/// Relay authentication response
+struct RelayAuthResponse: Codable {
+    let ok: Bool
+    let error: String?
+    let device: RelayDeviceInfo?
+}
+
+/// Relay device info
+struct RelayDeviceInfo: Codable {
+    let gatewayId: String
+    let displayName: String
+}

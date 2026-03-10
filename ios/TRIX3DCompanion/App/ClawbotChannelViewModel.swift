@@ -24,6 +24,13 @@ final class ClawbotChannelViewModel: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var botState: BotState = .idle
 
+    // Connection mode
+    @Published var connectionMode: ConnectionMode = .socketIO
+
+    // Relay specific
+    @Published private(set) var relayConnected: Bool = false
+    @Published private(set) var relayDeviceName: String?
+
     @Published var messages: [ClawbotMessage] = []
     @Published var isSending: Bool = false
 
@@ -38,12 +45,124 @@ final class ClawbotChannelViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private let service = ClawbotChannelService.shared
+    private let relayClient = RelayClient.shared
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     private init() {
         setupBindings()
+        setupRelayBindings()
+    }
+
+    // MARK: - Relay Connection Methods
+
+    /// Connect via Relay server (QR code or manual input)
+    func connectRelay(server: String, gatewayId: String, accessCode: String) async -> Bool {
+        lastError = nil
+        isSending = true
+
+        do {
+            try await relayClient.connect(server: server, gatewayId: gatewayId, accessCode: accessCode)
+            relayConnected = true
+            relayDeviceName = relayClient.displayName
+            isPaired = true
+            isSending = false
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            relayConnected = false
+            isSending = false
+            return false
+        }
+    }
+
+    /// Parse QR code content for Relay
+    func parseRelayQR(_ content: String) -> RelayQRPayload? {
+        return relayClient.parseQRContent(content)
+    }
+
+    /// Connect via Relay QR code
+    func connectRelayWithQR(_ qrContent: String) async -> Bool {
+        guard let payload = parseRelayQR(qrContent) else {
+            lastError = "无效的 QR 码内容"
+            return false
+        }
+
+        return await connectRelay(
+            server: payload.server,
+            gatewayId: payload.gatewayId,
+            accessCode: payload.accessCode
+        )
+    }
+
+    /// Connect Relay with manual input (server + gatewayId + accessCode)
+    func connectRelayManual(server: String, gatewayId: String, accessCode: String) async -> Bool {
+        return await connectRelay(server: server, gatewayId: gatewayId, accessCode: accessCode)
+    }
+
+    /// Disconnect from Relay
+    func disconnectRelay() {
+        relayClient.disconnect()
+        relayConnected = false
+        relayDeviceName = nil
+        isPaired = false
+    }
+
+    /// Send message via Relay
+    func sendMessageRelay(_ content: String) async -> Bool {
+        guard relayConnected else {
+            lastError = "未连接到 Relay"
+            return false
+        }
+
+        isSending = true
+
+        do {
+            try await relayClient.sendToDevice(method: "chat.send", params: ["message": content])
+            // Add user message to local list
+            let userMessage = ClawbotMessage(
+                id: generateMessageId(),
+                content: content,
+                contentType: .text,
+                timestamp: Date(),
+                sender: .user
+            )
+            messages.append(userMessage)
+            isSending = false
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            isSending = false
+            return false
+        }
+    }
+
+    /// Setup Relay event bindings
+    private func setupRelayBindings() {
+        relayClient.messageSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] data in
+                // Handle incoming message from device
+                if let content = data["content"] as? String {
+                    let botMessage = ClawbotMessage(
+                        id: self?.generateMessageId() ?? UUID().uuidString,
+                        content: content,
+                        contentType: .text,
+                        timestamp: Date(),
+                        sender: .bot
+                    )
+                    self?.messages.append(botMessage)
+                }
+            }
+            .store(in: &cancellables)
+
+        relayClient.connectionSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] connected in
+                self?.relayConnected = connected
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Public Methods
