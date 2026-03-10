@@ -546,13 +546,20 @@ struct User: Codable, Identifiable {
     let username: String
     let email: String?
     let avatarUrl: String?
+    let avatarConfig: [String: AnyCodable]?
     let fullName: String?
     let displayName: String?
     let bio: String?
+    let website: String?
     let points: Int
     let isStudying: Bool
     let companionId: String?
     let totalStudyTime: Int
+    let lastActiveAt: Date?
+    let currentStreak: Int
+    let daysActive: Int
+    let interactionCount: Int
+    let showOnlineStatus: Bool
     let school: String?
     let grade: String?
     let createdAt: Date
@@ -563,13 +570,20 @@ struct User: Codable, Identifiable {
         case username
         case email
         case avatarUrl = "avatar_url"
+        case avatarConfig = "avatar_config"
         case fullName = "full_name"
         case displayName = "display_name"
         case bio
+        case website
         case points
         case isStudying = "is_studying"
         case companionId = "companion_id"
         case totalStudyTime = "total_study_time"
+        case lastActiveAt = "last_active_at"
+        case currentStreak = "current_streak"
+        case daysActive = "days_active"
+        case interactionCount = "interaction_count"
+        case showOnlineStatus = "show_online_status"
         case school
         case grade
         case createdAt = "created_at"
@@ -705,6 +719,12 @@ struct ChatMessage: Codable, Identifiable {
     let mediaUrl: String?
     let mediaMimeType: String?
     let mediaDuration: Int?
+    let mediaSize: Int64?
+    let mediaMetadata: [String: AnyCodable]?
+    let voiceUrl: String?
+    let voiceDuration: Int?
+    let voiceTranscript: String?
+    let voiceMimeType: String?
     let isRead: Bool
     let createdAt: Date
 
@@ -718,6 +738,12 @@ struct ChatMessage: Codable, Identifiable {
         case mediaUrl = "media_url"
         case mediaMimeType = "media_mime_type"
         case mediaDuration = "media_duration"
+        case mediaSize = "media_size"
+        case mediaMetadata = "media_metadata"
+        case voiceUrl = "voice_url"
+        case voiceDuration = "voice_duration"
+        case voiceTranscript = "voice_transcript"
+        case voiceMimeType = "voice_mime_type"
         case isRead = "is_read"
         case createdAt = "created_at"
     }
@@ -756,9 +782,9 @@ struct CreateChatRoomRequest: Codable {
 struct StudySession: Codable, Identifiable {
     let id: String
     let userId: String
-    let durationMinutes: Int
+    let duration: Int
     let startedAt: Date
-    let completedAt: Date?
+    let endedAt: Date?
     let earnedPoints: Int?
     let isCompleted: Bool
     let subject: String?
@@ -768,9 +794,9 @@ struct StudySession: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
-        case durationMinutes = "duration_minutes"
+        case duration
         case startedAt = "started_at"
-        case completedAt = "completed_at"
+        case endedAt = "ended_at"
         case earnedPoints = "earned_points"
         case isCompleted = "is_completed"
         case subject
@@ -798,10 +824,10 @@ struct StudyStats: Codable {
 }
 
 struct CreateStudySessionRequest: Codable {
-    let durationMinutes: Int
+    let duration: Int
 
     enum CodingKeys: String, CodingKey {
-        case durationMinutes = "duration_minutes"
+        case duration
     }
 }
 
