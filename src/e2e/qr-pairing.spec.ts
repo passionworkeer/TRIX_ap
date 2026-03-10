@@ -87,7 +87,7 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
     await page.waitForTimeout(2000);
 
     // Check page content for expected text
-    const pageContent = await page.locator('body').textContent();
+    const pageContent = await page.locator('body').textContent() ?? '';
 
     // Should contain some form of instructions or steps
     const hasInstructions = pageContent.includes('步骤') ||

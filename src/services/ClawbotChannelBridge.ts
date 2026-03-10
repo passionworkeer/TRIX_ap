@@ -53,6 +53,7 @@ export interface PairingData {
 export interface SocketEvents {
   // 连接事件
   connect: void;
+  connected: void;
   disconnect: void;
   reconnecting: { attempt: number };
 
@@ -109,6 +110,9 @@ export interface SocketResponse {
   deviceId?: string;
   deviceName?: string;
   message?: string;
+  data?: unknown;
+  pairingId?: string;
+  status?: string;
 }
 
 /**
@@ -119,6 +123,54 @@ export interface SocketError {
   message: string;
   description?: string;
   context?: unknown;
+}
+
+/**
+ * OpenClaw 控制命令类型
+ */
+export type OpenClawControlAction =
+  | 'models_status'
+  | 'skills_list'
+  | 'skills_check'
+  | 'cron_list'
+  | 'cron_add'
+  | 'cron_enable'
+  | 'cron_disable'
+  | 'cron_remove'
+  | 'cron_run'
+  | 'status'
+  | 'health'
+  | 'doctor'
+  | 'doctor_repair'
+  | 'logs'
+  | 'config_backup'
+  | 'config_rollback'
+  | 'config_backup_info';
+
+/**
+ * 控制命令参数
+ */
+export interface ControlCommandParams {
+  // cron 相关
+  name?: string;
+  schedule?: string;
+  type?: 'message' | 'system-event';
+  content?: string;
+  channel?: string;
+  to?: string;
+  jobId?: string;
+
+  // logs 相关
+  limit?: number;
+}
+
+/**
+ * 控制命令响应
+ */
+export interface ControlCommandResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 /**
@@ -197,7 +249,7 @@ class ClawbotChannelBridge {
         try {
           callback(data);
         } catch (error) {
-          logger.clawbot.error(`[ClawbotChannel] 浜嬩欢鍥炶皟閿欒 (${event}):`, error);
+          logger.clawbot.error(`[ClawbotChannel] 事件回调错误 (${event}):`, error);
         }
       });
     }
@@ -241,20 +293,20 @@ class ClawbotChannelBridge {
 
       return session.user.id;
     } catch (error) {
-      logger.clawbot.error('[ClawbotChannel] getSupabaseUserId 閿欒:', error);
+      logger.clawbot.error('[ClawbotChannel] getSupabaseUserId 错误:', error);
       return null;
     }
   }
 
   /**
-   * 杩炴帴鍒版湇鍔″櫒
+   * 连接到服务器
    */
   async connect(): Promise<void> {
     // Get user ID
     this.userId = await this.getSupabaseUserId();
     if (!this.userId) {
-      logger.clawbot.error('[ClawbotChannel] 鐢ㄦ埛鏈櫥褰曪紝鏃犳硶杩炴帴');
-      this.emit('error', { message: '璇峰厛鐧诲綍' });
+      logger.clawbot.error('[ClawbotChannel] 用户未登录，无法连接');
+      this.emit('error', { message: '请先登录' });
       return;
     }
 
@@ -268,15 +320,15 @@ class ClawbotChannelBridge {
     const { channelUrl } = getClawbotEndpoints();
     const serverUrl = channelUrl;
 
-    this.emit('connecting');
+    this.emit('connected');
 
     this.socket = io(serverUrl, {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,  // 鉁?#13: 闄嶄綆閲嶈繛娆℃暟锛堝師 100 娆★級
+      reconnectionAttempts: 10,  // 降低重连次数（原 100 次）
       reconnectionDelay: 2000,
-      reconnectionDelayMax: 30000  // 鉁?#13: 闄嶄綆鏈€澶у欢杩燂紙鍘?60000 绉掞級
+      reconnectionDelayMax: 30000  // 降低最大延迟（原来 60000 毫秒）
     });
 
     this.setupEventHandlers();
@@ -309,25 +361,25 @@ class ClawbotChannelBridge {
   private setupEventHandlers(): void {
     if (!this.socket) return;
 
-    // 杩炴帴鎴愬姛
+    // 连接成功
     this.socket.on('connect', () => {
       void this.handleConnected();
     });
 
-    // 鏂紑杩炴帴
+    // 断开连接
     this.socket.on('disconnect', () => {
       this.connected = false;
       this.stopHeartbeat();
-      this.emit('disconnected');
+      this.emit('disconnect');
     });
 
-    // 閰嶅鎴愬姛
+    // 兼容流程由 Clawbot 端发起
     this.socket.on('pairing_success', (data: { deviceId: string; deviceName: string }) => {
       this.paired = true;
       this.deviceId = data.deviceId;
       localStorage.setItem('clawbot_device_id', data.deviceId);
       localStorage.setItem('clawbot_paired', 'true');
-      this.emit('paired', data);
+      this.emit('pairing_success', data);
     });
 
     // 鏀跺埌 Bot 娑堟伅
@@ -349,15 +401,15 @@ class ClawbotChannelBridge {
         timestamp: msg.timestamp || Date.now(),
         sender: 'bot'
       };
-      this.emit('message', message);
+      this.emit('bot_message', message);
     });
 
-    // Bot 绂荤嚎閫氱煡
+    // Bot 离线通知
     this.socket.on('bot_offline', (data: { deviceId: string; message: string; timestamp: number }) => {
       this.emit('bot_offline', data);
     });
 
-    // Bot 涓婄嚎閫氱煡
+    // Bot 上线通知
     this.socket.on('bot_online', (data: { deviceId: string; message: string; timestamp: number }) => {
       this.emit('bot_online', data);
     });
@@ -380,15 +432,15 @@ class ClawbotChannelBridge {
       this.lastPongTime = Date.now();
     });
 
-    // 閿欒
+    // 错误
     this.socket.on('error', (err: unknown) => {
-      logger.clawbot.error('[ClawbotChannel] 閿欒:', err);
-      this.emit('error', this.toErrorPayload(err, '杩炴帴閿欒'));
+      logger.clawbot.error('[ClawbotChannel] 错误:', err);
+      this.emit('error', this.toErrorPayload(err, '连接错误'));
     });
 
-    // 杩炴帴閿欒
+    // 连接错误
     this.socket.on('connect_error', (err: Error) => {
-      logger.clawbot.error('[ClawbotChannel] 杩炴帴閿欒:', err);
+      logger.clawbot.error('[ClawbotChannel] 连接错误:', err);
       this.reconnectAttempts++;
       this.emit('reconnecting', { attempt: this.reconnectAttempts });
     });
@@ -481,9 +533,9 @@ class ClawbotChannelBridge {
       await this.probePairingStatusAck(3000);
       this.emit('connected');
 
-      // 鉁?淇 2: 閫氱煡 UI 灞傚幓 Supabase 鎷夊彇鏂綉鏈熼棿鍙兘閬楁紡鐨勬秷鎭?
-      // 瑙ｅ喅绉诲姩绔垏鍚庡彴/閿佸睆鏈熼棿鐨勬秷鎭粦娲為棶棰?
-      // UI 灞傚簲璇ョ洃鍚?'sync_missed_messages' 浜嬩欢骞朵粠 Supabase 鎷夊彇鏈€鏂版秷鎭?
+      // 修复 2: 通知 UI 层去 Supabase 拉取网络间可能发送的消息
+      // 解决移动端切后台/锁屏期间的消息离线问题
+      // UI 层应监听
       // UI 层应监听 'sync_missed_messages' 事件并从 Supabase 拉取最新消息
       logger.clawbot.debug('[ClawbotChannel] ✅ 已触发消息同步，UI 层应从 Supabase 拉取遗漏消息');
 
@@ -495,9 +547,9 @@ class ClawbotChannelBridge {
     }
   }
 
-  // 鉂?宸插垹闄? requestPairing() 鏂规硶
-  // 鍘熷洜: 鏈嶅姟鍣ㄦ病鏈夊鐞?'request_pairing' 浜嬩欢
-  // 閰嶅娴佺▼搴旂敱 Clawbot 绔彂璧凤紝涓嶆槸 App 绔?
+  // 鉂?已删除 requestPairing() 方法
+  // 原因: 服务器没有处理
+  // 兼容流程由 Clawbot 端发起
 
   /**
    * Check current user's server-side pairing status
@@ -564,7 +616,13 @@ class ClawbotChannelBridge {
           return;
         }
 
-        const data = response.data || response;
+        const data = (response.data || response) as {
+          paired?: boolean;
+          deviceId?: string;
+          deviceName?: string;
+          botOnline?: boolean;
+          pairedAt?: string;
+        };
         const paired = Boolean((data as { paired?: boolean })?.paired);
 
         if (paired) {
@@ -663,7 +721,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 鉁?#14: 鍙戦€佹秷鎭埌 Clawbot锛堝甫纭鏈哄埗锛?
+   * #14: 发送消息到 Clawbot（带确认机制）
    */
   async createStudyRoom(
     displayName: string,
@@ -800,20 +858,20 @@ class ClawbotChannelBridge {
 
       const messageId = generateMessageId();
 
-      // 鉁?P0-闂1: 浣跨敤 on() + 娑堟伅ID鍖归厤锛岃€屼笉鏄?once()
-      // 闃叉鍏朵粬娑堟伅鐨勭‘璁ゅ共鎵板綋鍓嶆秷鎭?
+      // P0-问题1: 使用 on() + 消息ID匹配，而不是 once()
+      // 防止其他消息的确认干扰当前消息
       const timeout = setTimeout(() => {
-        // 鉁?娓呴櫎鐩戝惉鍣?
+        // 清除监听器
         this.socket?.off('message_sent', handler);
         reject(new Error('message_sent timeout'));
-      }, 10000); // 10 绉掕秴鏃?
+      }, 10000); // 10 秒超时
 
-      // 鉁?浣跨敤 on() 骞舵墜鍔ㄨ繃婊ゆ秷鎭疘D
+      // 使用 on() 并手动过滤消息ID
       const handler = (response: { success: boolean; messageId?: string; error?: string }) => {
-        // 鉁?鍙鐞嗗綋鍓嶆秷鎭殑纭
+        // 只处理当前消息的确认
         if (response.messageId === messageId) {
           clearTimeout(timeout);
-          this.socket?.off('message_sent', handler); // 鉁?娓呴櫎鐩戝惉鍣?
+          this.socket?.off('message_sent', handler); // 清除监听器
 
           if (response.success) {
             resolve();
@@ -836,6 +894,39 @@ class ClawbotChannelBridge {
   }
 
   /**
+   * 发送控制命令到 OpenClaw
+   */
+  async sendControlCommand<T = unknown>(
+    action: string,
+    params?: Record<string, unknown>
+  ): Promise<{ success: boolean; data?: T; error?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.connected) {
+        reject(new Error('[ClawbotChannel] not connected, cannot send command'));
+        return;
+      }
+
+      if (!this.paired) {
+        reject(new Error('[ClawbotChannel] not paired, cannot send command'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('control_command timeout'));
+      }, 60000); // 60 秒超时
+
+      this.socket.emit('control_command', { action, params }, (response: { success: boolean; data?: T; error?: string }) => {
+        clearTimeout(timeout);
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error || 'Command failed'));
+        }
+      });
+    });
+  }
+
+  /**
    * Upload media file to OSS
    */
   async uploadMedia(file: File | Blob): Promise<string> {
@@ -849,7 +940,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 瑙ｇ粦
+   * 解ｇ粦
    */
   unpair(): void {
     if (this.socket && this.connected) {
@@ -891,7 +982,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * 鏂紑杩炴帴
+   * 断开连接
    */
   disconnect(): void {
     this.stopHeartbeat();
@@ -907,7 +998,7 @@ class ClawbotChannelBridge {
       this.socket = null;
     }
     this.connected = false;
-    this.emit('disconnected');
+    this.emit('disconnect');
   }
 
   /**

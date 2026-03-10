@@ -53,6 +53,7 @@ const Chat: React.FC = () => {
       const interval = setInterval(fetchFriendActiveTimes, 30000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [friends]);
 
   const loadFriends = async () => {

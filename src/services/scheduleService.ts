@@ -63,7 +63,7 @@ export async function getSchedules(): Promise<Schedule[]> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      logger.warn('[ScheduleService] User not authenticated');
+      logger.warn('[ScheduleService]', 'User not authenticated');
       return [];
     }
 
@@ -74,13 +74,13 @@ export async function getSchedules(): Promise<Schedule[]> {
       .order('start_time', { ascending: true });
 
     if (error) {
-      logger.error('[ScheduleService] Failed to fetch schedules:', error);
+      logger.error('[ScheduleService]', `Failed to fetch schedules: ${error.message}`, error);
       throw new Error(`获取日程失败: ${error.message}`);
     }
 
     return (data || []).map(mapRecordToSchedule);
   } catch (error) {
-    logger.error('[ScheduleService] Error in getSchedules:', error);
+    logger.error('[ScheduleService]', `Error in getSchedules: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   } finally {
     measure.end();
@@ -101,7 +101,7 @@ export async function getSchedulesByDateRange(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      logger.warn('[ScheduleService] User not authenticated');
+      logger.warn('[ScheduleService]', 'User not authenticated');
       return [];
     }
 
@@ -114,13 +114,13 @@ export async function getSchedulesByDateRange(
       .order('start_time', { ascending: true });
 
     if (error) {
-      logger.error('[ScheduleService] Failed to fetch schedules by date range:', error);
+      logger.error('[ScheduleService]', `Failed to fetch schedules by date range: ${error.message}`, error);
       throw new Error(`获取日程失败: ${error.message}`);
     }
 
     return (data || []).map(mapRecordToSchedule);
   } catch (error) {
-    logger.error('[ScheduleService] Error in getSchedulesByDateRange:', error);
+    logger.error('[ScheduleService]', `Error in getSchedulesByDateRange: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -175,15 +175,15 @@ export async function createSchedule(input: CreateScheduleInput): Promise<Schedu
       .single();
 
     if (error) {
-      logger.error('[ScheduleService] Failed to create schedule:', error);
+      logger.error('[ScheduleService]', `Failed to create schedule: ${error.message}`, error);
       throw new Error(`创建日程失败: ${error.message}`);
     }
 
-    logger.info(`[ScheduleService] Schedule created: id=${data.id}, user=${user.id}`);
+    logger.info('[ScheduleService]', `Schedule created: id=${data.id}, user=${user.id}`);
 
     return mapRecordToSchedule(data);
   } catch (error) {
-    logger.error('[ScheduleService] Error in createSchedule:', error);
+    logger.error('[ScheduleService]', `Error in createSchedule: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -259,7 +259,7 @@ export async function updateSchedule(
       .single();
 
     if (error) {
-      logger.error('[ScheduleService] Failed to update schedule:', error);
+      logger.error('[ScheduleService]', `Failed to update schedule: ${error.message}`, error);
       throw new Error(`更新日程失败: ${error.message}`);
     }
 
@@ -267,11 +267,11 @@ export async function updateSchedule(
       throw new Error('日程不存在或无权限修改');
     }
 
-    logger.info(`[ScheduleService] Schedule updated: id=${id}, user=${user.id}`);
+    logger.info('[ScheduleService]', `Schedule updated: id=${id}, user=${user.id}`);
 
     return mapRecordToSchedule(data);
   } catch (error) {
-    logger.error('[ScheduleService] Error in updateSchedule:', error);
+    logger.error('[ScheduleService]', `Error in updateSchedule: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -295,13 +295,13 @@ export async function deleteSchedule(id: string): Promise<void> {
       .eq('user_id', user.id);
 
     if (error) {
-      logger.error('[ScheduleService] Failed to delete schedule:', error);
+      logger.error('[ScheduleService]', `Failed to delete schedule: ${error.message}`, error);
       throw new Error(`删除日程失败: ${error.message}`);
     }
 
-    logger.info(`[ScheduleService] Schedule deleted: id=${id}, user=${user.id}`);
+    logger.info('[ScheduleService]', `Schedule deleted: id=${id}, user=${user.id}`);
   } catch (error) {
-    logger.error('[ScheduleService] Error in deleteSchedule:', error);
+    logger.error('[ScheduleService]', `Error in deleteSchedule: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -337,7 +337,7 @@ export async function syncWithServer(): Promise<{
       .eq('sync_status', 'pending');
 
     if (fetchError) {
-      logger.error('[ScheduleService] Failed to fetch pending schedules:', fetchError);
+      logger.error('[ScheduleService]', `Failed to fetch pending schedules: ${fetchError.message}`, fetchError);
       return {
         success: false,
         syncedCount: 0,
@@ -404,7 +404,7 @@ export async function syncWithServer(): Promise<{
     }
 
     logger.info(
-      `[ScheduleService] Sync completed: synced=${syncedCount}, conflicts=${conflicts.length}`
+      '[ScheduleService]', `Sync completed: synced=${syncedCount}, conflicts=${conflicts.length}`
     );
 
     return {
@@ -413,7 +413,7 @@ export async function syncWithServer(): Promise<{
       conflicts,
     };
   } catch (error) {
-    logger.error('[ScheduleService] Error in syncWithServer:', error);
+    logger.error('[ScheduleService]', `Error in syncWithServer: ${error instanceof Error ? error.message : String(error)}`, error);
     return {
       success: false,
       syncedCount: 0,
@@ -453,7 +453,7 @@ export async function getScheduleStats(): Promise<{
       ).length,
     };
   } catch (error) {
-    logger.error('[ScheduleService] Error in getScheduleStats:', error);
+    logger.error('[ScheduleService]', `Error in getScheduleStats: ${error instanceof Error ? error.message : String(error)}`, error);
     return {
       total: 0,
       today: 0,
@@ -488,13 +488,13 @@ export async function getUpcomingSchedules(minutes: number = 30): Promise<Schedu
       .order('start_time', { ascending: true });
 
     if (error) {
-      logger.error('[ScheduleService] Failed to fetch upcoming schedules:', error);
+      logger.error('[ScheduleService]', `Failed to fetch upcoming schedules: ${error.message}`, error);
       return [];
     }
 
     return (data || []).map(mapRecordToSchedule);
   } catch (error) {
-    logger.error('[ScheduleService] Error in getUpcomingSchedules:', error);
+    logger.error('[ScheduleService]', `Error in getUpcomingSchedules: ${error instanceof Error ? error.message : String(error)}`, error);
     return [];
   }
 }

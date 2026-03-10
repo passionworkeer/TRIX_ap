@@ -4,7 +4,7 @@
  * 使用虚拟化列表优化性能
  */
 
-import React, { useEffect, useRef, useState, memo, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, History } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
@@ -142,7 +142,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                     className="h-full"
                     data={transactions}
                     overscan={100}
-                    itemContent={(index, tx) => (
+                    itemContent={(_index, tx) => (
                       <div
                         key={tx.id}
                         className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl mx-4 first:mt-4 last:mb-4"

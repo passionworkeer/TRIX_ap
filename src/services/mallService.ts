@@ -50,7 +50,7 @@ export async function getMallItems(filter?: MallFilterOptions): Promise<MallItem
     const { data, error } = await query;
 
     if (error) {
-      logger.error('[MallService] Failed to fetch mall items:', error);
+      logger.error('[MallService]', `Failed to fetch mall items: ${error.message}`, error);
       throw new Error(`获取商品列表失败: ${error.message}`);
     }
 
@@ -85,7 +85,7 @@ export async function getMallItems(filter?: MallFilterOptions): Promise<MallItem
 
     return items;
   } catch (error) {
-    logger.error('[MallService] Error in getMallItems:', error);
+    logger.error('[MallService]', `Error in getMallItems: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -188,7 +188,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       .eq('user_id', user.id);
 
     if (deductError) {
-      logger.error('[MallService] Failed to deduct points:', deductError);
+      logger.error('[MallService]', `Failed to deduct points: ${deductError.message}`, deductError);
       return {
         success: false,
         message: '积分扣减失败，请重试',
@@ -216,7 +216,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
         })
         .eq('user_id', user.id);
 
-      logger.error('[MallService] Failed to record purchase:', purchaseError);
+      logger.error('[MallService]', `Failed to record purchase: ${purchaseError?.message}`, purchaseError);
       return {
         success: false,
         message: '购买记录失败，请重试',
@@ -233,7 +233,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       related_item_id: item.id,
     });
 
-    logger.info(`[MallService] Purchase successful: user=${user.id}, item=${item.id}, points=${item.price}`);
+    logger.info('[MallService]', `Purchase successful: user=${user.id}, item=${item.id}, points=${item.price}`);
 
     return {
       success: true,
@@ -250,7 +250,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       },
     };
   } catch (error) {
-    logger.error('[MallService] Error in purchaseItem:', error);
+    logger.error('[MallService]', `Error in purchaseItem: ${error instanceof Error ? error.message : String(error)}`, error);
     return {
       success: false,
       message: '购买失败，请稍后重试',
@@ -278,7 +278,7 @@ export async function getUserPointsBalance(): Promise<PointsBalance | null> {
       .single();
 
     if (error || !data) {
-      logger.error('[MallService] Failed to fetch points balance:', error);
+      logger.error('[MallService]', `Failed to fetch points balance: ${error?.message}`, error);
       return null;
     }
 
@@ -290,7 +290,7 @@ export async function getUserPointsBalance(): Promise<PointsBalance | null> {
       updatedAt: data.updated_at,
     };
   } catch (error) {
-    logger.error('[MallService] Error in getUserPointsBalance:', error);
+    logger.error('[MallService]', `Error in getUserPointsBalance: ${error instanceof Error ? error.message : String(error)}`, error);
     return null;
   }
 }
@@ -328,7 +328,7 @@ export async function getPurchaseHistory(): Promise<PurchaseHistoryItem[]> {
       .order('purchased_at', { ascending: false });
 
     if (error) {
-      logger.error('[MallService] Failed to fetch purchase history:', error);
+      logger.error('[MallService]', `Failed to fetch purchase history: ${error.message}`, error);
       return [];
     }
 
@@ -350,7 +350,7 @@ export async function getPurchaseHistory(): Promise<PurchaseHistoryItem[]> {
       };
     });
   } catch (error) {
-    logger.error('[MallService] Error in getPurchaseHistory:', error);
+    logger.error('[MallService]', `Error in getPurchaseHistory: ${error instanceof Error ? error.message : String(error)}`, error);
     return [];
   }
 }
@@ -376,7 +376,7 @@ export async function getPointsTransactions(limit: number = 20): Promise<PointsT
       .limit(limit);
 
     if (error) {
-      logger.error('[MallService] Failed to fetch points transactions:', error);
+      logger.error('[MallService]', `Failed to fetch points transactions: ${error.message}`, error);
       return [];
     }
 
@@ -390,7 +390,7 @@ export async function getPointsTransactions(limit: number = 20): Promise<PointsT
       createdAt: t.created_at,
     }));
   } catch (error) {
-    logger.error('[MallService] Error in getPointsTransactions:', error);
+    logger.error('[MallService]', `Error in getPointsTransactions: ${error instanceof Error ? error.message : String(error)}`, error);
     return [];
   }
 }

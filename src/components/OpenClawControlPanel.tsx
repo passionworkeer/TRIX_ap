@@ -1,0 +1,619 @@
+/**
+ * OpenClaw 控制面板组件
+ *
+ * 提供远程控制 OpenClaw 的功能：
+ * - Gateway 连接管理
+ * - 模型状态查看
+ * - 技能列表查看
+ * - 定时任务管理
+ * - 运行状态查看
+ * - Doctor 自修复
+ * - 日志查看
+ * - 配置回滚
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  X, Bot, Wrench, List, Clock, Activity, FileText, RotateCcw,
+  RefreshCw, CheckCircle, XCircle, Loader2, Save, Wifi, WifiOff,
+  ChevronDown, ChevronUp, Plug
+} from 'lucide-react';
+import GlassPanel from './GlassPanel';
+import { useTheme } from '../contexts/ThemeContext';
+import { clawbotChannelBridge } from '../services/ClawbotChannelBridge';
+import gatewayClient from '../services/GatewayClient';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { useConfirmModal } from '../hooks/useConfirmModal';
+import { logger } from '../utils/logger';
+
+// 连接模式
+type ConnectionMode = 'socketio' | 'gateway';
+
+// 功能卡片类型
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+  isLoading?: boolean;
+  isDark: boolean;
+  disabled?: boolean;
+}
+
+const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onClick, isLoading, isDark, disabled }) => (
+  <GlassPanel
+    onClick={disabled ? undefined : onClick}
+    className={`p-4 !rounded-xl flex flex-col items-center gap-2 cursor-pointer group transition-all duration-300 active:scale-95 border ${
+      disabled ? 'opacity-50 cursor-not-allowed' : ''
+    } ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+  >
+    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-transform duration-300 ${
+      isDark ? 'bg-gradient-to-br from-rose-500/20 to-orange-500/20 text-rose-400' : 'bg-gradient-to-br from-rose-100 to-orange-100 text-rose-600'
+    }`}>
+      {isLoading ? <Loader2 size={24} className="animate-spin" /> : icon}
+    </div>
+    <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</span>
+    <span className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{description}</span>
+  </GlassPanel>
+);
+
+interface OpenClawControlPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+type CommandType =
+  | 'models_status'
+  | 'skills_list'
+  | 'skills_check'
+  | 'cron_list'
+  | 'status'
+  | 'health'
+  | 'doctor'
+  | 'doctor_repair'
+  | 'logs'
+  | 'config_backup'
+  | 'config_rollback';
+
+interface ResultDialogProps {
+  title: string;
+  content: string;
+  isDark: boolean;
+  onClose: () => void;
+  isLoading?: boolean;
+}
+
+const ResultDialog: React.FC<ResultDialogProps> = ({ title, content, isDark, onClose, isLoading }) => (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div
+      className={`w-full max-w-lg max-h-[80vh] rounded-2xl p-6 overflow-auto ${
+        isDark ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
+      }`}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</h3>
+        <button onClick={onClose} className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+          <X size={20} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={32} className="animate-spin text-rose-500" />
+        </div>
+      ) : (
+        <pre className={`text-sm whitespace-pre-wrap font-mono p-4 rounded-lg overflow-auto max-h-96 ${
+          isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-700'
+        }`}>
+          {content}
+        </pre>
+      )}
+      <button
+        onClick={onClose}
+        className={`mt-4 w-full py-3 rounded-xl font-bold transition-colors ${
+          isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+        }`}
+      >
+        关闭
+      </button>
+    </div>
+  </div>
+);
+
+export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOpen, onClose }) => {
+  const { isDark } = useTheme();
+  const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
+  const [loadingCommand, setLoadingCommand] = useState<CommandType | null>(null);
+  const [resultDialog, setResultDialog] = useState<{ title: string; content: string } | null>(null);
+
+  // 连接状态
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('gateway');
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [gatewayConnected, setGatewayConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // 获取端点配置
+  const endpoints = getClawbotEndpoints();
+
+  // 检查连接状态
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // 检查 Socket.IO 连接状态
+    const checkSocketStatus = () => {
+      setSocketConnected(clawbotChannelBridge.isPaired());
+    };
+
+    // 检查 Gateway 连接状态
+    const checkGatewayStatus = () => {
+      setGatewayConnected(gatewayClient.isConnected());
+    };
+
+    checkSocketStatus();
+    checkGatewayStatus();
+
+    // 设置定时检查
+    const interval = setInterval(() => {
+      checkSocketStatus();
+      checkGatewayStatus();
+    }, 3000);
+
+    // 监听 Gateway 事件
+    gatewayClient.on('connect', () => {
+      setGatewayConnected(true);
+      setIsConnecting(false);
+    });
+
+    gatewayClient.on('disconnect', () => {
+      setGatewayConnected(false);
+    });
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isOpen]);
+
+  // 连接 Gateway
+  const connectGateway = useCallback(async () => {
+    if (!endpoints.gatewayUrl) {
+      setResultDialog({ title: '连接失败', content: '未配置 Gateway URL' });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      await gatewayClient.connect({
+        url: endpoints.gatewayUrl,
+        token: endpoints.gatewayToken || undefined,
+      });
+      setResultDialog({ title: '连接成功', content: `已连接到 Gateway: ${endpoints.gatewayUrl}` });
+    } catch (error) {
+      logger.gateway.error('[OpenClawControlPanel] Gateway connection failed:', error);
+      setResultDialog({
+        title: '连接失败',
+        content: error instanceof Error ? error.message : '未知错误'
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [endpoints]);
+
+  // 断开 Gateway 连接
+  const disconnectGateway = useCallback(() => {
+    gatewayClient.disconnect();
+    setResultDialog({ title: '已断开', content: 'Gateway 连接已断开' });
+  }, []);
+
+  // 执行控制命令
+  const executeCommand = async (command: CommandType, params?: Record<string, unknown>, needsConfirm = false) => {
+    const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
+
+    if (!isConnected) {
+      setResultDialog({
+        title: '未连接',
+        content: connectionMode === 'gateway'
+          ? '请先连接 Gateway'
+          : '请先配对 OpenClaw 设备'
+      });
+      return;
+    }
+
+    if (needsConfirm) {
+      const confirmed = await requestConfirm({
+        title: '确认操作',
+        message: `确定要执行 "${command}" 吗？`,
+        confirmText: '确定',
+        cancelText: '取消'
+      });
+      if (!confirmed) return;
+    }
+
+    setLoadingCommand(command);
+    try {
+      let result: { success: boolean; data?: unknown; error?: string };
+
+      if (connectionMode === 'gateway') {
+        // 使用 Gateway 模式
+        result = await executeGatewayCommand(command, params);
+      } else {
+        // 使用 Socket.IO 模式（原有逻辑）
+        result = await clawbotChannelBridge.sendControlCommand(command, params);
+      }
+
+      if (result.success) {
+        const content = typeof result.data === 'string'
+          ? result.data
+          : JSON.stringify(result.data, null, 2);
+        setResultDialog({ title: getCommandTitle(command), content: content || '操作成功' });
+      } else {
+        setResultDialog({ title: '执行失败', content: result.error || '未知错误' });
+      }
+    } catch (error) {
+      setResultDialog({
+        title: '执行失败',
+        content: error instanceof Error ? error.message : '未知错误'
+      });
+    } finally {
+      setLoadingCommand(null);
+    }
+  };
+
+  // 执行 Gateway 命令
+  const executeGatewayCommand = async (command: CommandType, params?: Record<string, unknown>) => {
+    try {
+      switch (command) {
+        case 'models_status': {
+          const models = await gatewayClient.request<{ models: unknown[] }>('control.modelsStatus');
+          return { success: true, data: models?.models || [] };
+        }
+        case 'skills_list': {
+          const skills = await gatewayClient.request<{ skills: unknown[] }>('skills.list');
+          return { success: true, data: skills?.skills || [] };
+        }
+        case 'skills_check': {
+          const results = await gatewayClient.request<{ results: unknown[] }>('control.skillsCheck');
+          return { success: true, data: results?.results || [] };
+        }
+        case 'cron_list': {
+          const jobs = await gatewayClient.request<{ jobs: unknown[] }>('crons.list');
+          return { success: true, data: jobs?.jobs || [] };
+        }
+        case 'status':
+        case 'health': {
+          const status = await gatewayClient.request<unknown>('control.status');
+          return { success: true, data: status };
+        }
+        case 'doctor': {
+          const result = await gatewayClient.request<unknown>('control.doctor');
+          return { success: true, data: result };
+        }
+        case 'doctor_repair': {
+          await gatewayClient.request('control.doctorRepair');
+          return { success: true, data: { message: '修复完成' } };
+        }
+        case 'logs': {
+          const logs = await gatewayClient.request<{ logs: string }>('control.logs', params);
+          return { success: true, data: { logs: logs?.logs || '' } };
+        }
+        case 'config_backup': {
+          await gatewayClient.request('control.configBackup');
+          return { success: true, data: { message: '配置已备份' } };
+        }
+        case 'config_rollback': {
+          await gatewayClient.request('control.configRollback');
+          return { success: true, data: { message: '配置已回滚' } };
+        }
+        default:
+          return { success: false, error: `Unknown command: ${command}` };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  };
+
+  // 获取命令对应的标题
+  const getCommandTitle = (command: CommandType): string => {
+    const titles: Record<CommandType, string> = {
+      models_status: '模型状态',
+      skills_list: '技能列表',
+      skills_check: '技能检查',
+      cron_list: '定时任务',
+      status: '运行状态',
+      health: '健康检查',
+      doctor: 'Doctor 诊断',
+      doctor_repair: 'Doctor 修复',
+      logs: '日志',
+      config_backup: '配置备份',
+      config_rollback: '配置回滚'
+    };
+    return titles[command] || command;
+  };
+
+  const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
+
+  const features = [
+    {
+      icon: <Bot size={24} />,
+      title: '模型状态',
+      description: '查看当前模型',
+      command: 'models_status' as CommandType
+    },
+    {
+      icon: <List size={24} />,
+      title: '技能列表',
+      description: '查看已安装技能',
+      command: 'skills_list' as CommandType
+    },
+    {
+      icon: <Clock size={24} />,
+      title: '定时任务',
+      description: '管理定时任务',
+      command: 'cron_list' as CommandType
+    },
+    {
+      icon: <Activity size={24} />,
+      title: '运行状态',
+      description: '查看运行状态',
+      command: 'status' as CommandType
+    },
+    {
+      icon: <Wrench size={24} />,
+      title: 'Doctor 诊断',
+      description: '检查问题',
+      command: 'doctor' as CommandType
+    },
+    {
+      icon: <RefreshCw size={24} />,
+      title: 'Doctor 修复',
+      description: '自动修复问题',
+      command: 'doctor_repair' as CommandType,
+      needsConfirm: true
+    },
+    {
+      icon: <FileText size={24} />,
+      title: '查看日志',
+      description: '查看最近日志',
+      command: 'logs' as CommandType
+    },
+    {
+      icon: <RotateCcw size={24} />,
+      title: '配置回滚',
+      description: '恢复到上一版本',
+      command: 'config_rollback' as CommandType,
+      needsConfirm: true
+    },
+    {
+      icon: <Save size={24} />,
+      title: '配置备份',
+      description: '备份当前配置',
+      command: 'config_backup' as CommandType
+    }
+  ];
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
+        <div
+          className={`w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-auto transition-transform duration-300 ${
+            isDark ? 'bg-gray-900 border-t border-gray-700' : 'bg-white border-t border-gray-200'
+          }`}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* 标题栏 */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+              OpenClaw 控制面板
+            </h2>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+            >
+              <X size={24} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
+            </button>
+          </div>
+
+          {/* 连接管理 */}
+          <div className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                连接管理
+              </span>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className={`p-1 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+              >
+                {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+
+            {/* 高级设置 */}
+            {showAdvanced && (
+              <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <label className={`text-sm mb-2 block ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  连接模式
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConnectionMode('gateway')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      connectionMode === 'gateway'
+                        ? 'bg-rose-500 text-white'
+                        : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Gateway
+                  </button>
+                  <button
+                    onClick={() => setConnectionMode('socketio')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      connectionMode === 'socketio'
+                        ? 'bg-rose-500 text-white'
+                        : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Socket.IO
+                  </button>
+                </div>
+
+                {/* Gateway URL 显示 */}
+                <div className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Gateway: {endpoints.gatewayUrl || '未配置'}
+                </div>
+              </div>
+            )}
+
+            {/* 连接状态和按钮 */}
+            <div className="flex items-center gap-3">
+              {/* Socket.IO 状态 */}
+              <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
+                socketConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                {socketConnected ? (
+                  <Wifi size={16} className="text-green-500" />
+                ) : (
+                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Socket.IO
+                  </div>
+                  <div className={`text-xs ${socketConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {socketConnected ? '已配对' : '未配对'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Gateway 状态 */}
+              <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
+                gatewayConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                {gatewayConnected ? (
+                  <Wifi size={16} className="text-green-500" />
+                ) : (
+                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Gateway
+                  </div>
+                  <div className={`text-xs ${gatewayConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {gatewayConnected ? '已连接' : isConnecting ? '连接中...' : '未连接'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 连接按钮 */}
+            <div className="flex gap-2 mt-3">
+              {connectionMode === 'gateway' ? (
+                gatewayConnected ? (
+                  <button
+                    onClick={disconnectGateway}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                  >
+                    断开 Gateway
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectGateway}
+                    disabled={isConnecting}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+                    } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isConnecting ? '连接中...' : '连接 Gateway'}
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!socketConnected) {
+                      setResultDialog({
+                        title: '配对说明',
+                        content: '请在 OpenClaw 设备上扫描二维码进行配对'
+                      });
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    socketConnected
+                      ? isDark ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+                      : isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+                  }`}
+                >
+                  {socketConnected ? '已配对' : '配对设备'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 当前模式提示 */}
+          <div className={`flex items-center gap-2 mb-4 p-3 rounded-xl ${
+            isConnected
+              ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'
+              : isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
+          }`}>
+            {isConnected ? <CheckCircle size={16} /> : <XCircle size={16} />}
+            <span className="text-sm font-medium">
+              {isConnected
+                ? `已通过 ${connectionMode === 'gateway' ? 'Gateway' : 'Socket.IO'} 连接`
+                : '未连接，请先建立连接'
+              }
+            </span>
+          </div>
+
+          {/* 功能网格 */}
+          <div className="grid grid-cols-2 gap-3">
+            {features.map((feature, index) => (
+              <FeatureCard
+                key={index}
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+                isLoading={loadingCommand === feature.command}
+                isDark={isDark}
+                disabled={!isConnected || loadingCommand !== null}
+                onClick={() => executeCommand(
+                  feature.command,
+                  feature.command === 'logs' ? { limit: 100 } : undefined,
+                  feature.needsConfirm
+                )}
+              />
+            ))}
+          </div>
+
+          {/* 加载指示器 */}
+          {loadingCommand && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-rose-500">
+              <Loader2 size={20} className="animate-spin" />
+              <span className="text-sm font-medium">执行中...</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 结果对话框 */}
+      {resultDialog && (
+        <ResultDialog
+          title={resultDialog.title}
+          content={resultDialog.content}
+          isDark={isDark}
+          onClose={() => setResultDialog(null)}
+        />
+      )}
+
+      <ConfirmModalRenderer />
+    </>
+  );
+};

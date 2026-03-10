@@ -145,7 +145,7 @@ export const STUDY_VALIDATION = {
   pairingCode: {
     min: 6,
     max: 6,
-    pattern: /^[0-9]{6}$/,
+    pattern: /^[A-Z0-9]{6}$/i,
     required: true,
   },
   roomId: {
@@ -251,7 +251,7 @@ export const PAIRING_VALIDATION = {
   code: {
     min: 6,
     max: 6,
-    pattern: /^[0-9]{6}$/,
+    pattern: /^[A-Z0-9]{6}$/i,
     required: true,
   },
   deviceId: {

@@ -226,14 +226,12 @@ test.describe('Study Room E2E Tests', () => {
     // Check for control buttons (开始, 暂停, 结束)
     // These are only visible when user is host of a room
     const startButton = page.getByRole('button', { name: '开始' });
-    const pauseButton = page.getByRole('button', { name: '暂停' });
 
     const startVisible = await startButton.isVisible().catch(() => false);
-    const pauseVisible = await pauseButton.isVisible().catch(() => false);
 
     // At least one of them should be visible if room was created
     // If neither is visible, room creation probably failed due to WebSocket
-    if (!startVisible && !pauseButton) {
+    if (!startVisible) {
       console.log('Room control buttons not visible - WebSocket connection may be required');
     }
   });
