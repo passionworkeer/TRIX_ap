@@ -107,9 +107,9 @@ class AchievementService {
       // 获取最长单次专注
       const { data: longestSession } = await supabase
         .from('study_sessions')
-        .select('duration_minutes')
+        .select('duration')
         .eq('user_id', userId)
-        .order('duration_minutes', { ascending: false })
+        .order('duration', { ascending: false })
         .limit(1)
         .single();
 
@@ -149,7 +149,7 @@ class AchievementService {
         total_sessions: totalSessions || 0,
         daily_streak: profile?.current_streak || 0,
         friends_studied_count: friendsCount || 0,
-        longest_single_session: longestSession?.duration_minutes || 0,
+        longest_single_session: longestSession?.duration || 0,
         early_bird_count: earlyBirdCount,
         night_owl_count: nightOwlCount
       };
