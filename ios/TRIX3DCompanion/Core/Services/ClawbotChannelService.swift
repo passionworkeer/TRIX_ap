@@ -314,7 +314,13 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             .reconnects(false)
         ]
 
-        manager = SocketManager(socketURL: URL(string: channelUrl)!, config: config)
+        guard let channelURL = URL(string: channelUrl) else {
+            await MainActor.run {
+                connectionState = .error("Invalid channel URL")
+            }
+            return
+        }
+        manager = SocketManager(socketURL: channelURL, config: config)
         if let rawSocket = manager?.defaultSocket {
             socket = SocketIOClientAdapter(socket: rawSocket)
         }
@@ -1056,19 +1062,33 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // MARK: - Persistence
 
+    /// 保存配对状态到 Keychain (安全存储)
     private func persistPairingState() {
         if let deviceId = deviceId {
-            UserDefaults.standard.set(deviceId, forKey: "clawbot_device_id")
+            do {
+                try KeychainManager.shared.savePairedDevice(deviceId: deviceId, deviceName: deviceId)
+            } catch {
+                SecureLogger.shared.error("Failed to save paired device to Keychain: \(error)")
+            }
         }
-        UserDefaults.standard.set(isPaired, forKey: "clawbot_paired")
     }
 
+    /// 从 Keychain 加载配对状态 (带 UserDefaults 回退)
     private func loadPersistedState() {
-        isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
-        deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
+        // Try Keychain first (new location)
+        isPaired = KeychainManager.shared.isDevicePaired()
+        deviceId = KeychainManager.shared.getPairedDeviceId()
+
+        // Fallback to UserDefaults if Keychain is empty (for migration)
+        if !isPaired && deviceId == nil {
+            isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
+            deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
+        }
     }
 
+    /// 清除配对状态 (Keychain + UserDefaults)
     private func clearPersistedState() {
+        try? KeychainManager.shared.removePairedDevice()
         UserDefaults.standard.removeObject(forKey: "clawbot_paired")
         UserDefaults.standard.removeObject(forKey: "clawbot_device_id")
     }

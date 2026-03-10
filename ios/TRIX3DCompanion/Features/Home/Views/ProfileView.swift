@@ -23,6 +23,12 @@ struct ProfileView: View {
     @State private var showingAbout = false
     @State private var showingWardrobeCenter = false
     @State private var equippedOutfits: Set<String> = ["hat1"]
+    @State private var achievements: [Achievement] = []
+    @State private var isLoadingAchievements = false
+
+    // MARK: - Dependencies
+
+    @StateObject private var achievementService = AchievementService.shared
 
     // MARK: - Body
 
@@ -79,7 +85,24 @@ struct ProfileView: View {
             .sheet(isPresented: $showingWardrobeCenter) {
                 WardrobeCenterView(equippedOutfits: $equippedOutfits)
             }
+            .task {
+                await loadAchievements()
+            }
         }
+    }
+
+    // MARK: - Data Loading
+
+    private func loadAchievements() async {
+        isLoadingAchievements = true
+        do {
+            achievements = try await achievementService.fetchAchievements()
+        } catch {
+            // Log error and show empty achievements on failure
+            SecureLogger.shared.error("Failed to load achievements: \(error.localizedDescription)")
+            achievements = []
+        }
+        isLoadingAchievements = false
     }
 
     // MARK: - View Components
@@ -179,43 +202,66 @@ struct ProfileView: View {
     /// Achievements section
     private var achievementsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("profile.achievements".localized)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 4)
+            HStack {
+                Text("profile.achievements".localized)
+                    .font(.headline)
+                    .fontWeight(.semibold)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ProfileAchievementBadge(
-                        title: "achievement.first.study".localized,
-                        icon: "book.fill",
-                        color: .blue,
-                        isUnlocked: true
-                    )
+                Spacer()
 
-                    ProfileAchievementBadge(
-                        title: "achievement.streak.7".localized,
-                        icon: "flame.fill",
-                        color: .orange,
-                        isUnlocked: true
-                    )
-
-                    ProfileAchievementBadge(
-                        title: "achievement.social.butterfly".localized,
-                        icon: "person.3.fill",
-                        color: .pink,
-                        isUnlocked: false
-                    )
-
-                    ProfileAchievementBadge(
-                        title: "achievement.night.owl".localized,
-                        icon: "moon.stars.fill",
-                        color: .purple,
-                        isUnlocked: false
-                    )
+                if isLoadingAchievements {
+                    ProgressView()
+                        .scaleEffect(0.8)
                 }
-                .padding(.horizontal, 4)
             }
+            .padding(.horizontal, 4)
+
+            if achievements.isEmpty && !isLoadingAchievements {
+                // Empty state
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "trophy")
+                            .font(.title)
+                            .foregroundColor(.secondary)
+                        Text("暂无成就")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 20)
+                    Spacer()
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(achievements) { achievement in
+                            ProfileAchievementBadge(
+                                title: achievement.name,
+                                icon: achievement.icon,
+                                color: colorForAchievement(achievement),
+                                isUnlocked: achievement.unlockedAt != nil
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
+        }
+    }
+
+    /// Get color for achievement based on category
+    private func colorForAchievement(_ achievement: Achievement) -> Color {
+        switch achievement.category {
+        case .duration:
+            return .blue
+        case .streak:
+            return .orange
+        case .social:
+            return .pink
+        case .milestone:
+            return .purple
+        case .special:
+            return .yellow
         }
     }
 

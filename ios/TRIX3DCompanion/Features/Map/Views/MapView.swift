@@ -98,6 +98,7 @@ struct MapView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("My location")
                         .padding(.trailing, 16)
                         .padding(.bottom, locationButtonBottomInset)
                     }
@@ -230,6 +231,7 @@ struct MapView: View {
                     .focused($isSearchFocused)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                    .accessibilityLabel("Search locations")
 
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: { viewModel.clearSearch() }) {
@@ -459,14 +461,6 @@ struct LocationMarker: View {
         }
         .buttonStyle(.plain)
         .frame(width: 50, height: 60) // Make tappable area larger
-        .contentShape(Rectangle()) // Make entire area tappable
-        .simultaneousGesture(
-            TapGesture()
-                .onEnded { _ in
-                    SecureLogger.shared.debug("LocationMarker tapped via gesture: \(location.name)")
-                    action()
-                }
-        )
     }
 }
 

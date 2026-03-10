@@ -119,6 +119,7 @@ struct LoginView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                .accessibilityLabel("App logo")
 
             // Title
             Text(loc("auth.login.title"))
@@ -215,7 +216,7 @@ struct LoginView: View {
         HStack(spacing: 16) {
             VStack { Divider().background(Color.white.opacity(0.3)) }
 
-            Text("OR")
+            Text(loc("auth.or"))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.6))
 
@@ -250,7 +251,7 @@ struct LoginView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.white)
 
-                Text("Sign in with Apple")
+                Text(loc("auth.signin.apple"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
             }
@@ -259,6 +260,7 @@ struct LoginView: View {
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+            .accessibilityLabel("Sign in with Apple")
         }
         .disabled(isOAuthLoading || authService.isLoading)
         .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
@@ -275,7 +277,7 @@ struct LoginView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.white)
 
-                Text("Sign in with WeChat")
+                Text(loc("auth.signin.wechat"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
             }
@@ -285,6 +287,7 @@ struct LoginView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
         }
+        .accessibilityLabel("Sign in with WeChat")
         .disabled(isOAuthLoading || authService.isLoading)
         .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
     }
@@ -372,13 +375,13 @@ struct LoginView: View {
     private func handleLogin() async {
         // Validate inputs
         guard !email.isEmpty else {
-            errorMessage = loc("auth.email.placeholder") + " is required"
+            errorMessage = loc("auth.email.required")
             showingError = true
             return
         }
 
         guard !password.isEmpty else {
-            errorMessage = loc("auth.password.placeholder") + " is required"
+            errorMessage = loc("auth.password.required")
             showingError = true
             return
         }

@@ -154,6 +154,7 @@ struct VoiceMessagePlayerView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(viewModel.isPlaying ? "Pause" : "Play")
     }
 
     // MARK: - Skip Buttons
@@ -171,6 +172,7 @@ struct VoiceMessagePlayerView: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Skip backward 15 seconds")
     }
 
     private var skipForwardButton: some View {
@@ -186,6 +188,7 @@ struct VoiceMessagePlayerView: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Skip forward 15 seconds")
     }
 
     // MARK: - Stop Button
@@ -336,7 +339,7 @@ struct CompactVoicePlayerView: View {
                 ZStack {
                     Circle()
                         .fill(Color.purple)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
 
                     Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                         .font(.body)

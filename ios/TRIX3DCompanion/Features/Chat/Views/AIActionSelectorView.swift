@@ -53,6 +53,7 @@ struct AIActionSelectorView: View {
                     .foregroundColor(.white)
             }
         }
+        .accessibilityLabel("AI Action: \(selectedAction.label)")
         .contextMenu {
             ForEach(AIActionType.allCases) { action in
                 Button(action: {

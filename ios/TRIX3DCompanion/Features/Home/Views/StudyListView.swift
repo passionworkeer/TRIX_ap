@@ -23,9 +23,14 @@ struct StudyListView: View {
     @State private var selectedRoom: StudyRoom?
     @State private var selectedRoomState: StudyRoomState?
 
-    // MARK: - Sample Data
+    // Backend data (loaded from API)
+    @State private var activeRooms: [StudyRoom] = []
+    @State private var upcomingSessions: [DemoStudySession] = []
+    @State private var isLoading = false
 
-    private let activeRooms: [StudyRoom] = [
+    // MARK: - Sample Data (fallback when API unavailable)
+
+    private let sampleRooms: [StudyRoom] = [
         StudyRoom(
             id: "1",
             roomCode: "ABC123",
@@ -55,7 +60,7 @@ struct StudyListView: View {
         )
     ]
 
-    private let upcomingSessions = [
+    private let sampleSessions = [
         DemoStudySession(
             id: "1",
             title: "Linear Algebra",
@@ -115,6 +120,60 @@ struct StudyListView: View {
             .sheet(item: $selectedRoomState) { roomState in
                 StudyRoomView(roomState: roomState)
             }
+            .task {
+                await loadData()
+            }
+        }
+    }
+
+    // MARK: - Data Loading
+
+    private func loadData() async {
+        isLoading = true
+
+        // Fetch study rooms from backend
+        let result = await StudyService.shared.fetchStudyRooms()
+        switch result {
+        case .success(let rooms):
+            activeRooms = rooms
+        case .failure:
+            // Fallback to sample data
+            activeRooms = sampleRooms
+        }
+
+        // Fetch study sessions from backend
+        do {
+            let sessions: [StudySession] = try await APIClient.shared.get(.studySessions)
+            upcomingSessions = sessions.map { session in
+                DemoStudySession(
+                    id: session.id,
+                    title: session.subject ?? "Study Session",
+                    date: formatDate(session.startedAt),
+                    duration: formatDuration(session.durationMinutes),
+                    participants: []
+                )
+            }
+        } catch {
+            // Fallback to sample data
+            upcomingSessions = sampleSessions
+        }
+
+        isLoading = false
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, h:mm a"
+        return formatter.string(from: date)
+    }
+
+    private func formatDuration(_ duration: Int) -> String {
+        let hours = duration / 3600
+        let minutes = (duration % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h"
+        } else {
+            return "\(minutes)m"
         }
     }
 

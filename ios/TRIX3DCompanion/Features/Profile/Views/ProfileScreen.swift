@@ -92,6 +92,7 @@ struct NewProfileView: View {
                 Image(systemName: "ellipsis.circle")
                     .font(.title3)
                     .foregroundColor(.brandPurple)
+                    .accessibilityLabel("Menu")
             }
         }
     }

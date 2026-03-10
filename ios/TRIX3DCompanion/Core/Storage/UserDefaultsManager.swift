@@ -52,24 +52,31 @@ final class UserDefaultsManager {
         defaults = UserDefaults.standard
     }
 
-    // MARK: - User Cache
+    // MARK: - User Cache (Stored in Keychain for security)
 
-    /// 缓存用户信息
+    /// 缓存用户信息 (使用 Keychain 存储)
     /// - Parameter user: 用户对象
     func cacheUser(_ user: User) {
         do {
+            try KeychainManager.shared.saveUser(user)
+            // Also keep in UserDefaults for backward compatibility during migration
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(user)
             defaults.set(data, forKey: Key.cachedUser)
         } catch {
-            SecureLogger.shared.error("Failed to cache user: \(error)")
+            SecureLogger.shared.error("Failed to cache user in Keychain: \(error)")
         }
     }
 
-    /// 获取缓存的用户信息
+    /// 获取缓存的用户信息 (优先从 Keychain 获取)
     /// - Returns: 用户对象，如果不存在则返回 nil
     func getCachedUser() -> User? {
+        // Try Keychain first (new location)
+        if let user = KeychainManager.shared.getUser() {
+            return user
+        }
+        // Fallback to UserDefaults (for migration)
         guard let data = defaults.data(forKey: Key.cachedUser) else {
             return nil
         }
@@ -83,8 +90,9 @@ final class UserDefaultsManager {
         }
     }
 
-    /// 清除缓存的用户信息
+    /// 清除缓存的用户信息 (Keychain + UserDefaults)
     func clearCachedUser() {
+        KeychainManager.shared.removeUser()
         defaults.removeObject(forKey: Key.cachedUser)
     }
 
@@ -267,25 +275,33 @@ final class UserDefaultsManager {
         defaults.set(enabled, forKey: Key.messagePreviewEnabled)
     }
 
-    // MARK: - Cache Data
+    // MARK: - ChatRoom Cache (Stored in Keychain for security)
 
-    /// 缓存聊天房间列表
+    /// 缓存聊天房间列表 (使用 Keychain 存储)
     /// - Parameter rooms: 聊天房间数组
     func cacheChatRooms(_ rooms: [ChatRoom]) {
         do {
+            // Save to Keychain for security
+            try KeychainManager.shared.saveChatRooms(rooms)
+            // Also keep in UserDefaults for backward compatibility during migration
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(rooms)
             defaults.set(data, forKey: Key.cachedChatRooms)
             updateLastSyncTime()
         } catch {
-            SecureLogger.shared.error("Failed to cache chat rooms: \(error)")
+            SecureLogger.shared.error("Failed to cache chat rooms in Keychain: \(error)")
         }
     }
 
-    /// 获取缓存的聊天房间列表
+    /// 获取缓存的聊天房间列表 (优先从 Keychain 获取)
     /// - Returns: 聊天房间数组
     func getCachedChatRooms() -> [ChatRoom]? {
+        // Try Keychain first (new location)
+        if let rooms = KeychainManager.shared.getChatRooms() {
+            return rooms
+        }
+        // Fallback to UserDefaults (for migration)
         guard let data = defaults.data(forKey: Key.cachedChatRooms) else {
             return nil
         }
@@ -297,6 +313,12 @@ final class UserDefaultsManager {
             SecureLogger.shared.error("Failed to decode cached chat rooms: \(error)")
             return nil
         }
+    }
+
+    /// 清除缓存的聊天房间 (Keychain + UserDefaults)
+    func clearCachedChatRooms() {
+        KeychainManager.shared.removeChatRooms()
+        defaults.removeObject(forKey: Key.cachedChatRooms)
     }
 
     /// 缓存学习统计
@@ -426,6 +448,10 @@ final class UserDefaultsManager {
 
     /// 清除所有缓存数据（保留设置）
     func clearCache() {
+        // Clear Keychain (primary storage)
+        KeychainManager.shared.removeUser()
+        KeychainManager.shared.removeChatRooms()
+        // Clear UserDefaults (backup storage)
         defaults.removeObject(forKey: Key.cachedUser)
         defaults.removeObject(forKey: Key.cachedChatRooms)
         defaults.removeObject(forKey: Key.cachedStudyStats)
