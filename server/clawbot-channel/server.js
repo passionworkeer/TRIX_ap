@@ -14,6 +14,9 @@ const ossService = require('./services/ossService');
 const ttsService = require('./services/ttsService');
 const { studyRoomService } = require('./services/studyRoomService');
 const gatewayService = require('./services/gatewayService');
+const gatewayClientService = require('./services/gatewayClientService');
+const providerService = require('./services/providerService');
+const localCommandService = require('./services/localCommandService');
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
@@ -413,6 +416,208 @@ app.use('/api', extendedRoutes);
 // ============================================
 const supplementRoutes = require('./routes/supplement');
 app.use('/api', supplementRoutes);
+
+// ============================================
+// Gateway API Routes
+// ============================================
+
+// Gateway connection status
+app.get('/api/gateway/status', async (req, res) => {
+  res.json({
+    connected: gatewayClientService.isConnected(),
+    deviceId: gatewayClientService.getDeviceId(),
+  });
+});
+
+// Connect to Gateway via server relay
+app.post('/api/gateway/connect', async (req, res) => {
+  try {
+    const { url, token, password, deviceId, deviceKey } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    // If already connected, disconnect first
+    if (gatewayClientService.isConnected()) {
+      gatewayClientService.disconnect();
+    }
+
+    await gatewayClientService.connect(url, token, password, deviceId, deviceKey);
+
+    res.json({
+      success: true,
+      deviceId: gatewayClientService.getDeviceId(),
+    });
+  } catch (error) {
+    console.error('[Gateway] Connect failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Disconnect from Gateway
+app.post('/api/gateway/disconnect', async (req, res) => {
+  try {
+    gatewayClientService.disconnect();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Gateway] Disconnect failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gateway RPC request
+app.post('/api/gateway/rpc', async (req, res) => {
+  try {
+    const { method, params } = req.body;
+
+    if (!method) {
+      return res.status(400).json({ error: 'Missing method parameter' });
+    }
+
+    if (!gatewayClientService.isConnected()) {
+      return res.status(503).json({ error: 'Gateway not connected' });
+    }
+
+    const result = await gatewayClientService.request(method, params);
+    res.json(result);
+  } catch (error) {
+    console.error('[Gateway] RPC failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Provider API Routes
+// ============================================
+
+// List providers
+app.get('/api/providers', async (req, res) => {
+  try {
+    const providers = providerService.list();
+    res.json({ providers });
+  } catch (error) {
+    console.error('[Provider] List failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get provider details
+app.get('/api/providers/:id', async (req, res) => {
+  try {
+    const provider = providerService.get(req.params.id);
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found' });
+    }
+    res.json(provider);
+  } catch (error) {
+    console.error('[Provider] Get failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add/update provider
+app.post('/api/providers', async (req, res) => {
+  try {
+    const { id, name, apiBase, apiKey, models, defaultModel } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Provider ID is required' });
+    }
+
+    const provider = providerService.add({
+      id,
+      name,
+      apiBase,
+      apiKey,
+      models,
+      defaultModel,
+    });
+
+    res.json({ success: true, provider });
+  } catch (error) {
+    console.error('[Provider] Add failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete provider
+app.delete('/api/providers/:id', async (req, res) => {
+  try {
+    providerService.delete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Provider] Delete failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set default provider
+app.post('/api/providers/:id/default', async (req, res) => {
+  try {
+    providerService.setDefault(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Provider] Set default failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Validate provider API key
+app.post('/api/providers/:id/validate', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    const result = await providerService.validateKey(req.params.id, apiKey);
+    res.json(result);
+  } catch (error) {
+    console.error('[Provider] Validate failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Local Command API Routes
+// ============================================
+
+// Execute local command
+app.post('/api/local/command', async (req, res) => {
+  try {
+    const { command, args = [] } = req.body;
+
+    if (!command) {
+      return res.status(400).json({ error: 'Missing command parameter' });
+    }
+
+    const result = await localCommandService.execute(command, args);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Command failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Run doctor diagnostics
+app.get('/api/local/doctor', async (req, res) => {
+  try {
+    const result = await localCommandService.doctor([]);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Doctor failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get logs
+app.get('/api/local/logs', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const result = await localCommandService.logs([limit.toString()]);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Logs failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -1382,6 +1587,105 @@ io.on('connection', (socket) => {
 
     await pairingService.unpair(pairing.id);
     io.to(`user_${socket.userId}`).emit('unpaired');
+  });
+
+  // ============================================
+  // Gateway Socket.IO Events
+  // ============================================
+
+  // Gateway RPC via Socket.IO
+  socket.on('gateway_rpc', async (data, callback) => {
+    try {
+      const { method, params } = data || {};
+
+      if (!method) {
+        callback?.({ success: false, error: 'Missing method parameter' });
+        return;
+      }
+
+      if (!gatewayClientService.isConnected()) {
+        callback?.({ success: false, error: 'Gateway not connected' });
+        return;
+      }
+
+      const result = await gatewayClientService.request(method, params);
+      callback?.({ success: true, data: result });
+    } catch (error) {
+      console.error('[Gateway] RPC error:', error);
+      callback?.({ success: false, error: error.message });
+    }
+  });
+
+  // Subscribe to Gateway events
+  socket.on('gateway_subscribe', (data, callback) => {
+    const { events } = data || [];
+
+    if (!Array.isArray(events) || events.length === 0) {
+      callback?.({ success: false, error: 'Missing events parameter' });
+      return;
+    }
+
+    // Subscribe to each event
+    for (const event of events) {
+      gatewayClientService.on(event, (payload) => {
+        socket.emit('gateway_event', { event, payload });
+      });
+    }
+
+    callback?.({ success: true });
+  });
+
+  // Unsubscribe from Gateway events
+  socket.on('gateway_unsubscribe', (data, callback) => {
+    const { events } = data || [];
+
+    if (!Array.isArray(events) || events.length === 0) {
+      callback?.({ success: false, error: 'Missing events parameter' });
+      return;
+    }
+
+    // Unsubscribe from each event
+    for (const event of events) {
+      gatewayClientService.removeAllListeners(event);
+    }
+
+    callback?.({ success: true });
+  });
+
+  // Get Gateway status via Socket.IO
+  socket.on('gateway_status', (data, callback) => {
+    callback?.({
+      connected: gatewayClientService.isConnected(),
+      deviceId: gatewayClientService.getDeviceId(),
+    });
+  });
+
+  // Forward chat message to Gateway
+  socket.on('gateway_chat', async (data, callback) => {
+    try {
+      const { sessionKey, message } = data || {};
+
+      if (!message) {
+        callback?.({ success: false, error: 'Missing message parameter' });
+        return;
+      }
+
+      if (!gatewayClientService.isConnected()) {
+        callback?.({ success: false, error: 'Gateway not connected' });
+        return;
+      }
+
+      const sessionId = sessionKey ? sessionKey.split(':').pop() : 'main';
+      const result = await gatewayClientService.request('chat.send', {
+        sessionId,
+        message,
+      });
+
+      callback?.({ success: true, data: result });
+    } catch (error) {
+      console.error('[Gateway] Chat error:', error);
+      callback?.({ success: false, error: error.message });
+    }
   });
 
   socket.on('disconnect', () => {
