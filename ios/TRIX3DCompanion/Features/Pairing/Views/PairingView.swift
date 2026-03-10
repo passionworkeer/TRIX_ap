@@ -12,6 +12,7 @@ import SwiftUI
 enum PairingMode: String, CaseIterable {
     case scan = "scan"
     case input = "input"
+    case relayInput = "relayInput"
     case waiting = "waiting"
     case success = "success"
 }
@@ -25,8 +26,16 @@ struct PairingView: View {
     /// Current pairing mode
     @State private var mode: PairingMode = .scan
 
+    /// Connection mode (Relay / Gateway / Socket.IO)
+    @State private var connectionMode: ConnectionMode = .relay
+
     /// Manual pairing code input
     @State private var codeInput = ""
+
+    // Relay inputs
+    @State private var relayServer = ""
+    @State private var relayGatewayId = ""
+    @State private var relayAccessCode = ""
 
     /// Loading state
     @State private var isLoading = false
@@ -64,6 +73,9 @@ struct PairingView: View {
                 // Header
                 header
 
+                // Connection mode selector
+                connectionModeSelector
+
                 // Content
                 Spacer()
 
@@ -72,6 +84,8 @@ struct PairingView: View {
                     scanContent
                 case .input:
                     inputContent
+                case .relayInput:
+                    relayInputContent
                 case .waiting:
                     waitingContent
                 case .success:
@@ -96,6 +110,54 @@ struct PairingView: View {
             Button("确定", role: .cancel) {}
         } message: {
             Text(errorMessage)
+        }
+    }
+
+    // MARK: - Connection Mode Selector
+
+    private var connectionModeSelector: some View {
+        HStack(spacing: 12) {
+            ForEach([ConnectionMode.relay, .gateway, .socketIO], id: \.self) { mode in
+                Button(action: {
+                    withAnimation(.spring(response: 0.3)) {
+                        connectionMode = mode
+                        self.mode = mode == .relay ? .relayInput : .scan
+                    }
+                }) {
+                    Text(modeLabel(for: mode))
+                        .font(.subheadline)
+                        .fontWeight(connectionMode == mode ? .semibold : .regular)
+                        .foregroundColor(connectionMode == mode ? .white : .textSecondary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            connectionMode == mode
+                            ? LinearGradient(
+                                colors: [.brandPurple, .brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            : Color.clear
+                        )
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    connectionMode == mode ? Color.clear : Color.textTertiary.opacity(0.5),
+                                    lineWidth: 1
+                                )
+                        )
+                }
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func modeLabel(for mode: ConnectionMode) -> String {
+        switch mode {
+        case .relay: return "中继"
+        case .gateway: return "直连"
+        case .socketIO: return "配对"
         }
     }
 
@@ -308,6 +370,144 @@ struct PairingView: View {
         }
     }
 
+    // MARK: - Relay Input Content
+
+    private var relayInputContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // QR Scanner for Relay
+                VStack(spacing: 16) {
+                    Image(systemName: "qrcode.viewfinder")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.brandPurple, .brandPink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Text("扫描中继二维码")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+
+                    Text("扫描 OpenClaw 设备显示的中继二维码")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+                .trixSurfaceCard(cornerRadius: 20, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)
+                .onTapGesture {
+                    showQRScanner = true
+                }
+
+                // Divider
+                HStack {
+                    Rectangle()
+                        .fill(Color.textTertiary)
+                        .frame(height: 1)
+
+                    Text("或手动输入")
+                        .font(.subheadline)
+                        .foregroundColor(.textSecondary)
+
+                    Rectangle()
+                        .fill(Color.textTertiary)
+                        .frame(height: 1)
+                }
+
+                // Manual input fields
+                VStack(spacing: 16) {
+                    // Server URL
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("服务器地址")
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+
+                        TextField("https://your-server.com", text: $relayServer)
+                            .font(.body)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(12)
+                            .background(Color.textTertiary.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+
+                    // Gateway ID
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Gateway ID")
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+
+                        TextField("gateway-xxx", text: $relayGatewayId)
+                            .font(.body)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(12)
+                            .background(Color.textTertiary.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+
+                    // Access Code
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("访问码")
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+
+                        SecureField("访问码", text: $relayAccessCode)
+                            .font(.body)
+                            .textInputAutocapitalization(.characters)
+                            .padding(12)
+                            .background(Color.textTertiary.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+
+                    // Connect button
+                    Button(action: {
+                        Task {
+                            await connectRelay()
+                        }
+                    }) {
+                        HStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: "link")
+                                Text("连接")
+                            }
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            isRelayInputValid && !isLoading
+                            ? LinearGradient(
+                                colors: [.brandPurple, .brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            : LinearGradient(colors: [.gray], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(24)
+                    }
+                    .disabled(!isRelayInputValid || isLoading)
+                }
+                .padding(20)
+                .trixSurfaceCard(cornerRadius: 20, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)
+            }
+            .padding(.horizontal, 8)
+        }
+    }
+
+    private var isRelayInputValid: Bool {
+        !relayServer.isEmpty && !relayGatewayId.isEmpty && !relayAccessCode.isEmpty
+    }
+
     // MARK: - Waiting Content
 
     private var waitingContent: some View {
@@ -433,6 +633,16 @@ struct PairingView: View {
     private func handleQRScanned(_ code: String) {
         showQRScanner = false
 
+        // Check if it's a Relay QR code
+        if let payload = clawbotChannel.parseRelayQR(code) {
+            // Relay QR format: {version, server, gatewayId, accessCode, displayName}
+            Task {
+                await connectRelayWithQR(code)
+            }
+            return
+        }
+
+        // Otherwise, process as normal pairing QR
         Task {
             await processQRCode(code)
         }
@@ -489,6 +699,60 @@ struct PairingView: View {
             }
         } else {
             errorMessage = "二维码配对失败"
+            showError = true
+        }
+    }
+
+    // MARK: - Relay Actions
+
+    private func connectRelay() async {
+        guard isRelayInputValid else { return }
+
+        isLoading = true
+
+        let server = relayServer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let gatewayId = relayGatewayId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let accessCode = relayAccessCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let success = await clawbotChannel.connectRelayManual(
+            server: server,
+            gatewayId: gatewayId,
+            accessCode: accessCode
+        )
+
+        isLoading = false
+
+        if success {
+            withAnimation(.spring(response: 0.3)) {
+                mode = .success
+            }
+        } else {
+            errorMessage = clawbotChannel.lastError ?? "连接失败，请检查配置"
+            showError = true
+        }
+    }
+
+    private func handleRelayQRScanned(_ code: String) {
+        showQRScanner = false
+
+        Task {
+            await connectRelayWithQR(code)
+        }
+    }
+
+    private func connectRelayWithQR(_ qrContent: String) async {
+        isLoading = true
+
+        let success = await clawbotChannel.connectRelayWithQR(qrContent)
+
+        isLoading = false
+
+        if success {
+            withAnimation(.spring(response: 0.3)) {
+                mode = .success
+            }
+        } else {
+            errorMessage = clawbotChannel.lastError ?? "二维码连接失败"
             showError = true
         }
     }
