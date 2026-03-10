@@ -92,6 +92,7 @@ struct TTSControlView: View {
             // Toggle switch
             Toggle("", isOn: $viewModel.isEnabled)
                 .labelsHidden()
+                .accessibilityLabel("Enable text-to-speech")
         }
     }
 
@@ -345,6 +346,7 @@ struct TTSControlView: View {
                     step: 0.1
                 )
                 .tint(.purple)
+                .accessibilityLabel("Speech rate")
             }
 
             // Speech pitch slider
@@ -368,6 +370,7 @@ struct TTSControlView: View {
                     step: 0.1
                 )
                 .tint(.pink)
+                .accessibilityLabel("Voice pitch")
             }
 
             // Reset button

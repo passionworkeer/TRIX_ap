@@ -545,6 +545,7 @@ struct CacheItemRow: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("清除 \(cacheType.rawValue) 缓存")
         }
         .padding()
         .background(Color.secondary.opacity(0.05))

@@ -327,6 +327,7 @@ struct VoiceMessageView: View {
                     .foregroundColor(isIncoming ? .white : .white)
             }
         }
+        .accessibilityLabel("Play voice message")
     }
 
     // MARK: - Waveform View

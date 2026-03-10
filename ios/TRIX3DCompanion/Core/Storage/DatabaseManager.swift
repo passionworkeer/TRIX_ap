@@ -749,7 +749,9 @@ final class DatabaseManager {
         let calendar = Calendar.current
         let now = Date()
         let startOfDay = calendar.startOfDay(for: now)
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+        guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else {
+            throw DatabaseError.invalidData
+        }
 
         // 总学习时长
         let totalDuration = try db.scalar(
@@ -884,7 +886,8 @@ final class DatabaseManager {
     func clearExpiredData() throws {
         guard let db = db else { throw DatabaseError.notConnected }
 
-        let expirationDate = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        // Calculate expiration date - use optional with fallback
+        let expirationDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date().addingTimeInterval(-30 * 24 * 60 * 60)
         let expiredMessages = messagesTable.filter(messageCreatedAt < expirationDate)
         try db.run(expiredMessages.delete())
     }
@@ -1217,6 +1220,7 @@ enum DatabaseError: Error, LocalizedError {
     case deleteFailed(String)
     case encryptionFailed
     case decryptionFailed
+    case invalidData
 
     var errorDescription: String? {
         switch self {
@@ -1232,6 +1236,8 @@ enum DatabaseError: Error, LocalizedError {
             return "Data encryption failed"
         case .decryptionFailed:
             return "Data decryption failed"
+        case .invalidData:
+            return "Invalid data"
         }
     }
 }

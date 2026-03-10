@@ -219,7 +219,7 @@ struct TrixBotChatView: View {
                     ZStack {
                         Circle()
                             .fill(canSend ? Color.brandPurple : Color.gray)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 44, height: 44)
 
                         if isSendingMessage || isUploadingAttachment {
                             ProgressView()
@@ -234,6 +234,7 @@ struct TrixBotChatView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
+                .accessibilityLabel("发送消息")
             }
         }
         .padding(.horizontal, 16)

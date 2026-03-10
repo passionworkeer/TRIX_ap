@@ -127,6 +127,7 @@ struct ChatInputBar: View {
                     .foregroundColor(.purple)
             }
         }
+        .accessibilityLabel("Attach file")
         .disabled(!isConnected)
     }
 
@@ -160,6 +161,7 @@ struct ChatInputBar: View {
                     .foregroundColor(.red)
             }
         }
+        .accessibilityLabel("Record voice message")
         .disabled(!isConnected)
     }
 
@@ -181,6 +183,7 @@ struct ChatInputBar: View {
                     .foregroundColor(isListening ? .red : .blue)
             }
         }
+        .accessibilityLabel("Speech to text")
         .disabled(!isConnected || !speechService.isSupported)
         .opacity(speechService.isSupported ? 1.0 : 0.5)
         .scaleEffect(isListening ? 1.1 : 1.0)
@@ -199,6 +202,7 @@ struct ChatInputBar: View {
                 .focused($isFocused)
                 .lineLimit(1...6)
                 .disabled(!isConnected)
+                .accessibilityLabel("Message input")
                 .onChange(of: text) { newValue in
                     // Enforce character limit
                     if newValue.count > maxCharacterLimit {
@@ -256,7 +260,7 @@ struct ChatInputBar: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .shadow(color: .purple.opacity(0.3), radius: 4, y: 2)
 
                 Image(systemName: "arrow.up.fill")
@@ -265,6 +269,7 @@ struct ChatInputBar: View {
                     .foregroundColor(.white)
             }
         }
+        .accessibilityLabel("Send message")
         .disabled(!isConnected || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         .scaleEffect(text.isEmpty ? 0.8 : 1.0)
         .animation(.spring(response: 0.3), value: text.isEmpty)

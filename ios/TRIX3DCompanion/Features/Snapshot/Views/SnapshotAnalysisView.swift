@@ -128,13 +128,14 @@ struct SnapshotAnalysisView: View {
             Button(action: onRetake) {
                 Circle()
                     .fill(Color.white.opacity(0.15))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: "arrow.left")
                             .foregroundColor(.white)
                             .font(.system(size: 18, weight: .semibold))
                     }
             }
+            .accessibilityLabel("返回")
 
             Text("快照分析")
                 .font(.title3)

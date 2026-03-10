@@ -442,13 +442,13 @@ struct QRScannerView: View {
             let code = scanResult.string.trimmingCharacters(in: .whitespacesAndNewlines)
             var isValid = false
 
-            // Check various valid formats:
+                // Check various valid formats:
             // 1. JSON format with "token" or "pairingToken" field
             if let data = code.data(using: .utf8),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 let token = json["token"] as? String
                 let pairingToken = json["pairingToken"] as? String
-                if (token != nil && !token!.isEmpty) || (pairingToken != nil && !pairingToken!.isEmpty) {
+                if (token?.isEmpty == false) || (pairingToken?.isEmpty == false) {
                     isValid = true
                 }
             }

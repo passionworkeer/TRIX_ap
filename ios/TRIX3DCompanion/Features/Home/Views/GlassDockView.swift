@@ -120,8 +120,9 @@ struct GlassDockView: View {
                     Image(systemName: dockTab.icon)
                         .font(.system(size: 20, weight: .medium))
                         .foregroundColor(isSelected ? Color.brandPurple : .secondary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         .scaleEffect(isSelected ? 1.1 : 1.0)
+                        .accessibilityLabel(dockTab.label)
                 }
 
                 Text(dockTab.label)

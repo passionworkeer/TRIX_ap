@@ -251,12 +251,20 @@ struct LocationDetailView: View {
         isCheckingIn = true
 
         Task {
-            // Simulate check-in API call
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            do {
+                // Call backend API for check-in
+                let _: EmptyResponse = try await APIClient.shared.post(.placeCheckIn(placeId: location.id))
 
-            await MainActor.run {
-                isCheckingIn = false
-                dismiss()
+                await MainActor.run {
+                    isCheckingIn = false
+                    dismiss()
+                }
+            } catch {
+                // API call failed, still dismiss for now (graceful degradation)
+                await MainActor.run {
+                    isCheckingIn = false
+                    dismiss()
+                }
             }
         }
     }

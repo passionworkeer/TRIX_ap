@@ -13,6 +13,10 @@ struct NotificationPanelView: View {
     @State private var notifications: [AppNotification] = []
     @State private var isLoading = false
     @State private var selectedFilter: NotificationFilter = .all
+    @State private var errorMessage: String?
+
+    // Use shared API client
+    private let apiClient = APIClient.shared
 
     enum NotificationFilter: String, CaseIterable {
         case all = "全部"
@@ -38,6 +42,14 @@ struct NotificationPanelView: View {
                     // Header
                     headerSection
 
+                    // Error message if any
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
+
                     // Filter tabs
                     filterSection
 
@@ -47,9 +59,9 @@ struct NotificationPanelView: View {
                 .frame(maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(Color(.systemBackground))
                 )
-                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: -5)
+                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: -5)
             }
             .padding(.top, geometry.safeAreaInsets.top) // Respect safe area
             .ignoresSafeArea(edges: .bottom)
@@ -78,6 +90,14 @@ struct NotificationPanelView: View {
                 .fontWeight(.bold)
 
             Spacer()
+
+            Button {
+                markAllAsRead()
+            } label: {
+                Text("全部已读")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+            }
 
             Button {
                 isPresented = false
@@ -175,22 +195,79 @@ struct NotificationPanelView: View {
 
     private func loadNotifications() {
         isLoading = true
+        errorMessage = nil
 
-        // Simulated data
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            notifications = [
-                AppNotification(id: UUID(), type: .system, title: "学习提醒", content: "是时候开始学习了！", time: "10分钟前", isRead: false),
-                AppNotification(id: UUID(), type: .points, title: "积分到账", content: "您获得了 +50 积分", time: "2小时前", isRead: false),
-                AppNotification(id: UUID(), type: .chat, title: "新消息", content: "TRIX Bot: 你好！", time: "昨天", isRead: true)
-            ]
-            isLoading = false
+        Task {
+            do {
+                // Fetch notifications from backend API
+                let apiNotifications: [APIAppNotification] = try await apiClient.get(.notificationList)
+
+                // Map API notifications to local model
+                notifications = apiNotifications.map { apiNotification in
+                    AppNotification(
+                        id: UUID(uuidString: apiNotification.id) ?? UUID(),
+                        type: mapNotificationType(apiNotification.type),
+                        title: apiNotification.title,
+                        content: apiNotification.body,
+                        time: formatTime(apiNotification.createdAt),
+                        isRead: apiNotification.isRead
+                    )
+                }
+                isLoading = false
+            } catch {
+                isLoading = false
+                errorMessage = "加载失败: \(error.localizedDescription)"
+            }
         }
     }
 
     private func markAsRead(_ notification: AppNotification) {
-        if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
-            notifications[index].isRead = true
+        Task {
+            do {
+                try await apiClient.markNotificationAsRead(notificationId: notification.id.uuidString)
+                // Update local state
+                if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
+                    notifications[index].isRead = true
+                }
+            } catch {
+                // Silent fail
+            }
         }
+    }
+
+    private func markAllAsRead() {
+        Task {
+            do {
+                try await apiClient.markAllNotificationsAsRead()
+                // Update local state
+                for index in notifications.indices {
+                    notifications[index].isRead = true
+                }
+            } catch {
+                // Silent fail
+            }
+        }
+    }
+
+    private func mapNotificationType(_ type: String) -> AppNotification.NotificationType {
+        switch type.lowercased() {
+        case "system":
+            return .system
+        case "points", "reward":
+            return .points
+        case "chat", "message":
+            return .chat
+        case "study", "learning":
+            return .study
+        default:
+            return .system
+        }
+    }
+
+    private func formatTime(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

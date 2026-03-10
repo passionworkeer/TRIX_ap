@@ -258,6 +258,7 @@ struct TabItemWithBadge: View {
                         .foregroundColor(.white)
                         .font(.title3)
                 }
+                .accessibilityLabel("Math Study Group 头像")
 
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -296,6 +297,7 @@ struct TabItemWithBadge: View {
                         .foregroundColor(.white)
                         .font(.title3)
                 }
+                .accessibilityLabel("Physics Discussion 头像")
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {

@@ -320,7 +320,7 @@ struct RegisterView: View {
     private func handleRegister() async {
         // Validate inputs
         guard !username.isEmpty else {
-            errorMessage = loc("auth.username.placeholder") + " is required"
+            errorMessage = loc("auth.username.required")
             showingError = true
             return
         }
@@ -332,13 +332,13 @@ struct RegisterView: View {
         }
 
         guard !email.isEmpty else {
-            errorMessage = loc("auth.email.placeholder") + " is required"
+            errorMessage = loc("auth.email.required")
             showingError = true
             return
         }
 
         guard !password.isEmpty else {
-            errorMessage = loc("auth.password.placeholder") + " is required"
+            errorMessage = loc("auth.password.required")
             showingError = true
             return
         }

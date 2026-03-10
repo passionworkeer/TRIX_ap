@@ -40,6 +40,12 @@
 "auth.forgot.password" = "Forgot Password?";
 "auth.no.account" = "Don't have an account?";
 "auth.has.account" = "Already have an account?";
+"auth.signin.apple" = "Sign in with Apple";
+"auth.signin.wechat" = "Sign in with WeChat";
+"auth.or" = "OR";
+"auth.email.required" = "Email is required";
+"auth.password.required" = "Password is required";
+"auth.username.required" = "Username is required";
 
 // MARK: - Chat
 "chat.title" = "Messages";

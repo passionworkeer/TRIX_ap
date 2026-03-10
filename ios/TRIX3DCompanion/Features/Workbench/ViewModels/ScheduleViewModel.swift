@@ -2,7 +2,7 @@
 //  ScheduleViewModel.swift
 //  TRIX3DCompanion
 //
-//  Schedule ViewModel for managing schedule items with CRUD operations and local notifications
+//  Schedule ViewModel for managing schedule items with CRUD operations and backend API
 //
 
 import Foundation
@@ -55,12 +55,9 @@ final class ScheduleViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
+    private let scheduleService: ScheduleServiceProtocol
     private let notificationService: LocalNotificationServiceProtocol
     private let hapticProvider: HapticFeedbackProvider
-
-    // MARK: - Private Properties
-
-    private let userDefaultsKey = "workbench_schedules"
 
     // MARK: - Computed Properties
 
@@ -115,9 +112,11 @@ final class ScheduleViewModel: ObservableObject {
 
     /// Initialize with optional dependencies for dependency injection
     init(
+        scheduleService: ScheduleServiceProtocol = ScheduleService.shared,
         notificationService: LocalNotificationServiceProtocol = LocalNotificationService.shared,
         hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()
     ) {
+        self.scheduleService = scheduleService
         self.notificationService = notificationService
         self.hapticProvider = hapticProvider
         loadSchedules()
@@ -127,50 +126,85 @@ final class ScheduleViewModel: ObservableObject {
 
     /// Add a new schedule
     /// - Parameter schedule: Schedule to add
-    func addSchedule(_ schedule: Schedule) async {
-        var newSchedule = schedule
-        newSchedule.syncStatus = .pending
-        schedules.append(newSchedule)
-        saveSchedules()
+    func addSchedule(_ schedule: Schedule) {
+        Task {
+            do {
+                isLoading = true
+                let request = CreateScheduleRequest(
+                    title: schedule.title,
+                    description: schedule.description,
+                    startTime: schedule.startTime,
+                    endTime: schedule.endTime,
+                    reminderMinutesBefore: schedule.reminderMinutesBefore,
+                    location: schedule.location
+                )
+                let created = try await scheduleService.createSchedule(request)
+                schedules.append(created)
+                isLoading = false
 
-        // Schedule notification if reminder is set
-        if let reminderMinutes = schedule.reminderMinutesBefore {
-            await scheduleReminder(for: newSchedule, minutesBefore: reminderMinutes)
+                // Schedule notification if reminder is set
+                if let reminderMinutes = schedule.reminderMinutesBefore {
+                    await scheduleReminder(for: created, minutesBefore: reminderMinutes)
+                }
+
+                successMessage = "Schedule added successfully"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
         }
-
-        successMessage = "Schedule added successfully"
     }
 
     /// Update an existing schedule
     /// - Parameter schedule: Schedule with updated values
-    func updateSchedule(_ schedule: Schedule) async {
-        guard let index = schedules.firstIndex(where: { $0.id == schedule.id }) else {
-            errorMessage = "Schedule not found"
-            return
+    func updateSchedule(_ schedule: Schedule) {
+        Task {
+            do {
+                isLoading = true
+                let request = CreateScheduleRequest(
+                    title: schedule.title,
+                    description: schedule.description,
+                    startTime: schedule.startTime,
+                    endTime: schedule.endTime,
+                    reminderMinutesBefore: schedule.reminderMinutesBefore,
+                    location: schedule.location
+                )
+                let updated = try await scheduleService.updateSchedule(id: schedule.id.uuidString, request: request)
+
+                // Cancel old notification and schedule new one if needed
+                await cancelReminder(for: schedule.id)
+                if let reminderMinutes = schedule.reminderMinutesBefore {
+                    await scheduleReminder(for: updated, minutesBefore: reminderMinutes)
+                }
+
+                if let index = schedules.firstIndex(where: { $0.id == schedule.id }) {
+                    schedules[index] = updated
+                }
+                isLoading = false
+                successMessage = "Schedule updated successfully"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
         }
-
-        var updatedSchedule = schedule
-        updatedSchedule.updatedAt = Date()
-        updatedSchedule.syncStatus = .pending
-
-        // Cancel old notification and schedule new one if needed
-        await cancelReminder(for: schedule.id)
-        if let reminderMinutes = schedule.reminderMinutesBefore {
-            await scheduleReminder(for: updatedSchedule, minutesBefore: reminderMinutes)
-        }
-
-        schedules[index] = updatedSchedule
-        saveSchedules()
-        successMessage = "Schedule updated successfully"
     }
 
     /// Delete a schedule
     /// - Parameter id: Schedule ID to delete
-    func deleteSchedule(_ id: UUID) async {
-        await cancelReminder(for: id)
-        schedules.removeAll { $0.id == id }
-        saveSchedules()
-        successMessage = "Schedule deleted"
+    func deleteSchedule(_ id: UUID) {
+        Task {
+            do {
+                isLoading = true
+                try await scheduleService.deleteSchedule(id: id.uuidString)
+                await cancelReminder(for: id)
+                schedules.removeAll { $0.id == id }
+                isLoading = false
+                successMessage = "Schedule deleted"
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     // MARK: - Public Methods - Form
@@ -260,33 +294,24 @@ final class ScheduleViewModel: ObservableObject {
 
     // MARK: - Private Methods - Persistence
 
-    /// Save schedules to UserDefaults
-    private func saveSchedules() {
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(schedules)
-            UserDefaults.standard.set(data, forKey: userDefaultsKey)
-        } catch {
-            SecureLogger.shared.error("Failed to save schedules: \(error)")
-            errorMessage = "Failed to save schedules"
+    /// Load schedules from backend API
+    func loadSchedules() {
+        Task {
+            isLoading = true
+            do {
+                let fetchedSchedules = try await scheduleService.fetchSchedules()
+                schedules = fetchedSchedules
+                isLoading = false
+            } catch {
+                isLoading = false
+                errorMessage = "Failed to load schedules: \(error.localizedDescription)"
+            }
         }
     }
 
-    /// Load schedules from UserDefaults
-    private func loadSchedules() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return
-        }
-
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            schedules = try decoder.decode([Schedule].self, from: data)
-        } catch {
-            SecureLogger.shared.error("Failed to load schedules: \(error)")
-            schedules = []
-        }
+    /// Refresh schedules from backend
+    func refresh() {
+        loadSchedules()
     }
 }
 

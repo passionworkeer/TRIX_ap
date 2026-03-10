@@ -43,6 +43,7 @@ struct ChatListView: View {
     @State private var showingPairing = false
     @State private var showingTrixBotChat = false
     @State private var newChatName = ""
+    @State private var isCreatingChat = false
     @State private var conversations: [ChatConversation] = []
     @State private var recommendedUsers: [RecommendedUser] = []
     @State private var showQuickAdd = true
@@ -164,6 +165,7 @@ struct ChatListView: View {
                         .overlay(
                             Circle().stroke(.white.opacity(0.1), lineWidth: 1)
                         )
+                        .accessibilityLabel("TRIX Bot 头像")
                     // Online status - show based on pairing
                     Circle()
                         .fill(clawbotChannel.isPaired ? .green : .orange)
@@ -193,7 +195,7 @@ struct ChatListView: View {
                 // Camera icon (Web style)
                 Circle()
                     .fill(clawbotChannel.isPaired ? .green.opacity(0.2) : .gray.opacity(0.2))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: clawbotChannel.isPaired ? "camera.fill" : "link")
                             .font(.system(size: 16))
@@ -390,10 +392,6 @@ struct ChatListView: View {
         }
     }
 
-    private func createNewChat() {
-        showingCreateChat = true
-    }
-
     private var createChatSheet: some View {
         NavigationView {
             Form {
@@ -403,16 +401,10 @@ struct ChatListView: View {
                 }
                 Section {
                     Button(action: {
-                        let trimmedName = newChatName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmedName.isEmpty else { return }
-                        let colors: [Color] = [.blue, .purple, .green, .orange, .pink]
-                        let newConversation = ChatConversation(id: UUID().uuidString, name: trimmedName, avatarUrl: nil, lastMessage: "New conversation", time: "Just now", unreadCount: 0, avatarColor: colors.randomElement() ?? .purple, isOnline: false)
-                        conversations.insert(newConversation, at: 0)
-                        newChatName = ""
-                        showingCreateChat = false
+                        createNewChat()
                     }) {
                         HStack { Spacer(); Text("Create Chat").fontWeight(.semibold); Spacer() }
-                    }.disabled(newChatName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.disabled(newChatName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreatingChat)
                 }
             }
             .navigationTitle("New Chat")
@@ -423,6 +415,51 @@ struct ChatListView: View {
                 }
             }
         }.presentationDetents([.medium])
+    }
+
+    private func createNewChat() {
+        let trimmedName = newChatName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        isCreatingChat = true
+
+        Task {
+            do {
+                // Call backend API to create chat room
+                let request = CreateChatRoomRequest(name: trimmedName, type: .privateChat)
+                let createdRoom: ChatRoom = try await APIClient.shared.post(.chatRoomCreate, body: request)
+
+                // Create local conversation from response
+                let colors: [Color] = [.blue, .purple, .green, .orange, .pink]
+                let newConversation = ChatConversation(
+                    id: createdRoom.id,
+                    name: createdRoom.name,
+                    avatarUrl: nil,
+                    lastMessage: "New conversation",
+                    time: "Just now",
+                    unreadCount: 0,
+                    avatarColor: colors.randomElement() ?? .purple,
+                    isOnline: false
+                )
+
+                await MainActor.run {
+                    conversations.insert(newConversation, at: 0)
+                    newChatName = ""
+                    showingCreateChat = false
+                    isCreatingChat = false
+                }
+            } catch {
+                // API failed - still allow local creation for offline scenario
+                await MainActor.run {
+                    let colors: [Color] = [.blue, .purple, .green, .orange, .pink]
+                    let newConversation = ChatConversation(id: UUID().uuidString, name: trimmedName, avatarUrl: nil, lastMessage: "New conversation", time: "Just now", unreadCount: 0, avatarColor: colors.randomElement() ?? .purple, isOnline: false)
+                    conversations.insert(newConversation, at: 0)
+                    newChatName = ""
+                    showingCreateChat = false
+                    isCreatingChat = false
+                }
+            }
+        }
     }
 }
 
@@ -438,10 +475,11 @@ struct QuickAddUserCard: View {
             // Avatar
             Circle()
                 .fill(LinearGradient(colors: [user.avatarColor, user.avatarColor.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .overlay {
                     Text(user.avatar).font(.caption2).fontWeight(.semibold).foregroundColor(.white)
                 }
+                .accessibilityLabel("\(user.name) 的头像")
 
             // Name
             Text(user.name)

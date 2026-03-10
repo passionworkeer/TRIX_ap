@@ -207,13 +207,14 @@ struct MessageBubbleView: View {
     private var avatarView: some View {
         Circle()
             .fill(isFromCurrentUser ? Color.blue : Color.purple)
-            .frame(width: 32, height: 32)
+            .frame(width: 44, height: 44)
             .overlay {
                 Text(String(message.senderId.prefix(1)))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
             }
+            .accessibilityLabel("Avatar for \(message.senderId)")
     }
 
     private var timestampView: some View {
@@ -254,7 +255,7 @@ struct MessageBubbleView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(isFromCurrentUser ? Color.white.opacity(0.2) : Color.purple.opacity(0.1))
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
 
             Image(systemName: "doc.fill")
                 .font(.title3)
