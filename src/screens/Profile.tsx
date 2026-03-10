@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, Volume2 } from 'lucide-react';
+import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, Volume2, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
@@ -8,6 +8,7 @@ import { AboutDialog } from '../components/AboutDialog';
 import { StatsDetailDialog } from '../components/StatsDetailDialog';
 import { PrivacySettings } from '../components/PrivacySettings';
 import { PointsHistory } from '../components/PointsHistory';
+import { OpenClawControlPanel } from '../components/OpenClawControlPanel';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -29,6 +30,7 @@ const Profile: React.FC = () => {
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
   const [isPrivacySettingsOpen, setIsPrivacySettingsOpen] = useState(false);
   const [isPointsHistoryOpen, setIsPointsHistoryOpen] = useState(false);
+  const [isOpenClawControlOpen, setIsOpenClawControlOpen] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -79,9 +81,11 @@ const Profile: React.FC = () => {
     const currentIndex = languages.indexOf(currentLang);
     // 如果不在列表中，默认跳转到第一个
     const nextLanguage = currentIndex >= 0 ? languages[(currentIndex + 1) % languages.length] : languages[0];
-    i18n.changeLanguage(nextLanguage);
-    localStorage.setItem('language', nextLanguage);
-    localStorage.setItem('i18nextLng', nextLanguage);
+    if (nextLanguage) {
+      i18n.changeLanguage(nextLanguage);
+      localStorage.setItem('language', nextLanguage);
+      localStorage.setItem('i18nextLng', nextLanguage);
+    }
   };
 
   const handleVoiceToggle = () => {
@@ -172,6 +176,13 @@ const Profile: React.FC = () => {
         onClose={() => setIsPointsHistoryOpen(false)}
         userId={user?.id || ''}
       />
+
+      {/* OpenClaw 控制面板对话框 */}
+      <OpenClawControlPanel
+        isOpen={isOpenClawControlOpen}
+        onClose={() => setIsOpenClawControlOpen(false)}
+      />
+
       <ConfirmModalRenderer />
 
       <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
@@ -354,6 +365,19 @@ const Profile: React.FC = () => {
                          <div className={`relative w-12 h-7 rounded-full p-1 transition-colors ${voiceEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}>
                              <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${voiceEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
                          </div>
+                      </GlassPanel>
+
+                      <GlassPanel
+                         onClick={() => setIsOpenClawControlOpen(true)}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Bot size={20} />
+                            </div>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>OpenClaw 控制面板</span>
+                         </div>
+                         <ChevronRight size={16} className={mutedTextClass} />
                       </GlassPanel>
                    </div>
 

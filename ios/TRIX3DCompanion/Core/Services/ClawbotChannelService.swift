@@ -645,6 +645,58 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
     }
 
+    // MARK: - Control Commands
+
+    /// OpenClaw 控制命令类型
+    enum ControlCommand: String {
+        case modelsStatus = "models_status"
+        case skillsList = "skills_list"
+        case skillsCheck = "skills_check"
+        case cronList = "cron_list"
+        case cronAdd = "cron_add"
+        case cronEnable = "cron_enable"
+        case cronDisable = "cron_disable"
+        case cronRemove = "cron_remove"
+        case cronRun = "cron_run"
+        case status = "status"
+        case health = "health"
+        case doctor = "doctor"
+        case doctorRepair = "doctor_repair"
+        case logs = "logs"
+        case configBackup = "config_backup"
+        case configRollback = "config_rollback"
+    }
+
+    /// 发送控制命令到 OpenClaw
+    func sendControlCommand(_ command: ControlCommand, params: [String: Any] = [:]) async throws -> [String: Any] {
+        guard isConnected, let socket = socket else {
+            throw ClawbotError.notConnected
+        }
+
+        guard isPaired else {
+            throw ClawbotError.notPaired
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            socket.emitWithAck("control_command", [
+                "action": command.rawValue,
+                "params": params
+            ]) { response in
+                guard let dict = response as? [String: Any] else {
+                    continuation.resume(throwing: ClawbotError.invalidResponse)
+                    return
+                }
+
+                if let success = dict["success"] as? Bool, success {
+                    continuation.resume(returning: dict)
+                } else {
+                    let errorMessage = dict["error"] as? String ?? "Command failed"
+                    continuation.resume(throwing: ClawbotError.custom(errorMessage))
+                }
+            }
+        }
+    }
+
     // MARK: - Private Methods
 
     /// Helper method to set bot behavior state and sync with backward compatible botState

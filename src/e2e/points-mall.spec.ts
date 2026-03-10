@@ -474,7 +474,7 @@ test.describe('Points Mall E2E Tests', () => {
 
         // Check for loading state (button text changes to "购买中...")
         const loadingButton = page.locator('button:has-text("购买中")');
-        const isLoadingVisible = await loadingButton.isVisible().catch(() => false);
+        await loadingButton.isVisible().catch(() => false);
 
         // Loading state may or may not be visible depending on API response speed
         // This is an optional check

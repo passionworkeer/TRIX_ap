@@ -1,14 +1,14 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type ConfigEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }: ConfigEnv) => {
   const isProduction = mode === 'production';
 
   const productionBuild = {
     target: 'es2015',
-    minify: 'terser',
+    minify: 'terser' as const,
     terserOptions: {
       compress: {
         drop_console: true,

@@ -6,10 +6,6 @@
 
 import { Page } from '@playwright/test';
 
-// Supabase 配置
-const SUPABASE_URL = 'https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co';
-const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY_REDACTED__';
-
 // 测试用户凭据（请确保在 Supabase 中存在此用户）
 const TEST_USER = {
   email: 'test@example.com',

@@ -66,12 +66,12 @@ test('SnapMap should keep leaflet style and mock friends fallback for MVP', () =
 });
 
 test('Snapshot entry should require pairing and use unified TRIX avatar', () => {
-  const appTsx = read('src/App.tsx');
+  const homeTsx = read('src/screens/Home.tsx');
   const snapshotTsx = read('src/screens/Snapshot.tsx');
 
-  assert.equal(appTsx.includes('if (!isClawbotConnected || !isClawbotPaired)'), true, 'Home snapshot modal should gate by clawbot connection');
-  assert.equal(appTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Home snapshot modal should redirect to pairing');
-  assert.equal(appTsx.includes('avatar: IMAGES.WIZARD_BOY_LOGIN,'), true, 'Home snapshot modal should use unified TRIX avatar');
+  assert.equal(homeTsx.includes('if (!isClawbotConnected || !isClawbotPaired)'), true, 'Home snapshot modal should gate by clawbot connection');
+  assert.equal(homeTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Home snapshot modal should redirect to pairing');
+  assert.equal(homeTsx.includes('avatar: IMAGES.WIZARD_BOY_LOGIN,'), true, 'Home snapshot modal should use unified TRIX avatar');
 
   assert.equal(snapshotTsx.includes('if (!isConnected || !isPaired)'), true, 'Snapshot upload flow should gate by clawbot connection');
   assert.equal(snapshotTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Snapshot upload flow should redirect to pairing');

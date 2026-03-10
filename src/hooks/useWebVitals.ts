@@ -162,11 +162,6 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
       return;
     }
 
-    // 记录页面开始时间
-    const pageStartTime = performance.timing?.navigationStart ||
-      performance.getEntriesByType('navigation')[0]?.fetchStart ||
-      0;
-
     // 1. 监控 FCP (First Contentful Paint)
     try {
       const fcpObserver = new PerformanceObserver((list) => {
@@ -293,29 +288,30 @@ export function usePageLoadTiming() {
     });
 
     // 记录关键时间点
-    const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
 
     if (navigationEntry) {
-      timingRef.current.navigationStart = navigationEntry.navigationStart;
-      timingRef.current.unloadEventStart = navigationEntry.unloadEventStart;
-      timingRef.current.redirectStart = navigationEntry.redirectStart;
-      timingRef.current.redirectEnd = navigationEntry.redirectEnd;
-      timingRef.current.fetchStart = navigationEntry.fetchStart;
-      timingRef.current.domainLookupStart = navigationEntry.domainLookupStart;
-      timingRef.current.domainLookupEnd = navigationEntry.domainLookupEnd;
-      timingRef.current.connectStart = navigationEntry.connectStart;
-      timingRef.current.connectEnd = navigationEntry.connectEnd;
-      timingRef.current.secureConnectionStart = navigationEntry.secureConnectionStart;
-      timingRef.current.requestStart = navigationEntry.requestStart;
-      timingRef.current.responseStart = navigationEntry.responseStart;
-      timingRef.current.responseEnd = navigationEntry.responseEnd;
-      timingRef.current.domLoading = navigationEntry.domLoading;
-      timingRef.current.domInteractive = navigationEntry.domInteractive;
-      timingRef.current.domContentLoadedEventStart = navigationEntry.domContentLoadedEventStart;
-      timingRef.current.domContentLoadedEventEnd = navigationEntry.domContentLoadedEventEnd;
-      timingRef.current.domComplete = navigationEntry.domComplete;
-      timingRef.current.loadEventStart = navigationEntry.loadEventStart;
-      timingRef.current.loadEventEnd = navigationEntry.loadEventEnd;
+      const navTiming = navigationEntry as unknown as Record<string, number>;
+      timingRef.current.navigationStart = navTiming.navigationStart ?? 0;
+      timingRef.current.unloadEventStart = navTiming.unloadEventStart ?? 0;
+      timingRef.current.redirectStart = navTiming.redirectStart ?? 0;
+      timingRef.current.redirectEnd = navTiming.redirectEnd ?? 0;
+      timingRef.current.fetchStart = navTiming.fetchStart ?? 0;
+      timingRef.current.domainLookupStart = navTiming.domainLookupStart ?? 0;
+      timingRef.current.domainLookupEnd = navTiming.domainLookupEnd ?? 0;
+      timingRef.current.connectStart = navTiming.connectStart ?? 0;
+      timingRef.current.connectEnd = navTiming.connectEnd ?? 0;
+      timingRef.current.secureConnectionStart = navTiming.secureConnectionStart ?? 0;
+      timingRef.current.requestStart = navTiming.requestStart ?? 0;
+      timingRef.current.responseStart = navTiming.responseStart ?? 0;
+      timingRef.current.responseEnd = navTiming.responseEnd ?? 0;
+      timingRef.current.domLoading = navTiming.domLoading ?? 0;
+      timingRef.current.domInteractive = navTiming.domInteractive ?? 0;
+      timingRef.current.domContentLoadedEventStart = navTiming.domContentLoadedEventStart ?? 0;
+      timingRef.current.domContentLoadedEventEnd = navTiming.domContentLoadedEventEnd ?? 0;
+      timingRef.current.domComplete = navTiming.domComplete ?? 0;
+      timingRef.current.loadEventStart = navTiming.loadEventStart ?? 0;
+      timingRef.current.loadEventEnd = navTiming.loadEventEnd ?? 0;
     }
 
     // 记录 DOMContentLoaded 时间

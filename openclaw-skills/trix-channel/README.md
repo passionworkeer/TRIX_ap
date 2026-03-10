@@ -1,46 +1,53 @@
-# TRIX Channel - 快速开始
+# @openclaw/trix-channel
 
-## 一键启动
+> TRIX App Channel for OpenClaw - 连接手机 App 到 OpenClaw Gateway
 
-### Windows
-```bash
-start-trix-channel.bat
-```
+## 功能
 
-### Linux/Mac
-```bash
-chmod +x start-trix-channel.sh
-./start-trix-channel.sh
-```
+- ✅ 直连 OpenClaw Gateway
+- ✅ 实时消息转发
+- ✅ 配对码生成
+- ✅ 自动重连
+- ✅ 多模态支持
 
-## 手动启动
+## 安装
 
 ```bash
-cd openclaw-skills/trix-channel
+# 直接运行（推荐）
+npx git+https://github.com/passionworkeer/trix-channel.git
+
+# 或克隆后运行
+git clone https://github.com/passionworkeer/trix-channel.git
+cd trix-channel
 npm install
 node index.js
 ```
 
-## 在 OpenClaw 中使用
+## 使用
 
-```
-启动 TRIX Channel
-生成 TRIX 配对码
-```
+### 前置条件
 
-## 在 App 中配对
+1. 安装并运行 OpenClaw:
+   ```bash
+   openclaw-cn gateway
+   ```
 
-1. 打开 TRIX App
-2. 输入配对码
-3. 完成配对
+2. 确保 Gateway 已配置 Token
 
-## 测试消息流
+### 启动
 
 ```bash
-# 测试脚本
-node test-trix-channel.js
+# 默认配置
+node index.js
+
+# 或使用 CLI
+npx trix-channel
 ```
 
----
+## GitHub
 
-**详细文档**: SKILL.md
+https://github.com/passionworkeer/trix-channel
+
+## 许可证
+
+MIT

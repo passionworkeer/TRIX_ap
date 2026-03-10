@@ -13,6 +13,10 @@ const messageService = require('./services/messageService');
 const ossService = require('./services/ossService');
 const ttsService = require('./services/ttsService');
 const { studyRoomService } = require('./services/studyRoomService');
+const gatewayService = require('./services/gatewayService');
+const gatewayClientService = require('./services/gatewayClientService');
+const providerService = require('./services/providerService');
+const localCommandService = require('./services/localCommandService');
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
@@ -412,6 +416,208 @@ app.use('/api', extendedRoutes);
 // ============================================
 const supplementRoutes = require('./routes/supplement');
 app.use('/api', supplementRoutes);
+
+// ============================================
+// Gateway API Routes
+// ============================================
+
+// Gateway connection status
+app.get('/api/gateway/status', async (req, res) => {
+  res.json({
+    connected: gatewayClientService.isConnected(),
+    deviceId: gatewayClientService.getDeviceId(),
+  });
+});
+
+// Connect to Gateway via server relay
+app.post('/api/gateway/connect', async (req, res) => {
+  try {
+    const { url, token, password, deviceId, deviceKey } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    // If already connected, disconnect first
+    if (gatewayClientService.isConnected()) {
+      gatewayClientService.disconnect();
+    }
+
+    await gatewayClientService.connect(url, token, password, deviceId, deviceKey);
+
+    res.json({
+      success: true,
+      deviceId: gatewayClientService.getDeviceId(),
+    });
+  } catch (error) {
+    console.error('[Gateway] Connect failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Disconnect from Gateway
+app.post('/api/gateway/disconnect', async (req, res) => {
+  try {
+    gatewayClientService.disconnect();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Gateway] Disconnect failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gateway RPC request
+app.post('/api/gateway/rpc', async (req, res) => {
+  try {
+    const { method, params } = req.body;
+
+    if (!method) {
+      return res.status(400).json({ error: 'Missing method parameter' });
+    }
+
+    if (!gatewayClientService.isConnected()) {
+      return res.status(503).json({ error: 'Gateway not connected' });
+    }
+
+    const result = await gatewayClientService.request(method, params);
+    res.json(result);
+  } catch (error) {
+    console.error('[Gateway] RPC failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Provider API Routes
+// ============================================
+
+// List providers
+app.get('/api/providers', async (req, res) => {
+  try {
+    const providers = providerService.list();
+    res.json({ providers });
+  } catch (error) {
+    console.error('[Provider] List failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get provider details
+app.get('/api/providers/:id', async (req, res) => {
+  try {
+    const provider = providerService.get(req.params.id);
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found' });
+    }
+    res.json(provider);
+  } catch (error) {
+    console.error('[Provider] Get failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add/update provider
+app.post('/api/providers', async (req, res) => {
+  try {
+    const { id, name, apiBase, apiKey, models, defaultModel } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Provider ID is required' });
+    }
+
+    const provider = providerService.add({
+      id,
+      name,
+      apiBase,
+      apiKey,
+      models,
+      defaultModel,
+    });
+
+    res.json({ success: true, provider });
+  } catch (error) {
+    console.error('[Provider] Add failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete provider
+app.delete('/api/providers/:id', async (req, res) => {
+  try {
+    providerService.delete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Provider] Delete failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set default provider
+app.post('/api/providers/:id/default', async (req, res) => {
+  try {
+    providerService.setDefault(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Provider] Set default failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Validate provider API key
+app.post('/api/providers/:id/validate', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    const result = await providerService.validateKey(req.params.id, apiKey);
+    res.json(result);
+  } catch (error) {
+    console.error('[Provider] Validate failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Local Command API Routes
+// ============================================
+
+// Execute local command
+app.post('/api/local/command', async (req, res) => {
+  try {
+    const { command, args = [] } = req.body;
+
+    if (!command) {
+      return res.status(400).json({ error: 'Missing command parameter' });
+    }
+
+    const result = await localCommandService.execute(command, args);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Command failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Run doctor diagnostics
+app.get('/api/local/doctor', async (req, res) => {
+  try {
+    const result = await localCommandService.doctor([]);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Doctor failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get logs
+app.get('/api/local/logs', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const result = await localCommandService.logs([limit.toString()]);
+    res.json(result);
+  } catch (error) {
+    console.error('[Local] Logs failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -922,8 +1128,10 @@ io.on('connection', (socket) => {
   });
 
   async function handlePairWithCode(data, callback) {
+    console.log('[handlePairWithCode] 收到配对请求:', JSON.stringify(data));
     try {
       const { code, userId } = data || {};
+      console.log('[handlePairWithCode] code:', code, 'userId:', userId);
       if (!code || typeof code !== 'string') {
         callback?.({ success: false, error: 'Invalid pairing code' });
         return;
@@ -1074,20 +1282,61 @@ io.on('connection', (socket) => {
 
       const botSocket = getConnectedBot(targetDeviceId);
       if (!botSocket) {
-        const mapped = connectedBots.get(targetDeviceId);
-        socket.emit('error', {
-          message: 'Bot is offline',
-          deviceId: targetDeviceId,
-          mappedSocketId: mapped?.id || null,
-          hint: 'Please keep Clawbot connected and try again.'
-        });
-        socket.emit('message_sent', {
-          success: false,
-          messageId,
-          error: 'Bot is offline',
-          deviceId: targetDeviceId
-        });
-        return;
+        // Bot 不在线，尝试通过 Gateway 转发
+        console.log(`[App] Bot 不在线，尝试通过 Gateway 转发消息: ${routedMessage.content.slice(0, 50)}...`);
+
+        try {
+          const gatewayResult = await gatewayService.sendChatMessage(routedMessage.content);
+
+          // 解析 Gateway agent 响应
+          let assistantContent = '';
+          // 新版本格式: { payloads: [...] }，旧版本: { result: { payloads: [...] } }
+          const payloads = gatewayResult?.result?.payloads || gatewayResult?.payloads;
+          if (payloads && payloads[0]) {
+            assistantContent = payloads[0].text || payloads[0].content || '';
+          } else if (gatewayResult && gatewayResult.response) {
+            assistantContent = gatewayResult.response;
+          } else if (gatewayResult && gatewayResult.message) {
+            assistantContent = gatewayResult.message;
+          } else if (gatewayResult && gatewayResult.content) {
+            assistantContent = gatewayResult.content;
+          } else if (typeof gatewayResult === 'string') {
+            assistantContent = gatewayResult;
+          } else {
+            assistantContent = '消息已收到';
+          }
+
+          console.log(`[App] Gateway 响应: ${assistantContent.slice(0, 50)}...`);
+
+          // 将 Gateway 响应发送回 App
+          socket.emit('bot_message', {
+            content: assistantContent,
+            contentType: 'text',
+            messageId,
+            timestamp: Date.now(),
+            sourceEvent: 'gateway_response'
+          });
+
+          socket.emit('message_sent', {
+            success: true,
+            messageId
+          });
+          return;
+        } catch (gatewayError) {
+          console.error('[App] Gateway 转发失败:', gatewayError.message);
+          socket.emit('error', {
+            message: 'Bot is offline and Gateway unavailable',
+            deviceId: targetDeviceId,
+            hint: 'Please keep Clawbot connected and try again.'
+          });
+          socket.emit('message_sent', {
+            success: false,
+            messageId,
+            error: 'Bot is offline and Gateway unavailable',
+            deviceId: targetDeviceId
+          });
+          return;
+        }
       }
 
       touchConnectedBot(targetDeviceId, botSocket, pairing.id, 'app_message_route');
@@ -1132,6 +1381,49 @@ io.on('connection', (socket) => {
         messageId,
         error: error.message
       });
+    }
+  }
+
+  // ==================== 控制命令处理 ====================
+
+  /**
+   * 处理控制命令 - 转发给 Bot 端执行
+   */
+  async function handleControlCommand(rawData) {
+    try {
+      const { action, params = {} } = rawData;
+
+      if (!action) {
+        return { success: false, error: 'Missing action' };
+      }
+
+      // 获取用户配对信息
+      const pairing = await pairingService.getPairingByUserId(socket.userId);
+      if (!pairing || !pairing.device_id) {
+        return { success: false, error: 'Not paired with any bot' };
+      }
+
+      const targetDeviceId = pairing.device_id;
+      const botSocket = getConnectedBot(targetDeviceId);
+
+      if (!botSocket) {
+        return { success: false, error: 'Bot is offline' };
+      }
+
+      // 转发给 Bot 端执行
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ success: false, error: 'Command timeout' });
+        }, 60000); // 60秒超时
+
+        botSocket.emit('control_command', { action, params }, (response) => {
+          clearTimeout(timeout);
+          resolve(response);
+        });
+      });
+    } catch (error) {
+      console.error('[Control] handleControlCommand failed:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -1234,6 +1526,17 @@ io.on('connection', (socket) => {
   socket.on('bot_message', (data) => handleBotToAppMessage(data, 'bot_message'));
   socket.on('bot_response', (data) => handleBotToAppMessage(data, 'bot_response'));
 
+  // 控制命令
+  socket.on('control_command', async (data, callback) => {
+    try {
+      const result = await handleControlCommand(data);
+      callback?.(result);
+    } catch (error) {
+      console.error('[Control] control_command error:', error);
+      callback?.({ success: false, error: error.message });
+    }
+  });
+
   socket.on('ping', (data, callback) => {
     const pingDeviceId = data?.deviceId ?? socket.deviceId ?? null;
     const pingPairingId = data?.pairingId ?? socket.pairingId ?? null;
@@ -1284,6 +1587,105 @@ io.on('connection', (socket) => {
 
     await pairingService.unpair(pairing.id);
     io.to(`user_${socket.userId}`).emit('unpaired');
+  });
+
+  // ============================================
+  // Gateway Socket.IO Events
+  // ============================================
+
+  // Gateway RPC via Socket.IO
+  socket.on('gateway_rpc', async (data, callback) => {
+    try {
+      const { method, params } = data || {};
+
+      if (!method) {
+        callback?.({ success: false, error: 'Missing method parameter' });
+        return;
+      }
+
+      if (!gatewayClientService.isConnected()) {
+        callback?.({ success: false, error: 'Gateway not connected' });
+        return;
+      }
+
+      const result = await gatewayClientService.request(method, params);
+      callback?.({ success: true, data: result });
+    } catch (error) {
+      console.error('[Gateway] RPC error:', error);
+      callback?.({ success: false, error: error.message });
+    }
+  });
+
+  // Subscribe to Gateway events
+  socket.on('gateway_subscribe', (data, callback) => {
+    const { events } = data || [];
+
+    if (!Array.isArray(events) || events.length === 0) {
+      callback?.({ success: false, error: 'Missing events parameter' });
+      return;
+    }
+
+    // Subscribe to each event
+    for (const event of events) {
+      gatewayClientService.on(event, (payload) => {
+        socket.emit('gateway_event', { event, payload });
+      });
+    }
+
+    callback?.({ success: true });
+  });
+
+  // Unsubscribe from Gateway events
+  socket.on('gateway_unsubscribe', (data, callback) => {
+    const { events } = data || [];
+
+    if (!Array.isArray(events) || events.length === 0) {
+      callback?.({ success: false, error: 'Missing events parameter' });
+      return;
+    }
+
+    // Unsubscribe from each event
+    for (const event of events) {
+      gatewayClientService.removeAllListeners(event);
+    }
+
+    callback?.({ success: true });
+  });
+
+  // Get Gateway status via Socket.IO
+  socket.on('gateway_status', (data, callback) => {
+    callback?.({
+      connected: gatewayClientService.isConnected(),
+      deviceId: gatewayClientService.getDeviceId(),
+    });
+  });
+
+  // Forward chat message to Gateway
+  socket.on('gateway_chat', async (data, callback) => {
+    try {
+      const { sessionKey, message } = data || {};
+
+      if (!message) {
+        callback?.({ success: false, error: 'Missing message parameter' });
+        return;
+      }
+
+      if (!gatewayClientService.isConnected()) {
+        callback?.({ success: false, error: 'Gateway not connected' });
+        return;
+      }
+
+      const sessionId = sessionKey ? sessionKey.split(':').pop() : 'main';
+      const result = await gatewayClientService.request('chat.send', {
+        sessionId,
+        message,
+      });
+
+      callback?.({ success: true, data: result });
+    } catch (error) {
+      console.error('[Gateway] Chat error:', error);
+      callback?.({ success: false, error: error.message });
+    }
   });
 
   socket.on('disconnect', () => {

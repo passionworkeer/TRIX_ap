@@ -62,7 +62,7 @@ export async function getTodos(): Promise<Todo[]> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      logger.warn('[TodoService] User not authenticated');
+      logger.warn('[TodoService]', 'User not authenticated');
       return [];
     }
 
@@ -73,13 +73,13 @@ export async function getTodos(): Promise<Todo[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      logger.error('[TodoService] Failed to fetch todos:', error);
+      logger.error('[TodoService]', `Failed to fetch todos: ${error.message}`, error);
       throw new Error(`获取待办事项失败: ${error.message}`);
     }
 
     return (data || []).map(mapRecordToTodo);
   } catch (error) {
-    logger.error('[TodoService] Error in getTodos:', error);
+    logger.error('[TodoService]', `Error in getTodos: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   } finally {
     measure.end();
@@ -128,15 +128,15 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
       .single();
 
     if (error) {
-      logger.error('[TodoService] Failed to create todo:', error);
+      logger.error('[TodoService]', `Failed to create todo: ${error.message}`, error);
       throw new Error(`创建待办事项失败: ${error.message}`);
     }
 
-    logger.info(`[TodoService] Todo created: id=${data.id}, user=${user.id}`);
+    logger.info('[TodoService]', `Todo created: id=${data.id}, user=${user.id}`);
 
     return mapRecordToTodo(data);
   } catch (error) {
-    logger.error('[TodoService] Error in createTodo:', error);
+    logger.error('[TodoService]', `Error in createTodo: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -205,7 +205,7 @@ export async function updateTodo(id: string, input: UpdateTodoInput): Promise<To
       .single();
 
     if (error) {
-      logger.error('[TodoService] Failed to update todo:', error);
+      logger.error('[TodoService]', `Failed to update todo: ${error.message}`, error);
       throw new Error(`更新待办事项失败: ${error.message}`);
     }
 
@@ -213,11 +213,11 @@ export async function updateTodo(id: string, input: UpdateTodoInput): Promise<To
       throw new Error('待办事项不存在或无权限修改');
     }
 
-    logger.info(`[TodoService] Todo updated: id=${id}, user=${user.id}`);
+    logger.info('[TodoService]', `Todo updated: id=${id}, user=${user.id}`);
 
     return mapRecordToTodo(data);
   } catch (error) {
-    logger.error('[TodoService] Error in updateTodo:', error);
+    logger.error('[TodoService]', `Error in updateTodo: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -241,13 +241,13 @@ export async function deleteTodo(id: string): Promise<void> {
       .eq('user_id', user.id);
 
     if (error) {
-      logger.error('[TodoService] Failed to delete todo:', error);
+      logger.error('[TodoService]', `Failed to delete todo: ${error.message}`, error);
       throw new Error(`删除待办事项失败: ${error.message}`);
     }
 
-    logger.info(`[TodoService] Todo deleted: id=${id}, user=${user.id}`);
+    logger.info('[TodoService]', `Todo deleted: id=${id}, user=${user.id}`);
   } catch (error) {
-    logger.error('[TodoService] Error in deleteTodo:', error);
+    logger.error('[TodoService]', `Error in deleteTodo: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -280,7 +280,7 @@ export async function toggleTodoComplete(id: string): Promise<Todo> {
     // 切换状态
     return updateTodo(id, { completed: !currentTodo.completed });
   } catch (error) {
-    logger.error('[TodoService] Error in toggleTodoComplete:', error);
+    logger.error('[TodoService]', `Error in toggleTodoComplete: ${error instanceof Error ? error.message : String(error)}`, error);
     throw error;
   }
 }
@@ -316,7 +316,7 @@ export async function syncWithServer(): Promise<{
       .eq('sync_status', 'pending');
 
     if (fetchError) {
-      logger.error('[TodoService] Failed to fetch pending todos:', fetchError);
+      logger.error('[TodoService]', `Failed to fetch pending todos: ${fetchError.message}`, fetchError);
       return {
         success: false,
         syncedCount: 0,
@@ -383,7 +383,7 @@ export async function syncWithServer(): Promise<{
     }
 
     logger.info(
-      `[TodoService] Sync completed: synced=${syncedCount}, conflicts=${conflicts.length}`
+      '[TodoService]', `Sync completed: synced=${syncedCount}, conflicts=${conflicts.length}`
     );
 
     return {
@@ -392,7 +392,7 @@ export async function syncWithServer(): Promise<{
       conflicts,
     };
   } catch (error) {
-    logger.error('[TodoService] Error in syncWithServer:', error);
+    logger.error('[TodoService]', `Error in syncWithServer: ${error instanceof Error ? error.message : String(error)}`, error);
     return {
       success: false,
       syncedCount: 0,
@@ -422,7 +422,7 @@ export async function getTodoStats(): Promise<{
       highPriority: todos.filter((t) => t.priority === 'high' && !t.completed).length,
     };
   } catch (error) {
-    logger.error('[TodoService] Error in getTodoStats:', error);
+    logger.error('[TodoService]', `Error in getTodoStats: ${error instanceof Error ? error.message : String(error)}`, error);
     return {
       total: 0,
       completed: 0,
