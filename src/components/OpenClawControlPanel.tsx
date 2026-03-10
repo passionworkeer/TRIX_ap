@@ -2,6 +2,7 @@
  * OpenClaw 控制面板组件
  *
  * 提供远程控制 OpenClaw 的功能：
+ * - Gateway 连接管理
  * - 模型状态查看
  * - 技能列表查看
  * - 定时任务管理
@@ -11,12 +12,22 @@
  * - 配置回滚
  */
 
-import React, { useState, useEffect } from 'react';
-import { X, Bot, Wrench, List, Clock, Activity, FileText, RotateCcw, RefreshCw, CheckCircle, XCircle, Loader2, Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  X, Bot, Wrench, List, Clock, Activity, FileText, RotateCcw,
+  RefreshCw, CheckCircle, XCircle, Loader2, Save, Wifi, WifiOff,
+  ChevronDown, ChevronUp, Plug
+} from 'lucide-react';
 import GlassPanel from './GlassPanel';
 import { useTheme } from '../contexts/ThemeContext';
 import { clawbotChannelBridge } from '../services/ClawbotChannelBridge';
+import gatewayClient from '../services/GatewayClient';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { useConfirmModal } from '../hooks/useConfirmModal';
+import { logger } from '../utils/logger';
+
+// 连接模式
+type ConnectionMode = 'socketio' | 'gateway';
 
 // 功能卡片类型
 interface FeatureCardProps {
@@ -73,7 +84,7 @@ interface ResultDialogProps {
 }
 
 const ResultDialog: React.FC<ResultDialogProps> = ({ title, content, isDark, onClose, isLoading }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
     <div
       className={`w-full max-w-lg max-h-[80vh] rounded-2xl p-6 overflow-auto ${
         isDark ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
@@ -114,19 +125,97 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
   const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
   const [loadingCommand, setLoadingCommand] = useState<CommandType | null>(null);
   const [resultDialog, setResultDialog] = useState<{ title: string; content: string } | null>(null);
-  const [isBotPaired, setIsBotPaired] = useState(false);
 
+  // 连接状态
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('gateway');
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [gatewayConnected, setGatewayConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // 获取端点配置
+  const endpoints = getClawbotEndpoints();
+
+  // 检查连接状态
   useEffect(() => {
-    // 检查配对状态
-    setIsBotPaired(clawbotChannelBridge.isPaired());
+    if (!isOpen) return;
+
+    // 检查 Socket.IO 连接状态
+    const checkSocketStatus = () => {
+      setSocketConnected(clawbotChannelBridge.isPaired());
+    };
+
+    // 检查 Gateway 连接状态
+    const checkGatewayStatus = () => {
+      setGatewayConnected(gatewayClient.isConnected());
+    };
+
+    checkSocketStatus();
+    checkGatewayStatus();
+
+    // 设置定时检查
+    const interval = setInterval(() => {
+      checkSocketStatus();
+      checkGatewayStatus();
+    }, 3000);
+
+    // 监听 Gateway 事件
+    gatewayClient.on('connect', () => {
+      setGatewayConnected(true);
+      setIsConnecting(false);
+    });
+
+    gatewayClient.on('disconnect', () => {
+      setGatewayConnected(false);
+    });
+
+    return () => {
+      clearInterval(interval);
+    };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // 连接 Gateway
+  const connectGateway = useCallback(async () => {
+    if (!endpoints.gatewayUrl) {
+      setResultDialog({ title: '连接失败', content: '未配置 Gateway URL' });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      await gatewayClient.connect({
+        url: endpoints.gatewayUrl,
+        token: endpoints.gatewayToken || undefined,
+      });
+      setResultDialog({ title: '连接成功', content: `已连接到 Gateway: ${endpoints.gatewayUrl}` });
+    } catch (error) {
+      logger.gateway.error('[OpenClawControlPanel] Gateway connection failed:', error);
+      setResultDialog({
+        title: '连接失败',
+        content: error instanceof Error ? error.message : '未知错误'
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [endpoints]);
+
+  // 断开 Gateway 连接
+  const disconnectGateway = useCallback(() => {
+    gatewayClient.disconnect();
+    setResultDialog({ title: '已断开', content: 'Gateway 连接已断开' });
+  }, []);
 
   // 执行控制命令
   const executeCommand = async (command: CommandType, params?: Record<string, unknown>, needsConfirm = false) => {
-    if (!isBotPaired) {
-      setResultDialog({ title: '未配对', content: '请先配对 OpenClaw 设备' });
+    const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
+
+    if (!isConnected) {
+      setResultDialog({
+        title: '未连接',
+        content: connectionMode === 'gateway'
+          ? '请先连接 Gateway'
+          : '请先配对 OpenClaw 设备'
+      });
       return;
     }
 
@@ -142,19 +231,87 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
 
     setLoadingCommand(command);
     try {
-      const response = await clawbotChannelBridge.sendControlCommand(command, params);
-      if (response.success) {
-        const content = typeof response.data === 'string'
-          ? response.data
-          : JSON.stringify(response.data, null, 2);
+      let result: { success: boolean; data?: unknown; error?: string };
+
+      if (connectionMode === 'gateway') {
+        // 使用 Gateway 模式
+        result = await executeGatewayCommand(command, params);
+      } else {
+        // 使用 Socket.IO 模式（原有逻辑）
+        result = await clawbotChannelBridge.sendControlCommand(command, params);
+      }
+
+      if (result.success) {
+        const content = typeof result.data === 'string'
+          ? result.data
+          : JSON.stringify(result.data, null, 2);
         setResultDialog({ title: getCommandTitle(command), content: content || '操作成功' });
       } else {
-        setResultDialog({ title: '执行失败', content: response.error || '未知错误' });
+        setResultDialog({ title: '执行失败', content: result.error || '未知错误' });
       }
     } catch (error) {
-      setResultDialog({ title: '执行失败', content: error instanceof Error ? error.message : '未知错误' });
+      setResultDialog({
+        title: '执行失败',
+        content: error instanceof Error ? error.message : '未知错误'
+      });
     } finally {
       setLoadingCommand(null);
+    }
+  };
+
+  // 执行 Gateway 命令
+  const executeGatewayCommand = async (command: CommandType, params?: Record<string, unknown>) => {
+    try {
+      switch (command) {
+        case 'models_status': {
+          const models = await gatewayClient.request<{ models: unknown[] }>('control.modelsStatus');
+          return { success: true, data: models?.models || [] };
+        }
+        case 'skills_list': {
+          const skills = await gatewayClient.request<{ skills: unknown[] }>('skills.list');
+          return { success: true, data: skills?.skills || [] };
+        }
+        case 'skills_check': {
+          const results = await gatewayClient.request<{ results: unknown[] }>('control.skillsCheck');
+          return { success: true, data: results?.results || [] };
+        }
+        case 'cron_list': {
+          const jobs = await gatewayClient.request<{ jobs: unknown[] }>('crons.list');
+          return { success: true, data: jobs?.jobs || [] };
+        }
+        case 'status':
+        case 'health': {
+          const status = await gatewayClient.request<unknown>('control.status');
+          return { success: true, data: status };
+        }
+        case 'doctor': {
+          const result = await gatewayClient.request<unknown>('control.doctor');
+          return { success: true, data: result };
+        }
+        case 'doctor_repair': {
+          await gatewayClient.request('control.doctorRepair');
+          return { success: true, data: { message: '修复完成' } };
+        }
+        case 'logs': {
+          const logs = await gatewayClient.request<{ logs: string }>('control.logs', params);
+          return { success: true, data: { logs: logs?.logs || '' } };
+        }
+        case 'config_backup': {
+          await gatewayClient.request('control.configBackup');
+          return { success: true, data: { message: '配置已备份' } };
+        }
+        case 'config_rollback': {
+          await gatewayClient.request('control.configRollback');
+          return { success: true, data: { message: '配置已回滚' } };
+        }
+        default:
+          return { success: false, error: `Unknown command: ${command}` };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   };
 
@@ -175,6 +332,8 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     };
     return titles[command] || command;
   };
+
+  const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
 
   const features = [
     {
@@ -235,6 +394,8 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     }
   ];
 
+  if (!isOpen) return null;
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
@@ -257,15 +418,158 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
             </button>
           </div>
 
-          {/* 配对状态 */}
+          {/* 连接管理 */}
+          <div className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                连接管理
+              </span>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className={`p-1 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+              >
+                {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+
+            {/* 高级设置 */}
+            {showAdvanced && (
+              <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <label className={`text-sm mb-2 block ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  连接模式
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConnectionMode('gateway')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      connectionMode === 'gateway'
+                        ? 'bg-rose-500 text-white'
+                        : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Gateway
+                  </button>
+                  <button
+                    onClick={() => setConnectionMode('socketio')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      connectionMode === 'socketio'
+                        ? 'bg-rose-500 text-white'
+                        : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    Socket.IO
+                  </button>
+                </div>
+
+                {/* Gateway URL 显示 */}
+                <div className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Gateway: {endpoints.gatewayUrl || '未配置'}
+                </div>
+              </div>
+            )}
+
+            {/* 连接状态和按钮 */}
+            <div className="flex items-center gap-3">
+              {/* Socket.IO 状态 */}
+              <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
+                socketConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                {socketConnected ? (
+                  <Wifi size={16} className="text-green-500" />
+                ) : (
+                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Socket.IO
+                  </div>
+                  <div className={`text-xs ${socketConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {socketConnected ? '已配对' : '未配对'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Gateway 状态 */}
+              <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
+                gatewayConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                {gatewayConnected ? (
+                  <Wifi size={16} className="text-green-500" />
+                ) : (
+                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Gateway
+                  </div>
+                  <div className={`text-xs ${gatewayConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {gatewayConnected ? '已连接' : isConnecting ? '连接中...' : '未连接'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 连接按钮 */}
+            <div className="flex gap-2 mt-3">
+              {connectionMode === 'gateway' ? (
+                gatewayConnected ? (
+                  <button
+                    onClick={disconnectGateway}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                  >
+                    断开 Gateway
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectGateway}
+                    disabled={isConnecting}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+                    } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isConnecting ? '连接中...' : '连接 Gateway'}
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!socketConnected) {
+                      setResultDialog({
+                        title: '配对说明',
+                        content: '请在 OpenClaw 设备上扫描二维码进行配对'
+                      });
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    socketConnected
+                      ? isDark ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+                      : isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+                  }`}
+                >
+                  {socketConnected ? '已配对' : '配对设备'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 当前模式提示 */}
           <div className={`flex items-center gap-2 mb-4 p-3 rounded-xl ${
-            isBotPaired
+            isConnected
               ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'
               : isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
           }`}>
-            {isBotPaired ? <CheckCircle size={16} /> : <XCircle size={16} />}
+            {isConnected ? <CheckCircle size={16} /> : <XCircle size={16} />}
             <span className="text-sm font-medium">
-              {isBotPaired ? '已连接 OpenClaw' : '未配对，请先配对设备'}
+              {isConnected
+                ? `已通过 ${connectionMode === 'gateway' ? 'Gateway' : 'Socket.IO'} 连接`
+                : '未连接，请先建立连接'
+              }
             </span>
           </div>
 
@@ -279,7 +583,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                 description={feature.description}
                 isLoading={loadingCommand === feature.command}
                 isDark={isDark}
-                disabled={!isBotPaired || loadingCommand !== null}
+                disabled={!isConnected || loadingCommand !== null}
                 onClick={() => executeCommand(
                   feature.command,
                   feature.command === 'logs' ? { limit: 100 } : undefined,
