@@ -260,6 +260,7 @@ export const logger = {
   auth: createModuleLogger('Auth'),
   points: createModuleLogger('Points'),
   clawbot: createModuleLogger('Clawbot'),
+  gateway: createModuleLogger('Gateway'),
   database: createModuleLogger('Database'),
   media: createModuleLogger('Media'),
   pairing: createModuleLogger('Pairing'),
