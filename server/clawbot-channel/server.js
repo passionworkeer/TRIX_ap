@@ -17,6 +17,7 @@ const gatewayService = require('./services/gatewayService');
 const gatewayClientService = require('./services/gatewayClientService');
 const providerService = require('./services/providerService');
 const localCommandService = require('./services/localCommandService');
+const relayService = require('./services/relayService');
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
@@ -619,6 +620,90 @@ app.get('/api/local/logs', async (req, res) => {
   }
 });
 
+// ============================================
+// Relay API Routes (ClawPilot 兼容)
+// ============================================
+
+// Register new device
+app.post('/api/relay/register', async (req, res) => {
+  try {
+    const { displayName } = req.body;
+
+    const result = await relayService.register(displayName);
+
+    res.json(result);
+  } catch (error) {
+    console.error('[Relay] Register failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Refresh access code
+app.post('/api/relay/accesscode', async (req, res) => {
+  try {
+    const { gatewayId, relaySecret } = req.body;
+
+    if (!gatewayId || !relaySecret) {
+      return res.status(400).json({ error: 'Missing gatewayId or relaySecret' });
+    }
+
+    const result = await relayService.refreshAccessCode(gatewayId, relaySecret);
+
+    res.json(result);
+  } catch (error) {
+    console.error('[Relay] Refresh access code failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify device credentials
+app.post('/api/relay/verify', async (req, res) => {
+  try {
+    const { gatewayId, relaySecret } = req.body;
+
+    if (!gatewayId || !relaySecret) {
+      return res.status(400).json({ error: 'Missing gatewayId or relaySecret' });
+    }
+
+    const result = await relayService.verifyCredentials(gatewayId, relaySecret);
+
+    res.json({
+      valid: result.valid,
+      device: result.valid ? {
+        gatewayId: result.device.gatewayId,
+        displayName: result.device.displayName,
+      } : null,
+      error: result.error
+    });
+  } catch (error) {
+    console.error('[Relay] Verify failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get device info
+app.get('/api/relay/device/:gatewayId', async (req, res) => {
+  try {
+    const { gatewayId } = req.params;
+
+    const device = relayService.getDevice(gatewayId);
+
+    if (!device) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    res.json({
+      gatewayId: device.gatewayId,
+      displayName: device.displayName,
+      createdAt: device.createdAt,
+      lastSeenAt: device.lastSeenAt,
+    });
+  } catch (error) {
+    console.error('[Relay] Get device failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check
 app.get('/health', async (req, res) => {
   res.json({
@@ -816,6 +901,183 @@ app.get('/api/messages/sync', async (req, res) => {
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ============================================
+// Relay WebSocket (ClawPilot 兼容)
+// ============================================
+
+const relayIO = io.of('/relay');
+
+relayIO.on('connection', (socket) => {
+  console.log(`[Relay] connected: ${socket.id}`);
+
+  let authenticatedGatewayId = null;
+
+  // Authenticate with access code
+  socket.on('auth', async (data, callback) => {
+    try {
+      const { gatewayId, accessCode } = data || {};
+
+      if (!gatewayId || !accessCode) {
+        callback?.({ ok: false, error: 'Missing gatewayId or accessCode' });
+        return;
+      }
+
+      const result = await relayService.verifyAccessCode(gatewayId, accessCode);
+
+      if (!result.valid) {
+        callback?.({ ok: false, error: result.error });
+        return;
+      }
+
+      // Store gateway ID on socket
+      authenticatedGatewayId = gatewayId;
+      socket.gatewayId = gatewayId;
+
+      // Register connection
+      relayService.addConnection(gatewayId, socket);
+
+      console.log(`[Relay] Device authenticated: ${gatewayId}`);
+
+      callback?.({
+        ok: true,
+        device: {
+          gatewayId: result.device.gatewayId,
+          displayName: result.device.displayName,
+        }
+      });
+
+      // Notify about connection
+      socket.join(`device_${gatewayId}`);
+
+    } catch (error) {
+      console.error('[Relay] Auth error:', error);
+      callback?.({ ok: false, error: error.message });
+    }
+  });
+
+  // Forward message to app (via main socket.io)
+  socket.on('to_app', (data, callback) => {
+    if (!authenticatedGatewayId) {
+      callback?.({ ok: false, error: 'Not authenticated' });
+      return;
+    }
+
+    const { method, params } = data || {};
+
+    // Broadcast to main socket.io room for this device
+    io.to(`device_${authenticatedGatewayId}`).emit('from_relay', {
+      method,
+      params,
+    });
+
+    callback?.({ ok: true });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`[Relay] disconnected: ${socket.id}`);
+
+    if (authenticatedGatewayId) {
+      relayService.removeConnection(authenticatedGatewayId);
+      socket.leave(`device_${authenticatedGatewayId}`);
+    }
+  });
+});
+
+// Relay WebSocket for apps (clients)
+const relayClientIO = io.of('/relay-client');
+
+relayClientIO.on('connection', (socket) => {
+  console.log(`[Relay-Client] connected: ${socket.id}`);
+
+  let authenticatedGatewayId = null;
+
+  // Client authenticates with gatewayId
+  socket.on('auth', async (data, callback) => {
+    try {
+      const { gatewayId, accessCode } = data || {};
+
+      if (!gatewayId || !accessCode) {
+        callback?.({ ok: false, error: 'Missing gatewayId or accessCode' });
+        return;
+      }
+
+      // Verify access code
+      const result = await relayService.verifyAccessCode(gatewayId, accessCode);
+
+      if (!result.valid) {
+        callback?.({ ok: false, error: result.error });
+        return;
+      }
+
+      authenticatedGatewayId = gatewayId;
+      socket.gatewayId = gatewayId;
+      socket.join(`client_${gatewayId}`);
+
+      console.log(`[Relay-Client] Client authenticated: ${gatewayId}`);
+
+      callback?.({
+        ok: true,
+        device: {
+          gatewayId: result.device.gatewayId,
+          displayName: result.device.displayName,
+        }
+      });
+
+    } catch (error) {
+      console.error('[Relay-Client] Auth error:', error);
+      callback?.({ ok: false, error: error.message });
+    }
+  });
+
+  // Send message to device
+  socket.on('to_device', (data, callback) => {
+    if (!authenticatedGatewayId) {
+      callback?.({ ok: false, error: 'Not authenticated' });
+      return;
+    }
+
+    const { method, params } = data || {};
+
+    // Forward to relay namespace (device)
+    relayIO.to(`device_${authenticatedGatewayId}`).emit('from_client', {
+      method,
+      params,
+    });
+
+    callback?.({ ok: true });
+  });
+
+  // Request to connect to device's Gateway
+  socket.on('connect_gateway', async (data, callback) => {
+    if (!authenticatedGatewayId) {
+      callback?.({ ok: false, error: 'Not authenticated' });
+      return;
+    }
+
+    // Forward request to device
+    relayIO.to(`device_${authenticatedGatewayId}`).emit('gateway_connect_request', {
+      clientId: socket.id,
+    });
+
+    callback?.({ ok: true, message: 'Connection request sent' });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`[Relay-Client] disconnected: ${socket.id}`);
+
+    if (authenticatedGatewayId) {
+      socket.leave(`client_${authenticatedGatewayId}`);
+
+      // Notify device
+      relayIO.to(`device_${authenticatedGatewayId}`).emit('client_disconnected', {
+        clientId: socket.id,
+      });
+    }
+  });
 });
 
 io.on('connection', (socket) => {
