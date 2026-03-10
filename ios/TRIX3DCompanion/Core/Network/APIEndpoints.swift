@@ -34,14 +34,9 @@ enum APIBaseURL {
     /// Development API base URL - uses HTTPS when security is enabled
     /// For local development, use http://localhost:8765 or configure your dev server with HTTPS
     static let development: String = {
-        #if DEBUG
-        if APISecurityConfig.allowInsecureInDev {
-            // Only for local development convenience - NOT for production use
-            return "http://TRIX_SERVER_HOST:8765/api"
-        }
-        #endif
-        // Default to HTTPS for security
-        return "https://api.trix3d.com/api"
+        // DEBUG mode: always use IP address to avoid SSL/cert issues with api.trix3d.com
+        // This is for development/testing only
+        return "http://TRIX_SERVER_HOST:8765/api"
     }()
 
     /// Current base URL based on build configuration
@@ -65,14 +60,9 @@ enum WebSocketURL {
     // MARK: - Development
     /// Development WebSocket URL - uses WSS when security is enabled
     static let development: String = {
-        #if DEBUG
-        if APISecurityConfig.allowInsecureInDev {
-            // Only for local development convenience - NOT for production use
-            return "ws://TRIX_SERVER_HOST:8765"
-        }
-        #endif
-        // Default to WSS for security
-        return "wss://api.trix3d.com"
+        // DEBUG mode: always use IP address to avoid SSL/cert issues with api.trix3d.com
+        // This is for development/testing only
+        return "ws://TRIX_SERVER_HOST:8765"
     }()
 
     /// Current WebSocket URL based on build configuration
