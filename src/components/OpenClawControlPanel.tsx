@@ -2,32 +2,32 @@
  * OpenClaw 控制面板组件
  *
  * 提供远程控制 OpenClaw 的功能：
- * - Gateway 连接管理
+ * - Gateway 直连
+ * - Relay 中继连接 (扫码/输入配对码)
  * - 模型状态查看
  * - 技能列表查看
  * - 定时任务管理
- * - 运行状态查看
  * - Doctor 自修复
  * - 日志查看
- * - 配置回滚
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, Bot, Wrench, List, Clock, Activity, FileText, RotateCcw,
   RefreshCw, CheckCircle, XCircle, Loader2, Save, Wifi, WifiOff,
-  ChevronDown, ChevronUp, Plug
+  ChevronDown, ChevronUp, Plug, QrCode, Keyboard
 } from 'lucide-react';
 import GlassPanel from './GlassPanel';
 import { useTheme } from '../contexts/ThemeContext';
 import { clawbotChannelBridge } from '../services/ClawbotChannelBridge';
 import gatewayClient from '../services/GatewayClient';
+import relayClient from '../services/RelayClient';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { useConfirmModal } from '../hooks/useConfirmModal';
 import { logger } from '../utils/logger';
 
 // 连接模式
-type ConnectionMode = 'socketio' | 'gateway';
+type ConnectionMode = 'socketio' | 'gateway' | 'relay';
 
 // 功能卡片类型
 interface FeatureCardProps {
@@ -127,11 +127,18 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
   const [resultDialog, setResultDialog] = useState<{ title: string; content: string } | null>(null);
 
   // 连接状态
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('gateway');
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('relay');
   const [socketConnected, setSocketConnected] = useState(false);
   const [gatewayConnected, setGatewayConnected] = useState(false);
+  const [relayConnected, setRelayConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Relay 连接输入
+  const [relayServer, setRelayServer] = useState('');
+  const [gatewayId, setGatewayId] = useState('');
+  const [accessCode, setAccessCode] = useState('');
+  const [showInput, setShowInput] = useState(false);
 
   // 获取端点配置
   const endpoints = getClawbotEndpoints();
@@ -150,29 +157,66 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
       setGatewayConnected(gatewayClient.isConnected());
     };
 
+    // 检查 Relay 连接状态
+    const checkRelayStatus = () => {
+      setRelayConnected(relayClient.isConnected());
+    };
+
     checkSocketStatus();
     checkGatewayStatus();
+    checkRelayStatus();
 
     // 设置定时检查
     const interval = setInterval(() => {
       checkSocketStatus();
       checkGatewayStatus();
+      checkRelayStatus();
     }, 3000);
 
     // 监听 Gateway 事件
-    gatewayClient.on('connect', () => {
-      setGatewayConnected(true);
-      setIsConnecting(false);
-    });
+    gatewayClient.on('connect', () => setGatewayConnected(true));
+    gatewayClient.on('disconnect', () => setGatewayConnected(false));
 
-    gatewayClient.on('disconnect', () => {
-      setGatewayConnected(false);
-    });
+    // 监听 Relay 事件
+    relayClient.on('connect', () => setRelayConnected(true));
+    relayClient.on('disconnect', () => setRelayConnected(false));
 
     return () => {
       clearInterval(interval);
     };
   }, [isOpen]);
+
+  // 连接 Relay
+  const connectRelay = useCallback(async () => {
+    if (!relayServer || !gatewayId || !accessCode) {
+      setResultDialog({ title: '连接失败', content: '请填写完整的连接信息' });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      await relayClient.connect({
+        server: relayServer,
+        gatewayId,
+        accessCode,
+      });
+      setResultDialog({ title: '连接成功', content: `已通过中继服务器连接到 ${gatewayId}` });
+    } catch (error) {
+      logger.relay.error('[OpenClawControlPanel] Relay connection failed:', error);
+      setResultDialog({
+        title: '连接失败',
+        content: error.message : ' error instanceof Error ?未知错误'
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [relayServer, gatewayId, accessCode]);
+
+  // 断开 Relay 连接
+  const disconnectRelay = useCallback(() => {
+    relayClient.disconnect();
+    setResultDialog({ title: '已断开', content: '中继连接已断开' });
+  }, []);
 
   // 连接 Gateway
   const connectGateway = useCallback(async () => {
@@ -207,14 +251,18 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
 
   // 执行控制命令
   const executeCommand = async (command: CommandType, params?: Record<string, unknown>, needsConfirm = false) => {
-    const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
+    const isConnected = connectionMode === 'gateway' ? gatewayConnected :
+                       connectionMode === 'relay' ? relayConnected :
+                       socketConnected;
 
     if (!isConnected) {
       setResultDialog({
         title: '未连接',
-        content: connectionMode === 'gateway'
-          ? '请先连接 Gateway'
-          : '请先配对 OpenClaw 设备'
+        content: connectionMode === 'relay'
+          ? '请先通过配对码连接'
+          : connectionMode === 'gateway'
+            ? '请先连接 Gateway'
+            : '请先配对 OpenClaw 设备'
       });
       return;
     }
@@ -234,10 +282,10 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
       let result: { success: boolean; data?: unknown; error?: string };
 
       if (connectionMode === 'gateway') {
-        // 使用 Gateway 模式
         result = await executeGatewayCommand(command, params);
+      } else if (connectionMode === 'relay') {
+        result = await executeRelayCommand(command, params);
       } else {
-        // 使用 Socket.IO 模式（原有逻辑）
         result = await clawbotChannelBridge.sendControlCommand(command, params);
       }
 
@@ -315,6 +363,35 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     }
   };
 
+  // 执行 Relay 命令
+  const executeRelayCommand = async (command: CommandType, params?: Record<string, unknown>) => {
+    try {
+      // 将命令映射到 Gateway 方法
+      const methodMap: Record<CommandType, string> = {
+        models_status: 'control.modelsStatus',
+        skills_list: 'skills.list',
+        skills_check: 'control.skillsCheck',
+        cron_list: 'crons.list',
+        status: 'control.status',
+        health: 'control.status',
+        doctor: 'control.doctor',
+        doctor_repair: 'control.doctorRepair',
+        logs: 'control.logs',
+        config_backup: 'control.configBackup',
+        config_rollback: 'control.configRollback',
+      };
+
+      const method = methodMap[command];
+      await relayClient.sendToDevice(method, params);
+      return { success: true, data: { message: '命令已发送' } };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  };
+
   // 获取命令对应的标题
   const getCommandTitle = (command: CommandType): string => {
     const titles: Record<CommandType, string> = {
@@ -333,7 +410,9 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     return titles[command] || command;
   };
 
-  const isConnected = connectionMode === 'gateway' ? gatewayConnected : socketConnected;
+  const isConnected = connectionMode === 'gateway' ? gatewayConnected :
+                     connectionMode === 'relay' ? relayConnected :
+                     socketConnected;
 
   const features = [
     {
@@ -432,82 +511,135 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
               </button>
             </div>
 
-            {/* 高级设置 */}
-            {showAdvanced && (
+            {/* 连接模式选择 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setConnectionMode('relay')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  connectionMode === 'relay'
+                    ? 'bg-rose-500 text-white'
+                    : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                <Plug size={14} /> 中继
+              </button>
+              <button
+                onClick={() => setConnectionMode('gateway')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  connectionMode === 'gateway'
+                    ? 'bg-rose-500 text-white'
+                    : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                <Wifi size={14} /> 直连
+              </button>
+              <button
+                onClick={() => setConnectionMode('socketio')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  connectionMode === 'socketio'
+                    ? 'bg-rose-500 text-white'
+                    : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                <Bot size={14} /> 配对
+              </button>
+            </div>
+
+            {/* Relay 连接输入 */}
+            {connectionMode === 'relay' && (
               <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                <label className={`text-sm mb-2 block ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  连接模式
-                </label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   <button
-                    onClick={() => setConnectionMode('gateway')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      connectionMode === 'gateway'
+                    onClick={() => setShowInput(false)}
+                    className={`flex-1 py-1 px-2 rounded text-xs font-medium ${
+                      !showInput
                         ? 'bg-rose-500 text-white'
                         : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
                     }`}
                   >
-                    Gateway
+                    <QrCode size={12} className="inline mr-1" /> 扫码
                   </button>
                   <button
-                    onClick={() => setConnectionMode('socketio')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      connectionMode === 'socketio'
+                    onClick={() => setShowInput(true)}
+                    className={`flex-1 py-1 px-2 rounded text-xs font-medium ${
+                      showInput
                         ? 'bg-rose-500 text-white'
                         : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
                     }`}
                   >
-                    Socket.IO
+                    <Keyboard size={12} className="inline mr-1" /> 输入
                   </button>
                 </div>
 
-                {/* Gateway URL 显示 */}
-                <div className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Gateway: {endpoints.gatewayUrl || '未配置'}
-                </div>
+                {showInput && (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="服务器地址 (如 https://your-server.com)"
+                      value={relayServer}
+                      onChange={(e) => setRelayServer(e.target.value)}
+                      className={`w-full px-3 py-2 rounded-lg text-sm ${
+                        isDark ? 'bg-gray-600 text-white placeholder-gray-400' : 'bg-white text-gray-800 placeholder-gray-500'
+                      }`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Gateway ID"
+                      value={gatewayId}
+                      onChange={(e) => setGatewayId(e.target.value)}
+                      className={`w-full px-3 py-2 rounded-lg text-sm ${
+                        isDark ? 'bg-gray-600 text-white placeholder-gray-400' : 'bg-white text-gray-800 placeholder-gray-500'
+                      }`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="配对码 (6位)"
+                      value={accessCode}
+                      onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      className={`w-full px-3 py-2 rounded-lg text-sm ${
+                        isDark ? 'bg-gray-600 text-white placeholder-gray-400' : 'bg-white text-gray-800 placeholder-gray-500'
+                      }`}
+                    />
+                  </div>
+                )}
+
+                {!showInput && (
+                  <div className={`text-center py-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    在 OpenClaw 设备上运行 <code className="px-1 py-0.5 rounded bg-gray-600">openclaw pair</code> 获取配对码
+                  </div>
+                )}
               </div>
             )}
 
-            {/* 连接状态和按钮 */}
+            {/* 连接状态 */}
             <div className="flex items-center gap-3">
-              {/* Socket.IO 状态 */}
               <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
+                connectionMode === 'relay' ? (relayConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100') :
+                connectionMode === 'gateway' ? (gatewayConnected
+                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
+                  : isDark ? 'bg-gray-700' : 'bg-gray-100') :
                 socketConnected
                   ? isDark ? 'bg-green-900/30' : 'bg-green-50'
                   : isDark ? 'bg-gray-700' : 'bg-gray-100'
               }`}>
-                {socketConnected ? (
-                  <Wifi size={16} className="text-green-500" />
-                ) : (
-                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
-                )}
+                {connectionMode === 'relay' ? (relayConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />) :
+                 connectionMode === 'gateway' ? (gatewayConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />) :
+                 socketConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400} />}
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Socket.IO
+                    {connectionMode === 'relay' ? '中继' : connectionMode === 'gateway' ? '直连' : '配对'}
                   </div>
-                  <div className={`text-xs ${socketConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {socketConnected ? '已配对' : '未配对'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Gateway 状态 */}
-              <div className={`flex items-center gap-2 flex-1 p-2 rounded-lg ${
-                gatewayConnected
-                  ? isDark ? 'bg-green-900/30' : 'bg-green-50'
-                  : isDark ? 'bg-gray-700' : 'bg-gray-100'
-              }`}>
-                {gatewayConnected ? (
-                  <Wifi size={16} className="text-green-500" />
-                ) : (
-                  <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Gateway
-                  </div>
-                  <div className={`text-xs ${gatewayConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {gatewayConnected ? '已连接' : isConnecting ? '连接中...' : '未连接'}
+                  <div className={`text-xs ${
+                    connectionMode === 'relay' ? (relayConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400') :
+                    connectionMode === 'gateway' ? (gatewayConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400') :
+                    socketConnected ? 'text-green-500' : isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
+                    {connectionMode === 'relay' ? (relayConnected ? '已连接' : isConnecting ? '连接中...' : '未连接') :
+                     connectionMode === 'gateway' ? (gatewayConnected ? '已连接' : isConnecting ? '连接中...' : '未连接') :
+                     socketConnected ? '已配对' : '未配对'}
                   </div>
                 </div>
               </div>
@@ -515,25 +647,46 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
 
             {/* 连接按钮 */}
             <div className="flex gap-2 mt-3">
-              {connectionMode === 'gateway' ? (
-                gatewayConnected ? (
+              {connectionMode === 'relay' ? (
+                relayConnected ? (
                   <button
-                    onClick={disconnectGateway}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    onClick={disconnectRelay}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
                     }`}
                   >
-                    断开 Gateway
+                    断开
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectRelay}
+                    disabled={isConnecting || (!relayServer || !gatewayId || !accessCode)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                      isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
+                    } ${isConnecting || (!relayServer || !gatewayId || !accessCode) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isConnecting ? '连接中...' : '连接'}
+                  </button>
+                )
+              ) : connectionMode === 'gateway' ? (
+                gatewayConnected ? (
+                  <button
+                    onClick={disconnectGateway}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                      isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
+                    }`}
+                  >
+                    断开
                   </button>
                 ) : (
                   <button
                     onClick={connectGateway}
                     disabled={isConnecting}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
                     } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {isConnecting ? '连接中...' : '连接 Gateway'}
+                    {isConnecting ? '连接中...' : '连接'}
                   </button>
                 )
               ) : (
@@ -546,7 +699,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                       });
                     }
                   }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
                     socketConnected
                       ? isDark ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
                       : isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
@@ -558,7 +711,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
             </div>
           </div>
 
-          {/* 当前模式提示 */}
+          {/* 当前状态 */}
           <div className={`flex items-center gap-2 mb-4 p-3 rounded-xl ${
             isConnected
               ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'
@@ -567,9 +720,8 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
             {isConnected ? <CheckCircle size={16} /> : <XCircle size={16} />}
             <span className="text-sm font-medium">
               {isConnected
-                ? `已通过 ${connectionMode === 'gateway' ? 'Gateway' : 'Socket.IO'} 连接`
-                : '未连接，请先建立连接'
-              }
+                ? `已通过 ${connectionMode === 'relay' ? '中继' : connectionMode === 'gateway' ? '直连' : 'Socket.IO'} 连接`
+                : '未连接，请先建立连接'}
             </span>
           </div>
 

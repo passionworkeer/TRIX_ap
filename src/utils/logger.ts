@@ -261,6 +261,7 @@ export const logger = {
   points: createModuleLogger('Points'),
   clawbot: createModuleLogger('Clawbot'),
   gateway: createModuleLogger('Gateway'),
+  relay: createModuleLogger('Relay'),
   database: createModuleLogger('Database'),
   media: createModuleLogger('Media'),
   pairing: createModuleLogger('Pairing'),
