@@ -205,7 +205,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
       logger.relay.error('[OpenClawControlPanel] Relay connection failed:', error);
       setResultDialog({
         title: '连接失败',
-        content: error.message : ' error instanceof Error ?未知错误'
+        content: error instanceof Error ? error.message : '未知错误'
       });
     } finally {
       setIsConnecting(false);
@@ -627,7 +627,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
               }`}>
                 {connectionMode === 'relay' ? (relayConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />) :
                  connectionMode === 'gateway' ? (gatewayConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />) :
-                 socketConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400} />}
+                 socketConnected ? <Wifi size={16} className="text-green-500" /> : <WifiOff size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />}
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                     {connectionMode === 'relay' ? '中继' : connectionMode === 'gateway' ? '直连' : '配对'}

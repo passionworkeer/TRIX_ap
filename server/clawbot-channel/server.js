@@ -3,9 +3,11 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const WebSocket = require('ws');
 const cors = require('cors');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const { initDatabase } = require('./config/database');
 const pairingService = require('./services/pairingService');
@@ -63,6 +65,166 @@ const io = new Server(server, {
   upgradeTimeout: 30000,
   allowUpgrades: true,
   cookie: false
+});
+
+// ============================================
+// Native WebSocket Server (ClawPilot 兼容)
+// ============================================
+
+// 创建独立的 WebSocket 服务器用于 relay
+const relayWSS = new WebSocket.Server({ noServer: true });
+
+// 存储 relay 客户端连接
+const relayClients = new Map(); // gatewayId -> { ws, authenticated, deviceInfo }
+
+// 处理 HTTP 升级请求
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+
+  // 处理 /relay 路径
+  if (pathname === '/relay' || pathname.startsWith('/relay/')) {
+    relayWSS.handleUpgrade(request, socket, head, (ws) => {
+      relayWSS.emit('connection', ws, request);
+    });
+  }
+});
+
+// 处理 relay WebSocket 连接
+relayWSS.on('connection', (ws, request) => {
+  console.log(`[Relay-WS] Client connected: ${request.socket.remoteAddress}`);
+
+  let authenticatedGatewayId = null;
+  let deviceInfo = null;
+
+  // 发送消息到客户端
+  const sendFrame = (frame) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(frame));
+    }
+  };
+
+  // 发送响应帧
+  const sendResponse = (id, ok, payload, error) => {
+    const frame = {
+      type: 'res',
+      id,
+      ok,
+      ...(ok ? { payload } : { error: { message: error } })
+    };
+    sendFrame(frame);
+  };
+
+  // 发送事件帧
+  const sendEvent = (event, payload) => {
+    const frame = { type: 'event', event, payload };
+    sendFrame(frame);
+  };
+
+  // 处理收到的消息
+  ws.on('message', (data) => {
+    const raw = typeof data === 'string' ? data : data.toString();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    const { type, id, method, params } = parsed;
+
+    // 处理请求帧
+    if (type === 'req') {
+      if (method === 'relay.auth') {
+        // 认证
+        const { gatewayId, accessCode } = params || {};
+
+        if (!gatewayId || !accessCode) {
+          sendResponse(id, false, null, 'Missing gatewayId or accessCode');
+          return;
+        }
+
+        relayService.verifyAccessCode(gatewayId, accessCode)
+          .then((result) => {
+            if (!result.valid) {
+              sendResponse(id, false, null, result.error);
+              return;
+            }
+
+            authenticatedGatewayId = gatewayId;
+            deviceInfo = {
+              gatewayId: result.device.gatewayId,
+              displayName: result.device.displayName,
+            };
+
+            // 存储连接
+            relayClients.set(gatewayId, { ws, authenticated: true, deviceInfo });
+
+            console.log(`[Relay-WS] Client authenticated: ${gatewayId}`);
+
+            sendResponse(id, true, { device: deviceInfo });
+          })
+          .catch((error) => {
+            sendResponse(id, false, null, error.message);
+          });
+        return;
+      }
+
+      // 检查认证状态
+      if (!authenticatedGatewayId) {
+        sendResponse(id, false, null, 'Not authenticated');
+        return;
+      }
+
+      // 处理 relay.to_device
+      if (method === 'relay.to_device') {
+        const { method: deviceMethod, params: deviceParams } = params || {};
+
+        // 转发到设备 (通过 Socket.IO relay namespace)
+        relayIO.to(`device_${authenticatedGatewayId}`).emit('from_client', {
+          method: deviceMethod,
+          params: deviceParams,
+        });
+
+        sendResponse(id, true, { ok: true });
+        return;
+      }
+
+      // 处理 relay.connect_gateway
+      if (method === 'relay.connect_gateway') {
+        // 转发请求到设备
+        relayIO.to(`device_${authenticatedGatewayId}`).emit('gateway_connect_request', {
+          clientId: 'relay-ws-client',
+        });
+
+        sendResponse(id, true, { ok: true });
+        return;
+      }
+
+      // 未知方法
+      sendResponse(id, false, null, `Unknown method: ${method}`);
+      return;
+    }
+  });
+
+  // 处理断开连接
+  ws.on('close', () => {
+    console.log(`[Relay-WS] Client disconnected: ${authenticatedGatewayId || 'unknown'}`);
+
+    if (authenticatedGatewayId) {
+      relayClients.delete(authenticatedGatewayId);
+
+      // 通知设备客户端断开
+      relayIO.to(`device_${authenticatedGatewayId}`).emit('client_disconnected', {
+        clientId: 'relay-ws-client',
+      });
+    }
+  });
+
+  // 处理错误
+  ws.on('error', (error) => {
+    console.error(`[Relay-WS] Error: ${error.message}`);
+  });
 });
 
 const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE === 'true';
