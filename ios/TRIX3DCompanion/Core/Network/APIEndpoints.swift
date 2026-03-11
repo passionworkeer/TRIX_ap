@@ -34,9 +34,9 @@ enum APIBaseURL {
     /// Development API base URL - uses HTTPS when security is enabled
     /// For local development, use http://localhost:8765 or configure your dev server with HTTPS
     static let development: String = {
-        // DEBUG mode: always use IP address to avoid SSL/cert issues with api.trix3d.com
+        // Use Supabase directly for development to avoid auth issues
         // This is for development/testing only
-        return "http://TRIX_SERVER_HOST:8765/api"
+        return "https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co"
     }()
 
     /// Current base URL based on build configuration
@@ -255,12 +255,12 @@ enum APIEndpoint {
     // MARK: - Path
     var path: String {
         switch self {
-        // Auth
-        case .authLogin: return "/auth/login"
-        case .authRegister: return "/auth/register"
-        case .authLogout: return "/auth/logout"
-        case .authRefresh: return "/auth/refresh"
-        case .authMe: return "/auth/me"
+        // Auth (Supabase)
+        case .authLogin: return "/auth/v1/token?grant_type=password"
+        case .authRegister: return "/auth/v1/signup"
+        case .authLogout: return "/auth/v1/logout"
+        case .authRefresh: return "/auth/v1/token?grant_type=refresh_token"
+        case .authMe: return "/auth/v1/user"
 
         // User
         case .userProfile: return "/user/profile"
