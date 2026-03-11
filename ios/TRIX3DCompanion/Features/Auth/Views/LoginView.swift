@@ -294,22 +294,56 @@ struct LoginView: View {
 
     private var loadingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.3)
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.35),
+                    Color.purple.opacity(0.25)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
                 .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+            VStack(spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 82, height: 82)
 
-                Text(loc("loading"))
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
+                    Circle()
+                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                        .frame(width: 82, height: 82)
+
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(1.35)
+                }
+
+                VStack(spacing: 6) {
+                    Text(loc("action.login"))
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.95))
+
+                    Text(loc("loading"))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
             }
-            .padding(32)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 36)
+            .padding(.vertical, 28)
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+            .padding(.horizontal, 28)
         }
+        .transition(.opacity)
     }
 
     // MARK: - Helper Views

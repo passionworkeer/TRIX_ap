@@ -71,12 +71,19 @@ final class APIClient: APIClientProtocol {
             retriers: [authInterceptor, retryManager]
         )
 
-        // Create session with SSL pinning
-        // Alamofire 6.x+ API: use evaluators dictionary instead of allHosts
+        // Create session with SSL pinning.
+        // ServerTrustManager expects hostname keys (not full URL strings).
         let evaluator = sslPinningManager.makeServerTrustEvaluator()
-        let serverTrustManager = ServerTrustManager(
-            evaluators: [APIBaseURL.current: evaluator]
-        )
+        let serverTrustManager: ServerTrustManager?
+        if let host = URL(string: baseURL)?.host {
+            serverTrustManager = ServerTrustManager(
+                allHostsMustBeEvaluated: false,
+                evaluators: [host: evaluator]
+            )
+        } else {
+            serverTrustManager = nil
+            SecureLogger.shared.warning("APIClient: invalid baseURL host for trust manager, fallback to default trust handling")
+        }
 
         self.session = Session(
             configuration: configuration,
@@ -333,8 +340,8 @@ final class APIClient: APIClientProtocol {
             urlRequest = try JSONEncoding.default.encode(urlRequest, with: parameters)
         }
 
-        // Build request
-        let request = AF.request(urlRequest)
+        // Use the configured Session so auth interceptor / retry / dedup are applied.
+        let request = session.request(urlRequest)
 
         // Execute request with security validation
         return try await withCheckedThrowingContinuation { continuation in
