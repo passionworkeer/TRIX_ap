@@ -273,6 +273,12 @@ final class APIClient: APIClientProtocol {
             requestHeaders.add(.contentType("application/json"))
         }
 
+        // Add Supabase API key header for development
+        #if DEBUG
+        let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYnVranZyYnloYnVxdW1xZHVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDY5NTgsImV4cCI6MjA4NjI4Mjk1OH0.i6xwAotL826Dob_P71YrnhW6jITyVMV3xU5zmIbNs20"
+        requestHeaders.add(name: "apikey", value: supabaseKey)
+        #endif
+
         // Log request
         let headersDict = requestHeaders.dictionary
         let logEntryId = networkLogger.logRequest(
