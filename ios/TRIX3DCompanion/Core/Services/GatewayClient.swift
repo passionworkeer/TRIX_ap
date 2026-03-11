@@ -266,6 +266,47 @@ final class GatewayClient: NSObject {
 
     // MARK: - Request/Response
 
+    /// Request method that returns Any (for raw dictionary responses)
+    func requestAny(_ method: String, params: [String: Any]? = nil) async throws -> Any {
+        guard isConnected else {
+            throw GatewayError.notConnected
+        }
+
+        let id = generateId()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            // Set timeout
+            Task {
+                try await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds
+                pendingRequests.removeValue(forKey: id)
+                continuation.resume(throwing: GatewayError.requestTimeout)
+            }
+
+            pendingRequests[id] = { result in
+                switch result {
+                case .success(let value):
+                    if let dict = value as? [String: Any] {
+                        continuation.resume(returning: dict)
+                    } else {
+                        continuation.resume(returning: value)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            let frame = GatewayRequestFrame(
+                type: "req",
+                id: id,
+                method: method,
+                params: params.map { AnyCodable.toAnyCodable($0) }
+            )
+
+            sendFrame(frame)
+        }
+    }
+
+    /// Request method that returns Decodable type
     func request<T: Decodable>(_ method: String, params: [String: Any]? = nil) async throws -> T {
         guard isConnected else {
             throw GatewayError.notConnected
