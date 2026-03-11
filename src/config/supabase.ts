@@ -157,6 +157,8 @@ export interface StudySession {
   started_at: string;
   ended_at: string | null;
   notes: string | null;
+  is_completed?: boolean;
+  earned_points?: number;
   created_at: string;
 }
 
@@ -193,17 +195,24 @@ export interface UserSession {
 export interface Profile {
   id: string;
   username: string;
+  email?: string;
   points?: number;
   avatar_config?: Record<string, unknown>;
   full_name?: string;
+  display_name?: string;
   avatar_url?: string;
   website?: string;
   bio?: string;
   is_studying?: boolean; // 用户是否正在自习
   companion_id?: string | null; // 正在一起自习的好友 ID（双向关联）
+  total_study_time?: number; // 总学习时间（分钟）
+  last_active_at?: string | null; // 用户最后活跃时间
+  show_online_status?: boolean; // 是否显示在线状态
+  current_streak?: number; // 当前连续学习天数
   days_active?: number; // 活跃天数
   interaction_count?: number; // 互动次数
-  last_active_at?: string | null; // 用户最后活跃时间
+  school?: string; // 学校
+  grade?: string; // 年级
   created_at?: string;
   updated_at?: string;
 }
