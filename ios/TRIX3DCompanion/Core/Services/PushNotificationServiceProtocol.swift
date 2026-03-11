@@ -152,6 +152,7 @@ enum DeviceTokenType: String, Codable {
 typealias PushNotificationResult<T> = Result<T, PushNotificationError>
 
 /// Protocol defining push notification service interface
+@MainActor
 protocol PushNotificationServiceProtocol {
 
     /// Current device token

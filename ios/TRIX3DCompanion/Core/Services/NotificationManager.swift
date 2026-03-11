@@ -75,12 +75,12 @@ final class NotificationManager: NSObject, ObservableObject, NotificationManager
     ///   - pushNotificationService: Push notification service
     ///   - userDefaults: User defaults
     init(
-        localNotificationService: LocalNotificationService = .shared,
-        pushNotificationService: PushNotificationService = .shared,
+        localNotificationService: LocalNotificationService? = nil,
+        pushNotificationService: PushNotificationService? = nil,
         userDefaults: UserDefaults = .standard
     ) {
-        self.localNotificationService = localNotificationService
-        self.pushNotificationService = pushNotificationService
+        self.localNotificationService = localNotificationService ?? .shared
+        self.pushNotificationService = pushNotificationService ?? .shared
         self.userDefaults = userDefaults
 
         // Load preferences from user defaults

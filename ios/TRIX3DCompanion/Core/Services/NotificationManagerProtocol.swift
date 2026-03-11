@@ -191,6 +191,7 @@ enum NotificationEvent {
 typealias NotificationManagerResult<T> = Result<T, Error>
 
 /// Protocol defining unified notification manager interface
+@MainActor
 protocol NotificationManagerProtocol {
 
     /// Current notification preferences

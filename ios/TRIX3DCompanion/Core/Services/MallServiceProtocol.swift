@@ -8,6 +8,7 @@
 import Foundation
 
 /// Protocol defining mall service interface
+@MainActor
 protocol MallServiceProtocol {
     /// Current mall items
     var items: [MallItem] { get }

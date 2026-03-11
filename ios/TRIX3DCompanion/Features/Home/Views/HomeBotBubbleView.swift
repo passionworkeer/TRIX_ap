@@ -14,34 +14,34 @@ struct HomeBotBubbleView: View {
     let onTap: () -> Void
 
     @State private var isAnimating = false
-    @State private var isPressed = false
     @State private var bubbleText: String = ""
 
     var body: some View {
-        // 右上角小气泡
         VStack(alignment: .trailing, spacing: 0) {
-            // 气泡主体
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    isPressed = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isPressed = false
-                    onTap()
-                }
-            }) {
+            Button(action: onTap) {
                 HStack(spacing: 6) {
-                    // 星星图标
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.yellow)
+                    ZStack {
+                        Circle()
+                            .fill(Color.green.opacity(0.22))
+                            .frame(width: 22, height: 22)
+                            .scaleEffect(isAnimating ? 1.18 : 0.94)
 
-                    // 文字 (最多两行)
-                    Text(bubbleText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(botName)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.9))
+
+                        Text(bubbleText)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -51,10 +51,9 @@ struct HomeBotBubbleView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+                        .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
                 )
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                .scaleEffect(isPressed ? 0.95 : 1.0)
             }
             .buttonStyle(.plain)
 

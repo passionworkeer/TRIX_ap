@@ -36,7 +36,7 @@ struct NoInternetView: View {
 
             // 操作按钮
             VStack(spacing: 12) {
-                if let onRetry = onRetry {
+                if onRetry != nil {
                     Button(action: {
                         performRetry()
                     }) {
@@ -104,24 +104,30 @@ struct NoInternetView: View {
 // MARK: - Preview
 
 #Preview("无网络 - 浅色") {
-    NoInternetView {
-        SecureLogger.shared.debug("重新加载")
-    } onOfflineMode: {
-        SecureLogger.shared.debug("离线模式")
-    }
+    NoInternetView(
+        onRetry: {
+            SecureLogger.shared.debug("重新加载")
+        },
+        onOfflineMode: {
+            SecureLogger.shared.debug("离线模式")
+        }
+    )
 }
 
 #Preview("无网络 - 深色") {
-    NoInternetView {
-        SecureLogger.shared.debug("重新加载")
-    } onOfflineMode: {
-        SecureLogger.shared.debug("离线模式")
-    }
+    NoInternetView(
+        onRetry: {
+            SecureLogger.shared.debug("重新加载")
+        },
+        onOfflineMode: {
+            SecureLogger.shared.debug("离线模式")
+        }
+    )
     .preferredColorScheme(.dark)
 }
 
 #Preview("无网络 - 仅重试") {
-    NoInternetView {
+    NoInternetView(onRetry: {
         SecureLogger.shared.debug("重新加载")
-    }
+    })
 }

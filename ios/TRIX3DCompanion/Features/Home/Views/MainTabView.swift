@@ -18,9 +18,7 @@ struct MainTabView: View {
 
     // MARK: - State
 
-    @State private var isTabBarVisible = true
     @State private var isWorkbenchPresented = false
-    @State private var isChatPresented = false
     @State private var navigationPath = NavigationPath()
     @State private var showingPairingSheet = false
     @State private var showingTrixBotSheet = false
@@ -35,10 +33,11 @@ struct MainTabView: View {
                     // 根据选择的 tab 显示内容
                     switch appState.selectedTab {
                     case .home, .core:
-                        // Both home and core show the same HomeView with workbench
                         HomeView(
                             isWorkbenchPresented: $isWorkbenchPresented,
-                            isChatPresented: $isChatPresented
+                            onOpenTrixBot: {
+                                showingTrixBotSheet = true
+                            }
                         )
                     case .map:
                         MapView()
@@ -61,16 +60,13 @@ struct MainTabView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
                 .navigationDestination(for: ChatConversation.self) { conversation in
                     ChatDetailView(conversation: conversation)
                 }
             }
             .navigationBarHidden(true)
             .allowsHitTesting(true)
-            .onChange(of: navigationPath) { newPath in
-                // Hide tab bar when navigating to detail views
-                isTabBarVisible = newPath.isEmpty
-            }
             .sheet(isPresented: $showingPairingSheet) {
                 NavigationStack {
                     PairingView()
@@ -87,61 +83,24 @@ struct MainTabView: View {
             // GlassDock Navigation - 根据导航状态显示/隐藏
             GlassDockView(
                 selectedTab: $appState.selectedTab,
-                isWorkbenchPresented: $isWorkbenchPresented,
-                isChatPresented: $isChatPresented
+                isWorkbenchPresented: $isWorkbenchPresented
             )
             .opacity(shouldShowTabBar ? 1 : 0)
-            .allowsHitTesting(shouldShowTabBar)  // 关键修复：当透明度为0时禁用触摸
-            .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
+            .allowsHitTesting(shouldShowTabBar)
+            .animation(.easeInOut(duration: 0.24), value: shouldShowTabBar)
         }
         .ignoresSafeArea(.keyboard)
         .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
-        }
-        .onChange(of: isChatPresented) { newValue in
-            if newValue {
-                // 点击气泡后切换到聊天 tab，显示聊天列表
-                appState.selectedTab = .chat
-                // 重置状态
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isChatPresented = false
-                }
-            }
         }
     }
 
     // MARK: - Computed Properties
 
     private var shouldShowTabBar: Bool {
-        // Bottom dock always shows on all tabs except:
-        // 1. When navigating to detail views
-        // 2. When showing sheets (pairing or trixbot)
-        // Exception: On home/core, bottom dock only shows when workbench is presented
         let isNavigating = !navigationPath.isEmpty
         let isShowingSheet = showingPairingSheet || showingTrixBotSheet
-
-        // For home/core tabs - show only when workbench is shown
-        let isHomeWithWorkbench = (appState.selectedTab == .home || appState.selectedTab == .core) && isWorkbenchPresented
-
-        // For other tabs (map, study, chat, profile) - always show
-        let isOtherTab = appState.selectedTab == .map || appState.selectedTab == .study || appState.selectedTab == .chat || appState.selectedTab == .profile
-
-        return !isNavigating && !isShowingSheet && (isHomeWithWorkbench || isOtherTab)
-    }
-
-    // MARK: - Trix Bot Conversation
-
-    private var trixBotConversation: ChatConversation {
-        ChatConversation(
-            id: "trix-bot",
-            name: "TRIX",
-            avatarUrl: "AvatarHead",
-            lastMessage: "",
-            time: "",
-            unreadCount: 0,
-            avatarColor: .purple,
-            isOnline: true
-        )
+        return !isNavigating && !isShowingSheet
     }
 
     // MARK: - Event Handlers

@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// Protocol defining Clawbot pairing service interface
+@MainActor
 protocol ClawbotPairingServiceProtocol {
     /// Current list of paired devices
     var pairedDevices: [PairedDevice] { get }

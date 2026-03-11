@@ -18,6 +18,7 @@ enum StatsPeriod: String, CaseIterable {
 }
 
 /// Protocol defining user stats service interface
+@MainActor
 protocol UserStatsServiceProtocol {
     /// Current user stats
     var userStats: UserStats? { get }

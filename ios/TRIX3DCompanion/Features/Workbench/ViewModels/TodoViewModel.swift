@@ -89,8 +89,8 @@ final class TodoViewModel: ObservableObject {
 
     /// Initialize with optional todo service for dependency injection
     /// Uses TodoService for backend API by default
-    init(todoService: TodoServiceProtocol = TodoService.shared, hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()) {
-        self.todoService = todoService
+    init(todoService: TodoServiceProtocol? = nil, hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()) {
+        self.todoService = todoService ?? TodoService.shared
         self.hapticProvider = hapticProvider
         loadTodos()
     }

@@ -78,6 +78,7 @@ typealias AuthResult<T> = Result<T, AuthError>
 // MARK: - Auth Service Protocol
 
 /// Protocol defining authentication service interface
+@MainActor
 protocol AuthServiceProtocol {
     var isLoggedIn: Bool { get }
     var currentUser: User? { get }
@@ -140,11 +141,11 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     ///   - apiClient: API client instance (defaults to shared)
     ///   - keychainManager: Keychain manager instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
-        keychainManager: KeychainManager = .shared
+        apiClient: APIClient? = nil,
+        keychainManager: KeychainManager? = nil
     ) {
-        self.apiClient = apiClient
-        self.keychainManager = keychainManager
+        self.apiClient = apiClient ?? .shared
+        self.keychainManager = keychainManager ?? .shared
 
         // Restore session on initialization
         if shouldBypassSessionRestoreForLaunchArguments() {
@@ -267,7 +268,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             switch loginResult {
             case .success:
                 return .success(user)
-            case .failure(let error):
+            case .failure:
                 // Registration succeeded but auto-login failed
                 // Return user anyway since registration was successful
                 return .success(user)
@@ -336,7 +337,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
         // Prevent concurrent refresh attempts
         if let existingTask = refreshTask {
-            await existingTask.value
+            _ = await existingTask.value
             return .success(())
         }
 

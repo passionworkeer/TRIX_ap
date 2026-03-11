@@ -37,9 +37,9 @@ final class ProductViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let storeKitService: StoreKitServiceProtocol
-    private let paymentService: PaymentServiceProtocol
-    private let pointsService: PointsServiceProtocol
+    private let storeKitService: any StoreKitServiceProtocol
+    private let paymentService: any PaymentServiceProtocol
+    private let pointsService: any PointsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Purchase State
@@ -77,14 +77,14 @@ final class ProductViewModel: ObservableObject {
     ///   - pointsService: Points service dependency
     init(
         product: StoreProduct,
-        storeKitService: StoreKitServiceProtocol = StoreKitService.shared,
-        paymentService: PaymentServiceProtocol = PaymentService.shared,
-        pointsService: PointsServiceProtocol = PointsService.shared
+        storeKitService: (any StoreKitServiceProtocol)? = nil,
+        paymentService: (any PaymentServiceProtocol)? = nil,
+        pointsService: (any PointsServiceProtocol)? = nil
     ) {
         self.product = product
-        self.storeKitService = storeKitService
-        self.paymentService = paymentService
-        self.pointsService = pointsService
+        self.storeKitService = storeKitService ?? StoreKitService.shared
+        self.paymentService = paymentService ?? PaymentService.shared
+        self.pointsService = pointsService ?? PointsService.shared
 
         // Load current points
         Task {
@@ -179,7 +179,7 @@ final class ProductViewModel: ObservableObject {
     /// Check if product is on sale (has bonus points)
     var isOnSale: Bool {
         guard product.type == .points,
-              let points = product.points else { return false }
+              product.points != nil else { return false }
 
         // Check if bonus points are included
         switch product.id {
@@ -194,7 +194,7 @@ final class ProductViewModel: ObservableObject {
 
     /// Get bonus points amount
     var bonusPoints: Int? {
-        guard isOnSale, let points = product.points else { return nil }
+        guard isOnSale, product.points != nil else { return nil }
 
         switch product.id {
         case StoreProductConfiguration.points300:
@@ -255,11 +255,11 @@ final class ProductViewModel: ObservableObject {
     /// - Parameter result: Payment result
     private func handlePaymentResult(_ result: PaymentResult) {
         switch result {
-        case .success(let order):
+        case .success:
             purchaseState = .success
             showPaymentResult = true
 
-        case .pending(let order):
+        case .pending:
             purchaseState = .pending
             showPaymentResult = true
 

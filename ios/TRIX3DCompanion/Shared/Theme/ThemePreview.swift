@@ -3,7 +3,7 @@ import SwiftUI
 /// 主题系统演示视图
 #if DEBUG
 struct ThemePreviewView: View {
-    @State private var themeManager = ThemeManager.shared
+    @State private var themeManager = ThemeManager.preview
 
     var body: some View {
         NavigationView {
@@ -40,7 +40,7 @@ struct ThemePreviewView: View {
                 .padding()
             }
             .navigationTitle("主题系统")
-            .themed()
+            .themed(with: themeManager)
         }
     }
 

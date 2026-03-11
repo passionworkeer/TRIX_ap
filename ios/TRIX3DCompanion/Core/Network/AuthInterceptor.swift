@@ -14,7 +14,7 @@ import Alamofire
 /// 1. Add Authorization headers to requests
 /// 2. Handle 401 responses by refreshing tokens
 /// 3. Retry failed requests with new tokens
-final class AuthInterceptor: RequestInterceptor {
+final class AuthInterceptor: RequestInterceptor, @unchecked Sendable {
 
     // MARK: - Properties
 

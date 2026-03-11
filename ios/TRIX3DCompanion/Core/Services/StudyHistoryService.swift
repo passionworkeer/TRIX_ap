@@ -26,6 +26,7 @@ enum StudyHistoryServiceError: Error, LocalizedError {
 
 // MARK: - Study History Service Protocol
 
+@MainActor
 protocol StudyHistoryServiceProtocol {
     var dailySummaries: [DailyStudySummary] { get }
     var weeklySummary: WeeklyStudySummary? { get }

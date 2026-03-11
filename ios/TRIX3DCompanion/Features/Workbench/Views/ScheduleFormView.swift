@@ -184,7 +184,7 @@ struct ScheduleFormView: View {
                 updatedSchedule.reminderMinutesBefore = hasReminder ? reminderMinutes : nil
                 updatedSchedule.location = trimmedLocation.isEmpty ? nil : trimmedLocation
 
-                await viewModel.updateSchedule(updatedSchedule)
+                viewModel.updateSchedule(updatedSchedule)
             } else {
                 // Create new schedule
                 let newSchedule = Schedule(
@@ -196,7 +196,7 @@ struct ScheduleFormView: View {
                     location: trimmedLocation.isEmpty ? nil : trimmedLocation
                 )
 
-                await viewModel.addSchedule(newSchedule)
+                viewModel.addSchedule(newSchedule)
             }
 
             dismiss()

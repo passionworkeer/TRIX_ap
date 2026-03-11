@@ -379,11 +379,6 @@ enum APIEndpoint {
         case .snapshots: return "/snapshots"
         case .snapshot(let id): return "/snapshots/\(id)"
 
-        // Notifications
-        case .deviceToken: return "/notifications/device-token"
-        case .notificationPreferences: return "/notifications/preferences"
-        case .notificationSettings: return "/notifications/settings"
-
         // Payments
         // All payment endpoints use /payments prefix for consistency
         case .purchasePoints:
@@ -465,9 +460,9 @@ enum APIEndpoint {
              .friendAdd, .friendAccept, .friendDecline,
              .mallPurchase,
              .wardrobeEquip, .wardrobeUnequip,
-             .scheduleCreate, .scheduleUpdate, .scheduleDelete,
-             .todoCreate, .todoUpdate, .todoDelete, .todoToggle,
-             .placeFavoriteToggle,
+             .scheduleCreate,
+             .todoCreate, .todoToggle,
+             .placeFavoriteToggle, .placeCheckIn,
              // New POST endpoints
              .notificationMarkRead, .notificationMarkAllRead,
              .clawbotCreateConversation, .clawbotSendMessage, .clawbotDeleteConversation,
@@ -500,13 +495,14 @@ enum APIEndpoint {
              .placeNearby, .placeSearch, .placeFavorite,
              // New GET endpoints
              .unreadCounts, .unreadCount,
-             .clawbotConversations, .clawbotConversationMessages,
+             .clawbotConversations, .clawbotConversationMessages, .clawbotHistory,
              .studyGoals:
             return .get
 
         // Delete operations - DELETE methods
         case .deleteStudySession, .friendRemove,
              .chatRoomDelete,
+             .scheduleDelete, .todoDelete,
              .studyGoalDelete:
             return .delete
 

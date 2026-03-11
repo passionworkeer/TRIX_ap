@@ -145,7 +145,7 @@ struct ScheduleListView: View {
                         indexSet.forEach { index in
                             let schedule = viewModel.filteredSchedules[index]
                             Task {
-                                await viewModel.deleteSchedule(schedule.id)
+                                viewModel.deleteSchedule(schedule.id)
                             }
                         }
                     }

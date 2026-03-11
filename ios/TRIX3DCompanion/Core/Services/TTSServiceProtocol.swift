@@ -9,6 +9,7 @@ import Foundation
 import AVFoundation
 
 /// Protocol for text-to-speech service
+@MainActor
 protocol TTSServiceProtocol: AnyObject {
     /// Whether speech is currently in progress
     var isSpeaking: Bool { get }

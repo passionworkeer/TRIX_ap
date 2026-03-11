@@ -28,16 +28,16 @@ struct StudyRoomView: View {
 
     // MARK: - Dependencies
 
-    private let studyService: StudyServiceProtocol
+    private let studyService: any StudyServiceProtocol
 
     // MARK: - Initialization
 
     init(
         roomState: StudyRoomState,
-        studyService: StudyServiceProtocol = StudyService.shared
+        studyService: (any StudyServiceProtocol)? = nil
     ) {
         self._roomState = State(initialValue: roomState)
-        self.studyService = studyService
+        self.studyService = studyService ?? StudyService.shared
     }
 
     // MARK: - Body
@@ -384,17 +384,17 @@ struct StudyRoomView: View {
         isLoading = true
 
         Task {
-            do {
-                try await studyService.joinRoom(roomState.roomCode)
-                await MainActor.run {
+            let result = await studyService.joinRoom(roomState.roomCode)
+
+            await MainActor.run {
+                switch result {
+                case .success:
                     isMemberOfRoom = true
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
+                case .failure(let error):
                     errorMessage = error.localizedDescription
-                    isLoading = false
                 }
+
+                isLoading = false
             }
         }
     }
@@ -404,18 +404,18 @@ struct StudyRoomView: View {
         isLoading = true
 
         Task {
-            do {
-                try await studyService.leaveRoom(roomState.roomCode)
-                await MainActor.run {
+            let result = await studyService.leaveRoom(roomState.roomCode)
+
+            await MainActor.run {
+                switch result {
+                case .success:
                     isMemberOfRoom = false
-                    isLoading = false
                     dismiss()
-                }
-            } catch {
-                await MainActor.run {
+                case .failure(let error):
                     errorMessage = error.localizedDescription
-                    isLoading = false
                 }
+
+                isLoading = false
             }
         }
     }

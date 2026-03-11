@@ -121,6 +121,7 @@ struct WeChatSignInCredential {
 // MARK: - WeChat Sign In Service Protocol
 
 /// Protocol defining WeChat Sign In service interface
+@MainActor
 protocol WeChatSignInServiceProtocol: AnyObject {
     /// Whether WeChat SDK is available
     var isAvailable: Bool { get }

@@ -55,16 +55,14 @@ final class ScheduleViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let scheduleService: ScheduleServiceProtocol
-    private let notificationService: LocalNotificationServiceProtocol
-    private let hapticProvider: HapticFeedbackProvider
+    private let scheduleService: any ScheduleServiceProtocol
+    private let notificationService: any LocalNotificationServiceProtocol
+    private let hapticProvider: any HapticFeedbackProvider
 
     // MARK: - Computed Properties
 
     /// Filtered schedules
     var filteredSchedules: [Schedule] {
-        let now = Date()
-
         switch filter {
         case .all:
             return schedules.sorted { $0.startTime < $1.startTime }
@@ -112,12 +110,12 @@ final class ScheduleViewModel: ObservableObject {
 
     /// Initialize with optional dependencies for dependency injection
     init(
-        scheduleService: ScheduleServiceProtocol = ScheduleService.shared,
-        notificationService: LocalNotificationServiceProtocol = LocalNotificationService.shared,
-        hapticProvider: HapticFeedbackProvider = UIKitHapticFeedbackProvider()
+        scheduleService: (any ScheduleServiceProtocol)? = nil,
+        notificationService: (any LocalNotificationServiceProtocol)? = nil,
+        hapticProvider: any HapticFeedbackProvider = UIKitHapticFeedbackProvider()
     ) {
-        self.scheduleService = scheduleService
-        self.notificationService = notificationService
+        self.scheduleService = scheduleService ?? ScheduleService.shared
+        self.notificationService = notificationService ?? LocalNotificationService.shared
         self.hapticProvider = hapticProvider
         loadSchedules()
     }

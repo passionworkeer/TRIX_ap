@@ -38,6 +38,7 @@ enum TodoServiceError: Error, LocalizedError {
 
 // MARK: - Todo Service Protocol
 
+@MainActor
 protocol TodoServiceProtocol {
     var todos: [Todo] { get }
     var isLoading: Bool { get }

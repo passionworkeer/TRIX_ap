@@ -232,7 +232,7 @@ struct WardrobeView: View {
     }
 
     private func equipOutfit(_ item: WardrobeItem) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        _ = withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             equippedOutfits.insert(item.id)
         }
         let generator = UIImpactFeedbackGenerator(style: .medium)
@@ -240,14 +240,14 @@ struct WardrobeView: View {
     }
 
     private func unequipOutfit(_ item: WardrobeItem) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        _ = withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             equippedOutfits.remove(item.id)
         }
     }
 
     private func purchaseOutfit(_ item: WardrobeItem) {
         if appState.spendPoints(item.points) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            _ = withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 ownedOutfits.insert(item.id)
             }
             let generator = UINotificationFeedbackGenerator()

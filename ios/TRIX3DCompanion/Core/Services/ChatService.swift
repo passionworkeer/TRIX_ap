@@ -51,6 +51,7 @@ typealias ChatResult<T> = Result<T, ChatError>
 // MARK: - Chat Service Protocol
 
 /// Protocol defining chat service interface
+@MainActor
 protocol ChatServiceProtocol {
     var chatRooms: [ChatRoom] { get }
     var currentMessages: [ChatMessage] { get }
@@ -141,13 +142,13 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     ///   - clawbotChannelService: Clawbot Channel service (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
+        apiClient: APIClient? = nil,
         clawbotChannelService: ClawbotChannelService? = nil,
-        authService: AuthService = .shared
+        authService: AuthService? = nil
     ) {
-        self.apiClient = apiClient
+        self.apiClient = apiClient ?? .shared
         self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
-        self.authService = authService
+        self.authService = authService ?? .shared
 
         setupClawbotChannelListeners()
     }

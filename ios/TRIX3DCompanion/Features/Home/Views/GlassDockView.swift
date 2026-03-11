@@ -34,7 +34,6 @@ struct GlassDockTab: Identifiable, Hashable {
 struct GlassDockView: View {
     @Binding var selectedTab: MainTab
     @Binding var isWorkbenchPresented: Bool
-    @Binding var isChatPresented: Bool
 
     @State private var selectedIndex: Int = 2  // 默认选中中间的核心按钮（摄像头）- 主界面
     @State private var animateGlow = false
@@ -90,17 +89,32 @@ struct GlassDockView: View {
         let isSelected = selectedIndex == index
 
         Button {
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 selectedIndex = index
                 selectedTab = dockTab.tab
-
-                if dockTab.tab == .chat {
-                    isChatPresented = true
-                }
+                isWorkbenchPresented = false
             }
         } label: {
             VStack(spacing: 4) {
                 ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.brandPurple.opacity(0.18),
+                                        Color.brandPink.opacity(0.1)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 52, height: 52)
+                    }
+
                     // Glow effect when selected
                     if isSelected {
                         Circle()
@@ -129,7 +143,7 @@ struct GlassDockView: View {
                     .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? Color.brandPurple : .secondary)
             }
-            .frame(width: 50, height: 50)
+            .frame(width: 56, height: 56)
         }
         .buttonStyle(.plain)
     }
@@ -138,8 +152,15 @@ struct GlassDockView: View {
 
     private var coreButton: some View {
         Button {
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                // 相机按钮点击后切换到Home页并弹出工作台（让用户选择功能）
+                if selectedTab == .home && isWorkbenchPresented {
+                    isWorkbenchPresented = false
+                    return
+                }
+
                 selectedTab = .home
                 isWorkbenchPresented = true
             }
@@ -182,11 +203,16 @@ struct GlassDockView: View {
                     )
                     .frame(width: 50, height: 50)
 
-                // Camera icon (core button)
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                VStack(spacing: 2) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+
+                    Text("Core")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.88))
+                }
             }
         }
         .buttonStyle(.plain)
@@ -195,7 +221,8 @@ struct GlassDockView: View {
     // MARK: - Helpers
 
     private func updateSelectedIndex(for tab: MainTab) {
-        if let index = GlassDockTab.tabs.firstIndex(where: { $0.tab == tab }) {
+        let dockSelection = tab == .home ? MainTab.core : tab
+        if let index = GlassDockTab.tabs.firstIndex(where: { $0.tab == dockSelection }) {
             selectedIndex = index
         }
     }
@@ -218,8 +245,7 @@ struct GlassDockView: View {
             Spacer()
             GlassDockView(
                 selectedTab: .constant(.home),
-                isWorkbenchPresented: .constant(false),
-                isChatPresented: .constant(false)
+                isWorkbenchPresented: .constant(false)
             )
         }
     }

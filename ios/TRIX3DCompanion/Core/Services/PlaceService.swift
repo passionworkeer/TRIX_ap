@@ -32,6 +32,7 @@ enum PlaceServiceError: Error, LocalizedError {
 
 // MARK: - Place Service Protocol
 
+@MainActor
 protocol PlaceServiceProtocol {
     var places: [Place] { get }
     var favoritePlaces: [Place] { get }

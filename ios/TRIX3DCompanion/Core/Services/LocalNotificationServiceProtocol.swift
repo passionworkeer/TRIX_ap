@@ -169,6 +169,7 @@ struct DailyGoalConfig: Codable {
 typealias LocalNotificationResult<T> = Result<T, LocalNotificationError>
 
 /// Protocol defining local notification service interface
+@MainActor
 protocol LocalNotificationServiceProtocol {
 
     /// Current authorization status

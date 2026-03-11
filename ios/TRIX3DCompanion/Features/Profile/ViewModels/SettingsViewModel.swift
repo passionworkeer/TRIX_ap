@@ -108,11 +108,11 @@ final class SettingsViewModel: ObservableObject {
     ///   - cacheService: Cache service dependency
     ///   - exportService: Export service dependency
     init(
-        cacheService: OfflineCacheService = .shared,
-        exportService: DataExportService = .shared
+        cacheService: OfflineCacheService? = nil,
+        exportService: DataExportService? = nil
     ) {
-        self.cacheService = cacheService
-        self.exportService = exportService
+        self.cacheService = cacheService ?? .shared
+        self.exportService = exportService ?? .shared
 
         // Load saved preferences from ThemeManager (which syncs with UserDefaults)
         self.selectedTheme = ThemeManager.shared.currentTheme

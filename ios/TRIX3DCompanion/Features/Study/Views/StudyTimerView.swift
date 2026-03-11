@@ -67,17 +67,17 @@ struct StudyTimerView: View {
 
     // MARK: - Dependencies
 
-    private let studyService: StudyServiceProtocol
+    private let studyService: any StudyServiceProtocol
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     // MARK: - Initialization
 
     init(
         roomState: Binding<StudyRoomState>,
-        studyService: StudyServiceProtocol = StudyService.shared
+        studyService: (any StudyServiceProtocol)? = nil
     ) {
         self._roomState = roomState
-        self.studyService = studyService
+        self.studyService = studyService ?? StudyService.shared
 
         // Initialize timer state from room state
         self._remainingSeconds = State(initialValue: roomState.wrappedValue.timer?.remainingSeconds ?? 0)
@@ -490,17 +490,16 @@ struct StudyTimerView: View {
     /// 开始会话
     private func startSession() {
         Task {
-            do {
-                _ = try await studyService.startFocusSession(
-                    roomCode: roomState.roomCode
-                )
-                await MainActor.run {
+            let result = await studyService.startFocusSession(roomCode: roomState.roomCode)
+
+            await MainActor.run {
+                switch result {
+                case .success:
                     timerState = .focusing
                     scheduleNotification()
+                case .failure(let error):
+                    SecureLogger.shared.error("Error starting session: \(error.localizedDescription)")
                 }
-            } catch {
-                // Handle error
-                SecureLogger.shared.error("Error starting session: \(error)")
             }
         }
     }
@@ -538,25 +537,21 @@ struct StudyTimerView: View {
     /// 结束会话
     private func endSession() {
         Task {
-            do {
-                // Calculate points before ending
-                let studiedMinutes = (totalSeconds - remainingSeconds) / 60
-                actualStudyDuration = max(1, studiedMinutes)
-                earnedPoints = actualStudyDuration * 2
+            let studiedMinutes = (totalSeconds - remainingSeconds) / 60
+            actualStudyDuration = max(1, studiedMinutes)
+            earnedPoints = actualStudyDuration * 2
 
-                try await studyService.endSession(roomCode: roomState.roomCode)
+            let result = await studyService.endSession(roomCode: roomState.roomCode)
 
-                // Award points for completed session
+            switch result {
+            case .success:
                 await awardStudyPoints()
-
                 await MainActor.run {
                     timerState = .completed
-                    // Show celebration modal
                     showCelebration = true
                 }
-            } catch {
-                // Handle error
-                SecureLogger.shared.error("Error ending session: \(error)")
+            case .failure(let error):
+                SecureLogger.shared.error("Error ending session: \(error.localizedDescription)")
                 await MainActor.run {
                     timerState = .idle
                     remainingSeconds = totalSeconds

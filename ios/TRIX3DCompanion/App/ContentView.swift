@@ -61,15 +61,31 @@ struct ContentView: View {
 
     /// Background gradient view - optimized for performance
     private var backgroundView: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.3),
-                Color.brandPink.opacity(0.2),
-                Color.info.opacity(0.1)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(hex: "09090F"),
+                    Color(hex: "15152A"),
+                    Color(hex: "1B1630")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [Color.brandPurple.opacity(0.28), .clear],
+                center: .topLeading,
+                startRadius: 40,
+                endRadius: 420
+            )
+
+            RadialGradient(
+                colors: [Color.brandPink.opacity(0.18), .clear],
+                center: .bottomTrailing,
+                startRadius: 20,
+                endRadius: 360
+            )
+        }
         .ignoresSafeArea()
     }
 

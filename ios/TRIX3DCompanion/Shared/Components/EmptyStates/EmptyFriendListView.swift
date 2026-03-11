@@ -81,24 +81,30 @@ struct EmptyFriendListView: View {
 // MARK: - Preview
 
 #Preview("空好友列表 - 浅色") {
-    EmptyFriendListView {
-        SecureLogger.shared.debug("添加好友")
-    } onScanQR: {
-        SecureLogger.shared.debug("扫一扫")
-    }
+    EmptyFriendListView(
+        onAddFriend: {
+            SecureLogger.shared.debug("添加好友")
+        },
+        onScanQR: {
+            SecureLogger.shared.debug("扫一扫")
+        }
+    )
 }
 
 #Preview("空好友列表 - 深色") {
-    EmptyFriendListView {
-        SecureLogger.shared.debug("添加好友")
-    } onScanQR: {
-        SecureLogger.shared.debug("扫一扫")
-    }
+    EmptyFriendListView(
+        onAddFriend: {
+            SecureLogger.shared.debug("添加好友")
+        },
+        onScanQR: {
+            SecureLogger.shared.debug("扫一扫")
+        }
+    )
     .preferredColorScheme(.dark)
 }
 
 #Preview("空好友列表 - 仅添加") {
-    EmptyFriendListView {
+    EmptyFriendListView(onAddFriend: {
         SecureLogger.shared.debug("添加好友")
-    }
+    })
 }

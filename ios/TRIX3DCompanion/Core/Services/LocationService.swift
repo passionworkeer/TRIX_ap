@@ -74,11 +74,11 @@ final class LocationService: NSObject, ObservableObject, LocationServiceProtocol
     ///   - apiClient: API 客户端实例
     ///   - authService: 认证服务实例
     init(
-        apiClient: APIClient = .shared,
-        authService: AuthService = .shared
+        apiClient: APIClient? = nil,
+        authService: AuthService? = nil
     ) {
-        self.apiClient = apiClient
-        self.authService = authService
+        self.apiClient = apiClient ?? .shared
+        self.authService = authService ?? .shared
 
         // 初始化位置管理器
         self.locationManager = CLLocationManager()
@@ -351,7 +351,7 @@ final class LocationService: NSObject, ObservableObject, LocationServiceProtocol
                     locationError = .permissionDenied
                 case .locationUnknown, .network:
                     locationError = .locationUnavailable
-                @unknown default:
+                default:
                     locationError = .locationUnavailable
                 }
             } else {

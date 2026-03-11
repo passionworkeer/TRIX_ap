@@ -85,6 +85,7 @@ typealias StudyResult<T> = Result<T, StudyError>
 // MARK: - Study Service Protocol
 
 /// Protocol defining study service interface
+@MainActor
 protocol StudyServiceProtocol {
     var studyRooms: [StudyRoom] { get }
     var currentSession: StudySession? { get }
@@ -159,9 +160,9 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClientProtocol
-    private let clawbotChannelService: ClawbotChannelServiceProtocol
-    private let authService: AuthServiceProtocol
+    private let apiClient: any APIClientProtocol
+    private let clawbotChannelService: any ClawbotChannelServiceProtocol
+    private let authService: any AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -191,9 +192,9 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     ///   - clawbotChannelService: Clawbot Channel service (uses Socket.IO)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClientProtocol? = nil,
-        clawbotChannelService: ClawbotChannelServiceProtocol? = nil,
-        authService: AuthServiceProtocol? = nil
+        apiClient: (any APIClientProtocol)? = nil,
+        clawbotChannelService: (any ClawbotChannelServiceProtocol)? = nil,
+        authService: (any AuthServiceProtocol)? = nil
     ) {
         self.apiClient = apiClient ?? APIClient.shared
         self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
@@ -402,12 +403,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             return .failure(error)
         }
 
-        let targetRoomCode = roomCode ?? currentRoomCode
-        guard targetRoomCode != nil else {
-            let error = StudyError.roomNotFound
-            lastError = error
-            return .failure(error)
-        }
+        let targetRoomCode = roomCode
 
         lastError = nil
 
@@ -429,12 +425,11 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             sessionStartDate = Date()
 
             // Notify room members if host
-            if let roomCode = targetRoomCode,
-               let roomState = currentRoomState,
+            if let roomState = currentRoomState,
                roomState.hostUserId == user.id {
                 Task {
                     try? await clawbotChannelService.hostActionStudyRoom(
-                        roomCode: roomCode,
+                        roomCode: targetRoomCode,
                         action: .startFocus
                     )
                 }
@@ -468,7 +463,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             return .failure(error)
         }
 
-        guard var session = currentSession else {
+        guard let session = currentSession else {
             let error = StudyError.noActiveSession
             lastError = error
             return .failure(error)
@@ -596,9 +591,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         for sessionData in offlineSessions {
             do {
                 // Extract session data
-                guard let sessionId = sessionData["id"] as? String,
-                      let duration = sessionData["duration"] as? Int,
-                      let startedAt = sessionData["startedAt"] as? Date else {
+                guard let duration = sessionData["duration"] as? Int else {
                     failedSessions.append(sessionData)
                     continue
                 }

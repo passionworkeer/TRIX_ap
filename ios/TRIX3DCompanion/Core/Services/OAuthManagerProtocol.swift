@@ -82,6 +82,7 @@ struct OAuthAccount: Codable, Identifiable {
 // MARK: - OAuth Manager Protocol
 
 /// Protocol defining OAuth manager interface
+@MainActor
 protocol OAuthManagerProtocol: AnyObject {
     /// Currently available providers
     var availableProviders: [OAuthProvider] { get }

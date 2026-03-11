@@ -50,11 +50,11 @@ final class DiagnosticViewModel: ObservableObject {
     // MARK: - Initialization
 
     init(
-        networkMonitor: NetworkMonitor = .shared,
-        cacheService: OfflineCacheService = .shared
+        networkMonitor: NetworkMonitor? = nil,
+        cacheService: OfflineCacheService? = nil
     ) {
-        self.networkMonitor = networkMonitor
-        self.cacheService = cacheService
+        self.networkMonitor = networkMonitor ?? .shared
+        self.cacheService = cacheService ?? .shared
 
         setupBindings()
     }
@@ -102,12 +102,6 @@ final class DiagnosticViewModel: ObservableObject {
 
     /// Test a single API endpoint
     private func testEndpoint(_ endpoint: DiagnosticAPIEndpoint) async -> NetworkDiagnosticResult {
-        // Create test result with testing status
-        var result = NetworkDiagnosticResult(
-            endpoint: endpoint.name,
-            status: .testing
-        )
-
         do {
             let latency = try await measureLatency(for: endpoint)
 

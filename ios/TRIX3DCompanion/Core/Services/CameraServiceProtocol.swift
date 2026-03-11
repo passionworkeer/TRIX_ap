@@ -61,6 +61,7 @@ enum CameraError: Error, LocalizedError {
 // MARK: - Camera Service Protocol
 
 /// 相机服务协议接口
+@MainActor
 protocol CameraServiceProtocol {
     /// 请求相机权限
     /// - Returns: 权限是否被授予

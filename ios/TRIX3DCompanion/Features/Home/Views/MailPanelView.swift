@@ -156,7 +156,7 @@ struct MailPanelView: View {
                         id: UUID(uuidString: notification.id) ?? UUID(),
                         sender: notification.title,
                         title: notification.title,
-                        content: notification.body ?? "",
+                        content: notification.body,
                         time: formatTime(notification.createdAt),
                         isRead: notification.isRead
                     )
@@ -175,7 +175,7 @@ struct MailPanelView: View {
                 try await apiClient.markNotificationAsRead(notificationId: id.uuidString)
                 // Update local state
                 if let index = messages.firstIndex(where: { $0.id == id }) {
-                    var updatedMessage = messages[index]
+                    let updatedMessage = messages[index]
                     messages[index] = MailMessage(
                         id: updatedMessage.id,
                         sender: updatedMessage.sender,

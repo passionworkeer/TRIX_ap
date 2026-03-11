@@ -8,6 +8,7 @@
 import Foundation
 
 /// Protocol defining achievement service interface
+@MainActor
 protocol AchievementServiceProtocol {
     /// All achievements
     var achievements: [Achievement] { get }

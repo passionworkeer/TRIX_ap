@@ -84,11 +84,11 @@ final class ClawbotPairingService: ObservableObject, ClawbotPairingServiceProtoc
     ///   - apiClient: API client instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
-        authService: AuthService = .shared
+        apiClient: APIClient? = nil,
+        authService: AuthService? = nil
     ) {
-        self.apiClient = apiClient
-        self.authService = authService
+        self.apiClient = apiClient ?? .shared
+        self.authService = authService ?? .shared
     }
 
     // MARK: - Public Methods

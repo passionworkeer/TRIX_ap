@@ -634,7 +634,7 @@ struct PairingView: View {
         showQRScanner = false
 
         // Check if it's a Relay QR code
-        if let payload = clawbotChannel.parseRelayQR(code) {
+        if clawbotChannel.parseRelayQR(code) != nil {
             // Relay QR format: {version, server, gatewayId, accessCode, displayName}
             Task {
                 await connectRelayWithQR(code)

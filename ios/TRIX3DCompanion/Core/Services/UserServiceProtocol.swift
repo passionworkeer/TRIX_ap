@@ -8,6 +8,7 @@
 import Foundation
 
 /// Protocol defining user service interface
+@MainActor
 protocol UserServiceProtocol {
     /// Current user if logged in
     var currentUser: User? { get }

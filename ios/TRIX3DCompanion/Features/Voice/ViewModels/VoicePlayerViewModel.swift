@@ -68,9 +68,9 @@ final class VoicePlayerViewModel: ObservableObject {
     /// Initialize VoicePlayerViewModel
     /// - Parameter playbackService: Voice playback service dependency
     init(
-        playbackService: VoicePlaybackServiceProtocol = VoicePlaybackService.shared
+        playbackService: VoicePlaybackServiceProtocol? = nil
     ) {
-        self.playbackService = playbackService
+        self.playbackService = playbackService ?? VoicePlaybackService.shared
 
         // Setup bindings
         setupBindings()

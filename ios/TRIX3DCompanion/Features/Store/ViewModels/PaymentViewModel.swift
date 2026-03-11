@@ -74,9 +74,9 @@ final class PaymentViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let paymentService: PaymentServiceProtocol
-    private let storeKitService: StoreKitServiceProtocol
-    private let pointsService: PointsServiceProtocol
+    private let paymentService: any PaymentServiceProtocol
+    private let storeKitService: any StoreKitServiceProtocol
+    private let pointsService: any PointsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -87,13 +87,13 @@ final class PaymentViewModel: ObservableObject {
     ///   - storeKitService: StoreKit service dependency
     ///   - pointsService: Points service dependency
     init(
-        paymentService: PaymentServiceProtocol = PaymentService.shared,
-        storeKitService: StoreKitServiceProtocol = StoreKitService.shared,
-        pointsService: PointsServiceProtocol = PointsService.shared
+        paymentService: (any PaymentServiceProtocol)? = nil,
+        storeKitService: (any StoreKitServiceProtocol)? = nil,
+        pointsService: (any PointsServiceProtocol)? = nil
     ) {
-        self.paymentService = paymentService
-        self.storeKitService = storeKitService
-        self.pointsService = pointsService
+        self.paymentService = paymentService ?? PaymentService.shared
+        self.storeKitService = storeKitService ?? StoreKitService.shared
+        self.pointsService = pointsService ?? PointsService.shared
 
         // Load order history
         Task {
