@@ -52,7 +52,8 @@ struct NewProfileView: View {
                 EditProfileSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showOpenClawControl) {
-                OpenClawControlPanel()
+                // OpenClawControlPanel placeholder
+                Text("OpenClaw Control")
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") {

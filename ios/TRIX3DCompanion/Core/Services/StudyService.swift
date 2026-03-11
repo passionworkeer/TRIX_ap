@@ -413,7 +413,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
         do {
             // Create session via API
-            let request = CreateStudySessionRequest(durationMinutes: 0) // 0 means ongoing
+            let request = CreateStudySessionRequest(duration: 0) // 0 means ongoing
             let session: StudySession = try await apiClient.post(
                 .studySessions,
                 body: request
@@ -484,7 +484,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
         do {
             // Update session via API
-            let updateRequest = CreateStudySessionRequest(durationMinutes: duration)
+            let updateRequest = CreateStudySessionRequest(duration: duration)
             let updatedSession: StudySession = try await apiClient.put(
                 .updateStudySession(id: session.id),
                 body: updateRequest
@@ -604,7 +604,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 }
 
                 // Create sync request
-                let request = CreateStudySessionRequest(durationMinutes: duration)
+                let request = CreateStudySessionRequest(duration: duration)
 
                 // Send to API
                 let _: EmptyResponse = try await apiClient.post(
