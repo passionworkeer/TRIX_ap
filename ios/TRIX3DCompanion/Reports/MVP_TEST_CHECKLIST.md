@@ -20,50 +20,31 @@
 
 | # | 测试项 | 类型 | 状态 |
 |---|--------|------|------|
-| 5 | PairingView 渲染 | ✅ 自动化 | - |
-| 6 | QRScannerView 渲染 | ✅ 自动化 | - |
-| 7 | 输入框验证 (6位码) | ✅ 自动化 | - |
+| 5 | PairingView 渲染 | ✅ 已验证 | 编译通过 |
+| 6 | QRScannerView 渲染 | ✅ 已验证 | 编译通过 |
+| 7 | 输入框验证 (6位码) | ✅ 已验证 | 编译通过 |
 
 ---
 
-## 二、自动化测试 (我可以运行)
+## 二、构建状态
 
-### 2.1 单元测试
+### 2.1 编译状态
 
-| # | 测试文件 | 测试数量 | 状态 |
-|---|----------|----------|------|
-| 1 | SmokeTests.swift | 20+ | ✅ |
-| 2 | AuthServiceTests.swift | 15+ | ✅ |
-| 3 | APIClientTests.swift | 20+ | ✅ |
-| 4 | ChatServiceTests.swift | 15+ | ✅ |
-| 5 | StudyServiceTests.swift | 15+ | ✅ |
-| 6 | PaymentServiceTests.swift | 15+ | ✅ |
-| 7 | PointsServiceTests.swift | 15+ | ✅ |
-| 8 | KeychainManagerTests.swift | 10+ | ✅ |
-| 9 | DatabaseManagerTests.swift | 15+ | ✅ |
-| 10 | ClawbotPairingServiceTests.swift | 15+ | ✅ |
-| 11 | WebSocketManagerTests.swift | 15+ | ✅ |
-| 12 | NetworkMonitorTests.swift | 10+ | ✅ |
-| 13 | OfflineCacheServiceTests.swift | 10+ | ✅ |
-| 14 | LocationServiceTests.swift | 10+ | ✅ |
-| 15 | NotificationServicesTests.swift | 10+ | ✅ |
+| # | 状态 | 日期 |
+|---|------|------|
+| 1 | ✅ BUILD SUCCEEDED | 2026-03-11 |
 
-### 2.2 冒烟测试
+### 2.2 自动化测试
+
+⚠️ **注意**: 项目中虽有测试文件 (Tests/TRIX3DCompanionTests)，但测试 target 未正确配置到 Xcode scheme 中。需要手动在 Xcode 中配置测试 target 后才能运行。
 
 | # | 测试文件 | 状态 |
 |---|----------|------|
-| 1 | SmokeTests.swift | ✅ 可运行 |
-| 2 | SecurityAuditTests.swift | ✅ |
-
-### 2.3 UI 测试
-
-| # | 测试文件 | 状态 |
-|---|----------|------|
-| 1 | AuthenticationFlowTests.swift | ⚠️ 需要配置 |
-| 2 | OnboardingFlowTests.swift | ⚠️ 需要配置 |
-| 3 | StoreFlowTests.swift | ⚠️ 需要配置 |
-| 4 | SettingsFlowTests.swift | ⚠️ 需要配置 |
-| 5 | PairingUITests.swift | ⚠️ 需要配置 |
+| 1 | AuthServiceTests.swift | ⚠️ 未配置 |
+| 2 | APIClientTests.swift | ⚠️ 未配置 |
+| 3 | ChatServiceTests.swift | ⚠️ 未配置 |
+| 4 | StudyServiceTests.swift | ⚠️ 未配置 |
+| 5 | DatabaseManagerTests.swift | ⚠️ 未配置 |
 
 ---
 
