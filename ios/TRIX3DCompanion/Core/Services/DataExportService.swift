@@ -531,9 +531,9 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
                 let values = [
                     session.id,
                     session.userId,
-                    "\(session.durationMinutes)",
+                    "\(session.duration)",
                     ISO8601DateFormatter().string(from: session.startedAt),
-                    session.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "",
+                    session.endedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "",
                     "\(session.earnedPoints ?? 0)",
                     "\(session.isCompleted)"
                 ]
@@ -675,7 +675,7 @@ extension ExportableData {
 
     /// Get study statistics summary
     var studyStats: String {
-        let totalDuration = studySessions.reduce(into: 0) { $0 += $1.durationMinutes }
+        let totalDuration = studySessions.reduce(into: 0) { $0 += $1.duration }
         let completedCount = studySessions.filter { $0.isCompleted }.count
         let totalPoints = studySessions.compactMap { $0.earnedPoints }.reduce(0, +)
 

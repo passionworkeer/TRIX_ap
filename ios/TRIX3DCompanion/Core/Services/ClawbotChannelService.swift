@@ -697,7 +697,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                     continuation.resume(returning: dict)
                 } else {
                     let errorMessage = dict["error"] as? String ?? "Command failed"
-                    continuation.resume(throwing: ClawbotError.custom(errorMessage))
+                    continuation.resume(throwing: ClawbotError.messageFailed(errorMessage))
                 }
             }
         }

@@ -132,12 +132,12 @@ struct PairingView: View {
                         .padding(.vertical, 8)
                         .background(
                             connectionMode == mode
-                            ? LinearGradient(
+                            ? AnyView(LinearGradient(
                                 colors: [.brandPurple, .brandPink],
                                 startPoint: .leading,
                                 endPoint: .trailing
-                            )
-                            : Color.clear
+                            ))
+                            : AnyView(Color.clear)
                         )
                         .cornerRadius(20)
                         .overlay(
