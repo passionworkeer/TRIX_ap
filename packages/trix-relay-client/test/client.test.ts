@@ -4,46 +4,22 @@
  * Unit tests for GatewayClient
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-
-// Mock WebSocket for testing
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  readyState = MockWebSocket.CONNECTING;
-  sentMessages: string[] = [];
-  onopen: ((event: any) => void) | null = null;
-  onclose: ((event: any) => void) | null = null;
-  onmessage: ((event: any) => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
-
-  constructor(public url: string) {
-    // Simulate connection after a short delay
-    setTimeout(() => {
-      if (this.onopen) {
-        this.readyState = MockWebSocket.OPEN;
-        this.onopen({});
-      }
-    }, 10);
-  }
-
-  send(data: string) {
-    this.sentMessages.push(data);
-  }
-
-  close(code?: number, reason?: string) {
-    this.readyState = MockWebSocket.CLOSED;
-    if (this.onclose) {
-      this.onclose({ code, reason, wasClean: true });
-    }
-  }
-}
-
-// Make WebSocket available globally for the client
-(global as any).WebSocket = MockWebSocket;
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  createReqFrame,
+  parseFrame,
+  isEvtFrame,
+  isResFrame,
+  serializeFrame,
+} from '../src/protocol';
+import {
+  generateKeyPair,
+  buildSignedDevice,
+  generateRandomId,
+  base64UrlEncode,
+  base64UrlDecode,
+} from '../src/crypto';
+import { GatewayClient } from '../src/GatewayClient';
 
 describe('GatewayClient', () => {
   beforeEach(() => {
@@ -55,8 +31,7 @@ describe('GatewayClient', () => {
   });
 
   describe('Protocol', () => {
-    it('should create request frame with correct structure', async () => {
-      const { createReqFrame } = await import('./src/protocol.js');
+    it('should create request frame with correct structure', () => {
       const frame = createReqFrame('test.method', { param1: 'value1' });
 
       expect(frame.type).toBe('req');
@@ -66,8 +41,7 @@ describe('GatewayClient', () => {
       expect(typeof frame.id).toBe('string');
     });
 
-    it('should parse valid response frame', async () => {
-      const { parseFrame, isResFrame } = await import('./src/protocol.js');
+    it('should parse valid response frame', () => {
       const raw = JSON.stringify({
         type: 'res',
         id: 'test-id',
@@ -82,8 +56,7 @@ describe('GatewayClient', () => {
       expect((frame as any).ok).toBe(true);
     });
 
-    it('should parse valid event frame', async () => {
-      const { parseFrame, isEvtFrame } = await import('./src/protocol.js');
+    it('should parse valid event frame', () => {
       const raw = JSON.stringify({
         type: 'event',
         event: 'chat.push',
@@ -96,14 +69,12 @@ describe('GatewayClient', () => {
       expect((frame as any).event).toBe('chat.push');
     });
 
-    it('should return null for invalid JSON', async () => {
-      const { parseFrame } = await import('./src/protocol.js');
+    it('should return null for invalid JSON', () => {
       const frame = parseFrame('not valid json');
       expect(frame).toBeNull();
     });
 
-    it('should serialize frame to JSON string', async () => {
-      const { createReqFrame, serializeFrame } = await import('./src/protocol.js');
+    it('should serialize frame to JSON string', () => {
       const frame = createReqFrame('test.method', {});
       const serialized = serializeFrame(frame);
 
@@ -113,7 +84,6 @@ describe('GatewayClient', () => {
 
   describe('Crypto', () => {
     it('should generate key pair', async () => {
-      const { generateKeyPair } = await import('./src/crypto.js');
       const keys = await generateKeyPair();
 
       expect(keys.publicKey).toBeDefined();
@@ -122,8 +92,7 @@ describe('GatewayClient', () => {
       expect(typeof keys.privateKey).toBe('string');
     });
 
-    it('should generate random ID of specified length', async () => {
-      const { generateRandomId } = await import('./src/crypto.js');
+    it('should generate random ID of specified length', () => {
       const id16 = generateRandomId(16);
       const id32 = generateRandomId(32);
 
@@ -132,7 +101,6 @@ describe('GatewayClient', () => {
     });
 
     it('should build signed device payload', async () => {
-      const { generateKeyPair, buildSignedDevice } = await import('./src/crypto.js');
       const keys = await generateKeyPair();
 
       const device = await buildSignedDevice({
@@ -152,8 +120,7 @@ describe('GatewayClient', () => {
       expect(device.signedAt).toBeDefined();
     });
 
-    it('should encode/decode base64 URL safe', async () => {
-      const { base64UrlEncode, base64UrlDecode } = await import('./src/crypto.js');
+    it('should encode/decode base64 URL safe', () => {
       const testBytes = new Uint8Array([1, 2, 3, 255, 128, 64]);
 
       const encoded = base64UrlEncode(testBytes);
@@ -164,47 +131,40 @@ describe('GatewayClient', () => {
   });
 
   describe('GatewayClient Connection', () => {
-    it('should create instance without error', async () => {
-      const { GatewayClient } = await import('./src/GatewayClient.js');
+    it('should create instance without error', () => {
       const client = new GatewayClient();
       expect(client).toBeDefined();
     });
 
-    it('should have isConnected return false before connection', async () => {
-      const { GatewayClient } = await import('./src/GatewayClient.js');
+    it('should have isConnected return false before connection', () => {
       const client = new GatewayClient();
       expect(client.isConnected()).toBe(false);
     });
 
-    it('should have getDeviceId return null before connection', async () => {
-      const { GatewayClient } = await import('./src/GatewayClient.js');
+    it('should have getDeviceId return null before connection', () => {
       const client = new GatewayClient();
       expect(client.getDeviceId()).toBeNull();
     });
 
-    it('should support event listeners', async () => {
-      const { GatewayClient } = await import('./src/GatewayClient.js');
+    it('should support event listeners', () => {
       const client = new GatewayClient();
 
       const handler = vi.fn();
       client.on('test-event', handler);
       client.on('test-event', handler); // Add twice
 
-      // Manually trigger emit for testing (we'd need to make emit public or test through other means)
-      expect(client.isConnected()).toBe(false); // Basic sanity check
+      expect(client.isConnected()).toBe(false);
     });
 
-    it('should throw error when requesting without connection', async () => {
-      const { GatewayClient } = await import('./src/GatewayClient.js');
+    it('should throw error when requesting without connection', () => {
       const client = new GatewayClient();
 
-      await expect(client.request('test.method')).rejects.toThrow('gateway not connected');
+      expect(() => client.request('test.method', {})).rejects.toThrow('gateway not connected');
     });
   });
 
   describe('Types', () => {
-    it('should have correct ReqFrame structure', async () => {
-      const { createReqFrame } = await import('./src/protocol.js');
+    it('should have correct ReqFrame structure', () => {
       const frame = createReqFrame('method', { key: 'value' });
 
       // TypeScript compilation test - if this passes, types are correct
@@ -212,8 +172,7 @@ describe('GatewayClient', () => {
       expect(_typeCheck).toBe('req');
     });
 
-    it('should allow optional params', async () => {
-      const { createReqFrame } = await import('./src/protocol.js');
+    it('should allow optional params', () => {
       const frame = createReqFrame('method');
 
       expect(frame.params).toBeUndefined();
