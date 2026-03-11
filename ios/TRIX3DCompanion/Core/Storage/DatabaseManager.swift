@@ -526,6 +526,12 @@ final class DatabaseManager {
                 mediaUrl: row[messageMediaUrl],
                 mediaMimeType: row[messageMediaMimeType],
                 mediaDuration: row[messageMediaDuration],
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
                 isRead: row[messageIsRead],
                 createdAt: row[messageCreatedAt]
             )
@@ -689,9 +695,9 @@ final class DatabaseManager {
             sessionId <- session.id,
             sessionUserId <- session.userId,
             sessionSubject <- nil,
-            sessionDuration <- session.durationMinutes,
+            sessionDuration <- session.duration,
             sessionStartedAt <- session.startedAt,
-            sessionEndedAt <- session.completedAt,
+            sessionEndedAt <- session.endedAt,
             sessionNotes <- nil,
             sessionEarnedPoints <- session.earnedPoints,
             sessionIsCompleted <- session.isCompleted,
@@ -714,9 +720,9 @@ final class DatabaseManager {
             let session = StudySession(
                 id: row[sessionId],
                 userId: row[sessionUserId],
-                durationMinutes: row[sessionDuration],
+                duration: row[sessionDuration],
                 startedAt: row[sessionStartedAt],
-                completedAt: row[sessionEndedAt],
+                endedAt: row[sessionEndedAt],
                 earnedPoints: row[sessionEarnedPoints],
                 isCompleted: row[sessionIsCompleted],
                 subject: nil,
@@ -1034,6 +1040,12 @@ final class DatabaseManager {
                 mediaUrl: row[messageMediaUrl],
                 mediaMimeType: row[messageMediaMimeType],
                 mediaDuration: row[messageMediaDuration],
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
                 isRead: row[messageIsRead],
                 createdAt: row[messageCreatedAt]
             )
@@ -1072,6 +1084,12 @@ final class DatabaseManager {
             mediaUrl: row[messageMediaUrl],
             mediaMimeType: row[messageMediaMimeType],
             mediaDuration: row[messageMediaDuration],
+            mediaSize: nil,
+            mediaMetadata: nil,
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
             isRead: row[messageIsRead],
             createdAt: row[messageCreatedAt]
         )

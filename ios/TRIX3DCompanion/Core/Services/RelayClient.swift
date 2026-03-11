@@ -81,8 +81,8 @@ final class RelayClient: NSObject, ObservableObject {
     private var currentGatewayId: String?
     private var currentAccessCode: String?
 
-    private var eventHandlers = [String: Set<((Any?) -> Void)>]()
-    private var pendingRequests = [String: CheckedContinuation<Any?, Error>]()
+    private var eventHandlers = [String: [((Any?) -> Void)]]()
+    private var pendingRequests = [String: CheckedContinuation<[String: Any], Error>]()
     private var messageQueue: [RequestFrame] = []
 
     private var reconnectAttempts = 0
@@ -155,12 +155,12 @@ final class RelayClient: NSObject, ObservableObject {
             // 认证
             Task {
                 do {
-                    let deviceInfo = try await self.authenticate(gatewayId: gatewayId, accessCode: accessCode)
+                    let displayName = try await self.authenticate(gatewayId: gatewayId, accessCode: accessCode)
                     await MainActor.run {
                         self.connected = true
                         self.authenticated = true
                         self.gatewayId = gatewayId
-                        self.displayName = deviceInfo.displayName
+                        self.displayName = displayName
                         self.reconnectAttempts = 0
                         self.connectionSubject.send(true)
                     }
@@ -187,7 +187,7 @@ final class RelayClient: NSObject, ObservableObject {
     }
 
     /// 认证
-    private func authenticate(gatewayId: String, accessCode: String) async throws -> (displayName: String?) {
+    private func authenticate(gatewayId: String, accessCode: String) async throws -> String? {
         let result: [String: Any] = try await request(method: "relay.auth", params: [
             "gatewayId": gatewayId,
             "accessCode": accessCode
@@ -363,7 +363,7 @@ final class RelayClient: NSObject, ObservableObject {
 
         if let continuation = pendingRequests.removeValue(forKey: id) {
             if ok {
-                let payload = frame["payload"]
+                let payload = frame["payload"] as? [String: Any] ?? [:]
                 continuation.resume(returning: payload)
             } else {
                 let errorMessage = (frame["error"] as? [String: Any])?["message"] as? String ?? "Request failed"
@@ -409,9 +409,8 @@ final class RelayClient: NSObject, ObservableObject {
     private func flushMessageQueue() {
         while !messageQueue.isEmpty {
             let frame = messageQueue.removeFirst()
-            if let data = try? JSONEncoder().encode(frame),
-               let message = try? URLSessionWebSocketTask.Message(data: data) {
-                webSocket?.send(message) { _ in }
+            if let data = try? JSONEncoder().encode(frame) {
+                webSocket?.send(.data(data)) { _ in }
             }
         }
     }
@@ -466,7 +465,7 @@ final class RelayClient: NSObject, ObservableObject {
         if eventHandlers[event] == nil {
             eventHandlers[event] = []
         }
-        eventHandlers[event]?.insert(handler)
+        eventHandlers[event]?.append(handler)
     }
 
     func off(_ event: String) {

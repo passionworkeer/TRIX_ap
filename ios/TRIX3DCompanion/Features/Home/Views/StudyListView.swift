@@ -149,7 +149,7 @@ struct StudyListView: View {
                     id: session.id,
                     title: session.subject ?? "Study Session",
                     date: formatDate(session.startedAt),
-                    duration: formatDuration(session.durationMinutes),
+                    duration: formatDuration(session.duration),
                     participants: []
                 )
             }

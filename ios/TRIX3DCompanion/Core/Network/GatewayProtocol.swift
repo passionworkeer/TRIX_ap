@@ -23,7 +23,7 @@ struct GatewayResponseFrame: Codable {
     let id: String
     let ok: Bool
     let payload: AnyCodable?
-    let error: GatewayError?
+    let error: GatewayErrorInfo?
 }
 
 /// Event frame (server -> client)
@@ -35,7 +35,7 @@ struct GatewayEventFrame: Codable {
 }
 
 /// Error information
-struct GatewayError: Codable {
+struct GatewayErrorInfo: Codable {
     let code: String?
     let message: String
     let details: AnyCodable?
@@ -99,7 +99,7 @@ struct AnyCodable: Codable {
 
 // MARK: - Chat Types
 
-struct ChatMessage: Codable, Identifiable {
+struct GatewayChatMessage: Codable, Identifiable {
     let id: String
     let role: String
     let content: String
@@ -120,7 +120,7 @@ struct ChatDeltaEvent: Codable {
 
 // MARK: - Session Types
 
-struct Session: Codable, Identifiable {
+struct GatewaySession: Codable, Identifiable {
     var id: String { key }
     let key: String
     let label: String
@@ -132,7 +132,7 @@ struct Session: Codable, Identifiable {
 
 // MARK: - Agent Types
 
-struct Agent: Codable, Identifiable {
+struct GatewayAgent: Codable, Identifiable {
     let id: String
     let name: String
     let description: String
@@ -144,7 +144,7 @@ struct Agent: Codable, Identifiable {
 
 // MARK: - Skill Types
 
-struct Skill: Codable, Identifiable {
+struct GatewaySkill: Codable, Identifiable {
     let id: String
     let name: String
     let description: String
@@ -212,7 +212,7 @@ struct PairingResult: Codable {
     let error: String?
 }
 
-struct PairingStatus: Codable {
+struct GatewayPairingStatus: Codable {
     let paired: Bool
     let deviceId: String?
     let deviceName: String?
@@ -223,7 +223,7 @@ struct PairingStatus: Codable {
 // MARK: - Relay Types
 
 /// Relay QR Code payload
-struct RelayQRPayload: Codable {
+struct GatewayRelayQRPayload: Codable {
     let version: Int
     let server: String
     let gatewayId: String
