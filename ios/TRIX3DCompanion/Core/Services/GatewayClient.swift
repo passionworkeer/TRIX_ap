@@ -115,11 +115,11 @@ final class GatewayClient: NSObject {
             throw GatewayError.invalidURL
         }
 
-        webSocket = urlSession.webSocketTask(with:Socket?.resume()
+        webSocket = urlSession.webSocketTask(with: url)
+        webSocket?.resume()
 
         // Wait for connection
-        try await withChecked url)
-        webThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             var receivedConnect = false
             let timeout = Task {
                 try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
@@ -372,9 +372,10 @@ final class GatewayClient: NSObject {
         lastMessageTime = Date()
 
         do {
+            var data: Data?
 
             switch message {
-            case . let data: Datadata(let msgData):
+            case .data(let msgData):
                 data = msgData
             case .string(let text):
                 guard let textData = text.data(using: .utf8) else { return }
