@@ -67,7 +67,7 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: Tests
+      - path: Tests/TRIX3DCompanionTests/Smoke
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion.tests
@@ -96,6 +96,11 @@ schemes:
     build:
       targets:
         TRIX3DCompanion: all
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - TRIX3DCompanionTests
     run:
       config: Debug
     profile:

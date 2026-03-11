@@ -58,9 +58,9 @@ final class AuthInterceptor: RequestInterceptor {
         for session: Session,
         completion: @escaping (Result<URLRequest, Error>) -> Void
     ) {
-        // Skip adaptation for auth endpoints (they don't need tokens)
+        // Skip adaptation for auth endpoints that do not require existing access token.
         if let url = urlRequest.url?.absoluteString,
-           url.contains("/auth/login") || url.contains("/auth/register") || url.contains("/auth/refresh") {
+           url.contains("/auth/v1/token") || url.contains("/auth/v1/signup") {
             completion(.success(urlRequest))
             return
         }
@@ -190,7 +190,7 @@ final class AuthInterceptor: RequestInterceptor {
 
         // Build refresh request
         let baseURL = APIBaseURL.current
-        let urlString = "\(baseURL)/auth/refresh"
+        let urlString = "\(baseURL)/auth/v1/token?grant_type=refresh_token"
 
         guard let url = URL(string: urlString) else {
             completion(.failure(AuthInterceptorError.invalidURL))
@@ -200,6 +200,7 @@ final class AuthInterceptor: RequestInterceptor {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
 
         let refreshRequestBody = RefreshTokenRequest(refreshToken: refreshToken)
 
@@ -243,10 +244,9 @@ final class AuthInterceptor: RequestInterceptor {
             }
 
             do {
-                // Configure JSON decoder with ISO8601 date strategy
                 let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                JSONDateDecoding.configure(decoder)
+                decoder.keyDecodingStrategy = .useDefaultKeys
 
                 let authResponse = try decoder.decode(AuthResponse.self, from: data)
 

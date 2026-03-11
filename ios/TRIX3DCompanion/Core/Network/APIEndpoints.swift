@@ -256,10 +256,10 @@ enum APIEndpoint {
     var path: String {
         switch self {
         // Auth (Supabase)
-        case .authLogin: return "/auth/v1/token?grant_type=password"
+        case .authLogin: return "/auth/v1/token"
         case .authRegister: return "/auth/v1/signup"
         case .authLogout: return "/auth/v1/logout"
-        case .authRefresh: return "/auth/v1/token?grant_type=refresh_token"
+        case .authRefresh: return "/auth/v1/token"
         case .authMe: return "/auth/v1/user"
 
         // User
@@ -521,10 +521,22 @@ enum APIEndpoint {
     // MARK: - Requires Auth
     var requiresAuth: Bool {
         switch self {
-        case .authLogin, .authRegister:
+        case .authLogin, .authRegister, .authRefresh:
             return false
         default:
             return true
+        }
+    }
+
+    // MARK: - Query Parameters (for Supabase auth)
+    var queryParameters: [String: String]? {
+        switch self {
+        case .authLogin:
+            return ["grant_type": "password"]
+        case .authRefresh:
+            return ["grant_type": "refresh_token"]
+        default:
+            return nil
         }
     }
 }

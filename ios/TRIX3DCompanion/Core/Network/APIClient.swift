@@ -35,6 +35,7 @@ final class APIClient: APIClientProtocol {
     private let session: Session
     private let baseURL: String
     private let decoder: JSONDecoder
+    private let authDecoder: JSONDecoder
     private let encoder: JSONEncoder
     private let authInterceptor: AuthInterceptor
 
@@ -85,8 +86,13 @@ final class APIClient: APIClientProtocol {
 
         // Configure decoder
         self.decoder = JSONDecoder()
-        self.decoder.dateDecodingStrategy = .iso8601
+        JSONDateDecoding.configure(self.decoder)
         self.decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        // Auth payloads use explicit snake_case CodingKeys and must avoid key conversion.
+        self.authDecoder = JSONDecoder()
+        JSONDateDecoding.configure(self.authDecoder)
+        self.authDecoder.keyDecodingStrategy = .useDefaultKeys
 
         // Configure encoder
         self.encoder = JSONEncoder()
@@ -257,7 +263,31 @@ final class APIClient: APIClientProtocol {
         body: Encodable? = nil,
         headers: HTTPHeaders? = nil
     ) async throws -> T {
-        let url = baseURL + endpoint.path
+        // Build URL with endpoint query parameters and GET parameters.
+        guard var components = URLComponents(string: baseURL + endpoint.path) else {
+            throw NetworkError.invalidURL
+        }
+
+        var queryItems = components.queryItems ?? []
+        if let endpointQueryParams = endpoint.queryParameters {
+            queryItems.append(contentsOf: endpointQueryParams.map {
+                URLQueryItem(name: $0.key, value: $0.value)
+            })
+        }
+        if method == .get, let parameters {
+            queryItems.append(contentsOf: parameters.map {
+                URLQueryItem(name: $0.key, value: String(describing: $0.value))
+            })
+        }
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        guard let url = components.url else {
+            throw NetworkError.invalidURL
+        }
+
+        let urlString = url.absoluteString
+
         var requestHeaders = headers ?? HTTPHeaders()
         let requestStartTime = Date()
 
@@ -268,8 +298,8 @@ final class APIClient: APIClientProtocol {
         // 2. Handle 401 responses by refreshing the token via retry()
         // 3. Retry the request with the new token
 
-        // Add content type for body requests
-        if body != nil {
+        // Add content type for requests carrying JSON body payload.
+        if body != nil || (method != .get && parameters != nil) {
             requestHeaders.add(.contentType("application/json"))
         }
 
@@ -283,19 +313,28 @@ final class APIClient: APIClientProtocol {
         let headersDict = requestHeaders.dictionary
         let logEntryId = networkLogger.logRequest(
             method: method.rawValue,
-            url: url,
+            url: urlString,
             headers: headersDict,
             body: body
         )
 
-        // Build request
-        let request = AF.request(
-            url,
+        // Build request and encode body/payload.
+        var urlRequest = try URLRequest(
+            url: url,
             method: Alamofire.HTTPMethod(rawValue: method.rawValue),
-            parameters: parameters,
-            encoding: method == .get ? URLEncoding.default : JSONEncoding.default,
             headers: requestHeaders
         )
+
+        // Encode body if present
+        if let body = body {
+            urlRequest.httpBody = try encoder.encode(body)
+        } else if method != .get, let parameters {
+            // Preserve legacy behavior for non-GET calls that pass parameters without body.
+            urlRequest = try JSONEncoding.default.encode(urlRequest, with: parameters)
+        }
+
+        // Build request
+        let request = AF.request(urlRequest)
 
         // Execute request with security validation
         return try await withCheckedThrowingContinuation { continuation in
@@ -347,6 +386,13 @@ final class APIClient: APIClientProtocol {
         // 1) Try direct decoding first
         if let direct = try? decoder.decode(T.self, from: data) {
             return direct
+        }
+
+        // 1.5) Auth responses use explicit snake_case CodingKeys.
+        if type == AuthResponse.self,
+           let auth = try? authDecoder.decode(AuthResponse.self, from: data),
+           let typed = auth as? T {
+            return typed
         }
 
         // 2) Try wrapped decoding: { success, data, ... }
@@ -413,6 +459,8 @@ final class APIClient: APIClientProtocol {
             }
             return (json["error"] as? String)
                 ?? (json["message"] as? String)
+                ?? (json["msg"] as? String)
+                ?? (json["error_description"] as? String)
                 ?? ((json["data"] as? [String: Any])?["message"] as? String)
         }()
 

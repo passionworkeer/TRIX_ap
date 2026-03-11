@@ -2,121 +2,89 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleDisplayName</key>
-    <string>TRIX 3D</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$(MARKETING_VERSION)</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>UIApplicationSceneManifest</key>
-    <dict>
-        <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
-    </dict>
-    <key>UILaunchScreen</key>
-    <dict>
-        <key>UIColorName</key>
-        <string>LaunchBackground</string>
-    </dict>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>armv7</string>
-    </array>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-    </array>
-    <key>UIUserInterfaceStyle</key>
-    <string>Light</string>
-
-    <!-- Privacy Permissions -->
-    <key>NSCameraUsageDescription</key>
-    <string>TRIX 3D Companion uses the camera to capture study snapshots and scan QR codes for quick pairing with friends.</string>
-
-    <key>NSMicrophoneUsageDescription</key>
-    <string>TRIX 3D Companion uses the microphone to record voice messages for sharing with your study partners.</string>
-
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
-
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
-
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>TRIX 3D Companion accesses your photo library to let you share photos with study partners and save snapshots.</string>
-
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>TRIX 3D Companion needs permission to save your study snapshots and photos to your photo library.</string>
-
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>TRIX 3D Companion uses speech recognition to convert your voice messages into text for convenient chat input.</string>
-
-    <key>NSAppleMusicUsageDescription</key>
-    <string>TRIX 3D Companion does not access Apple Music. This permission is not used.</string>
-
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>TRIX 3D Companion uses Bluetooth to discover nearby study partners for quick pairing.</string>
-
-    <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>TRIX 3D Companion uses Bluetooth to connect with nearby study partners.</string>
-
-    <key>NSFaceIDUsageDescription</key>
-    <string>TRIX 3D Companion uses Face ID for secure and convenient authentication to protect your account.</string>
-
-    <!-- Background Modes -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>fetch</string>
-        <string>remote-notification</string>
-    </array>
-
-    <!-- Push Notification Configuration -->
-    <!-- Note: Push Notifications capability must be enabled in Xcode project settings -->
-    <!-- This requires Apple Developer Program membership and proper provisioning profile -->
-
-    <!-- Notification Categories (defined in apns-config.json) -->
-    <!-- Categories are registered programmatically in AppDelegate.swift -->
-
-    <!-- Critical Alerts (requires special entitlement from Apple) -->
-    <!-- Uncomment if critical alerts are approved by Apple -->
-    <!-- <key>com.apple.developer.usernotifications.critical-alerts</key>
-    <true/> -->
-
-    <!-- Associated Domains for Apple Sign In -->
-    <key>com.apple.developer.associated-domains</key>
-    <array>
-        <string>applinks:api.trix3d.com</string>
-    </array>
-
-    <!-- URL Schemes for WeChat and other apps -->
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>weixin</string>
-        <string>wechat</string>
-    </array>
-
-    <!-- WeChat Configuration -->
-    <!-- NOTE: For security, WECHAT_APP_ID should be set here or via environment variables -->
-    <!-- Do not commit actual App IDs to version control - use .env files or CI/CD secrets -->
-    <key>WECHAT_APP_ID</key>
-    <string>YOUR_WECHAT_APP_ID</string>
-
-    <!-- WeChat Universal Link (optional, can be set via Info.plist or uses default) -->
-    <key>WECHAT_UNIVERSAL_LINK</key>
-    <string>https://api.trix3d.com/wechat/</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>TRIX 3D</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>weixin</string>
+		<string>wechat</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>TRIX 3D Companion does not access Apple Music. This permission is not used.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>TRIX 3D Companion uses Bluetooth to discover nearby study partners for quick pairing.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>TRIX 3D Companion uses Bluetooth to connect with nearby study partners.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TRIX 3D Companion uses the camera to capture study snapshots and scan QR codes for quick pairing with friends.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>TRIX 3D Companion uses Face ID for secure and convenient authentication to protect your account.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TRIX 3D Companion uses the microphone to record voice messages for sharing with your study partners.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>TRIX 3D Companion needs permission to save your study snapshots and photos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TRIX 3D Companion accesses your photo library to let you share photos with study partners and save snapshots.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>TRIX 3D Companion uses speech recognition to convert your voice messages into text for convenient chat input.</string>
+	<key>TRIX_TEST_EMAIL</key>
+	<string>$(TRIX_TEST_EMAIL)</string>
+	<key>TRIX_TEST_PASSWORD</key>
+	<string>$(TRIX_TEST_PASSWORD)</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
+	<key>WECHAT_APP_ID</key>
+	<string>YOUR_WECHAT_APP_ID</string>
+	<key>WECHAT_UNIVERSAL_LINK</key>
+	<string>https://api.trix3d.com/wechat/</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:api.trix3d.com</string>
+	</array>
 </dict>
 </plist>
