@@ -541,9 +541,10 @@ enum HTTPMethod: String {
 // MARK: - API Request/Response Types
 
 // MARK: - Auth
+// Supabase-compatible User struct
 struct User: Codable, Identifiable {
     let id: String
-    let username: String
+    let username: String?
     let email: String?
     let avatarUrl: String?
     let avatarConfig: [String: AnyCodable]?
@@ -551,19 +552,19 @@ struct User: Codable, Identifiable {
     let displayName: String?
     let bio: String?
     let website: String?
-    let points: Int
-    let isStudying: Bool
+    let points: Int?
+    let isStudying: Bool?
     let companionId: String?
-    let totalStudyTime: Int
+    let totalStudyTime: Int?
     let lastActiveAt: Date?
-    let currentStreak: Int
-    let daysActive: Int
-    let interactionCount: Int
-    let showOnlineStatus: Bool
+    let currentStreak: Int?
+    let daysActive: Int?
+    let interactionCount: Int?
+    let showOnlineStatus: Bool?
     let school: String?
     let grade: String?
-    let createdAt: Date
-    let updatedAt: Date
+    let createdAt: Date?
+    let updatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -639,8 +640,34 @@ struct RegisterRequest: Codable {
 }
 
 struct AuthResponse: Codable {
+    let accessToken: String
+    let tokenType: String
+    let expiresIn: Int
+    let expiresAt: Int?
+    let refreshToken: String
     let user: User
-    let session: UserSession
+    let session: UserSession?
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case tokenType = "token_type"
+        case expiresIn = "expires_in"
+        case expiresAt = "expires_at"
+        case refreshToken = "refresh_token"
+        case user
+        case session
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accessToken = try container.decode(String.self, forKey: .accessToken)
+        tokenType = try container.decode(String.self, forKey: .tokenType)
+        expiresIn = try container.decode(Int.self, forKey: .expiresIn)
+        expiresAt = try container.decodeIfPresent(Int.self, forKey: .expiresAt)
+        refreshToken = try container.decode(String.self, forKey: .refreshToken)
+        user = try container.decode(User.self, forKey: .user)
+        session = nil // Will be created from token
+    }
 }
 
 // MARK: - User

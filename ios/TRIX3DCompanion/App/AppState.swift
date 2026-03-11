@@ -412,7 +412,7 @@ extension AppState {
     /// - Returns: True if points were successfully spent
     @discardableResult
     func spendPoints(_ amount: Int) -> Bool {
-        guard var user = currentUser, user.points >= amount else {
+        guard var user = currentUser, (user.points ?? 0) >= amount else {
             return false
         }
 
@@ -427,7 +427,7 @@ extension AppState {
             displayName: user.displayName,
             bio: user.bio,
             website: user.website,
-            points: user.points - amount,
+            points: (user.points ?? 0) - amount,
             isStudying: user.isStudying,
             companionId: user.companionId,
             totalStudyTime: user.totalStudyTime,
