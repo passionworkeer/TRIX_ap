@@ -73,7 +73,7 @@ struct GlassDockView: View {
                 )
         )
         .padding(.horizontal, 20)
-        .padding(.bottom, 8)
+        .padding(.bottom, 18)
         .onChange(of: selectedTab) { newValue in
             updateSelectedIndex(for: newValue)
         }

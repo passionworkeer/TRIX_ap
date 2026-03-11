@@ -7,6 +7,68 @@
 
 import SwiftUI
 
+enum FriendErrorPresentation {
+    static func inlineLoadMessage(for error: Error) -> String? {
+        switch networkError(from: error) {
+        case .notFound:
+            return "chat.friends.unavailable".localized
+        case .noConnection, .timeout:
+            return "chat.friends.network.issue".localized
+        case .none:
+            return "chat.friends.load.failed".localized
+        default:
+            return "chat.friends.load.failed".localized
+        }
+    }
+
+    static func alertMessage(for error: Error) -> String {
+        switch networkError(from: error) {
+        case .notFound:
+            return "chat.friend.action.not.available".localized
+        case .noConnection:
+            return "chat.friend.action.network".localized
+        case .timeout:
+            return "chat.friend.action.timeout".localized
+        case .none:
+            return sanitize(error.localizedDescription)
+        default:
+            return sanitize(error.localizedDescription)
+        }
+    }
+
+    private static func sanitize(_ message: String) -> String {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "Unknown error" {
+            return "chat.friend.action.failed".localized
+        }
+        return trimmed
+    }
+
+    private static func networkError(from error: Error) -> NetworkError? {
+        if let networkError = error as? NetworkError {
+            return networkError
+        }
+
+        if let friendError = error as? FriendServiceError {
+            switch friendError {
+            case .fetchFailed(let underlying),
+                    .addFailed(let underlying),
+                    .removeFailed(let underlying),
+                    .acceptFailed(let underlying),
+                    .declineFailed(let underlying):
+                return networkError(from: underlying)
+            case .unknown(let underlying):
+                guard let underlying else { return nil }
+                return networkError(from: underlying)
+            default:
+                return nil
+            }
+        }
+
+        return nil
+    }
+}
+
 // MARK: - Chat List View
 
 /// Main chat screen showing all conversations
@@ -49,6 +111,7 @@ struct ChatListView: View {
     @State private var showQuickAdd = true
     @State private var showPairingAlert = false
     @State private var friendActionError: String?
+    @State private var friendLoadNote: String?
 
     // MARK: - Body
 
@@ -308,8 +371,42 @@ struct ChatListView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+
+            if let friendLoadNote {
+                Text(friendLoadNote)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.82))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.14, shadowOpacity: 0.03, shadowRadius: 4)
+                    .padding(.top, 4)
+
+                Button {
+                    Task {
+                        await loadFriends()
+                    }
+                } label: {
+                    Text("chat.friends.retry".localized)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.brandPurple, Color.brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(Capsule())
+                        .shadow(color: .brandPurple.opacity(0.22), radius: 8, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
     // MARK: - Background Gradient
@@ -328,6 +425,8 @@ struct ChatListView: View {
 
     /// Load friends from FriendService and convert to conversations
     private func loadFriends() async {
+        friendLoadNote = nil
+
         do {
             let friends = try await friendService.fetchFriends()
 
@@ -343,18 +442,19 @@ struct ChatListView: View {
                     isOnline: friend.status == .online
                 )
             }
-
-            do {
-                let recommendations = try await APIClient.shared.getFriendRecommendations(limit: 8)
-                recommendedUsers = recommendations.map(RecommendedUser.init(api:))
-                showQuickAdd = !recommendedUsers.isEmpty
-            } catch {
-                recommendedUsers = []
-                SecureLogger.shared.warning("Failed to load recommendations: \(error.localizedDescription)")
-            }
         } catch {
             SecureLogger.shared.error("Failed to load friends: \(error.localizedDescription)")
-            friendActionError = error.localizedDescription
+            conversations = []
+            friendLoadNote = FriendErrorPresentation.inlineLoadMessage(for: error)
+        }
+
+        do {
+            let recommendations = try await APIClient.shared.getFriendRecommendations(limit: 8)
+            recommendedUsers = recommendations.map(RecommendedUser.init(api:))
+            showQuickAdd = !recommendedUsers.isEmpty
+        } catch {
+            recommendedUsers = []
+            SecureLogger.shared.warning("Failed to load recommendations: \(error.localizedDescription)")
         }
     }
 
@@ -388,7 +488,7 @@ struct ChatListView: View {
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
         } catch {
-            friendActionError = error.localizedDescription
+            friendActionError = FriendErrorPresentation.alertMessage(for: error)
         }
     }
 

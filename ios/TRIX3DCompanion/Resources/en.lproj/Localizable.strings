@@ -177,6 +177,8 @@
 "loading" = "Loading...";
 "loading.messages" = "Loading messages...";
 "loading.profile" = "Loading profile...";
+"auth.login.loading.title" = "Verifying your account";
+"auth.login.loading.subtitle" = "Restoring your study space and live session";
 
 // MARK: - Notifications
 "notification.study.reminder" = "Study Reminder";
@@ -222,6 +224,26 @@
 "location.search" = "Search location";
 "location.current" = "Current Location";
 "location.favorites" = "Favorites";
+"map.search.placeholder" = "Search places, schools, or study rooms";
+"map.loading.locations" = "Loading nearby places...";
+"map.location.center" = "Center on my location";
+"map.filter.all" = "All";
+"map.filter.school" = "School";
+"map.filter.library" = "Study Room";
+"map.filter.cafe" = "Cafe";
+"map.filter.home" = "Dorm";
+"map.filter.park" = "Park";
+"map.filter.other" = "Other";
+
+// MARK: - Chat
+"chat.friends.unavailable" = "Friends are temporarily unavailable. Start with TRIX Bot for now.";
+"chat.friends.network.issue" = "The network is unstable, so the friends list could not load.";
+"chat.friends.load.failed" = "The friends list could not be loaded. Please try again shortly.";
+"chat.friends.retry" = "Reload";
+"chat.friend.action.failed" = "Action failed. Please try again.";
+"chat.friend.action.not.available" = "Friend features are temporarily unavailable. Please try again later.";
+"chat.friend.action.network" = "Network connection failed. Please check your connection and try again.";
+"chat.friend.action.timeout" = "The request timed out. Please try again.";
 
 // MARK: - Snapshot
 "snapshot.title" = "Photos";
