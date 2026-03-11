@@ -174,9 +174,8 @@ final class AppState: ObservableObject {
             appLanguage = AppDisplayLanguage.from(localeIdentifier: Locale.preferredLanguages.first ?? "en")
         }
 
-        // Always start with Home tab by default
-        // This ensures fresh install or reset users see the Home tab
-        selectedTab = .home
+        // Always start with Home tab by default, unless a UI test overrides it.
+        selectedTab = launchSelectedTabOverride() ?? .home
 
         // Load last selected tab only if explicitly set by user
         // For now, always default to home to avoid confusion
@@ -264,6 +263,45 @@ final class AppState: ObservableObject {
         if let tabRawValue = defaults.string(forKey: "selectedTab"),
            let tab = MainTab(rawValue: tabRawValue) {
             selectedTab = tab
+        }
+
+        if let launchSelectedTabOverride = launchSelectedTabOverride() {
+            selectedTab = launchSelectedTabOverride
+        }
+    }
+
+    private func launchSelectedTabOverride() -> MainTab? {
+        let arguments = ProcessInfo.processInfo.arguments
+
+        if let inlineArgument = arguments.first(where: { $0.hasPrefix("--initial-tab=") }) {
+            let rawValue = String(inlineArgument.dropFirst("--initial-tab=".count))
+            return mainTab(from: rawValue)
+        }
+
+        if let argumentIndex = arguments.firstIndex(of: "--initial-tab"),
+           arguments.indices.contains(argumentIndex + 1) {
+            return mainTab(from: arguments[argumentIndex + 1])
+        }
+
+        return nil
+    }
+
+    private func mainTab(from rawValue: String) -> MainTab? {
+        switch rawValue.lowercased() {
+        case "home":
+            return .home
+        case "map":
+            return .map
+        case "study":
+            return .study
+        case "core":
+            return .core
+        case "chat":
+            return .chat
+        case "profile":
+            return .profile
+        default:
+            return MainTab(rawValue: rawValue)
         }
     }
 

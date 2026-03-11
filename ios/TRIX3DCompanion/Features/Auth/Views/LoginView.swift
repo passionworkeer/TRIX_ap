@@ -2,28 +2,19 @@
 //  LoginView.swift
 //  TRIX3DCompanion
 //
-//  Login view with purple-pink gradient and glassmorphism design
+//  Refined login scene with branded hero, glass surfaces, and live loading overlay
 //
 
 import SwiftUI
 import AuthenticationServices
 
-// Helper function for localization
 private func loc(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
 struct LoginView: View {
-    // MARK: - Environment
-
-    @Environment(\.dismiss) private var dismiss
-
-    // MARK: - Observed Objects
-
     @StateObject private var authService = AuthService.shared
     @StateObject private var oauthManager = OAuthManager.shared
-
-    // MARK: - State
 
     @State private var email = ""
     @State private var password = ""
@@ -31,56 +22,51 @@ struct LoginView: View {
     @State private var errorMessage = ""
     @State private var isOAuthLoading = false
 
-    // MARK: - Focus State
-
     @FocusState private var focusedField: Field?
+
+    private let showsDebugLoadingPreview = ProcessInfo.processInfo.arguments.contains("--debug-show-login-loading")
 
     enum Field: Hashable {
         case email
         case password
     }
 
-    // MARK: - Callbacks
-
     let onSwitchToRegister: () -> Void
-
-    // MARK: - Body
 
     var body: some View {
         ZStack {
-            // Background gradient
-            backgroundGradient
+            AuthAtmosphereBackground()
 
-            // Content
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Logo and title
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 22) {
                     headerView
-
-                    // Login form
                     loginForm
-
-                    // Login button
                     loginButton
-
-                    // OAuth divider
+                    helperFootnote
                     oauthDividerView
-
-                    // OAuth sign-in options
                     oauthSignInView
-
-                    // Switch to register
                     switchToRegisterLink
                 }
+                .frame(maxWidth: 540, alignment: .leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 60)
+                .padding(.top, 34)
                 .padding(.bottom, 40)
+                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginScene)
 
-            // Loading overlay
-            if authService.isLoading {
-                loadingOverlay
+            if authService.isLoading || showsDebugLoadingPreview {
+                AuthLoadingOverlay(
+                    title: loc("auth.login.loading.title"),
+                    subtitle: loc("auth.login.loading.subtitle"),
+                    steps: [
+                        "auth.login.loading.step.auth".localized,
+                        "auth.login.loading.step.session".localized,
+                        "auth.login.loading.step.workspace".localized
+                    ],
+                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginLoadingOverlay
+                )
             }
         }
         .alert(loc("error.login.failed"), isPresented: $showingError) {
@@ -98,76 +84,98 @@ struct LoginView: View {
         }
     }
 
-    // MARK: - View Components
-
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.purple.opacity(0.8),
-                Color.pink.opacity(0.7)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-
     private var headerView: some View {
-        VStack(spacing: 16) {
-            // App icon
-            Image(systemName: "cube.transparent")
-                .font(.system(size: 60))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                .accessibilityLabel("App logo")
+        VStack(alignment: .leading, spacing: 18) {
+            AuthHeroBadge(icon: "sparkles", title: "auth.login.badge".localized)
 
-            // Title
-            Text(loc("auth.login.title"))
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.2), radius: 5)
+            HStack(alignment: .center, spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 78, height: 78)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        )
 
-            // Subtitle
-            Text(loc("auth.login.subtitle"))
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.22), Color.white.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 58, height: 58)
+
+                    Image(systemName: "cube.transparent")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(loc("auth.login.title"))
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(loc("auth.login.subtitle"))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+            }
+
+            Text("auth.login.helper".localized)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.84))
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    AuthFeaturePill(icon: "arrow.triangle.2.circlepath", text: "auth.login.feature.sync".localized)
+                    AuthFeaturePill(icon: "link.badge.plus", text: "auth.login.feature.pairing".localized)
+                }
+                AuthFeaturePill(icon: "bubble.left.and.bubble.right.fill", text: "auth.login.feature.chat".localized)
+            }
         }
-        .padding(.bottom, 20)
     }
 
     private var loginForm: some View {
-        VStack(spacing: 16) {
-            // Email field
-            authTextField(
-                icon: "envelope.fill",
-                placeholder: loc("auth.email.placeholder"),
-                text: $email,
-                keyboardType: .emailAddress,
-                autocapitalization: false
-            )
-            .focused($focusedField, equals: .email)
-            .onSubmit {
-                focusedField = .password
-            }
+        AuthFormPanel(
+            title: "auth.login.form.title".localized,
+            subtitle: "auth.login.form.subtitle".localized
+        ) {
+            VStack(spacing: 14) {
+                authTextField(
+                    icon: "envelope.fill",
+                    placeholder: loc("auth.email.placeholder"),
+                    text: $email,
+                    keyboardType: .emailAddress,
+                    autocapitalization: false,
+                    textContentType: .emailAddress,
+                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginEmailField
+                )
+                .focused($focusedField, equals: .email)
+                .onSubmit {
+                    focusedField = .password
+                }
 
-            // Password field
-            authSecureField(
-                icon: "lock.fill",
-                placeholder: loc("auth.password.placeholder"),
-                text: $password
-            )
-            .focused($focusedField, equals: .password)
-            .onSubmit {
-                focusedField = nil
-                Task {
-                    await handleLogin()
+                authSecureField(
+                    icon: "lock.fill",
+                    placeholder: loc("auth.password.placeholder"),
+                    text: $password,
+                    textContentType: .password,
+                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginPasswordField
+                )
+                .focused($focusedField, equals: .password)
+                .onSubmit {
+                    focusedField = nil
+                    Task {
+                        await handleLogin()
+                    }
                 }
             }
         }
-        .padding(24)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
     }
 
     private var loginButton: some View {
@@ -176,23 +184,40 @@ struct LoginView: View {
                 await handleLogin()
             }
         } label: {
-            Text(loc("action.login"))
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(
-                    LinearGradient(
-                        colors: [.purple, .pink],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 18, weight: .bold))
+                Text(loc("action.login"))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
+            .background(
+                LinearGradient(
+                    colors: [Color.brandPurple, Color.brandPink],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .purple.opacity(0.4), radius: 15, x: 0, y: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: Color.brandPurple.opacity(0.34), radius: 16, x: 0, y: 10)
         }
-        .disabled(authService.isLoading)
-        .opacity(authService.isLoading ? 0.6 : 1.0)
+        .buttonStyle(.plain)
+        .disabled(isSubmitDisabled)
+        .opacity(isSubmitDisabled ? 0.7 : 1)
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSubmitButton)
+    }
+
+    private var helperFootnote: some View {
+        Text("auth.login.security.note".localized)
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(.white.opacity(0.68))
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var switchToRegisterLink: some View {
@@ -201,43 +226,46 @@ struct LoginView: View {
         } label: {
             HStack(spacing: 4) {
                 Text(loc("auth.no.account"))
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.86))
 
                 Text(loc("action.signup"))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .underline()
             }
+            .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.plain)
     }
 
     private var oauthDividerView: some View {
         HStack(spacing: 16) {
-            VStack { Divider().background(Color.white.opacity(0.3)) }
+            Capsule()
+                .fill(Color.white.opacity(0.18))
+                .frame(height: 1)
 
             Text(loc("auth.or"))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.62))
 
-            VStack { Divider().background(Color.white.opacity(0.3)) }
+            Capsule()
+                .fill(Color.white.opacity(0.18))
+                .frame(height: 1)
         }
-        .padding(.horizontal, 8)
+        .padding(.top, 4)
     }
 
     private var oauthSignInView: some View {
         VStack(spacing: 12) {
-            // Apple Sign In
             if oauthManager.isProviderAvailable(.apple) {
                 appleSignInButton
             }
 
-            // WeChat Sign In
             if oauthManager.isProviderAvailable(.wechat) {
                 weChatSignInButton
             }
         }
-        .padding(.vertical, 8)
     }
 
     private var appleSignInButton: some View {
@@ -248,22 +276,24 @@ struct LoginView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "applelogo")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.white)
-
+                    .font(.system(size: 20, weight: .semibold))
                 Text(loc("auth.signin.apple"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
+            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-            .accessibilityLabel("Sign in with Apple")
+            .frame(height: 54)
+            .background(Color.black.opacity(0.88))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 6)
         }
+        .buttonStyle(.plain)
         .disabled(isOAuthLoading || authService.isLoading)
-        .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
+        .opacity(isOAuthLoading || authService.isLoading ? 0.7 : 1.0)
     }
 
     private var weChatSignInButton: some View {
@@ -274,105 +304,101 @@ struct LoginView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "message.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.white)
-
+                    .font(.system(size: 20, weight: .semibold))
                 Text(loc("auth.signin.wechat"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
             }
+            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.green)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
-        }
-        .accessibilityLabel("Sign in with WeChat")
-        .disabled(isOAuthLoading || authService.isLoading)
-        .opacity(isOAuthLoading || authService.isLoading ? 0.6 : 1.0)
-    }
-
-    private var loadingOverlay: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.28),
-                    Color.brandPurple.opacity(0.3),
-                    Color.brandPink.opacity(0.22)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+            .frame(height: 54)
+            .background(Color.green.opacity(0.86))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
-            .ignoresSafeArea()
-
-            LoginLoadingCard()
-                .padding(.horizontal, 28)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .green.opacity(0.24), radius: 10, x: 0, y: 6)
         }
-        .transition(.opacity)
+        .buttonStyle(.plain)
+        .disabled(isOAuthLoading || authService.isLoading)
+        .opacity(isOAuthLoading || authService.isLoading ? 0.7 : 1.0)
     }
 
-    // MARK: - Helper Views
+    private var isSubmitDisabled: Bool {
+        authService.isLoading || showsDebugLoadingPreview
+    }
 
     private func authTextField(
         icon: String,
         placeholder: String,
         text: Binding<String>,
         keyboardType: UIKeyboardType = .default,
-        autocapitalization: Bool = true
+        autocapitalization: Bool = true,
+        textContentType: UITextContentType? = nil,
+        accessibilityIdentifier: String
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(.white.opacity(0.7))
-                .frame(width: 24)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.brandPurple.opacity(0.82))
+                .frame(width: 22)
 
-            if autocapitalization {
-                TextField(placeholder, text: text)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                    .keyboardType(keyboardType)
-                    .textInputAutocapitalization(.sentences)
-                    .autocorrectionDisabled()
-            } else {
-                TextField(placeholder, text: text)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                    .keyboardType(keyboardType)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+            Group {
+                if autocapitalization {
+                    TextField(placeholder, text: text)
+                        .textInputAutocapitalization(.sentences)
+                } else {
+                    TextField(placeholder, text: text)
+                        .textInputAutocapitalization(.never)
+                }
             }
+            .font(.system(size: 16, weight: .medium, design: .rounded))
+            .foregroundStyle(Color.textPrimary)
+            .keyboardType(keyboardType)
+            .textContentType(textContentType)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier(accessibilityIdentifier)
         }
-        .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(Color.white.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.84))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func authSecureField(
         icon: String,
         placeholder: String,
-        text: Binding<String>
+        text: Binding<String>,
+        textContentType: UITextContentType? = nil,
+        accessibilityIdentifier: String
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(.white.opacity(0.7))
-                .frame(width: 24)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.brandPurple.opacity(0.82))
+                .frame(width: 22)
 
             SecureField(placeholder, text: text)
-                .font(.system(size: 16))
-                .foregroundStyle(.white)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.textPrimary)
+                .textContentType(textContentType)
+                .accessibilityIdentifier(accessibilityIdentifier)
         }
-        .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(Color.white.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.84))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    // MARK: - Actions
-
     private func handleLogin() async {
-        // Validate inputs
         guard !email.isEmpty else {
             errorMessage = loc("auth.email.required")
             showingError = true
@@ -385,14 +411,11 @@ struct LoginView: View {
             return
         }
 
-        // Attempt login
         let result = await authService.login(email: email, password: password)
 
         switch result {
         case .success:
-            // Dismiss will be handled by parent view
             break
-
         case .failure(let error):
             errorMessage = error.localizedDescription
             showingError = true
@@ -408,16 +431,12 @@ struct LoginView: View {
         }
 
         isOAuthLoading = true
-
         let result = await oauthManager.signIn(with: .apple, presentationAnchor: window)
-
         isOAuthLoading = false
 
         switch result {
         case .success:
-            // Dismiss will be handled by parent view
             break
-
         case .failure(let error):
             errorMessage = error.localizedDescription
             showingError = true
@@ -426,16 +445,12 @@ struct LoginView: View {
 
     private func handleWeChatSignIn() async {
         isOAuthLoading = true
-
         let result = await oauthManager.signIn(with: .wechat, presentationAnchor: nil)
-
         isOAuthLoading = false
 
         switch result {
         case .success:
-            // Dismiss will be handled by parent view
             break
-
         case .failure(let error):
             errorMessage = error.localizedDescription
             showingError = true
@@ -443,124 +458,8 @@ struct LoginView: View {
     }
 }
 
-// MARK: - Preview
-
 #Preview {
     LoginView {
         SecureLogger.shared.debug("Switch to register")
-    }
-}
-
-private struct LoginLoadingCard: View {
-    @State private var isAnimating = false
-
-    private let orbitColors: [Color] = [
-        .white,
-        .brandPink,
-        .brandPurple
-    ]
-
-    var body: some View {
-        VStack(spacing: 22) {
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 112, height: 112)
-
-                Circle()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                    .frame(width: 112, height: 112)
-
-                ForEach(Array(orbitColors.enumerated()), id: \.offset) { index, color in
-                    Circle()
-                        .fill(color.opacity(index == 0 ? 0.95 : 0.88))
-                        .frame(width: index == 0 ? 14 : 11, height: index == 0 ? 14 : 11)
-                        .offset(y: -42)
-                        .rotationEffect(.degrees(isAnimating ? 360 + (Double(index) * 18) : Double(index) * 120))
-                        .animation(
-                            .linear(duration: 1.45)
-                                .repeatForever(autoreverses: false)
-                                .delay(Double(index) * 0.08),
-                            value: isAnimating
-                        )
-                        .shadow(color: color.opacity(0.35), radius: 8, x: 0, y: 0)
-                }
-
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.18),
-                                Color.white.opacity(0.08)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 72, height: 72)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .stroke(Color.white.opacity(0.24), lineWidth: 1)
-                    )
-
-                Image(systemName: "cube.transparent")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-
-            VStack(spacing: 8) {
-                Text(loc("auth.login.loading.title"))
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text(loc("auth.login.loading.subtitle"))
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.78))
-                    .multilineTextAlignment(.center)
-            }
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 148, height: 7)
-
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white, Color.brandPink, Color.brandPurple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: isAnimating ? 148 : 44, height: 7)
-                    .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: isAnimating)
-            }
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 30)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.12),
-                    Color.white.opacity(0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
-        )
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(0.24), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
-        .onAppear {
-            guard !isAnimating else { return }
-            isAnimating = true
-        }
     }
 }

@@ -219,6 +219,54 @@
 "schedule.today" = "Today";
 "schedule.upcoming" = "Upcoming";
 
+// MARK: - Auth Polish
+"auth.login.badge" = "Cross-device sync ready";
+"auth.login.helper" = "Sign in to restore study progress, friendships, and device connection state so you can continue right away.";
+"auth.login.form.title" = "Account Sign In";
+"auth.login.form.subtitle" = "Pick up your study space, conversations, and paired hardware right where you left them";
+"auth.login.feature.sync" = "Sync study progress";
+"auth.login.feature.pairing" = "Reconnect devices";
+"auth.login.feature.chat" = "Resume friend and TRIX Bot chats";
+"auth.login.security.note" = "Signing in restores your secure session without wiping the current device connection state.";
+"auth.login.loading.step.auth" = "Verify account";
+"auth.login.loading.step.session" = "Restore session";
+"auth.login.loading.step.workspace" = "Prepare workspace";
+
+"auth.register.badge" = "Start in under 3 minutes";
+"auth.register.helper" = "Create your account to set up your space, then continue with friends, maps, and study rooms in one flow.";
+"auth.register.form.title" = "Create your account";
+"auth.register.form.subtitle" = "Finish the essentials now, then continue with friends, maps, and TRIX Bot later";
+"auth.register.feature.identity" = "Unified identity";
+"auth.register.feature.companion" = "Friend linking";
+"auth.register.feature.study" = "Study sync";
+"auth.register.security.note" = "After sign-up, your profile and default study space are initialized automatically.";
+"auth.register.loading.step.account" = "Create account";
+"auth.register.loading.step.profile" = "Set up profile";
+"auth.register.loading.step.workspace" = "Prepare workspace";
+
+// MARK: - Chat Polish
+"chat.search.placeholder" = "Search chats, friends, or TRIX Bot";
+"chat.empty.title" = "No conversations yet";
+"chat.empty.subtitle" = "Connect TRIX Bot or wait for friends to sync in, and this space will come alive.";
+"chat.bot.connected" = "Device connected";
+"chat.bot.waiting" = "Waiting for pairing";
+"chat.bot.action.open" = "Open TRIX Bot";
+"chat.bot.action.pair" = "Pair device";
+"chat.bot.tag.chat" = "Device assistant";
+"chat.bot.tag.pair" = "Start linking";
+"chat.bot.card.connected" = "Voice, camera, and device status are already linked. You can chat right away.";
+"chat.bot.card.unpaired" = "Scan a code or type the pairing code to bring device events and chat online.";
+"chat.recommendations.count" = "%d suggested friends";
+"chat.recommendations.empty" = "No suggestions yet";
+"chat.friends.status.unavailable" = "Friends not synced";
+
+// MARK: - Map Polish
+"map.loading.detail" = "Syncing nearby places, friend locations, and the live map view";
+"map.status.places" = "Places";
+"map.status.friends" = "Friends";
+"map.status.friends.empty" = "No friends are sharing live locations yet";
+"map.status.friends.live" = "Live friend locations are up to date";
+
 // MARK: - Location
 "location.pick" = "Pick Location";
 "location.search" = "Search location";
@@ -354,3 +402,12 @@
 "pairing.desktop" = "Desktop";
 "pairing.tablet" = "Tablet";
 "pairing.web" = "Web";
+
+// MARK: - Map Inline Notices
+"map.permission.title" = "Turn on location for a better map";
+"map.permission.message" = "You can still browse public places, but enabling location lets TRIX prioritize nearby study rooms and live friend activity.";
+"map.permission.action.allow" = "Allow Location";
+"map.permission.action.settings" = "Open Settings";
+"map.permission.action.dismiss" = "Later";
+"map.error.title" = "Map is temporarily unavailable";
+"map.error.action.retry" = "Reload";

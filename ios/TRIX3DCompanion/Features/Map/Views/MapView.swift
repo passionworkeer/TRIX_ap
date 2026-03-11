@@ -9,6 +9,14 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+enum MapAccessibilityIdentifiers {
+    static let screen = "map.screen"
+    static let searchField = "map.search.field"
+    static let filterBar = "map.filter.bar"
+    static let statusBar = "map.status.bar"
+    static let loadingOverlay = "map.loading.overlay"
+}
+
 // MARK: - Map View
 
 /// Map view displaying nearby locations with search functionality
@@ -24,7 +32,6 @@ struct MapView: View {
 
     // MARK: - State
 
-    @State private var showPermissionAlert = false
     @State private var selectedFriendId: String?
 
     // MARK: - Focus State
@@ -52,6 +59,10 @@ struct MapView: View {
                 VStack {
                     searchBarOverlay
                         .padding(.top, 8)
+
+                    noticeBanner
+                        .padding(.top, 10)
+                        .padding(.horizontal, 16)
 
                     Spacer()
                 }
@@ -113,6 +124,7 @@ struct MapView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier(MapAccessibilityIdentifiers.screen)
         }
         .ignoresSafeArea(edges: .bottom)
         .task {
@@ -143,23 +155,6 @@ struct MapView: View {
                 FriendDetailSheet(friend: friend)
                     .presentationDetents([.fraction(0.35), .medium])
                     .presentationDragIndicator(.visible)
-            }
-        }
-        .alert("位置权限未开启", isPresented: $showPermissionAlert) {
-            Button("前往设置") {
-                openAppSettings()
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("请在系统设置中允许定位权限，这样你才能查看附近地点并共享位置。")
-        }
-        .alert("加载失败", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("知道了") {
-                viewModel.clearError()
-            }
-        } message: {
-            if let error = viewModel.errorMessage {
-                Text(error)
             }
         }
     }
@@ -193,68 +188,74 @@ struct MapView: View {
 
     /// Friend markers bar at bottom
     private var friendMarkersBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(viewModel.friendLocations) { friend in
-                    FriendMarkerView(
-                        friend: friend,
-                        isSelected: selectedFriendId == friend.id
-                    ) {
-                        selectedFriendId = friend.id
-                        viewModel.selectFriend(friend)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("map.status.friends.live".localized)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.friendLocations) { friend in
+                        FriendMarkerView(
+                            friend: friend,
+                            isSelected: selectedFriendId == friend.id
+                        ) {
+                            selectedFriendId = friend.id
+                            viewModel.selectFriend(friend)
+                        }
                     }
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
-        .background(.ultraThinMaterial)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.28), lineWidth: 1)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.92), Color(hex: "F8F1FF").opacity(0.88)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .shadow, radius: 8, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.white.opacity(0.94), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 8)
         .padding(.horizontal, 16)
-        .frame(height: 64)
     }
 
     /// Search bar overlay
     private var searchBarOverlay: some View {
         VStack(spacing: 10) {
-            // Search bar
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(.brandPurple.opacity(0.85))
 
                 TextField("map.search.placeholder".localized, text: $viewModel.searchQuery)
                     .textFieldStyle(.plain)
-                    .font(.body)
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.textPrimary)
                     .focused($isSearchFocused)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .accessibilityLabel("Search locations")
+                    .accessibilityIdentifier(MapAccessibilityIdentifiers.searchField)
 
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: { viewModel.clearSearch() }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.textTertiary)
+                            .foregroundStyle(Color.textSecondary.opacity(0.82))
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .shadow, radius: 8, x: 0, y: 4)
-            .padding(.horizontal, 16)
 
             // Search results list
             if isSearchFocused && !viewModel.filteredLocations.isEmpty {
@@ -264,6 +265,21 @@ struct MapView: View {
             // Category filters
             categoryFilterBar
         }
+        .padding(12)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.94), Color(hex: "FBF5FF").opacity(0.9)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 10, x: 0, y: 7)
+        .padding(.horizontal, 16)
     }
 
     /// Category filter bar
@@ -290,9 +306,10 @@ struct MapView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 2)
             .padding(.vertical, 2)
         }
+        .accessibilityIdentifier(MapAccessibilityIdentifiers.filterBar)
     }
 
     /// Search results list
@@ -310,67 +327,81 @@ struct MapView: View {
             .padding(.top, 8)
         }
         .frame(maxHeight: 200)
-        .background(Color.cardBackground.shadow(color: .shadow, radius: 8, x: 0, y: 4))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 16)
+        .background(Color.white.opacity(0.96))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     /// Bottom status bar showing places and friends count
     private var bottomStatusBar: some View {
-        HStack(spacing: 24) {
-            // Places count
-            HStack(spacing: 6) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(.blue)
-                Text("\(viewModel.filteredLocations.count) 个地点")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                statusMetric(
+                    icon: "mappin.circle.fill",
+                    tint: .blue,
+                    value: "\(viewModel.filteredLocations.count)",
+                    label: "map.status.places".localized
+                )
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 1, height: 34)
+
+                statusMetric(
+                    icon: "person.2.fill",
+                    tint: .green,
+                    value: "\(viewModel.friendLocations.count)",
+                    label: "map.status.friends".localized
+                )
             }
 
-            // Divider
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 1, height: 20)
-
-            // Friends count
-            HStack(spacing: 6) {
-                Image(systemName: "person.2.fill")
-                    .foregroundStyle(.green)
-                Text("\(viewModel.friendLocations.count) 位好友")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
+            Text(
+                viewModel.friendLocations.isEmpty
+                    ? "map.status.friends.empty".localized
+                    : "map.status.friends.live".localized
+            )
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(Color.textSecondary)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.26), lineWidth: 1)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.94), Color(hex: "F9F2FF").opacity(0.9)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
-        .clipShape(Capsule())
-        .shadow(color: .shadow, radius: 8, x: 0, y: 4)
-        .padding(.horizontal, 40)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 10, x: 0, y: 7)
+        .padding(.horizontal, 18)
+        .accessibilityIdentifier(MapAccessibilityIdentifiers.statusBar)
     }
 
     /// Loading overlay
     private var loadingOverlay: some View {
         ZStack {
-            Color.background.opacity(0.3)
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.2),
+                    Color.brandPurple.opacity(0.18),
+                    Color.brandPink.opacity(0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
                 .ignoresSafeArea()
 
-            VStack(spacing: 12) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
-                    .scaleEffect(1.5)
-
-                Text("map.loading.locations".localized)
-                    .font(.subheadline)
-                    .foregroundColor(.textSecondary)
-            }
-            .padding(24)
-            .background(Color.gray.opacity(0.2))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            MapLoadingPanel()
+                .padding(.horizontal, 28)
+                .accessibilityIdentifier(MapAccessibilityIdentifiers.loadingOverlay)
         }
     }
 
@@ -379,7 +410,7 @@ struct MapView: View {
     /// Center on user location
     private func centerOnUserLocation() {
         if !viewModel.hasLocationPermission {
-            showPermissionAlert = true
+            handleLocationPermissionAction()
             return
         }
 
@@ -420,6 +451,61 @@ struct MapView: View {
         }
     }
 
+    @ViewBuilder
+    private var noticeBanner: some View {
+        if !viewModel.hasLocationPermission {
+            MapNoticeBanner(
+                icon: "location.slash.fill",
+                tint: .warning,
+                title: "map.permission.title".localized,
+                message: "map.permission.message".localized,
+                primaryTitle: locationPermissionPrimaryActionTitle,
+                primaryAction: handleLocationPermissionAction,
+                secondaryTitle: "map.permission.action.dismiss".localized,
+                secondaryAction: { }
+            )
+                .transition(.move(edge: .top).combined(with: .opacity))
+        } else if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
+            MapNoticeBanner(
+                icon: "exclamationmark.triangle.fill",
+                tint: .brandPink,
+                title: "map.error.title".localized,
+                message: errorMessage,
+                primaryTitle: "map.error.action.retry".localized,
+                primaryAction: {
+                    Task {
+                        await viewModel.loadNearbyLocations()
+                    }
+                },
+                secondaryTitle: "map.permission.action.dismiss".localized,
+                secondaryAction: {
+                    viewModel.clearError()
+                }
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private var locationPermissionPrimaryActionTitle: String {
+        isLocationPermissionDenied
+            ? "map.permission.action.settings".localized
+            : "map.permission.action.allow".localized
+    }
+
+    private var isLocationPermissionDenied: Bool {
+        let status = CLLocationManager.authorizationStatus()
+        return status == .denied || status == .restricted
+    }
+
+    private func handleLocationPermissionAction() {
+        if isLocationPermissionDenied {
+            openAppSettings()
+        } else {
+            viewModel.requestLocationPermission()
+            viewModel.checkLocationPermission()
+        }
+    }
+
     /// Keep overlays above the floating bottom dock on every iPhone size.
     private func bottomOverlayInset(for safeBottom: CGFloat) -> CGFloat {
         let dockHeight: CGFloat = 70
@@ -427,9 +513,183 @@ struct MapView: View {
         let spacingAboveDock: CGFloat = 56
         return safeBottom + dockHeight + dockBottomPadding + spacingAboveDock
     }
+
+    private func statusMetric(icon: String, tint: Color, value: String, label: String) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.18))
+                    .frame(width: 34, height: 34)
+
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.textPrimary)
+
+                Text(label)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct MapNoticeBanner: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    let message: String
+    let primaryTitle: String
+    let primaryAction: () -> Void
+    let secondaryTitle: String
+    let secondaryAction: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.16))
+                    .frame(width: 38, height: 38)
+
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.textPrimary)
+
+                    Text(message)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 10) {
+                    Button(primaryTitle, action: primaryAction)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.brandPurple, Color.brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(Capsule())
+
+                    Button(secondaryTitle, action: secondaryAction)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.textPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(Color.white.opacity(0.84))
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.94), Color(hex: "FFF8FB").opacity(0.9)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 10, x: 0, y: 7)
+    }
 }
 
 // MARK: - Location Marker
+
+private struct MapLoadingPanel: View {
+    @State private var animate = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 104, height: 104)
+
+                Circle()
+                    .trim(from: 0.12, to: 0.82)
+                    .stroke(
+                        AngularGradient(
+                            colors: [.brandPurple, .brandPink, .blue, .brandPurple],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .frame(width: 104, height: 104)
+                    .rotationEffect(.degrees(animate ? 360 : 0))
+                    .animation(.linear(duration: 1.5).repeatForever(autoreverses: false), value: animate)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 62, height: 62)
+
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+
+            VStack(spacing: 6) {
+                Text("map.loading.locations".localized)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("map.loading.detail".localized)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.76))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 26)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.13), Color.white.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
+        .onAppear {
+            guard !animate else { return }
+            animate = true
+        }
+    }
+}
 
 /// Custom map marker for locations
 struct LocationMarker: View {
@@ -556,20 +816,19 @@ struct CategoryFilterChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 16, height: 16)
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 14, height: 14)
                     .symbolRenderingMode(.hierarchical)
 
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .lineLimit(1)
             }
             .foregroundStyle(isSelected ? Color.white : Color.textPrimary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
                 isSelected
                     ? Color.brandPurple
@@ -583,7 +842,7 @@ struct CategoryFilterChip: View {
                     )
             )
             .clipShape(Capsule())
-            .shadow(color: isSelected ? .brandPurple.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
+            .shadow(color: isSelected ? .brandPurple.opacity(0.24) : .clear, radius: 3, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }

@@ -147,7 +147,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         self.keychainManager = keychainManager
 
         // Restore session on initialization
-        restoreSession()
+        if shouldBypassSessionRestoreForLaunchArguments() {
+            isLoggedIn = false
+            currentUser = nil
+        } else {
+            restoreSession()
+        }
     }
 
     // MARK: - Internal Methods
@@ -394,6 +399,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
                 }
             }
         }
+    }
+
+    private func shouldBypassSessionRestoreForLaunchArguments() -> Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--force-logged-out")
+            || arguments.contains("--ui-testing-force-auth")
     }
 
     /// Save session tokens to keychain
