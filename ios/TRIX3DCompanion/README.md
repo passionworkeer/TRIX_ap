@@ -1,5 +1,8 @@
 # TRIX3DCompanion iOS 项目
 
+> 状态: ✅ BUILD SUCCEEDED (2026-03-09)
+> Swift: 5.9 | iOS: 16.0+
+
 这个项目使用 XcodeGen 来管理 Xcode 项目配置。
 
 ## 前置要求
