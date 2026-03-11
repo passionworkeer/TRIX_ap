@@ -308,7 +308,14 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
             let response: AuthResponse = try await apiClient.post(.authLogin, body: request)
 
             // Save session
-            try keychainManager.saveSession(response.session)
+            let session = UserSession(
+                id: UUID().uuidString,
+                userId: response.user.id,
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn))
+            )
+            try keychainManager.saveSession(session)
 
             // Save Apple token
             let token = OAuthToken(
@@ -423,7 +430,14 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
             let response: AuthResponse = try await apiClient.post(.authLogin, body: request)
 
             // Save session
-            try keychainManager.saveSession(response.session)
+            let session = UserSession(
+                id: UUID().uuidString,
+                userId: response.user.id,
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn))
+            )
+            try keychainManager.saveSession(session)
 
             // Save WeChat token
             let token = OAuthToken(

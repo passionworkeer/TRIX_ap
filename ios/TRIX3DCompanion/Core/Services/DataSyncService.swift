@@ -615,7 +615,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
             let remoteUser: User = try await apiClient.get(.userProfile)
             let userToCache: User
 
-            if localUser.updatedAt > remoteUser.updatedAt {
+            if let localUpdated = localUser.updatedAt, let remoteUpdated = remoteUser.updatedAt, localUpdated > remoteUpdated {
                 let update = ProfileUpdate(
                     username: localUser.username,
                     fullName: localUser.fullName,

@@ -251,8 +251,8 @@ final class AuthInterceptor: RequestInterceptor {
                 let authResponse = try decoder.decode(AuthResponse.self, from: data)
 
                 // Save new tokens
-                try self.keychainManager.saveAccessToken(authResponse.session.accessToken)
-                try self.keychainManager.saveRefreshToken(authResponse.session.refreshToken)
+                try self.keychainManager.saveAccessToken(authResponse.accessToken)
+                try self.keychainManager.saveRefreshToken(authResponse.refreshToken)
 
                 completion(.success(()))
             } catch {

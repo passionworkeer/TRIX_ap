@@ -266,7 +266,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         // Use ClawbotChannelService (Socket.IO) to create room - same as Web
         do {
             let roomState = try await clawbotChannelService.createStudyRoom(
-                displayName: user.displayName ?? user.username,
+                displayName: user.displayName ?? user.username ?? "User",
                 avatarUrl: user.avatarUrl,
                 maxMembers: maxMembers
             )
@@ -319,7 +319,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         do {
             let roomState = try await clawbotChannelService.joinStudyRoom(
                 roomCode: trimmedCode,
-                displayName: user.displayName ?? user.username,
+                displayName: user.displayName ?? user.username ?? "User",
                 avatarUrl: user.avatarUrl
             )
 

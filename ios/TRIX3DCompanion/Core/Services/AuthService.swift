@@ -192,7 +192,14 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             let response = try await apiClient.login(email: email, password: password)
 
             // Save session tokens
-            try saveSession(response.session)
+            let session = UserSession(
+                id: UUID().uuidString,
+                userId: response.user.id,
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn))
+            )
+            try saveSession(session)
 
             // Set current user
             currentUser = response.user
@@ -434,7 +441,14 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             )
 
             // Save new tokens
-            try saveSession(response.session)
+            let session = UserSession(
+                id: UUID().uuidString,
+                userId: response.user.id,
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken,
+                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn))
+            )
+            try saveSession(session)
 
             // Update current user
             currentUser = response.user
