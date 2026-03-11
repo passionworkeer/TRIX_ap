@@ -34,17 +34,21 @@
 |---|------|------|
 | 1 | ✅ BUILD SUCCEEDED | 2026-03-11 |
 
-### 2.2 自动化测试
+### 2.2 自动化测试结果
 
-⚠️ **注意**: 项目中虽有测试文件 (Tests/TRIX3DCompanionTests)，但测试 target 未正确配置到 Xcode scheme 中。需要手动在 Xcode 中配置测试 target 后才能运行。
+**运行命令**: `xcodebuild test -scheme TRIX3DCompanion`
 
-| # | 测试文件 | 状态 |
-|---|----------|------|
-| 1 | AuthServiceTests.swift | ⚠️ 未配置 |
-| 2 | APIClientTests.swift | ⚠️ 未配置 |
-| 3 | ChatServiceTests.swift | ⚠️ 未配置 |
-| 4 | StudyServiceTests.swift | ⚠️ 未配置 |
-| 5 | DatabaseManagerTests.swift | ⚠️ 未配置 |
+| # | 测试套件 | 测试数 | 状态 |
+|---|----------|--------|------|
+| 1 | GatewayProtocolSmokeTests | 2 | ✅ PASSED |
+| 2 | InputValidatorSmokeTests | 3 | ✅ PASSED |
+| **总计** | | **5** | **✅ ALL PASSED** |
+
+**执行时间**: ~0.13 秒
+
+### 2.3 测试文件状态
+
+⚠️ 项目中有 30+ 测试文件，但只有 2 个测试套件被执行。其他测试文件可能需要手动添加到测试 target 中。
 
 ---
 
