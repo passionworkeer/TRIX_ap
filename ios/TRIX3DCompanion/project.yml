@@ -123,6 +123,20 @@ schemes:
     archive:
       config: Release
 
+  TRIX3DCompanion-VisualUI:
+    build:
+      targets:
+        TRIX3DCompanion: all
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - TRIX3DUITests
+    run:
+      config: Debug
+    analyze:
+      config: Debug
+
 packages:
   Supabase:
     url: https://github.com/supabase-community/supabase-swift.git

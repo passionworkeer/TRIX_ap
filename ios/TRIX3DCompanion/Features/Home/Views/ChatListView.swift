@@ -7,6 +7,14 @@
 
 import SwiftUI
 
+enum ChatAccessibilityIdentifiers {
+    static let screen = "chat.screen"
+    static let searchField = "chat.search.field"
+    static let trixBotCard = "chat.trixbot.card"
+    static let emptyState = "chat.empty.state"
+    static let reloadButton = "chat.reload.button"
+}
+
 enum FriendErrorPresentation {
     static func inlineLoadMessage(for error: Error) -> String? {
         switch networkError(from: error) {
@@ -137,6 +145,7 @@ struct ChatListView: View {
             }
         }
         .background(backgroundGradient)
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.screen)
         .navigationTitle("nav.chat".localized)
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
@@ -188,21 +197,63 @@ struct ChatListView: View {
     // MARK: - Search Bar
 
     private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            TextField("搜索对话...", text: $searchText)
-                .textFieldStyle(.plain)
-            if !searchText.isEmpty {
-                Button(action: { searchText = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.brandPurple.opacity(0.82))
+
+                TextField("chat.search.placeholder".localized, text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                    .accessibilityIdentifier(ChatAccessibilityIdentifiers.searchField)
+
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.textSecondary.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
                 }
+            }
+
+            HStack(spacing: 8) {
+                searchOverviewPill(
+                    icon: "person.2.fill",
+                    text: friendLoadNote != nil
+                        ? "chat.friends.status.unavailable".localized
+                        : (recommendedUsers.isEmpty
+                            ? "chat.recommendations.empty".localized
+                            : "chat.recommendations.count".localized(recommendedUsers.count))
+                )
+
+                searchOverviewPill(
+                    icon: clawbotChannel.isPaired ? "link.circle.fill" : "bolt.slash.circle.fill",
+                    text: clawbotChannel.isPaired
+                        ? "chat.bot.connected".localized
+                        : "chat.bot.waiting".localized
+                )
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.2, shadowOpacity: 0.04, shadowRadius: 6)
+        .padding(.vertical, 15)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.92),
+                    Color(hex: "F7EEFF").opacity(0.9)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.white.opacity(0.88), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: Color.black.opacity(0.07), radius: 14, x: 0, y: 10)
     }
 
     // MARK: - TRIX Bot Entry
@@ -217,19 +268,18 @@ struct ChatListView: View {
                 onNavigateToPairing?()
             }
         } label: {
-            HStack(spacing: 12) {
-                // Avatar with status indicator
+            HStack(spacing: 14) {
                 ZStack(alignment: .bottomTrailing) {
                     Image("AvatarHead")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 48, height: 48)
+                        .frame(width: 56, height: 56)
                         .clipShape(Circle())
                         .overlay(
-                            Circle().stroke(.white.opacity(0.1), lineWidth: 1)
+                            Circle().stroke(.white.opacity(0.14), lineWidth: 1)
                         )
                         .accessibilityLabel("TRIX Bot 头像")
-                    // Online status - show based on pairing
+
                     Circle()
                         .fill(clawbotChannel.isPaired ? .green : .orange)
                         .frame(width: 14, height: 14)
@@ -238,61 +288,89 @@ struct ChatListView: View {
                         .shadow(color: clawbotChannel.isPaired ? .green.opacity(0.5) : .orange.opacity(0.5), radius: 4)
                 }
 
-                // Name and status
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        Text("TRIX Bot").font(.headline).foregroundColor(.white)
-                    }
-                    HStack(spacing: 4) {
-                        Image(systemName: clawbotChannel.isPaired ? "message.fill" : "link.badge.plus")
-                            .font(.system(size: 14))
+                        Text("TRIX Bot")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(.textPrimary)
+
+                        Text(clawbotChannel.isPaired ? "LIVE" : "PAIR")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                             .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
-                        Text(clawbotChannel.isPaired ? "已配对" : "未配对")
-                            .font(.subheadline)
-                            .foregroundColor(clawbotChannel.isPaired ? .green : .orange.opacity(0.8))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background((clawbotChannel.isPaired ? Color.green : Color.orange).opacity(0.12))
+                            .overlay(
+                                Capsule()
+                                    .stroke((clawbotChannel.isPaired ? Color.green : Color.orange).opacity(0.35), lineWidth: 1)
+                            )
+                            .clipShape(Capsule())
+                    }
+
+                    Text(
+                        clawbotChannel.isPaired
+                            ? "chat.bot.card.connected".localized
+                            : "chat.bot.card.unpaired".localized
+                    )
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(.textSecondary)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: clawbotChannel.isPaired ? "waveform.and.mic" : "key.viewfinder")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
+                        Text(clawbotChannel.isPaired ? "chat.bot.connected".localized : "chat.bot.waiting".localized)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(clawbotChannel.isPaired ? .green : .orange.opacity(0.9))
                     }
                 }
 
                 Spacer()
 
-                // Camera icon (Web style)
-                Circle()
-                    .fill(clawbotChannel.isPaired ? .green.opacity(0.2) : .gray.opacity(0.2))
-                    .frame(width: 44, height: 44)
-                    .overlay {
-                        Image(systemName: clawbotChannel.isPaired ? "camera.fill" : "link")
-                            .font(.system(size: 16))
-                            .foregroundColor(clawbotChannel.isPaired ? .green : .gray)
+                VStack(alignment: .trailing, spacing: 10) {
+                    Text(clawbotChannel.isPaired ? "chat.bot.tag.chat".localized : "chat.bot.tag.pair".localized)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.textSecondary)
+
+                    HStack(spacing: 8) {
+                        Text(clawbotChannel.isPaired ? "chat.bot.action.open".localized : "chat.bot.action.pair".localized)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .bold))
                     }
+                    .foregroundColor(.brandPurple)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.88))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.white.opacity(0.94), lineWidth: 1)
+                    )
+                    .clipShape(Capsule())
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
             .background(
                 LinearGradient(
                     colors: [
-                        Color.brandPurple.opacity(0.28),
-                        Color.brandPink.opacity(0.2),
-                        Color.white.opacity(0.08)
+                        Color(hex: "E8D9FF").opacity(0.96),
+                        Color(hex: "FDE1ED").opacity(0.94),
+                        Color.white.opacity(0.92)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.94), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: Color.brandPurple.opacity(0.12), radius: 16, x: 0, y: 10)
         }
         .buttonStyle(.plain)
-        .alert("TRIX Bot 未配对", isPresented: $showPairingAlert) {
-            Button("去配对") {
-                showingPairing = true
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("请先配对 OpenClaw 设备，然后才能与 TRIX Bot 聊天。\n\n在 OpenClaw 端生成配对码，然后在配对页面输入。")
-        }
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
     }
 
     // MARK: - Quick Add Section
@@ -303,7 +381,7 @@ struct ChatListView: View {
                 Text("推荐好友")
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.72))
+                    .foregroundColor(.textSecondary)
                 Spacer()
                 // 删除整个推荐区域按钮
                 Button(action: {
@@ -311,7 +389,7 @@ struct ChatListView: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(.textSecondary.opacity(0.7))
                 }
             }
             .padding(.horizontal, 16)
@@ -360,53 +438,130 @@ struct ChatListView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "message.circle")
-                .font(.system(size: 58))
-                .foregroundColor(.purple.opacity(0.35))
-            Text("没有找到对话")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            Text("开始新对话一起学习吧")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.brandPurple.opacity(0.16))
+                                .frame(width: 66, height: 66)
+                            Circle()
+                                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                                .frame(width: 66, height: 66)
+                            Image(systemName: "bubble.left.and.bubble.right.fill")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white)
+                        }
 
-            if let friendLoadNote {
-                Text(friendLoadNote)
-                    .font(.footnote)
-                    .foregroundColor(.white.opacity(0.82))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.14, shadowOpacity: 0.03, shadowRadius: 4)
-                    .padding(.top, 4)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(searchText.isEmpty ? "chat.empty.title".localized : "没有找到匹配的对话")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.textPrimary)
 
-                Button {
-                    Task {
-                        await loadFriends()
+                            Text(searchText.isEmpty ? "chat.empty.subtitle".localized : "试试其他关键词，或直接发起一段新的对话")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                } label: {
-                    Text("chat.friends.retry".localized)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.brandPurple, Color.brandPink],
-                                startPoint: .leading,
-                                endPoint: .trailing
+
+                    if let friendLoadNote {
+                        Text(friendLoadNote)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundColor(.textPrimary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color.brandPurple.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Color.white.opacity(0.92), lineWidth: 1)
                             )
-                        )
-                        .clipShape(Capsule())
-                        .shadow(color: .brandPurple.opacity(0.22), radius: 8, x: 0, y: 4)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+
+                    VStack(spacing: 10) {
+                        Button {
+                            if clawbotChannel.isPaired {
+                                onNavigateToTrixBot?()
+                            } else {
+                                onNavigateToPairing?()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: clawbotChannel.isPaired ? "message.fill" : "link.badge.plus")
+                                    .font(.system(size: 16, weight: .bold))
+                                Text(clawbotChannel.isPaired ? "chat.bot.action.open".localized : "chat.bot.action.pair".localized)
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 13, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 15)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.brandPurple, Color.brandPink],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .shadow(color: .brandPurple.opacity(0.24), radius: 10, x: 0, y: 4)
+                        }
+                        .buttonStyle(.plain)
+
+                        if friendLoadNote != nil {
+                            Button {
+                                Task {
+                                    await loadFriends()
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("chat.friends.retry".localized)
+                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                }
+                                .foregroundColor(.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(Color.white.opacity(0.84))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(Color.white.opacity(0.94), lineWidth: 1)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier(ChatAccessibilityIdentifiers.reloadButton)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(22)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.92),
+                            Color(hex: "F9EDFF").opacity(0.88)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white.opacity(0.94), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 10)
+                .accessibilityIdentifier(ChatAccessibilityIdentifiers.emptyState)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 28)
+            .padding(.bottom, 24)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Background Gradient
@@ -419,6 +574,26 @@ struct ChatListView: View {
                 Color.black.opacity(0.22)
             ]
         )
+    }
+
+    private func searchOverviewPill(icon: String, text: String) -> some View {
+                HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+            Text(text)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.92)
+        }
+        .foregroundColor(.textSecondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.84))
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.9), lineWidth: 1)
+        )
+        .clipShape(Capsule())
     }
 
     // MARK: - Actions
@@ -585,7 +760,7 @@ struct QuickAddUserCard: View {
             Text(user.name)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(.white)
+                .foregroundColor(.textPrimary)
                 .lineLimit(1)
                 .frame(width: 50)
 
@@ -608,13 +783,18 @@ struct QuickAddUserCard: View {
             } else {
                 Text("已添加")
                     .font(.system(size: 8))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.textSecondary)
             }
         }
         .frame(width: 58)
         .padding(.vertical, 8)
         .padding(.horizontal, 6)
-        .trixSurfaceCard(cornerRadius: 10, borderOpacity: 0.15, shadowOpacity: 0.04, shadowRadius: 4)
+        .background(Color.white.opacity(0.86))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.white.opacity(0.94), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -642,12 +822,12 @@ struct ConversationRow: View {
             // Name and message
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(conversation.name).font(.headline).foregroundColor(.white)
+                    Text(conversation.name).font(.headline).foregroundColor(.textPrimary)
                     Spacer()
                 }
                 HStack(spacing: 4) {
                     Image(systemName: "message.fill").font(.system(size: 14)).foregroundColor(conversation.unreadCount > 0 ? .yellow : .gray.opacity(0.5))
-                    Text(conversation.lastMessage).font(.subheadline).foregroundColor(conversation.unreadCount > 0 ? .white.opacity(0.9) : .gray.opacity(0.6)).lineLimit(1)
+                    Text(conversation.lastMessage).font(.subheadline).foregroundColor(conversation.unreadCount > 0 ? .textPrimary : .textSecondary).lineLimit(1)
                     Spacer()
                 }
             }
@@ -668,21 +848,36 @@ struct ConversationRow: View {
                 VStack(spacing: 8) {
                     Text(conversation.time)
                         .font(.caption2)
-                        .foregroundColor(.gray.opacity(0.7))
+                        .foregroundColor(.textSecondary)
                     Circle()
-                        .fill(.white.opacity(0.1))
+                        .fill(Color(hex: "F3E8FF"))
                         .frame(width: 34, height: 34)
                         .overlay {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(.gray.opacity(0.5))
+                                .foregroundColor(.brandPurple.opacity(0.8))
                         }
                 }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.14, shadowOpacity: 0.05, shadowRadius: 6)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.9),
+                    Color(hex: "FBF4FF").opacity(0.86)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.94), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 5)
         .contentShape(Rectangle())
     }
 }

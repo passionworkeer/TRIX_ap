@@ -258,6 +258,54 @@
 "schedule.today" = "今天";
 "schedule.upcoming" = "即将到来";
 
+// MARK: - Auth Polish
+"auth.login.badge" = "多端同步就绪";
+"auth.login.helper" = "登录后会自动恢复学习记录、好友关系和设备连接状态，继续当前进度。";
+"auth.login.form.title" = "账号登录";
+"auth.login.form.subtitle" = "继续你的学习空间、聊天消息和配对设备体验";
+"auth.login.feature.sync" = "同步学习进度";
+"auth.login.feature.pairing" = "连接配对设备";
+"auth.login.feature.chat" = "恢复好友和 TRIX Bot 会话";
+"auth.login.security.note" = "登录过程会自动恢复安全会话，不会清空你当前的设备连接信息。";
+"auth.login.loading.step.auth" = "校验账号";
+"auth.login.loading.step.session" = "恢复会话";
+"auth.login.loading.step.workspace" = "准备工作台";
+
+"auth.register.badge" = "3 分钟内开始使用";
+"auth.register.helper" = "创建完成后会自动初始化个人空间，后续好友、地图和自习室体验会一起联动。";
+"auth.register.form.title" = "创建你的账号";
+"auth.register.form.subtitle" = "先完成基础信息，稍后就能继续好友、地图和 TRIX Bot 联动";
+"auth.register.feature.identity" = "统一身份";
+"auth.register.feature.companion" = "好友联动";
+"auth.register.feature.study" = "学习空间同步";
+"auth.register.security.note" = "注册成功后会立即初始化个人资料和默认学习空间。";
+"auth.register.loading.step.account" = "创建账号";
+"auth.register.loading.step.profile" = "初始化资料";
+"auth.register.loading.step.workspace" = "准备学习空间";
+
+// MARK: - Chat Polish
+"chat.search.placeholder" = "搜索对话、好友或 TRIX Bot";
+"chat.empty.title" = "还没有聊天记录";
+"chat.empty.subtitle" = "先连接 TRIX Bot 或等待好友同步完成，你的聊天空间就会开始活起来。";
+"chat.bot.connected" = "设备已连接";
+"chat.bot.waiting" = "等待配对";
+"chat.bot.action.open" = "进入 TRIX Bot";
+"chat.bot.action.pair" = "去配对设备";
+"chat.bot.tag.chat" = "设备助手";
+"chat.bot.tag.pair" = "开始连接";
+"chat.bot.card.connected" = "语音、拍照和设备状态都已经连上，可以直接开始聊天。";
+"chat.bot.card.unpaired" = "输入配对码或扫码后，就能把设备消息和聊天能力接进来。";
+"chat.recommendations.count" = "推荐 %d 位好友";
+"chat.recommendations.empty" = "暂无推荐好友";
+"chat.friends.status.unavailable" = "好友暂未同步";
+
+// MARK: - Map Polish
+"map.loading.detail" = "正在同步附近地点、好友位置和地图视图";
+"map.status.places" = "地点";
+"map.status.friends" = "好友";
+"map.status.friends.empty" = "还没有好友共享实时位置";
+"map.status.friends.live" = "好友实时位置已更新";
+
 // MARK: - Location
 "location.pick" = "选择位置";
 "map.search.placeholder" = "搜索地点、学校或自习室";
@@ -386,3 +434,12 @@
 "pairing.desktop" = "电脑";
 "pairing.tablet" = "平板";
 "pairing.web" = "网页";
+
+// MARK: - Map Inline Notices
+"map.permission.title" = "开启定位，地图会更准确";
+"map.permission.message" = "你仍然可以浏览公开地点，但开启定位后才会优先展示你附近的自习室和好友动态。";
+"map.permission.action.allow" = "允许定位";
+"map.permission.action.settings" = "去设置";
+"map.permission.action.dismiss" = "稍后";
+"map.error.title" = "地图暂时不可用";
+"map.error.action.retry" = "重新加载";
