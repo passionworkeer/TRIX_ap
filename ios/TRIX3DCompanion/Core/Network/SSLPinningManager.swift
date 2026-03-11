@@ -83,6 +83,11 @@ final class SSLPinningManager {
     /// Create server trust evaluator for Alamofire
     /// - Returns: ServerTrustEvaluating instance
     func makeServerTrustEvaluator() -> ServerTrustEvaluating {
+        // In DEBUG we disable pinning to keep local/dev environments usable.
+        guard enablePinning else {
+            return DefaultTrustEvaluator()
+        }
+
         switch pinningMode {
         case .none:
             // Use default system validation
@@ -90,8 +95,13 @@ final class SSLPinningManager {
 
         case .certificate:
             // Pin specific certificates
+            let certificates = getCertificates()
+            guard !certificates.isEmpty else {
+                SecureLogger.shared.warning("SSLPinningManager: no certificates found, fallback to default trust evaluator")
+                return DefaultTrustEvaluator()
+            }
             return PinnedCertificatesTrustEvaluator(
-                certificates: getCertificates(),
+                certificates: certificates,
                 acceptSelfSignedCertificates: false,
                 performDefaultValidation: true,
                 validateHost: true
@@ -99,8 +109,13 @@ final class SSLPinningManager {
 
         case .publicKey:
             // Pin public keys (recommended - allows cert rotation)
+            let publicKeys = getPublicKeys()
+            guard !publicKeys.isEmpty else {
+                SecureLogger.shared.warning("SSLPinningManager: no public keys found, fallback to default trust evaluator")
+                return DefaultTrustEvaluator()
+            }
             return PublicKeysTrustEvaluator(
-                keys: getPublicKeys(),
+                keys: publicKeys,
                 performDefaultValidation: true,
                 validateHost: true
             )
