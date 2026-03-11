@@ -125,6 +125,8 @@ final class ClawbotChannelViewModel: ObservableObject {
                 id: generateMessageId(),
                 content: content,
                 contentType: .text,
+                mediaUrl: nil,
+                mediaMimeType: nil,
                 timestamp: Date(),
                 sender: .user
             )
@@ -149,6 +151,8 @@ final class ClawbotChannelViewModel: ObservableObject {
                         id: self?.generateMessageId() ?? UUID().uuidString,
                         content: content,
                         contentType: .text,
+                        mediaUrl: nil,
+                        mediaMimeType: nil,
                         timestamp: Date(),
                         sender: .bot
                     )

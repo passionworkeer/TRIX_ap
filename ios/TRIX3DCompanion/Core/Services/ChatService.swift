@@ -609,6 +609,12 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             mediaUrl: clawbotMessage.mediaUrl,
             mediaMimeType: clawbotMessage.mediaMimeType,
             mediaDuration: nil,
+            mediaSize: nil,
+            mediaMetadata: nil,
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
             isRead: false,
             createdAt: clawbotMessage.timestamp
         )
@@ -721,6 +727,12 @@ private extension ChatMessage {
             mediaUrl: mediaUrl,
             mediaMimeType: mediaMimeType,
             mediaDuration: mediaDuration,
+            mediaSize: mediaSize,
+            mediaMetadata: mediaMetadata,
+            voiceUrl: voiceUrl,
+            voiceDuration: voiceDuration,
+            voiceTranscript: voiceTranscript,
+            voiceMimeType: voiceMimeType,
             isRead: isRead,
             createdAt: createdAt
         )

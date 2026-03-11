@@ -592,7 +592,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
 
         for session in sessions {
             do {
-                let request = CreateStudySessionRequest(durationMinutes: session.durationMinutes)
+                let request = CreateStudySessionRequest(duration: session.duration)
                 let _: StudySession = try await apiClient.post(.studySessions, body: request)
                 try databaseManager.markStudySessionSynced(session.id)
                 synced += 1
