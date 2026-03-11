@@ -8,6 +8,7 @@
 import Foundation
 
 /// Protocol defining wardrobe service interface
+@MainActor
 protocol WardrobeServiceProtocol {
     /// Current outfits
     var outfits: [Outfit] { get }

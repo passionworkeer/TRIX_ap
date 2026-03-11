@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import Combine
 
 /// Text-to-speech service
@@ -150,7 +150,8 @@ final class TTSService: NSObject, TTSServiceProtocol, ObservableObject {
 
 // MARK: - AVSpeechSynthesizerDelegate
 
-extension TTSService: AVSpeechSynthesizerDelegate {
+@MainActor
+extension TTSService: @preconcurrency AVSpeechSynthesizerDelegate {
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         isSpeaking = true

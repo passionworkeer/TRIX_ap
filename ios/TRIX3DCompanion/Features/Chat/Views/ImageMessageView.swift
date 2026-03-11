@@ -64,7 +64,7 @@ struct ImageMessageView: View {
                                     }
                                 }
 
-                        case .failure(let error):
+                        case .failure:
                             errorPlaceholder
 
                         @unknown default:

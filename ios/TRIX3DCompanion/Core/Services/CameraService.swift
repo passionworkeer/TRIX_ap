@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import UIKit
 import Combine
 
@@ -157,13 +157,14 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
         do {
             // 配置视频输入
             try configureVideoInput(for: device)
+            let session = captureSession
 
             // 在后台线程启动会话
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                    self?.captureSession.startRunning()
-                    DispatchQueue.main.async {
-                        self?.isSessionRunning = self?.captureSession.isRunning ?? false
+                DispatchQueue.global(qos: .userInitiated).async {
+                    session.startRunning()
+                    Task { @MainActor [weak self] in
+                        self?.isSessionRunning = session.isRunning
                         continuation.resume()
                     }
                 }
@@ -183,9 +184,10 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
 
     /// 停止相机会话
     func stopCameraSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession.stopRunning()
-            DispatchQueue.main.async {
+        let session = captureSession
+        DispatchQueue.global(qos: .userInitiated).async {
+            session.stopRunning()
+            Task { @MainActor [weak self] in
                 self?.isSessionRunning = false
             }
         }

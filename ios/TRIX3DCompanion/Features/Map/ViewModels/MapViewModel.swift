@@ -93,7 +93,7 @@ final class MapViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let locationService: LocationServiceProtocol
+    private let locationService: any LocationServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Constants
@@ -114,8 +114,8 @@ final class MapViewModel: ObservableObject {
 
     /// Initialize MapViewModel
     /// - Parameter locationService: Location service dependency
-    init(locationService: LocationServiceProtocol = LocationService.shared) {
-        self.locationService = locationService
+    init(locationService: (any LocationServiceProtocol)? = nil) {
+        self.locationService = locationService ?? LocationService.shared
 
         // Initialize region with default location (Shanghai Lujiazui)
         self.region = MKCoordinateRegion(

@@ -363,8 +363,10 @@ final class BatteryAwareVideoPlayer: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.batteryLevel = UIDevice.current.batteryLevel
-            self?.updateQuality()
+            Task { @MainActor [weak self] in
+                self?.batteryLevel = UIDevice.current.batteryLevel
+                self?.updateQuality()
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -372,8 +374,10 @@ final class BatteryAwareVideoPlayer: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.isCharging = UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
-            self?.updateQuality()
+            Task { @MainActor [weak self] in
+                self?.isCharging = UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
+                self?.updateQuality()
+            }
         }
     }
 

@@ -78,13 +78,13 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
     ///   - apiClient: API client
     ///   - keychainManager: Keychain manager
     init(
-        authService: AuthService = .shared,
-        apiClient: APIClient = .shared,
-        keychainManager: KeychainManager = .shared
+        authService: AuthService? = nil,
+        apiClient: APIClient? = nil,
+        keychainManager: KeychainManager? = nil
     ) {
-        self.authService = authService
-        self.apiClient = apiClient
-        self.keychainManager = keychainManager
+        self.authService = authService ?? .shared
+        self.apiClient = apiClient ?? .shared
+        self.keychainManager = keychainManager ?? .shared
 
         super.init()
 

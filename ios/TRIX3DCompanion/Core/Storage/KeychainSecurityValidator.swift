@@ -254,7 +254,7 @@ final class KeychainSecurityValidator {
     }
 
     private func validateAccessibility() -> [ValidationResult.SecurityIssue] {
-        var issues: [ValidationResult.SecurityIssue] = []
+        let issues: [ValidationResult.SecurityIssue] = []
 
         // Verify that sensitive data uses appropriate accessibility
         // The KeychainManager uses .whenUnlockedThisDeviceOnly which is secure

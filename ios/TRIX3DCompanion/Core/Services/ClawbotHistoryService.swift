@@ -85,13 +85,13 @@ final class ClawbotHistoryService: ObservableObject, ClawbotHistoryServiceProtoc
     ///   - offlineCacheService: Cache service instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
+        apiClient: APIClient? = nil,
         offlineCacheService: OfflineCacheServiceProtocol? = nil,
-        authService: AuthService = .shared
+        authService: AuthService? = nil
     ) {
-        self.apiClient = apiClient
+        self.apiClient = apiClient ?? .shared
         self.offlineCacheService = offlineCacheService ?? OfflineCacheService.shared
-        self.authService = authService
+        self.authService = authService ?? .shared
     }
 
     // MARK: - Public Methods

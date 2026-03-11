@@ -49,8 +49,8 @@ final class StoreViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let storeKitService: StoreKitServiceProtocol
-    private let pointsService: PointsServiceProtocol
+    private let storeKitService: any StoreKitServiceProtocol
+    private let pointsService: any PointsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -60,11 +60,11 @@ final class StoreViewModel: ObservableObject {
     ///   - storeKitService: StoreKit service dependency
     ///   - pointsService: Points service dependency
     init(
-        storeKitService: StoreKitServiceProtocol = StoreKitService.shared,
-        pointsService: PointsServiceProtocol = PointsService.shared
+        storeKitService: (any StoreKitServiceProtocol)? = nil,
+        pointsService: (any PointsServiceProtocol)? = nil
     ) {
-        self.storeKitService = storeKitService
-        self.pointsService = pointsService
+        self.storeKitService = storeKitService ?? StoreKitService.shared
+        self.pointsService = pointsService ?? PointsService.shared
 
         // Load products on initialization
         Task {

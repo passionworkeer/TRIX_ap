@@ -26,7 +26,7 @@ protocol APIClientProtocol {
 /// - Request retry with exponential backoff
 /// - Request deduplication
 /// - Security headers validation
-final class APIClient: APIClientProtocol {
+final class APIClient: APIClientProtocol, @unchecked Sendable {
 
     // MARK: - Singleton
     static let shared = APIClient()

@@ -8,6 +8,7 @@
 import Foundation
 
 /// Protocol defining friend service interface
+@MainActor
 protocol FriendServiceProtocol {
     /// Current friends list
     var friends: [Friend] { get }

@@ -175,6 +175,7 @@ struct ExportableData: Codable {
 
 // MARK: - Data Export Service Protocol
 
+@MainActor
 protocol DataExportServiceProtocol {
     var isExporting: Bool { get }
     var currentProgress: ExportProgress? { get }
@@ -231,16 +232,16 @@ final class DataExportService: ObservableObject, DataExportServiceProtocol {
     // MARK: - Initialization
 
     init(
-        offlineCache: OfflineCacheService = .shared,
+        offlineCache: OfflineCacheService? = nil,
         databaseManager: DatabaseManager = .shared,
-        authService: AuthService = .shared,
-        chatService: ChatService = .shared
+        authService: AuthService? = nil,
+        chatService: ChatService? = nil
     ) {
-        self.offlineCache = offlineCache
+        self.offlineCache = offlineCache ?? .shared
         self.databaseManager = databaseManager
-        self.authService = authService
+        self.authService = authService ?? .shared
         self.fileManager = FileManager.default
-        self.chatService = chatService
+        self.chatService = chatService ?? .shared
     }
 
     // MARK: - Public Methods - Export Operations

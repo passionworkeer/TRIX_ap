@@ -10,7 +10,7 @@ import Alamofire
 
 /// Request deduplication manager
 /// Prevents duplicate in-flight requests to the same endpoint
-final class RequestDeduplicator {
+final class RequestDeduplicator: @unchecked Sendable {
 
     // MARK: - Singleton
 

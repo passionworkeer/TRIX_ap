@@ -144,16 +144,16 @@ final class AppState: ObservableObject {
     /// Initialize app state with dependencies
     /// - Parameter authService: Authentication service (defaults to shared)
     init(
-        authService: AuthService = .shared
+        authService: AuthService? = nil
     ) {
-        self.authService = authService
+        self.authService = authService ?? .shared
 
         // Setup with minimal initialization for fast launch
         setupMinimalState()
 
         // Check initial login state (fast path)
-        self.isLoggedIn = authService.isLoggedIn
-        self.currentUser = authService.currentUser
+        self.isLoggedIn = self.authService.isLoggedIn
+        self.currentUser = self.authService.currentUser
     }
 
     // MARK: - Setup
@@ -315,24 +315,19 @@ final class AppState: ObservableObject {
         isLoading = true
         loadingMessage = "Refreshing session..."
 
-        do {
-            let result = await authService.fetchCurrentUser()
+        let result = await authService.fetchCurrentUser()
 
-            switch result {
-            case .success(let user):
-                currentUser = user
-                SecureLogger.shared.authEvent("Session refreshed for user: \(user.username)")
+        switch result {
+        case .success(let user):
+            currentUser = user
+            let displayName = user.username ?? user.email ?? user.id
+            SecureLogger.shared.authEvent("Session refreshed for user: \(displayName)")
 
-            case .failure(let error):
-                SecureLogger.shared.error("Failed to refresh session: \(error.localizedDescription)")
-                // If refresh fails with unauthorized, logout
-                if case AuthError.invalidCredentials = error {
-                    await logout()
-                }
+        case .failure(let error):
+            SecureLogger.shared.error("Failed to refresh session: \(error.localizedDescription)")
+            if case AuthError.invalidCredentials = error {
+                await logout()
             }
-
-        } catch {
-            SecureLogger.shared.error("Unexpected error refreshing session: \(error.localizedDescription)")
         }
 
         isLoading = false
@@ -450,7 +445,7 @@ extension AppState {
     /// - Returns: True if points were successfully spent
     @discardableResult
     func spendPoints(_ amount: Int) -> Bool {
-        guard var user = currentUser, (user.points ?? 0) >= amount else {
+        guard let user = currentUser, (user.points ?? 0) >= amount else {
             return false
         }
 
@@ -510,7 +505,7 @@ extension AppState {
 // MARK: - Preview Support
 
 #Preview("AppState") {
-    @StateObject var state = AppState.shared
+    let state = AppState.shared
 
     return VStack {
         Text("Current User: \(state.currentUser?.username ?? "None")")

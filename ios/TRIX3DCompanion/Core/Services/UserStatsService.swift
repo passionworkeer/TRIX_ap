@@ -98,10 +98,10 @@ final class UserStatsService: ObservableObject, UserStatsServiceProtocol {
     ///   - authService: Auth service instance (defaults to shared)
     init(
         apiClient: APIClient = .shared,
-        authService: AuthService = .shared
+        authService: AuthService? = nil
     ) {
         self.apiClient = apiClient
-        self.authService = authService
+        self.authService = authService ?? .shared
     }
 
     // MARK: - Public Methods

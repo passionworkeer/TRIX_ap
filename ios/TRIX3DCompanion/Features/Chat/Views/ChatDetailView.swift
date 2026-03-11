@@ -83,7 +83,11 @@ struct ChatDetailView: View {
             Text("Disconnected").font(.caption)
             Spacer()
             Button("Retry") {
-                Task { if let userId = appState.currentUser?.id { await chatService.connectWebSocket(userId: userId) } }
+                Task {
+                    if let userId = appState.currentUser?.id {
+                        _ = await chatService.connectWebSocket(userId: userId)
+                    }
+                }
             }.font(.caption).buttonStyle(.bordered)
         }.padding(.horizontal).padding(.vertical, 8).background(.yellow.opacity(0.2))
     }

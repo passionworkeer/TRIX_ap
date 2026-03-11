@@ -280,6 +280,7 @@ enum SyncType: String, CaseIterable {
 
 // MARK: - Data Sync Service Protocol
 
+@MainActor
 protocol DataSyncServiceProtocol {
     var currentStatus: SyncStatus { get }
     var statusPublisher: AnyPublisher<SyncStatus, Never> { get }
@@ -348,17 +349,17 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     // MARK: - Initialization
 
     init(
-        networkMonitor: NetworkMonitor = .shared,
-        offlineCache: OfflineCacheService = .shared,
+        networkMonitor: NetworkMonitor? = nil,
+        offlineCache: OfflineCacheService? = nil,
         databaseManager: DatabaseManager = .shared,
         apiClient: APIClient = .shared,
-        authService: AuthService = .shared
+        authService: AuthService? = nil
     ) {
-        self.networkMonitor = networkMonitor
-        self.offlineCache = offlineCache
+        self.networkMonitor = networkMonitor ?? .shared
+        self.offlineCache = offlineCache ?? .shared
         self.databaseManager = databaseManager
         self.apiClient = apiClient
-        self.authService = authService
+        self.authService = authService ?? .shared
 
         setupNetworkMonitoring()
     }

@@ -24,12 +24,12 @@ struct StudyStatsView: View {
 
     // MARK: - Dependencies
 
-    private let studyService: StudyServiceProtocol
+    private let studyService: any StudyServiceProtocol
 
     // MARK: - Initialization
 
-    init(studyService: StudyServiceProtocol = StudyService.shared) {
-        self.studyService = studyService
+    init(studyService: (any StudyServiceProtocol)? = nil) {
+        self.studyService = studyService ?? StudyService.shared
     }
 
     // MARK: - Body
@@ -362,24 +362,25 @@ struct StudyStatsView: View {
         isLoading = true
         errorMessage = nil
 
-        do {
-            let result = try await studyService.getStudyStats()
-            let weeklyResult = try await studyService.getWeeklyStudyData()
+        let result = await studyService.getStudyStats()
+        let weeklyResult = await studyService.getWeeklyStudyData()
 
-            await MainActor.run {
-                if case .success(let statsData) = result {
-                    stats = statsData
-                }
-                if case .success(let weeklyDataResult) = weeklyResult {
-                    weeklyData = weeklyDataResult
-                }
-                isLoading = false
-            }
-        } catch {
-            await MainActor.run {
+        await MainActor.run {
+            switch result {
+            case .success(let statsData):
+                stats = statsData
+            case .failure(let error):
                 errorMessage = error.localizedDescription
-                isLoading = false
             }
+
+            switch weeklyResult {
+            case .success(let weeklyDataResult):
+                weeklyData = weeklyDataResult
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+
+            isLoading = false
         }
     }
 

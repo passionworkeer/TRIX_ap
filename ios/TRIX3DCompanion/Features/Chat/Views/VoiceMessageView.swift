@@ -186,9 +186,11 @@ class VoiceMessageViewModel: NSObject, ObservableObject {
     // MARK: - Cleanup
 
     deinit {
-        // Must use Task to call MainActor methods from deinit
+        let progressTimer = progressTimer
+        let audioPlayer = audioPlayer
+
         Task { @MainActor in
-            stopProgressTimer()
+            progressTimer?.invalidate()
             audioPlayer?.stop()
         }
     }

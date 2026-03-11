@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// Protocol defining Clawbot history service interface
+@MainActor
 protocol ClawbotHistoryServiceProtocol {
     /// Current chat history for the selected room
     var history: [ChatMessage] { get }

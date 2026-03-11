@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import Combine
 
 /// Voice message playback service
@@ -169,7 +169,9 @@ final class VoicePlaybackService: NSObject, VoicePlaybackServiceProtocol {
         stopProgressTimer()
 
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.updateProgress()
+            Task { @MainActor [weak self] in
+                self?.updateProgress()
+            }
         }
     }
 
@@ -243,7 +245,8 @@ final class VoicePlaybackService: NSObject, VoicePlaybackServiceProtocol {
 
 // MARK: - AVAudioPlayerDelegate
 
-extension VoicePlaybackService: AVAudioPlayerDelegate {
+@MainActor
+extension VoicePlaybackService: @preconcurrency AVAudioPlayerDelegate {
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false

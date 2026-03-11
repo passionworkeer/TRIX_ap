@@ -215,7 +215,7 @@ struct ClawbotStudyRoomState: Codable {
 
 // MARK: - Service Implementation
 
-final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtocol {
+final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtocol, @unchecked Sendable {
 
     // MARK: - Singleton
 
@@ -263,7 +263,6 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private let handlerLock = NSLock()
 
     // TTS
-    private let ttsService = TTSService.shared
     @Published var ttsEnabled: Bool = true
     @Published var ttsLanguage: TTSLanguage = .chinese
 
@@ -1018,6 +1017,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     @MainActor
     private func speakBotMessage(_ text: String) async {
+        let ttsService = TTSService.shared
+
         await ttsService.stop()
         await ttsService.setVoice(language: ttsLanguage)
 

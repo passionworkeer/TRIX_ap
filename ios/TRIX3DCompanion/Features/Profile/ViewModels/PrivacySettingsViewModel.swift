@@ -122,25 +122,16 @@ final class PrivacySettingsViewModel: ObservableObject {
         errorMessage = nil
         successMessage = nil
 
-        do {
-            // Calculate deletion date (7 days from now)
-            let deletionDate = Calendar.current.date(
-                byAdding: .day,
-                value: coolingPeriodDays,
-                to: Date()
-            ) ?? Date().addingTimeInterval(Double(coolingPeriodDays) * 86400)
+        let deletionDate = Calendar.current.date(
+            byAdding: .day,
+            value: coolingPeriodDays,
+            to: Date()
+        ) ?? Date().addingTimeInterval(Double(coolingPeriodDays) * 86400)
 
-            // In a real app, this would send a request to the server
-            // For now, we'll save it locally
-            UserDefaults.standard.set(deletionDate, forKey: "account_deletion_date")
+        UserDefaults.standard.set(deletionDate, forKey: "account_deletion_date")
 
-            deletionStatus = .pending(deletionDate: deletionDate)
-            successMessage = "Account deletion scheduled. You can cancel within \(coolingPeriodDays) days."
-
-        } catch {
-            deletionStatus = .error(message: error.localizedDescription)
-            errorMessage = "Failed to request account deletion: \(error.localizedDescription)"
-        }
+        deletionStatus = .pending(deletionDate: deletionDate)
+        successMessage = "Account deletion scheduled. You can cancel within \(coolingPeriodDays) days."
 
         isLoading = false
     }
@@ -151,17 +142,10 @@ final class PrivacySettingsViewModel: ObservableObject {
         errorMessage = nil
         successMessage = nil
 
-        do {
-            // In a real app, this would send a request to the server
-            UserDefaults.standard.removeObject(forKey: "account_deletion_date")
+        UserDefaults.standard.removeObject(forKey: "account_deletion_date")
 
-            deletionStatus = .none
-            successMessage = "Account deletion cancelled successfully"
-
-        } catch {
-            deletionStatus = .error(message: error.localizedDescription)
-            errorMessage = "Failed to cancel deletion: \(error.localizedDescription)"
-        }
+        deletionStatus = .none
+        successMessage = "Account deletion cancelled successfully"
 
         isLoading = false
     }
@@ -247,14 +231,8 @@ final class PrivacySettingsViewModel: ObservableObject {
 
         UserDefaults.standard.set(data, forKey: "privacy_settings")
 
-        // In a real app, this would also sync with the server
-        do {
-            // let _: EmptyResponse = try await apiClient.patch(.userSettings, body: settings)
-            // Settings synced successfully
-        } catch {
-            // Handle error silently for now
-            SecureLogger.shared.error("Failed to sync privacy settings: \(error)")
-        }
+        // In a real app, this would also sync with the server.
+        // Local persistence remains the source of truth for now.
     }
 }
 

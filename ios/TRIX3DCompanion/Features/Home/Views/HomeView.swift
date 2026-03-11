@@ -27,7 +27,7 @@ struct HomeView: View {
     // MARK: - Bindings
 
     @Binding var isWorkbenchPresented: Bool
-    @Binding var isChatPresented: Bool
+    let onOpenTrixBot: () -> Void
 
     // MARK: - State
 
@@ -63,10 +63,9 @@ struct HomeView: View {
                         .ignoresSafeArea()
                 }
 
-                // Gradient overlay for readability
                 LinearGradient(
-                    colors: [.clear, .black.opacity(0.3)],
-                    startPoint: .center,
+                    colors: [.black.opacity(0.02), .black.opacity(0.36), .black.opacity(0.58)],
+                    startPoint: .top,
                     endPoint: .bottom
                 )
                 .ignoresSafeArea()
@@ -95,33 +94,37 @@ struct HomeView: View {
                     )
                 }
 
-                // 顶部工具栏 - 放在工作台后面，确保在最上层可点击
                 VStack(spacing: 0) {
-                    // Top bar with mail and notification buttons
-                    topBar
+                    homeHeader
                         .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top - 50)  // 继续向上移动
-                        .opacity(isWorkbenchPresented ? 1 : 0)
-                        .allowsHitTesting(isWorkbenchPresented)  // 只有显示时才能点击
-                        .animation(.easeInOut(duration: 0.3), value: isWorkbenchPresented)
+                        .padding(.top, geometry.safeAreaInsets.top + 10)
 
                     Spacer()
                 }
 
-                // 右上角聊天气泡 - 始终显示在最上层
                 VStack {
                     HStack {
                         Spacer()
                         HomeBotBubbleView(
-                            botName: "TRIX Bot",
+                            botName: "TRIX",
                             botAvatar: "sparkles"
-                        ) {
-                            isChatPresented = true
-                        }
+                        ) { onOpenTrixBot() }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 10)  // 在工具栏下方
+                    .padding(.top, geometry.safeAreaInsets.top + 110)
                     Spacer()
+                }
+
+                VStack {
+                    Spacer()
+                    commandDeck
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 112)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                                isWorkbenchPresented = true
+                            }
+                        }
                 }
             }
 
@@ -206,62 +209,154 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Top Bar
+    // MARK: - Header
 
-    private var topBar: some View {
-        HStack {
-            // Spacer to balance the layout (removed welcome text)
-            Spacer()
+    private var homeHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("TRIX Companion")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
 
-            // Mail button - 加大按钮
-            Button {
-                showMailPanel = true
-            } label: {
-                Image(systemName: "envelope.fill")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)  // 加大
-                    .accessibilityLabel("Mail")
-                    .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.brandPurple.opacity(0.32), Color.brandPink.opacity(0.24)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
+                    Text("机器人当前处于\(clawbotChannel.botState.displayName)状态，点击下方卡片可快速打开拍照、日程、待办和定位。")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 16)
+
+                HStack(spacing: 12) {
+                    toolbarOrbButton(icon: "envelope.fill", accessibilityLabel: "Mail") {
+                        showMailPanel = true
+                    }
+
+                    toolbarOrbButton(icon: "bell.fill", accessibilityLabel: "Notifications") {
+                        showNotificationPanel = true
+                    }
+                }
             }
 
-            Spacer()
-                .frame(width: 16)
-
-            // Notification button - 加大
-            Button {
-                showNotificationPanel = true
-            } label: {
-                Image(systemName: "bell.fill")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)  // 加大
-                    .accessibilityLabel("Notifications")
-                    .background(
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.brandPurple.opacity(0.32), Color.brandPink.opacity(0.24)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
+            HStack(spacing: 10) {
+                statusChip(icon: "waveform.badge.mic", text: "TRIX 在线")
+                statusChip(icon: "hand.tap.fill", text: "点空白打开工作台")
             }
         }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.32),
+                            Color.brandPurple.opacity(0.18),
+                            Color.brandPink.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.2), radius: 22, x: 0, y: 12)
+    }
+
+    private var commandDeck: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("打开工作台")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text("一键进入快拍、定位、日程和 Todo 的主操作层。")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+
+                Spacer()
+
+                Image(systemName: "square.grid.2x2.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                    .padding(12)
+                    .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
+            HStack(spacing: 10) {
+                quickFeaturePill(icon: "camera.fill", text: "快拍")
+                quickFeaturePill(icon: "calendar", text: "日程")
+                quickFeaturePill(icon: "checklist", text: "Todo")
+                quickFeaturePill(icon: "location.fill", text: "定位")
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.brandPurple.opacity(0.26),
+                            Color.black.opacity(0.34),
+                            Color.brandPink.opacity(0.16)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.28), radius: 24, x: 0, y: 14)
+    }
+
+    private func toolbarOrbButton(icon: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.title3.weight(.semibold))
+                .foregroundColor(.white)
+                .frame(width: 48, height: 48)
+                .background(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.brandPurple.opacity(0.36), Color.brandPink.opacity(0.22)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                .shadow(color: .black.opacity(0.16), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func statusChip(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white.opacity(0.9))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.1), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private func quickFeaturePill(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Color.white.opacity(0.1), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
     }
 
     // MARK: - Workbench Card Actions
@@ -323,16 +418,21 @@ struct WorkbenchOverlay: View {
                 VStack(spacing: 0) {
                     // Handle bar
                     RoundedRectangle(cornerRadius: 2.5)
-                        .fill(Color.secondary.opacity(0.4))
+                        .fill(Color.white.opacity(0.4))
                         .frame(width: 40, height: 5)
                         .padding(.top, 12)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 12)
 
-                    // Title
-                    Text(loc("workbench.title"))
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .padding(.bottom, 16)
+                    VStack(spacing: 6) {
+                        Text(loc("workbench.title"))
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        Text("常用动作集中到这里，轻点即可打开对应功能。")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.72))
+                    }
+                    .padding(.bottom, 18)
 
                     // Cards scroll
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -340,6 +440,7 @@ struct WorkbenchOverlay: View {
                             WorkbenchOverlayCard(
                                 icon: "camera.fill",
                                 label: loc("workbench.snapshot"),
+                                subtitle: "拍照、选图、查看快拍",
                                 color: .orange,
                                 action: {
                                     onCardClick("snapshot")
@@ -350,6 +451,7 @@ struct WorkbenchOverlay: View {
                             WorkbenchOverlayCard(
                                 icon: "location.fill",
                                 label: loc("workbench.location"),
+                                subtitle: "地图、地点与位置选择",
                                 color: .green,
                                 action: {
                                     onCardClick("location")
@@ -360,6 +462,7 @@ struct WorkbenchOverlay: View {
                             WorkbenchOverlayCard(
                                 icon: "calendar",
                                 label: loc("workbench.schedule"),
+                                subtitle: "学习节奏和时间安排",
                                 color: .blue,
                                 action: {
                                     onCardClick("schedule")
@@ -370,6 +473,7 @@ struct WorkbenchOverlay: View {
                             WorkbenchOverlayCard(
                                 icon: "checklist",
                                 label: loc("workbench.todo"),
+                                subtitle: "快速记录待办事项",
                                 color: .purple,
                                 action: {
                                     onCardClick("todo")
@@ -382,13 +486,23 @@ struct WorkbenchOverlay: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
-                .frame(height: 200)
+                .frame(height: 224)
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.72),
+                                    Color.brandPurple.opacity(0.24),
+                                    Color.brandPink.opacity(0.18)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .stroke(Color.white.opacity(0.22), lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.24), radius: 20)
@@ -424,6 +538,7 @@ struct WorkbenchOverlay: View {
 struct WorkbenchOverlayCard: View {
     let icon: String
     let label: String
+    let subtitle: String
     let color: Color
     let action: () -> Void
 
@@ -431,9 +546,9 @@ struct WorkbenchOverlayCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [color, color.opacity(0.7)],
@@ -441,27 +556,34 @@ struct WorkbenchOverlayCard: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 50, height: 50)
+                        .frame(width: 58, height: 58)
 
                     Image(systemName: icon)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundColor(.white)
                 }
 
-                Text(label)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(label)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.74))
+                        .lineLimit(2)
+                }
             }
-            .frame(width: 80, height: 90)
+            .frame(width: 148, height: 156, alignment: .topLeading)
+            .padding(18)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.22),
-                                color.opacity(0.14),
-                                Color.black.opacity(0.08)
+                                Color.white.opacity(0.16),
+                                color.opacity(0.18),
+                                Color.black.opacity(0.18)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -469,9 +591,10 @@ struct WorkbenchOverlayCard: View {
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(Color.white.opacity(0.18), lineWidth: 1)
             )
+            .shadow(color: color.opacity(0.2), radius: 18, x: 0, y: 10)
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
@@ -527,7 +650,7 @@ struct StudyRoomOverlay: View {
 #Preview("Home View") {
     HomeView(
         isWorkbenchPresented: .constant(false),
-        isChatPresented: .constant(false)
+        onOpenTrixBot: {}
     )
     .environmentObject(AppState.shared)
 }

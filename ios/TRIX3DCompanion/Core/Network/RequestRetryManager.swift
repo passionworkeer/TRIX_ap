@@ -10,7 +10,7 @@ import Alamofire
 
 /// Request retry manager with exponential backoff strategy
 /// Implements intelligent retry logic for failed network requests
-final class RequestRetryManager {
+final class RequestRetryManager: @unchecked Sendable {
 
     // MARK: - Singleton
 

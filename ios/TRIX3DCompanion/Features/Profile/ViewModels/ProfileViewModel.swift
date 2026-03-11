@@ -54,11 +54,11 @@ final class ProfileViewModel: ObservableObject {
     ///   - apiClient: API client dependency
     ///   - imageUploadService: Image upload service dependency
     init(
-        apiClient: APIClient = .shared,
-        imageUploadService: ImageUploadService = .shared
+        apiClient: APIClient? = nil,
+        imageUploadService: ImageUploadService? = nil
     ) {
-        self.apiClient = apiClient
-        self.imageUploadService = imageUploadService
+        self.apiClient = apiClient ?? .shared
+        self.imageUploadService = imageUploadService ?? .shared
     }
 
     // MARK: - Public Methods
@@ -165,7 +165,7 @@ final class ProfileViewModel: ObservableObject {
                 return
             }
 
-            let uploadResponse = try await imageUploadService.uploadImage(image)
+            let uploadResponse = await imageUploadService.uploadImage(image)
 
             // Extract URL from Result
             let avatarUrl: String

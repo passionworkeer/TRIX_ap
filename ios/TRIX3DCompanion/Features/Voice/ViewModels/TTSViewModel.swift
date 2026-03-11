@@ -111,9 +111,9 @@ final class TTSViewModel: ObservableObject {
     /// Initialize TTSViewModel
     /// - Parameter ttsService: TTS service dependency
     init(
-        ttsService: TTSServiceProtocol = TTSService.shared
+        ttsService: TTSServiceProtocol? = nil
     ) {
-        self.ttsService = ttsService
+        self.ttsService = ttsService ?? TTSService.shared
 
         // Setup bindings and load languages
         setupBindings()
@@ -124,11 +124,7 @@ final class TTSViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Bind to service speaking state if it's an ObservableObject
-        if let observableService = ttsService as? ObservableObject {
-            // The service is already an ObservableObject, SwiftUI will handle binding
-            // We just need to observe changes through Combine
-        }
+        // TTSService publishes its own state; view model reads values on demand.
     }
 
     /// Load available languages

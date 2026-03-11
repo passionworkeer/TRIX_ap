@@ -78,6 +78,7 @@ struct ShareLocationResponse: Codable {
 }
 
 /// 协议定义位置服务的接口
+@MainActor
 protocol LocationServiceProtocol {
     /// 当前缓存的位置
     var currentLocation: CLLocation? { get }

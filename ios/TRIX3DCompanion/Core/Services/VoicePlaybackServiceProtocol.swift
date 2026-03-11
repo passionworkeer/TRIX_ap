@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// Protocol for voice message playback service
+@MainActor
 protocol VoicePlaybackServiceProtocol: AnyObject {
 
     /// Whether a voice message is currently playing

@@ -50,7 +50,7 @@ final class LocalNotificationService: NSObject, ObservableObject, LocalNotificat
 
         // Check initial authorization status
         Task {
-            await checkAuthorizationStatus()
+            _ = await checkAuthorizationStatus()
         }
     }
 
@@ -69,7 +69,7 @@ final class LocalNotificationService: NSObject, ObservableObject, LocalNotificat
     func requestAuthorization(options: UNAuthorizationOptions = [.alert, .sound, .badge]) async throws -> Bool {
         let granted = try await notificationCenter.requestAuthorization(options: options)
 
-        await checkAuthorizationStatus()
+        _ = await checkAuthorizationStatus()
 
         if !granted {
             lastError = .permissionDenied

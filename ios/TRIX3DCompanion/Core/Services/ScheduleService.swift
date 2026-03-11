@@ -35,6 +35,7 @@ enum ScheduleServiceError: Error, LocalizedError {
 
 // MARK: - Schedule Service Protocol
 
+@MainActor
 protocol ScheduleServiceProtocol {
     var schedules: [Schedule] { get }
     var isLoading: Bool { get }

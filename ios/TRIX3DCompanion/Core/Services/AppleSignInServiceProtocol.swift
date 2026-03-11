@@ -85,6 +85,7 @@ struct AppleSignInCredential {
 // MARK: - Apple Sign In Service Protocol
 
 /// Protocol defining Apple Sign In service interface
+@MainActor
 protocol AppleSignInServiceProtocol: AnyObject {
     /// Whether Sign in with Apple is available
     var isAvailable: Bool { get }

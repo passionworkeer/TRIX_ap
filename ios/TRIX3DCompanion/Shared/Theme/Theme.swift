@@ -42,7 +42,7 @@ final class ThemeManager: ObservableObject {
 
     // MARK: - Initialization
 
-    private init() {
+    fileprivate init() {
         // 从 UserDefaults 加载保存的主题
         self.currentTheme = UserDefaultsManager.shared.getSelectedTheme()
         self.colorScheme = Self.colorSchemeForTheme(currentTheme)
@@ -103,12 +103,12 @@ final class ThemeManager: ObservableObject {
 // MARK: - Environment Key
 
 private struct ThemeManagerKey: EnvironmentKey {
-    static let defaultValue = ThemeManager.shared
+    static let defaultValue: ThemeManager? = nil
 }
 
 extension EnvironmentValues {
     /// 主题管理器环境值
-    var themeManager: ThemeManager {
+    var themeManager: ThemeManager? {
         get { self[ThemeManagerKey.self] }
         set { self[ThemeManagerKey.self] = newValue }
     }
@@ -121,8 +121,9 @@ extension View {
     /// 应用主题到视图
     /// - Parameter themeManager: 主题管理器
     /// - Returns: 应用了主题的视图
+    @MainActor
     @ViewBuilder
-    func themed(with themeManager: ThemeManager = .shared) -> some View {
+    func themed(with themeManager: ThemeManager) -> some View {
         if let scheme = themeManager.colorScheme {
             self.environment(\.themeManager, themeManager).preferredColorScheme(scheme)
         } else {
@@ -133,6 +134,7 @@ extension View {
     /// 监听主题变化
     /// - Parameter action: 主题变化时的回调
     /// - Returns: 应用了监听的视图
+    @MainActor
     func onThemeChange(perform action: @escaping (AppTheme) -> Void) -> some View {
         self.onReceive(ThemeManager.shared.$currentTheme) { theme in
             action(theme)
@@ -152,8 +154,10 @@ extension ThemeManager {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            if self?.currentTheme == .system {
-                self?.updateColorScheme()
+            Task { @MainActor [weak self] in
+                if self?.currentTheme == .system {
+                    self?.updateColorScheme()
+                }
             }
         }
     }

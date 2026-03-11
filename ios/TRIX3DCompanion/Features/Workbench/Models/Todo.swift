@@ -59,9 +59,9 @@ struct Todo: Identifiable, Codable, Equatable {
         /// Returns SwiftUI Color for priority
         var color: Color {
             switch self {
-            case .low: return Color(hex: "#10B981") ?? .green
-            case .medium: return Color(hex: "#F97316") ?? .orange
-            case .high: return Color(hex: "#EF4444") ?? .red
+            case .low: return Color(hex: "#10B981")
+            case .medium: return Color(hex: "#F97316")
+            case .high: return Color(hex: "#EF4444")
             }
         }
     }

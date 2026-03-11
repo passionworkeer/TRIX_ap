@@ -315,7 +315,7 @@ struct CameraView: View {
     private var previewBottomBar: some View {
         VStack(spacing: 16) {
             // Upload status
-            if let url = viewModel.uploadedImageURL {
+            if viewModel.uploadedImageURL != nil {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)

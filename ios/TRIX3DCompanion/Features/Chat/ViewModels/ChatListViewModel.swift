@@ -46,19 +46,19 @@ final class ChatListViewModel: ObservableObject {
 
     private let chatService: ChatService
     private let apiClient: APIClient
-    private let friendService: FriendServiceProtocol
+    private let friendService: any FriendServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
-        chatService: ChatService = .shared,
-        apiClient: APIClient = .shared,
-        friendService: FriendServiceProtocol = FriendService.shared
+        chatService: ChatService? = nil,
+        apiClient: APIClient? = nil,
+        friendService: (any FriendServiceProtocol)? = nil
     ) {
-        self.chatService = chatService
-        self.apiClient = apiClient
-        self.friendService = friendService
+        self.chatService = chatService ?? .shared
+        self.apiClient = apiClient ?? .shared
+        self.friendService = friendService ?? FriendService.shared
         setupBindings()
     }
 

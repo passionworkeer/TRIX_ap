@@ -34,8 +34,8 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let storeKitService: StoreKitServiceProtocol
-    private let pointsService: PointsServiceProtocol
+    private let storeKitService: any StoreKitServiceProtocol
+    private let pointsService: any PointsServiceProtocol
     private let apiClient: APIClient
 
     // MARK: - Private Properties
@@ -54,13 +54,13 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     ///   - pointsService: Points service instance
     ///   - apiClient: API client instance
     init(
-        storeKitService: StoreKitServiceProtocol = StoreKitService.shared,
-        pointsService: PointsServiceProtocol = PointsService.shared,
-        apiClient: APIClient = .shared
+        storeKitService: (any StoreKitServiceProtocol)? = nil,
+        pointsService: (any PointsServiceProtocol)? = nil,
+        apiClient: APIClient? = nil
     ) {
-        self.storeKitService = storeKitService
-        self.pointsService = pointsService
-        self.apiClient = apiClient
+        self.storeKitService = storeKitService ?? StoreKitService.shared
+        self.pointsService = pointsService ?? PointsService.shared
+        self.apiClient = apiClient ?? .shared
 
         // Load order history
         Task {
@@ -215,18 +215,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
                 return .failure(.invalidProduct)
             }
 
-            let points = StoreProductConfiguration.pointsForProduct(productId)
             let price = getPriceForProduct(productId)
-
-            // Create verification request
-            let request = PointsPurchaseRequest(
-                productId: productId,
-                points: points ?? 0,
-                amount: price,
-                currency: "CNY",
-                transactionId: transactionId,
-                receiptData: receiptData
-            )
 
             // Call backend API to verify receipt
             let verificationRequest = ReceiptVerificationRequest(
@@ -262,7 +251,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             updateAppOrdersArrays()
 
             // Refresh points
-            await pointsService.refreshPoints()
+            _ = await pointsService.refreshPoints()
 
             return .success(order)
 
@@ -413,7 +402,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
             updateAppOrdersArrays()
 
             // Refresh points after restore
-            await pointsService.refreshPoints()
+            _ = await pointsService.refreshPoints()
 
             return .success(restoredAppOrders)
 
