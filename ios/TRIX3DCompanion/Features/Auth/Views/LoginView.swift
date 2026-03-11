@@ -296,52 +296,17 @@ struct LoginView: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.35),
-                    Color.purple.opacity(0.25)
+                    Color.black.opacity(0.28),
+                    Color.brandPurple.opacity(0.3),
+                    Color.brandPink.opacity(0.22)
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-                .ignoresSafeArea()
+            .ignoresSafeArea()
 
-            VStack(spacing: 18) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 82, height: 82)
-
-                    Circle()
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                        .frame(width: 82, height: 82)
-
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(1.35)
-                }
-
-                VStack(spacing: 6) {
-                    Text(loc("action.login"))
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.95))
-
-                    Text(loc("loading"))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-            }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 28)
-            .background(
-                .ultraThinMaterial,
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-            .padding(.horizontal, 28)
+            LoginLoadingCard()
+                .padding(.horizontal, 28)
         }
         .transition(.opacity)
     }
@@ -483,5 +448,119 @@ struct LoginView: View {
 #Preview {
     LoginView {
         SecureLogger.shared.debug("Switch to register")
+    }
+}
+
+private struct LoginLoadingCard: View {
+    @State private var isAnimating = false
+
+    private let orbitColors: [Color] = [
+        .white,
+        .brandPink,
+        .brandPurple
+    ]
+
+    var body: some View {
+        VStack(spacing: 22) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 112, height: 112)
+
+                Circle()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .frame(width: 112, height: 112)
+
+                ForEach(Array(orbitColors.enumerated()), id: \.offset) { index, color in
+                    Circle()
+                        .fill(color.opacity(index == 0 ? 0.95 : 0.88))
+                        .frame(width: index == 0 ? 14 : 11, height: index == 0 ? 14 : 11)
+                        .offset(y: -42)
+                        .rotationEffect(.degrees(isAnimating ? 360 + (Double(index) * 18) : Double(index) * 120))
+                        .animation(
+                            .linear(duration: 1.45)
+                                .repeatForever(autoreverses: false)
+                                .delay(Double(index) * 0.08),
+                            value: isAnimating
+                        )
+                        .shadow(color: color.opacity(0.35), radius: 8, x: 0, y: 0)
+                }
+
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.18),
+                                Color.white.opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 72, height: 72)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .stroke(Color.white.opacity(0.24), lineWidth: 1)
+                    )
+
+                Image(systemName: "cube.transparent")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(spacing: 8) {
+                Text(loc("auth.login.loading.title"))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text(loc("auth.login.loading.subtitle"))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .multilineTextAlignment(.center)
+            }
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 148, height: 7)
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white, Color.brandPink, Color.brandPurple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: isAnimating ? 148 : 44, height: 7)
+                    .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: isAnimating)
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 30)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.12),
+                    Color.white.opacity(0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
+        )
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 30, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(Color.white.opacity(0.24), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
+        .onAppear {
+            guard !isAnimating else { return }
+            isAnimating = true
+        }
     }
 }

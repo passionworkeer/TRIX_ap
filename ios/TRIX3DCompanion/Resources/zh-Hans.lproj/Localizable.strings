@@ -184,6 +184,8 @@
 "loading" = "加载中...";
 "loading.messages" = "消息加载中...";
 "loading.profile" = "资料加载中...";
+"auth.login.loading.title" = "正在验证身份";
+"auth.login.loading.subtitle" = "为你恢复学习空间与会话连接";
 
 // MARK: - Notifications
 "notification.study.reminder" = "学习提醒";
@@ -258,6 +260,26 @@
 
 // MARK: - Location
 "location.pick" = "选择位置";
+"map.search.placeholder" = "搜索地点、学校或自习室";
+"map.loading.locations" = "正在加载附近地点...";
+"map.location.center" = "定位到我的位置";
+"map.filter.all" = "全部";
+"map.filter.school" = "学校";
+"map.filter.library" = "自习室";
+"map.filter.cafe" = "咖啡馆";
+"map.filter.home" = "宿舍";
+"map.filter.park" = "公园";
+"map.filter.other" = "其他";
+
+// MARK: - Chat
+"chat.friends.unavailable" = "好友列表暂时不可用，先和 TRIX Bot 聊聊吧";
+"chat.friends.network.issue" = "网络不稳定，好友列表暂时没加载出来";
+"chat.friends.load.failed" = "好友列表加载失败，稍后可以再试";
+"chat.friends.retry" = "重新加载";
+"chat.friend.action.failed" = "操作失败，请稍后重试";
+"chat.friend.action.not.available" = "好友功能暂时不可用，请稍后再试";
+"chat.friend.action.network" = "网络连接异常，请检查网络后重试";
+"chat.friend.action.timeout" = "请求超时，请稍后再试";
 "location.search" = "搜索位置";
 "location.current" = "当前位置";
 "location.favorites" = "收藏夹";

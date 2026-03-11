@@ -61,8 +61,11 @@ struct MapView: View {
                     Spacer()
 
                     // Friend markers bar
-                    friendMarkersBar
-                        .padding(.bottom, 8)
+                    if !viewModel.friendLocations.isEmpty {
+                        friendMarkersBar
+                            .padding(.bottom, 12)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
 
                     // Bottom status bar - always above GlassDock
                     bottomStatusBar
@@ -98,7 +101,7 @@ struct MapView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("My location")
+                        .accessibilityLabel("map.location.center".localized)
                         .padding(.trailing, 16)
                         .padding(.bottom, locationButtonBottomInset)
                     }
@@ -142,16 +145,16 @@ struct MapView: View {
                     .presentationDragIndicator(.visible)
             }
         }
-        .alert("Location Permission Required", isPresented: $showPermissionAlert) {
-            Button("Settings") {
+        .alert("位置权限未开启", isPresented: $showPermissionAlert) {
+            Button("前往设置") {
                 openAppSettings()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("取消", role: .cancel) {}
         } message: {
-            Text("Please enable location access in Settings to see nearby locations.")
+            Text("请在系统设置中允许定位权限，这样你才能查看附近地点并共享位置。")
         }
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") {
+        .alert("加载失败", isPresented: .constant(viewModel.errorMessage != nil)) {
+            Button("知道了") {
                 viewModel.clearError()
             }
         } message: {
@@ -225,7 +228,7 @@ struct MapView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.textSecondary)
 
-                TextField("Search locations...", text: $viewModel.searchQuery)
+                TextField("map.search.placeholder".localized, text: $viewModel.searchQuery)
                     .textFieldStyle(.plain)
                     .font(.body)
                     .focused($isSearchFocused)
@@ -269,7 +272,7 @@ struct MapView: View {
             HStack(spacing: 12) {
                 // All categories
                 CategoryFilterChip(
-                    title: "All",
+                    title: "map.filter.all".localized,
                     icon: "line.3.horizontal.decrease.circle.fill",
                     isSelected: viewModel.selectedCategory == nil
                 ) {
@@ -340,7 +343,11 @@ struct MapView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
-        .background(Color.gray.opacity(0.2))
+        .background(.ultraThinMaterial)
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.26), lineWidth: 1)
+        )
         .clipShape(Capsule())
         .shadow(color: .shadow, radius: 8, x: 0, y: 4)
         .padding(.horizontal, 40)
@@ -357,7 +364,7 @@ struct MapView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
                     .scaleEffect(1.5)
 
-                Text("Loading locations...")
+                Text("map.loading.locations".localized)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
             }
@@ -416,7 +423,7 @@ struct MapView: View {
     /// Keep overlays above the floating bottom dock on every iPhone size.
     private func bottomOverlayInset(for safeBottom: CGFloat) -> CGFloat {
         let dockHeight: CGFloat = 70
-        let dockBottomPadding: CGFloat = 8
+        let dockBottomPadding: CGFloat = 18
         let spacingAboveDock: CGFloat = 56
         return safeBottom + dockHeight + dockBottomPadding + spacingAboveDock
     }
@@ -589,17 +596,17 @@ extension LocationCategory {
     var displayName: String {
         switch self {
         case .school:
-            return "School"
+            return "map.filter.school".localized
         case .library:
-            return "Library"
+            return "map.filter.library".localized
         case .cafe:
-            return "Cafe"
+            return "map.filter.cafe".localized
         case .home:
-            return "Home"
+            return "map.filter.home".localized
         case .park:
-            return "Park"
+            return "map.filter.park".localized
         case .other:
-            return "Other"
+            return "map.filter.other".localized
         }
     }
 
