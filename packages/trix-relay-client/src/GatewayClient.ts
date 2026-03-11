@@ -4,6 +4,7 @@
  * Direct connection to OpenClaw Gateway with Ed25519 authentication
  */
 
+// Import crypto - auto-detect environment
 import {
   generateKeyPair,
   buildSignedDevice,
@@ -22,6 +23,9 @@ import type {
   ConnectResponse,
   EventHandler,
 } from './types.js';
+
+// WebSocket type - supports both browser and Node.js
+type WebSocketType = typeof WebSocket;
 
 const PROTOCOL_VERSION = 3;
 

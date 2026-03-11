@@ -1,21 +1,30 @@
 {
   "name": "@trix-app/relay-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TRIX Relay Client - WebSocket client for OpenClaw Gateway",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "websocket",
     "relay",
     "gateway",
     "openclaw",
-    "trix"
+    "trix",
+    "ed25519"
   ],
   "author": "TRIX Team",
   "license": "MIT",
