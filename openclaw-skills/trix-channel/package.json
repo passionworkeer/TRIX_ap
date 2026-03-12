@@ -8,12 +8,14 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "test": "node --test cli.test.js"
   },
   "author": "TRIX Team",
   "license": "MIT",
   "preferGlobal": true,
   "dependencies": {
+    "qrcode-terminal": "^0.12.0",
     "socket.io-client": "^4.7.2",
     "ws": "^8.18.0"
   },

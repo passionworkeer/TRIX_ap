@@ -142,6 +142,60 @@ describe('mallService', () => {
       expect(mockQuery.eq).toHaveBeenCalledWith('is_active', true);
       expect(mockOrderedQuery.eq).toHaveBeenCalledWith('category', 'clothing');
     });
+
+    it('should fallback to created_at when display_order does not exist', async () => {
+      vi.mocked(supabase.auth.getUser).mockResolvedValue({
+        data: { user: null },
+        error: null
+      });
+
+      const missingDisplayOrder = {
+        data: null,
+        error: { code: '42703', message: 'column mall_items.display_order does not exist' }
+      };
+      const fallbackItems = {
+        data: [{
+          id: 'item-1',
+          name: 'Blue Hat',
+          description: 'A hat',
+          image_url: 'hat.png',
+          price: 99,
+          category: 'accessory'
+        }],
+        error: null
+      };
+
+      const primaryQuery: any = {
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue(missingDisplayOrder)
+      };
+      const fallbackQuery: any = {
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue(fallbackItems)
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue(primaryQuery)
+        } as any)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue(fallbackQuery)
+        } as any);
+
+      const result = await getMallItems();
+
+      expect(primaryQuery.order).toHaveBeenCalledWith('display_order', { ascending: true });
+      expect(fallbackQuery.order).toHaveBeenCalledWith('created_at', { ascending: false });
+      expect(result).toEqual([{
+        id: 'item-1',
+        name: 'Blue Hat',
+        description: 'A hat',
+        image: 'hat.png',
+        price: 99,
+        category: 'accessory',
+        isOwned: false
+      }]);
+    });
   });
 
   // ============================================

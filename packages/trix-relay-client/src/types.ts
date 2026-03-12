@@ -66,6 +66,10 @@ export interface GatewayOptions {
   password?: string;
   deviceId?: string;
   deviceKey?: string;
+  clientId?: string;
+  clientMode?: string;
+  displayName?: string;
+  platform?: string;
   reconnect?: boolean;
   reconnectAttempts?: number;
   reconnectDelay?: number;

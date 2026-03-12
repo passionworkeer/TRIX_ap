@@ -2113,7 +2113,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`[Socket.io] disconnected: ${socket.id}, total=${io.sockets.sockets.size - 1}`);
+    console.log(`[Socket.io] disconnected: ${socket.id}, total=${io.sockets.sockets.size}`);
 
     if (ENABLE_STUDY_ROOM_SOCKET) {
       const { updates } = studyRoomService.handleDisconnect(socket.id);
