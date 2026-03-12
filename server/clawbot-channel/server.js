@@ -1858,31 +1858,34 @@ io.on('connection', (socket) => {
     }
   }
 
-  // 消息去重缓存
-  const recentMessageIds = new Map();
+  // 消息去重缓存（基于 content hash）
+  const recentMessages = new Map();
 
   // 直接透传消息（trix-channel skill 已经处理好了消息完整性）
   async function handleBotToAppMessage(rawData, sourceEvent) {
     try {
       const content = rawData.content || rawData.response || '';
-      // 使用 UUID 确保每条消息都有唯一 ID
+      // 使用 messageId，如果为空则生成
       const messageId = rawData.messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const timestamp = rawData.timestamp || Date.now();
 
-      // 去重：检查是否已经处理过这条消息
-      const lastProcessed = recentMessageIds.get(messageId);
-      if (lastProcessed && Date.now() - lastProcessed < 5000) {
-        console.log('[Bot->App] 忽略重复消息, messageId:', messageId, 'content:', content.substring(0, 20));
+      // 用 content 前 30 字符作为去重 key（更可靠）
+      const contentKey = content.substring(0, 30);
+      const now = Date.now();
+
+      // 基于 content 去重
+      const lastProcessed = recentMessages.get(contentKey);
+      if (lastProcessed && now - lastProcessed < 5000) {
+        console.log('[Bot->App] 忽略重复消息, content:', contentKey, '来源:', sourceEvent);
         return;
       }
-      recentMessageIds.set(messageId, Date.now());
+      recentMessages.set(contentKey, now);
 
-      // 清理过期的 messageId
-      if (recentMessageIds.size > 100) {
-        const now = Date.now();
-        for (const [key, time] of recentMessageIds.entries()) {
+      // 清理过期的 content key（保留更长时间）
+      if (recentMessages.size > 200) {
+        for (const [key, time] of recentMessages.entries()) {
           if (now - time > 60000) {
-            recentMessageIds.delete(key);
+            recentMessages.delete(key);
           }
         }
       }
