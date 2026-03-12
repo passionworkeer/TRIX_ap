@@ -1870,7 +1870,27 @@ io.on('connection', (socket) => {
 
       if (!content) return;
 
-      const userId = 'bd49b054-7e8d-45e0-863e-0a7d89d51bf3';
+      // 从 socket 获取 deviceId 和 pairing 信息
+      const deviceId = socket.deviceId || rawData.deviceId;
+      let userId = null;
+
+      if (deviceId) {
+        // 通过 deviceId 查找配对信息
+        const pairing = await pairingService.getPairingByDeviceId(deviceId);
+        if (pairing && pairing.user_id) {
+          userId = pairing.user_id;
+        }
+      }
+
+      // 如果没有找到 userId，尝试从 socket.userId 获取
+      if (!userId) {
+        userId = socket.userId;
+      }
+
+      if (!userId) {
+        console.error('[Bot->App] 无法确定目标用户, deviceId:', deviceId);
+        return;
+      }
 
       // 直接发送完整消息（skill 已经等待消息完成后才发送）
       io.to(`user_${userId}`).emit('bot_message', {
@@ -1881,7 +1901,7 @@ io.on('connection', (socket) => {
         sourceEvent: sourceEvent
       });
 
-      console.log('[Bot->App] 已转发消息, content:', content.substring(0, 30));
+      console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', content.substring(0, 30));
     } catch (error) {
       console.error('[Bot->App] 处理失败:', error);
     }

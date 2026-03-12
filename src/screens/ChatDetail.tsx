@@ -171,6 +171,12 @@ const ChatDetail: React.FC = () => {
     },
     onError: (err) => {
       logger.chat.error('Speech error:', err);
+      if (err.includes('网络错误') || err.includes('network')) {
+        showWarning('语音识别网络错误。国内访问Chrome内置识别可能需要代理，或尝试使用Edge浏览器。');
+      } else {
+        showError(`语音识别失败: ${err}`);
+      }
+      setIsInputFocused(true); // 保证焦点仍在输入框
     }
   });
 
@@ -1133,7 +1139,12 @@ const ChatDetail: React.FC = () => {
               {isSpeechSupported && isBotConversation && (
                 <motion.button
                   type="button"
-                  onClick={() => (isListening ? stopListening() : startListening())}
+                  onClick={() => {
+                    if (isListening) stopListening();
+                    else {
+                      startListening();
+                    }
+                  }}
                   {...iosIconButtonMotion}
                   className={`ios-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
                     isListening
@@ -1146,7 +1157,7 @@ const ChatDetail: React.FC = () => {
                 </motion.button>
               )}
 
-              {/* 语音录制按钮 - 仅在非机器人会话显示 */}
+              {/* 语音录制按钮 - 仅在非机器人会话且是好友聊天时显示 */}
               {!isBotConversation && (
                 <motion.button
                   type="button"
@@ -1197,7 +1208,7 @@ const ChatDetail: React.FC = () => {
 
       <ConfirmModalRenderer />
 
-      {/* 语音录制弹窗 */}
+      {/* 语音录制弹窗 (真人好友会话) */}
       <VoiceRecorder
         isOpen={showVoiceRecorder}
         onClose={() => setShowVoiceRecorder(false)}
