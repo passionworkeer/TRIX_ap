@@ -4,6 +4,7 @@ import { X, Mail as MailIcon, Trash2 } from 'lucide-react';
 import { getMails, markMailAsRead, deleteMail } from '../services/databaseService';
 import type { Mail } from '../config/supabase';
 import Avatar from './Avatar';
+import { iosBackdropMotion, iosSidePanelMotion } from '../utils/iosMotion';
 
 interface MailPanelProps {
   isOpen: boolean;
@@ -64,20 +65,17 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...iosBackdropMotion}
           role="dialog"
           aria-modal="true"
           aria-labelledby="mail-panel-title"
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
+          onClick={onClose}
         >
           <motion.div 
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-full max-w-2xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col"
+            {...iosSidePanelMotion}
+            className="ios-glass-surface mt-16 mr-4 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-3xl shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
             {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -91,8 +89,9 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+            className="ios-pressable ios-icon-button-compact ios-surface-button flex h-8 w-8 items-center justify-center"
             aria-label="关闭邮件面板"
           >
             <X size={18} className="text-slate-600" />
@@ -113,7 +112,7 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
                 <div
                   key={mail.id}
                   onClick={() => handleMailClick(mail)}
-                  className={`p-4 border-b border-slate-100 cursor-pointer transition-colors ${
+                  className={`ios-list-row p-4 border-b border-slate-100 cursor-pointer transition-colors ${
                     selectedMail?.id === mail.id 
                       ? 'bg-cyan-50 border-l-4 border-l-cyan-500' 
                       : mail.is_read 
@@ -163,8 +162,9 @@ const MailPanel: React.FC<MailPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleDelete(selectedMail.id)}
-                    className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                    className="ios-pressable ios-icon-button-compact flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
                   >
                     <Trash2 size={18} />
                   </button>

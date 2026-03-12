@@ -67,24 +67,42 @@ vi.mock('../hooks/useNotification', () => ({
 }));
 
 // Mock supabase with proper chain
-vi.mock('../config/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: { session: { user: { id: 'user-1', email: 'tester@example.com' } } }
-      }),
-    },
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          neq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
+vi.mock('../config/supabase', () => {
+  const UserOnlineStatus = {
+    ONLINE: 'online',
+    AWAY: 'away',
+    OFFLINE: 'offline',
+  } as const;
+
+  return {
+    supabase: {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: 'user-1', email: 'tester@example.com' } } }
         }),
-      }),
-    }),
-  },
-}));
+      },
+      from: vi.fn((table: string) => ({
+        select: vi.fn(() => {
+          if (table === 'profiles') {
+            return {
+              neq: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            };
+          }
+
+          return {
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          };
+        }),
+      })),
+    },
+    getUsersLastActive: vi.fn().mockResolvedValue({}),
+    calculateOnlineStatus: vi.fn(() => UserOnlineStatus.OFFLINE),
+    getOnlineStatusText: vi.fn(() => '离线'),
+    UserOnlineStatus,
+  };
+});
 
 const renderWithRouter = (component: React.ReactElement) => {
   return render(

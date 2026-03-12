@@ -221,8 +221,9 @@ const Pairing: React.FC = () => {
     <div className="relative h-screen w-full flex flex-col bg-gradient-to-br from-cyan-100 via-indigo-100 to-pink-100 overflow-hidden">
       <header className="flex items-center p-4 pt-12 pb-2 justify-between z-20">
         <button
+          type="button"
           onClick={() => navigate(AppRoutes.PROFILE)}
-          className="flex w-10 h-10 shrink-0 items-center justify-center rounded-full bg-white/30 hover:bg-white/40 transition-colors backdrop-blur-sm text-slate-800 border border-white/20"
+          className="ios-pressable ios-icon-button ios-surface-button flex h-10 w-10 shrink-0 items-center justify-center text-slate-800"
         >
           <ArrowLeft size={24} />
         </button>
@@ -231,7 +232,7 @@ const Pairing: React.FC = () => {
 
       <main className="flex-1 flex flex-col items-center justify-center relative w-full px-6 pb-24 z-10">
         {!isConnected && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-orange-500/20 backdrop-blur-sm rounded-full border border-orange-500/30">
+          <div className="ios-glass-surface mb-4 flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/15 px-4 py-2">
             <AlertCircle size={16} className="text-orange-600" />
             <span className="text-orange-700 text-sm font-medium">正在连接服务器...</span>
           </div>
@@ -239,7 +240,7 @@ const Pairing: React.FC = () => {
 
         {mode === 'scan' && (
           <>
-            <div className="relative w-full max-w-[300px] md:max-w-sm aspect-square rounded-[2rem] bg-white/10 backdrop-blur-xl border border-white/30 shadow-[0_8px_32px_rgba(127,19,236,0.15)] overflow-hidden mb-6">
+            <div className="ios-glass-surface relative mb-6 aspect-square w-full max-w-[300px] overflow-hidden rounded-[2rem] border border-white/30 md:max-w-sm">
               <div id="qr-reader" className="w-full h-full"></div>
 
               <div className="absolute inset-0 pointer-events-none">
@@ -272,8 +273,9 @@ const Pairing: React.FC = () => {
 
             {!isScanning.current && (
               <button
+                type="button"
                 onClick={() => void startScanner()}
-                className="mt-4 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors flex items-center gap-2"
+                className="ios-pressable ios-primary-button mt-4 flex items-center gap-2 rounded-full px-6 py-3 font-medium text-white"
                 aria-label="启用摄像头扫描"
               >
                 <Camera size={18} />
@@ -295,7 +297,7 @@ const Pairing: React.FC = () => {
                 value={codeInput}
                 onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
                 placeholder="ABC123"
-                className="w-full px-4 py-3 text-center text-2xl font-mono font-bold tracking-wider text-slate-900 placeholder:text-slate-400 bg-white/90 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all"
+                className="w-full rounded-[1.25rem] border-2 border-purple-200 bg-white/88 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wider text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all placeholder:text-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
                 maxLength={6}
                 autoFocus
                 autoCapitalize="characters"
@@ -304,9 +306,10 @@ const Pairing: React.FC = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => void handlePairWithCode()}
               disabled={codeInput.length !== 6 || loading}
-              className="w-full max-w-[300px] py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+              className="ios-pressable ios-primary-button mb-3 flex w-full max-w-[300px] items-center justify-center gap-2 rounded-full py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -319,18 +322,20 @@ const Pairing: React.FC = () => {
             </button>
 
             <button
+              type="button"
               onClick={handleUnpair}
-              className="w-full max-w-[300px] py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full font-medium transition-colors"
+              className="ios-pressable ios-surface-button w-full max-w-[300px] rounded-full py-3 font-medium text-gray-700"
             >
               取消配对
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 setMode('scan');
                 void startScanner();
               }}
-              className="mt-4 text-slate-600 text-sm flex items-center gap-1 hover:text-slate-800 transition-colors"
+              className="ios-pressable mt-4 flex items-center gap-1 rounded-full px-3 py-2 text-sm text-slate-600 transition-colors hover:text-slate-800"
             >
               <Camera size={16} />
               返回扫码
@@ -356,6 +361,7 @@ const Pairing: React.FC = () => {
             <h3 className="text-xl font-bold text-slate-800 mb-2">配对成功</h3>
             <p className="text-slate-600 text-center max-w-[280px] mb-6">你的设备已连接到 Clawbot</p>
             <button
+              type="button"
               onClick={() => navigate(AppRoutes.CHAT_DETAIL, {
                 state: {
                   friendId: 'clawbot',
@@ -364,7 +370,7 @@ const Pairing: React.FC = () => {
                   isBot: true,
                 },
               })}
-              className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
+              className="ios-pressable ios-primary-button rounded-full px-8 py-3 font-medium text-white"
             >
               开始聊天
             </button>
@@ -372,7 +378,7 @@ const Pairing: React.FC = () => {
         )}
 
         {lastError && (
-          <div className="fixed top-20 left-4 right-4 max-w-md mx-auto bg-red-500/90 backdrop-blur-sm text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50">
+          <div className="ios-glass-surface fixed left-4 right-4 top-20 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl border border-red-300/30 bg-red-500/85 px-4 py-3 text-white shadow-lg">
             <AlertCircle size={18} />
             <span className="text-sm">{lastError}</span>
           </div>

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { X, Trophy, Music, Volume2 } from 'lucide-react';
 import Avatar from '../../../components/Avatar';
 import { MusicSelector } from './MusicSelector';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { DynamicBackground } from '../../../components/DynamicBackground';
+import { iosIconButtonMotion, iosPressableMotion, iosQuickSpring } from '../../../utils/iosMotion';
 
 interface TimerViewProps {
   /** 格式化后的时间对象 */
@@ -84,19 +86,27 @@ const TimerView: React.FC<TimerViewProps> = ({
         {/* 顶部按钮组 */}
         <div className="absolute top-6 left-6 right-6 flex justify-between items-start">
           {/* 关闭按钮 */}
-          <button
+          <motion.button
             onClick={onCloseClick}
-            className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
+            transition={iosQuickSpring}
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-icon-button ios-glass-surface flex items-center justify-center rounded-full text-white"
             aria-label="关闭计时器"
           >
             <X size={20} className="text-white" />
-          </button>
+          </motion.button>
 
           {/* 音乐控制按钮 */}
           {audioPlayer && (
-            <button
+            <motion.button
               onClick={() => setShowMusicSelector(true)}
-              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
+              transition={iosQuickSpring}
+              {...iosIconButtonMotion}
+              className={`ios-pressable ios-icon-button flex items-center justify-center rounded-full ${
+                audioPlayer?.currentTrack
+                  ? 'border border-purple-300/22 bg-purple-500/18 text-purple-200 shadow-[0_18px_34px_rgba(168,85,247,0.18)] backdrop-blur-xl'
+                  : 'ios-glass-surface text-white'
+              }`}
               aria-label="背景音乐"
             >
               {audioPlayer?.currentTrack && audioPlayer?.isPlaying ? (
@@ -110,7 +120,7 @@ const TimerView: React.FC<TimerViewProps> = ({
               ) : (
                 <Music size={18} className="text-white/70" />
               )}
-            </button>
+            </motion.button>
           )}
         </div>
 
@@ -194,7 +204,7 @@ const TimerView: React.FC<TimerViewProps> = ({
                 </div>
 
                 {/* 共同专注提示 */}
-                <div className="px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-xl border border-purple-400/30 shadow-lg relative overflow-hidden">
+                <div className="ios-glass-surface relative overflow-hidden rounded-full border border-purple-300/22 bg-gradient-to-r from-purple-500/16 to-pink-500/16 px-5 py-2.5 shadow-[0_18px_34px_rgba(168,85,247,0.16)]">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" style={{ animationDuration: '3s' }} />
                   <p className="text-sm font-medium text-purple-100 flex items-center gap-2 relative z-10">
                     <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
@@ -216,7 +226,7 @@ const TimerView: React.FC<TimerViewProps> = ({
             </div>
 
             {/* 状态显示 */}
-            <div className="mb-6 px-6 py-2.5 rounded-full bg-blue-500/20 backdrop-blur-xl border border-blue-400/20 shadow-lg">
+            <div className="ios-glass-surface mb-6 rounded-full border border-blue-300/20 bg-blue-500/16 px-6 py-2.5 shadow-[0_18px_32px_rgba(59,130,246,0.14)]">
               {isCompleted ? (
                 <div className="flex items-center gap-2">
                   <Trophy size={18} className="text-yellow-400" />
@@ -235,13 +245,15 @@ const TimerView: React.FC<TimerViewProps> = ({
         {/* 放弃专注按钮 */}
         {!isCompleted && (
           <div className="pb-16 flex justify-center">
-            <button
+            <motion.button
               onClick={onStopFocus}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-red-500/15 backdrop-blur-md border border-red-500/20 hover:bg-red-500/25 transition-all active:scale-95"
+              transition={iosQuickSpring}
+              {...iosPressableMotion}
+              className="ios-pressable flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/16 px-5 py-2.5 text-red-200 shadow-[0_16px_28px_rgba(239,68,68,0.14)] backdrop-blur-xl"
             >
               <X size={16} className="text-red-300" />
               <span className="text-sm font-medium text-red-300">放弃专注</span>
-            </button>
+            </motion.button>
           </div>
         )}
       </div>

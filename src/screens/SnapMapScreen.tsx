@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import { Navigation, Map as MapIcon, X, Send, Heart, Clock } from 'lucide-react';
@@ -16,6 +17,7 @@ import { PLACE_CATEGORY_LABELS } from '../types/place';
 import { IMAGES } from '../constants';
 
 import { useTheme } from '../contexts/ThemeContext';
+import { iosIconButtonMotion, iosPressableMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
 
 // Fix Default Leaflet Icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -94,8 +96,11 @@ const LocationButton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   const map = useMap();
   const handleClick = () => map.setView([31.2304, 121.4737], 15, { animate: true, duration: 1 });
   return (
-    <button
+    <motion.button
       onClick={handleClick}
+      transition={iosQuickSpring}
+      {...iosIconButtonMotion}
+      className="ios-pressable ios-icon-button"
       style={{
         position: 'absolute', bottom: '110px', right: '16px', zIndex: 1000,
         width: '48px', height: '48px', borderRadius: '50%', background: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)',
@@ -104,7 +109,7 @@ const LocationButton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
       }}
     >
       <Navigation size={22} color={isDark ? "#fff" : "#000"} />
-    </button>
+    </motion.button>
   );
 };
 
@@ -116,7 +121,6 @@ const SnapMapScreen: React.FC = () => {
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendLocations, setFriendLocations] = useState<FriendLocation[]>([]);
   const [places] = useState<Place[]>(mockPlaces);
-  const [filteredPlaces, setFilteredPlaces] = useState<Place[]>(mockPlaces);
   const [selectedCategory, setSelectedCategory] = useState<PlaceCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -132,43 +136,64 @@ const SnapMapScreen: React.FC = () => {
     getFriendsLocations().then(locations => { if(locations.length) setFriendLocations(locations); }).catch(() => {});
   }, []);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    const filtered = places.filter(p => p.name.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase()));
-    setFilteredPlaces(filtered);
-  };
-
   const center: [number, number] = [31.2304, 121.4737];
 
-  const friendMarkers = useMemo(() => {
-    const list = friendLocations.length > 0 ? friendLocations.map(loc => ({
-      friend_id: loc.friendId, avatar_url: loc.avatar, name: loc.name, status: loc.status,
-      lat: loc.latitude, lng: loc.longitude
-    })) : friends.map((f, i) => {
-      const pos = getOffsetPosition(center[0], center[1], i);
-      return { ...f, lat: pos.lat, lng: pos.lng };
-    });
+  const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return list.map((friend: any) => (
+  const filteredPlaces = useMemo(() => {
+    return places.filter((place) => {
+      const matchesCategory = selectedCategory === 'all' || place.category === selectedCategory;
+      const matchesQuery = !normalizedQuery
+        || place.name.toLowerCase().includes(normalizedQuery)
+        || place.description.toLowerCase().includes(normalizedQuery);
+
+      return matchesCategory && matchesQuery;
+    });
+  }, [normalizedQuery, places, selectedCategory]);
+
+  const visibleFriends = useMemo(() => {
+    const list = friendLocations.length > 0
+      ? friendLocations.map((loc) => ({
+        friend_id: loc.friendId,
+        avatar_url: loc.avatar,
+        name: loc.name,
+        status: loc.status,
+        lat: loc.latitude,
+        lng: loc.longitude
+      }))
+      : friends.map((friend, index) => {
+        const pos = getOffsetPosition(center[0], center[1], index);
+        return { ...friend, lat: pos.lat, lng: pos.lng };
+      });
+
+    if (!normalizedQuery) {
+      return list;
+    }
+
+    return list.filter((friend) => friend.name?.toLowerCase().includes(normalizedQuery));
+  }, [center, friendLocations, friends, normalizedQuery]);
+
+  const friendMarkers = useMemo(() => {
+    return visibleFriends.map((friend: any) => (
       <Marker
         key={friend.friend_id}
         position={[friend.lat, friend.lng]}
-          icon={createSnapAvatarIcon(friend as FriendLatestMessage, isDark)}
+        icon={createSnapAvatarIcon(friend as FriendLatestMessage, isDark)}
         eventHandlers={{ click: () => setSelectedItem({ ...friend, type: 'friend' }) }}
       />
     ));
-  }, [friends, friendLocations]);
+  }, [isDark, visibleFriends]);
 
   const placeMarkers = useMemo(() => {
     return filteredPlaces.map((place) => (
       <Marker
         key={place.id}
         position={[place.latitude, place.longitude]}
-          icon={createSnapPlaceIcon(place, isDark)}
+        icon={createSnapPlaceIcon(place, isDark)}
         eventHandlers={{ click: () => setSelectedItem({ ...place, type: 'place' }) }}
       />
     ));
-  }, [filteredPlaces]);
+  }, [filteredPlaces, isDark]);
 
   const heatMarkers = useMemo(() => {
     return heatZones.map((zone, index) => (
@@ -197,10 +222,13 @@ const SnapMapScreen: React.FC = () => {
       `}</style>
 
       {/* Top Navigation */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, padding: '16px', paddingTop: '48px', background: isDark ? 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)' : 'linear-gradient(to bottom, rgba(255,255,255,0.8) 0%, transparent 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDark ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)', backdropFilter: 'blur(12px)', padding: '8px 24px', borderRadius: '24px', border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)', pointerEvents: 'auto' }}>
-            <MapIcon size={18} color={isDark ? "#fff" : "#000"} />
-            <span style={{ color: isDark ? '#fff' : '#000', fontSize: '15px', fontWeight: 600, letterSpacing: '0.5px' }}>{t('features.virtualWorld', 'Virtual World')}</span>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, padding: '16px', paddingTop: '48px', background: isDark ? 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)' : 'linear-gradient(to bottom, rgba(255,255,255,0.8) 0%, transparent 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div
+          className="ios-glass-surface"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDark ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)', padding: '8px 24px', borderRadius: '24px', border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)', pointerEvents: 'auto' }}
+        >
+          <MapIcon size={18} color={isDark ? "#fff" : "#000"} />
+          <span style={{ color: isDark ? '#fff' : '#000', fontSize: '15px', fontWeight: 600, letterSpacing: '0.5px' }}>{t('features.virtualWorld', 'Virtual World')}</span>
         </div>
       </div>
 
@@ -210,18 +238,22 @@ const SnapMapScreen: React.FC = () => {
           type="text"
           placeholder="搜索地点或好友..."
           value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          style={{ width: '100%', padding: '14px 20px', borderRadius: '20px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', background: isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', color: isDark ? 'white' : 'black', boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)', fontSize: '14px', outline: 'none', pointerEvents: 'auto' }}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="ios-glass-surface"
+          style={{ width: '100%', padding: '14px 20px', borderRadius: '20px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', background: isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)', color: isDark ? 'white' : 'black', boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)', fontSize: '14px', outline: 'none', pointerEvents: 'auto' }}
         />
         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', pointerEvents: 'auto' }}>
           {['all', 'dining', 'entertainment', 'study'].map((cat) => (
-            <button
+            <motion.button
               key={cat}
               onClick={() => setSelectedCategory(cat as any)}
+              transition={iosQuickSpring}
+              {...iosPressableMotion}
+              className="ios-pressable"
               style={{ padding: '8px 16px', borderRadius: '20px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', background: selectedCategory === cat ? (isDark ? '#fff' : '#000') : (isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)'), backdropFilter: 'blur(8px)', color: selectedCategory === cat ? (isDark ? '#000' : '#fff') : (isDark ? '#fff' : '#000'), fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s' }}
             >
               {cat === 'all' ? '全部' : PLACE_CATEGORY_LABELS[cat as PlaceCategory]}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -240,27 +272,34 @@ const SnapMapScreen: React.FC = () => {
       </MapContainer>
 
       {/* Bottom Sheet Overlay */}
-      <div
-        style={{
-          position: 'absolute', bottom: '90px', left: '16px', right: '16px', zIndex: 1001,
-          background: isDark ? 'rgba(24, 24, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(16px)', color: isDark ? 'white' : 'black',
-          borderRadius: '28px',
-          padding: '24px 20px',
-          boxShadow: isDark ? '0 10px 40px rgba(0,0,0,0.5)' : '0 10px 40px rgba(0,0,0,0.15)',
-          transform: selectedItem ? 'translateY(0)' : 'translateY(150%)',
-          transition: 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease',
-          opacity: selectedItem ? 1 : 0,
-          display: 'flex', flexDirection: 'column', gap: '20px',
-          pointerEvents: selectedItem ? 'auto' : 'none'
-        }}
-      >
-        <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', alignSelf: 'center', marginBottom: '-10px' }} />
+      <AnimatePresence>
+        {selectedItem ? (
+          <motion.div
+            className="ios-glass-surface"
+            initial={iosSheetMotion.initial}
+            animate={iosSheetMotion.animate}
+            exit={{ opacity: 0, y: 140, scale: 0.96, transition: { duration: 0.16 } }}
+            style={{
+              position: 'absolute', bottom: '90px', left: '16px', right: '16px', zIndex: 1001,
+              background: isDark ? 'rgba(24, 24, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)', color: isDark ? 'white' : 'black',
+              borderRadius: '28px',
+              padding: '24px 20px',
+              boxShadow: isDark ? '0 10px 40px rgba(0,0,0,0.5)' : '0 10px 40px rgba(0,0,0,0.15)',
+              display: 'flex', flexDirection: 'column', gap: '20px',
+              pointerEvents: 'auto'
+            }}
+          >
+            <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', alignSelf: 'center', marginBottom: '-10px' }} />
 
-        {selectedItem && (
-          <>
-            <button onClick={() => setSelectedItem(null)} style={{ position: 'absolute', top: '24px', right: '20px', background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <motion.button
+              onClick={() => setSelectedItem(null)}
+              transition={iosQuickSpring}
+              {...iosIconButtonMotion}
+              className="ios-pressable"
+              style={{ position: 'absolute', top: '24px', right: '20px', background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
               <X size={16} />
-            </button>
+            </motion.button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {selectedItem.type === 'place' ? (
@@ -291,24 +330,32 @@ const SnapMapScreen: React.FC = () => {
             ) : null}
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-              <button style={{ flex: 1, padding: '16px', borderRadius: '20px', background: isDark ? '#252528' : '#f4f4f5', color: isDark ? 'white' : 'black', border: 'none', fontWeight: '600', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <motion.button
+                transition={iosQuickSpring}
+                {...iosPressableMotion}
+                className="ios-pressable"
+                style={{ flex: 1, padding: '16px', borderRadius: '20px', background: isDark ? '#252528' : '#f4f4f5', color: isDark ? 'white' : 'black', border: 'none', fontWeight: '600', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
                 {selectedItem.type === 'place' ? <><Heart size={18} /> 收藏</> : <><Send size={18} /> 私信</>}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => {
                   const lat = selectedItem.type === 'place' ? selectedItem.latitude : (selectedItem as any).lat;
                   const lng = selectedItem.type === 'place' ? selectedItem.longitude : (selectedItem as any).lng;
                   window.open(`https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(selectedItem.name)}`);
                 }}
+                transition={iosQuickSpring}
+                {...iosPressableMotion}
+                className="ios-pressable"
                 style={{ flex: 2, padding: '16px', borderRadius: '20px', background: '#fef08a', color: '#000', border: 'none', fontWeight: 'bold', fontSize: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(254, 240, 138, 0.3)' }}
               >
                 <Navigation size={18} />
                 {selectedItem.type === 'place' ? '导航过去' : '找他去'}
-              </button>
+              </motion.button>
             </div>
-          </>
-        )}
-      </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 };

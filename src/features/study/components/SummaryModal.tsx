@@ -1,6 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Trophy, Sparkles, Heart, Zap } from 'lucide-react';
 import Avatar from '../../../components/Avatar';
+import { iosBackdropMotion, iosPressableMotion, iosQuickSpring, iosSheetMotion } from '../../../utils/iosMotion';
 
 interface ConfettiEffectProps {
   /** Number of confetti particles (default: 50) */
@@ -87,19 +89,25 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
   return (
     <>
       {/* 背景遮罩 */}
-      <div
+      <motion.div
         role="presentation"
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fade-in"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
         onClick={onClose}
       />
 
       {/* Modal内容 */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
-        <div
+        <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="summary-title"
-          className="bg-gradient-to-br from-purple-900/95 to-pink-900/95 backdrop-blur-xl border-2 border-white/30 rounded-3xl p-8 max-w-md w-full shadow-2xl pointer-events-auto animate-scale-in"
+          className="pointer-events-auto w-full max-w-md rounded-[2rem] border border-white/20 bg-gradient-to-br from-violet-950/96 via-fuchsia-950/92 to-slate-950/94 p-8 text-white shadow-[0_28px_88px_rgba(0,0,0,0.48)] backdrop-blur-2xl"
+          initial={iosSheetMotion.initial}
+          animate={iosSheetMotion.animate}
+          exit={iosSheetMotion.exit}
           style={{
             boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(219,39,119,0.3)',
           }}
@@ -125,7 +133,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
           </p>
 
           {/* 核心数据卡片 */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 border border-white/20">
+          <div className="ios-glass-surface mb-6 rounded-[1.6rem] border border-white/18 bg-white/10 p-6 text-white">
             {/* 专注时长 */}
             <div className="text-center mb-4">
               <p className="text-white/60 text-xs uppercase tracking-wider mb-2">本次专注时长</p>
@@ -190,13 +198,15 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
           </div>
 
           {/* 按钮 */}
-          <button
+          <motion.button
             onClick={onClose}
-            className="w-full bg-white text-purple-900 py-4 rounded-full font-bold text-lg hover:scale-105 active:scale-95 transition-transform shadow-lg"
+            transition={iosQuickSpring}
+            {...iosPressableMotion}
+            className="ios-pressable w-full rounded-full bg-white py-4 text-lg font-bold text-purple-900 shadow-[0_18px_32px_rgba(255,255,255,0.18)]"
           >
             返回自习室
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
     </>
   );

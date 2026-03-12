@@ -1,6 +1,14 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Music, Volume2, VolumeX, X, Loader2 } from 'lucide-react';
 import { MUSIC_TRACKS, MusicTrack, useAudioPlayer } from '../../../hooks/useAudioPlayer';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosPressableMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../../../utils/iosMotion';
 
 interface MusicSelectorProps {
   /** 是否显示 */
@@ -45,13 +53,21 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* 背景遮罩 */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+      <motion.div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
         onClick={onClose}
       />
 
       {/* 音乐选择面板 */}
-      <div className="relative w-full max-w-md bg-gray-900/95 backdrop-blur-xl rounded-t-3xl animate-scale-in overflow-hidden">
+      <motion.div
+        className="relative w-full max-w-md overflow-hidden rounded-t-[2rem] border border-white/10 bg-slate-950/92 shadow-[0_28px_80px_rgba(2,6,23,0.55)] backdrop-blur-2xl"
+        initial={iosSheetMotion.initial}
+        animate={iosSheetMotion.animate}
+        exit={iosSheetMotion.exit}
+      >
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -63,17 +79,19 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
               <p className="text-xs text-gray-400">选择适合专注的音乐</p>
             </div>
           </div>
-          <button
+          <motion.button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+            transition={iosQuickSpring}
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-surface-button ios-icon-button-compact flex items-center justify-center text-slate-500"
           >
             <X size={16} className="text-gray-400" />
-          </button>
+          </motion.button>
         </div>
 
         {/* 当前播放状态 */}
         {currentTrack && (
-          <div className="px-6 py-3 bg-purple-500/10 border-b border-purple-500/20">
+          <div className="border-b border-purple-500/20 bg-purple-500/10 px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/30 flex items-center justify-center text-xl">
@@ -87,10 +105,12 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <motion.button
                   onClick={toggle}
                   disabled={isLoading}
-                  className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center hover:bg-purple-600 transition-colors disabled:opacity-50"
+                  transition={iosQuickSpring}
+                  {...iosPressableMotion}
+                  className="ios-pressable ios-primary-button flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-50"
                 >
                   {isLoading ? (
                     <Loader2 size={18} className="text-white animate-spin" />
@@ -99,7 +119,7 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
                   ) : (
                     <VolumeX size={18} className="text-white" />
                   )}
-                </button>
+                </motion.button>
               </div>
             </div>
             {/* 音量控制 */}
@@ -127,17 +147,19 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
         {/* 分类筛选 */}
         <div className="flex gap-2 px-6 py-3 overflow-x-auto">
           {categories.map(cat => (
-            <button
+            <motion.button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              transition={iosQuickSpring}
+              {...iosPressableMotion}
+              className={`ios-pressable whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium ${
                 selectedCategory === cat.id
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  ? 'ios-pill-indicator border border-purple-300/20 bg-purple-500 text-white'
+                  : 'ios-secondary-button text-gray-200'
               }`}
             >
               {cat.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -149,13 +171,15 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
               const isTrackPlaying = isCurrentTrack && isPlaying;
 
               return (
-                <button
+                <motion.button
                   key={track.id}
                   onClick={() => handleTrackSelect(track)}
-                  className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                  transition={iosQuickSpring}
+                  {...iosPressableMotion}
+                  className={`ios-list-row flex items-center gap-3 rounded-[1.15rem] border p-3 text-left ${
                     isCurrentTrack
-                      ? 'bg-purple-500/20 border border-purple-500/50'
-                      : 'bg-white/5 border border-transparent hover:bg-white/10'
+                      ? 'border-purple-400/45 bg-purple-500/18 shadow-[0_14px_32px_rgba(168,85,247,0.14)]'
+                      : 'border-white/6 bg-white/5 hover:bg-white/10'
                   }`}
                 >
                   <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg">
@@ -181,12 +205,12 @@ export function MusicSelector({ isOpen, onClose, audioPlayer }: MusicSelectorPro
                       ))}
                     </div>
                   )}
-                </button>
+                </motion.button>
               );
             })}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

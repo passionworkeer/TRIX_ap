@@ -24,9 +24,6 @@ import type {
   EventHandler,
 } from './types.js';
 
-// WebSocket type - supports both browser and Node.js
-type WebSocketType = typeof WebSocket;
-
 const PROTOCOL_VERSION = 3;
 
 interface PendingRequest {
@@ -59,6 +56,10 @@ export class GatewayClient {
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private stopped = false;
   private storedDeviceToken: string | null = null;
+  private clientId = 'gateway-client';
+  private clientMode = 'backend';
+  private displayName = 'TRIX Gateway Client';
+  private platform = 'node';
 
   constructor() {}
 
@@ -67,11 +68,22 @@ export class GatewayClient {
    */
   async connect(options: GatewayOptions): Promise<void> {
     const { url, token, password, reconnect = true } = options;
+    const isBrowser =
+      typeof window !== 'undefined' &&
+      typeof window.document !== 'undefined';
 
     this.url = url;
     this.token = token || null;
     this.password = password || null;
     this.maxReconnectAttempts = reconnect ? 10 : 0;
+    this.clientId = options.clientId || (isBrowser ? 'trix-web' : 'gateway-client');
+    this.clientMode = options.clientMode || (isBrowser ? 'ui' : 'backend');
+    this.displayName = options.displayName || (isBrowser ? 'TRIX Relay Client' : 'TRIX Gateway Client');
+    this.platform =
+      options.platform ||
+      ((typeof process !== 'undefined' && typeof process.platform === 'string')
+        ? process.platform
+        : 'browser');
 
     // Generate or use provided device credentials
     if (!this.deviceId || !this.deviceKey || !this.publicKey) {
@@ -166,8 +178,8 @@ export class GatewayClient {
       'operator.approvals',
       'operator.pairing',
     ];
-    const clientId = 'trix-relay-client';
-    const clientMode = 'ui';
+    const clientId = this.clientId;
+    const clientMode = this.clientMode;
     const signedAtMs = Date.now();
     const nonce = this.connectNonce ?? undefined;
     const authToken = this.storedDeviceToken ?? this.token ?? undefined;
@@ -193,9 +205,9 @@ export class GatewayClient {
       caps: ['tool-events'],
       client: {
         id: clientId,
-        displayName: 'TRIX Relay Client',
+        displayName: this.displayName,
         version: '1.0.0',
-        platform: 'browser',
+        platform: this.platform,
         mode: clientMode,
       },
       device,

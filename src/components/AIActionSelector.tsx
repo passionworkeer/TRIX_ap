@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { AIActionId } from '../features/chat/utils/aiPrompt';
+import { iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
 
 interface AIActionSelectorProps {
   value: AIActionId;
@@ -78,7 +79,7 @@ const AIActionSelector: React.FC<AIActionSelectorProps> = ({ value, onSelect }) 
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.2 }}
+      transition={iosQuickSpring}
       className="flex gap-2 overflow-x-auto pb-1"
     >
       {actions.map((action) => {
@@ -89,12 +90,12 @@ const AIActionSelector: React.FC<AIActionSelectorProps> = ({ value, onSelect }) 
           <motion.button
             key={action.id}
             type="button"
-            whileTap={{ scale: 0.96 }}
+            {...iosPressableMotion}
             onClick={() => onSelect(action.id)}
-            className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
+            className={`ios-pressable flex shrink-0 items-center gap-2 rounded-[1rem] border px-3 py-2 text-xs font-medium transition-colors ${
               isSelected
                 ? action.selectedClass
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800'
+                : 'border-slate-200/80 bg-white/88 text-slate-600 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800'
             }`}
             aria-pressed={isSelected}
           >

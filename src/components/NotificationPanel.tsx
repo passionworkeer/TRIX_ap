@@ -12,6 +12,7 @@ import {
 import type { Notification } from '../config/supabase';
 import Avatar from './Avatar';
 import { getErrorMessage } from '../utils/errorHandler';
+import { iosBackdropMotion, iosSidePanelMotion } from '../utils/iosMotion';
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -124,20 +125,17 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...iosBackdropMotion}
           role="dialog"
           aria-modal="true"
           aria-labelledby="notification-panel-title"
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-end p-4"
+          onClick={onClose}
         >
           <motion.div 
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl mt-16 mr-4 max-h-[80vh] flex flex-col"
+            {...iosSidePanelMotion}
+            className="ios-glass-surface mt-16 mr-4 flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -152,8 +150,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={handleMarkAllAsRead}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors flex items-center gap-1"
+                className="ios-pressable ios-surface-button flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700"
                 aria-label="全部标记为已读"
               >
                 <Check size={14} />
@@ -161,8 +160,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              className="ios-pressable ios-icon-button-compact ios-surface-button flex h-8 w-8 items-center justify-center"
               aria-label="关闭通知面板"
             >
               <X size={18} className="text-slate-600" />
@@ -191,7 +191,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                       void handleMarkAsRead(notification.id);
                     }
                   }}
-                  className={`p-4 border-b border-slate-100 cursor-pointer transition-colors ${
+                  className={`ios-list-row p-4 border-b border-slate-100 cursor-pointer transition-colors ${
                     notification.is_read
                       ? 'bg-white hover:bg-slate-50'
                       : 'bg-orange-50/50 hover:bg-orange-50 border-l-4 border-l-orange-500'
@@ -228,22 +228,24 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                   {isFriendRequest && !notification.is_read && (
                     <div className="flex gap-2 mt-3 ml-13">
                       <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleFriendRequestAction(notification.id, 'accept');
                         }}
                         disabled={isProcessing}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+                        className="ios-pressable flex-1 rounded-xl bg-green-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         接受
                       </button>
                       <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleFriendRequestAction(notification.id, 'reject');
                         }}
                         disabled={isProcessing}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 disabled:opacity-60 disabled:cursor-not-allowed text-slate-700 text-xs font-medium transition-colors"
+                        className="ios-pressable ios-surface-button flex-1 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         拒绝
                       </button>
@@ -262,4 +264,3 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
 };
 
 export default NotificationPanel;
-

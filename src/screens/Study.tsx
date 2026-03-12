@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AppRoutes } from "../types";
 import StudyRoom from "../components/StudyRoom";
+import TimerView from "../features/study/components/TimerView";
 import { supabase } from "../config/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { IMAGES } from "../constants";
@@ -13,11 +14,7 @@ import { PointsModal } from "../features/study/components/PointsModal";
 import { FocusStartAnimation } from "../features/study/components/FocusStartAnimation";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import { DynamicBackground } from "../components/DynamicBackground";
-import {
-  useStudyTimer,
-  useCompanionSync,
-  useStudySession
-} from "../features/study/hooks";
+import { useStudyTimer, useCompanionSync, useStudySession } from "../features/study/hooks";
 import { initializeUserPoints } from "../services/pointsService";
 import { logger } from "../utils/logger";
 
@@ -202,85 +199,26 @@ export default function Study() {
     const duration = location.state?.duration || selectedDuration;
 
     return (
-      <div className="h-screen w-full relative overflow-hidden" style={{ background: 'transparent' }}>
-        {/* 背景 */}
-        <div className="fixed inset-0 w-full h-full" style={{ zIndex: 0, pointerEvents: 'none' }}>
-          <img
-            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=80"
-            alt="Background"
-            className="w-full h-full object-cover"
+      <TimerView
+        timeObj={timeObj}
+        isCompleted={isCompleted}
+        companion={companion}
+        profile={profile || undefined}
+        userEmail={user?.email}
+        onCloseClick={handleCloseButtonClick}
+        onStopFocus={handleStopFocus}
+        audioPlayer={audioPlayer}
+        summaryModal={
+          <SummaryModal
+            show={showSummaryModal}
+            studyDuration={studyDuration}
+            initialDuration={sessionInitialDuration || duration}
+            companion={companion}
+            profile={profile || undefined}
+            onClose={handleCloseSummary}
           />
-          <div className="absolute inset-0 bg-black/40" />
-        </div>
-
-        {/* 动态背景 */}
-        <DynamicBackground
-          type="both"
-          primaryColor="rgba(139, 92, 246, 0.15)"
-          secondaryColor="rgba(236, 72, 153, 0.15)"
-          particleCount={40}
-        />
-
-        {/* 计时器显示 */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full">
-          {/* 好友头像 */}
-          {companion && (
-            <div className="mb-8 text-center">
-              <p className="text-purple-200">
-                正在与 <span className="font-bold text-pink-300">{companion.username}</span> 共同专注中
-              </p>
-            </div>
-          )}
-
-          {/* 时间显示 */}
-          <div className="flex items-baseline justify-center gap-3 mb-8">
-            <span className="text-8xl font-bold text-white tracking-tight">
-              {timeObj.m}
-            </span>
-            <span className="text-6xl font-bold text-blue-400 animate-pulse">:</span>
-            <span className="text-8xl font-bold text-white tracking-tight">
-              {timeObj.s}
-            </span>
-          </div>
-
-          {/* 状态显示 */}
-          <div className="mb-6 px-6 py-2.5 rounded-full bg-blue-500/20 backdrop-blur-xl border border-blue-400/20">
-            {isCompleted ? (
-              <span className="text-base font-semibold text-white">专注完成</span>
-            ) : (
-              <span className="text-sm font-semibold text-blue-100">深度专注中...</span>
-            )}
-          </div>
-
-          {/* 放弃按钮 */}
-          {!isCompleted && (
-            <button
-              onClick={handleStopFocus}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-red-500/15 backdrop-blur-md border border-red-500/20"
-            >
-              <span className="text-sm font-medium text-red-300">放弃专注</span>
-            </button>
-          )}
-        </div>
-
-        {/* 关闭按钮 */}
-        <button
-          onClick={handleCloseButtonClick}
-          className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20"
-        >
-          <span className="text-white">X</span>
-        </button>
-
-        {/* 结算弹窗 */}
-        <SummaryModal
-          show={showSummaryModal}
-          studyDuration={studyDuration}
-          initialDuration={sessionInitialDuration || duration}
-          companion={companion}
-          profile={profile || undefined}
-          onClose={handleCloseSummary}
-        />
-      </div>
+        }
+      />
     );
   }
 

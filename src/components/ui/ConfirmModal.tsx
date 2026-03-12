@@ -27,21 +27,21 @@ const variantTokens: Record<
   danger: {
     icon: <AlertTriangle className="h-8 w-8 text-red-500 dark:text-red-400" />,
     panelClass:
-      'border-red-200 bg-white dark:border-red-900/60 dark:bg-slate-900',
+      'border-red-200/70 bg-white/90 dark:border-red-900/60 dark:bg-slate-900/90',
     confirmClass:
       'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
   },
   warning: {
     icon: <AlertTriangle className="h-8 w-8 text-amber-500 dark:text-amber-400" />,
     panelClass:
-      'border-amber-200 bg-white dark:border-amber-900/60 dark:bg-slate-900',
+      'border-amber-200/70 bg-white/90 dark:border-amber-900/60 dark:bg-slate-900/90',
     confirmClass:
       'bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-500',
   },
   info: {
     icon: <Info className="h-8 w-8 text-blue-500 dark:text-blue-400" />,
     panelClass:
-      'border-blue-200 bg-white dark:border-blue-900/60 dark:bg-slate-900',
+      'border-blue-200/70 bg-white/90 dark:border-blue-900/60 dark:bg-slate-900/90',
     confirmClass:
       'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500',
   },
@@ -66,12 +66,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       onClose={onCancel}
       labelledBy="confirm-modal-title"
       describedBy="confirm-modal-message"
-      className={`relative z-[1002] w-full max-w-md rounded-2xl border p-5 shadow-2xl ${token.panelClass}`}
+      className={`ios-glass-surface relative z-[1002] w-full max-w-md rounded-[1.75rem] border p-5 shadow-2xl ${token.panelClass}`}
     >
       <button
         type="button"
         onClick={onCancel}
-        className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+        className="ios-pressable ios-icon-button-compact ios-surface-button absolute right-3 top-3 flex items-center justify-center p-1.5 text-slate-400 dark:text-slate-300"
         aria-label="关闭确认弹窗"
         disabled={isProcessing}
       >
@@ -102,7 +102,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           type="button"
           onClick={onCancel}
           disabled={isProcessing}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="ios-pressable ios-surface-button rounded-xl px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200"
         >
           {cancelText}
         </button>
@@ -112,7 +112,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             void onConfirm();
           }}
           disabled={isProcessing}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-900 ${token.confirmClass}`}
+          className={`ios-pressable ios-primary-button rounded-xl px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-900 ${token.confirmClass}`}
         >
           {isProcessing ? '处理中...' : confirmText}
         </button>

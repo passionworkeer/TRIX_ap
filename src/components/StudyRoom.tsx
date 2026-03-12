@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Crown,
   DoorOpen,
@@ -12,6 +13,7 @@ import {
   Users,
   X
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppRoutes } from '../types';
 import Avatar from './Avatar';
@@ -20,6 +22,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
 import clawbotChannelBridge from '../services/ClawbotChannelBridge';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosPressableMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../utils/iosMotion';
 import type {
   StudyRoomHostAction,
   StudyRoomMember,
@@ -34,6 +43,12 @@ interface StudyRoomProps {
 }
 
 type EntryMode = 'self' | 'friend' | 'room';
+
+interface EntryModeOption {
+  mode: EntryMode;
+  icon: LucideIcon;
+  label: string;
+}
 
 interface FriendCandidate {
   id: string;
@@ -56,6 +71,11 @@ interface FriendRoomLookupResult {
 
 const ROOM_CODE_REGEX = /^[A-Z0-9]{4,8}$/;
 const DURATION_PRESETS = [25, 45, 60] as const;
+const ENTRY_MODE_OPTIONS: EntryModeOption[] = [
+  { mode: 'self', icon: UserRound, label: '自己自习' },
+  { mode: 'friend', icon: Users, label: '加入好友' },
+  { mode: 'room', icon: Hash, label: '房间号加入' }
+];
 
 function sessionLabel(sessionState: StudyRoomState['sessionState']): string {
   switch (sessionState) {
@@ -199,6 +219,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
           msg.toLowerCase().includes('not in the room')
         ) {
           setRoom(null);
+          setRoomCodeInput('');
           return;
         }
 
@@ -369,6 +390,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
       await ensureSocketReady();
       await clawbotChannelBridge.leaveStudyRoom(room.roomCode);
       setRoom(null);
+      setRoomCodeInput('');
       showInfo('已离开房间');
     } catch (error) {
       showError(error instanceof Error ? error.message : '离开房间失败');
@@ -398,301 +420,321 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     [ensureSocketReady, room, selectedDuration, showError]
   );
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,1)] backdrop-blur-2xl">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.14),transparent_52%)]" />
-
-        <div className="relative flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-7">
-          <h2 className="text-base font-medium tracking-[0.14em] text-white/90 md:text-lg">自习室</h2>
-          <button
+    <AnimatePresence>
+      {isOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
+          <motion.div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition hover:bg-white/10 hover:text-white"
-            aria-label="Close"
+            initial={iosBackdropMotion.initial}
+            animate={iosBackdropMotion.animate}
+            exit={iosBackdropMotion.exit}
+          />
+          <motion.div
+            className="ios-glass-surface relative max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/84 shadow-[0_40px_140px_-70px_rgba(0,0,0,1)]"
+            initial={iosSheetMotion.initial}
+            animate={iosSheetMotion.animate}
+            exit={iosSheetMotion.exit}
           >
-            <X size={18} />
-          </button>
-        </div>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.14),transparent_52%)]" />
 
-        {!room && (
-          <>
-            <div className="relative border-b border-white/10 px-6 py-5 md:px-7">
-              <div className="mx-auto grid w-full max-w-xl grid-cols-3 rounded-xl bg-slate-900/50 p-1 ring-1 ring-white/10">
-                <button
-                  onClick={() => setEntryMode('self')}
-                  className={`flex h-10 items-center justify-center gap-1 rounded-lg px-3 text-[13px] font-normal tracking-[0.03em] transition ${
-                    entryMode === 'self'
-                      ? 'rounded-lg bg-white/10 text-white shadow-sm'
-                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
-                  }`}
-                >
-                  <UserRound size={14} className="inline" />
-                  自己自习
-                </button>
-                <button
-                  onClick={() => setEntryMode('friend')}
-                  className={`flex h-10 items-center justify-center gap-1 rounded-lg px-3 text-[13px] font-normal tracking-[0.03em] transition ${
-                    entryMode === 'friend'
-                      ? 'rounded-lg bg-white/10 text-white shadow-sm'
-                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
-                  }`}
-                >
-                  <Users size={14} className="inline" />
-                  加入好友
-                </button>
-                <button
-                  onClick={() => setEntryMode('room')}
-                  className={`flex h-10 items-center justify-center gap-1 rounded-lg px-3 text-[13px] font-normal tracking-[0.03em] transition ${
-                    entryMode === 'room'
-                      ? 'rounded-lg bg-white/10 text-white shadow-sm'
-                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
-                  }`}
-                >
-                  <Hash size={14} className="inline" />
-                  房间号加入
-                </button>
-              </div>
+            <div className="relative flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-7">
+              <h2 className="text-base font-medium tracking-[0.14em] text-white/90 md:text-lg">自习室</h2>
+              <motion.button
+                onClick={onClose}
+                transition={iosQuickSpring}
+                {...iosIconButtonMotion}
+                className="ios-pressable ios-icon-button-compact ios-secondary-button flex items-center justify-center text-white/75"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </motion.button>
             </div>
 
-            <div className="relative px-6 pb-6 pt-4 md:px-7">
-              {entryMode === 'self' && (
-                <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_64px_-48px_rgba(0,0,0,1)] backdrop-blur-md">
-                  <p className="mb-4 text-xs font-medium tracking-[0.12em] text-white/50">选择本次专注时长</p>
-                  <div className="mb-5 flex flex-wrap gap-2">
-                    {DURATION_PRESETS.map((minute) => (
-                      <button
-                        key={minute}
-                        onClick={() => setSelectedDuration(minute)}
-                        className={`rounded-full border px-4 py-2 text-[13px] font-normal transition ${
-                          selectedDuration === minute
-                            ? 'border-white/20 bg-white/10 text-white'
-                            : 'border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/8 hover:text-white/90'
+            {!room && (
+              <>
+                <div className="relative border-b border-white/10 px-6 py-5 md:px-7">
+                  <div className="mx-auto grid w-full max-w-xl grid-cols-3 rounded-[1.2rem] border border-white/10 bg-slate-900/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                    {ENTRY_MODE_OPTIONS.map(({ mode, icon: Icon, label }) => (
+                      <motion.button
+                        key={mode}
+                        onClick={() => setEntryMode(mode)}
+                        transition={iosQuickSpring}
+                        {...iosPressableMotion}
+                        className={`ios-pressable flex h-10 items-center justify-center gap-1 rounded-xl px-3 text-[13px] font-normal tracking-[0.03em] ${
+                          entryMode === mode
+                            ? 'ios-pill-indicator bg-white/12 text-white shadow-[0_10px_20px_rgba(15,23,42,0.16)]'
+                            : 'text-white/55 hover:bg-white/6 hover:text-white/85'
                         }`}
                       >
-                        {minute} 分钟
-                      </button>
+                        <Icon size={14} className="inline" />
+                        {label}
+                      </motion.button>
                     ))}
                   </div>
-                  <button
-                    onClick={handleStartSelfStudy}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-500/80 px-5 text-sm font-normal text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-500"
-                  >
-                    <Play size={14} className="mr-1" />
-                    开始自己自习
-                  </button>
                 </div>
-              )}
 
-              {entryMode === 'friend' && (
-                <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_64px_-48px_rgba(0,0,0,1)] backdrop-blur-md">
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="text-xs font-medium tracking-wide text-white/50">好友房间</p>
-                    <button
-                      onClick={() => void loadFriendCandidates()}
-                      className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-normal tracking-[0.06em] text-white/65 transition hover:bg-white/8 hover:text-white/90"
-                    >
-                      刷新
-                    </button>
-                  </div>
-
-                  {friendLoading ? (
-                    <p className="text-sm text-white/60">加载中...</p>
-                  ) : friendCandidates.length === 0 ? (
-                    <p className="text-sm text-white/60">暂无可用好友</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {friendCandidates.map((friend) => (
-                        <div
-                          key={friend.id}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar name={friend.username} avatar={friend.avatarUrl || ''} size="md" />
-                            <div>
-                              <p className="text-sm font-normal text-white/90">{friend.username}</p>
-                              <p className="text-[11px] leading-relaxed tracking-[0.02em] text-white/45">
-                                {friend.inRoom && friend.roomCode
-                                  ? `房间 ${friend.roomCode} · ${friend.memberCount ?? 0} 人`
-                                  : friend.isStudying
-                                    ? '学习中（非多人房）'
-                                    : '未在多人房间'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => void handleJoinFriendRoom(friend)}
-                            disabled={!friend.inRoom || joiningFriendId !== null}
-                            className={`rounded-full px-4 py-2 text-xs font-normal tracking-[0.04em] text-white transition ${
-                              !friend.inRoom
-                                ? 'cursor-not-allowed bg-slate-700/60 text-white/45'
-                                : joiningFriendId === friend.id
-                                  ? 'bg-cyan-500/55 text-white/75'
-                                  : 'bg-cyan-500/70 shadow-lg shadow-cyan-950/25 hover:bg-cyan-500/85'
+                <div className="relative px-6 pb-6 pt-4 md:px-7">
+                  {entryMode === 'self' && (
+                    <div className="ios-glass-surface rounded-[1.6rem] border border-white/10 bg-slate-900/45 p-5 text-white">
+                      <p className="mb-4 text-xs font-medium tracking-[0.12em] text-white/50">选择本次专注时长</p>
+                      <div className="mb-5 flex flex-wrap gap-2">
+                        {DURATION_PRESETS.map((minute) => (
+                          <motion.button
+                            key={minute}
+                            onClick={() => setSelectedDuration(minute)}
+                            transition={iosQuickSpring}
+                            {...iosPressableMotion}
+                            className={`ios-pressable rounded-full border px-4 py-2 text-[13px] font-normal ${
+                              selectedDuration === minute
+                                ? 'ios-pill-indicator border-white/18 bg-white/10 text-white'
+                                : 'ios-secondary-button text-white/70'
                             }`}
                           >
-                            {joiningFriendId === friend.id ? '加入中...' : '加入'}
-                          </button>
+                            {minute} 分钟
+                          </motion.button>
+                        ))}
+                      </div>
+                      <motion.button
+                        onClick={handleStartSelfStudy}
+                        transition={iosQuickSpring}
+                        {...iosPressableMotion}
+                        className="ios-pressable ios-primary-button inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-normal text-white"
+                      >
+                        <Play size={14} className="mr-1" />
+                        开始自己自习
+                      </motion.button>
+                    </div>
+                  )}
+
+                  {entryMode === 'friend' && (
+                    <div className="ios-glass-surface rounded-[1.6rem] border border-white/10 bg-slate-900/45 p-5 text-white">
+                      <div className="mb-4 flex items-center justify-between">
+                        <p className="text-xs font-medium tracking-wide text-white/50">好友房间</p>
+                        <motion.button
+                          onClick={() => void loadFriendCandidates()}
+                          transition={iosQuickSpring}
+                          {...iosPressableMotion}
+                          className="ios-pressable ios-surface-button rounded-xl px-3 py-1 text-xs font-normal tracking-[0.06em]"
+                        >
+                          刷新
+                        </motion.button>
+                      </div>
+
+                      {friendLoading ? (
+                        <p className="text-sm text-white/60">加载中...</p>
+                      ) : friendCandidates.length === 0 ? (
+                        <p className="text-sm text-white/60">暂无可用好友</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {friendCandidates.map((friend) => (
+                            <div
+                              key={friend.id}
+                              className="ios-list-row flex items-center justify-between rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Avatar name={friend.username} avatar={friend.avatarUrl || ''} size="md" />
+                                <div>
+                                  <p className="text-sm font-normal text-white/90">{friend.username}</p>
+                                  <p className="text-[11px] leading-relaxed tracking-[0.02em] text-white/45">
+                                    {friend.inRoom && friend.roomCode
+                                      ? `房间 ${friend.roomCode} · ${friend.memberCount ?? 0} 人`
+                                      : friend.isStudying
+                                        ? '学习中（非多人房）'
+                                        : '未在多人房间'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <motion.button
+                                onClick={() => void handleJoinFriendRoom(friend)}
+                                disabled={!friend.inRoom || joiningFriendId !== null}
+                                transition={iosQuickSpring}
+                                {...iosPressableMotion}
+                                className={`ios-pressable rounded-full px-4 py-2 text-xs font-normal tracking-[0.04em] text-white ${
+                                  !friend.inRoom
+                                    ? 'cursor-not-allowed bg-slate-700/60 text-white/45'
+                                    : joiningFriendId === friend.id
+                                      ? 'bg-cyan-500/55 text-white/75'
+                                      : 'bg-cyan-500/70 shadow-lg shadow-cyan-950/25 hover:bg-cyan-500/85'
+                                }`}
+                              >
+                                {joiningFriendId === friend.id ? '加入中...' : '加入'}
+                              </motion.button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                    </div>
+                  )}
+
+                  {entryMode === 'room' && (
+                    <div className="ios-glass-surface rounded-[1.6rem] border border-white/10 bg-slate-900/45 p-5 text-white">
+                      <p className="mb-4 text-xs font-medium tracking-[0.12em] text-white/50">输入房间号加入，或创建新房间</p>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                          value={roomCodeInput}
+                          onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())}
+                          maxLength={8}
+                          placeholder="输入房间号（如 A1B2C3）"
+                          className="h-10 flex-1 rounded-xl border border-white/15 bg-slate-950/60 px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-white/35 focus:bg-slate-900/80"
+                        />
+                        <div className="flex gap-2">
+                          <motion.button
+                            onClick={handleCreateRoom}
+                            disabled={isBusy}
+                            transition={iosQuickSpring}
+                            {...iosPressableMotion}
+                            className="ios-pressable inline-flex h-10 items-center justify-center rounded-xl bg-cyan-600/70 px-4 text-sm font-normal text-white shadow-lg shadow-cyan-950/25 hover:bg-cyan-600/85 disabled:opacity-60"
+                          >
+                            创建
+                          </motion.button>
+                          <motion.button
+                            onClick={handleJoinRoomByCode}
+                            disabled={isBusy}
+                            transition={iosQuickSpring}
+                            {...iosPressableMotion}
+                            className="ios-pressable ios-surface-button inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-normal text-slate-900 disabled:opacity-60"
+                          >
+                            <LogIn size={14} className="mr-1" />
+                            加入
+                          </motion.button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+              </>
+            )}
 
-              {entryMode === 'room' && (
-                <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_64px_-48px_rgba(0,0,0,1)] backdrop-blur-md">
-                  <p className="mb-4 text-xs font-medium tracking-[0.12em] text-white/50">输入房间号加入，或创建新房间</p>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <input
-                      value={roomCodeInput}
-                      onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())}
-                      maxLength={8}
-                      placeholder="输入房间号（如 A1B2C3）"
-                      className="h-10 flex-1 rounded-xl border border-white/15 bg-slate-950/60 px-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-white/35 focus:bg-slate-900/80"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleCreateRoom}
-                        disabled={isBusy}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-cyan-600/70 px-4 text-sm font-normal text-white shadow-lg shadow-cyan-950/25 transition hover:bg-cyan-600/85 disabled:opacity-60"
-                      >
-                        创建
-                      </button>
-                      <button
-                        onClick={handleJoinRoomByCode}
-                        disabled={isBusy}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-200/85 px-4 text-sm font-normal text-slate-900 transition hover:bg-white disabled:opacity-60"
-                      >
-                        <LogIn size={14} className="mr-1" />
-                        加入
-                      </button>
+            {room && (
+              <div className="relative px-6 pb-6 pt-4 md:px-7">
+                <div className="ios-glass-surface mb-4 rounded-[1.6rem] border border-white/10 bg-slate-900/45 p-4 text-white">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Room</p>
+                      <p className="font-mono text-lg font-semibold text-white">{room.roomCode}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Session</p>
+                      <p className="text-sm font-normal text-white/85">{sessionLabel(room.sessionState)}</p>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
 
-        {room && (
-          <div className="relative px-6 pb-6 pt-4 md:px-7">
-            <div className="mb-4 rounded-2xl border border-white/10 bg-slate-900/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_64px_-48px_rgba(0,0,0,1)] backdrop-blur-md">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Room</p>
-                  <p className="font-mono text-lg font-semibold text-white">{room.roomCode}</p>
+                  {remainingSeconds !== null && (
+                    <div className="mt-3 inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-normal text-cyan-100">
+                      <TimerReset size={13} className="mr-1" />
+                      剩余 {formatSeconds(remainingSeconds)}
+                    </div>
+                  )}
+
+                  {isHost && (
+                    <>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {DURATION_PRESETS.map((minute) => (
+                          <motion.button
+                            key={minute}
+                            onClick={() => setSelectedDuration(minute)}
+                            transition={iosQuickSpring}
+                            {...iosPressableMotion}
+                            className={`ios-pressable rounded-full border px-3 py-1 text-[11px] font-normal tracking-[0.08em] ${
+                              selectedDuration === minute
+                                ? 'ios-pill-indicator border-white/18 bg-white/10 text-white'
+                                : 'ios-secondary-button text-white/70'
+                            }`}
+                          >
+                            {minute}m
+                          </motion.button>
+                        ))}
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <motion.button
+                          onClick={() => void handleHostAction('start_focus')}
+                          disabled={isActionBusy}
+                          transition={iosQuickSpring}
+                          {...iosPressableMotion}
+                          className="ios-pressable ios-primary-button inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-normal tracking-[0.05em] text-white disabled:opacity-60"
+                        >
+                          <Play size={14} className="mr-1" />
+                          开始
+                        </motion.button>
+                        <motion.button
+                          onClick={() => void handleHostAction('pause')}
+                          disabled={isActionBusy}
+                          transition={iosQuickSpring}
+                          {...iosPressableMotion}
+                          className="ios-pressable inline-flex items-center justify-center rounded-xl bg-amber-500/80 px-3 py-2 text-xs font-normal tracking-[0.05em] text-white shadow-lg shadow-amber-950/20 hover:bg-amber-500/90 disabled:opacity-60"
+                        >
+                          <Pause size={14} className="mr-1" />
+                          暂停
+                        </motion.button>
+                        <motion.button
+                          onClick={() => void handleHostAction('end')}
+                          disabled={isActionBusy}
+                          transition={iosQuickSpring}
+                          {...iosPressableMotion}
+                          className="ios-pressable ios-surface-button inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-normal tracking-[0.05em] text-slate-900 disabled:opacity-60"
+                        >
+                          <Square size={14} className="mr-1" />
+                          结束
+                        </motion.button>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="text-right">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Session</p>
-                  <p className="text-sm font-normal text-white/85">{sessionLabel(room.sessionState)}</p>
+
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {seats.map((member, index) => (
+                    <div
+                      key={member?.userId || `seat-${index}`}
+                      className="ios-glass-surface rounded-[1.4rem] border border-white/10 bg-slate-900/40 p-3 text-white"
+                    >
+                      {member ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="relative">
+                            <Avatar name={member.displayName} avatar={member.avatarUrl || ''} size="lg" />
+                            {room.hostUserId === member.userId && (
+                              <span className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white">
+                                <Crown size={11} />
+                              </span>
+                            )}
+                          </div>
+                          <p className="max-w-[120px] truncate text-sm font-normal text-white/90">{member.displayName}</p>
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusClass(member.status)}`}
+                          >
+                            {statusLabel(member.status)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex min-h-[118px] flex-col items-center justify-center text-white/25">
+                          <Users size={22} />
+                          <p className="mt-1 text-[11px] tracking-[0.1em]">空位</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end">
+                  <motion.button
+                    onClick={handleLeaveRoom}
+                    disabled={isBusy}
+                    transition={iosQuickSpring}
+                    {...iosPressableMotion}
+                    className="ios-pressable inline-flex items-center justify-center rounded-xl bg-rose-500/80 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-rose-950/20 hover:bg-rose-500/90 disabled:opacity-60"
+                  >
+                    <DoorOpen size={15} className="mr-1" />
+                    离开房间
+                  </motion.button>
                 </div>
               </div>
-
-              {remainingSeconds !== null && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-normal text-cyan-100">
-                  <TimerReset size={13} className="mr-1" />
-                  剩余 {formatSeconds(remainingSeconds)}
-                </div>
-              )}
-
-              {isHost && (
-                <>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {DURATION_PRESETS.map((minute) => (
-                      <button
-                        key={minute}
-                        onClick={() => setSelectedDuration(minute)}
-                        className={`rounded-full border px-3 py-1 text-[11px] font-normal tracking-[0.08em] transition ${
-                          selectedDuration === minute
-                            ? 'border-white/20 bg-white/10 text-white'
-                            : 'border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/8 hover:text-white/90'
-                        }`}
-                      >
-                        {minute}m
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => void handleHostAction('start_focus')}
-                      disabled={isActionBusy}
-                      className="inline-flex items-center justify-center rounded-xl bg-emerald-500/75 px-3 py-2 text-xs font-normal tracking-[0.05em] text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-500/90 disabled:opacity-60"
-                    >
-                      <Play size={14} className="mr-1" />
-                      开始
-                    </button>
-                    <button
-                      onClick={() => void handleHostAction('pause')}
-                      disabled={isActionBusy}
-                      className="inline-flex items-center justify-center rounded-xl bg-amber-500/75 px-3 py-2 text-xs font-normal tracking-[0.05em] text-white shadow-lg shadow-amber-950/20 transition hover:bg-amber-500/90 disabled:opacity-60"
-                    >
-                      <Pause size={14} className="mr-1" />
-                      暂停
-                    </button>
-                    <button
-                      onClick={() => void handleHostAction('end')}
-                      disabled={isActionBusy}
-                      className="inline-flex items-center justify-center rounded-xl bg-slate-200/85 px-3 py-2 text-xs font-normal tracking-[0.05em] text-slate-900 transition hover:bg-white disabled:opacity-60"
-                    >
-                      <Square size={14} className="mr-1" />
-                      结束
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {seats.map((member, index) => (
-                <div
-                  key={member?.userId || `seat-${index}`}
-                  className="rounded-2xl border border-white/10 bg-slate-900/40 p-3 backdrop-blur-md"
-                >
-                  {member ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="relative">
-                        <Avatar name={member.displayName} avatar={member.avatarUrl || ''} size="lg" />
-                        {room.hostUserId === member.userId && (
-                          <span className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white">
-                            <Crown size={11} />
-                          </span>
-                        )}
-                      </div>
-                      <p className="max-w-[120px] truncate text-sm font-normal text-white/90">{member.displayName}</p>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusClass(member.status)}`}
-                      >
-                        {statusLabel(member.status)}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex min-h-[118px] flex-col items-center justify-center text-white/25">
-                      <Users size={22} />
-                      <p className="mt-1 text-[11px] tracking-[0.1em]">空位</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={handleLeaveRoom}
-                disabled={isBusy}
-                className="inline-flex items-center justify-center rounded-xl bg-rose-500/75 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-rose-950/20 transition hover:bg-rose-500/90 disabled:opacity-60"
-              >
-                <DoorOpen size={15} className="mr-1" />
-                离开房间
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            )}
+          </motion.div>
+        </div>
+      ) : null}
+    </AnimatePresence>
   );
 };
 
