@@ -111,7 +111,7 @@ export const StatsDetailDialog: React.FC<StatsDetailDialogProps> = ({
                   <button
                     ref={closeButtonRef}
                     onClick={onClose}
-                    className="text-white/80 hover:text-white transition-colors"
+                    className="ios-pressable ios-secondary-button flex h-9 w-9 items-center justify-center rounded-full text-white"
                     aria-label="关闭"
                   >
                     <X size={20} />

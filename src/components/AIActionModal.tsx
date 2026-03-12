@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Table, Presentation, Image as ImageIcon, Video, Sparkles, Check } from 'lucide-react';
+import { iosBackdropMotion, iosPressableMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
 
 interface AIActionModalProps {
   isOpen: boolean;
@@ -80,25 +81,18 @@ const AIActionModal: React.FC<AIActionModalProps> = ({
         <>
           {/* 背景遮罩 - 点击可关闭 */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={iosBackdropMotion.initial}
+            animate={iosBackdropMotion.animate}
+            exit={iosBackdropMotion.exit}
             onClick={onClose}
             className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           />
 
           {/* 功能选择卡片 - 底部弹出 */}
           <motion.div
-            initial={{ opacity: 0, y: 100, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            transition={{
-              type: "spring",
-              stiffness: 350,
-              damping: 30,
-              mass: 0.8,
-            }}
+            initial={iosSheetMotion.initial}
+            animate={iosSheetMotion.animate}
+            exit={iosSheetMotion.exit}
             style={{
               position: 'fixed',
               left: '50%',
@@ -111,7 +105,7 @@ const AIActionModal: React.FC<AIActionModalProps> = ({
           >
             {/* 卡片容器 - 毛玻璃效果 */}
             <div
-              className="relative overflow-hidden rounded-3xl p-5 shadow-2xl"
+              className="ios-glass-surface relative overflow-hidden rounded-[1.9rem] border border-white/60 p-5 shadow-2xl"
               style={{
                 background: "rgba(255, 255, 255, 0.95)",
                 backdropFilter: "blur(20px) saturate(180%)",
@@ -135,11 +129,11 @@ const AIActionModal: React.FC<AIActionModalProps> = ({
                   return (
                     <motion.button
                       key={action.id}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      transition={iosQuickSpring}
+                      {...iosPressableMotion}
                       onClick={() => handleSelect(action.id)}
                       className={`
-                        relative p-3 rounded-2xl border-2 transition-all duration-200
+                        ios-pressable relative p-3 rounded-2xl border-2
                         flex flex-col items-center gap-2
                         ${isSelected ? 'border-gray-300 shadow-md' : 'border-transparent hover:border-gray-200'}
                       `}
@@ -175,7 +169,7 @@ const AIActionModal: React.FC<AIActionModalProps> = ({
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <button
                   onClick={onClose}
-                  className="w-full py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-all"
+                  className="ios-pressable ios-surface-button w-full rounded-xl py-2.5 text-sm font-medium text-gray-600"
                 >
                   取消
                 </button>

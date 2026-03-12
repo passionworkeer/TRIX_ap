@@ -60,7 +60,7 @@ const FriendPopupContent: React.FC<FriendPopupContentProps> = ({
       </div>
 
       {/* Status indicator */}
-      <div className="bg-blue-50 rounded-lg p-2 mb-3">
+      <div className="ios-glass-surface mb-3 rounded-[1rem] border border-blue-100/70 bg-blue-50/92 p-2">
         <div className="flex items-center gap-2 text-xs text-blue-700">
           <Zap size={14} className="text-blue-500" />
           <span className="font-medium">{studyStatus}</span>
@@ -82,7 +82,7 @@ const FriendPopupContent: React.FC<FriendPopupContentProps> = ({
         {onMessage && (
           <button
             onClick={onMessage}
-            className="w-full px-3 py-2 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-1"
+            className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white"
           >
             <MessageCircle size={14} />
             发消息
@@ -93,7 +93,7 @@ const FriendPopupContent: React.FC<FriendPopupContentProps> = ({
           {onViewProfile && (
             <button
               onClick={onViewProfile}
-              className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-1"
+              className="ios-pressable ios-surface-button flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-gray-700"
             >
               <User size={14} />
               主页
@@ -103,7 +103,7 @@ const FriendPopupContent: React.FC<FriendPopupContentProps> = ({
           {onInvite && (
             <button
               onClick={onInvite}
-              className="flex-1 px-3 py-2 bg-purple-100 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-200 transition-colors"
+              className="ios-pressable flex-1 rounded-lg bg-purple-100 px-3 py-2 text-xs font-medium text-purple-700 shadow-[0_10px_18px_rgba(168,85,247,0.14)]"
             >
               邀请自习
             </button>

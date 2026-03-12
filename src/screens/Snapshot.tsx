@@ -404,7 +404,7 @@ const Snapshot: React.FC = () => {
 
           <div
             onClick={capturedPhoto ? undefined : handleCapture}
-            className={`mt-8 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full flex items-center gap-2 border border-white/20 ${
+            className={`ios-pressable mt-8 rounded-full border border-white/20 bg-black/40 px-6 py-2 flex items-center gap-2 backdrop-blur-md ${
               capturedPhoto ? '' : 'cursor-pointer hover:bg-black/60'
             } transition-colors`}
           >
@@ -438,7 +438,7 @@ const Snapshot: React.FC = () => {
             type="button"
             onClick={capturedPhoto ? undefined : handleCapture}
             disabled={!!capturedPhoto}
-            className="relative group cursor-pointer active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ios-pressable relative group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="absolute inset-0 rounded-full bg-cyan-500 blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
             <div className="relative w-20 h-20 rounded-full bg-white/20 backdrop-blur-md border-4 border-white/60 flex items-center justify-center">

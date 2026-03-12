@@ -94,7 +94,7 @@ const PerformanceDashboardInner: React.FC = () => {
     // Collapsed view - small indicator
     return (
       <div
-        className="fixed bottom-4 left-4 z-50 cursor-pointer rounded-full bg-slate-900/90 px-3 py-1.5 text-xs text-white/70 shadow-lg backdrop-blur-sm border border-white/10"
+        className="ios-pressable fixed bottom-4 left-4 z-50 cursor-pointer rounded-full bg-slate-900/90 px-3 py-1.5 text-xs text-white/70 shadow-lg backdrop-blur-sm border border-white/10"
         onClick={() => setIsExpanded(true)}
         role="button"
         tabIndex={0}
@@ -114,7 +114,7 @@ const PerformanceDashboardInner: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 max-h-[60vh] w-80 overflow-hidden rounded-xl bg-slate-900/95 shadow-xl backdrop-blur-xl border border-white/10">
+    <div className="ios-glass-surface fixed bottom-4 left-4 z-50 max-h-[60vh] w-80 overflow-hidden rounded-[1.2rem] bg-slate-900/95 shadow-xl border border-white/10">
       {/* Header */}
       <div
         className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-3 py-2 cursor-pointer"
@@ -147,7 +147,7 @@ const PerformanceDashboardInner: React.FC = () => {
               e.stopPropagation();
               handleClear();
             }}
-            className="rounded px-2 py-0.5 text-xs text-white/50 hover:bg-white/10 hover:text-white"
+            className="ios-pressable rounded px-2 py-0.5 text-xs text-white/50 hover:bg-white/10 hover:text-white"
           >
             Clear
           </button>
@@ -182,7 +182,7 @@ const PerformanceDashboardInner: React.FC = () => {
             {metrics.map((metric) => (
               <div
                 key={`${metric.category}-${metric.name}`}
-                className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-2 py-1.5"
+                className="ios-list-row flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-2 py-1.5"
               >
                 <div className="flex items-center gap-2">
                   <span

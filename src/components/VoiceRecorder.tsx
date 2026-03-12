@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, X, Lock } from 'lucide-react';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { logger } from '../utils/logger';
+import { iosBackdropMotion, iosIconButtonMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
 
 /**
  * Format seconds to mm:ss display
@@ -202,7 +203,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       </div>
       <button
         onClick={onClose}
-        className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full text-sm font-medium"
+        className="ios-pressable ios-surface-button rounded-full px-6 py-2 text-sm font-medium text-slate-700 dark:text-slate-200"
       >
         关闭
       </button>
@@ -214,10 +215,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {isOpen && (
         <motion.div
           className="fixed inset-0 z-[1001] flex items-end justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          initial={iosBackdropMotion.initial}
+          animate={iosBackdropMotion.animate}
+          exit={iosBackdropMotion.exit}
         >
           {/* Backdrop */}
           <motion.div
@@ -228,35 +228,36 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               }
               onClose();
             }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={iosBackdropMotion.initial}
+            animate={iosBackdropMotion.animate}
+            exit={iosBackdropMotion.exit}
           />
 
           {/* Recording Panel */}
           <motion.div
-            className="relative w-full max-w-md mx-4 mb-6 rounded-3xl overflow-hidden"
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="ios-glass-surface relative mx-4 mb-6 w-full max-w-md overflow-hidden rounded-[1.9rem] border border-white/10"
+            initial={iosSheetMotion.initial}
+            animate={iosSheetMotion.animate}
+            exit={iosSheetMotion.exit}
           >
             <div className="bg-slate-900 dark:bg-slate-900 border border-slate-700/50">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
                 <h3 className="text-white font-medium">语音录制</h3>
-                <button
+                <motion.button
                   onClick={() => {
                     if (isRecording) {
                       cancelRecording();
                     }
                     onClose();
                   }}
-                  className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  transition={iosQuickSpring}
+                  {...iosIconButtonMotion}
+                  className="ios-pressable ios-secondary-button flex h-9 w-9 items-center justify-center rounded-full text-slate-300"
                   aria-label="关闭录音面板"
                 >
                   <X size={20} />
-                </button>
+                </motion.button>
               </div>
 
               {/* Content */}

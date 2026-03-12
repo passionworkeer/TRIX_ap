@@ -291,7 +291,7 @@ const Profile: React.FC = () => {
                           <GlassPanel
                              key={i}
                              onClick={() => handleOutfitChange(item.name)}
-                             className={`flex-shrink-0 w-32 h-44 !rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative border ${panelClass}`}
+                             className={`flex-shrink-0 w-32 h-44 !rounded-xl p-3 flex flex-col items-center gap-2 cursor-pointer group relative border ${panelClass}`}
                            >
                              {item.hasDot && <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-sm z-10 ring-2 ring-white/20 animate-pulse"></div>}
 
@@ -324,7 +324,7 @@ const Profile: React.FC = () => {
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handleDarkModeToggle}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
@@ -339,7 +339,7 @@ const Profile: React.FC = () => {
 
                       <GlassPanel
                          onClick={handleLanguageChange}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
@@ -355,7 +355,7 @@ const Profile: React.FC = () => {
 
                       <GlassPanel
                          onClick={handleVoiceToggle}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
@@ -370,7 +370,7 @@ const Profile: React.FC = () => {
 
                       <GlassPanel
                          onClick={() => setIsOpenClawControlOpen(true)}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/30 transform group-hover:scale-105 transition-transform duration-300">
@@ -387,7 +387,7 @@ const Profile: React.FC = () => {
                    <div className="flex flex-col gap-3">
                       <GlassPanel
                          onClick={handlePrivacyClick}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
@@ -400,7 +400,7 @@ const Profile: React.FC = () => {
 
                       <GlassPanel
                          onClick={handleAboutClick}
-                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group transition-all duration-300 active:scale-95 border ${panelClass}`}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
                       >
                          <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
