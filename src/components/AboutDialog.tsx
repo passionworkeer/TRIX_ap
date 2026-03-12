@@ -6,6 +6,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Heart } from 'lucide-react';
+import { iosBackdropMotion, iosIconButtonMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
 
 interface AboutDialogProps {
   isOpen: boolean;
@@ -44,9 +45,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
         <>
           {/* 背景遮罩 */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={iosBackdropMotion.initial}
+            animate={iosBackdropMotion.animate}
+            exit={iosBackdropMotion.exit}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={onClose}
           />
@@ -54,25 +55,26 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
           {/* 对话框 */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', duration: 0.3 }}
-              className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700 overflow-hidden"
+              initial={iosSheetMotion.initial}
+              animate={iosSheetMotion.animate}
+              exit={iosSheetMotion.exit}
+              className="ios-glass-surface max-w-md w-full overflow-hidden rounded-[2rem] border border-white/50 bg-white/96 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 顶部渐变背景 */}
               <div className="bg-gradient-to-br from-amber-400 to-yellow-500 p-6 text-white">
                 {/* 关闭按钮 */}
                 <div className="flex justify-end mb-2">
-                  <button
+                  <motion.button
                     ref={closeButtonRef}
                     onClick={onClose}
-                    className="text-white/80 hover:text-white transition-colors"
+                    transition={iosQuickSpring}
+                    {...iosIconButtonMotion}
+                    className="ios-pressable ios-secondary-button flex h-9 w-9 items-center justify-center rounded-full text-white"
                     aria-label="关闭"
                   >
                     <X size={20} />
-                  </button>
+                  </motion.button>
                 </div>
 
                 {/* Logo 和标题 */}

@@ -63,16 +63,16 @@ const Diagnostic: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-10 font-sans">
-      <div className="max-w-xl mx-auto bg-slate-800 rounded-3xl p-8 shadow-2xl border border-slate-700">
+      <div className="ios-glass-surface max-w-xl mx-auto bg-slate-800/96 rounded-[2rem] p-8 shadow-2xl border border-slate-700">
         <h1 className="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
           Clawdbot Diagnostic
         </h1>
         <div className="space-y-4 mb-10">
-          <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700">
+          <div className="ios-glass-surface bg-slate-900/72 p-4 rounded-[1.35rem] border border-slate-700">
             <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">Gateway URL</div>
             <div className="font-mono text-sm">{results.wsUrl || 'NONE'}</div>
           </div>
-          <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700">
+          <div className="ios-glass-surface bg-slate-900/72 p-4 rounded-[1.35rem] border border-slate-700">
             <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">Auth Token</div>
             <div className="font-mono text-sm">{results.authToken ? 'PRESENT' : 'MISSING'}</div>
           </div>
@@ -80,7 +80,7 @@ const Diagnostic: React.FC = () => {
         <button 
           onClick={testConnection} 
           disabled={testing}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-2xl font-bold transition-all"
+          className="ios-pressable ios-primary-button w-full py-4 rounded-2xl font-bold text-white disabled:bg-slate-700 disabled:opacity-50"
         >
           {testing ? 'Testing...' : 'Run Connection Test'}
         </button>
@@ -96,4 +96,3 @@ const Diagnostic: React.FC = () => {
 };
 
 export default Diagnostic;
-

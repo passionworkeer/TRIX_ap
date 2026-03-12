@@ -43,7 +43,7 @@ interface FeatureCardProps {
 const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onClick, isLoading, isDark, disabled }) => (
   <GlassPanel
     onClick={disabled ? undefined : onClick}
-    className={`p-4 !rounded-xl flex flex-col items-center gap-2 cursor-pointer group transition-all duration-300 active:scale-95 border ${
+    className={`ios-pressable p-4 !rounded-xl flex flex-col items-center gap-2 cursor-pointer group border ${
       disabled ? 'opacity-50 cursor-not-allowed' : ''
     } ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
   >
@@ -86,14 +86,14 @@ interface ResultDialogProps {
 const ResultDialog: React.FC<ResultDialogProps> = ({ title, content, isDark, onClose, isLoading }) => (
   <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
     <div
-      className={`w-full max-w-lg max-h-[80vh] rounded-2xl p-6 overflow-auto ${
+      className={`ios-glass-surface w-full max-w-lg max-h-[80vh] rounded-2xl p-6 overflow-auto ${
         isDark ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
       }`}
       onClick={e => e.stopPropagation()}
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</h3>
-        <button onClick={onClose} className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+        <button onClick={onClose} className={`ios-pressable ios-surface-button flex h-10 w-10 items-center justify-center rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
           <X size={20} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
         </button>
       </div>
@@ -110,7 +110,7 @@ const ResultDialog: React.FC<ResultDialogProps> = ({ title, content, isDark, onC
       )}
       <button
         onClick={onClose}
-        className={`mt-4 w-full py-3 rounded-xl font-bold transition-colors ${
+        className={`ios-pressable mt-4 w-full py-3 rounded-xl font-bold ${
           isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
         }`}
       >
@@ -479,7 +479,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     <>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
         <div
-          className={`w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-auto transition-transform duration-300 ${
+          className={`ios-glass-surface w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-auto ${
             isDark ? 'bg-gray-900 border-t border-gray-700' : 'bg-white border-t border-gray-200'
           }`}
           onClick={e => e.stopPropagation()}
@@ -491,21 +491,21 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
             </h2>
             <button
               onClick={onClose}
-              className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+              className={`ios-pressable ios-surface-button flex h-10 w-10 items-center justify-center rounded-full ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
             >
               <X size={24} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
             </button>
           </div>
 
           {/* 连接管理 */}
-          <div className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+          <div className={`ios-glass-surface rounded-xl p-4 mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-3">
               <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 连接管理
               </span>
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className={`p-1 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+                className={`ios-pressable ios-icon-button-compact flex items-center justify-center rounded-full ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
               >
                 {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
@@ -515,7 +515,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setConnectionMode('relay')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                className={`ios-pressable flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
                   connectionMode === 'relay'
                     ? 'bg-rose-500 text-white'
                     : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
@@ -525,7 +525,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
               </button>
               <button
                 onClick={() => setConnectionMode('gateway')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                className={`ios-pressable flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
                   connectionMode === 'gateway'
                     ? 'bg-rose-500 text-white'
                     : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
@@ -535,7 +535,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
               </button>
               <button
                 onClick={() => setConnectionMode('socketio')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                className={`ios-pressable flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
                   connectionMode === 'socketio'
                     ? 'bg-rose-500 text-white'
                     : isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
@@ -651,7 +651,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                 relayConnected ? (
                   <button
                     onClick={disconnectRelay}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    className={`ios-pressable flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
                     }`}
                   >
@@ -661,7 +661,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                   <button
                     onClick={connectRelay}
                     disabled={isConnecting || (!relayServer || !gatewayId || !accessCode)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    className={`ios-pressable flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
                     } ${isConnecting || (!relayServer || !gatewayId || !accessCode) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -672,7 +672,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                 gatewayConnected ? (
                   <button
                     onClick={disconnectGateway}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    className={`ios-pressable flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
                     }`}
                   >
@@ -682,7 +682,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                   <button
                     onClick={connectGateway}
                     disabled={isConnecting}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                    className={`ios-pressable flex-1 py-2 rounded-lg text-sm font-medium ${
                       isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'
                     } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -699,7 +699,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
                       });
                     }
                   }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                  className={`ios-pressable flex-1 py-2 rounded-lg text-sm font-medium ${
                     socketConnected
                       ? isDark ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
                       : isDark ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'

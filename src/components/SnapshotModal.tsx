@@ -155,7 +155,7 @@ const SnapshotModal: React.FC<SnapshotModalProps> = ({
                         </motion.div>
                       ))}
                     </div>
-                    <span className="ml-3 text-xs text-gray-500 group-hover:text-gray-700 transition-colors">
+                    <span className="ml-3 text-xs text-gray-500 transition-colors group-hover:text-gray-700">
                       从相册选择
                     </span>
                   </div>

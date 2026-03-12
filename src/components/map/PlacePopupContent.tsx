@@ -106,7 +106,7 @@ const PlacePopupContent: React.FC<PlacePopupContentProps> = ({
         {onNavigate && (
           <button
             onClick={onNavigate}
-            className="flex-1 px-3 py-2 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors"
+            className="ios-pressable ios-primary-button flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white"
             style={{ border: 'none', cursor: 'pointer' }}
           >
             <span className="flex items-center justify-center gap-1">
@@ -118,7 +118,7 @@ const PlacePopupContent: React.FC<PlacePopupContentProps> = ({
         {onFavorite && (
           <button
             onClick={onFavorite}
-            className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
+            className="ios-pressable ios-surface-button flex-1 rounded-lg px-3 py-2 text-xs font-medium text-gray-700"
             style={{ border: 'none', cursor: 'pointer' }}
           >
             <span className="flex items-center justify-center gap-1">

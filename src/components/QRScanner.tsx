@@ -3,6 +3,12 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getErrorMessage } from '../utils/errorHandler';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../utils/iosMotion';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -124,17 +130,17 @@ const QRScanner: React.FC<QRScannerProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
         onClick={handleClose}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-md mx-4"
+          initial={iosSheetMotion.initial}
+          animate={iosSheetMotion.animate}
+          exit={iosSheetMotion.exit}
+          className="relative mx-4 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/18 shadow-[0_30px_88px_rgba(0,0,0,0.48)]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 顶部标题栏 */}
@@ -143,12 +149,14 @@ const QRScanner: React.FC<QRScannerProps> = ({
               <Camera className="w-5 h-5 text-white" />
               <h2 className="text-white font-bold text-lg">扫描二维码</h2>
             </div>
-            <button
+            <motion.button
               onClick={handleClose}
-              className="p-2 hover:bg-white/20 rounded-full transition-colors"
+              transition={iosQuickSpring}
+              {...iosIconButtonMotion}
+              className="ios-pressable ios-secondary-button flex h-10 w-10 items-center justify-center rounded-full text-white"
             >
               <X className="w-5 h-5 text-white" />
-            </button>
+            </motion.button>
           </div>
 
           {/* 扫描区域 */}
@@ -187,7 +195,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
                 
                 <button
                   onClick={handleClose}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="ios-pressable ios-primary-button rounded-xl px-6 py-2 text-white"
                 >
                   关闭
                 </button>

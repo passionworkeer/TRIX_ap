@@ -34,7 +34,7 @@ const OutfitCard: React.FC<OutfitCardProps> = ({ outfit, onEquipToggle, loading 
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+      className={`ios-pressable relative rounded-xl overflow-hidden cursor-pointer ${
         outfit.isEquipped ? 'ring-2 ring-indigo-500' : ''
       } ${!outfit.isOwned ? 'opacity-60' : ''}`}
       style={{
@@ -47,7 +47,7 @@ const OutfitCard: React.FC<OutfitCardProps> = ({ outfit, onEquipToggle, loading 
         <img
           src={outfit.previewImage || outfit.image}
           alt={outfit.name}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src = getFallbackImage(outfit.category);
           }}
@@ -93,7 +93,7 @@ const OutfitCard: React.FC<OutfitCardProps> = ({ outfit, onEquipToggle, loading 
             handleClick();
           }}
           disabled={!outfit.isOwned || loading}
-          className={`w-full mt-2 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+          className={`ios-pressable w-full mt-2 py-1.5 rounded-lg text-sm font-medium ${
             !outfit.isOwned
               ? 'cursor-not-allowed'
               : outfit.isEquipped

@@ -89,7 +89,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:scale-90 disabled:opacity-50 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          className="ios-pressable ios-surface-button ios-icon-button flex items-center justify-center text-slate-400 disabled:opacity-50 dark:text-slate-300"
           title="添加图片或视频"
         >
           <ImageIcon size={20} />
@@ -97,7 +97,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
       )}
 
       {preview && (
-        <div className="absolute bottom-14 left-0 z-50 w-full max-w-[280px] animate-in rounded-xl border border-slate-200 bg-white p-3 shadow-2xl fade-in slide-in-from-bottom-2 duration-200 sm:max-w-[320px] dark:border-slate-700 dark:bg-slate-800">
+        <div className="ios-glass-surface absolute bottom-14 left-0 z-50 w-full max-w-[280px] animate-in rounded-[1.2rem] border border-slate-200 bg-white/96 p-3 shadow-2xl fade-in slide-in-from-bottom-2 duration-200 sm:max-w-[320px] dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-2 flex items-start justify-between">
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
               {preview.type === 'image' ? '图片预览' : '视频预览'}
@@ -105,7 +105,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
             <button
               type="button"
               onClick={clearPreview}
-              className="rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+              className="ios-pressable ios-icon-button-compact flex items-center justify-center rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
               disabled={isUploading}
               aria-label="清除预览"
             >

@@ -261,7 +261,7 @@ const Pairing: React.FC = () => {
             </div>
 
             <GlassPanel
-              className="!rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer hover:bg-white/60 transition-colors"
+              className="ios-pressable ios-surface-button !rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer"
               onClick={() => {
                 setMode('input');
                 void stopScanner(true);

@@ -90,7 +90,7 @@ class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="ios-glass-surface max-w-md w-full rounded-[2rem] border border-white/70 p-8 text-center text-slate-900 shadow-[0_28px_72px_rgba(15,23,42,0.14)]">
             {/* 错误图标 */}
             <div className="mb-6">
               <div className="w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center">
@@ -123,7 +123,7 @@ class ErrorBoundary extends Component<Props, State> {
             {/* 开发环境显示错误详情 */}
             {isDev() && error && (
               <div className="mb-6 text-left">
-                <details className="bg-gray-50 rounded-lg p-4 cursor-pointer">
+                <details className="ios-glass-surface cursor-pointer rounded-[1.2rem] border border-slate-200/70 bg-slate-50/92 p-4">
                   <summary className="text-sm font-semibold text-gray-700 mb-2">
                     错误详情（开发模式）
                   </summary>
@@ -145,13 +145,13 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={this.handleReload}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl transition-colors duration-200 shadow-lg shadow-indigo-200"
+                className="ios-pressable ios-primary-button flex-1 rounded-xl px-6 py-3 font-medium text-white"
               >
                 重新加载
               </button>
               <button
                 onClick={this.handleGoHome}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-colors duration-200"
+                className="ios-pressable ios-surface-button flex-1 rounded-xl px-6 py-3 font-medium text-slate-700"
               >
                 返回首页
               </button>

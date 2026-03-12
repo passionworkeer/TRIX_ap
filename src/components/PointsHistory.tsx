@@ -124,7 +124,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                   <button
                     ref={closeButtonRef}
                     onClick={onClose}
-                    className="text-white/80 hover:text-white transition-colors"
+                    className="ios-pressable ios-secondary-button flex h-9 w-9 items-center justify-center rounded-full text-white"
                   >
                     <X size={20} />
                   </button>
@@ -145,7 +145,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                     itemContent={(_index, tx) => (
                       <div
                         key={tx.id}
-                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl mx-4 first:mt-4 last:mb-4"
+                        className="ios-list-row mx-4 flex items-center gap-3 rounded-[1rem] bg-slate-50 p-3 first:mt-4 last:mb-4 dark:bg-slate-900/50"
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                           tx.points_change > 0 ? 'bg-green-500' : 'bg-red-500'
@@ -185,7 +185,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
                 <div className="p-4 flex-shrink-0">
                   <button
                     onClick={() => setPage(p => p + 1)}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white font-semibold rounded-2xl transition-colors"
+                    className="ios-pressable ios-primary-button w-full rounded-2xl px-6 py-3 font-semibold text-white"
                   >
                     加载更多
                   </button>

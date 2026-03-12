@@ -177,8 +177,8 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
   const isSender = variant === 'sender';
   
   const playBtnClass = isSender
-    ? (isLoading ? 'bg-blue-400/20 cursor-wait' : 'bg-white hover:bg-blue-50 active:scale-95 cursor-pointer')
-    : (isLoading ? 'bg-slate-100 dark:bg-slate-800 cursor-wait' : 'bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 dark:hover:bg-violet-800/40 active:scale-95 cursor-pointer');
+    ? (isLoading ? 'bg-blue-400/20 cursor-wait' : 'ios-pressable bg-white hover:bg-blue-50 cursor-pointer')
+    : (isLoading ? 'bg-slate-100 dark:bg-slate-800 cursor-wait' : 'ios-pressable bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 dark:hover:bg-violet-800/40 cursor-pointer');
 
   const iconClass = isSender
     ? 'text-blue-500'
@@ -284,14 +284,14 @@ export const VoiceMessage: React.FC<VoiceMessageProps> = ({
         <div className="mt-2">
           <button
             onClick={() => setShowTranscript(!showTranscript)}
-            className={`flex items-center gap-1.5 text-xs transition-colors ${transcriptBtnClass}`}
+            className={`ios-pressable inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors ${transcriptBtnClass}`}
           >
             <FileText className="w-3.5 h-3.5" />
             <span>{showTranscript ? '隐藏转文字' : '显示转文字'}</span>
           </button>
 
           {showTranscript && (
-            <div className={`mt-2 p-3 rounded-lg ${transcriptBgClass}`}>
+            <div className={`ios-glass-surface mt-2 rounded-[1rem] p-3 ${transcriptBgClass}`}>
               <p className={`text-sm leading-relaxed ${transcriptTextClass}`}>
                 {transcript ? escapeHtml(transcript) : '无转文字内容'}
               </p>

@@ -172,7 +172,7 @@ const PointsMall: React.FC = () => {
   const renderItemCard = (item: MallItem) => (
     <GlassPanel
       key={item.id}
-      className={`!rounded-xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1 ${
+      className={`ios-pressable !rounded-xl overflow-hidden cursor-pointer group ${
         item.isOwned ? 'opacity-75' : ''
       } ${panelClass}`}
       onClick={() => handlePurchase(item)}
@@ -215,7 +215,7 @@ const PointsMall: React.FC = () => {
         {/* 购买按钮 */}
         <button
           type="button"
-          className={`mt-3 w-full py-2 rounded-lg text-xs font-bold transition-all duration-300 active:scale-95 ${
+          className={`ios-pressable mt-3 w-full py-2 rounded-lg text-xs font-bold ${
             item.isOwned
               ? isDark
                 ? 'bg-green-500/20 text-green-400 cursor-default'

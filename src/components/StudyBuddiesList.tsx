@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { X, Users } from 'lucide-react';
 import { AppRoutes } from '../types';
@@ -6,6 +7,13 @@ import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
 import { useNotification } from '../hooks/useNotification';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosPressableMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../utils/iosMotion';
 
 interface StudyBuddy {
   id: string;
@@ -198,13 +206,20 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900/95 shadow-2xl backdrop-blur-xl"
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+        onClick={onClose}
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
+      >
+      <motion.div
+        className="ios-glass-surface max-h-[80vh] w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/95 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
+        initial={iosSheetMotion.initial}
+        animate={iosSheetMotion.animate}
+        exit={iosSheetMotion.exit}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div className="flex items-center gap-3">
@@ -219,13 +234,15 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
             </div>
           </div>
 
-          <button
+          <motion.button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10"
+            transition={iosQuickSpring}
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-secondary-button flex h-9 w-9 items-center justify-center rounded-full"
           >
             <X size={18} className="text-white/70" />
-          </button>
+          </motion.button>
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
@@ -251,7 +268,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
               {buddies.map((buddy) => (
                 <div
                   key={buddy.id}
-                  className="group flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4 transition-all hover:bg-white/10"
+                  className="ios-list-row group flex items-center justify-between rounded-[1.2rem] border border-white/5 bg-white/5 p-4 hover:bg-white/10"
                 >
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -272,11 +289,13 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
                     </div>
                   </div>
 
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => handleJoinBuddy(buddy.id, buddy.username)}
                     disabled={joiningBuddyId !== null}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all ${
+                    transition={iosQuickSpring}
+                    {...iosPressableMotion}
+                    className={`ios-pressable rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg ${
                       joiningBuddyId === buddy.id
                         ? 'cursor-wait bg-blue-400'
                         : joiningBuddyId !== null
@@ -292,7 +311,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
                     ) : (
                       '加入'
                     )}
-                  </button>
+                  </motion.button>
                 </div>
               ))}
             </div>
@@ -304,8 +323,9 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
             <p className="text-center text-xs text-white/40">加入好友自习室后可以实时查看对方进度。</p>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
