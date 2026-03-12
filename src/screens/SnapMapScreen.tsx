@@ -30,24 +30,44 @@ L.Icon.Default.mergeOptions({
 const HERO_3D_IMAGE = IMAGES.HERO_RENDER;
 
 const mockFriends: FriendLatestMessage[] = [
-  { user_id: 'mock-user', friend_id: 'mock-friend-1', name: 'Ava', avatar_url: IMAGES.WIZARD_BOY_LOGIN, status: 'online', bio: 'Map mock user 1', study_time: 45, is_studying: true, unread_count: 0, last_message: 'Hi!', last_message_time: new Date().toISOString() },
-  { user_id: 'mock-user', friend_id: 'mock-friend-2', name: 'Leo', avatar_url: IMAGES.AVATAR_GIRL, status: 'online', bio: 'Map mock user 2', study_time: 30, is_studying: false, unread_count: 0, last_message: 'Hi', last_message_time: new Date().toISOString() },
-  { user_id: 'mock-user', friend_id: 'mock-friend-3', name: 'Mia', avatar_url: IMAGES.FRIEND_2, status: 'away', bio: 'Map mock user 3', study_time: 72, is_studying: true, unread_count: 1, last_message: 'Hi', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-1', name: 'Ava', avatar_url: IMAGES.WIZARD_BOY_LOGIN, status: 'online', bio: '正在肝《计算机网络》...', study_time: 45, is_studying: true, unread_count: 0, last_message: '晚上一起去自习呀', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-2', name: 'Leo', avatar_url: IMAGES.AVATAR_GIRL, status: 'online', bio: '刚下课，准备去吃点东西', study_time: 120, is_studying: false, unread_count: 2, last_message: '推荐你尝尝中心那家的烤肉', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-3', name: 'Mia', avatar_url: IMAGES.FRIEND_2, status: 'away', bio: '专注模式中，请忽打扰🎧', study_time: 210, is_studying: true, unread_count: 0, last_message: '刚背完两百个单词！', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-4', name: 'David', avatar_url: IMAGES.WIZARD_BOY_LOGIN, status: 'offline', bio: '考研二战，加油。', study_time: 410, is_studying: false, unread_count: 0, last_message: '兄弟，借我看一下笔记', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-5', name: 'Bob', avatar_url: IMAGES.AVATAR_GIRL, status: 'online', bio: '看电影ing', study_time: 12, is_studying: false, unread_count: 5, last_message: '哈哈哈这个好好笑', last_message_time: new Date().toISOString() },
+  { user_id: 'mock-user', friend_id: 'mock-friend-6', name: 'Alice', avatar_url: IMAGES.FRIEND_2, status: 'online', bio: '在星巴克做PPT', study_time: 65, is_studying: true, unread_count: 0, last_message: '马上就弄完啦', last_message_time: new Date().toISOString() }
 ];
 
 const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
-  const offsets = [{ lat: 0.001, lng: 0.002 }, { lat: -0.001, lng: 0.003 }, { lat: 0.002, lng: -0.002 }, { lat: -0.002, lng: -0.003 }, { lat: 0.003, lng: 0.001 }, { lat: -0.003, lng: 0.001 }];
+  const offsets = [
+    { lat: 0.0018, lng: 0.0022 },
+    { lat: -0.0015, lng: 0.0035 },
+    { lat: 0.0025, lng: -0.0028 },
+    { lat: -0.0022, lng: -0.0032 },
+    { lat: 0.0035, lng: 0.0012 },
+    { lat: -0.0038, lng: 0.0015 }
+  ];
   const offset = offsets[index % offsets.length];
   return { lat: baseLat + (offset?.lat ?? 0), lng: baseLng + (offset?.lng ?? 0) };
 };
 
 const mockPlaces: Place[] = [
-  { id: 'place-1', name: '百度烤肉(上沙店)', category: 'dining', emoji: '🥩', description: '本周热门烤架', openHours: '10:00 - 01:30', latitude: 31.2304 + 0.001, longitude: 121.4737 + 0.002 },
-  { id: 'place-2', name: 'Giglio La Pizza', category: 'dining', emoji: '🍕', description: '经常回访的意式披萨', openHours: '11:00 - 22:00', latitude: 31.2304 - 0.001, longitude: 121.4737 + 0.003 },
-  { id: 'place-3', name: '深圳高尔夫俱乐部', category: 'entertainment', emoji: '⛳', description: '城市中心绿地', openHours: '10:00 - 23:00', latitude: 31.2304 + 0.002, longitude: 121.4737 - 0.002 },
-  { id: 'place-4', name: '中心公园', category: 'park', emoji: '🌲', description: '适合散步和聊天', openHours: '全天开放', latitude: 31.2304 - 0.002, longitude: 121.4737 - 0.003 },
-  { id: 'place-5', name: 'Fumin Bagel', category: 'dining', emoji: '🥯', description: '餐馆 & 咖啡', openHours: '08:00 - 20:00', latitude: 31.2304 + 0.003, longitude: 121.4737 + 0.001 },
-  { id: 'place-6', name: 'KTV 唱歌', category: 'entertainment', emoji: '🎤', description: '聚会唱K放松', openHours: '12:00 - 02:00', latitude: 31.2304 - 0.003, longitude: 121.4737 + 0.001 },
+  // 学习场所
+  { id: 'place-study-1', name: '24H 沉浸自习室', category: 'study', emoji: '📚', description: '提供绝对安静的学习环境，配备人体工学椅与护眼灯，适合考研党凌晨冲刺。', openHours: '全天开放', latitude: 31.2304 + 0.0015, longitude: 121.4737 - 0.0015 },
+  { id: 'place-study-2', name: '中心区市立图书馆', category: 'study', emoji: '📖', description: '全市最大的综合性图书馆，藏书丰富，顶层有绝佳的观景阅读区。', openHours: '09:00 - 21:00', latitude: 31.2304 - 0.0018, longitude: 121.4737 - 0.0026 },
+  { id: 'place-study-3', name: 'TRIX 青年创客空间', category: 'study', emoji: '💻', description: '独立开发者的聚集地，网速极快，咖啡免费续杯。', openHours: '08:00 - 23:00', latitude: 31.2304 + 0.0028, longitude: 121.4737 + 0.0022 },
+  
+  // 餐饮场所
+  { id: 'place-dining-1', name: 'Blue Bottle 蓝瓶咖啡', category: 'dining', emoji: '☕', description: '在简约静谧的工业风空间里，享受一杯顶级的单品手冲咖啡。', openHours: '08:00 - 19:00', latitude: 31.2304 + 0.0006, longitude: 121.4737 + 0.0012 },
+  { id: 'place-dining-2', name: 'Fumin Bagel', category: 'dining', emoji: '🥯', description: '现烤健康贝果与特调拿铁，排队人数经常爆满的网红店！', openHours: '08:00 - 20:00', latitude: 31.2304 - 0.0012, longitude: 121.4737 + 0.0018 },
+  { id: 'place-dining-3', name: 'Giglio La Pizza', category: 'dining', emoji: '🍕', description: '柴火窑烤的正宗那不勒斯披萨，满口都是芝士与麦香。', openHours: '11:00 - 22:00', latitude: 31.2304 + 0.0022, longitude: 121.4737 + 0.0036 },
+  { id: 'place-dining-4', name: '深夜食堂·和风居居酒屋', category: 'dining', emoji: '🍣', description: '温暖疲惫灵魂的寿司与烧鸟，学习完来这里抚慰一下肠胃吧。', openHours: '18:00 - 02:00', latitude: 31.2304 - 0.0016, longitude: 121.4737 + 0.0028 },
+  
+  // 娱乐和公园场所
+  { id: 'place-ent-1', name: '光年 Livehouse 星光 KTV', category: 'entertainment', emoji: '🎤', description: '百万级音响设备，周末放松解压、跟好友尽情嗨唱的绝佳去处！', openHours: '12:00 - 02:00', latitude: 31.2304 - 0.0028, longitude: 121.4737 + 0.0008 },
+  { id: 'place-ent-2', name: 'VR 零界探索·超空间', category: 'entertainment', emoji: '🥽', description: '全沉浸式的虚拟现实体验馆，带你穿越到赛博朋克异世界。', openHours: '10:00 - 22:00', latitude: 31.2304 + 0.0032, longitude: 121.4737 - 0.0012 },
+  { id: 'place-park-1', name: '城市绿洲极客公园', category: 'park', emoji: '🌳', description: '繁华都市中的自然氧吧，林荫大道与慢跑径，适合傍晚散步放松。', openHours: '全天开放', latitude: 31.2304 - 0.0008, longitude: 121.4737 - 0.0032 },
+  { id: 'place-park-2', name: '滨江现代艺术展览中心', category: 'park', emoji: '🎨', description: '依水而建的现代艺术展览馆，近期正在举办《未来科技与艺术》特展。', openHours: '10:00 - 18:00', latitude: 31.2304 + 0.0042, longitude: 121.4737 - 0.0028 },
 ];
 
 const heatZones = [
@@ -129,10 +149,9 @@ const SnapMapScreen: React.FC = () => {
   useEffect(() => {
     getFriends()
       .then((data) => {
-        setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);
-      })
-      .catch(() => setFriends(mockFriends))
-      .finally(() => setLoading(false));
+          // 合并真实的好友和 mock的好友，保证地图看起来有很多朋友，方便展示
+          const merged = [...data, ...mockFriends.filter(m => !data.some(d => d.friend_id === m.friend_id))];
+          setFriends(merged.slice(0, 8)); // 最多展示8个好友
     getFriendsLocations().then(locations => { if(locations.length) setFriendLocations(locations); }).catch(() => {});
   }, []);
 
@@ -152,20 +171,33 @@ const SnapMapScreen: React.FC = () => {
   }, [normalizedQuery, places, selectedCategory]);
 
   const visibleFriends = useMemo(() => {
-    const list = friendLocations.length > 0
-      ? friendLocations.map((loc) => ({
-        friend_id: loc.friendId,
-        avatar_url: loc.avatar,
-        name: loc.name,
-        status: loc.status,
-        lat: loc.latitude,
-        lng: loc.longitude
-      }))
-      : friends.map((friend, index) => {
+      // 获取基于 friends 的模拟位置列表
+      const friendsWithMockLocs = friends.map((friend, index) => {
         const pos = getOffsetPosition(center[0], center[1], index);
         return { ...friend, lat: pos.lat, lng: pos.lng };
       });
-
+      
+      let list = [];
+      if (friendLocations.length > 0) {
+        // 如果有真实的地理位置，保留真实数据
+        const realLocs = friendLocations.map((loc) => ({
+          friend_id: loc.friendId,
+          avatar_url: loc.avatar,
+          name: loc.name,
+          status: loc.status,
+          lat: loc.latitude,
+          lng: loc.longitude
+        }));
+        
+        // 并把那些没有真实地理位置的 mock 朋友加上（用于展示丰富度）
+        const mockOnly = friendsWithMockLocs.filter(f => 
+          !realLocs.some(r => r.friend_id === f.friend_id)
+        );
+        
+        list = [...realLocs, ...mockOnly];
+      } else {
+        list = friendsWithMockLocs;
+      }
     if (!normalizedQuery) {
       return list;
     }
@@ -314,20 +346,35 @@ const SnapMapScreen: React.FC = () => {
               <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{selectedItem.name}</h2>
                 <p style={{ margin: '4px 0 0', color: '#10b981', fontSize: '13px', fontWeight: 600 }}>
-                  {selectedItem.type === 'place' ? `营业中 · ${selectedItem.name.includes('百度') ? '43.1' : '1.2'} 公里 · 深圳` : `当前在线 · 0.5 公里`}
+                  {selectedItem.type === 'place' ? `营业中 · ${selectedItem.name.includes('百度') ? '1.5' : '0.8'} 公里 · 深圳` : `当前在线 · 0.5 公里`}
                 </p>
               </div>
             </div>
 
-            {selectedItem.type === 'place' ? (
-              <div style={{ background: isDark ? '#252528' : '#f4f4f5', borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Clock size={18} color="#a1a1aa" />
-                <div>
-                  <div style={{ color: '#10b981', fontSize: '14px', fontWeight: 600 }}>营业中</div>
-                  <div style={{ color: '#a1a1aa', fontSize: '12px', marginTop: '2px' }}>{selectedItem.openHours}</div>
-                </div>
-              </div>
-            ) : null}
+            {/* 详细描述模块 */}
+            <div style={{ background: isDark ? '#252528' : '#f4f4f5', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {selectedItem.type === 'place' ? (
+                <>
+                  <div style={{ color: isDark ? '#e4e4e7' : '#3f3f46', fontSize: '14px', lineHeight: '1.5' }}>
+                    {selectedItem.description}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <Clock size={14} color="#a1a1aa" />
+                    <span style={{ color: '#a1a1aa', fontSize: '12px' }}>营业时间：{selectedItem.openHours}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isDark ? '#e4e4e7' : '#3f3f46', fontSize: '14px' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedItem.is_studying ? '#10b981' : '#f59e0b' }}></span>
+                    <span style={{ fontWeight: 500 }}>{selectedItem.is_studying ? `已专注 ${selectedItem.study_time} 分钟` : '目前处于休息状态'}</span>
+                  </div>
+                  <div style={{ color: '#a1a1aa', fontSize: '13px', marginTop: '2px', fontStyle: 'italic' }}>
+                    "{selectedItem.bio || selectedItem.last_message || '正在探索 Virtual World'}"
+                  </div>
+                </>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
               <motion.button
