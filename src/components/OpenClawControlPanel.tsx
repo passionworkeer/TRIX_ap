@@ -479,7 +479,7 @@ export const OpenClawControlPanel: React.FC<OpenClawControlPanelProps> = ({ isOp
     <>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
         <div
-          className={`ios-glass-surface w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-auto ${
+          className={`ios-glass-surface w-full max-w-lg rounded-t-3xl px-6 pt-6 pb-28 max-h-[85vh] overflow-auto ${
             isDark ? 'bg-gray-900 border-t border-gray-700' : 'bg-white border-t border-gray-200'
           }`}
           onClick={e => e.stopPropagation()}

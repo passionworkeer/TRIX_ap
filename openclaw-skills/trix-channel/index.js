@@ -1772,11 +1772,19 @@ function handleGatewayMessage(msg) {
       return true;
     }
 
+    // 关键修复：始终通过 chat.history 获取完整消息，而不是直接转发流式增量
+    // 因为 final 状态的 payload 内容可能只是部分增量，不是完整消息
+    if (eventName === 'chat' && runId && trackedSessionKey) {
+      console.log(
+        `[TRIXChannel] <- gateway event=${eventName} state=${state || 'n/a'} run=${runId} - fetching complete message from history`
+      );
+      requestGatewayChatHistory(runId, trackedSessionKey);
+      return true;
+    }
+
+    // 如果不是 chat 事件或没有 runId，则使用传统方式转发
     const normalized = normalizeGatewayReply(payload);
     if (!normalized.content.trim()) {
-      if (eventName === 'chat' && runId && trackedSessionKey) {
-        requestGatewayChatHistory(runId, trackedSessionKey);
-      }
       return true;
     }
 

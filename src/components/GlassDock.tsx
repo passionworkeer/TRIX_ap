@@ -148,22 +148,6 @@ export default function GlassDock() {
                           : "none",
                       }}
                     />
-                    {isActive && (
-                      <motion.div
-                        layoutId="dot-indicator"
-                        style={{
-                          position: "absolute",
-                          bottom: "10px",
-                          width: "18px",
-                          height: "4px",
-                          borderRadius: "999px",
-                          background:
-                            "linear-gradient(90deg, rgba(59,130,246,0.85), rgba(99,102,241,0.72))",
-                          boxShadow: "0 0 12px rgba(99, 102, 241, 0.3)",
-                        }}
-                        transition={iosQuickSpring}
-                      />
-                    )}
                   </div>
                 )}
               </div>
