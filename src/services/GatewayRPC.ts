@@ -37,11 +37,10 @@ class GatewayRPC {
    * Send chat message
    */
   async chatSend(sessionKey: string, message: string): Promise<void> {
-    const sessionId = sessionKey.split(':').pop() || 'main';
-
     try {
+      // Use sessionKey directly as per OpenClaw protocol
       await gatewayClient.request('chat.send', {
-        sessionId,
+        sessionKey,
         message,
       });
     } catch (error) {
@@ -54,11 +53,10 @@ class GatewayRPC {
    * Get chat history
    */
   async chatHistory(sessionKey: string, limit = 50): Promise<ChatMessage[]> {
-    const sessionId = sessionKey.split(':').pop() || 'main';
-
     try {
+      // Use sessionKey directly as per OpenClaw protocol
       const response = await gatewayClient.request<{ messages: ChatMessage[] }>('chat.history', {
-        sessionId,
+        sessionKey,
         limit,
       });
       return response?.messages || [];

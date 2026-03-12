@@ -55,6 +55,7 @@
     "server",
     "archive",
     "ios",
+    "reference",
     "**/*.test.ts",
     "**/*.test.tsx",
     "src/features/study/components",
