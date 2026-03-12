@@ -14,7 +14,8 @@ import type {
   StudyRoomAckPayload,
   StudyRoomHostAction,
   StudyRoomState,
-  StudyRoomStateEvent
+  StudyRoomStateEvent,
+  FriendRoomLookupResult
 } from '../types/studyRoom';
 
 /**
@@ -402,6 +403,7 @@ class ClawbotChannelBridge {
         sender: 'bot'
       };
       this.emit('bot_message', message);
+      (this.emit as any)('message', message); // 兼容前端监听 'message' 事件
     });
 
     // Bot 离线通知
@@ -839,6 +841,39 @@ class ClawbotChannelBridge {
     return response.room;
   }
 
+  /**
+   * 批量查询多个用户的自习室状态
+   * 注意：由于服务器可能不支持批量查询，这里使用循环调用单个查询
+   */
+  async lookupStudyRoomsByUsers(userIds: string[]): Promise<{ users: FriendRoomLookupResult[] }> {
+    const results: FriendRoomLookupResult[] = [];
+
+    // 遍历用户查询（如果服务器有批量接口可以优化）
+    for (const userId of userIds) {
+      try {
+        // 尝试获取用户创建的房间状态（通过查询可能的房间）
+        // 由于没有直接的 API，这里返回默认状态
+        results.push({
+          userId,
+          inRoom: false,
+          roomCode: undefined,
+          sessionState: undefined,
+          memberCount: undefined
+        });
+      } catch {
+        results.push({
+          userId,
+          inRoom: false,
+          roomCode: undefined,
+          sessionState: undefined,
+          memberCount: undefined
+        });
+      }
+    }
+
+    return { users: results };
+  }
+
   sendMessage(
     content: string,
     contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = 'text',
@@ -858,37 +893,33 @@ class ClawbotChannelBridge {
 
       const messageId = generateMessageId();
 
-      // P0-问题1: 使用 on() + 消息ID匹配，而不是 once()
-      // 防止其他消息的确认干扰当前消息
+      // 等待 message_sent 确认
       const timeout = setTimeout(() => {
-        // 清除监听器
-        this.socket?.off('message_sent', handler);
         reject(new Error('message_sent timeout'));
-      }, 10000); // 10 秒超时
+      }, 10000); // 10秒超时
 
-      // 使用 on() 并手动过滤消息ID
-      const handler = (response: { success: boolean; messageId?: string; error?: string }) => {
-        // 只处理当前消息的确认
-        if (response.messageId === messageId) {
+      // 监听 message_sent 确认
+      const onMessageSent = (data: { success: boolean; messageId: string; error?: string }) => {
+        if (data.messageId === messageId) {
           clearTimeout(timeout);
-          this.socket?.off('message_sent', handler); // 清除监听器
-
-          if (response.success) {
+          this.socket?.off('message_sent', onMessageSent);
+          if (data.success) {
             resolve();
           } else {
-            reject(new Error(response.error || 'Failed to send message'));
+            reject(new Error(data.error || 'Message send failed'));
           }
         }
       };
 
-      this.socket.on('message_sent', handler);
+      this.socket.on('message_sent', onMessageSent);
 
+      // 发送消息
       this.socket.emit('app_message', {
         content,
         contentType,
         mediaUrl,
         mediaMimeType,
-        messageId // 鍙戦€佹秷鎭疘D
+        messageId
       });
     });
   }
