@@ -135,10 +135,20 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const upsertMessageState = useCallback((message: ClawbotChannelMessage) => {
     setMessages((prev) => {
       const messageId = toPersistedMessageId(message);
-      const exists = prev.some((item) => toPersistedMessageId(item) === messageId);
-      if (exists) {
-        return prev;
+      const existingIndex = prev.findIndex((item) => toPersistedMessageId(item) === messageId);
+
+      if (existingIndex >= 0) {
+        // 消息已存在，追加内容（支持流式输出）
+        const existing = prev[existingIndex];
+        const updated = {
+          ...existing,
+          content: existing.content + message.content
+        };
+        const next = [...prev];
+        next[existingIndex] = updated;
+        return next;
       }
+
       let next = [...prev, { ...message, id: messageId }];
       next.sort((a, b) => a.timestamp - b.timestamp);
       // 如果超过上限，移除最旧的消息
@@ -212,7 +222,12 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
+    // 收到 bot 消息后，立即清除 thinking 状态，进入 speaking 状态
+    // 这样可以确保加载气泡立即消失
+    // 注意：setLatestBotMessage 在 enterSpeakingWithTimeout 中设置，避免重复调用
+
     if (voiceEnabled) {
+      // 语音模式：进入 thinking 状态，等待语音播放
       setLatestBotMessage(message);
       enterThinking();
       const messageId = message.id || `bot-${message.timestamp}`;
@@ -221,6 +236,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       return;
     }
 
+    // 非语音模式：立即进入 speaking 状态，气泡消失
     enterSpeakingWithTimeout(message);
   }, [enterSpeakingWithTimeout, enterThinking, voiceEnabled]);
 
@@ -649,6 +665,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     try {
       await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl, mediaMimeType);
       setLastError(null);
+      // 消息发送成功，保持 THINKING 状态等待 bot 回复
+      // bot 回复时会通过 handleBotMessageState 转换为 SPEAKING 状态
     } catch (error) {
       logger.clawbot.error('发送消息失败', error);
       setMessages((prev) => prev.filter((message) => toPersistedMessageId(message) !== optimisticMessageId));
