@@ -120,16 +120,17 @@ const PointsMall: React.FC = () => {
     <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scroll-smooth">
       {categories.map((cat) => (
         <button
+          type="button"
           key={cat.key}
           onClick={() => setSelectedCategory(cat.key)}
-          className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all duration-300 active:scale-95 ${
+          className={`ios-pressable flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all duration-300 active:scale-95 ${
             selectedCategory === cat.key
               ? isDark
                 ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
                 : 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
               : isDark
-                ? 'bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20'
-                : 'bg-white/75 text-slate-600 border border-slate-200 hover:bg-white'
+                ? 'ios-secondary-button text-gray-300 border border-white/20'
+                : 'ios-surface-button text-slate-600 border border-slate-200'
           }`}
         >
           {cat.label}
@@ -213,6 +214,7 @@ const PointsMall: React.FC = () => {
 
         {/* 购买按钮 */}
         <button
+          type="button"
           className={`mt-3 w-full py-2 rounded-lg text-xs font-bold transition-all duration-300 active:scale-95 ${
             item.isOwned
               ? isDark
@@ -221,8 +223,8 @@ const PointsMall: React.FC = () => {
               : isPurchasing === item.id
                 ? 'bg-amber-500/50 text-white cursor-wait'
                 : isDark
-                  ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/30'
-                  : 'bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/20'
+                  ? 'ios-primary-button text-white shadow-lg shadow-amber-500/30'
+                  : 'ios-primary-button text-white shadow-lg shadow-amber-500/20'
           }`}
           disabled={item.isOwned || isPurchasing === item.id}
         >
@@ -287,11 +289,12 @@ const PointsMall: React.FC = () => {
         <div className="pt-20 pb-4 px-6 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <button
+              type="button"
               onClick={() => navigate(-1)}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+              className={`ios-pressable ios-icon-button flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                 isDark
-                  ? 'bg-white/10 hover:bg-white/20 text-white'
-                  : 'bg-white/75 hover:bg-white text-slate-900'
+                  ? 'ios-secondary-button text-white'
+                  : 'ios-surface-button text-slate-900'
               }`}
             >
               <ArrowLeft size={20} />

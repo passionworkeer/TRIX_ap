@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GlassPanel from './GlassPanel';
 import { getErrorMessage } from '../utils/errorHandler';
 import { FRIEND_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
+import { iosBackdropMotion, iosSheetMotion } from '../utils/iosMotion';
 
 interface AddFriendModalProps {
   isOpen: boolean;
@@ -43,24 +44,22 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...iosBackdropMotion}
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-md"
+          onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            {...iosSheetMotion}
             className="w-full max-w-[340px] relative mx-4"
+            onClick={(event) => event.stopPropagation()}
           >
             <GlassPanel className="w-full p-6 flex flex-col items-center">
         <button
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 w-10 h-10 flex items-center justify-center"
+          type="button"
+          className="ios-pressable ios-icon-button ios-surface-button absolute right-3 top-3 flex items-center justify-center text-gray-400 hover:text-gray-600"
           onClick={onClose}
           aria-label="关闭对话框"
         >
@@ -72,7 +71,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
         </label>
         <input
           id="friend-account"
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 mb-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full rounded-2xl border border-white/50 bg-white/75 px-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="输入对方账号（邮箱或用户名）"
           value={account}
           onChange={e => setAccount(e.target.value)}
@@ -91,7 +90,8 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
           </div>
         )}
         <button
-          className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg mt-2 disabled:opacity-60"
+          type="button"
+          className="ios-pressable ios-primary-button mt-2 w-full rounded-2xl py-3 font-bold text-white disabled:opacity-60"
           onClick={handleSend}
           disabled={loading}
         >

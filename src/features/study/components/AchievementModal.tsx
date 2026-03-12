@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { X, Trophy, Lock, Sparkles } from 'lucide-react';
 import { Achievement, ACHIEVEMENTS, getAchievementColor, getAchievementBgColor } from '../types/achievement';
 import { achievementService } from '../services/achievementService';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosPressableMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../../../utils/iosMotion';
 
 interface AchievementModalProps {
   show: boolean;
@@ -55,15 +63,21 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({ show, onClos
   return (
     <>
       {/* 背景遮罩 */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in"
+      <motion.div
+        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
         onClick={onClose}
       />
 
       {/* Modal内容 */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div
-          className="bg-gradient-to-br from-gray-900 to-gray-800 backdrop-blur-xl border border-white/20 rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl pointer-events-auto animate-scale-in"
+        <motion.div
+          className="pointer-events-auto w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-[2rem] border border-white/14 bg-gradient-to-br from-slate-950/96 via-slate-900/94 to-slate-900/92 shadow-[0_30px_90px_rgba(2,6,23,0.62)] backdrop-blur-2xl"
+          initial={iosSheetMotion.initial}
+          animate={iosSheetMotion.animate}
+          exit={iosSheetMotion.exit}
         >
           {/* 顶部标题栏 */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -76,12 +90,14 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({ show, onClos
                 <p className="text-xs text-gray-400">{unlockedCount} / {totalCount} 已解锁</p>
               </div>
             </div>
-            <button
+            <motion.button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+              transition={iosQuickSpring}
+              {...iosIconButtonMotion}
+              className="ios-pressable ios-surface-button ios-icon-button-compact flex items-center justify-center text-slate-400"
             >
               <X size={16} className="text-gray-400" />
-            </button>
+            </motion.button>
           </div>
 
           {/* 进度条 */}
@@ -97,17 +113,19 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({ show, onClos
           {/* 分类筛选 */}
           <div className="flex gap-2 px-6 py-3 overflow-x-auto">
             {categories.map(cat => (
-              <button
+              <motion.button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                transition={iosQuickSpring}
+                {...iosPressableMotion}
+                className={`ios-pressable whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium ${
                   selectedCategory === cat.id
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                    ? 'ios-pill-indicator border border-purple-300/20 bg-purple-500 text-white'
+                    : 'ios-secondary-button text-gray-300'
                 }`}
               >
                 {cat.label}
-              </button>
+              </motion.button>
             ))}
           </div>
 
@@ -125,7 +143,7 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({ show, onClos
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     </>
   );
@@ -141,7 +159,7 @@ const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }
 
   return (
     <div
-      className={`p-4 rounded-xl border-2 transition-all ${
+      className={`ios-list-row rounded-[1.3rem] border-2 p-4 transition-all ${
         isUnlocked
           ? 'border-opacity-50 shadow-lg'
           : 'border-white/10 opacity-50'
@@ -174,7 +192,7 @@ const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }
       {/* 稀有度标签 */}
       <div className="mt-3">
         <span
-          className="text-xs font-medium px-2 py-1 rounded-full"
+          className="ios-pill-indicator rounded-full px-2 py-1 text-xs font-medium"
           style={{
             backgroundColor: `${borderColor}20`,
             color: borderColor

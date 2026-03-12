@@ -240,13 +240,13 @@ const Profile: React.FC = () => {
                    {/* 高级玻璃拟物风 数据卡片 */}
                    <div className={`mt-6 w-full grid grid-cols-3 divide-x ${isDark ? 'divide-white/10 bg-white/5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]' : 'divide-black/5 bg-white/60 border border-white shadow-[0_8px_32px_rgba(0,0,0,0.05)]'} rounded-[24px] backdrop-blur-xl overflow-hidden`}>
                       
-                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('陪伴天数', daysActive)}>
+                      <div className={`ios-pressable py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('陪伴天数', daysActive)}>
                          <div className={`text-[20px] font-bold tabular-nums leading-none mb-1.5 ${primaryTextClass}`}>{daysActive}</div>
                          <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.daysActive')}</div>
                       </div>
 
                       {/* 积分合并进统计区域 */}
-                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors relative ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => setIsPointsHistoryOpen(true)}>
+                      <div className={`ios-pressable py-4 flex flex-col items-center justify-center cursor-pointer transition-colors relative ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => setIsPointsHistoryOpen(true)}>
                          {/* 积分发光小点提示 */}
                          <div className="absolute top-3 right-5 flex h-2 w-2">
                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -258,7 +258,7 @@ const Profile: React.FC = () => {
                          <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.points')}</div>
                       </div>
 
-                      <div className={`py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('互动', interactionCount)}>
+                      <div className={`ios-pressable py-4 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} onClick={() => handleStatClick('互动', interactionCount)}>
                          <div className={`text-[20px] font-bold tabular-nums leading-none mb-1.5 ${primaryTextClass}`}>{interactionCount}</div>
                          <div className={`text-[11px] font-bold tracking-wider opacity-60 ${secondaryTextClass}`}>{t('profile.interactions')}</div>
                       </div>
@@ -274,8 +274,9 @@ const Profile: React.FC = () => {
                    <div className="flex items-center justify-between mb-4 pl-1">
                       <h3 className={`text-lg font-bold ${primaryTextClass}`}>{t('profile.myWardrobe')}</h3>
                       <button
+                         type="button"
                          onClick={handleViewAllOutfits}
-                         className={`text-xs font-bold active:scale-95 transition-all ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-600'}`}
+                         className={`ios-pressable rounded-full px-2 py-1 text-xs font-bold transition-all ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-600'}`}
                       >
                          {t('profile.viewAll')}
                       </button>
@@ -307,7 +308,7 @@ const Profile: React.FC = () => {
 
                       <div
                          onClick={handleGetMoreOutfits}
-                         className={`flex-shrink-0 w-32 h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group active:scale-95 ${isDark ? 'border-white/20 hover:border-amber-500/50 hover:bg-white/10' : 'border-slate-300 hover:border-amber-500/60 hover:bg-white/70'}`}
+                         className={`ios-pressable flex-shrink-0 w-32 h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group active:scale-95 ${isDark ? 'border-white/20 hover:border-amber-500/50 hover:bg-white/10' : 'border-slate-300 hover:border-amber-500/60 hover:bg-white/70'}`}
                       >
                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-300 ${isDark ? 'bg-white/10 group-hover:bg-white/20 group-hover:text-amber-400 text-gray-500' : 'bg-white/80 group-hover:bg-white group-hover:text-amber-700 text-slate-500'}`}>
                             <Plus size={22} />
@@ -414,8 +415,9 @@ const Profile: React.FC = () => {
                       </GlassPanel>
 
                       <button
+                        type="button"
                         onClick={handleLogout}
-                        className={`mt-4 w-full backdrop-blur-md border p-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 duration-200 ${
+                        className={`ios-pressable mt-4 w-full backdrop-blur-md border p-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 duration-200 ${
                           isDark
                             ? 'bg-white/10 border-red-500/20 text-red-400 hover:bg-red-500/10'
                             : 'bg-white/75 border-red-200 text-red-600 hover:bg-red-50'

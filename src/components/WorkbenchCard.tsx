@@ -7,6 +7,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
+import { iosPressableMotion } from '../utils/iosMotion';
 
 interface WorkbenchCardProps {
   /** Lucide icon name (e.g., 'Camera', 'MapPin', 'Calendar', 'CheckSquare') */
@@ -44,23 +45,17 @@ const WorkbenchCard: React.FC<WorkbenchCardProps> = ({
 
   return (
     <motion.button
+      type="button"
       onClick={onClick}
       aria-label={ariaLabel || label}
-      className="flex-shrink-0 w-20 h-24 flex flex-col items-center justify-center gap-3 rounded-[1.25rem] cursor-pointer focus:outline-none"
+      className="ios-pressable ios-glass-surface flex h-24 w-20 flex-shrink-0 flex-col items-center justify-center gap-3 rounded-[1.4rem] cursor-pointer focus:outline-none"
       style={{
-        background: 'rgba(255, 255, 255, 0.4)',
         boxShadow: `
-          0 4px 16px rgba(0, 0, 0, 0.04),
-          inset 0 0 0 1px rgba(255, 255, 255, 0.5)
+          0 14px 28px rgba(15, 23, 42, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.76)
         `,
       }}
-      whileHover={{
-        scale: 1.03,
-        y: -1,
-      }}
-      whileTap={{
-        scale: 0.95,
-      }}
+      {...iosPressableMotion}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -74,8 +69,8 @@ const WorkbenchCard: React.FC<WorkbenchCardProps> = ({
         className={`w-12 h-12 rounded-[1rem] bg-gradient-to-br ${color} flex items-center justify-center`}
         style={{
           boxShadow: `
-            0 6px 12px -2px rgba(0, 0, 0, 0.15),
-            inset 0 1px 1px rgba(255, 255, 255, 0.4)
+            0 10px 18px rgba(15, 23, 42, 0.18),
+            inset 0 1px 1px rgba(255, 255, 255, 0.42)
           `,
         }}
       >

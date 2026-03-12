@@ -4,7 +4,7 @@
  * React context for Gateway state management
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import gatewayClient from '../services/GatewayClient';
 import { logger } from '../utils/logger';
 
@@ -120,7 +120,7 @@ export function GatewayProvider({ children, defaultUrl }: GatewayProviderProps) 
   /**
    * Pair with code (via server relay)
    */
-  const pairWithCode = useCallback(async (code: string) => {
+  const pairWithCode = useCallback(async (_code: string) => {
     // This would typically go through the server
     // For now, we'll just return a placeholder
     try {

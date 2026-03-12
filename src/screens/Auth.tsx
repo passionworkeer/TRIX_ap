@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
 
       <div className="w-full space-y-6 relative z-20 mb-6">
          {error && (
-           <div role="alert" aria-live="assertive" className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-2xl text-sm animate-shake">
+           <div role="alert" aria-live="assertive" className="ios-glass-surface border border-red-200/70 bg-red-50/90 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
              <div className="flex items-center gap-2">
                <span className="text-lg">⚠️</span>
                {error}
@@ -119,9 +119,10 @@ export const Login: React.FC = () => {
          </div>
 
          <button
+           type="button"
            onClick={handleLogin}
            disabled={loading}
-           className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white font-bold text-lg tracking-wider shadow-xl shadow-purple-500/40 hover:shadow-purple-500/60 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 group"
+           className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold tracking-wider text-white shadow-xl shadow-purple-500/40 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
          >
             {loading ? (
               <>
@@ -144,20 +145,22 @@ export const Login: React.FC = () => {
             </div>
             <div className="flex gap-5">
                <button
-                 className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-white/10 flex items-center justify-center text-green-600 shadow-md border border-white/50 hover:scale-110 hover:shadow-lg hover:shadow-green-500/20 transition-all duration-300"
+                 type="button"
+                 className="ios-pressable ios-surface-button flex h-12 w-12 items-center justify-center rounded-2xl text-green-600 shadow-md transition-all duration-300"
                  aria-label="微信登录"
                >
                   <span className="font-bold text-xl">W</span>
                </button>
                <button
-                 className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-white/10 flex items-center justify-center text-slate-800 dark:text-white shadow-md border border-white/50 hover:scale-110 hover:shadow-lg hover:shadow-black/10 transition-all duration-300"
+                 type="button"
+                 className="ios-pressable ios-surface-button flex h-12 w-12 items-center justify-center rounded-2xl text-slate-800 shadow-md transition-all duration-300 dark:text-white"
                  aria-label="Apple 登录"
                >
                   <span className="font-bold text-xl">A</span>
                </button>
             </div>
             <div className="text-[13px] text-slate-500 dark:text-slate-400 font-medium">
-               还没有账号？ <button onClick={() => navigate(AppRoutes.REGISTER)} className="text-purple-600 dark:text-purple-400 font-bold hover:text-purple-500 dark:hover:text-purple-300 transition-colors">立即注册</button>
+               还没有账号？ <button type="button" onClick={() => navigate(AppRoutes.REGISTER)} className="ios-pressable rounded-full px-2 py-1 text-purple-600 dark:text-purple-400 font-bold hover:text-purple-500 dark:hover:text-purple-300 transition-colors">立即注册</button>
             </div>
          </div>
       </div>
@@ -245,7 +248,7 @@ export const Register: React.FC = () => {
 
        <div className="w-full space-y-6 mb-4 relative z-20">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-2xl text-sm animate-shake">
+            <div className="ios-glass-surface border border-red-200/70 bg-red-50/90 px-4 py-3 rounded-2xl text-sm text-red-600 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
               <div className="flex items-center gap-2">
                 <span className="text-lg">⚠️</span>
                 {error}
@@ -253,7 +256,7 @@ export const Register: React.FC = () => {
             </div>
           )}
           {success && (
-            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded-2xl text-sm animate-bounce-scale">
+            <div className="ios-glass-surface border border-green-200/70 bg-green-50/90 px-4 py-3 rounded-2xl text-sm text-green-600 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🎉</span>
                 注册成功！正在跳转...
@@ -299,9 +302,10 @@ export const Register: React.FC = () => {
           </div>
 
           <button
+            type="button"
             onClick={handleRegister}
             disabled={loading || success}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white font-bold text-lg shadow-lg shadow-violet-500/40 hover:shadow-violet-500/60 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 group"
+            className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white shadow-lg shadow-violet-500/40 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
              {loading ? (
                <>
@@ -322,7 +326,7 @@ export const Register: React.FC = () => {
           </button>
 
           <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-             已有账号？<button onClick={() => navigate(AppRoutes.LOGIN)} className="text-violet-600 dark:text-violet-400 font-bold hover:text-violet-500 dark:hover:text-violet-300 transition-colors">立即登录</button>
+             已有账号？<button type="button" onClick={() => navigate(AppRoutes.LOGIN)} className="ios-pressable rounded-full px-2 py-1 text-violet-600 dark:text-violet-400 font-bold hover:text-violet-500 dark:hover:text-violet-300 transition-colors">立即登录</button>
           </div>
        </div>
      </div>

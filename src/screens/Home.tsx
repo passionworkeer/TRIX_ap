@@ -28,7 +28,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, botState: propBotState }) => {
   const navigate = useNavigate();
-  const { isClawbotConnected: isClawbotConnected, isClawbotPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
+  const { isConnected: isClawbotConnected, isPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
 
   // 优先使用 prop_botState，否则使用 context 中的 botState
@@ -41,7 +41,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, bo
   const [showSchedule, setShowSchedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
 
-  const handleOpenTrixBot = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleOpenTrixBot = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
     if (!isClawbotConnected || !isClawbotPaired) {

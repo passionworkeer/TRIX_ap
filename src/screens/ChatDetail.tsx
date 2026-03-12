@@ -30,6 +30,11 @@ import imageCompression from 'browser-image-compression';
 import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import type { ChatMessage } from '../config/supabase';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosQuickSpring,
+} from '../utils/iosMotion';
 
 // UI Message interface
 interface UIMessage {
@@ -754,13 +759,15 @@ const ChatDetail: React.FC = () => {
     <div className="flex h-screen w-full flex-col bg-slate-50 font-sans dark:bg-slate-950">
       <header className="z-40 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 pb-4 pt-12 shadow-sm backdrop-blur-xl transition-all duration-300 dark:border-slate-700 dark:bg-slate-900/90">
         <div className="flex items-center gap-3">
-          <button
+          <motion.button
+            type="button"
             onClick={() => navigate(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white transition-colors duration-200 hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-icon-button ios-surface-button flex h-10 w-10 items-center justify-center border border-slate-200 dark:border-slate-700"
             aria-label="返回"
           >
             <ArrowLeft size={20} className="text-slate-700 dark:text-slate-200" />
-          </button>
+          </motion.button>
 
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -788,33 +795,32 @@ const ChatDetail: React.FC = () => {
         </div>
 
         <div className="relative flex items-center gap-2">
-          <button
+          <motion.button
+            type="button"
             onClick={() => setShowMenu(!showMenu)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-icon-button ios-surface-button flex h-10 w-10 items-center justify-center border border-slate-200 dark:border-slate-700"
             aria-label="更多选项"
             aria-expanded={showMenu}
             aria-haspopup="true"
           >
             <MoreVertical size={20} className="text-slate-700 dark:text-slate-200" />
-          </button>
+          </motion.button>
 
           <AnimatePresence>
             {showMenu && (
               <>
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  {...iosBackdropMotion}
                   onClick={() => setShowMenu(false)}
                   className="fixed inset-0 z-40"
                 />
 
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+                  initial={{ opacity: 0, scale: 0.96, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0, transition: iosQuickSpring }}
+                  exit={{ opacity: 0, scale: 0.98, y: -4, transition: { duration: 0.14 } }}
+                  className="ios-glass-surface absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-[1.25rem] border border-slate-200/80 shadow-xl dark:border-slate-700"
                 >
                   {isBotConversation && isPaired && (
                     <>
@@ -822,6 +828,7 @@ const ChatDetail: React.FC = () => {
                         <p className="text-xs text-slate-500 dark:text-slate-400">Clawbot 配对管理</p>
                       </div>
                       <button
+                        type="button"
                         onClick={async () => {
                           const accepted = await requestConfirm({
                             title: '解除 Clawbot 配对',
@@ -837,7 +844,7 @@ const ChatDetail: React.FC = () => {
                           navigate('/chat');
                           showSuccess('配对已取消，你可以重新进入配对页连接新的 Clawbot');
                         }}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                        className="ios-list-row flex w-full items-center gap-3 px-4 py-3 text-left text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                       >
                         <X size={18} />
                         <span className="font-medium">解除配对</span>
@@ -1027,11 +1034,12 @@ const ChatDetail: React.FC = () => {
                         )}
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
                           const nextPreviews = attachmentPreviews.filter((_, i) => i !== index);
                           setAttachmentPreviews(nextPreviews);
                         }}
-                        className="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-black shadow-md transition-colors hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                        className="ios-pressable ios-icon-button-compact ios-surface-button absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center text-black dark:text-slate-100"
                         aria-label="删除附件"
                       >
                         <X size={10} strokeWidth={2.5} />
@@ -1043,7 +1051,7 @@ const ChatDetail: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <div className={`flex flex-col gap-2 rounded-3xl bg-slate-100 p-2 transition-all duration-300 dark:bg-slate-800 ${isInputFocused || input.trim().length > 0 ? "shadow-md" : ""}`}>
+          <div className={`ios-glass-surface flex flex-col gap-2 rounded-[1.75rem] p-2 transition-all duration-300 ${isInputFocused || input.trim().length > 0 ? "shadow-md" : ""}`}>
             <AnimatePresence>
               {(isInputFocused || input.trim().length > 0 || attachmentPreviews.length > 0) && (
                 <motion.div
@@ -1074,13 +1082,15 @@ const ChatDetail: React.FC = () => {
                 className="hidden"
               />
 
-              <button
+              <motion.button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
+                {...iosIconButtonMotion}
+                className="ios-pressable ios-icon-button-compact ios-surface-button flex h-8 w-8 shrink-0 items-center justify-center"
                 aria-label="添加附件"
               >
                 <span className="text-xl text-slate-600 dark:text-slate-200" style={{ lineHeight: '1' }}>+</span>
-              </button>
+              </motion.button>
 
               <textarea
                 value={isListening ? transcript : input}
@@ -1105,28 +1115,32 @@ const ChatDetail: React.FC = () => {
               />
 
               {isSpeechSupported && isBotConversation && (
-                <button
+                <motion.button
+                  type="button"
                   onClick={() => (isListening ? stopListening() : startListening())}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
+                  {...iosIconButtonMotion}
+                  className={`ios-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
                     isListening
-                      ? 'bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-100'
-                      : 'bg-white text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                      ? 'border border-slate-300 bg-slate-300 text-slate-700 dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100'
+                      : 'ios-surface-button text-slate-600 dark:text-slate-200'
                   }`}
                   aria-label={isListening ? '停止语音输入' : '开始语音输入'}
                 >
                   {isListening ? <MicOff size={14} /> : <Mic size={14} />}
-                </button>
+                </motion.button>
               )}
 
               {/* 语音录制按钮 - 仅在非机器人会话显示 */}
               {!isBotConversation && (
-                <button
+                <motion.button
+                  type="button"
                   onClick={() => setShowVoiceRecorder(true)}
                   disabled={isUploadingVoice}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
+                  {...iosIconButtonMotion}
+                  className={`ios-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${
                     isUploadingVoice
-                      ? 'bg-slate-300 text-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'
-                      : 'bg-white text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                      ? 'cursor-not-allowed border border-slate-300 bg-slate-300 text-slate-400 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500'
+                      : 'ios-surface-button text-slate-600 dark:text-slate-200'
                   }`}
                   aria-label="录制语音消息"
                 >
@@ -1135,20 +1149,22 @@ const ChatDetail: React.FC = () => {
                   ) : (
                     <Mic size={14} />
                   )}
-                </button>
+                </motion.button>
               )}
 
-              <button
+              <motion.button
+                type="button"
                 onClick={() => handleSend()}
                 disabled={
                   (!input.trim() && attachmentPreviews.length === 0) ||
                   (isBotConversation && !isPaired) ||
                   uploadingFile
                 }
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                {...iosIconButtonMotion}
+                className={`ios-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                   input.trim() || attachmentPreviews.length > 0
-                    ? 'bg-black text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500'
-                    : 'bg-slate-300 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
+                    ? 'ios-primary-button text-white'
+                    : 'border border-slate-300 bg-slate-300 text-slate-400 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500'
                 }`}
                 aria-label="发送消息"
               >
@@ -1157,7 +1173,7 @@ const ChatDetail: React.FC = () => {
                 ) : (
                   <Send size={14} className={input.trim() ? '-rotate-45 transition-transform' : 'transition-transform'} />
                 )}
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
@@ -1176,7 +1192,6 @@ const ChatDetail: React.FC = () => {
 };
 
 export default ChatDetail;
-
 
 
 

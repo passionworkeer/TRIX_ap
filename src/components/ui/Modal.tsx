@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { iosBackdropMotion, iosSheetMotion } from '../../utils/iosMotion';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -112,16 +113,12 @@ const Modal: React.FC<ModalProps> = ({
       {isOpen && (
         <motion.div
           className="fixed inset-0 z-[1001] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...iosBackdropMotion}
         >
           <motion.div
-            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
             onClick={closeOnBackdrop ? onClose : undefined}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            {...iosBackdropMotion}
           />
           <motion.div
             ref={panelRef}
@@ -132,10 +129,7 @@ const Modal: React.FC<ModalProps> = ({
             tabIndex={-1}
             className={className}
             onClick={(event) => event.stopPropagation()}
-            initial={{ opacity: 0, y: 16, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            {...iosSheetMotion}
           >
             {children}
           </motion.div>

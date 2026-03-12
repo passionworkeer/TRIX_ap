@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
 
 interface HomeBotBubbleProps {
-  onClick: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const IDLE_GREETING_DELAY_MS = 30000;
@@ -83,12 +85,20 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = ({ onClick }) => {
   }, [botState, defaultGreeting, isFreshLaunch, latestBotMessage?.content, showDefaultGreeting]);
 
   return (
-    <div className="fixed top-[15%] right-[5%] z-50 cursor-pointer" onClick={onClick}>
+    <motion.button
+      type="button"
+      className="fixed top-[15%] right-[5%] z-50 cursor-pointer border-0 bg-transparent p-0 text-left"
+      onClick={onClick}
+      aria-label="打开 TRIX Bot 会话"
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1, transition: iosQuickSpring }}
+      {...iosPressableMotion}
+    >
       <div className="relative max-w-[180px] sm:max-w-[200px]">
-        <div className="relative bg-white/15 backdrop-blur-xl rounded-2xl rounded-br-none border border-white/25 shadow-lg p-3 hover:shadow-xl hover:scale-[1.02] transition-transform duration-200">
+        <div className="ios-glass-surface relative rounded-2xl rounded-br-none border border-white/20 p-3 shadow-lg">
           <div className="flex items-start gap-2">
             <div className="flex-shrink-0">
-              <Sparkles className="w-4 h-4 text-yellow-400 animate-glow-pulse" />
+              <Sparkles className="w-4 h-4 text-yellow-300 animate-glow-pulse" />
             </div>
             <div className="flex-1 min-w-0">
               {botState === 'THINKING' ? (
@@ -100,14 +110,14 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = ({ onClick }) => {
               )}
             </div>
           </div>
-          <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-yellow-400/20 rounded-full blur-lg pointer-events-none" />
+          <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-sky-300/20 blur-xl pointer-events-none" />
         </div>
         <div
-          className="absolute -bottom-1 right-0 w-3 h-3 bg-white/15 backdrop-blur-xl border-r border-b border-white/25 transform rotate-45 origin-top-left pointer-events-none"
+          className="absolute -bottom-1 right-0 h-3 w-3 origin-top-left rotate-45 border-r border-b border-white/20 bg-white/20 backdrop-blur-xl pointer-events-none"
           style={{ clipPath: 'polygon(100% 0, 0 100%, 100% 100%)' }}
         />
       </div>
-    </div>
+    </motion.button>
   );
 };
 

@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Zap, Trophy, TrendingUp, Clock, X, Loader2 } from 'lucide-react';
 import { getUserPointsStats, getPointsHistory, PointsTransaction, UserPointsStats } from '../../../services/pointsService';
+import {
+  iosBackdropMotion,
+  iosIconButtonMotion,
+  iosQuickSpring,
+  iosSheetMotion
+} from '../../../utils/iosMotion';
 
 interface PointsModalProps {
   show: boolean;
@@ -59,19 +66,25 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
   return (
     <>
       {/* 背景遮罩 */}
-      <div
+      <motion.div
         role="presentation"
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fade-in"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        initial={iosBackdropMotion.initial}
+        animate={iosBackdropMotion.animate}
+        exit={iosBackdropMotion.exit}
         onClick={onClose}
       />
 
       {/* Modal内容 */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
-        <div
+        <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="points-title"
-          className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md pointer-events-auto animate-scale-in"
+          className="ios-glass-surface w-full max-w-md rounded-[2rem] border border-white/60 bg-white/96 text-slate-900 pointer-events-auto shadow-[0_28px_72px_rgba(15,23,42,0.2)]"
+          initial={iosSheetMotion.initial}
+          animate={iosSheetMotion.animate}
+          exit={iosSheetMotion.exit}
         >
           {/* 头部 */}
           <div className="p-6 border-b border-gray-100">
@@ -84,13 +97,15 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
                   学习赚积分，解锁更多功能
                 </p>
               </div>
-              <button
+              <motion.button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                transition={iosQuickSpring}
+                {...iosIconButtonMotion}
+                className="ios-pressable ios-surface-button ios-icon-button-compact flex items-center justify-center text-slate-500"
                 aria-label="关闭"
               >
                 <X size={18} className="text-gray-600" />
-              </button>
+              </motion.button>
             </div>
           </div>
 
@@ -103,7 +118,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
               {/* 积分概览 */}
               <div className="p-6 space-y-4">
                 {/* 总积分卡片 */}
-                <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
+                <div className="rounded-[1.6rem] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-500 p-5 text-white shadow-[0_20px_36px_rgba(249,115,22,0.28)]">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-yellow-100 text-sm font-medium mb-1">总积分</p>
@@ -121,7 +136,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
 
                 {/* 统计数据 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-blue-50 rounded-xl p-4">
+                  <div className="ios-glass-surface rounded-[1.25rem] border border-blue-100/60 bg-blue-50/88 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Clock size={16} className="text-blue-500" />
                       <span className="text-xs text-blue-600 font-medium">今日获得</span>
@@ -129,7 +144,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
                     <p className="text-2xl font-bold text-blue-700">+{stats.today_earned}</p>
                   </div>
 
-                  <div className="bg-green-50 rounded-xl p-4">
+                  <div className="ios-glass-surface rounded-[1.25rem] border border-green-100/60 bg-green-50/88 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp size={16} className="text-green-500" />
                       <span className="text-xs text-green-600 font-medium">本周获得</span>
@@ -139,7 +154,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
                 </div>
 
                 {/* 说明文字 */}
-                <div className="bg-gray-50 rounded-xl p-4">
+                <div className="ios-glass-surface rounded-[1.25rem] border border-slate-200/70 bg-slate-50/92 p-4">
                   <p className="text-xs text-gray-600 leading-relaxed">
                     💡 <strong>积分规则：</strong>每专注学习1分钟获得2积分。积分可以提升等级，解锁更多功能和奖励。
                   </p>
@@ -156,7 +171,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
                     {history.map((record) => (
                       <div
                         key={record.id}
-                        className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0"
+                        className="ios-list-row flex items-center justify-between rounded-[1.2rem] border border-slate-100 bg-slate-50/76 px-4 py-3 last:border-slate-100/70"
                       >
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">
@@ -187,7 +202,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
               <p className="text-gray-500">暂无积分数据</p>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </>
   );

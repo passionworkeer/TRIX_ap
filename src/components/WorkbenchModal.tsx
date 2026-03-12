@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import WorkbenchCard from './WorkbenchCard';
 import { logger } from '../utils/logger';
 import { DEFAULT_WORKBENCH_ITEMS, WorkbenchItem } from '../types/workbench';
+import { iosBackdropMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
 
 interface WorkbenchModalProps {
   /** Whether the modal is visible */
@@ -70,62 +71,41 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Cards container - positioned above GlassDock */}
+          <motion.div
+            className="fixed inset-0 z-[60] bg-black/8 backdrop-blur-[3px]"
+            aria-hidden="true"
+            onClick={onClose}
+            {...iosBackdropMotion}
+          />
+
           <motion.div
             role="dialog"
             aria-modal="true"
             aria-label="工作台"
-            initial={{ opacity: 0, y: 60, scale: 0.9 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              transition: {
-                type: 'spring',
-                stiffness: 300,
-                damping: 25,
-                mass: 0.8,
-              },
-            }}
-            exit={{
-              opacity: 0,
-              y: 40,
-              scale: 0.95,
-              transition: {
-                type: 'spring',
-                stiffness: 400,
-                damping: 30,
-              },
-            }}
+            {...iosSheetMotion}
             style={{
               position: 'fixed',
               left: '1rem',
               right: '1rem',
               margin: '0 auto',
-              // Positioned above GlassDock (bottom: 2rem, height: 68px)
-              bottom: 'calc(2rem + 80px)',
+              bottom: 'calc(1.75rem + 86px)',
               maxWidth: '420px',
-              zIndex: 50,
+              zIndex: 61,
             }}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleKeyDown}
             tabIndex={-1}
           >
-            {/* Main container with glassmorphism */}
             <div
-              className="relative overflow-hidden rounded-[2rem] p-5 pb-4"
+              className="ios-glass-surface relative overflow-hidden rounded-[2.15rem] p-5 pb-4"
               style={{
-                background: 'rgba(250, 250, 250, 0.75)',
-                backdropFilter: 'blur(30px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
                 boxShadow: `
-                  0 24px 48px -12px rgba(0, 0, 0, 0.15),
-                  inset 0 1px 1px rgba(255, 255, 255, 0.8),
-                  inset 0 0 0 1px rgba(255, 255, 255, 0.5)
+                  0 28px 54px rgba(15, 23, 42, 0.18),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                  inset 0 -1px 0 rgba(255, 255, 255, 0.16)
                 `,
               }}
             >
-              {/* Header */}
               <div className="flex items-center justify-between mb-4 px-2">
                 <div>
                   <h2 className="text-[1.125rem] font-bold text-gray-800/90 tracking-tight leading-none mb-1">
@@ -137,21 +117,18 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                 </div>
               </div>
 
-              {/* Scrollable cards container with fade indicators */}
               <div className="relative">
-                {/* Left fade indicator */}
                 <div
                   className="absolute left-0 top-0 bottom-2 w-4 z-10 pointer-events-none"
                   style={{
-                    background: 'linear-gradient(90deg, rgba(255,255,255,0.95), transparent)',
+                    background: 'linear-gradient(90deg, rgba(255,255,255,0.96), transparent)',
                   }}
                 />
 
-                {/* Right fade indicator */}
                 <div
                   className="absolute right-0 top-0 bottom-2 w-4 z-10 pointer-events-none"
                   style={{
-                    background: 'linear-gradient(-90deg, rgba(255,255,255,0.95), transparent)',
+                    background: 'linear-gradient(-90deg, rgba(255,255,255,0.96), transparent)',
                   }}
                 />
 
@@ -173,9 +150,7 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                         x: 0,
                         transition: {
                           delay: index * 0.05,
-                          type: 'spring',
-                          stiffness: 300,
-                          damping: 25,
+                          ...iosQuickSpring,
                         },
                       }}
                     >
@@ -200,7 +175,6 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                 <div className="w-[3px] h-[3px] rounded-full bg-gray-400" />
               </div>
 
-              {/* Top handle bar */}
               <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-1 bg-gray-300 rounded-full opacity-60" />
             </div>
           </motion.div>

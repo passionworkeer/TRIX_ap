@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Timer, Play } from 'lucide-react';
+import { iosPressableMotion, iosQuickSpring } from '../../../utils/iosMotion';
 
 interface DurationSelectorProps {
   /** 时间预设选项（分钟） */
@@ -31,10 +33,13 @@ const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
       className="absolute top-32 left-6 z-20"
       style={{ maxWidth: '240px' }}
     >
-      <div className="bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-3.5 shadow-2xl">
+      <div className="ios-glass-surface rounded-[1.8rem] border border-white/14 p-3.5 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)]">
         {/* 标题 */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center" aria-hidden="true">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-xl border border-white/12 bg-white/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
+            aria-hidden="true"
+          >
             <Timer size={14} className="text-white" />
           </div>
           <span className="text-[10px] font-bold tracking-wider uppercase text-white/90">
@@ -43,22 +48,28 @@ const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
         </div>
 
         {/* 时间选择器 */}
-        <div className="flex gap-1.5 mb-4 p-1 bg-black/20 rounded-full" role="radiogroup" aria-label="选择专注时长">
+        <div
+          className="mb-4 flex gap-1.5 rounded-full border border-white/8 bg-black/18 p-1"
+          role="radiogroup"
+          aria-label="选择专注时长"
+        >
           {timePresets.map((time) => (
-            <button
+            <motion.button
               key={time}
               onClick={() => onSelectDuration(time)}
               disabled={disabled}
               aria-checked={selectedDuration === time}
               role="radio"
-              className={`flex-1 min-h-[44px] px-4 rounded-full text-sm font-semibold transition-all touch-manipulation ${
+              transition={iosQuickSpring}
+              {...iosPressableMotion}
+              className={`ios-pressable flex-1 min-h-[44px] rounded-full px-4 text-sm font-semibold touch-manipulation ${
                 selectedDuration === time
-                  ? "bg-white text-slate-900 shadow-lg scale-105"
-                  : "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
+                  ? 'ios-pill-indicator bg-white text-slate-900 shadow-[0_14px_24px_rgba(255,255,255,0.26)]'
+                  : 'text-white/72 hover:bg-white/10 hover:text-white'
               } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {time}m
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -72,14 +83,16 @@ const DurationSelector: React.FC<DurationSelectorProps> = React.memo(({
               Minutes
             </span>
           </div>
-          <button
+          <motion.button
             onClick={onStartFocus}
             disabled={disabled}
-            className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg hover:scale-105 active:scale-90 transition-all border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+            transition={iosQuickSpring}
+            {...iosPressableMotion}
+            className="ios-pressable ios-primary-button flex h-16 w-16 items-center justify-center rounded-full border border-white/20 shadow-[0_18px_32px_rgba(37,99,235,0.34)] disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation"
             aria-label={`开始专注 ${selectedDuration} 分钟`}
           >
             <Play fill="white" size={22} className="ml-0.5 text-white" />
-          </button>
+          </motion.button>
         </div>
       </div>
     </div>

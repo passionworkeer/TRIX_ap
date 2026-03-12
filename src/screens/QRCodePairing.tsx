@@ -233,7 +233,7 @@ const QRCodePairing: React.FC = () => {
           <button
             type="button"
             onClick={handleGoBack}
-            className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="ios-pressable ios-surface-button rounded-xl p-2 text-slate-700 dark:text-slate-200"
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
@@ -246,7 +246,7 @@ const QRCodePairing: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+          className="ios-glass-surface mb-6 rounded-2xl border border-slate-200 p-8 shadow-lg dark:border-slate-800"
         >
           <div className="flex flex-col items-center space-y-4 text-center">
             <AnimatePresence mode="wait">
@@ -267,7 +267,7 @@ const QRCodePairing: React.FC = () => {
             </div>
 
             {deviceToken && (
-              <div className="mt-4 w-full rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900/70 dark:bg-green-950/40">
+              <div className="ios-glass-surface mt-4 w-full rounded-lg border border-green-200 bg-green-50/90 p-4 dark:border-green-900/70 dark:bg-green-950/40">
                 <p className="break-all font-mono text-sm text-green-700 dark:text-green-300">
                   Token: {deviceToken.substring(0, 20)}...
                 </p>
@@ -280,7 +280,7 @@ const QRCodePairing: React.FC = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-900/70 dark:bg-blue-950/40"
+            className="ios-glass-surface mb-6 rounded-xl border border-blue-200 bg-blue-50/90 p-6 dark:border-blue-900/70 dark:bg-blue-950/40"
           >
             <h3 className="mb-3 flex items-center gap-2 font-semibold text-blue-900 dark:text-blue-200">
               <AlertCircle className="h-5 w-5" />
@@ -312,7 +312,7 @@ const QRCodePairing: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+            className="ios-glass-surface space-y-4 rounded-2xl border border-slate-200 p-6 shadow-lg dark:border-slate-800"
           >
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -323,14 +323,14 @@ const QRCodePairing: React.FC = () => {
                 value={deviceName}
                 onChange={(event) => setDeviceName(event.target.value)}
                 placeholder="留空将自动生成"
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="w-full rounded-xl border border-slate-300 bg-slate-50/90 px-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
 
             <button
               type="button"
               onClick={() => setShowScanner(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 py-4 font-semibold text-white shadow-lg transition-all hover:from-indigo-700 hover:to-purple-700"
+              className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white shadow-lg"
             >
               <Scan className="h-5 w-5" />
               扫描二维码配对
@@ -345,10 +345,10 @@ const QRCodePairing: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowManualInput((prev) => !prev)}
-              className={`flex w-full items-center justify-center gap-2 rounded-lg border-2 py-3 font-medium transition-colors ${
+              className={`ios-pressable flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 font-medium transition-colors ${
                 showManualInput
                   ? 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200'
-                  : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                  : 'ios-surface-button border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-200'
               }`}
             >
               <Wifi className="h-4 w-4" />
@@ -368,7 +368,7 @@ const QRCodePairing: React.FC = () => {
                       配对码（从电脑端复制）
                     </label>
 
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900/70 dark:bg-blue-950/30">
+                    <div className="ios-glass-surface rounded-lg border border-blue-200 bg-blue-50/90 p-3 text-xs dark:border-blue-900/70 dark:bg-blue-950/30">
                       <p className="mb-1 font-medium text-blue-900 dark:text-blue-200">示例格式（支持两种字段风格）</p>
                       <code className="mb-1 block overflow-x-auto rounded bg-blue-100 p-2 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
                         {`{"gatewayUrl":"ws://192.168.1.100:18789","pairingToken":"abc123..."}`}
@@ -383,7 +383,7 @@ const QRCodePairing: React.FC = () => {
                       onChange={(event) => setManualCode(event.target.value)}
                       placeholder="粘贴配对码…"
                       rows={4}
-                      className="w-full resize-none rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                      className="w-full resize-none rounded-xl border border-slate-300 bg-slate-50/90 px-4 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     />
 
                     {manualCode.trim() && (
@@ -431,7 +431,7 @@ const QRCodePairing: React.FC = () => {
                       type="button"
                       onClick={handleManualPairing}
                       disabled={!manualCode.trim()}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 py-3 font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400 dark:disabled:bg-slate-700"
+                      className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Wifi className="h-4 w-4" />
                       使用配对码连接
@@ -448,7 +448,7 @@ const QRCodePairing: React.FC = () => {
             <button
               type="button"
               onClick={handleCancelPairing}
-              className="w-full rounded-lg bg-red-600 py-4 font-semibold text-white shadow-lg transition-colors hover:bg-red-700"
+              className="ios-pressable w-full rounded-xl bg-red-600 py-4 font-semibold text-white shadow-lg transition-colors hover:bg-red-700"
             >
               取消配对
             </button>
@@ -463,7 +463,7 @@ const QRCodePairing: React.FC = () => {
                 resetPairing();
                 void handleStartPairing();
               }}
-              className="w-full rounded-lg bg-indigo-600 py-4 font-semibold text-white shadow-lg transition-colors hover:bg-indigo-700"
+              className="ios-pressable ios-primary-button w-full rounded-xl py-4 font-semibold text-white shadow-lg"
             >
               重新配对
             </button>

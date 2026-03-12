@@ -120,8 +120,9 @@ const Wardrobe: React.FC = () => {
         style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)' }}
       >
         <button
+          type="button"
           onClick={handleBack}
-          className="p-2 rounded-lg hover:opacity-80 transition-opacity"
+          className="ios-pressable ios-surface-button p-2 rounded-xl transition-opacity"
           style={{ color: 'var(--text-primary)' }}
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,7 +140,7 @@ const Wardrobe: React.FC = () => {
 
       {/* Summary Card */}
       {wardrobeSummary && (
-        <div className="mx-4 mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--card-bg)' }}>
+        <div className="ios-glass-surface mx-4 mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--card-bg)' }}>
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -174,9 +175,10 @@ const Wardrobe: React.FC = () => {
       <div className="flex gap-2 px-4 mt-4 overflow-x-auto pb-2">
         {CATEGORIES.map((category) => (
           <button
+            type="button"
             key={category}
             onClick={() => handleCategoryChange(category)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+            className={`ios-pressable px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               selectedCategory === category
                 ? 'ring-2'
                 : ''

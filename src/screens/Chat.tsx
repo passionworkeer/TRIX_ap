@@ -16,6 +16,7 @@ import { useNotification } from '../hooks/useNotification';
 import { formatRelative } from '../utils/dateFormat';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { getErrorMessage } from '../utils/errorHandler';
+import { iosIconButtonMotion, iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
 
 const BG_IMAGE = IMAGES.BACKGROUND;
 
@@ -184,7 +185,7 @@ const Chat: React.FC = () => {
              <h1 className="text-xl font-bold text-white text-center mb-4 tracking-wide">{t('chat.title')}</h1>
 
              {/* Snapchat 风格搜索栏 */}
-             <div className="bg-white/5 border border-white/10 backdrop-blur-sm h-11 rounded-full flex items-center px-4 mx-auto max-w-md transition-all hover:bg-white/10">
+             <div className="ios-glass-surface h-11 rounded-full flex items-center px-4 mx-auto max-w-md transition-all">
                 <Search size={18} className="text-white/60 flex-shrink-0" />
                 <input
                   type="text"
@@ -194,13 +195,15 @@ const Chat: React.FC = () => {
                   className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/50 ml-3 text-sm"
                 />
                 {searchQuery && (
-                  <button
+                  <motion.button
+                    type="button"
                     onClick={() => setSearchQuery('')}
-                    className="text-white/60 hover:text-white flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                    {...iosIconButtonMotion}
+                    className="ios-pressable ios-icon-button-compact flex-shrink-0 w-8 h-8 flex items-center justify-center text-white/60 hover:text-white"
                     aria-label="清除搜索"
                   >
                     <X size={16} />
-                  </button>
+                  </motion.button>
                 )}
              </div>
           </div>
@@ -220,12 +223,13 @@ const Chat: React.FC = () => {
                           key={user.id}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 min-w-[130px] flex flex-col items-center relative flex-shrink-0"
+                          transition={{ delay: index * 0.05, ...iosQuickSpring }}
+                          className="ios-glass-surface relative min-w-[132px] flex flex-shrink-0 flex-col items-center rounded-[1.6rem] p-4"
                         >
-                          {/* 关闭按钮 */}
-                          <button
-                            className="absolute top-2 right-2 text-white/30 hover:text-white/60 transition-colors w-8 h-8 flex items-center justify-center"
+                          <motion.button
+                            type="button"
+                            {...iosIconButtonMotion}
+                            className="ios-pressable ios-icon-button-compact absolute top-2 right-2 flex h-8 w-8 items-center justify-center text-white/30 hover:text-white/70"
                             onClick={() => {
                               const filtered = recommendedUsers.filter(u => u.id !== user.id);
                               setRecommendedUsers(filtered);
@@ -233,7 +237,7 @@ const Chat: React.FC = () => {
                             aria-label={`移除${user.display_name}`}
                           >
                             <X size={14} />
-                          </button>
+                          </motion.button>
 
                           {/* 头像 */}
                           <div className="mb-2 flex items-center justify-center">
@@ -244,12 +248,14 @@ const Chat: React.FC = () => {
                           <span className="font-bold text-white text-sm truncate w-full text-center">{user.display_name}</span>
 
                           {/* Snapchat 风格明黄色按钮 */}
-                          <button
+                          <motion.button
+                            type="button"
                             onClick={() => handleQuickAdd(user.username)}
-                            className="bg-amber-400 hover:bg-amber-500 text-black font-bold text-xs px-6 py-1.5 rounded-full mt-2 transition-all shadow-[0_0_10px_rgba(250,204,21,0.3)] hover:shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+                            {...iosPressableMotion}
+                            className="ios-pressable mt-2 rounded-full bg-amber-400 px-6 py-1.5 text-xs font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.24)] transition-all hover:bg-amber-300 hover:shadow-[0_16px_28px_rgba(250,204,21,0.34)]"
                           >
                             + 添加
-                          </button>
+                          </motion.button>
                         </motion.div>
                      ))}
                    </div>
@@ -270,7 +276,8 @@ const Chat: React.FC = () => {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="flex items-center py-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors mb-2"
+                          {...iosPressableMotion}
+                          className="ios-list-row mb-2 flex cursor-pointer items-center rounded-[1.55rem] border border-white/6 px-3 py-4 transition-colors hover:bg-white/5"
                           onClick={() => {
                             if (isClawbotChannelConnected && isClawbotPaired) {
                               // 已连接，进入聊天
@@ -356,7 +363,8 @@ const Chat: React.FC = () => {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, height: 0 }}
                               transition={{ delay: index * 0.03 }}
-                              className="flex items-center py-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors"
+                              {...iosPressableMotion}
+                              className="ios-list-row flex cursor-pointer items-center rounded-[1.55rem] border border-white/6 px-3 py-4 transition-colors hover:bg-white/5"
                               onClick={() => {
                                 navigate(AppRoutes.CHAT_DETAIL, {
                                   state: {
@@ -441,7 +449,7 @@ const Chat: React.FC = () => {
                                       </span>
                                     </div>
                                  ) : (
-                                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors">
+                                    <div className="ios-glass-surface flex h-10 w-10 items-center justify-center rounded-full border border-white/20">
                                        <Camera size={18} className="text-gray-400" />
                                     </div>
                                  )}
@@ -456,13 +464,15 @@ const Chat: React.FC = () => {
           </div>
 
           {/* 右上角添加好友按钮 */}
-          <button
-             className="absolute top-11 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 hover:scale-110 transition-all z-20"
+          <motion.button
+             type="button"
+             {...iosIconButtonMotion}
+             className="ios-pressable ios-glass-surface absolute top-11 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/20"
              onClick={() => setShowAddModal(true)}
              aria-label="添加好友"
           >
              <UserPlus size={18} className="text-white/80" />
-          </button>
+          </motion.button>
 
           {/* 添加好友弹窗 */}
           <AddFriendModal

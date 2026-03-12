@@ -1,6 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { MapPin, Plus, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { iosIconButtonMotion, iosQuickSpring } from '../../../utils/iosMotion';
 
 interface StudyHeaderProps {
   totalStudyTime: number;
@@ -26,22 +28,26 @@ const StudyHeader: React.FC<StudyHeaderProps> = React.memo(({
 
       <div className="flex items-center gap-2">
         {onPointsClick && (
-          <button
+          <motion.button
             onClick={onPointsClick}
-            className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
+            transition={iosQuickSpring}
+            {...iosIconButtonMotion}
+            className="ios-pressable ios-icon-button ios-glass-surface flex h-10 w-10 items-center justify-center rounded-full border border-yellow-300/20 text-yellow-300"
             aria-label={`${t('study.points')}, ${t('study.totalStudyTime')}: ${totalStudyTime} ${t('common.minutes')}`}
           >
             <Zap size={18} className="text-yellow-400" />
-          </button>
+          </motion.button>
         )}
 
-        <button
+        <motion.button
           onClick={onBuddyListOpen}
-          className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/15 transition-all active:scale-95"
+          transition={iosQuickSpring}
+          {...iosIconButtonMotion}
+          className="ios-pressable ios-icon-button ios-glass-surface flex h-10 w-10 items-center justify-center rounded-full text-white"
           aria-label={t('study.addBuddy')}
         >
           <Plus size={18} className="text-white" />
-        </button>
+        </motion.button>
       </div>
     </div>
   );

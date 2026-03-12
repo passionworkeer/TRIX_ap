@@ -207,8 +207,9 @@ const Snapshot: React.FC = () => {
       <div className="relative h-screen w-full flex flex-col overflow-hidden bg-slate-950">
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-black/30 backdrop-blur-md border-b border-white/10">
           <button
+            type="button"
             onClick={handleRetake}
-            className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center"
+            className="ios-pressable ios-icon-button ios-secondary-button flex h-10 w-10 items-center justify-center text-white"
             aria-label="返回相机"
           >
             <ArrowLeft size={22} />
@@ -218,7 +219,7 @@ const Snapshot: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-8">
-          <div className="mt-4 rounded-3xl bg-white/5 border border-white/10 p-4 backdrop-blur-md">
+          <div className="ios-glass-surface mt-4 rounded-3xl border border-white/10 p-4">
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
               {capturedPhoto?.url ? (
                 <img
@@ -241,12 +242,13 @@ const Snapshot: React.FC = () => {
             <div className="mt-3 grid grid-cols-2 gap-2">
               {SNAPSHOT_ACTIONS.map(action => (
                 <button
+                  type="button"
                   key={action.key}
                   onClick={() => handleSelectAction(action.key)}
-                  className={`px-3 py-2 rounded-xl text-sm border transition-colors ${
+                  className={`ios-pressable px-3 py-2 rounded-xl text-sm border transition-colors ${
                     selectedAction === action.key
                       ? 'bg-cyan-500 text-white border-cyan-400'
-                      : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                      : 'ios-secondary-button text-white border-white/20'
                   }`}
                 >
                   {action.label}
@@ -266,15 +268,17 @@ const Snapshot: React.FC = () => {
 
             <div className="mt-4 flex gap-2">
               <button
+                type="button"
                 onClick={handleRetake}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                className="ios-pressable ios-secondary-button flex-1 rounded-xl border border-white/20 px-4 py-3 text-white"
               >
                 重拍
               </button>
               <button
+                type="button"
                 onClick={handleSendToClawbot}
                 disabled={uploading || !promptText.trim()}
-                className="flex-1 px-4 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 disabled:opacity-60 disabled:cursor-not-allowed text-white flex items-center justify-center gap-2"
+                className="ios-pressable ios-primary-button flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -312,8 +316,9 @@ const Snapshot: React.FC = () => {
       <div className="relative z-10 flex flex-col h-full justify-between pt-12 pb-24 px-4">
         <header className="mx-2 bg-black/20 backdrop-blur-md rounded-full px-4 py-3 flex items-center justify-between border border-white/20">
           <button
+            type="button"
             onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 text-white"
+            className="ios-pressable ios-icon-button ios-secondary-button flex h-10 w-10 items-center justify-center text-white"
           >
             <ArrowLeft size={24} />
           </button>
@@ -334,9 +339,10 @@ const Snapshot: React.FC = () => {
           </div>
 
           <button
+            type="button"
             onClick={switchCamera}
             disabled={useMockCamera}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 text-white disabled:opacity-50"
+            className="ios-pressable ios-icon-button ios-secondary-button flex h-10 w-10 items-center justify-center text-white disabled:opacity-50"
           >
             <FlipHorizontal2 size={24} />
           </button>
@@ -359,15 +365,17 @@ const Snapshot: React.FC = () => {
               />
               <div className="flex gap-4 mt-6">
                 <button
+                  type="button"
                   onClick={handleRetake}
-                  className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center gap-2 transition-colors"
+                  className="ios-pressable ios-secondary-button flex items-center gap-2 rounded-full px-6 py-3 text-white transition-colors"
                 >
                   <X size={20} />
                   <span>重拍</span>
                 </button>
                 <button
+                  type="button"
                   onClick={handleEnterResult}
-                  className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full flex items-center gap-2 transition-colors"
+                  className="ios-pressable ios-primary-button flex items-center gap-2 rounded-full px-6 py-3 text-white transition-colors"
                 >
                   <Check size={20} />
                   <span>确认分析</span>
@@ -417,15 +425,17 @@ const Snapshot: React.FC = () => {
           />
           
           <button
+            type="button"
             onClick={triggerFileUpload}
             disabled={!!capturedPhoto}
-            className="absolute left-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+            className="ios-pressable ios-secondary-button absolute left-8 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white disabled:cursor-not-allowed disabled:opacity-50"
             title="上传图片"
           >
             <ImageIcon size={22} />
           </button>
 
           <button
+            type="button"
             onClick={capturedPhoto ? undefined : handleCapture}
             disabled={!!capturedPhoto}
             className="relative group cursor-pointer active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
@@ -446,4 +456,3 @@ const Snapshot: React.FC = () => {
 };
 
 export default Snapshot;
-
