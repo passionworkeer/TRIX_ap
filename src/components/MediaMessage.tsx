@@ -95,7 +95,9 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
             setIsLoading(false);
             setError(true);
           }}
-          loading="lazy"
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
           onLoadStart={() => {
             loadStart.current = performance.now();
           }}
@@ -218,7 +220,8 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
               setIsLoading(false);
               setError(true);
             }}
-            loading="lazy"
+            loading="eager"
+            decoding="async"
             onLoadStart={() => {
               loadStart.current = performance.now();
             }}

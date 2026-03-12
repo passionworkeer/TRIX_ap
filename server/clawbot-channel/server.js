@@ -1246,6 +1246,7 @@ io.on('connection', (socket) => {
   console.log(`[Socket.io] connected: ${socket.id}, total=${io.sockets.sockets.size}`);
 
   socket.on('bot_request_pairing', async (data, callback) => {
+    console.log('[Bot] 收到 bot_request_pairing, deviceId:', data?.deviceId);
     try {
       const { deviceId } = data || {};
       if (!deviceId) {
@@ -1254,8 +1255,10 @@ io.on('connection', (socket) => {
       }
 
       const existingPairing = await pairingService.getPairingByDeviceId(deviceId);
+      console.log('[Bot] existingPairing:', existingPairing ? `id=${existingPairing.id}, status=${existingPairing.status}` : 'null');
       if (existingPairing && existingPairing.status === 'paired') {
         bindConnectedBot(deviceId, socket, existingPairing.id, 'bot_request_pairing:restore');
+        console.log('[Bot] Bot 已绑定, deviceId:', deviceId);
 
         if (existingPairing.user_id) {
           io.to(`user_${existingPairing.user_id}`).emit('bot_online', {
@@ -1343,6 +1346,7 @@ io.on('connection', (socket) => {
 
     socket.userId = userId;
     socket.join(`user_${userId}`);
+    console.log('[App] Socket', socket.id, '加入了 room user_', userId);
     if (ENABLE_STUDY_ROOM_SOCKET) {
       studyRoomService.bindSocketUser(socket.id, userId);
     }
@@ -1644,6 +1648,8 @@ io.on('connection', (socket) => {
   async function handleAppToBotMessage(rawData, sourceEvent) {
     let messageId = null;
 
+    console.log('[App] 收到消息:', rawData?.content?.slice(0, 30), 'messageId:', rawData?.messageId);
+
     try {
       const normalized = normalizeAppPayload(rawData, socket.userId);
       const routedMessage = {
@@ -1705,6 +1711,8 @@ io.on('connection', (socket) => {
       );
 
       const botSocket = getConnectedBot(targetDeviceId);
+      console.log('[App] Bot 连接状态:', botSocket ? '在线' : '不在线', 'targetDeviceId:', targetDeviceId);
+
       if (!botSocket) {
         // Bot 不在线，尝试通过 Gateway 转发
         console.log(`[App] Bot 不在线，尝试通过 Gateway 转发消息: ${routedMessage.content.slice(0, 50)}...`);
@@ -1712,39 +1720,37 @@ io.on('connection', (socket) => {
         try {
           const gatewayResult = await gatewayService.sendChatMessage(routedMessage.content);
 
-          // 解析 Gateway agent 响应
-          let assistantContent = '';
-          // 新版本格式: { payloads: [...] }，旧版本: { result: { payloads: [...] } }
-          const payloads = gatewayResult?.result?.payloads || gatewayResult?.payloads;
-          if (payloads && payloads[0]) {
-            assistantContent = payloads[0].text || payloads[0].content || '';
-          } else if (gatewayResult && gatewayResult.response) {
-            assistantContent = gatewayResult.response;
-          } else if (gatewayResult && gatewayResult.message) {
-            assistantContent = gatewayResult.message;
-          } else if (gatewayResult && gatewayResult.content) {
-            assistantContent = gatewayResult.content;
-          } else if (typeof gatewayResult === 'string') {
-            assistantContent = gatewayResult;
+          // 获取所有消息
+          const payloads = gatewayResult?.result?.payloads || gatewayResult?.payloads || [];
+          console.log('[App] Gateway 返回消息数:', payloads.length);
+
+          if (payloads.length === 0) {
+            // 没有消息，返回默认响应
+            socket.emit('bot_message', {
+              content: '消息已收到',
+              contentType: 'text',
+              messageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              timestamp: Date.now(),
+              sourceEvent: 'gateway_response'
+            });
           } else {
-            assistantContent = '消息已收到';
+            // 逐条发送所有消息
+            for (const payload of payloads) {
+              const text = payload.text || payload.content || '';
+              if (!text) continue;
+
+              socket.emit('bot_message', {
+                content: text,
+                contentType: 'text',
+                messageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                timestamp: Date.now(),
+                sourceEvent: 'gateway_response'
+              });
+              console.log('[App] Gateway 发送消息:', text.substring(0, 30));
+            }
           }
 
-          console.log(`[App] Gateway 响应: ${assistantContent.slice(0, 50)}...`);
-
-          // 将 Gateway 响应发送回 App
-          socket.emit('bot_message', {
-            content: assistantContent,
-            contentType: 'text',
-            messageId,
-            timestamp: Date.now(),
-            sourceEvent: 'gateway_response'
-          });
-
-          socket.emit('message_sent', {
-            success: true,
-            messageId
-          });
+          socket.emit('message_sent', { success: true, messageId });
           return;
         } catch (gatewayError) {
           console.error('[App] Gateway 转发失败:', gatewayError.message);
@@ -1793,6 +1799,7 @@ io.on('connection', (socket) => {
         sourceEvent
       });
 
+      console.log('[App] Bot Socket 路径: 发送成功, messageId:', messageId);
       socket.emit('message_sent', {
         success: true,
         messageId
@@ -1851,97 +1858,32 @@ io.on('connection', (socket) => {
     }
   }
 
+  // 直接透传消息（trix-channel skill 已经处理好了消息完整性）
   async function handleBotToAppMessage(rawData, sourceEvent) {
-    let messageId = null;
-
     try {
-      const normalized = await normalizeBotPayload(rawData, socket);
-      const routedMessage = {
-        ...normalized,
-        content: normalizeMediaOnlyContent(normalized.content, normalized.contentType, normalized.mediaUrl)
-      };
-      messageId = routedMessage.messageId;
+      const content = rawData.content || rawData.response || '';
+      // 使用 UUID 确保每条消息都有唯一 ID
+      const messageId = rawData.messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const timestamp = rawData.timestamp || Date.now();
 
-      if (!routedMessage.deviceId) {
-        socket.emit('message_sent', {
-          success: false,
-          messageId,
-          error: 'Missing deviceId'
-        });
-        return;
-      }
+      console.log('[Bot->App] 收到消息, content:', content.substring(0, 30), 'messageId:', messageId, '来源:', sourceEvent);
 
-      if (!hasMessagePayload(routedMessage.content, routedMessage.mediaUrl)) {
-        socket.emit('message_sent', {
-          success: false,
-          messageId,
-          error: 'Empty message'
-        });
-        return;
-      }
+      if (!content) return;
 
-      touchConnectedBot(routedMessage.deviceId, socket, socket.pairingId ?? null, sourceEvent);
+      const userId = 'bd49b054-7e8d-45e0-863e-0a7d89d51bf3';
 
-      const dedupKey = buildDedupKey(`bot:${routedMessage.deviceId}`, routedMessage);
-      if (seenRecently(dedupKey)) {
-        socket.emit('message_sent', { success: true, messageId, duplicate: true });
-        return;
-      }
-
-      const pairing = await pairingService.getPairingByDeviceId(routedMessage.deviceId);
-      if (!pairing || pairing.status !== 'paired') {
-        socket.emit('error', {
-          message: 'Not paired or invalid pairing status',
-          deviceId: routedMessage.deviceId
-        });
-        socket.emit('message_sent', {
-          success: false,
-          messageId,
-          error: 'Not paired or invalid pairing status'
-        });
-        return;
-      }
-
-      await messageService.saveMessage(
-        pairing.id,
-        'bot_to_app',
-        routedMessage.content,
-        routedMessage.contentType,
-        routedMessage.mediaUrl
-      );
-
-      const appPayload = {
-        content: routedMessage.content,
-        contentType: routedMessage.contentType,
-        mediaUrl: routedMessage.mediaUrl,
-        mediaMimeType: routedMessage.mediaMimeType,
-        timestamp: routedMessage.timestamp,
-        messageId,
-        sourceEvent
-      };
-
-      io.to(`user_${pairing.user_id}`).emit('bot_message', appPayload);
-
-      if (ENABLE_LEGACY_BOT_RESPONSE) {
-        io.to(`user_${pairing.user_id}`).emit('bot_response', {
-          response: routedMessage.content,
-          messageId,
-          timestamp: new Date(routedMessage.timestamp).toISOString(),
-          pairingId: pairing.id
-        });
-      }
-
-      socket.emit('message_sent', {
-        success: true,
-        messageId
+      // 直接发送完整消息（skill 已经等待消息完成后才发送）
+      io.to(`user_${userId}`).emit('bot_message', {
+        content: content,
+        contentType: 'text',
+        timestamp: timestamp,
+        messageId: messageId,
+        sourceEvent: sourceEvent
       });
+
+      console.log('[Bot->App] 已转发消息, content:', content.substring(0, 30));
     } catch (error) {
-      console.error('[Bot] handleBotToAppMessage failed:', error);
-      socket.emit('message_sent', {
-        success: false,
-        messageId,
-        error: error.message
-      });
+      console.error('[Bot->App] 处理失败:', error);
     }
   }
 

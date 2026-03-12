@@ -313,8 +313,8 @@ const ChatDetail: React.FC = () => {
 
   // 实时订阅新消息。
   useEffect(() => {
-    // 如果没有会话 ID，则跳过订阅。
-    if (!conversationId) {
+    // 如果没有会话 ID 或用户 ID，则跳过订阅。
+    if (!conversationId || !currentUserId) {
       return;
     }
 
@@ -338,7 +338,16 @@ const ChatDetail: React.FC = () => {
         (payload) => {
           const newMessage = payload.new as any;
 
-          // 鎵嬪姩杩囨护閫昏緫
+          // 调试日志
+          logger.chat.debug('收到实时消息:', {
+            messageId: newMessage.id,
+            conversationId: newMessage.conversation_id,
+            senderId: newMessage.sender_id,
+            currentUserId: currentUserId,
+            text: newMessage.text?.substring(0, 50)
+          });
+
+          // 手动过滤逻辑
           if (newMessage.conversation_id !== conversationId) {
             return;
           }
@@ -374,13 +383,13 @@ const ChatDetail: React.FC = () => {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          // Subscription successful
+          logger.chat.debug('WebSocket 订阅成功');
         } else if (status === 'CHANNEL_ERROR') {
           logger.chat.error('频道错误');
         } else if (status === 'TIMED_OUT') {
           logger.chat.error('连接超时');
         } else if (status === 'CLOSED') {
-          // Connection closed
+          logger.chat.debug('WebSocket 连接关闭');
         }
       });
 
@@ -392,8 +401,8 @@ const ChatDetail: React.FC = () => {
         channelRef.current = null;
       }
     };
-  // 关键：依赖数组只保留 conversationId，避免重复订阅
-  }, [conversationId]);
+  // 关键：依赖数组包含 conversationId 和 currentUserId，确保用户 ID 获取后才订阅
+  }, [conversationId, currentUserId]);
 
   const isFirstScrollRef = useRef(true);
 
@@ -924,9 +933,16 @@ const ChatDetail: React.FC = () => {
                     <div className="mb-1 flex justify-end">
                       <div className="relative overflow-hidden rounded-2xl rounded-tr-sm bg-slate-100 dark:bg-slate-800 shadow-sm">
                         {msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? (
-                          <video src={msg.mediaUri} className="max-w-[240px] max-h-[300px] object-cover" controls />
+                          <video src={msg.mediaUri} className="max-w-[240px] max-h-[300px] object-cover" controls preload="metadata" />
                         ) : (
-                          <img src={msg.mediaUri} alt="Attachment" className="max-w-[240px] max-h-[240px] object-cover" />
+                          <img
+                            src={msg.mediaUri}
+                            alt="Attachment"
+                            className="max-w-[240px] max-h-[240px] object-cover"
+                            loading="eager"
+                            decoding="async"
+                            fetchpriority="high"
+                          />
                         )}
                       </div>
                     </div>
