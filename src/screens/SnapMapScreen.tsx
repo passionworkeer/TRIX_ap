@@ -77,7 +77,7 @@ const heatZones = [
 ];
 
 const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.DivIcon => {
-  const iconUrl = friend.avatar_url || HERO_3D_IMAGE;
+  const iconUrl = HERO_3D_IMAGE;
   return L.divIcon({
     className: 'custom-snap-marker',
     html: `
@@ -147,12 +147,23 @@ const SnapMapScreen: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<MapSelectedItem | null>(null);
 
   useEffect(() => {
-    getFriends()
-      .then((data) => {
-          // 合并真实的好友和 mock的好友，保证地图看起来有很多朋友，方便展示
-          const merged = [...data, ...mockFriends.filter(m => !data.some(d => d.friend_id === m.friend_id))];
-          setFriends(merged.slice(0, 8)); // 最多展示8个好友
-    getFriendsLocations().then(locations => { if(locations.length) setFriendLocations(locations); }).catch(() => {});
+    Promise.all([
+      getFriends().catch(() => []),
+      getFriendsLocations().catch(() => [])
+    ]).then(([data, locations]) => {
+      if (data && data.length > 0) {
+        const merged = [...data, ...mockFriends.filter(m => !data.some(d => d.friend_id === m.friend_id))];
+        setFriends(merged.slice(0, 8));
+      } else {
+        setFriends(mockFriends.slice(0, 8));
+      }
+      
+      if (locations && locations.length > 0) {
+        setFriendLocations(locations);
+      }
+      
+      setLoading(false);
+    });
   }, []);
 
   const center: [number, number] = [31.2304, 121.4737];
@@ -355,6 +366,9 @@ const SnapMapScreen: React.FC = () => {
             <div style={{ background: isDark ? '#252528' : '#f4f4f5', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {selectedItem.type === 'place' ? (
                 <>
+                  <div style={{ width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', marginBottom: '8px' }}>
+                    <img src={IMAGES.STUDY_ROOM_DARK} alt="place_image" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
                   <div style={{ color: isDark ? '#e4e4e7' : '#3f3f46', fontSize: '14px', lineHeight: '1.5' }}>
                     {selectedItem.description}
                   </div>
@@ -365,6 +379,9 @@ const SnapMapScreen: React.FC = () => {
                 </>
               ) : (
                 <>
+                  <div style={{ width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', background: isDark ? '#18181b' : '#e4e4e7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <img src={IMAGES.HERO_RENDER} alt="friend_avatar" style={{ height: '100%', objectFit: 'contain' }} />
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isDark ? '#e4e4e7' : '#3f3f46', fontSize: '14px' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedItem.is_studying ? '#10b981' : '#f59e0b' }}></span>
                     <span style={{ fontWeight: 500 }}>{selectedItem.is_studying ? `已专注 ${selectedItem.study_time} 分钟` : '目前处于休息状态'}</span>
