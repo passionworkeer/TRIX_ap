@@ -24,30 +24,36 @@ import type {
  */
 export async function getMallItems(filter?: MallFilterOptions): Promise<MallItem[]> {
   try {
-    let query = supabase
-      .from('mall_items')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
+    const fetchItems = async (orderColumn: 'display_order' | 'created_at', ascending: boolean) => {
+      let query = supabase
+        .from('mall_items')
+        .select('*')
+        .eq('is_active', true)
+        .order(orderColumn, { ascending });
 
-    // 应用分类筛选
-    if (filter?.category) {
-      query = query.eq('category', filter.category);
+      if (filter?.category) {
+        query = query.eq('category', filter.category);
+      }
+
+      if (filter?.searchQuery) {
+        query = query.or(`name.ilike.%${filter.searchQuery}%,description.ilike.%${filter.searchQuery}%`);
+      }
+
+      if (filter?.priceRange) {
+        query = query
+          .gte('price', filter.priceRange.min)
+          .lte('price', filter.priceRange.max);
+      }
+
+      return query;
+    };
+
+    let { data, error } = await fetchItems('display_order', true);
+
+    // Some deployed databases were initialized without display_order.
+    if (error?.code === '42703') {
+      ({ data, error } = await fetchItems('created_at', false));
     }
-
-    // 应用搜索筛选
-    if (filter?.searchQuery) {
-      query = query.or(`name.ilike.%${filter.searchQuery}%,description.ilike.%${filter.searchQuery}%`);
-    }
-
-    // 应用价格范围筛选
-    if (filter?.priceRange) {
-      query = query
-        .gte('price', filter.priceRange.min)
-        .lte('price', filter.priceRange.max);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       logger.error('[MallService]', `Failed to fetch mall items: ${error.message}`, error);

@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const qrcodeTerminal = require('qrcode-terminal');
 const { execFile, execFileSync } = require('child_process');
 const { WebSocket } = require('ws');
 
@@ -22,10 +23,13 @@ const AUTH_FILE = path.join(__dirname, 'trix-auth.json');
 const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE !== 'false';
 const DEDUP_TTL_MS = Number(process.env.MESSAGE_DEDUP_TTL_MS || 10000);
 const ENABLE_GATEWAY_CHAT_BRIDGE = process.env.ENABLE_GATEWAY_CHAT_BRIDGE !== 'false';
-const ENABLE_CLI_AGENT_BRIDGE = process.env.ENABLE_CLI_AGENT_BRIDGE === 'true';
+const ENABLE_CLI_AGENT_BRIDGE = process.env.ENABLE_CLI_AGENT_BRIDGE !== 'false';
+const SUPPRESS_STARTUP_PAIRING = process.env.TRIX_SUPPRESS_STARTUP_PAIRING === 'true';
 const OPENCLAW_CLI_BIN_HINT = process.env.OPENCLAW_CLI_BIN || null;
 const CLI_AGENT_TIMEOUT_SECONDS = Number(process.env.CLI_AGENT_TIMEOUT_SECONDS || 120);
 const CLI_MAX_BUFFER_BYTES = Number(process.env.CLI_MAX_BUFFER_BYTES || 10 * 1024 * 1024);
+const GATEWAY_CONNECT_FALLBACK_MS = Number(process.env.GATEWAY_CONNECT_FALLBACK_MS || 1000);
+const GATEWAY_RESPONSE_FALLBACK_MS = Number(process.env.GATEWAY_RESPONSE_FALLBACK_MS || 15000);
 const GATEWAY_CLIENT_ID = process.env.GATEWAY_CLIENT_ID || 'gateway-client';
 const GATEWAY_CLIENT_MODE = process.env.GATEWAY_CLIENT_MODE || 'backend';
 const GATEWAY_ROLE = process.env.GATEWAY_ROLE || 'operator';
@@ -84,6 +88,7 @@ let isConnectedToServer = false;
 let isConnectedToGateway = false;
 let heartbeatInterval = null;
 let gatewayReconnectTimer = null;
+let gatewayConnectTimer = null;
 
 let deviceId = null;
 let pairingId = null;
@@ -99,6 +104,7 @@ let gatewayDeviceScopes = [...DEFAULT_GATEWAY_SCOPES];
 let hasLoggedScopeRepairHint = false;
 let gatewayScopeRepairRequestId = null;
 let gatewayScopeRepairAttempted = false;
+let gatewayDeviceCompatFallbackAttempted = false;
 
 const inboundDedup = new Map();
 const pendingGatewayRequests = new Map();
@@ -106,6 +112,8 @@ const cliThreadQueues = new Map();
 const deliveredGatewayRuns = new Set();
 const gatewayTrackedSessions = new Set();
 const gatewayRunSessionMap = new Map();
+const gatewayRunMetaMap = new Map();
+const pendingGatewayFallbacks = new Map();
 const gatewaySessionSubscribeState = new Map();
 const pendingGatewayRunWaits = new Set();
 
@@ -608,6 +616,69 @@ function rememberGatewayRunSession(runId, sessionKey) {
   }
 }
 
+function rememberGatewayRunMeta(runId, normalized) {
+  const normalizedRunId = String(runId || '').trim();
+  if (!normalizedRunId || !normalized) {
+    return;
+  }
+  gatewayRunMetaMap.set(normalizedRunId, normalized);
+  if (gatewayRunMetaMap.size > 500) {
+    const entries = Array.from(gatewayRunMetaMap.entries()).slice(-250);
+    gatewayRunMetaMap.clear();
+    for (const [key, value] of entries) {
+      gatewayRunMetaMap.set(key, value);
+    }
+  }
+}
+
+function clearGatewayFallback(runId) {
+  const normalizedRunId = String(runId || '').trim();
+  if (!normalizedRunId) {
+    return;
+  }
+  const existing = pendingGatewayFallbacks.get(normalizedRunId);
+  if (!existing) {
+    return;
+  }
+  clearTimeout(existing.timer);
+  pendingGatewayFallbacks.delete(normalizedRunId);
+}
+
+function triggerGatewayFallback(runId, normalized, reason = 'timeout') {
+  const normalizedRunId = String(runId || '').trim();
+  if (!normalizedRunId || !normalized || !ENABLE_CLI_AGENT_BRIDGE) {
+    return;
+  }
+
+  clearGatewayFallback(normalizedRunId);
+  if (deliveredGatewayRuns.has(normalizedRunId)) {
+    return;
+  }
+
+  console.warn(`[TRIXChannel] CLI fallback triggered run=${normalizedRunId} reason=${reason}`);
+  deliveredGatewayRuns.add(normalizedRunId);
+  enqueueCliBridge(normalized, `gateway-${reason}`).catch(() => {
+    deliveredGatewayRuns.delete(normalizedRunId);
+  });
+}
+
+function scheduleGatewayFallback(runId, normalized, reason = 'timeout', delayMs = GATEWAY_RESPONSE_FALLBACK_MS) {
+  const normalizedRunId = String(runId || '').trim();
+  if (!normalizedRunId || !normalized || !ENABLE_CLI_AGENT_BRIDGE) {
+    return;
+  }
+
+  clearGatewayFallback(normalizedRunId);
+
+  console.warn(`[TRIXChannel] scheduling CLI fallback run=${normalizedRunId} reason=${reason} delayMs=${delayMs}`);
+  const timer = setTimeout(() => {
+    pendingGatewayFallbacks.delete(normalizedRunId);
+    triggerGatewayFallback(normalizedRunId, normalized, reason);
+  }, delayMs);
+
+  pendingGatewayFallbacks.set(normalizedRunId, { timer, normalized, reason });
+}
+
 function resolveTrackedGatewaySessionFromPayload(payload, runId = null) {
   const payloadSessionKey = typeof payload?.sessionKey === 'string' ? payload.sessionKey.trim().toLowerCase() : '';
   if (payloadSessionKey) {
@@ -736,6 +807,28 @@ function attemptGatewaySessionSubscribe(sessionKey, methodIndex) {
   console.log(`[TRIXChannel] -> gateway ${method} session=${sessionKey}`);
 }
 
+function requestGatewayChatHistory(runId, sessionKey) {
+  const normalizedRunId = String(runId || '').trim();
+  const normalizedSessionKey = String(sessionKey || '').trim();
+  if (!normalizedRunId || !normalizedSessionKey || !gatewayWs || gatewayWs.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  sendGatewayRequest(
+    'chat.history',
+    {
+      sessionKey: normalizedSessionKey,
+      limit: 10
+    },
+    {
+      requestId: makeMessageId('gw_hist'),
+      kind: 'chat_history',
+      runId: normalizedRunId,
+      sessionKey: normalizedSessionKey
+    }
+  );
+}
+
 function requestGatewayAgentWait(runId, sessionKey) {
   const normalizedRunId = String(runId || '').trim();
   if (!normalizedRunId || !gatewayAgentWaitSupported || pendingGatewayRunWaits.has(normalizedRunId)) {
@@ -790,6 +883,34 @@ function buildGatewayUserMessage(normalized) {
   }
 
   return `${payload.content}\n\n${mediaLine}`;
+}
+
+function buildPairingQrData(pairingToken) {
+  return JSON.stringify({
+    type: 'clawbot_pairing',
+    version: '1.0',
+    server: 'm.jmtrick.com',
+    token: pairingToken,
+    timestamp: Date.now()
+  });
+}
+
+function printPairingArtifacts(response, reason) {
+  if (!response?.pairingCode) {
+    return;
+  }
+
+  console.log(
+    `[TRIXChannel] pairing code: ${response.pairingCode} (pairingId=${response.pairingId || 'unknown'}, ${reason})`
+  );
+
+  if (!response?.pairingToken) {
+    return;
+  }
+
+  const qrData = buildPairingQrData(response.pairingToken);
+  console.log('[TRIXChannel] scan this QR in TRIX App or enter the pairing code above');
+  qrcodeTerminal.generate(qrData, { small: true });
 }
 
 function extractGatewayMessageText(message, depth = 0) {
@@ -857,9 +978,22 @@ function extractGatewayMessageText(message, depth = 0) {
   return '';
 }
 
+function extractGatewayHistoryText(history = {}) {
+  const messages = Array.isArray(history?.messages) ? history.messages : [];
+  const lastAssistant = [...messages].reverse().find((entry) => entry?.role === 'assistant');
+  if (!lastAssistant) {
+    return '';
+  }
+  return extractGatewayMessageText(lastAssistant?.content ?? lastAssistant?.message ?? lastAssistant);
+}
+
 function sendGatewayConnectRequest() {
   if (!gatewayWs || gatewayWs.readyState !== WebSocket.OPEN) {
     return;
+  }
+  if (gatewayConnectTimer) {
+    clearTimeout(gatewayConnectTimer);
+    gatewayConnectTimer = null;
   }
 
   const authToken = gatewayAuthToken;
@@ -1102,6 +1236,7 @@ function getCliAgentCommands() {
   }
 
   commands.push({ bin: 'openclaw-cn', prefixArgs: [] });
+  commands.push({ bin: 'openclaw', prefixArgs: [] });
 
   const deduped = [];
   const seen = new Set();
@@ -1196,7 +1331,7 @@ async function runCliAgent(normalized) {
     }
   }
 
-  throw lastError || new Error('No available openclaw-cn binary');
+  throw lastError || new Error('No available OpenClaw CLI binary');
 }
 
 async function bridgeViaCli(normalized, reason = 'fallback') {
@@ -1362,6 +1497,22 @@ function handleGatewayMessage(msg) {
     return true;
   }
 
+  if (msg.type === 'req') {
+    if (msg.id && gatewayWs && gatewayWs.readyState === WebSocket.OPEN) {
+      gatewayWs.send(JSON.stringify({ type: 'res', id: msg.id, ok: true }));
+    }
+
+    if (msg.method === 'chat.push' && msg.params != null) {
+      return handleGatewayMessage({
+        type: 'event',
+        event: 'chat',
+        payload: msg.params
+      });
+    }
+
+    return false;
+  }
+
   if (msg.type === 'res') {
     if (msg.id === gatewayConnectRequestId || msg.id === 'c1' || msg.id === gatewayConnectNonce) {
       if (isConnectedToGateway) {
@@ -1387,6 +1538,19 @@ function handleGatewayMessage(msg) {
       } else {
         const errorMessage = msg.error?.message || 'unknown';
         console.error('[TRIXChannel] gateway connect failed:', msg.error);
+        if (
+          !gatewayDeviceCompatFallbackAttempted &&
+          gatewayDeviceIdentity &&
+          String(errorMessage).toLowerCase().includes("must have required property 'nonce'")
+        ) {
+          gatewayDeviceCompatFallbackAttempted = true;
+          gatewayDeviceIdentity = null;
+          console.warn('[TRIXChannel] gateway rejected device auth without challenge nonce; retrying with token-only auth');
+          if (gatewayWs && gatewayWs.readyState === WebSocket.OPEN) {
+            gatewayWs.close();
+          }
+          return true;
+        }
         if (String(errorMessage).toLowerCase().includes('token mismatch') && gatewaySharedToken) {
           console.error('[TRIXChannel] connect rejected by gateway; verify gateway.auth.token in ~/.openclaw/openclaw.json');
         }
@@ -1452,6 +1616,46 @@ function handleGatewayMessage(msg) {
       return true;
     }
 
+    if (pending?.kind === 'chat_history') {
+      const runId = String(pending.runId || '').trim();
+      if (!msg.ok) {
+        const errorMessage = msg.error?.message || 'unknown';
+        console.warn(`[TRIXChannel] gateway chat.history failed run=${runId || 'n/a'}: ${errorMessage}`);
+        if (runId && ENABLE_CLI_AGENT_BRIDGE) {
+          const normalized = gatewayRunMetaMap.get(runId);
+          if (normalized) {
+            triggerGatewayFallback(runId, normalized, 'history-failed');
+          }
+        }
+        return true;
+      }
+
+      const text = extractGatewayHistoryText(msg.payload);
+      if (!text.trim()) {
+        if (runId && ENABLE_CLI_AGENT_BRIDGE) {
+          const normalized = gatewayRunMetaMap.get(runId);
+          if (normalized) {
+            triggerGatewayFallback(runId, normalized, 'history-empty');
+          }
+        }
+        return true;
+      }
+
+      if (runId) {
+        clearGatewayFallback(runId);
+        deliveredGatewayRuns.add(runId);
+      }
+
+      forwardToApp({
+        messageId: runId || makeMessageId('bot'),
+        content: text,
+        contentType: 'text',
+        mediaUrl: null,
+        timestamp: Date.now()
+      });
+      return true;
+    }
+
     if (pending?.kind === 'agent_wait') {
       pendingGatewayRunWaits.delete(String(pending.runId || '').trim());
       if (!msg.ok) {
@@ -1459,6 +1663,12 @@ function handleGatewayMessage(msg) {
         console.warn(`[TRIXChannel] gateway agent.wait failed run=${pending.runId}: ${errorMessage}`);
         if (String(errorMessage).toLowerCase().includes('unknown method')) {
           gatewayAgentWaitSupported = false;
+        }
+        if (ENABLE_CLI_AGENT_BRIDGE) {
+          const normalized = gatewayRunMetaMap.get(String(pending.runId || '').trim());
+          if (normalized) {
+            triggerGatewayFallback(pending.runId, normalized, 'agent-wait-failed');
+          }
         }
         return true;
       }
@@ -1474,11 +1684,27 @@ function handleGatewayMessage(msg) {
 
       if (waitPayload) {
         const normalized = normalizeGatewayReply(waitPayload);
+        if (!normalized.content.trim()) {
+          if (waitRunId && ENABLE_CLI_AGENT_BRIDGE) {
+            const runMeta = gatewayRunMetaMap.get(waitRunId);
+            if (runMeta) {
+              triggerGatewayFallback(
+                waitRunId,
+                runMeta,
+                String(waitPayload?.status || '').toLowerCase() === 'timeout'
+                  ? 'agent-wait-timeout'
+                  : 'agent-wait-empty'
+              );
+            }
+          }
+          return true;
+        }
         if (normalized.content.trim()) {
           if (waitRunId && deliveredGatewayRuns.has(waitRunId)) {
             return true;
           }
           if (waitRunId) {
+            clearGatewayFallback(waitRunId);
             deliveredGatewayRuns.add(waitRunId);
           }
           forwardToApp(normalized);
@@ -1499,6 +1725,8 @@ function handleGatewayMessage(msg) {
         const runId = String(msg?.payload?.runId || '').trim();
         if (runId) {
           rememberGatewayRunSession(runId, pending.sessionKey);
+          rememberGatewayRunMeta(runId, pending.normalized);
+          scheduleGatewayFallback(runId, pending.normalized, 'no-stream');
           requestGatewayAgentWait(runId, pending.sessionKey);
         }
         console.log(
@@ -1546,10 +1774,14 @@ function handleGatewayMessage(msg) {
 
     const normalized = normalizeGatewayReply(payload);
     if (!normalized.content.trim()) {
+      if (eventName === 'chat' && runId && trackedSessionKey) {
+        requestGatewayChatHistory(runId, trackedSessionKey);
+      }
       return true;
     }
 
     if (runId) {
+      clearGatewayFallback(runId);
       deliveredGatewayRuns.add(runId);
       if (deliveredGatewayRuns.size > 500) {
         deliveredGatewayRuns.clear();
@@ -1605,15 +1837,14 @@ function registerWithServer(reason = 'register') {
           return;
         }
 
+        deviceId = response.deviceId || deviceId;
         pairingId = response.pairingId || pairingId || null;
         saveAuth({ deviceId, pairingId, savedAt: new Date().toISOString() });
 
         if (response.restored) {
           console.log(`[TRIXChannel] pairing restored: ${pairingId || 'unknown'} (${reason})`);
-        } else if (response.pairingCode) {
-          console.log(
-            `[TRIXChannel] pairing code: ${response.pairingCode} (pairingId=${response.pairingId || 'unknown'}, ${reason})`
-          );
+        } else if (response.pairingCode && !SUPPRESS_STARTUP_PAIRING) {
+          printPairingArtifacts(response, reason);
         }
 
         resolve(response);
@@ -1723,6 +1954,7 @@ async function connectToGateway() {
     hasLoggedScopeRepairHint = false;
     gatewayScopeRepairRequestId = null;
     gatewayScopeRepairAttempted = false;
+    gatewayDeviceCompatFallbackAttempted = false;
 
     // Gateway requires gateway.auth.token in auth.token. Device token can be used only as legacy fallback.
     gatewayAuthToken = gatewaySharedToken || gatewayDeviceToken;
@@ -1747,7 +1979,12 @@ async function connectToGateway() {
     gatewayWs = new WebSocket(GATEWAY_URL);
 
     gatewayWs.on('open', () => {
-      sendGatewayConnectRequest();
+      if (gatewayConnectTimer) {
+        clearTimeout(gatewayConnectTimer);
+      }
+      gatewayConnectTimer = setTimeout(() => {
+        sendGatewayConnectRequest();
+      }, GATEWAY_CONNECT_FALLBACK_MS);
     });
 
     gatewayWs.on('message', (data) => {
@@ -1778,9 +2015,18 @@ async function connectToGateway() {
 
     gatewayWs.on('close', () => {
       isConnectedToGateway = false;
+      if (gatewayConnectTimer) {
+        clearTimeout(gatewayConnectTimer);
+        gatewayConnectTimer = null;
+      }
       pendingGatewayRequests.clear();
       pendingGatewayRunWaits.clear();
+      for (const { timer } of pendingGatewayFallbacks.values()) {
+        clearTimeout(timer);
+      }
+      pendingGatewayFallbacks.clear();
       gatewayRunSessionMap.clear();
+      gatewayRunMetaMap.clear();
       gatewaySessionSubscribeState.clear();
       if (gatewayReconnectTimer) {
         clearTimeout(gatewayReconnectTimer);
@@ -1844,6 +2090,11 @@ function stopHeartbeat() {
     heartbeatInterval = null;
   }
 
+  if (gatewayConnectTimer) {
+    clearTimeout(gatewayConnectTimer);
+    gatewayConnectTimer = null;
+  }
+
   if (gatewayReconnectTimer) {
     clearTimeout(gatewayReconnectTimer);
     gatewayReconnectTimer = null;
@@ -1885,6 +2136,11 @@ async function stop() {
   cliThreadQueues.clear();
   gatewayTrackedSessions.clear();
   gatewayRunSessionMap.clear();
+  gatewayRunMetaMap.clear();
+  for (const { timer } of pendingGatewayFallbacks.values()) {
+    clearTimeout(timer);
+  }
+  pendingGatewayFallbacks.clear();
   gatewaySessionSubscribeState.clear();
   pendingGatewayRunWaits.clear();
   isConnectedToServer = false;
@@ -1921,9 +2177,11 @@ async function generatePairingCode(forceNew = false) {
   return new Promise((resolve, reject) => {
     // 如果 forceNew，使用新的 deviceId 来请求全新配对
     const emitData = {};
+    let requestedDeviceId = deviceId;
     if (forceNew) {
       // 生成新 deviceId
-      emitData.deviceId = `trix_${os.hostname()}_${Date.now()}`;
+      requestedDeviceId = `trix_${os.hostname()}_${Date.now()}`;
+      emitData.deviceId = requestedDeviceId;
       emitData.forceNew = true;
       console.log(`[TRIXChannel] requesting new pairing with deviceId: ${emitData.deviceId}`);
     } else {
@@ -1936,12 +2194,16 @@ async function generatePairingCode(forceNew = false) {
         return;
       }
 
+      deviceId = response.deviceId || requestedDeviceId || deviceId;
       pairingId = response.pairingId;
       saveAuth({ deviceId, pairingId, savedAt: new Date().toISOString() });
 
       resolve({
         success: true,
+        deviceId,
         code: response.pairingCode,
+        pairingToken: response.pairingToken || null,
+        qrData: response.pairingToken ? buildPairingQrData(response.pairingToken) : null,
         pairingId: response.pairingId,
         expiresAt: response.expiresAt
       });

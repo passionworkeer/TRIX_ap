@@ -4,6 +4,14 @@
  * Handles device identity and authentication
  */
 
+function getWebCrypto(): Crypto {
+  const value = globalThis.crypto;
+  if (!value?.subtle) {
+    throw new Error('Web Crypto API is unavailable in this environment');
+  }
+  return value;
+}
+
 /**
  * Generate an Ed25519 key pair in the browser
  */
@@ -11,14 +19,15 @@ export async function generateKeyPair(): Promise<{
   publicKey: string;
   privateKey: string;
 }> {
-  const keyPair = await window.crypto.subtle.generateKey(
+  const cryptoApi = getWebCrypto();
+  const keyPair = await cryptoApi.subtle.generateKey(
     { name: 'Ed25519' },
     true,
     ['sign', 'verify']
   );
 
-  const publicKeyRaw = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
-  const privateKeyRaw = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+  const publicKeyRaw = await cryptoApi.subtle.exportKey('spki', keyPair.publicKey);
+  const privateKeyRaw = await cryptoApi.subtle.exportKey('pkcs8', keyPair.privateKey);
 
   return {
     publicKey: base64UrlEncode(new Uint8Array(publicKeyRaw)),
@@ -30,6 +39,7 @@ export async function generateKeyPair(): Promise<{
  * Sign data with private key
  */
 export async function sign(data: string, privateKeyBase64: string): Promise<string> {
+  const cryptoApi = getWebCrypto();
   // Decode base64 URL to binary
   const binary = atob(privateKeyBase64.replaceAll('-', '+').replaceAll('_', '/'));
   const bytes = new Uint8Array(binary.length);
@@ -37,7 +47,7 @@ export async function sign(data: string, privateKeyBase64: string): Promise<stri
     bytes[i] = binary.charCodeAt(i);
   }
 
-  const privateKey = await window.crypto.subtle.importKey(
+  const privateKey = await cryptoApi.subtle.importKey(
     'pkcs8',
     bytes,
     { name: 'Ed25519' },
@@ -45,7 +55,7 @@ export async function sign(data: string, privateKeyBase64: string): Promise<stri
     ['sign']
   );
 
-  const signature = await window.crypto.subtle.sign(
+  const signature = await cryptoApi.subtle.sign(
     { name: 'Ed25519' },
     privateKey,
     new TextEncoder().encode(data)
@@ -98,7 +108,7 @@ export async function buildSignedDevice(opts: {
  */
 export function generateRandomId(length: number): string {
   const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
+  getWebCrypto().getRandomValues(array);
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
