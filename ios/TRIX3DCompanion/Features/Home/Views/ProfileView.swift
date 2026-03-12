@@ -62,6 +62,7 @@ struct ProfileView: View {
                 }
                 .padding(.bottom, 130)
             }
+            .uiTestMarker(ProfileAccessibilityIdentifiers.screen)
             .background(backgroundGradient)
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
@@ -394,6 +395,7 @@ struct ProfileView: View {
                         Toggle("", isOn: darkModeBinding)
                             .labelsHidden()
                             .tint(.brandPurple)
+                            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.darkModeToggle)
                     )
                 )
 
@@ -420,6 +422,7 @@ struct ProfileView: View {
                         Toggle("", isOn: notificationBinding)
                             .labelsHidden()
                             .tint(.brandPurple)
+                            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.notificationsToggle)
                     )
                 )
 
@@ -431,6 +434,7 @@ struct ProfileView: View {
                     title: "settings.more.settings".localized,
                     description: "settings.additional.preferences".localized,
                     color: .gray,
+                    accessibilityIdentifier: ProfileAccessibilityIdentifiers.moreSettingsButton,
                     action: { showingSettings = true }
                 )
 
@@ -442,6 +446,7 @@ struct ProfileView: View {
                     title: "settings.about".localized,
                     description: "settings.app.version".localized,
                     color: .blue,
+                    accessibilityIdentifier: ProfileAccessibilityIdentifiers.aboutButton,
                     action: { showingAbout = true }
                 )
             }
@@ -475,6 +480,7 @@ struct ProfileView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(ProfileAccessibilityIdentifiers.logoutButton)
     }
 
     /// Background gradient
@@ -569,6 +575,7 @@ struct SettingsRow: View {
     let title: String
     let description: String
     let color: Color
+    let accessibilityIdentifier: String?
     var trailing: AnyView?
     var action: (() -> Void)?
 
@@ -577,6 +584,7 @@ struct SettingsRow: View {
         title: String,
         description: String,
         color: Color,
+        accessibilityIdentifier: String? = nil,
         trailing: AnyView? = nil,
         action: (() -> Void)? = nil
     ) {
@@ -584,6 +592,7 @@ struct SettingsRow: View {
         self.title = title
         self.description = description
         self.color = color
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.trailing = trailing
         self.action = action
     }
@@ -593,10 +602,13 @@ struct SettingsRow: View {
         if let action {
             Button(action: action) {
                 rowContent
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .uiTestIdentifier(accessibilityIdentifier)
         } else {
             rowContent
+                .uiTestIdentifier(accessibilityIdentifier)
         }
     }
 
@@ -630,7 +642,6 @@ struct SettingsRow: View {
             }
         }
         .padding()
-        .contentShape(Rectangle())
     }
 }
 
@@ -997,14 +1008,17 @@ struct SettingsView: View {
                         }
                     }
                     .disabled(isSyncing)
+                    .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSyncButton)
 
                     if let syncMessage {
                         Text(syncMessage)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSyncMessage)
                     }
                 }
             }
+            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSheet)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1012,6 +1026,7 @@ struct SettingsView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsDoneButton)
                 }
             }
         }
@@ -1071,6 +1086,7 @@ struct AboutView: View {
                 Spacer()
             }
             .padding()
+            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.aboutSheet)
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1078,6 +1094,7 @@ struct AboutView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .accessibilityIdentifier(ProfileAccessibilityIdentifiers.aboutDoneButton)
                 }
             }
         }

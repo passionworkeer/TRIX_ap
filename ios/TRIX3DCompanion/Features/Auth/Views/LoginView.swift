@@ -237,6 +237,7 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSwitchToRegisterButton)
     }
 
     private var oauthDividerView: some View {

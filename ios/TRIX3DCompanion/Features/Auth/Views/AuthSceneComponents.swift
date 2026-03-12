@@ -6,12 +6,14 @@ enum AuthAccessibilityIdentifiers {
     static let loginEmailField = "auth.login.email"
     static let loginPasswordField = "auth.login.password"
     static let loginSubmitButton = "auth.login.submit"
+    static let loginSwitchToRegisterButton = "auth.login.switch.register"
     static let loginLoadingOverlay = "auth.login.loading.overlay"
     static let registerUsernameField = "auth.register.username"
     static let registerEmailField = "auth.register.email"
     static let registerPasswordField = "auth.register.password"
     static let registerConfirmPasswordField = "auth.register.confirmPassword"
     static let registerSubmitButton = "auth.register.submit"
+    static let registerSwitchToLoginButton = "auth.register.switch.login"
     static let registerLoadingOverlay = "auth.register.loading.overlay"
 }
 

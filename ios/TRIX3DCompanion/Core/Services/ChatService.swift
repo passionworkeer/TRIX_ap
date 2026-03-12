@@ -85,6 +85,17 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     static let shared = ChatService()
 
+    // MARK: - Constants
+
+    private static let localRoomPrefix = "local:"
+
+    // MARK: - Helpers
+
+    /// Check if a room ID represents a local-only room
+    static func isLocalRoom(_ roomId: String) -> Bool {
+        roomId.hasPrefix(localRoomPrefix)
+    }
+
     // MARK: - Published Properties
 
     /// List of all chat rooms
@@ -217,13 +228,33 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         lastError = nil
 
         do {
-            // Create request body
-            let request = CreateChatRoomRequest(name: trimmedName, type: type)
-
-            // Call API
-            let room: ChatRoom = try await apiClient.post(.chatRoomCreate, body: request)
+            let room: ChatRoom
+            if type == .ai {
+                room = ChatRoom(
+                    id: "trixbot",
+                    name: trimmedName,
+                    type: .ai,
+                    participants: [],
+                    lastMessage: nil,
+                    unreadCount: 0,
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
+            } else {
+                room = ChatRoom(
+                    id: "\(Self.localRoomPrefix)\(UUID().uuidString.lowercased())",
+                    name: trimmedName,
+                    type: type,
+                    participants: [],
+                    lastMessage: nil,
+                    unreadCount: 0,
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
+            }
 
             // Add to local cache
+            chatRooms.removeAll { $0.id == room.id }
             chatRooms.insert(room, at: 0)
             isLoadingRooms = false
 
@@ -256,6 +287,15 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
+        }
+
+        if Self.isLocalRoom(roomId) {
+            if messagesCache[roomId] == nil {
+                messagesCache[roomId] = []
+            }
+            currentRoomId = roomId
+            updateCurrentMessages()
+            return .success(messagesCache[roomId] ?? [])
         }
 
         isLoadingMessages = true
@@ -349,6 +389,34 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             let error = ChatError.invalidMessageContent
             lastError = error
             return .failure(error)
+        }
+
+        if Self.isLocalRoom(roomId) {
+            let message = ChatMessage(
+                id: UUID().uuidString.lowercased(),
+                roomId: roomId,
+                senderId: authService.currentUser?.id ?? "local-user",
+                sender: .user,
+                content: content,
+                messageType: type,
+                mediaUrl: mediaUrl,
+                mediaMimeType: mediaMimeType,
+                mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
+                isRead: true,
+                createdAt: Date()
+            )
+
+            addMessageToCache(message, for: roomId)
+            if currentRoomId == roomId {
+                updateCurrentMessages()
+            }
+            return .success(message)
         }
 
         // Determine message content type

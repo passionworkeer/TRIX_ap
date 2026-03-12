@@ -1,58 +1,29 @@
 import XCTest
 @testable import TRIX3DCompanion
 
-final class AuthLiveLoginSmokeTests: XCTestCase {
+@MainActor
+final class AuthLiveLoginSmokeTests: LiveBackendSmokeTestCase {
     func testSupabaseEmailLogin() async throws {
-        guard let email = credentialValue(for: "TRIX_TEST_EMAIL"),
-              let password = credentialValue(for: "TRIX_TEST_PASSWORD") else {
-            throw XCTSkip("Missing TRIX_TEST_EMAIL / TRIX_TEST_PASSWORD")
-        }
-
-        let response = try await APIClient.shared.login(email: email, password: password)
+        let credentials = try requireCredentials()
+        let response = try await APIClient.shared.login(email: credentials.email, password: credentials.password)
 
         XCTAssertFalse(response.accessToken.isEmpty)
-        XCTAssertEqual(response.user.email?.lowercased(), email.lowercased())
+        XCTAssertEqual(response.user.email?.lowercased(), credentials.email.lowercased())
     }
 
-    @MainActor
     func testLoginThenFetchCurrentUserKeepsAuthState() async throws {
-        guard let email = credentialValue(for: "TRIX_TEST_EMAIL"),
-              let password = credentialValue(for: "TRIX_TEST_PASSWORD") else {
-            throw XCTSkip("Missing TRIX_TEST_EMAIL / TRIX_TEST_PASSWORD")
-        }
+        let credentials = try requireCredentials()
+        let user = try await loginWithAuthService()
 
-        let auth = AuthService.shared
-        _ = await auth.logout()
+        XCTAssertEqual(user.email?.lowercased(), credentials.email.lowercased())
 
-        let loginResult = await auth.login(email: email, password: password)
-        switch loginResult {
-        case .success(let user):
-            XCTAssertEqual(user.email?.lowercased(), email.lowercased())
-        case .failure(let error):
-            XCTFail("Login failed: \(error.localizedDescription)")
-            return
-        }
-
-        let fetchResult = await auth.fetchCurrentUser()
+        let fetchResult = await AuthService.shared.fetchCurrentUser()
         switch fetchResult {
         case .success(let fetchedUser):
-            XCTAssertEqual(fetchedUser.email?.lowercased(), email.lowercased())
-            XCTAssertTrue(auth.isLoggedIn)
+            XCTAssertEqual(fetchedUser.email?.lowercased(), credentials.email.lowercased())
+            XCTAssertTrue(AuthService.shared.isLoggedIn)
         case .failure(let error):
             XCTFail("Fetch current user failed after login: \(error.localizedDescription)")
         }
-    }
-
-    private func credentialValue(for key: String) -> String? {
-        let env = ProcessInfo.processInfo.environment
-        if let value = env[key], !value.isEmpty {
-            return value
-        }
-
-        let infoValue = Bundle(for: Self.self).object(forInfoDictionaryKey: key) as? String
-        guard let infoValue, !infoValue.isEmpty, !infoValue.contains("$(") else {
-            return nil
-        }
-        return infoValue
     }
 }

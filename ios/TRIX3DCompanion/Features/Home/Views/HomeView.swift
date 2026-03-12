@@ -207,6 +207,7 @@ struct HomeView: View {
         .sheet(isPresented: $showTodo) {
             TodoListView(showAsSheet: true)
         }
+        .uiTestMarker(HomeAccessibilityIdentifiers.screen)
     }
 
     // MARK: - Header
@@ -442,6 +443,7 @@ struct WorkbenchOverlay: View {
                                 label: loc("workbench.snapshot"),
                                 subtitle: "拍照、选图、查看快拍",
                                 color: .orange,
+                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchSnapshotCard,
                                 action: {
                                     onCardClick("snapshot")
                                     closeWorkbench()
@@ -453,6 +455,7 @@ struct WorkbenchOverlay: View {
                                 label: loc("workbench.location"),
                                 subtitle: "地图、地点与位置选择",
                                 color: .green,
+                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchLocationCard,
                                 action: {
                                     onCardClick("location")
                                     closeWorkbench()
@@ -464,6 +467,7 @@ struct WorkbenchOverlay: View {
                                 label: loc("workbench.schedule"),
                                 subtitle: "学习节奏和时间安排",
                                 color: .blue,
+                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchScheduleCard,
                                 action: {
                                     onCardClick("schedule")
                                     closeWorkbench()
@@ -475,6 +479,7 @@ struct WorkbenchOverlay: View {
                                 label: loc("workbench.todo"),
                                 subtitle: "快速记录待办事项",
                                 color: .purple,
+                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchTodoCard,
                                 action: {
                                     onCardClick("todo")
                                     closeWorkbench()
@@ -510,6 +515,8 @@ struct WorkbenchOverlay: View {
             .padding(.bottom, dockHeight)  // 避开底部 Dock
             .offset(y: offset)
         }
+        .accessibilityIdentifier(HomeAccessibilityIdentifiers.workbenchOverlay)
+        .uiTestMarker(HomeAccessibilityIdentifiers.workbenchOverlay)
         .onAppear {
             openWorkbench()
         }
@@ -540,6 +547,7 @@ struct WorkbenchOverlayCard: View {
     let label: String
     let subtitle: String
     let color: Color
+    let accessibilityIdentifier: String?
     let action: () -> Void
 
     @State private var isPressed = false
@@ -598,6 +606,8 @@ struct WorkbenchOverlayCard: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .uiTestIdentifier(accessibilityIdentifier)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isPressed = true }

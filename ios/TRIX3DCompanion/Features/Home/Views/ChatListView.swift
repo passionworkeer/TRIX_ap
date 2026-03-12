@@ -145,7 +145,7 @@ struct ChatListView: View {
             }
         }
         .background(backgroundGradient)
-        .accessibilityIdentifier(ChatAccessibilityIdentifiers.screen)
+        .uiTestMarker(ChatAccessibilityIdentifiers.screen)
         .navigationTitle("nav.chat".localized)
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
@@ -370,6 +370,7 @@ struct ChatListView: View {
             .shadow(color: Color.brandPurple.opacity(0.12), radius: 16, x: 0, y: 10)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
     }
 

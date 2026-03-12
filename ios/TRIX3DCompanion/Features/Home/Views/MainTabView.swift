@@ -30,34 +30,7 @@ struct MainTabView: View {
             // Tab content using NavigationStack for proper navigation
             NavigationStack(path: $navigationPath) {
                 ZStack {
-                    // 根据选择的 tab 显示内容
-                    switch appState.selectedTab {
-                    case .home, .core:
-                        HomeView(
-                            isWorkbenchPresented: $isWorkbenchPresented,
-                            onOpenTrixBot: {
-                                showingTrixBotSheet = true
-                            }
-                        )
-                    case .map:
-                        MapView()
-                    case .study:
-                        StudyListView()
-                    case .chat:
-                        ChatListView(
-                            onNavigateToChat: { conversation in
-                                navigationPath.append(conversation)
-                            },
-                            onNavigateToPairing: {
-                                showingPairingSheet = true
-                            },
-                            onNavigateToTrixBot: {
-                                showingTrixBotSheet = true
-                            }
-                        )
-                    case .profile:
-                        ProfileView()
-                    }
+                    tabContent
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
@@ -85,11 +58,14 @@ struct MainTabView: View {
                 selectedTab: $appState.selectedTab,
                 isWorkbenchPresented: $isWorkbenchPresented
             )
+            .zIndex(1)
             .opacity(shouldShowTabBar ? 1 : 0)
             .allowsHitTesting(shouldShowTabBar)
             .animation(.easeInOut(duration: 0.24), value: shouldShowTabBar)
         }
         .ignoresSafeArea(.keyboard)
+        .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.mainTabView)
+        .uiTestMarker(MainNavigationAccessibilityIdentifiers.selectedTab(for: appState.selectedTab))
         .onChange(of: appState.selectedTab) { newTab in
             handleTabChange(to: newTab)
         }
@@ -101,6 +77,42 @@ struct MainTabView: View {
         let isNavigating = !navigationPath.isEmpty
         let isShowingSheet = showingPairingSheet || showingTrixBotSheet
         return !isNavigating && !isShowingSheet
+    }
+
+    @ViewBuilder
+    private var tabContent: some View {
+        switch appState.selectedTab {
+        case .home, .core:
+            HomeView(
+                isWorkbenchPresented: $isWorkbenchPresented,
+                onOpenTrixBot: {
+                    showingTrixBotSheet = true
+                }
+            )
+            .id("tab.home")
+        case .map:
+            MapView()
+                .id("tab.map")
+        case .study:
+            StudyListView()
+                .id("tab.study")
+        case .chat:
+            ChatListView(
+                onNavigateToChat: { conversation in
+                    navigationPath.append(conversation)
+                },
+                onNavigateToPairing: {
+                    showingPairingSheet = true
+                },
+                onNavigateToTrixBot: {
+                    showingTrixBotSheet = true
+                }
+            )
+            .id("tab.chat")
+        case .profile:
+            ProfileView()
+                .id("tab.profile")
+        }
     }
 
     // MARK: - Event Handlers

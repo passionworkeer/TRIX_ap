@@ -61,7 +61,7 @@ final class AchievementService: ObservableObject, AchievementServiceProtocol {
         lastError = nil
 
         do {
-            let response: [Achievement] = try await apiClient.get(.achievementList)
+            let response = try await apiClient.getAchievements()
             self.achievements = response
             isLoading = false
             return response
@@ -79,7 +79,7 @@ final class AchievementService: ObservableObject, AchievementServiceProtocol {
         lastError = nil
 
         do {
-            let response: AchievementCheckResponse = try await apiClient.post(.achievementCheck)
+            let response = try await SupabaseService.shared.checkAndUnlockAchievements()
             // Refresh achievements list after check
             let unlocked = response.newlyUnlocked
             for achievement in unlocked {

@@ -1,47 +1,43 @@
-# PROJECT_TASKS.md - 语音消息功能
+# PROJECT_TASKS.md - iOS Supabase 真实链路修复
 
-> 项目目标: 好友之间发送语音消息，支持播放和语音转文字
-> 创建时间: 2026-03-07
+> 项目目标: 修复 iOS 端真实 Supabase 前后端链路与原生 UI 测试，保留 openclaw 独立服务器通道
+> 创建时间: 2026-03-12
 > 状态: 执行中
 
 ---
 
 ## 任务列表
 
-### 阶段一：数据库与类型定义
-- [ ] TASK-001: 数据库添加语音字段 | type: backend | priority: P0 | estimate: 1h
-- [ ] TASK-002: 更新 TypeScript 类型定义 | type: frontend | priority: P0 | estimate: 0.5h
+### 阶段一：链路核对
+- [x] TASK-001: 核对 iOS 当前 REST 路由与线上 Supabase 真结构差异 | type: research | priority: P0 | estimate: 1h
+- [x] TASK-002: 验证线上真实表与视图可读性 | type: backend | priority: P0 | estimate: 0.5h
 
-### 阶段二：录音与上传
-- [ ] TASK-003: 实现浏览器录音功能 | type: frontend | priority: P0 | estimate: 2h
-- [ ] TASK-004: 音频文件上传服务 | type: backend | priority: P0 | estimate: 1.5h
+### 阶段二：iOS 数据层修复
+- [ ] TASK-003: 新增统一 SupabaseService 并同步登录 session | type: ios | priority: P0 | estimate: 1.5h
+- [ ] TASK-004: 修复用户统计与学习记录读取 | type: ios | priority: P0 | estimate: 1h
+- [ ] TASK-005: 修复积分与积分历史读取/写入 | type: ios | priority: P0 | estimate: 1.5h
+- [ ] TASK-006: 修复成就读取与解锁逻辑 | type: ios | priority: P0 | estimate: 1h
+- [ ] TASK-007: 修复好友列表、好友请求与推荐用户 | type: ios | priority: P0 | estimate: 1.5h
+- [ ] TASK-008: 修复聊天列表、消息读写与 TRIX Bot 云端回退路径 | type: ios | priority: P0 | estimate: 2h
 
-### 阶段三：语音消息 UI
-- [ ] TASK-005: 聊天页面麦克风按钮 | type: frontend | priority: P0 | estimate: 1h
-- [ ] TASK-006: 录音弹窗 UI | type: frontend | priority: P0 | estimate: 2h
-- [ ] TASK-007: 语音消息播放组件 | type: frontend | priority: P0 | estimate: 2h
-
-### 阶段四：语音转文字
-- [ ] TASK-008: Web Speech API 集成 | type: frontend | priority: P1 | estimate: 2h
-
-### 阶段五：测试
-- [ ] TASK-009: 单元测试 | type: test | priority: P0 | estimate: 1h
-- [ ] TASK-010: E2E 测试 | type: test | priority: P0 | estimate: 1h
+### 阶段三：真实回归
+- [ ] TASK-009: 跑 live backend smoke 并清理剩余失败 | type: test | priority: P0 | estimate: 1h
+- [ ] TASK-010: 跑原生 UI 全量测试并修复真实交互失败 | type: test | priority: P0 | estimate: 1.5h
 
 ---
 
 ## 执行状态
 
 ### In Progress
-- (none yet)
+- [ ] TASK-003: 新增统一 SupabaseService 并同步登录 session | type: ios | assignee: Codex
 
 ### Done
-- (none yet)
+- [x] TASK-001: 核对 iOS 当前 REST 路由与线上 Supabase 真结构差异
+- [x] TASK-002: 验证线上真实表与视图可读性
 
 ---
 
 ## 技术栈
-- 录音: MediaRecorder API
-- 存储: Supabase Storage + Server OSS
-- 转文字: Web Speech API
-- 播放: HTML5 Audio API
+- iOS: SwiftUI + XCTest / XCUITest
+- 数据: Supabase Auth + PostgREST + `supabase-swift`
+- 实时设备通道: openclaw / Socket.IO

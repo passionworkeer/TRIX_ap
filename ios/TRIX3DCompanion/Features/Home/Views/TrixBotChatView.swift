@@ -63,6 +63,7 @@ struct TrixBotChatView: View {
             messagesList
             inputArea
         }
+        .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.screen)
         .background(
             Color.clear.trixPageBackground(
                 colors: [
@@ -89,6 +90,7 @@ struct TrixBotChatView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("关闭")
+                .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.closeButton)
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -200,6 +202,7 @@ struct TrixBotChatView: View {
                         .lineLimit(1...6)
                         .focused($isInputFocused)
                         .disabled(isUploadingAttachment || isSendingMessage)
+                        .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.inputField)
 
                     if !messageText.isEmpty {
                         Button {
@@ -235,6 +238,7 @@ struct TrixBotChatView: View {
                 .buttonStyle(.plain)
                 .disabled(!canSend)
                 .accessibilityLabel("发送消息")
+                .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.sendButton)
             }
         }
         .padding(.horizontal, 16)

@@ -95,6 +95,7 @@ struct PairingView: View {
                 Spacer()
             }
             .padding(.horizontal, 24)
+            .accessibilityIdentifier(PairingAccessibilityIdentifiers.screen)
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear
@@ -224,6 +225,7 @@ struct PairingView: View {
                 .padding(40)
             }
             .frame(maxWidth: 300)
+            .accessibilityIdentifier(PairingAccessibilityIdentifiers.cameraButton)
             .frame(height: 300)
             .trixSurfaceCard(cornerRadius: 32, borderOpacity: 0.32, shadowOpacity: 0.1, shadowRadius: 18)
             .onTapGesture {
@@ -289,6 +291,7 @@ struct PairingView: View {
                     )
                 )
             }
+            .accessibilityIdentifier(PairingAccessibilityIdentifiers.manualInputButton)
         }
     }
 
@@ -318,6 +321,7 @@ struct PairingView: View {
                     .onChange(of: codeInput) { newValue in
                         codeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
                     }
+                    .accessibilityIdentifier(PairingAccessibilityIdentifiers.codeField)
 
                 // Verify button
                 Button(action: {
@@ -348,6 +352,7 @@ struct PairingView: View {
                     .cornerRadius(28)
                 }
                 .disabled(codeInput.count != 6 || isLoading)
+                .accessibilityIdentifier(PairingAccessibilityIdentifiers.verifyButton)
             }
             .padding(24)
             .trixSurfaceCard(cornerRadius: 24, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)

@@ -124,7 +124,7 @@ struct MapView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier(MapAccessibilityIdentifiers.screen)
+            .uiTestMarker(MapAccessibilityIdentifiers.screen)
         }
         .ignoresSafeArea(edges: .bottom)
         .task {
