@@ -16,11 +16,13 @@ const mockCancelIdleCallback = vi.fn();
 describe('ResourcePreloader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const nativeCreateElement = document.createElement.bind(document);
 
     // Mock requestIdleCallback
     Object.defineProperty(window, 'requestIdleCallback', {
       value: mockRequestIdleCallback,
       writable: true,
+      configurable: true,
     });
 
     // Mock document methods
@@ -33,7 +35,7 @@ describe('ResourcePreloader', () => {
           appendChild: vi.fn(),
         } as unknown as HTMLLinkElement;
       }
-      return document.createElement(tag);
+      return nativeCreateElement(tag);
     });
 
     vi.spyOn(document.head, 'appendChild').mockImplementation(() => null as unknown as Node);
@@ -53,9 +55,7 @@ describe('ResourcePreloader', () => {
 
     it('should set up requestIdleCallback on mount', async () => {
       // Render the component
-      const { unmount } = act(() => {
-        return renderHook(() => ResourcePreloader());
-      }) as any;
+      const { unmount } = renderHook(() => ResourcePreloader());
 
       // Wait for the effect to run
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -68,13 +68,15 @@ describe('ResourcePreloader', () => {
     it('should fallback to setTimeout when requestIdleCallback is not available', () => {
       // Remove requestIdleCallback
       const originalRequestIdleCallback = (window as any).requestIdleCallback;
-      delete (window as any).requestIdleCallback;
+      Object.defineProperty(window, 'requestIdleCallback', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
 
       vi.useFakeTimers();
 
-      const { unmount } = act(() => {
-        return renderHook(() => ResourcePreloader());
-      }) as any;
+      const { unmount } = renderHook(() => ResourcePreloader());
 
       // Fast forward time
       vi.advanceTimersByTime(2000);
@@ -85,6 +87,7 @@ describe('ResourcePreloader', () => {
       Object.defineProperty(window, 'requestIdleCallback', {
         value: originalRequestIdleCallback,
         writable: true,
+        configurable: true,
       });
 
       vi.useRealTimers();
@@ -95,6 +98,7 @@ describe('ResourcePreloader', () => {
   describe('preloadResource', () => {
     beforeEach(() => {
       vi.clearAllMocks();
+      const nativeCreateElement = document.createElement.bind(document);
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         if (tag === 'link') {
           return {
@@ -104,7 +108,7 @@ describe('ResourcePreloader', () => {
             appendChild: vi.fn(),
           } as unknown as HTMLLinkElement;
         }
-        return document.createElement(tag);
+        return nativeCreateElement(tag);
       });
       vi.spyOn(document.head, 'appendChild').mockImplementation(() => null as unknown as Node);
     });
@@ -207,7 +211,11 @@ describe('ResourcePreloader', () => {
 
     it('should fallback to direct loading when IntersectionObserver is not available', () => {
       const originalIntersectionObserver = window.IntersectionObserver;
-      delete (window as any).IntersectionObserver;
+      Object.defineProperty(window, 'IntersectionObserver', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
 
       const mockImg1 = {
         dataset: { src: '/image1.png' },
@@ -235,6 +243,7 @@ describe('ResourcePreloader', () => {
       Object.defineProperty(window, 'IntersectionObserver', {
         value: originalIntersectionObserver,
         writable: true,
+        configurable: true,
       });
     });
 

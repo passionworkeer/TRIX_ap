@@ -16,10 +16,11 @@ import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
 import { useConfirmModal } from '../hooks/useConfirmModal';
+import { demoUserStats } from '../mocks/demoData';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { signOut, user, profile } = useAuth();
+  const { isDemoMode, signOut, user, profile } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { voiceEnabled, toggleVoiceEnabled } = useVoiceSettings();
   const { t, i18n } = useTranslation();
@@ -120,6 +121,15 @@ const Profile: React.FC = () => {
     // 打开统计详情对话框并加载数据
     setIsStatsDialogOpen(true);
     setStatsLoading(true);
+
+    if (isDemoMode) {
+      setUserStats({
+        ...demoUserStats,
+        totalPoints: profile?.points ?? demoUserStats.totalPoints,
+      });
+      setStatsLoading(false);
+      return;
+    }
 
     try {
       if (user?.id) {

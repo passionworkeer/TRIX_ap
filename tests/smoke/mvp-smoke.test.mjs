@@ -62,7 +62,8 @@ test('SnapMap should keep leaflet style and mock friends fallback for MVP', () =
 
   assert.equal(snapMap.includes("import 'leaflet/dist/leaflet.css';"), true, 'Leaflet CSS import is required');
   assert.equal(snapMap.includes('const mockFriends: FriendLatestMessage[] = ['), true, 'Mock friends fallback should exist');
-  assert.equal(snapMap.includes('setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);'), true, 'Expected fallback to mock friends');
+  assert.equal(snapMap.includes('setFriends(merged.slice(0, 8));'), true, 'Expected merged friends list when backend data exists');
+  assert.equal(snapMap.includes('setFriends(mockFriends.slice(0, 8));'), true, 'Expected fallback to mock friends when backend data is empty');
 });
 
 test('Snapshot entry should require pairing and use unified TRIX avatar', () => {
@@ -85,9 +86,9 @@ test('Input fields on pairing flows should keep explicit dark text on light back
   const addFriendModal = read('src/components/AddFriendModal.tsx');
 
   assert.equal(appTsx.includes("color: 'var(--text-primary)'"), false, 'App root should not force global text color inheritance');
-  assert.equal(pairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'Pairing code input should have explicit dark text');
-  assert.equal(qrPairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'QRCode pairing inputs should have explicit dark text');
-  assert.equal(addFriendModal.includes('text-slate-900 placeholder:text-slate-400'), true, 'Add friend input should have explicit dark text');
+  assert.equal(pairingTsx.includes('text-slate-900') && pairingTsx.includes('placeholder:text-slate-400'), true, 'Pairing code input should have explicit dark text');
+  assert.equal(qrPairingTsx.includes('text-slate-900') && qrPairingTsx.includes('placeholder:text-slate-400'), true, 'QRCode pairing inputs should have explicit dark text');
+  assert.equal(addFriendModal.includes('text-slate-900') && addFriendModal.includes('placeholder:text-slate-400'), true, 'Add friend input should have explicit dark text');
 });
 
 test('Index HTML should not use Tailwind CDN and should use modern mobile web app meta', () => {

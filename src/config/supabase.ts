@@ -217,6 +217,12 @@ export interface Profile {
   updated_at?: string;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuidLike(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
 // ============================================
 // 用户活跃时间管理
 // ============================================
@@ -232,34 +238,42 @@ export async function getUsersLastActive(userIds: string[]): Promise<Record<stri
   }
 
   try {
-    // 去重 - 使用 filter 而非 Set 迭代以兼容严格模式
     const seen = new Set<string>();
     const uniqueUserIds = userIds.filter(id => {
-      if (seen.has(id)) return false;
+      if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
     });
 
+    const result: Record<string, string | null> = {};
+    for (const userId of uniqueUserIds) {
+      result[userId] = null;
+    }
+
+    const validUserIds = uniqueUserIds.filter(isUuidLike);
+
+    if (validUserIds.length === 0) {
+      return result;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, last_active_at')
-      .in('id', uniqueUserIds);
+      .in('id', validUserIds);
 
     if (error) {
-      logger.auth.error('获取用户活跃时间失败:', error);
-      return {};
+      logger.auth.error('??????????:', error);
+      return result;
     }
 
-    // 构建映射，缺失的用户的活跃时间设为 null
-    const result: Record<string, string | null> = {};
-    for (const userId of uniqueUserIds) {
+    for (const userId of validUserIds) {
       const profile = data?.find(p => p.id === userId);
       result[userId] = profile?.last_active_at ?? null;
     }
 
     return result;
   } catch (error) {
-    logger.auth.error('获取用户活跃时间异常:', error);
+    logger.auth.error('??????????:', error);
     return {};
   }
 }

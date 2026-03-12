@@ -31,13 +31,14 @@ const mockProfile = {
 };
 
 // Use vi.hoisted to create mocks before vi.mock is called
-const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom } = vi.hoisted(() => ({
+const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom, mockUpdateLastActive } = vi.hoisted(() => ({
   mockSignInWithPassword: vi.fn(),
   mockSignUp: vi.fn(),
   mockSignOut: vi.fn(),
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
+  mockUpdateLastActive: vi.fn().mockResolvedValue(true),
   mockFrom: vi.fn(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -68,6 +69,7 @@ vi.mock('../config/supabase', () => ({
       unsubscribe: vi.fn()
     }))
   },
+  updateLastActive: mockUpdateLastActive,
   Profile: {
     id: '',
     username: '',
@@ -108,6 +110,7 @@ describe('AuthContext', () => {
     mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } }
     });
+    mockUpdateLastActive.mockResolvedValue(true);
   });
 
   describe('Initial State', () => {

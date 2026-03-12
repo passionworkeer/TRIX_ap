@@ -10,6 +10,8 @@ import { X, TrendingUp, TrendingDown, History } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { demoPointTransactions } from '../mocks/demoData';
 
 interface PointTransaction {
   id: string;
@@ -41,6 +43,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
   onClose,
   userId
 }) => {
+  const { isDemoMode } = useAuth();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
@@ -55,6 +58,14 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
 
   const loadTransactions = async () => {
     setLoading(true);
+
+    if (isDemoMode) {
+      setTransactions(demoPointTransactions);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('point_transactions')

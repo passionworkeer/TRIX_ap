@@ -98,6 +98,13 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, bo
     >
       <HomeBotBubble onClick={handleOpenTrixBot} />
 
+      {import.meta.env.DEV && (
+        <div className="pointer-events-none fixed left-4 top-4 z-[70] rounded-2xl border border-cyan-300/40 bg-slate-950/70 px-3 py-2 text-[11px] font-medium text-cyan-100 shadow-lg backdrop-blur-sm">
+          <div>botState: {botState}</div>
+          <div>video: {devVideoSource || 'unknown'}</div>
+        </div>
+      )}
+
       <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />
       <NotificationPanel isOpen={showNotificationPanel} onClose={() => setShowNotificationPanel(false)} />
       <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />

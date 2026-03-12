@@ -89,7 +89,7 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 120000;
+const THINKING_MAX_MS = 25000;
 const MAX_MESSAGES = 500;
 
 const resolveChannelErrorMessage = (error: unknown): string => {
@@ -140,6 +140,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       if (existingIndex >= 0) {
         // 消息已存在，追加内容（支持流式输出）
         const existing = prev[existingIndex];
+        if (!existing) {
+          return prev;
+        }
         const updated = {
           ...existing,
           content: existing.content + message.content
@@ -149,7 +152,17 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         return next;
       }
 
-      let next = [...prev, { ...message, id: messageId }];
+      const appendedMessage: ClawbotChannelMessage = {
+        id: messageId,
+        content: message.content,
+        contentType: message.contentType ?? 'text',
+        mediaUrl: message.mediaUrl,
+        mediaMimeType: message.mediaMimeType,
+        timestamp: message.timestamp,
+        sender: message.sender,
+      };
+
+      let next = [...prev, appendedMessage];
       next.sort((a, b) => a.timestamp - b.timestamp);
       // 如果超过上限，移除最旧的消息
       if (next.length > MAX_MESSAGES) {
@@ -194,8 +207,13 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     clearSpeakingTimeout();
     clearThinkingTimeout();
     setBotState('THINKING');
-    // 注意：已移除默认超时逻辑。思考状态将一直保持，
-    // 直到收到实际的 bot 消息（触发 enterSpeakingWithTimeout）或发生错误。
+    thinkingTimeoutRef.current = setTimeout(() => {
+      thinkingTimeoutRef.current = null;
+      setBotState('IDLE');
+      setIdleEnteredAt(Date.now());
+      activeVoiceMessageIdRef.current = null;
+      pendingVoiceMessageIdRef.current = null;
+    }, THINKING_MAX_MS);
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {

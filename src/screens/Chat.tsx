@@ -15,8 +15,10 @@ import type { FriendLatestMessage } from '../config/supabase';
 import { useNotification } from '../hooks/useNotification';
 import { formatRelative } from '../utils/dateFormat';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../utils/errorHandler';
 import { iosIconButtonMotion, iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
+import { demoFriends, demoRecommendedUsers } from '../mocks/demoData';
 
 const BG_IMAGE = IMAGES.BACKGROUND;
 
@@ -32,7 +34,8 @@ interface RecommendedUser {
 const Chat: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { showError } = useNotification();
+  const { showError, showSuccess } = useNotification();
+  const { isDemoMode } = useAuth();
   const [friends, setFriends] = useState<FriendLatestMessage[]>([]);
   const [friendActiveTimes, setFriendActiveTimes] = useState<Record<string, string | null>>({});
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
@@ -58,6 +61,13 @@ const Chat: React.FC = () => {
   }, [friends]);
 
   const loadFriends = async () => {
+    if (isDemoMode) {
+      setFriends(demoFriends);
+      setFriendActiveTimes(Object.fromEntries(demoFriends.map((friend) => [friend.friend_id, friend.last_message_time])));
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const data = await getFriends();
@@ -83,6 +93,11 @@ const Chat: React.FC = () => {
 
   // 加载推荐用户（不是好友的其他用户）
   const loadRecommendedUsers = async () => {
+    if (isDemoMode) {
+      setRecommendedUsers(demoRecommendedUsers);
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -141,6 +156,11 @@ const Chat: React.FC = () => {
 
   // 快速添加好友
   const handleQuickAdd = async (username: string) => {
+    if (isDemoMode) {
+      showSuccess(`已将 ${username} 加入演示好友列表`);
+      return;
+    }
+
     try {
       await addFriend(username);
       await loadFriends();

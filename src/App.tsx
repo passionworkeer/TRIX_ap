@@ -50,7 +50,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
   React.useEffect(() => {
     if (!loading && !user && !shouldRedirect) {
-      showWarning('请先登录以访问此页面');
+      showWarning('请先登录后再访问此页面');
 
       const timer = setTimeout(() => {
         setShouldRedirect(true);
@@ -107,7 +107,7 @@ function AppContent() {
 
   const isDev = import.meta.env.DEV;
   const location = useLocation();
-  const { user } = useAuth();
+  const { isDemoMode, user } = useAuth();
   const { showWarning: _showWarning } = useNotification();
   const {
     isConnected: _isClawbotConnected,
@@ -170,6 +170,12 @@ function AppContent() {
           botState={botState}
           onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
         />
+      )}
+
+      {user && isDemoMode && !isAuthPage && (
+        <div className="pointer-events-none fixed right-4 top-4 z-[60] rounded-full border border-amber-300/70 bg-amber-100/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-800 shadow-lg backdrop-blur-sm dark:border-amber-200/20 dark:bg-amber-400/15 dark:text-amber-200">
+          Demo Mode
+        </div>
       )}
 
       <div

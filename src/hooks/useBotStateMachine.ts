@@ -31,7 +31,6 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 120000;
 
 /**
  * useBotStateMachine - 机器人状态机 Hook

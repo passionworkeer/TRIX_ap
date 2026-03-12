@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 export function ResourcePreloader() {
   useEffect(() => {
     // 使用 requestIdleCallback 在浏览器空闲时预加载
-    if ('requestIdleCallback' in window) {
+    if (typeof window.requestIdleCallback === 'function') {
       (window as any).requestIdleCallback(() => {
         preloadCriticalResources();
       }, { timeout: 3000 });
@@ -35,8 +35,6 @@ function preloadCriticalResources() {
     link.href = src;
     document.head.appendChild(link);
   });
-
-  console.log('[Preloader] Critical resources preloaded');
 }
 
 /**
@@ -56,7 +54,7 @@ export function preloadResource(href: string, as: 'image' | 'script' | 'style' |
  * 懒加载图片（Intersection Observer）
  */
 export function lazyLoadImages(selector: string = 'img[data-src]') {
-  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+  if (typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') {
     // 降级：直接加载所有图片
     document.querySelectorAll<HTMLImageElement>(selector).forEach((img) => {
       if (img.dataset.src) {

@@ -11,13 +11,16 @@ import GlassPanel from '../components/GlassPanel';
 import { getMallItems, getUserPointsBalance, purchaseItem } from '../services/mallService';
 import type { MallItem, MallCategory, PointsBalance } from '../types/mall';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../utils/logger';
 import { IMAGES } from '../constants';
 import toast from 'react-hot-toast';
+import { demoMallItems, demoPointsBalance } from '../mocks/demoData';
 
 const PointsMall: React.FC = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { isDemoMode, updateProfile } = useAuth();
 
   // 状态管理
   const [items, setItems] = useState<MallItem[]>([]);
@@ -67,6 +70,14 @@ const PointsMall: React.FC = () => {
   };
 
   const loadItems = async () => {
+    if (isDemoMode) {
+      const filteredItems = selectedCategory === 'all'
+        ? demoMallItems
+        : demoMallItems.filter((item) => item.category === selectedCategory);
+      setItems(filteredItems);
+      return;
+    }
+
     try {
       const filter = selectedCategory !== 'all' ? { category: selectedCategory as MallCategory } : undefined;
       const data = await getMallItems(filter);
@@ -78,6 +89,11 @@ const PointsMall: React.FC = () => {
   };
 
   const loadPointsBalance = async () => {
+    if (isDemoMode) {
+      setPointsBalance((currentBalance) => currentBalance ?? demoPointsBalance);
+      return;
+    }
+
     try {
       const balance = await getUserPointsBalance();
       setPointsBalance(balance);
@@ -94,6 +110,24 @@ const PointsMall: React.FC = () => {
 
     if (!pointsBalance || pointsBalance.balance < item.price) {
       toast.error('积分不足，请先赚取更多积分');
+      return;
+    }
+
+    if (isDemoMode) {
+      const nextBalance = pointsBalance.balance - item.price;
+      setItems((currentItems) => currentItems.map((currentItem) => (
+        currentItem.id === item.id
+          ? { ...currentItem, isOwned: true }
+          : currentItem
+      )));
+      setPointsBalance((currentBalance) => currentBalance ? {
+        ...currentBalance,
+        balance: nextBalance,
+        totalSpent: currentBalance.totalSpent + item.price,
+        updatedAt: new Date().toISOString(),
+      } : currentBalance);
+      await updateProfile({ points: nextBalance });
+      toast.success(`已为演示账号兑换 ${item.name}`);
       return;
     }
 

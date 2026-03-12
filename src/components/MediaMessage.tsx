@@ -97,7 +97,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }}
           loading="eager"
           decoding="async"
-          fetchpriority="high"
+          fetchPriority="high"
           onLoadStart={() => {
             loadStart.current = performance.now();
           }}

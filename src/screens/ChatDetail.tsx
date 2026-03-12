@@ -29,12 +29,14 @@ import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/ser
 import imageCompression from 'browser-image-compression';
 import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { ChatMessage } from '../config/supabase';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
   iosQuickSpring,
 } from '../utils/iosMotion';
+import { createDemoReply, demoChatMessagesByFriendId, DEMO_USER_ID } from '../mocks/demoData';
 
 // UI Message interface
 interface UIMessage {
@@ -52,15 +54,24 @@ interface UIMessage {
   };
 }
 
-// Mock conversations removed; use database data.
+function toUiMessage(message: { id: string; sender: 'user' | 'friend'; text: string; createdAt: string }): UIMessage {
+  return {
+    id: message.id,
+    sender: message.sender,
+    text: message.text,
+    timestamp: formatTime(new Date(message.createdAt)),
+    messageType: 'text',
+  };
+}
 
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
-  const { showError, showSuccess } = useNotification();
+  const { showError, showSuccess, showWarning } = useNotification();
   const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
   const { handleError } = useErrorHandler();
+  const { isDemoMode } = useAuth();
 
   // 优先从 URL 参数获取 friendId，否则从 location.state 获取。
   const urlFriendId = params.friendId;
@@ -265,6 +276,14 @@ const ChatDetail: React.FC = () => {
         return;
       }
 
+      if (isDemoMode) {
+        setCurrentUserId(DEMO_USER_ID);
+        setConversationId(`${DEMO_USER_ID}_${friendId}`);
+        setMessages((demoChatMessagesByFriendId[friendId] ?? []).map(toUiMessage));
+        setLoading(false);
+        return;
+      }
+
       // 普通好友会话：从数据库加载历史记录。
       try {
         setLoading(true);
@@ -296,7 +315,7 @@ const ChatDetail: React.FC = () => {
     };
 
     loadChatHistory();
-  }, [friendId, isBotConversation]);
+  }, [friendId, isBotConversation, isDemoMode]);
 
   // 监听 Clawbot Channel 消息。
   useEffect(() => {
@@ -477,6 +496,30 @@ const ChatDetail: React.FC = () => {
 
     // 从 attachmentPreviews 获取媒体数据（使用第一个）
     const mediaData = hasMedia ? attachmentPreviews[0] : null;
+
+    if (isDemoMode && !isBotConversation) {
+      const tempUserMessage: UIMessage = {
+        id: `demo-user-${Date.now()}`,
+        sender: 'user',
+        text: messageText,
+        timestamp: formatTime(new Date()),
+        messageType: hasMedia ? (hasText ? 'mixed' : 'image') : 'text',
+        mediaUri: mediaData?.uri,
+        mediaType: mediaData?.type,
+        mediaMetadata: mediaData?.metadata,
+      };
+
+      setInput('');
+      setAttachmentPreviews([]);
+      setMessages((prev) => [...prev, tempUserMessage]);
+
+      window.setTimeout(() => {
+        const reply = createDemoReply(friendId, messageText || 'shared media');
+        setMessages((prev) => [...prev, toUiMessage(reply)]);
+      }, 650);
+
+      return;
+    }
 
     // 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
     if (isBotConversation) {
@@ -947,7 +990,7 @@ const ChatDetail: React.FC = () => {
                             className="max-w-[240px] max-h-[240px] object-cover"
                             loading="eager"
                             decoding="async"
-                            fetchpriority="high"
+                            fetchPriority="high"
                           />
                         )}
                       </div>
