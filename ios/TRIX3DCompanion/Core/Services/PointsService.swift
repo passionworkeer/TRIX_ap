@@ -104,7 +104,7 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
 
         do {
             // Fetch points from API
-            let response: PointsResponse = try await apiClient.get(.points)
+            let response = try await apiClient.getPoints()
 
             // Convert to PointsBalance
             let pointsBalance = PointsBalance(
@@ -248,17 +248,11 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
         lastError = nil
 
         do {
-            // Create add points request
-            let request = AddPointsRequest(
+            let response = try await SupabaseService.shared.applyPointsChange(
                 points: points,
+                transactionType: .adminAdjust,
                 description: description,
                 metadata: metadata
-            )
-
-            // Call API to add points
-            let response: PointsResponse = try await apiClient.post(
-                .pointsAdd,
-                body: request
             )
 
             // Update balance
@@ -318,17 +312,11 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
         lastError = nil
 
         do {
-            // Create deduct points request
-            let request = DeductPointsRequest(
-                points: points,
+            let response = try await SupabaseService.shared.applyPointsChange(
+                points: -points,
+                transactionType: .redeem,
                 description: description,
                 metadata: metadata
-            )
-
-            // Call API to deduct points
-            let response: PointsResponse = try await apiClient.post(
-                .pointsDeduct,
-                body: request
             )
 
             // Update balance

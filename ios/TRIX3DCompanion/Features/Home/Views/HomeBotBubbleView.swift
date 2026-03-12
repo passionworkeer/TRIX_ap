@@ -56,6 +56,8 @@ struct HomeBotBubbleView: View {
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(HomeAccessibilityIdentifiers.botBubble)
 
             // 小箭头 (气泡右下角的三角形)
             Image(systemName: "chevron.right")

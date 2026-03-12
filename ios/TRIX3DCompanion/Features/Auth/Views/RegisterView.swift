@@ -265,6 +265,7 @@ struct RegisterView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerSwitchToLoginButton)
     }
 
     private func authTextField(

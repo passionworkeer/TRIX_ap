@@ -130,9 +130,7 @@ final class UserStatsService: ObservableObject, UserStatsServiceProtocol {
         lastError = nil
 
         do {
-            // Fetch from API - userStats endpoint doesn't require userId in path
-            // The backend uses the authenticated user's ID
-            let stats: UserStats = try await apiClient.get(.userStats)
+            let stats = try await apiClient.getUserStats()
 
             // Update local state
             userStats = stats

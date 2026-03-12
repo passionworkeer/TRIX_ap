@@ -312,8 +312,7 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
 
         // Add Supabase API key header for development
         #if DEBUG
-        let supabaseKey = "__SUPABASE_ANON_KEY_REDACTED__"
-        requestHeaders.add(name: "apikey", value: supabaseKey)
+        requestHeaders.add(name: "apikey", value: SupabaseConfig.anonKey)
         #endif
 
         // Log request
@@ -594,42 +593,37 @@ extension APIClient {
     // MARK: - User
 
     func getUserProfile() async throws -> User {
-        return try await get(.userProfile)
+        return try await SupabaseService.shared.fetchCurrentProfile()
     }
 
     func updateUserProfile(_ update: ProfileUpdate) async throws -> User {
-        return try await put(.userUpdateProfile, body: update)
+        return try await SupabaseService.shared.updateCurrentProfile(update)
     }
 
     func getUserStats() async throws -> UserStats {
-        return try await get(.userStats)
+        return try await SupabaseService.shared.fetchUserStats()
     }
 
     // MARK: - Chat
 
     func getChatRooms() async throws -> [ChatRoom] {
-        if let rooms: [ChatRoom] = try? await get(.chatRooms) {
-            return rooms
-        }
-        let response: PaginatedResponse<ChatRoom> = try await get(.chatRooms)
-        return response.data
+        return try await SupabaseService.shared.fetchChatRooms()
     }
 
     func getChatRoom(id: String) async throws -> ChatRoom {
-        return try await get(.chatRoom(id: id))
+        return try await SupabaseService.shared.fetchChatRoom(id: id)
     }
 
     func getChatMessages(roomId: String, page: Int = 1, limit: Int = 50) async throws -> [ChatMessage] {
-        let params: Parameters = ["page": page, "limit": limit]
-        if let messages: [ChatMessage] = try? await get(.chatRoomMessages(roomId: roomId), parameters: params) {
-            return messages
-        }
-        let response: PaginatedResponse<ChatMessage> = try await get(.chatRoomMessages(roomId: roomId), parameters: params)
-        return response.data
+        return try await SupabaseService.shared.fetchMessages(
+            roomId: roomId,
+            page: page,
+            limit: limit
+        )
     }
 
     func deleteChatRoom(roomId: String) async throws {
-        let _: EmptyResponse = try await delete(.chatRoomDelete(id: roomId))
+        try await SupabaseService.shared.deleteChatRoom(roomId: roomId)
     }
 
     func archiveChatRoom(roomId: String) async throws {
@@ -651,13 +645,13 @@ extension APIClient {
         mediaUrl: String? = nil,
         mediaMimeType: String? = nil
     ) async throws -> ChatMessage {
-        let request = SendMessageRequest(
+        return try await SupabaseService.shared.sendMessage(
+            roomId: roomId,
             content: content,
             contentType: contentType,
             mediaUrl: mediaUrl,
             mediaMimeType: mediaMimeType
         )
-        return try await post(.chatRoomMessagesSend(roomId: roomId), body: request)
     }
 
     /// Mark a message as read
@@ -665,19 +659,19 @@ extension APIClient {
     ///   - roomId: The room ID
     ///   - messageId: The message ID to mark as read
     func markMessageAsRead(roomId: String, messageId: String) async throws {
-        let request = MarkAsReadRequest(messageId: messageId)
-        let _: EmptyResponse = try await post(.chatRoomMessagesRead(roomId: roomId), body: request)
+        try await SupabaseService.shared.markMessageAsRead(
+            roomId: roomId,
+            messageId: messageId
+        )
     }
 
     // MARK: - Study
 
     func getStudySessions(page: Int = 1, limit: Int = 20) async throws -> [StudySession] {
-        let params: Parameters = ["page": page, "limit": limit]
-        if let sessions: [StudySession] = try? await get(.studySessions, parameters: params) {
-            return sessions
-        }
-        let response: PaginatedResponse<StudySession> = try await get(.studySessions, parameters: params)
-        return response.data
+        return try await SupabaseService.shared.fetchStudySessions(
+            page: page,
+            limit: limit
+        )
     }
 
     func getStudyStats() async throws -> StudyStats {
@@ -739,16 +733,14 @@ extension APIClient {
     // MARK: - Points
 
     func getPoints() async throws -> PointsResponse {
-        return try await get(.points)
+        return try await SupabaseService.shared.fetchPoints()
     }
 
     func getPointsHistory(page: Int = 1, limit: Int = 20) async throws -> [PointsTransaction] {
-        let params: Parameters = ["page": page, "limit": limit]
-        if let transactions: [PointsTransaction] = try? await get(.pointsHistory, parameters: params) {
-            return transactions
-        }
-        let response: PaginatedResponse<PointsTransaction> = try await get(.pointsHistory, parameters: params)
-        return response.data
+        return try await SupabaseService.shared.fetchPointsHistory(
+            page: page,
+            limit: limit
+        )
     }
 
     // MARK: - Locations
@@ -921,48 +913,70 @@ extension APIClient {
     // MARK: - Friends
 
     func getFriends() async throws -> [APIFriend] {
-        return try await get(.friendList)
+        let friends = try await SupabaseService.shared.fetchFriends()
+        return friends.map { friend in
+            APIFriend(
+                id: friend.id,
+                friendId: friend.friendId,
+                username: friend.name,
+                displayName: friend.name,
+                avatarUrl: friend.avatarUrl,
+                status: friend.status.rawValue,
+                addedAt: friend.createdAt,
+                bio: friend.bio,
+                studyTime: friend.studyTime,
+                isStudying: friend.isStudying
+            )
+        }
     }
 
     func getFriendRecommendations(limit: Int = 8) async throws -> [APIFriendRecommendation] {
-        let params: Parameters = ["limit": limit]
-        return try await get(.friendRecommendations, parameters: params)
+        return try await SupabaseService.shared.fetchFriendRecommendations(limit: limit)
     }
 
     func addFriend(friendId: String) async throws {
-        let request = FriendAddRequest(friendId: friendId)
-        let _: EmptyResponse = try await post(.friendAdd, body: request)
+        try await SupabaseService.shared.sendFriendRequest(friendId: friendId)
     }
 
     func removeFriend(friendId: String) async throws {
-        let _: EmptyResponse = try await delete(.friendRemove(friendId: friendId))
+        try await SupabaseService.shared.removeFriend(friendId: friendId)
     }
 
     func getFriendRequests() async throws -> [FriendRequest] {
-        return try await get(.friendRequests)
+        return try await SupabaseService.shared.fetchFriendRequests()
     }
 
     func acceptFriendRequest(requestId: String) async throws {
-        let request = FriendRequestActionRequest(requestId: requestId)
-        let _: EmptyResponse = try await post(.friendAccept(requestId: requestId), body: request)
+        try await SupabaseService.shared.acceptFriendRequest(requestId: requestId)
     }
 
     func declineFriendRequest(requestId: String) async throws {
-        let _: EmptyResponse = try await post(.friendDecline(requestId: requestId), body: EmptyRequest())
+        try await SupabaseService.shared.declineFriendRequest(requestId: requestId)
     }
 
     // MARK: - Achievements
 
     func getAchievements() async throws -> [Achievement] {
-        return try await get(.achievementList)
+        return try await SupabaseService.shared.fetchAchievements()
     }
 
     func checkAchievements() async throws -> [Achievement] {
-        return try await get(.achievementCheck)
+        return try await SupabaseService.shared.checkAndUnlockAchievements().newlyUnlocked
     }
 
     func unlockAchievement(achievementId: String) async throws -> Achievement {
-        return try await post(.achievementUnlock(achievementId: achievementId), body: EmptyRequest())
+        let response = try await SupabaseService.shared.checkAndUnlockAchievements()
+        if let achievement = response.newlyUnlocked.first(where: { $0.id == achievementId }) {
+            return achievement
+        }
+
+        if let existing = try await SupabaseService.shared.fetchAchievements().first(where: {
+            $0.id == achievementId && $0.unlockedAt != nil
+        }) {
+            return existing
+        }
+
+        throw NetworkError.notFound
     }
 
     // MARK: - Mall

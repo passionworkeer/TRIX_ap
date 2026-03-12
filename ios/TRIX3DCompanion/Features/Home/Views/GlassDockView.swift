@@ -35,7 +35,6 @@ struct GlassDockView: View {
     @Binding var selectedTab: MainTab
     @Binding var isWorkbenchPresented: Bool
 
-    @State private var selectedIndex: Int = 2  // 默认选中中间的核心按钮（摄像头）- 主界面
     @State private var animateGlow = false
 
     private let dockHeight: CGFloat = 70
@@ -55,6 +54,7 @@ struct GlassDockView: View {
         .padding(.horizontal, dockPadding)
         .padding(.vertical, 12)
         .frame(height: dockHeight)
+        .accessibilityElement(children: .contain)
         .background(
             RoundedRectangle(cornerRadius: 35)
                 .fill(.ultraThinMaterial)
@@ -73,11 +73,7 @@ struct GlassDockView: View {
         )
         .padding(.horizontal, 20)
         .padding(.bottom, 18)
-        .onChange(of: selectedTab) { newValue in
-            updateSelectedIndex(for: newValue)
-        }
         .onAppear {
-            updateSelectedIndex(for: selectedTab)
             startGlowAnimation()
         }
     }
@@ -86,14 +82,13 @@ struct GlassDockView: View {
 
     @ViewBuilder
     private func tabButton(for dockTab: GlassDockTab, index: Int) -> some View {
-        let isSelected = selectedIndex == index
+        let isSelected = normalizedSelectedTab == dockTab.tab
 
         Button {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
 
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedIndex = index
                 selectedTab = dockTab.tab
                 isWorkbenchPresented = false
             }
@@ -144,8 +139,10 @@ struct GlassDockView: View {
                     .foregroundColor(isSelected ? Color.brandPurple : .secondary)
             }
             .frame(width: 56, height: 56)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.dockTab(for: dockTab.tab))
     }
 
     // MARK: - Core Button (Center Gem)
@@ -216,15 +213,13 @@ struct GlassDockView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.homeTab)
     }
 
     // MARK: - Helpers
 
-    private func updateSelectedIndex(for tab: MainTab) {
-        let dockSelection = tab == .home ? MainTab.core : tab
-        if let index = GlassDockTab.tabs.firstIndex(where: { $0.tab == dockSelection }) {
-            selectedIndex = index
-        }
+    private var normalizedSelectedTab: MainTab {
+        selectedTab == .home ? .core : selectedTab
     }
 
     private func startGlowAnimation() {

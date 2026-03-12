@@ -99,6 +99,7 @@ struct StudyListView: View {
                 }
             }
             .background(backgroundGradient)
+            .uiTestMarker(StudyAccessibilityIdentifiers.screen)
             .safeAreaInset(edge: .bottom) {
                 Color.clear
                     .frame(height: 100)

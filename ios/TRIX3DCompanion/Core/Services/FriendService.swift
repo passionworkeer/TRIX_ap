@@ -77,7 +77,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let response: [Friend] = try await apiClient.get(.friendList)
+            let response = try await SupabaseService.shared.fetchFriends()
             self.friends = response
             isLoading = false
             return response
@@ -95,7 +95,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let response: [FriendRequest] = try await apiClient.get(.friendRequests)
+            let response = try await SupabaseService.shared.fetchFriendRequests()
             self.friendRequests = response
             isLoading = false
             return response
@@ -113,8 +113,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let request = AddFriendRequest(friendId: friendId)
-            let _: EmptyResponse = try await apiClient.post(.friendAdd, body: request)
+            try await SupabaseService.shared.sendFriendRequest(friendId: friendId)
             isLoading = false
         } catch {
             let serviceError = FriendServiceError.addFailed(underlying: error)
@@ -130,7 +129,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let _: EmptyResponse = try await apiClient.delete(.friendRemove(friendId: friendId))
+            try await SupabaseService.shared.removeFriend(friendId: friendId)
             // Remove from local list
             self.friends.removeAll { $0.friendId == friendId }
             isLoading = false
@@ -148,7 +147,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let _: EmptyResponse = try await apiClient.post(.friendAccept(requestId: requestId))
+            try await SupabaseService.shared.acceptFriendRequest(requestId: requestId)
             // Remove from pending requests
             self.friendRequests.removeAll { $0.id == requestId }
             isLoading = false
@@ -166,7 +165,7 @@ final class FriendService: ObservableObject, FriendServiceProtocol {
         lastError = nil
 
         do {
-            let _: EmptyResponse = try await apiClient.post(.friendDecline(requestId: requestId))
+            try await SupabaseService.shared.declineFriendRequest(requestId: requestId)
             // Remove from pending requests
             self.friendRequests.removeAll { $0.id == requestId }
             isLoading = false
