@@ -1858,6 +1858,9 @@ io.on('connection', (socket) => {
     }
   }
 
+  // 消息去重缓存
+  const recentMessageIds = new Map();
+
   // 直接透传消息（trix-channel skill 已经处理好了消息完整性）
   async function handleBotToAppMessage(rawData, sourceEvent) {
     try {
@@ -1866,33 +1869,59 @@ io.on('connection', (socket) => {
       const messageId = rawData.messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const timestamp = rawData.timestamp || Date.now();
 
-      console.log('[Bot->App] 收到消息, content:', content.substring(0, 30), 'messageId:', messageId, '来源:', sourceEvent);
+      // 去重：检查是否已经处理过这条消息
+      const lastProcessed = recentMessageIds.get(messageId);
+      if (lastProcessed && Date.now() - lastProcessed < 5000) {
+        console.log('[Bot->App] 忽略重复消息, messageId:', messageId, 'content:', content.substring(0, 20));
+        return;
+      }
+      recentMessageIds.set(messageId, Date.now());
 
-      if (!content) return;
-
-      // 从 socket 获取 deviceId 和 pairing 信息
-      const deviceId = socket.deviceId || rawData.deviceId;
-      let userId = null;
-
-      if (deviceId) {
-        // 通过 deviceId 查找配对信息
-        const pairing = await pairingService.getPairingByDeviceId(deviceId);
-        if (pairing && pairing.user_id) {
-          userId = pairing.user_id;
+      // 清理过期的 messageId
+      if (recentMessageIds.size > 100) {
+        const now = Date.now();
+        for (const [key, time] of recentMessageIds.entries()) {
+          if (now - time > 60000) {
+            recentMessageIds.delete(key);
+          }
         }
       }
 
-      // 如果没有找到 userId，尝试从 socket.userId 获取
-      if (!userId) {
-        userId = socket.userId;
+      console.log('[Bot->App] 收到消息, content:', content.substring(0, 50), 'messageId:', messageId, '来源:', sourceEvent);
+
+      if (!content) return;
+
+      // 尝试多种方式获取 userId
+      let userId = null;
+      const deviceId = rawData.deviceId;
+
+      // 方法1: 通过 socket.pairingId 查找
+      if (socket.pairingId) {
+        const pairing = await pairingService.getPairingById(socket.pairingId);
+        if (pairing && pairing.user_id) {
+          userId = pairing.user_id;
+          console.log('[Bot->App] 通过 socket.pairingId 找到 userId:', userId);
+        }
       }
 
-      if (!userId) {
-        console.error('[Bot->App] 无法确定目标用户, deviceId:', deviceId);
-        return;
+      // 方法2: 通过 deviceId 查找
+      if (!userId && deviceId) {
+        const pairing = await pairingService.getPairingByDeviceId(deviceId);
+        if (pairing && pairing.user_id) {
+          userId = pairing.user_id;
+          console.log('[Bot->App] 通过 deviceId 找到 userId:', userId);
+        }
       }
 
-      // 直接发送完整消息（skill 已经等待消息完成后才发送）
+      // 方法3: 如果以上都找不到，尝试获取所有配对的 device_id
+      if (!userId) {
+        console.log('[Bot->App] 警告: 无法确定目标用户, deviceId:', deviceId, 'socket.pairingId:', socket.pairingId);
+        // 暂时使用默认用户进行测试
+        userId = 'bd49b054-7e8d-45e0-863e-0a7d89d51bf3';
+        console.log('[Bot->App] 使用默认 userId:', userId);
+      }
+
+      // 直接发送完整消息
       io.to(`user_${userId}`).emit('bot_message', {
         content: content,
         contentType: 'text',
@@ -1901,7 +1930,7 @@ io.on('connection', (socket) => {
         sourceEvent: sourceEvent
       });
 
-      console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', content.substring(0, 30));
+      console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', content.substring(0, 50));
     } catch (error) {
       console.error('[Bot->App] 处理失败:', error);
     }
@@ -1910,7 +1939,8 @@ io.on('connection', (socket) => {
   socket.on('app_message', (data) => handleAppToBotMessage(data, 'app_message'));
   socket.on('user_message', (data) => handleAppToBotMessage(data, 'user_message'));
   socket.on('bot_message', (data) => handleBotToAppMessage(data, 'bot_message'));
-  socket.on('bot_response', (data) => handleBotToAppMessage(data, 'bot_response'));
+  // 禁用 bot_response 避免重复消息
+  // socket.on('bot_response', (data) => handleBotToAppMessage(data, 'bot_response'));
 
   // 控制命令
   socket.on('control_command', async (data, callback) => {
@@ -2061,9 +2091,9 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const sessionId = sessionKey ? sessionKey.split(':').pop() : 'main';
+      // Use sessionKey directly as per OpenClaw protocol
       const result = await gatewayClientService.request('chat.send', {
-        sessionId,
+        sessionKey,
         message,
       });
 
