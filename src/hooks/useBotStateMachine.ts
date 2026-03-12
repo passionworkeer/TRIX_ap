@@ -31,7 +31,7 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 25000;
+const THINKING_MAX_MS = 120000;
 
 /**
  * useBotStateMachine - 机器人状态机 Hook
@@ -91,11 +91,9 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     clearSpeakingTimeout();
     clearThinkingTimeout();
     setBotState('THINKING');
-    thinkingTimeoutRef.current = setTimeout(() => {
-      thinkingTimeoutRef.current = null;
-      enterIdle();
-    }, THINKING_MAX_MS);
-  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle]);
+    // 注意：已移除默认超时自动切回 IDLE 的逻辑
+    // 现在完全由外部传入的实际消息事件去打断 THINKING 状态
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
@@ -115,16 +113,13 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
-    if (voiceEnabled) {
-      enterThinking();
-      const messageId = message.id || `bot-${message.timestamp}`;
-      activeVoiceMessageIdRef.current = messageId;
-      pendingVoiceMessageIdRef.current = messageId;
-      return;
-    }
-
     enterSpeakingWithTimeout(message);
-  }, [voiceEnabled, enterThinking, enterSpeakingWithTimeout]);
+
+    if (voiceEnabled) {
+      const messageId = message.id || `bot-${message.timestamp}`;
+      pendingVoiceMessageIdRef.current = messageId;
+    }
+  }, [voiceEnabled, enterSpeakingWithTimeout]);
 
   // 语音模式切换时处理
   useEffect(() => {

@@ -89,7 +89,7 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 25000;
+const THINKING_MAX_MS = 120000;
 const MAX_MESSAGES = 500;
 
 const resolveChannelErrorMessage = (error: unknown): string => {
@@ -194,11 +194,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     clearSpeakingTimeout();
     clearThinkingTimeout();
     setBotState('THINKING');
-    thinkingTimeoutRef.current = setTimeout(() => {
-      thinkingTimeoutRef.current = null;
-      enterIdle();
-    }, THINKING_MAX_MS);
-  }, [clearSpeakingTimeout, clearThinkingTimeout, enterIdle]);
+    // 注意：已移除默认超时逻辑。思考状态将一直保持，
+    // 直到收到实际的 bot 消息（触发 enterSpeakingWithTimeout）或发生错误。
+  }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
@@ -222,23 +220,15 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
-    // 收到 bot 消息后，立即清除 thinking 状态，进入 speaking 状态
-    // 这样可以确保加载气泡立即消失
-    // 注意：setLatestBotMessage 在 enterSpeakingWithTimeout 中设置，避免重复调用
+    // 收到 bot 消息后，立刻进入 speaking 状态（加载气泡会在此刻消失，同时显示消息）
+    enterSpeakingWithTimeout(message);
 
     if (voiceEnabled) {
-      // 语音模式：进入 thinking 状态，等待语音播放
-      setLatestBotMessage(message);
-      enterThinking();
+      // 记录消息 ID 以便语音钩子识别并播放
       const messageId = message.id || `bot-${message.timestamp}`;
-      activeVoiceMessageIdRef.current = messageId;
       pendingVoiceMessageIdRef.current = messageId;
-      return;
     }
-
-    // 非语音模式：立即进入 speaking 状态，气泡消失
-    enterSpeakingWithTimeout(message);
-  }, [enterSpeakingWithTimeout, enterThinking, voiceEnabled]);
+  }, [enterSpeakingWithTimeout, voiceEnabled]);
 
   const resetSessionScopedState = useCallback(() => {
     setStatus('DISCONNECTED');
@@ -414,6 +404,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
           });
         }
         if (message.sender === 'bot') {
+          console.log('[ClawbotChannel] 收到 bot 消息, 切换状态');
           handleBotMessageState(normalizedMessage);
         }
       }) as (data: unknown) => void);

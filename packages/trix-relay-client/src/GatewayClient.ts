@@ -235,7 +235,11 @@ export class GatewayClient {
       this.emit('connected');
     } catch (err) {
       this.storedDeviceToken = null;
-      this.ws?.close(1008, 'connect failed');
+      try {
+        this.ws?.close(1008, 'connect failed');
+      } catch (closeErr) {
+        // Ignore close error
+      }
     }
   }
 

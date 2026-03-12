@@ -44,3 +44,11 @@ export interface StudyRoomAckPayload {
   roomCode?: string;
   room?: StudyRoomState | null;
 }
+
+export interface FriendRoomLookupResult {
+  userId: string;
+  inRoom: boolean;
+  roomCode?: string;
+  sessionState?: StudyRoomSessionState;
+  memberCount?: number;
+}

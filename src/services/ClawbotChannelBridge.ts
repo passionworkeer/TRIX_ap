@@ -893,27 +893,7 @@ class ClawbotChannelBridge {
 
       const messageId = generateMessageId();
 
-      // 等待 message_sent 确认
-      const timeout = setTimeout(() => {
-        reject(new Error('message_sent timeout'));
-      }, 10000); // 10秒超时
-
-      // 监听 message_sent 确认
-      const onMessageSent = (data: { success: boolean; messageId: string; error?: string }) => {
-        if (data.messageId === messageId) {
-          clearTimeout(timeout);
-          this.socket?.off('message_sent', onMessageSent);
-          if (data.success) {
-            resolve();
-          } else {
-            reject(new Error(data.error || 'Message send failed'));
-          }
-        }
-      };
-
-      this.socket.on('message_sent', onMessageSent);
-
-      // 发送消息
+      // 直接发送消息，不等待确认
       this.socket.emit('app_message', {
         content,
         contentType,
@@ -921,6 +901,9 @@ class ClawbotChannelBridge {
         mediaMimeType,
         messageId
       });
+
+      // 直接返回成功
+      resolve();
     });
   }
 

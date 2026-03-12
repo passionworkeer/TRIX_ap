@@ -46,8 +46,11 @@ class GatewayService {
 
           const result = JSON.parse(jsonStr);
 
-          const text = result.result?.payloads?.[0]?.text || result.payloads?.[0]?.text;
-          console.log('[GatewayService] <- response:', text?.slice(0, 50) || 'ok');
+          // 获取所有消息（payloads 可能是数组）
+          const payloads = result.result?.payloads || result.payloads || [];
+          console.log('[GatewayService] <- response payloads count:', payloads.length);
+
+          // 返回完整结果，让调用者处理多条消息
           resolve(result);
         } catch (e) {
           console.error('[GatewayService] Failed to parse CLI output:', stdout.slice(0, 300));

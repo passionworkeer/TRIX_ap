@@ -72,9 +72,12 @@ const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 z-[60] bg-black/8 backdrop-blur-[3px]"
+            className="fixed inset-0 z-[60] bg-black/8 backdrop-blur-[3px] cursor-pointer"
             aria-hidden="true"
-            onClick={onClose}
+            onClick={() => {
+              logger.ui.debug('[WorkbenchModal] Backdrop clicked, closing...');
+              onClose();
+            }}
             {...iosBackdropMotion}
           />
 

@@ -79,7 +79,7 @@ describe('useBotStateMachine', () => {
       expect(result.current.botState).toBe('THINKING');
     });
 
-    it('should set timeout to return to IDLE after max time', () => {
+    it('should stay in THINKING and not return to IDLE automatically', () => {
       vi.useFakeTimers();
 
       const { result } = renderHook(() => useBotStateMachine());
@@ -88,10 +88,11 @@ describe('useBotStateMachine', () => {
         result.current.enterThinking();
       });
 
-      // Fast forward past THINKING_MAX_MS (25000ms)
-      vi.advanceTimersByTime(25000);
+      act(() => {
+        vi.advanceTimersByTime(120000);
+      });
 
-      expect(result.current.botState).toBe('IDLE');
+      expect(result.current.botState).toBe('THINKING');
 
       vi.useRealTimers();
     });
@@ -118,11 +119,13 @@ describe('useBotStateMachine', () => {
         result.current.enterThinking();
       });
 
-      // The speaking timeout should be cleared, but thinking timeout should be set
-      // Fast forward past thinking max time
-      vi.advanceTimersByTime(25000);
+      // The speaking timeout should be cleared, but thinking timeout is removed
+      // meaning it should stay THINKING.
+      act(() => {
+        vi.advanceTimersByTime(120000);
+      });
 
-      expect(result.current.botState).toBe('IDLE');
+      expect(result.current.botState).toBe('THINKING');
 
       vi.useRealTimers();
     });
@@ -172,11 +175,15 @@ describe('useBotStateMachine', () => {
       });
 
       // The timeout should be at least SPEAKING_MIN_MS (1200ms)
-      vi.advanceTimersByTime(1200);
+      act(() => {
+        vi.advanceTimersByTime(1199);
+      });
       expect(shortResult.current.botState).toBe('SPEAKING');
 
       // Fast forward more
-      vi.advanceTimersByTime(1000);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
       expect(shortResult.current.botState).toBe('IDLE');
 
       vi.useRealTimers();
@@ -202,7 +209,9 @@ describe('useBotStateMachine', () => {
       // Expected duration: 800 + 29 * 45 = 800 + 1305 = 2105ms
       // But min is 1200, max is 12000, so should be around 2105ms
 
-      vi.advanceTimersByTime(3000);
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
 
       expect(result.current.botState).toBe('IDLE');
 
@@ -211,7 +220,7 @@ describe('useBotStateMachine', () => {
   });
 
   describe('handleBotMessageState', () => {
-    it('should enter thinking when voiceEnabled is true', () => {
+    it('should enter speaking even when voiceEnabled is true', () => {
       const { result } = renderHook(() =>
         useBotStateMachine({ voiceEnabled: true })
       );
@@ -227,7 +236,7 @@ describe('useBotStateMachine', () => {
         result.current.handleBotMessageState(message);
       });
 
-      expect(result.current.botState).toBe('THINKING');
+      expect(result.current.botState).toBe('SPEAKING');
     });
 
     it('should enter speaking when voiceEnabled is false', () => {
@@ -321,7 +330,7 @@ describe('useBotStateMachine', () => {
         withoutVoice.current.handleBotMessageState(message);
       });
 
-      expect(withVoice.current.botState).toBe('THINKING');
+      expect(withVoice.current.botState).toBe('SPEAKING');
       expect(withoutVoice.current.botState).toBe('SPEAKING');
     });
   });
@@ -344,14 +353,14 @@ describe('useBotStateMachine', () => {
         }
       );
 
-      // First with voice enabled - should enter thinking
+      // First with voice enabled - should enter speaking directly based on new logic
       act(() => {
         result.current.handleBotMessageState(latestMessage);
       });
 
-      expect(result.current.botState).toBe('THINKING');
+      expect(result.current.botState).toBe('SPEAKING');
 
-      // Now disable voice - should switch to speaking
+      // Now disable voice - should remain speaking
       rerender({ voiceEnabled: false, latestBotMessage: latestMessage });
 
       // Wait for the effect to run

@@ -22,21 +22,15 @@ class MessageService {
 
   async saveMessage(pairingId, direction, content, contentType = 'text', mediaUrl = null) {
     const id = uuidv4();
-    try {
-      await dbRun('BEGIN TRANSACTION');
-      await dbRun(
-        `
-          INSERT INTO messages (id, pairing_id, direction, content, content_type, media_url)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
-        [id, pairingId, direction, content, contentType || 'text', mediaUrl || null]
-      );
-      await dbRun('COMMIT');
-      return id;
-    } catch (err) {
-      await dbRun('ROLLBACK');
-      throw err;
-    }
+    // 单条 INSERT 不需要事务
+    await dbRun(
+      `
+        INSERT INTO messages (id, pairing_id, direction, content, content_type, media_url)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [id, pairingId, direction, content, contentType || 'text', mediaUrl || null]
+    );
+    return id;
   }
 
   async markDelivered(messageId) {
