@@ -20,7 +20,7 @@ const SERVER_URL = process.env.CLAWBOT_SERVER_URL || 'http://47.243.55.130:8765'
 const GATEWAY_URL = process.env.GATEWAY_URL || 'ws://127.0.0.1:18789';
 const AUTH_FILE = path.join(__dirname, 'trix-auth.json');
 
-const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE !== 'false';
+const ENABLE_LEGACY_BOT_RESPONSE = process.env.ENABLE_LEGACY_BOT_RESPONSE === 'true';
 const DEDUP_TTL_MS = Number(process.env.MESSAGE_DEDUP_TTL_MS || 10000);
 const ENABLE_GATEWAY_CHAT_BRIDGE = process.env.ENABLE_GATEWAY_CHAT_BRIDGE !== 'false';
 const ENABLE_CLI_AGENT_BRIDGE = process.env.ENABLE_CLI_AGENT_BRIDGE !== 'false';
@@ -1427,6 +1427,20 @@ function forwardToApp(normalized) {
     return;
   }
 
+  // 本地去重：防止同一 messageId 在短时间内发送多次
+  const now = Date.now();
+  const sentKey = `${payload.messageId}:${payload.content.substring(0, 30)}`;
+  if (forwardToApp.cache && forwardToApp.cache.has(sentKey) && now - (forwardToApp.cache.get(sentKey) || 0) < 3000) {
+    console.log('[TRIXChannel] skip duplicate forward:', payload.messageId, 'content:', payload.content.substring(0, 10));
+    return;
+  }
+  if (!forwardToApp.cache) forwardToApp.cache = new Map();
+  forwardToApp.cache.set(sentKey, now);
+  // 清理过期缓存
+  if (forwardToApp.cache.size > 100) {
+    forwardToApp.cache.clear();
+  }
+
   const outboundPayload = {
     deviceId,
     content: payload.content,
@@ -1618,6 +1632,7 @@ function handleGatewayMessage(msg) {
 
     if (pending?.kind === 'chat_history') {
       const runId = String(pending.runId || '').trim();
+      const sessionKey = pending.sessionKey;
       if (!msg.ok) {
         const errorMessage = msg.error?.message || 'unknown';
         console.warn(`[TRIXChannel] gateway chat.history failed run=${runId || 'n/a'}: ${errorMessage}`);
@@ -1631,21 +1646,27 @@ function handleGatewayMessage(msg) {
       }
 
       const text = extractGatewayHistoryText(msg.payload);
-      if (!text.trim()) {
-        if (runId && ENABLE_CLI_AGENT_BRIDGE) {
-          const normalized = gatewayRunMetaMap.get(runId);
-          if (normalized) {
-            triggerGatewayFallback(runId, normalized, 'history-empty');
+      // 如果历史为空（Gateway 尚未保存消息），等待 600ms 后重试（clawpilot 官方实现）
+      if (!text || !text.trim()) {
+        console.log(`[TRIXChannel] chat.history empty for run=${runId}, retry after 600ms...`);
+        // 延迟后重试
+        setTimeout(() => {
+          if (runId && sessionKey) {
+            requestGatewayChatHistory(runId, sessionKey);
           }
-        }
+        }, 600);
         return true;
       }
 
       if (runId) {
         clearGatewayFallback(runId);
         deliveredGatewayRuns.add(runId);
+        if (deliveredGatewayRuns.size > 500) {
+          deliveredGatewayRuns.clear();
+        }
       }
 
+      console.log(`[TRIXChannel] chat final (history fetched): runId=${runId} textLength=${text.length}`);
       forwardToApp({
         messageId: runId || makeMessageId('bot'),
         content: text,
@@ -1772,13 +1793,21 @@ function handleGatewayMessage(msg) {
       return true;
     }
 
-    // 关键修复：始终通过 chat.history 获取完整消息，而不是直接转发流式增量
-    // 因为 final 状态的 payload 内容可能只是部分增量，不是完整消息
+    // 参考 clawpilot 官方实现：https://github.com/anthropics/clawpilot/blob/main/src/relay/relay-manager.ts
+    // 关键：当 event === 'chat' 且 state === 'final' 时，
+    // 不转发原始事件（因为 payload 可能只是部分增量），
+    // 而是调用 chat.history 获取完整消息后再转发
     if (eventName === 'chat' && runId && trackedSessionKey) {
-      console.log(
-        `[TRIXChannel] <- gateway event=${eventName} state=${state || 'n/a'} run=${runId} - fetching complete message from history`
-      );
-      requestGatewayChatHistory(runId, trackedSessionKey);
+      // 如果是 final 状态，获取完整历史消息
+      if (isGatewayFinalState(state)) {
+        console.log(
+          `[TRIXChannel] <- gateway event=${eventName} state=${state} run=${runId} - fetching complete message from history`
+        );
+        // 立即请求 history，不要延迟（clawpilot 方式是直接请求，然后处理响应时重试）
+        requestGatewayChatHistory(runId, trackedSessionKey);
+        return true; // 不发送原始事件，等待 history 响应
+      }
+      // 非 final 状态，忽略中间状态
       return true;
     }
 
