@@ -37,17 +37,29 @@ function normalizeBaseUrl(baseUrl: string): string {
 }
 
 function resolveChannelHttpBaseUrl(): string {
+  // 首先尝试从环境变量获取
   const { channelUrl } = getClawbotEndpoints();
-  if (!channelUrl) {
-    throw new Error('Clawbot channel URL is not configured');
+  if (channelUrl && channelUrl !== 'ws://localhost:8765') {
+    const parsed = new URL(channelUrl);
+    parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+    parsed.pathname = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return normalizeBaseUrl(parsed.toString());
   }
 
-  const parsed = new URL(channelUrl);
-  parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
-  parsed.pathname = '';
-  parsed.search = '';
-  parsed.hash = '';
-  return normalizeBaseUrl(parsed.toString());
+  // Fallback: 基于当前页面 URL 自动检测
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  if (currentOrigin) {
+    return normalizeBaseUrl(currentOrigin);
+  }
+
+  // 最终 fallback: 硬编码的生产服务器地址（从全局变量读取）
+  if (typeof window !== 'undefined' && (window as any).__PROD_UPLOAD_URL__) {
+    return (window as any).__PROD_UPLOAD_URL__;
+  }
+
+  return 'http://TRIX_SERVER_HOST:8765';
 }
 
 function resolveUploadUrls(): string[] {

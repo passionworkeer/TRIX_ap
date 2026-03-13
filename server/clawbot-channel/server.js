@@ -13,6 +13,7 @@ const { initDatabase } = require('./config/database');
 const pairingService = require('./services/pairingService');
 const messageService = require('./services/messageService');
 const ossService = require('./services/ossService');
+const ArtifactService = require('./services/artifactService');
 const ttsService = require('./services/ttsService');
 const { studyRoomService } = require('./services/studyRoomService');
 const gatewayService = require('./services/gatewayService');
@@ -20,6 +21,9 @@ const gatewayClientService = require('./services/gatewayClientService');
 const providerService = require('./services/providerService');
 const localCommandService = require('./services/localCommandService');
 const relayService = require('./services/relayService');
+
+// 初始化 ArtifactService
+const artifactService = new ArtifactService(ossService);
 
 // CORS configuration - support whitelist via CORS_ORIGINS env var
 // Format: comma-separated domains, e.g., "https://example.com,https://app.example.com"
@@ -49,6 +53,18 @@ const isProduction = process.env.NODE_ENV === 'production';
 if (CORS_ORIGINS === '*' && isProduction) {
   console.warn('[WARNING] CORS is set to wildcard (*) in production mode. This is insecure!');
   console.warn('[WARNING] Please set CORS_ORIGINS environment variable to restrict allowed origins.');
+}
+
+// 默认用户 ID - 仅用于开发环境，通过环境变量配置
+// 注意: 生产环境不应使用默认用户，消息应明确发送给正确的用户
+const DEFAULT_USER_ID = process.env.DEFAULT_USER_ID || null;
+if (DEFAULT_USER_ID) {
+  console.log('[Bot->App] DEFAULT_USER_ID 已配置');
+  if (isProduction) {
+    console.warn('[SECURITY WARNING] DEFAULT_USER_ID is set in production - this may cause message leaks to wrong user!');
+  }
+} else {
+  console.log('[Bot->App] 未配置 DEFAULT_USER_ID');
 }
 
 const app = express();
@@ -426,11 +442,24 @@ function normalizeAppPayload(data = {}, socketUserId) {
   };
 }
 
+// 允许的 contentType 白名单
+const ALLOWED_CONTENT_TYPES = ['text', 'image', 'video', 'audio', 'file', 'mixed'];
+
 async function normalizeBotPayload(data = {}, socket) {
+  // 支持多种 content 字段名
   const content = data.content ?? data.response ?? data.text ?? data.message ?? '';
-  const contentType = data.contentType ?? data.content_type ?? 'text';
-  const mediaUrl = data.mediaUrl ?? data.media_url ?? null;
-  const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ?? null;
+  // 支持多种 contentType 字段名，带白名单验证
+  const rawContentType = data.contentType ?? data.content_type ??
+                        data.responseContentType ?? 'text';
+  const contentType = ALLOWED_CONTENT_TYPES.includes(rawContentType) ? rawContentType : 'text';
+  // 支持多种 mediaUrl 字段名
+  const mediaUrl = data.mediaUrl ?? data.media_url ??
+                  data.attachmentUrl ?? data.fileUrl ??
+                  data.attachment_url ?? data.file_url ?? null;
+  // 支持多种 mediaMimeType 字段名
+  const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ??
+                       data.attachmentMimeType ?? data.fileMimeType ??
+                       data.attachment_mime_type ?? data.file_mime_type ?? null;
   const mediaMetadata = buildMediaMetadata(data);
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeFallbackMessageId('bot');
 
@@ -2003,9 +2032,14 @@ io.on('connection', (socket) => {
       // 方法3: 如果以上都找不到，尝试获取所有配对的 device_id
       if (!userId) {
         console.log('[Bot->App] 警告: 无法确定目标用户, deviceId:', deviceId, 'socket.pairingId:', socket.pairingId);
-        // 暂时使用默认用户进行测试
-        userId = 'bd49b054-7e8d-45e0-863e-0a7d89d51bf3';
-        console.log('[Bot->App] 使用默认 userId:', userId);
+        // 只有配置了 DEFAULT_USER_ID 才使用默认用户
+        if (DEFAULT_USER_ID) {
+          userId = DEFAULT_USER_ID;
+          console.log('[Bot->App] 使用默认 userId:', userId);
+        } else {
+          console.error('[Bot->App] 无法确定目标用户且未配置 DEFAULT_USER_ID，丢弃消息');
+          return;
+        }
       }
 
       if (pairing?.id) {
@@ -2021,8 +2055,21 @@ io.on('connection', (socket) => {
         );
       }
 
-      // 直接发送完整消息
-      io.to(`user_${userId}`).emit('bot_message', {
+      // 处理 artifact（文件产物）自动上传
+      let artifactInfo = null;
+      if (rawData.artifacts || rawData.artifact) {
+        try {
+          artifactInfo = await artifactService.processMessageArtifact(rawData);
+          if (artifactInfo) {
+            console.log('[Bot->App] Artifact 上传成功:', artifactInfo.url);
+          }
+        } catch (artifactError) {
+          console.error('[Bot->App] Artifact 处理失败:', artifactError);
+        }
+      }
+
+      // 构建消息 payload
+      const messagePayload = {
         content: deliveredContent,
         contentType: normalized.contentType,
         mediaUrl: normalized.mediaUrl,
@@ -2031,7 +2078,22 @@ io.on('connection', (socket) => {
         timestamp: timestamp,
         messageId: messageId,
         sourceEvent: sourceEvent
-      });
+      };
+
+      // 如果有 artifact，添加到消息中
+      if (artifactInfo) {
+        messagePayload.contentType = 'file';
+        messagePayload.mediaUrl = artifactInfo.url;
+        messagePayload.mediaMimeType = artifactInfo.mimeType;
+        messagePayload.mediaMetadata = {
+          ...messagePayload.mediaMetadata,
+          originalName: artifactInfo.fileName,
+          size: artifactInfo.size
+        };
+      }
+
+      // 直接发送完整消息
+      io.to(`user_${userId}`).emit('bot_message', messagePayload);
 
       console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', deliveredContent.substring(0, 50));
     } catch (error) {
