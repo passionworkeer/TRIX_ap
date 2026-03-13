@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import botAvatarImg from '../assets/roles/role1/AvatarHead.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,7 +26,6 @@ import {
 } from '../features/chat/utils/aiPrompt';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
 import { uploadFile, IMAGE_COMPRESSION_OPTIONS, resolveFileCategory } from '../services/uploadService';
-import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/serverOssUploadService';
 import imageCompression from 'browser-image-compression';
 import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
@@ -38,6 +37,18 @@ import {
 } from '../utils/iosMotion';
 
 // UI Message interface
+interface UIAttachment {
+  id?: string;
+  kind: 'image' | 'audio' | 'video' | 'file';
+  uri: string;
+  mimeType?: string;
+  fileName?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
 interface UIMessage {
   id: string | number;
   sender: 'user' | 'bot' | 'friend';
@@ -55,58 +66,74 @@ interface UIMessage {
     originalName?: string;
     size?: number;
   };
+  attachments?: UIAttachment[];
 }
 
 const ATTACHMENT_PLACEHOLDERS = ['[image]', '[video]', '[file]', '[media]'];
 
-function isVideoAttachment(messageType?: UIMessage['messageType'], mediaType?: string, mediaUri?: string): boolean {
-  const normalizedMimeType = String(mediaType || '').toLowerCase();
-  const normalizedUri = String(mediaUri || '').toLowerCase();
+function getMessageAttachments(message: UIMessage): UIAttachment[] {
+  if (message.attachments && message.attachments.length > 0) {
+    return message.attachments;
+  }
 
-  return messageType === 'video'
+  if (!message.mediaUri) {
+    return [];
+  }
+
+  return [{
+    kind: message.messageType === 'voice'
+      ? 'audio'
+      : message.messageType === 'video'
+        ? 'video'
+        : message.messageType === 'image'
+          ? 'image'
+          : 'file',
+    uri: message.mediaUri,
+    mimeType: message.mediaType,
+    fileName: message.mediaMetadata?.originalName,
+    size: message.mediaSize ?? message.mediaMetadata?.size,
+    width: message.mediaMetadata?.width,
+    height: message.mediaMetadata?.height,
+    duration: message.mediaMetadata?.duration,
+  }];
+}
+
+function isVideoAttachment(attachment: UIAttachment): boolean {
+  const normalizedMimeType = String(attachment.mimeType || '').toLowerCase();
+  const normalizedUri = String(attachment.uri || '').toLowerCase();
+
+  return attachment.kind === 'video'
     || normalizedMimeType.startsWith('video/')
     || ['.mp4', '.webm', '.mov', '.m4v', '.avi', '.mpeg'].some((extension) => normalizedUri.endsWith(extension));
 }
 
-function isFileAttachment(message: UIMessage): boolean {
-  if (!message.mediaUri || message.messageType === 'voice') {
-    return false;
-  }
-
-  if (message.messageType === 'file') {
-    return true;
-  }
-
-  if (message.messageType === 'image' || message.messageType === 'video' || message.messageType === 'mixed') {
-    return false;
-  }
-
-  const normalizedMimeType = String(message.mediaType || '').toLowerCase();
-  return Boolean(normalizedMimeType) && !normalizedMimeType.startsWith('image/') && !normalizedMimeType.startsWith('video/');
+function isFileAttachment(attachment: UIAttachment): boolean {
+  const normalizedMimeType = String(attachment.mimeType || '').toLowerCase();
+  return attachment.kind === 'file'
+    || (!!normalizedMimeType && !normalizedMimeType.startsWith('image/') && !normalizedMimeType.startsWith('video/') && !normalizedMimeType.startsWith('audio/'));
 }
 
-function shouldHideAttachmentPlaceholder(text: string, mediaUri?: string): boolean {
+function shouldHideAttachmentPlaceholder(text: string, attachments: UIAttachment[]): boolean {
   const normalizedText = String(text || '').trim();
-  const normalizedMediaUri = String(mediaUri || '').trim();
+  const hasAttachments = attachments.length > 0;
 
-  if (!normalizedText || !normalizedMediaUri) {
+  if (!normalizedText || !hasAttachments) {
     return false;
   }
 
-  if (ATTACHMENT_PLACEHOLDERS.includes(normalizedText) || normalizedText === normalizedMediaUri) {
+  if (ATTACHMENT_PLACEHOLDERS.includes(normalizedText)) {
     return true;
   }
 
-  return ATTACHMENT_PLACEHOLDERS.some((placeholder) => normalizedText === `${placeholder} ${normalizedMediaUri}`);
+  return ATTACHMENT_PLACEHOLDERS.some((placeholder) => normalizedText.startsWith(`${placeholder} `));
 }
-
 // Mock conversations removed; use database data.
 
 const ChatDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
-  const { showError, showSuccess } = useNotification();
+  const { showError, showSuccess, showWarning } = useNotification();
   const { requestConfirm, ConfirmModalRenderer } = useConfirmModal();
   const { handleError } = useErrorHandler();
 
@@ -184,7 +211,8 @@ const ChatDetail: React.FC = () => {
     uri: string;
     type: string;
     size?: number;
-    category: 'image' | 'video' | 'file';
+    category: 'image' | 'video' | 'audio' | 'file';
+    uploadId?: string;
     metadata?: {
       width?: number;
       height?: number;
@@ -201,7 +229,9 @@ const ChatDetail: React.FC = () => {
   const {
     messages: clawbotMessages,
     sendMessage: clawbotSendMessage,
+    uploadAttachment,
     isPaired,
+    botOnline,
     unpair,
     status,
     botState,
@@ -359,7 +389,7 @@ const ChatDetail: React.FC = () => {
     if (!isBotConversation) return;
 
     // 从 context 获取最新消息。
-    setMessages(clawbotMessages.map(msg => ({
+    setMessages(clawbotMessages.map((msg) => ({
       id: msg.id || `bot-${msg.timestamp}`,
       sender: msg.sender,
       text: typeof msg.content === 'string' ? msg.content : '',
@@ -369,6 +399,17 @@ const ChatDetail: React.FC = () => {
       mediaType: msg.mediaMimeType,
       mediaSize: typeof msg.mediaMetadata?.size === 'number' ? msg.mediaMetadata.size : undefined,
       mediaMetadata: msg.mediaMetadata,
+      attachments: msg.attachments?.map((attachment) => ({
+        id: attachment.id,
+        kind: attachment.kind,
+        uri: attachment.url,
+        mimeType: attachment.mimeType,
+        fileName: attachment.fileName,
+        size: attachment.size,
+        width: attachment.width,
+        height: attachment.height,
+        duration: attachment.duration,
+      })),
     })));
 
     return () => {
@@ -538,54 +579,49 @@ const ChatDetail: React.FC = () => {
     // 从 attachmentPreviews 获取媒体数据（使用第一个）
     const mediaData = hasMedia ? attachmentPreviews[0] : null;
 
-    // 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
+    // 特殊处理：机器人会话直接发送到新原生通道，不保存到 Supabase
     if (isBotConversation) {
-      const botContentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = hasMedia
-        ? mediaData?.category === 'file'
-          ? 'file'
-          : hasText
+      const nativeAttachments = attachmentPreviews.map((preview) => ({
+        uploadId: preview.uploadId,
+        kind: preview.category,
+        url: preview.uri,
+        mimeType: preview.type,
+        fileName: preview.metadata?.originalName,
+        size: preview.size,
+        width: preview.metadata?.width,
+        height: preview.metadata?.height,
+        duration: preview.metadata?.duration,
+      }));
+
+      const botContentType: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice' = hasMedia
+        ? nativeAttachments.length === 1 && nativeAttachments[0]?.kind === 'audio' && !hasText
+          ? 'voice'
+          : nativeAttachments.length > 1 || hasText
             ? 'mixed'
-            : (mediaData?.category ?? 'image')
+            : (nativeAttachments[0]?.kind === 'audio'
+                ? 'voice'
+                : nativeAttachments[0]?.kind === 'file'
+                  ? 'file'
+                  : nativeAttachments[0]?.kind || 'image')
         : 'text';
 
-      const tempUserMessage: UIMessage = {
-        id: `temp-${Date.now()}`,
-        sender: 'user',
-        text: messageText,
-        timestamp: formatTime(new Date()),
-        messageType: botContentType,
-        mediaUri: mediaData?.uri,
-        mediaType: mediaData?.type,
-        mediaSize: mediaData?.size,
-        mediaMetadata: mediaData?.metadata,
-      };
-
       try {
-        // 清空输入
         setInput('');
         setAttachmentPreviews([]);
-
-        // 临时显示用户消息(乐观更新 UI)
-        setMessages(prev => [...prev, tempUserMessage]);
-
-        // 使用 ClawbotChannelContext 发送消息
         await clawbotSendMessage(
           messageText,
           botContentType,
           mediaData?.uri,
           mediaData?.type,
-          mediaData?.metadata
+          mediaData?.metadata,
+          nativeAttachments,
         );
       } catch (error) {
         logger.chat.error('Bot 消息发送失败:', error);
         showError('发送失败，请重试');
-
-        // 发送失败，移除临时消息
-        setMessages(prev => prev.filter(msg => msg.id !== tempUserMessage.id));
       }
       return;
     }
-
     // 普通好友：保存到 Supabase（现有逻辑）
     setInput('');
     setAttachmentPreviews([]);
@@ -663,27 +699,42 @@ const ChatDetail: React.FC = () => {
 
   // 处理语音消息发送
   const handleVoiceSend = async (audioBlob: Blob, duration: number) => {
-    // 机器人会话不支持语音消息
-    if (isBotConversation) {
-      showError('Clawbot 暂不支持语音消息');
-      return;
-    }
-
     setIsUploadingVoice(true);
     setShowVoiceRecorder(false);
 
     try {
-      // 将 Blob 转换为 File
       const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
-        type: audioBlob.type || 'audio/webm'
+        type: audioBlob.type || 'audio/webm',
       });
 
-      // 上传音频文件
-      const result = await uploadAudio(audioFile);
+      if (isBotConversation) {
+        const uploaded = await uploadAttachment(audioFile, { kind: 'audio', fileName: audioFile.name });
+        await clawbotSendMessage(
+          '',
+          'voice',
+          uploaded.url,
+          uploaded.mimeType,
+          {
+            duration,
+            originalName: uploaded.fileName,
+            size: uploaded.size,
+          },
+          [{
+            uploadId: uploaded.attachmentId,
+            kind: 'audio',
+            url: uploaded.url,
+            mimeType: uploaded.mimeType,
+            fileName: uploaded.fileName,
+            size: uploaded.size,
+            duration,
+          }],
+        );
+        return;
+      }
 
+      const result = await uploadAudio(audioFile);
       const timeString = formatTime(new Date());
 
-      // 临时显示用户消息(乐观更新 UI)
       const tempUserMessage: UIMessage = {
         id: `temp-${Date.now()}`,
         sender: 'user',
@@ -697,7 +748,6 @@ const ChatDetail: React.FC = () => {
 
       setMessages(prev => [...prev, tempUserMessage]);
 
-      // 保存语音消息到数据库
       const messageId = await sendMessageWithMedia(
         friendId,
         'user',
@@ -709,17 +759,16 @@ const ChatDetail: React.FC = () => {
           category: 'audio',
           metadata: { duration },
         },
-        'voice'
+        'voice',
       );
 
-      // 用真实数据库 ID 替换临时 ID
       if (messageId) {
         setMessages(prev =>
           prev.map(msg =>
             msg.id === tempUserMessage.id
               ? { ...msg, id: messageId }
-              : msg
-          )
+              : msg,
+          ),
         );
       }
     } catch (error) {
@@ -729,7 +778,6 @@ const ChatDetail: React.FC = () => {
       setIsUploadingVoice(false);
     }
   };
-
   // 快照入口：图片预览就绪后自动发送一次到 Clawbot
   useEffect(() => {
     if (!autoSendPrompt || autoSendTriggeredRef.current) return;
@@ -752,34 +800,39 @@ const ChatDetail: React.FC = () => {
         throw new Error('不支持的文件类型');
       }
 
-      const previewCategory: AttachmentPreview['category'] = uploadCategory === 'image' || uploadCategory === 'video'
+      const previewCategory: AttachmentPreview['category'] = uploadCategory === 'image' || uploadCategory === 'video' || uploadCategory === 'audio'
         ? uploadCategory
         : 'file';
 
       if (isBotConversation) {
-        if (isServerOssUploadEnabled()) {
-          let fileToUpload = file;
-          if (uploadCategory === 'image') {
-            try {
-              fileToUpload = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
-            } catch (compressError) {
-              logger.upload.warn('[Upload] Compression failed, using original:', compressError);
-            }
+        let fileToUpload = file;
+        if (uploadCategory === 'image') {
+          try {
+            fileToUpload = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+          } catch (compressError) {
+            logger.upload.warn('[Upload] Compression failed, using original:', compressError);
           }
-
-          const result = await uploadFileToServerOss(fileToUpload);
-          setAttachmentPreviews(prev => [...prev, {
-            uri: result.url,
-            type: result.mimeType,
-            size: result.size,
-            category: previewCategory,
-            metadata: {
-              originalName: result.filename || file.name,
-              size: result.size,
-            }
-          }]);
-          return;
         }
+
+        const uploaded = await uploadAttachment(fileToUpload, {
+          fileName: file.name,
+          kind: previewCategory === 'audio' ? 'audio' : previewCategory,
+        });
+        setAttachmentPreviews(prev => [...prev, {
+          uri: uploaded.url,
+          type: uploaded.mimeType,
+          size: uploaded.size,
+          category: uploaded.kind,
+          uploadId: uploaded.attachmentId,
+          metadata: {
+            originalName: uploaded.fileName,
+            size: uploaded.size,
+            width: uploaded.width,
+            height: uploaded.height,
+            duration: uploaded.duration,
+          }
+        }]);
+        return;
       }
 
       const result = await uploadFile(file, uploadCategory);
@@ -809,13 +862,13 @@ const ChatDetail: React.FC = () => {
     }
   };
 
-  // 澶勭悊鏂囦欢閫夋嫨
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+  // 处理文件选择（支持多附件）
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    for (const file of files) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleFileUpload(file);
     }
-    // 重置 input，允许再次选择同一文件。
     e.target.value = '';
   };
 
@@ -827,6 +880,27 @@ const ChatDetail: React.FC = () => {
       return 'bg-gray-400';
     }
 
+    // Bot 对话：区分 Web 连接状态和 Bot 设备在线状态
+    if (isBotConversation) {
+      // 已配对但 Bot 不在线
+      if (isPaired && !botOnline) {
+        return 'bg-red-500'; // Bot 离线显示红色
+      }
+      // 已配对且 Bot 在线
+      if (isPaired && botOnline) {
+        return 'bg-green-500'; // Bot 在线显示绿色
+      }
+      // 已配对但正在连接中
+      if (isPaired && (status === 'CONNECTING' || status === 'RECONNECTING')) {
+        return 'bg-yellow-500 animate-pulse';
+      }
+      // 未配对
+      if (!isPaired) {
+        return 'bg-gray-400';
+      }
+    }
+
+    // 非 Bot 对话：显示 WebSocket 连接状态
     switch (status) {
       case 'CONNECTED': return 'bg-green-500';
       case 'CONNECTING':
@@ -841,6 +915,27 @@ const ChatDetail: React.FC = () => {
     if (!isBotConversation) {
       return getOnlineStatusText(friendLastActive);
     }
+
+    // Bot 对话：显示 Bot 设备的真实在线状态
+    if (isBotConversation) {
+      // 已配对但 Bot 不在线
+      if (isPaired && !botOnline) {
+        return 'Bot Offline';
+      }
+      // 已配对且 Bot 在线
+      if (isPaired && botOnline) {
+        return 'Online';
+      }
+      // 已配对但正在连接中
+      if (isPaired && (status === 'CONNECTING' || status === 'RECONNECTING')) {
+        return 'Connecting...';
+      }
+      // 未配对
+      if (!isPaired) {
+        return 'Not Paired';
+      }
+    }
+
     switch (status) {
       case 'CONNECTED': return 'Online';
       case 'CONNECTING':
@@ -981,111 +1076,98 @@ const ChatDetail: React.FC = () => {
           <>
             <div className="my-4 text-center text-xs text-slate-400 dark:text-slate-500">Today</div>
 
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`group flex animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                {msg.sender !== 'user' && (
-                  <div className="mr-2 mt-auto shrink-0">
-                    {isBot ? (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                        <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />
+            {messages.map((msg) => {
+              const msgAttachments = getMessageAttachments(msg);
+              const visualAttachments = msgAttachments.filter((attachment) => attachment.kind === 'image' || attachment.kind === 'video');
+              const fileAttachments = msgAttachments.filter((attachment) => isFileAttachment(attachment));
+              const audioAttachments = msgAttachments.filter((attachment) => attachment.kind === 'audio');
+              const shouldRenderBubble = audioAttachments.length > 0
+                || (msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msgAttachments));
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`group flex animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {msg.sender !== 'user' && (
+                    <div className="mr-2 mt-auto shrink-0">
+                      {isBot ? (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                          <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        <Avatar name={name} avatar={avatar} size="xs" />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex max-w-[75%] flex-col gap-1">
+                    {visualAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id || attachment.uri}
+                        className={`mb-1 overflow-hidden rounded-2xl ${msg.sender === 'user' ? 'rounded-tr-sm flex justify-end' : 'rounded-tl-sm'} bg-slate-100 dark:bg-slate-800`}
+                      >
+                        <MediaMessage
+                          uri={attachment.uri}
+                          type={isVideoAttachment(attachment) ? 'video' : 'image'}
+                          alt="Attachment"
+                          maxSize="sm"
+                          className="w-full max-w-[240px] h-auto object-cover"
+                        />
                       </div>
-                    ) : (
-                      <Avatar name={name} avatar={avatar} size="xs" />
+                    ))}
+
+                    {fileAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id || attachment.uri}
+                        className={`mb-1 ${msg.sender === 'user' ? 'flex justify-end' : ''}`}
+                      >
+                        <FileAttachmentCard
+                          uri={attachment.uri}
+                          mimeType={attachment.mimeType}
+                          fileName={attachment.fileName}
+                          size={attachment.size}
+                          className="max-w-[280px]"
+                        />
+                      </div>
+                    ))}
+
+                    {shouldRenderBubble && (
+                      <div
+                        className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
+                          msg.sender === 'user'
+                            ? 'rounded-2xl rounded-tr-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm'
+                            : 'rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                        }`}
+                      >
+                        {audioAttachments.map((attachment) => (
+                          <div key={attachment.id || attachment.uri} className="-mx-2 -my-1 mb-2 last:mb-0">
+                            <VoiceMessage
+                              url={attachment.uri}
+                              duration={attachment.duration || 0}
+                              variant={msg.sender === 'user' ? 'sender' : 'receiver'}
+                            />
+                          </div>
+                        ))}
+
+                        {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msgAttachments) && (
+                          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-
-                <div className="flex max-w-[75%] flex-col gap-1">
-                  
-                  {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && !isFileAttachment(msg) && (
-                    <div className="mb-1 overflow-hidden rounded-2xl rounded-tl-sm bg-slate-100 dark:bg-slate-800">
-                      <MediaMessage
-                        uri={msg.mediaUri}
-                        type={isVideoAttachment(msg.messageType, msg.mediaType, msg.mediaUri) ? 'video' : 'image'}
-                        alt="Attachment"
-                        maxSize="sm"
-                        className="w-full max-w-[240px] h-auto object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {msg.mediaUri && msg.sender !== 'user' && isFileAttachment(msg) && (
-                    <div className="mb-1">
-                      <FileAttachmentCard
-                        uri={msg.mediaUri}
-                        mimeType={msg.mediaType}
-                        fileName={msg.mediaMetadata?.originalName}
-                        size={msg.mediaSize ?? msg.mediaMetadata?.size}
-                        className="max-w-[280px]"
-                      />
-                    </div>
-                  )}
-
-                  {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && !isFileAttachment(msg) && (
-                    <div className="mb-1 flex justify-end">
-                      <MediaMessage
-                        uri={msg.mediaUri}
-                        type={isVideoAttachment(msg.messageType, msg.mediaType, msg.mediaUri) ? 'video' : 'image'}
-                        alt="Attachment"
-                        maxSize="sm"
-                        className="w-full max-w-[240px] h-auto object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {msg.mediaUri && msg.sender === 'user' && isFileAttachment(msg) && (
-                    <div className="mb-1 flex justify-end">
-                      <FileAttachmentCard
-                        uri={msg.mediaUri}
-                        mimeType={msg.mediaType}
-                        fileName={msg.mediaMetadata?.originalName}
-                        size={msg.mediaSize ?? msg.mediaMetadata?.size}
-                        className="max-w-[280px]"
-                      />
-                    </div>
-                  )}
-
-                  {(msg.messageType === 'voice' || (msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msg.mediaUri))) && (
-                    <div
-                      className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
-                        msg.sender === 'user'
-                          ? 'rounded-2xl rounded-tr-sm bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm'
-                          : 'rounded-2xl rounded-tl-sm bg-slate-100 text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                    <span
+                      className={`px-1 text-[10px] text-slate-400 dark:text-slate-500 ${
+                        msg.sender === 'user' ? 'text-right' : 'text-left'
                       }`}
                     >
-                      {/* 语音消息 */}
-                      {msg.messageType === 'voice' && msg.mediaUri && (
-                        <div className="-mx-2 -my-1">
-                          <VoiceMessage
-                            url={msg.mediaUri}
-                            duration={msg.mediaMetadata?.duration || 0}
-                            variant={msg.sender === 'user' ? 'sender' : 'receiver'}
-                          />
-                        </div>
-                      )}
-                      
-                      {/* 文本消息 */}
-                      {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msg.mediaUri) && (
-                        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                      )}
-                    </div>
-                  )}
-                  <span
-                    className={`px-1 text-[10px] text-slate-400 dark:text-slate-500 ${
-                      msg.sender === 'user' ? 'text-right' : 'text-left'
-                    }`}
-                  >
-                    {msg.timestamp}
-                  </span>
+                      {msg.timestamp}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-
+              );
+            })}
             {isBotConversation && botState === 'THINKING' && (
               <div className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start">
                 <div className="mr-2 mt-auto shrink-0">
@@ -1324,6 +1406,28 @@ const ChatDetail: React.FC = () => {
 };
 
 export default ChatDetail;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

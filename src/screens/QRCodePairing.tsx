@@ -1,230 +1,68 @@
-ï»¿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Scan,
-  Wifi,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  ArrowLeft,
-  Loader,
-} from 'lucide-react';
-import { useQRCodePairing } from '../contexts/QRCodePairingContext';
-import { logger } from '../utils/logger';
+import { motion } from 'framer-motion';
+import { AlertCircle, ArrowLeft, CheckCircle, Keyboard, Loader, Scan } from 'lucide-react';
 import { AppRoutes } from '../types';
 import QRScanner from '../components/QRScanner';
-import clawbotPairingService from '../services/clawbotPairingService';
 import { useNotification } from '../hooks/useNotification';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 
-interface PairingStatusInfo {
-  title: string;
-  message: string;
-  color: string;
-}
-
-const asString = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const normalizeQRCodePayload = (rawData: Record<string, unknown>) => {
-  return {
-    gatewayUrl: asString(rawData.gatewayUrl) || asString(rawData.gateway_url) || asString(rawData.g),
-    pairingToken: asString(rawData.pairingToken) || asString(rawData.pairing_token) || asString(rawData.t),
-    deviceId: asString(rawData.deviceId) || asString(rawData.device_id),
-    expiresAt: asString(rawData.expiresAt) || asString(rawData.expires_at),
-    mode: asString(rawData.mode) || asString(rawData.m) || asString(rawData.clientMode),
-    version: asString(rawData.version),
-  };
-};
+const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
 
 const QRCodePairing: React.FC = () => {
-  const { showError } = useNotification();
   const navigate = useNavigate();
-  const {
-    isPairing,
-    pairingStatus,
-    deviceToken,
-    errorMessage,
-    startPairing,
-    cancelPairing,
-    resetPairing,
-  } = useQRCodePairing();
+  const { showError, showSuccess } = useNotification();
+  const { isPaired, pairWithCode, pairWithQR, lastError } = useClawbotChannel();
 
   const [manualCode, setManualCode] = useState('');
-  const [deviceName, setDeviceName] = useState('');
-  const [showManualInput, setShowManualInput] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (pairingStatus === 'approved' && deviceToken) {
+    if (isPaired) {
+      showSuccess('Åä¶Ô³É¹¦£¬ÕıÔÚ·µ»ØÊ×Ò³');
       const timer = setTimeout(() => {
         navigate(AppRoutes.HOME);
-      }, 2000);
+      }, 1200);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [pairingStatus, deviceToken, navigate]);
-
-  const getDeviceName = () => {
-    return deviceName.trim() || `TRIX-${navigator.platform}`;
-  };
-
-  const validatePayloadOrThrow = (gatewayUrl?: string, pairingToken?: string) => {
-    if (!gatewayUrl) {
-      throw new Error('é…å¯¹ç ç¼ºå°‘å¿…è¦å­—æ®µ gatewayUrl æˆ– gateway_url');
-    }
-    if (!pairingToken) {
-      throw new Error('é…å¯¹ç ç¼ºå°‘å¿…è¦å­—æ®µ pairingToken æˆ– pairing_token');
-    }
-  };
-
-  const savePairingPayload = (payload: {
-    gatewayUrl: string;
-    pairingToken: string;
-    deviceId?: string;
-  }) => {
-    localStorage.setItem('clawbot_gateway_url', payload.gatewayUrl);
-    localStorage.setItem('clawbot_pairing_token', payload.pairingToken);
-
-    if (payload.deviceId) {
-      localStorage.setItem('clawbot_device_id', payload.deviceId);
-    }
-  };
+  }, [isPaired, navigate, showSuccess]);
 
   const handleManualPairing = async () => {
-    try {
-      const rawData = JSON.parse(manualCode.trim()) as Record<string, unknown>;
-      const payload = normalizeQRCodePayload(rawData);
-      validatePayloadOrThrow(payload.gatewayUrl, payload.pairingToken);
-
-      savePairingPayload({
-        gatewayUrl: payload.gatewayUrl!,
-        pairingToken: payload.pairingToken!,
-        deviceId: payload.deviceId,
-      });
-
-      logger.pairing.debug('[QRCodePairing] é…å¯¹ä¿¡æ¯å·²ä¿å­˜', {
-        gatewayUrl: payload.gatewayUrl,
-        hasToken: Boolean(payload.pairingToken),
-        deviceId: payload.deviceId,
-        expiresAt: payload.expiresAt,
-        version: payload.version,
-      });
-
-      if (payload.mode === 'webchat') {
-        clawbotPairingService.directConnect(payload.gatewayUrl!, payload.pairingToken!);
-        navigate(AppRoutes.HOME);
-        return;
-      }
-
-      await startPairing(getDeviceName());
-      setManualCode('');
-      setShowManualInput(false);
-    } catch (error) {
-      logger.pairing.error('[QRCodePairing] å¤„ç†é…å¯¹ç å¤±è´¥:', error);
-      showError(error instanceof Error ? error.message : 'é…å¯¹ç æ ¼å¼é”™è¯¯ï¼Œè¯·æ£€æŸ¥åé‡è¯•');
+    const normalizedCode = manualCode.trim().toUpperCase();
+    if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
+      showError('ÇëÊäÈë 6 µ½ 8 Î»×ÖÄ¸Êı×ÖÅä¶ÔÂë');
+      return;
     }
-  };
 
-  const handleStartPairing = async () => {
-    await startPairing(getDeviceName());
+    try {
+      setLoading(true);
+      const success = await pairWithCode(normalizedCode);
+      if (!success) {
+        showError('Åä¶ÔÂëÎŞĞ§»òÒÑ¹ıÆÚ');
+      }
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Åä¶ÔÊ§°Ü');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleScanSuccess = async (decodedText: string) => {
     try {
-      const rawData = JSON.parse(decodedText) as Record<string, unknown>;
-      const payload = normalizeQRCodePayload(rawData);
-      validatePayloadOrThrow(payload.gatewayUrl, payload.pairingToken);
-
-      savePairingPayload({
-        gatewayUrl: payload.gatewayUrl!,
-        pairingToken: payload.pairingToken!,
-        deviceId: payload.deviceId,
-      });
-
-      await startPairing(getDeviceName());
+      setLoading(true);
+      const success = await pairWithQR(decodedText);
+      if (!success) {
+        showError('¶şÎ¬ÂëÅä¶ÔÊ§°Ü');
+      }
       setShowScanner(false);
     } catch (error) {
-      logger.pairing.error('[QRCodePairing] å¤„ç†æ‰«æç»“æœå¤±è´¥:', error);
-      showError(error instanceof Error ? error.message : 'äºŒç»´ç æ ¼å¼é”™è¯¯ï¼Œè¯·é‡æ–°æ‰«æ');
+      showError(error instanceof Error ? error.message : '¶şÎ¬ÂëÅä¶ÔÊ§°Ü');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleCancelPairing = async () => {
-    await cancelPairing();
-    resetPairing();
-  };
-
-  const handleGoBack = () => {
-    if (isPairing) {
-      void handleCancelPairing();
-    }
-    navigate(-1);
-  };
-
-  const renderStatusIcon = () => {
-    switch (pairingStatus) {
-      case 'approved':
-        return <CheckCircle className="h-20 w-20 text-green-500 dark:text-green-400" />;
-      case 'denied':
-      case 'cancelled':
-        return <XCircle className="h-20 w-20 text-red-500 dark:text-red-400" />;
-      case 'expired':
-        return <AlertCircle className="h-20 w-20 text-orange-500 dark:text-orange-400" />;
-      case 'pending':
-        return <Loader className="h-20 w-20 animate-spin text-blue-500 dark:text-blue-400" />;
-      default:
-        return <Wifi className="h-20 w-20 text-indigo-500 dark:text-indigo-400" />;
-    }
-  };
-
-  const renderStatusMessage = (): PairingStatusInfo => {
-    switch (pairingStatus) {
-      case 'approved':
-        return {
-          title: 'é…å¯¹æˆåŠŸ',
-          message: 'æ­£åœ¨è¿æ¥åˆ° Clawbot Gatewayâ€¦',
-          color: 'text-green-700 dark:text-green-300',
-        };
-      case 'denied':
-        return {
-          title: 'é…å¯¹è¢«æ‹’ç»',
-          message: errorMessage || 'ç”µè„‘ç«¯æ‹’ç»äº†æœ¬æ¬¡é…å¯¹è¯·æ±‚ã€‚',
-          color: 'text-red-700 dark:text-red-300',
-        };
-      case 'cancelled':
-        return {
-          title: 'é…å¯¹å·²å–æ¶ˆ',
-          message: 'é…å¯¹æµç¨‹å·²ä¸­æ­¢ã€‚',
-          color: 'text-slate-700 dark:text-slate-300',
-        };
-      case 'expired':
-        return {
-          title: 'é…å¯¹è¶…æ—¶',
-          message: errorMessage || 'é…å¯¹è¯·æ±‚å·²è¿‡æœŸï¼Œè¯·é‡æ–°å‘èµ·é…å¯¹ã€‚',
-          color: 'text-orange-700 dark:text-orange-300',
-        };
-      case 'pending':
-        return {
-          title: 'ç­‰å¾…ç”µè„‘ç«¯ç¡®è®¤',
-          message: 'è¯·åœ¨ç”µè„‘ç«¯ç‚¹å‡»â€œå…è®¸â€å®Œæˆé…å¯¹ã€‚',
-          color: 'text-blue-700 dark:text-blue-300',
-        };
-      default:
-        return {
-          title: 'è¿æ¥ Clawbot',
-          message: 'è¯·æ‰«æäºŒç»´ç ï¼Œæˆ–æ‰‹åŠ¨ç²˜è´´é…å¯¹ç ã€‚',
-          color: 'text-indigo-700 dark:text-indigo-300',
-        };
-    }
-  };
-
-  const statusInfo = renderStatusMessage();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
@@ -232,12 +70,12 @@ const QRCodePairing: React.FC = () => {
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-4 py-4">
           <button
             type="button"
-            onClick={handleGoBack}
+            onClick={() => navigate(-1)}
             className="ios-pressable ios-surface-button rounded-xl p-2 text-slate-700 dark:text-slate-200"
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Clawbot é…å¯¹</h1>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">TRIX Native Åä¶Ô</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -249,235 +87,90 @@ const QRCodePairing: React.FC = () => {
           className="ios-glass-surface mb-6 rounded-2xl border border-slate-200 p-8 shadow-lg dark:border-slate-800"
         >
           <div className="flex flex-col items-center space-y-4 text-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pairingStatus || 'idle'}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderStatusIcon()}
-              </motion.div>
-            </AnimatePresence>
+            {isPaired ? (
+              <CheckCircle className="h-16 w-16 text-green-500" />
+            ) : loading ? (
+              <Loader className="h-16 w-16 animate-spin text-indigo-500" />
+            ) : (
+              <Scan className="h-16 w-16 text-indigo-500" />
+            )}
 
             <div>
-              <h2 className={`mb-2 text-2xl font-bold ${statusInfo.color}`}>{statusInfo.title}</h2>
-              <p className="text-slate-600 dark:text-slate-300">{statusInfo.message}</p>
+              <h2 className="mb-2 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                {isPaired ? 'ÒÑÁ¬½Ó' : 'Á¬½Ó Clawbot'}
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300">
+                É¨Ãè×ÀÃæ¶Ë¶şÎ¬Âë£¬»òÖ±½ÓÊäÈë×ÀÃæ¶ËÏÔÊ¾µÄÅä¶ÔÂë¡£
+              </p>
             </div>
-
-            {deviceToken && (
-              <div className="ios-glass-surface mt-4 w-full rounded-lg border border-green-200 bg-green-50/90 p-4 dark:border-green-900/70 dark:bg-green-950/40">
-                <p className="break-all font-mono text-sm text-green-700 dark:text-green-300">
-                  Token: {deviceToken.substring(0, 20)}...
-                </p>
-              </div>
-            )}
           </div>
         </motion.div>
 
-        {!isPairing && pairingStatus !== 'approved' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="ios-glass-surface mb-6 rounded-xl border border-blue-200 bg-blue-50/90 p-6 dark:border-blue-900/70 dark:bg-blue-950/40"
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="ios-glass-surface space-y-4 rounded-2xl border border-slate-200 p-6 shadow-lg dark:border-slate-800"
+        >
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-3 text-white"
+            disabled={loading}
           >
-            <h3 className="mb-3 flex items-center gap-2 font-semibold text-blue-900 dark:text-blue-200">
-              <AlertCircle className="h-5 w-5" />
-              é…å¯¹æ­¥éª¤
-            </h3>
-            <ol className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-              <li className="flex items-start gap-2">
-                <span className="font-bold">1.</span>
-                <span>åœ¨ç”µè„‘ä¸Šæ‰“å¼€ Clawbot Gateway å¹¶è¿›å…¥é…å¯¹æ¨¡å¼ã€‚</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold">2.</span>
-                <span>ç”µè„‘ç«¯ä¼šæ˜¾ç¤ºäºŒç»´ç å’Œé…å¯¹ç ã€‚</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold">3.</span>
-                <span>å¯æ‰«æäºŒç»´ç ï¼Œä¹Ÿå¯åœ¨ä¸‹æ–¹æ‰‹åŠ¨ç²˜è´´é…å¯¹ç ã€‚</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold">4.</span>
-                <span>åœ¨ç”µè„‘ç«¯ç‚¹å‡»â€œå…è®¸â€å®Œæˆé…å¯¹ã€‚</span>
-              </li>
-            </ol>
-          </motion.div>
-        )}
+            <Scan className="h-5 w-5" />
+            É¨Ãè¶şÎ¬Âë
+          </button>
 
-        {!isPairing && pairingStatus !== 'approved' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="ios-glass-surface space-y-4 rounded-2xl border border-slate-200 p-6 shadow-lg dark:border-slate-800"
-          >
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-                è®¾å¤‡åç§°ï¼ˆå¯é€‰ï¼‰
-              </label>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+              ÊÖ¶¯ÊäÈëÅä¶ÔÂë
+            </label>
+            <div className="flex gap-3">
               <input
                 type="text"
-                value={deviceName}
-                onChange={(event) => setDeviceName(event.target.value)}
-                placeholder="ç•™ç©ºå°†è‡ªåŠ¨ç”Ÿæˆ"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50/90 px-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                value={manualCode}
+                onChange={(event) => setManualCode(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8))}
+                placeholder="AB12CD34"
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono tracking-[0.25em] text-slate-900 outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                maxLength={8}
               />
+              <button
+                type="button"
+                onClick={() => void handleManualPairing()}
+                className="ios-pressable rounded-xl bg-indigo-600 px-4 py-3 font-medium text-white disabled:opacity-50"
+                disabled={loading || !PAIRING_CODE_PATTERN.test(manualCode.trim().toUpperCase())}
+              >
+                <Keyboard className="h-5 w-5" />
+              </button>
             </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white shadow-lg"
-            >
-              <Scan className="h-5 w-5" />
-              æ‰«æäºŒç»´ç é…å¯¹
-            </button>
-
-            <div className="my-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-300 dark:bg-slate-700" />
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">æˆ–</span>
-              <div className="h-px flex-1 bg-slate-300 dark:bg-slate-700" />
+          <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              <AlertCircle className="h-4 w-4" />
+              Ê¹ÓÃËµÃ÷
             </div>
+            <ol className="space-y-1.5 pl-5 list-decimal">
+              <li>ÔÚµçÄÔ¶ËÆô¶¯ `trix-openclaw-native` ·şÎñ²¢´´½¨Åä¶ÔÂë¡£</li>
+              <li>ÊÖ»ú¶ËÉ¨ÂëÊ±ÓÅÏÈÊ¹ÓÃ¶şÎ¬Âë£»ÍøÂç²»·½±ãÊ±¿ÉÊÖÊäÅä¶ÔÂë¡£</li>
+              <li>°ó¶¨ºó»á±£Áô»á»°ĞÅÏ¢£¬Ë¢ĞÂÍøÒ³ºó»á×Ô¶¯»Ö¸´¡£</li>
+            </ol>
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setShowManualInput((prev) => !prev)}
-              className={`ios-pressable flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 font-medium transition-colors ${
-                showManualInput
-                  ? 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200'
-                  : 'ios-surface-button border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-200'
-              }`}
-            >
-              <Wifi className="h-4 w-4" />
-              {showManualInput ? 'æ”¶èµ·æ‰‹åŠ¨è¾“å…¥' : 'æ‰‹åŠ¨è¾“å…¥é…å¯¹ç ï¼ˆæ¨èï¼‰'}
-            </button>
-
-            <AnimatePresence>
-              {showManualInput && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                      é…å¯¹ç ï¼ˆä»ç”µè„‘ç«¯å¤åˆ¶ï¼‰
-                    </label>
-
-                    <div className="ios-glass-surface rounded-lg border border-blue-200 bg-blue-50/90 p-3 text-xs dark:border-blue-900/70 dark:bg-blue-950/30">
-                      <p className="mb-1 font-medium text-blue-900 dark:text-blue-200">ç¤ºä¾‹æ ¼å¼ï¼ˆæ”¯æŒä¸¤ç§å­—æ®µé£æ ¼ï¼‰</p>
-                      <code className="mb-1 block overflow-x-auto rounded bg-blue-100 p-2 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                        {`{"gatewayUrl":"ws://192.168.1.100:18789","pairingToken":"abc123..."}`}
-                      </code>
-                      <code className="block overflow-x-auto rounded bg-blue-100 p-2 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                        {`{"gateway_url":"ws://192.168.1.100:18789","pairing_token":"abc123..."}`}
-                      </code>
-                    </div>
-
-                    <textarea
-                      value={manualCode}
-                      onChange={(event) => setManualCode(event.target.value)}
-                      placeholder="ç²˜è´´é…å¯¹ç â€¦"
-                      rows={4}
-                      className="w-full resize-none rounded-xl border border-slate-300 bg-slate-50/90 px-4 py-3 font-mono text-sm text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                    />
-
-                    {manualCode.trim() && (
-                      <div className="text-xs">
-                        {(() => {
-                          try {
-                            const rawData = JSON.parse(manualCode.trim()) as Record<string, unknown>;
-                            const payload = normalizeQRCodePayload(rawData);
-                            if (payload.gatewayUrl && payload.pairingToken) {
-                              return (
-                                <div className="flex items-center gap-1 text-green-600 dark:text-green-300">
-                                  <CheckCircle className="h-4 w-4" />
-                                  <span>é…å¯¹ç æ ¼å¼æ­£ç¡®</span>
-                                </div>
-                              );
-                            }
-
-                            const missingFields: string[] = [];
-                            if (!payload.gatewayUrl) {
-                              missingFields.push('gatewayUrl/gateway_url');
-                            }
-                            if (!payload.pairingToken) {
-                              missingFields.push('pairingToken/pairing_token');
-                            }
-
-                            return (
-                              <div className="flex items-center gap-1 text-orange-600 dark:text-orange-300">
-                                <AlertCircle className="h-4 w-4" />
-                                <span>ç¼ºå°‘å­—æ®µ: {missingFields.join(', ')}</span>
-                              </div>
-                            );
-                          } catch {
-                            return (
-                              <div className="flex items-center gap-1 text-red-600 dark:text-red-300">
-                                <XCircle className="h-4 w-4" />
-                                <span>JSON æ ¼å¼é”™è¯¯</span>
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleManualPairing}
-                      disabled={!manualCode.trim()}
-                      className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Wifi className="h-4 w-4" />
-                      ä½¿ç”¨é…å¯¹ç è¿æ¥
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-
-        {isPairing && pairingStatus === 'pending' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
-            <button
-              type="button"
-              onClick={handleCancelPairing}
-              className="ios-pressable w-full rounded-xl bg-red-600 py-4 font-semibold text-white shadow-lg transition-colors hover:bg-red-700"
-            >
-              å–æ¶ˆé…å¯¹
-            </button>
-          </motion.div>
-        )}
-
-        {(pairingStatus === 'denied' || pairingStatus === 'expired') && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6">
-            <button
-              type="button"
-              onClick={() => {
-                resetPairing();
-                void handleStartPairing();
-              }}
-              className="ios-pressable ios-primary-button w-full rounded-xl py-4 font-semibold text-white shadow-lg"
-            >
-              é‡æ–°é…å¯¹
-            </button>
-          </motion.div>
-        )}
+          {lastError && (
+            <p className="text-center text-sm text-red-500">{lastError}</p>
+          )}
+        </motion.div>
       </div>
 
       <QRScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
-        onScanSuccess={handleScanSuccess}
-        onScanError={(error) => {
-          logger.pairing.error('[QRCodePairing] æ‰«æé”™è¯¯:', error);
+        onScanSuccess={(decodedText) => {
+          void handleScanSuccess(decodedText);
         }}
+        onScanError={(message) => showError(message)}
       />
     </div>
   );

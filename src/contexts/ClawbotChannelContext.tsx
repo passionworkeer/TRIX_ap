@@ -1,37 +1,29 @@
-﻿import React, {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 import toast from 'react-hot-toast';
-import clawbotChannelBridge, {
-  CHANNEL_PROTOCOL_MISMATCH,
-  type ClawbotChannelMessage,
-  type SocketEvents,
-  type ErrorPayload,
+import type {
+  ClawbotChannelMessage,
 } from '../services/ClawbotChannelBridge';
-import { getClawbotEndpoints } from '../config/clawbotEndpoints';
-import {
-  deleteClawbotMessage,
-  loadClawbotMessageHistory,
-  saveClawbotMessage,
-} from '../services/clawbotHistoryService';
+import trixNativeChannelClient, {
+  type NativeMessageAttachmentInput,
+  type NativeUploadAttachment,
+} from '../services/TrixNativeChannelClient';
 import { useAuth } from './AuthContext';
 import { useVoiceSettings } from './VoiceSettingsContext';
 import { logger } from '../utils/logger';
 
-/**
- * 生成安全的随机字符串
- * 使用 crypto.getRandomValues 替代 Math.random()
- */
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
+  return Array.from(array, (value) => value.toString(16).padStart(2, '0')).join('').slice(0, length);
 }
 
 export type ConnectionStatus =
@@ -49,6 +41,7 @@ interface ClawbotChannelContextType {
   status: ConnectionStatus;
   isConnected: boolean;
   isPaired: boolean;
+  botOnline: boolean;
   pairingStatus: PairingStatus;
   pairingCode: string | null;
   qrImage: string | null;
@@ -61,18 +54,20 @@ interface ClawbotChannelContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   pairWithCode: (code: string) => Promise<boolean>;
-  pairWithQR: (token: string) => Promise<boolean>;
+  pairWithQR: (payload: string) => Promise<boolean>;
   sendMessage: (
     content: string,
-    contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed',
+    contentType?: ClawbotChannelMessage['contentType'],
     mediaUrl?: string,
     mediaMimeType?: string,
-    mediaMetadata?: ClawbotChannelMessage['mediaMetadata']
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata'],
+    attachments?: NativeMessageAttachmentInput[],
   ) => Promise<void>;
   notifyVoicePlaybackStarted: (messageId: string) => void;
   notifyVoicePlaybackEnded: (messageId: string) => void;
   notifyVoicePlaybackError: (messageId: string) => void;
   uploadMedia: (file: File | Blob) => Promise<string>;
+  uploadAttachment: (file: File | Blob, options?: { fileName?: string; kind?: NativeUploadAttachment['kind'] }) => Promise<NativeUploadAttachment>;
   unpair: () => void;
   clearMessages: () => void;
   lastError: string | null;
@@ -84,124 +79,80 @@ interface ClawbotChannelProviderProps {
   children: ReactNode;
 }
 
-const CHANNEL_PROTOCOL_MISMATCH_MESSAGE =
-  '当前 8765 服务不是 Clawbot Channel 服务，请启动 server/clawbot-channel/server.js';
 const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 120000;
 const MAX_MESSAGES = 500;
 
-const resolveChannelErrorMessage = (error: unknown): string => {
-  if (typeof error === 'object' && error !== null) {
-    const err = error as { code?: string; message?: string };
-    if (err.code === CHANNEL_PROTOCOL_MISMATCH) {
-      return CHANNEL_PROTOCOL_MISMATCH_MESSAGE;
-    }
-    return err.message || '连接错误';
+const resolveErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
   }
-  return '连接错误';
+  if (typeof error === 'object' && error !== null) {
+    const maybe = error as { message?: string };
+    if (typeof maybe.message === 'string' && maybe.message.trim()) {
+      return maybe.message;
+    }
+  }
+  return '���Ӵ���';
 };
 
 export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const { voiceEnabled } = useVoiceSettings();
+
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [pairingStatus, setPairingStatus] = useState<PairingStatus>('idle');
   const [messages, setMessages] = useState<ClawbotChannelMessage[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [qrImage, setQrImage] = useState<string | null>(null);
-  const [deviceId, setDeviceId] = useState<string>('');
+  const [qrImage] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string>(() => trixNativeChannelClient.getOrCreateClientId());
   const [botState, setBotState] = useState<BotState>('IDLE');
+  const [botOnline, setBotOnline] = useState<boolean>(false);
   const [latestBotMessage, setLatestBotMessage] = useState<ClawbotChannelMessage | null>(null);
   const [hasSessionConversationStarted, setHasSessionConversationStarted] = useState(false);
   const [idleEnteredAt, setIdleEnteredAt] = useState<number>(() => Date.now());
 
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
-  const previousUserIdRef = useRef<string | null>(null);
 
   const toPersistedMessageId = useCallback((message: ClawbotChannelMessage): string => {
+    const metadata = message.metadata as { clientMessageId?: string } | undefined;
+    if (metadata?.clientMessageId) {
+      return metadata.clientMessageId;
+    }
     if (message.id && message.id.length > 0) {
       return message.id;
     }
     return `${message.sender}-${message.timestamp}`;
   }, []);
 
-  const upsertMessageState = useCallback((message: ClawbotChannelMessage) => {
-    setMessages((prev) => {
-      const messageId = toPersistedMessageId(message);
-      const existingIndex = prev.findIndex((item) => toPersistedMessageId(item) === messageId);
-
-      if (existingIndex >= 0) {
-        // 消息已存在，追加内容（支持流式输出）
-        const existing = prev[existingIndex];
-        const updated = {
-          ...existing,
-          content: existing.content + message.content
-        };
-        const next = [...prev];
-        next[existingIndex] = updated;
-        return next;
-      }
-
-      let next = [...prev, { ...message, id: messageId }];
-      next.sort((a, b) => a.timestamp - b.timestamp);
-      // 如果超过上限，移除最旧的消息
-      if (next.length > MAX_MESSAGES) {
-        next = next.slice(-MAX_MESSAGES);
-      }
-      return next;
-    });
-  }, [toPersistedMessageId]);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
   const clearSpeakingTimeout = useCallback(() => {
-    if (!speakingTimeoutRef.current) {
-      return;
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
     }
-
-    clearTimeout(speakingTimeoutRef.current);
-    speakingTimeoutRef.current = null;
-  }, []);
-
-  const clearThinkingTimeout = useCallback(() => {
-    if (!thinkingTimeoutRef.current) {
-      return;
-    }
-
-    clearTimeout(thinkingTimeoutRef.current);
-    thinkingTimeoutRef.current = null;
   }, []);
 
   const enterIdle = useCallback(() => {
     clearSpeakingTimeout();
-    clearThinkingTimeout();
     setBotState('IDLE');
     setIdleEnteredAt(Date.now());
     activeVoiceMessageIdRef.current = null;
     pendingVoiceMessageIdRef.current = null;
-  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+  }, [clearSpeakingTimeout]);
 
   const enterThinking = useCallback(() => {
     clearSpeakingTimeout();
-    clearThinkingTimeout();
     setBotState('THINKING');
-    // 注意：已移除默认超时逻辑。思考状态将一直保持，
-    // 直到收到实际的 bot 消息（触发 enterSpeakingWithTimeout）或发生错误。
-  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+  }, [clearSpeakingTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
-    clearThinkingTimeout();
     setBotState('SPEAKING');
     setLatestBotMessage(message);
     activeVoiceMessageIdRef.current = null;
@@ -210,7 +161,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     const contentLength = message.content.length;
     const durationMs = Math.min(
       Math.max(SPEAKING_BASE_MS + contentLength * SPEAKING_PER_CHAR_MS, SPEAKING_MIN_MS),
-      SPEAKING_MAX_MS
+      SPEAKING_MAX_MS,
     );
 
     speakingTimeoutRef.current = setTimeout(() => {
@@ -218,476 +169,306 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setBotState('IDLE');
       setIdleEnteredAt(Date.now());
     }, durationMs);
-  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+  }, [clearSpeakingTimeout]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
-    // 收到 bot 消息后，立刻进入 speaking 状态（加载气泡会在此刻消失，同时显示消息）
     enterSpeakingWithTimeout(message);
-
     if (voiceEnabled) {
-      // 记录消息 ID 以便语音钩子识别并播放
-      const messageId = message.id || `bot-${message.timestamp}`;
-      pendingVoiceMessageIdRef.current = messageId;
+      pendingVoiceMessageIdRef.current = toPersistedMessageId(message);
     }
-  }, [enterSpeakingWithTimeout, voiceEnabled]);
+  }, [enterSpeakingWithTimeout, toPersistedMessageId, voiceEnabled]);
 
   const resetSessionScopedState = useCallback(() => {
     setStatus('DISCONNECTED');
     setPairingStatus('idle');
     setPairingCode(null);
-    setQrImage(null);
-    setDeviceId('');
     setMessages([]);
     setLatestBotMessage(null);
     setHasSessionConversationStarted(false);
     setLastError(null);
+    setBotOnline(false);
     enterIdle();
   }, [enterIdle]);
+
+  const upsertMessageState = useCallback((message: ClawbotChannelMessage) => {
+    setMessages((prev) => {
+      const messageId = toPersistedMessageId(message);
+      const existingIndex = prev.findIndex((entry) => toPersistedMessageId(entry) === messageId);
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = {
+          ...next[existingIndex],
+          ...message,
+          id: messageId,
+        };
+        return next;
+      }
+
+      const next = [...prev, { ...message, id: messageId }]
+        .sort((left, right) => left.timestamp - right.timestamp)
+        .slice(-MAX_MESSAGES);
+      return next;
+    });
+  }, [toPersistedMessageId]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+    const latestBot = [...messages].reverse().find((message) => message.sender === 'bot') || null;
+    setLatestBotMessage(latestBot);
+    setHasSessionConversationStarted(messages.length > 0);
+  }, [messages]);
 
   useEffect(() => {
     return () => {
       clearSpeakingTimeout();
-      clearThinkingTimeout();
     };
-  }, [clearSpeakingTimeout, clearThinkingTimeout]);
+  }, [clearSpeakingTimeout]);
 
   useEffect(() => {
-    if (voiceEnabled) {
-      return;
-    }
-    if (botState !== 'THINKING' || !latestBotMessage) {
-      return;
-    }
-
-    const latestMessageId = latestBotMessage.id || `bot-${latestBotMessage.timestamp}`;
-    if (pendingVoiceMessageIdRef.current !== latestMessageId) {
-      return;
-    }
-
-    enterSpeakingWithTimeout(latestBotMessage);
-  }, [botState, enterSpeakingWithTimeout, latestBotMessage, voiceEnabled]);
-
-  useEffect(() => {
-    const currentUserId = user?.id ?? null;
-
-    if (!currentUserId) {
-      previousUserIdRef.current = null;
-      clawbotChannelBridge.removeAllListeners();
-      clawbotChannelBridge.disconnect();
+    const handleConnecting = () => {
+      setStatus('CONNECTING');
+      setLastError(null);
+    };
+    const handleConnected = (payload: { agentOnline: boolean }) => {
+      setStatus('CONNECTED');
+      setPairingStatus(trixNativeChannelClient.isPaired() ? 'paired' : 'idle');
+      setBotOnline(payload.agentOnline);
+      setLastError(null);
+      const session = trixNativeChannelClient.getSession();
+      setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
+      setPairingCode(session?.pairingCode ?? null);
+    };
+    const handleDisconnected = () => {
+      setStatus('DISCONNECTED');
+      enterIdle();
+    };
+    const handleReconnecting = () => {
+      setStatus('RECONNECTING');
+    };
+    const handlePairingSuccess = (payload: { deviceId: string; deviceName: string }) => {
+      setPairingStatus('paired');
+      setStatus('PAIRED');
+      setDeviceId(payload.deviceId);
+      const session = trixNativeChannelClient.getSession();
+      setPairingCode(session?.pairingCode ?? null);
+      setLastError(null);
+    };
+    const handleUnpaired = () => {
       resetSessionScopedState();
-      return;
-    }
+    };
+    const handleBotOnline = (payload: { message: string; timestamp: number }) => {
+      setBotOnline(true);
+      toast.success(payload.message || 'OpenClaw ������', {
+        duration: 3000,
+        id: `bot_online_${payload.timestamp}`,
+      });
+    };
+    const handleBotOffline = (payload: { message: string; timestamp: number }) => {
+      setBotOnline(false);
+      toast.error(payload.message || 'OpenClaw ��ǰ����', {
+        duration: 5000,
+        id: `bot_offline_${payload.timestamp}`,
+      });
+    };
+    const handleHistory = (historyMessages: ClawbotChannelMessage[]) => {
+      setMessages(historyMessages.map((message) => ({
+        ...message,
+        id: toPersistedMessageId(message),
+      })));
+      const latest = [...historyMessages].reverse().find((message) => message.sender === 'bot') || null;
+      setLatestBotMessage(latest);
+    };
+    const handleMessage = (message: ClawbotChannelMessage) => {
+      const normalized = {
+        ...message,
+        id: toPersistedMessageId(message),
+      };
+      upsertMessageState(normalized);
+      if (normalized.sender === 'bot') {
+        handleBotMessageState(normalized);
+      }
+    };
+    const handleError = (error: { message: string }) => {
+      const message = resolveErrorMessage(error);
+      setLastError(message);
+      setStatus('ERROR');
+      enterIdle();
+      logger.clawbot.error('[TrixNativeContext] transport error', error);
+    };
 
-    const previousUserId = previousUserIdRef.current;
-    if (previousUserId && previousUserId !== currentUserId) {
-      clawbotChannelBridge.removeAllListeners();
-      clawbotChannelBridge.disconnect();
-      resetSessionScopedState();
-    }
+    trixNativeChannelClient.on('connecting', handleConnecting);
+    trixNativeChannelClient.on('connected', handleConnected);
+    trixNativeChannelClient.on('disconnected', handleDisconnected);
+    trixNativeChannelClient.on('reconnecting', handleReconnecting);
+    trixNativeChannelClient.on('pairing_success', handlePairingSuccess);
+    trixNativeChannelClient.on('unpaired', handleUnpaired);
+    trixNativeChannelClient.on('bot_online', handleBotOnline);
+    trixNativeChannelClient.on('bot_offline', handleBotOffline);
+    trixNativeChannelClient.on('history', handleHistory);
+    trixNativeChannelClient.on('message', handleMessage);
+    trixNativeChannelClient.on('error', handleError);
 
-    previousUserIdRef.current = currentUserId;
-  }, [resetSessionScopedState, user?.id]);
+    return () => {
+      trixNativeChannelClient.off('connecting', handleConnecting);
+      trixNativeChannelClient.off('connected', handleConnected);
+      trixNativeChannelClient.off('disconnected', handleDisconnected);
+      trixNativeChannelClient.off('reconnecting', handleReconnecting);
+      trixNativeChannelClient.off('pairing_success', handlePairingSuccess);
+      trixNativeChannelClient.off('unpaired', handleUnpaired);
+      trixNativeChannelClient.off('bot_online', handleBotOnline);
+      trixNativeChannelClient.off('bot_offline', handleBotOffline);
+      trixNativeChannelClient.off('history', handleHistory);
+      trixNativeChannelClient.off('message', handleMessage);
+      trixNativeChannelClient.off('error', handleError);
+    };
+  }, [enterIdle, handleBotMessageState, resetSessionScopedState, toPersistedMessageId, upsertMessageState]);
 
   useEffect(() => {
     if (!user?.id) {
+      trixNativeChannelClient.disconnect();
+      resetSessionScopedState();
       return;
     }
 
-    let disposed = false;
-    void loadClawbotMessageHistory(user.id).then((history) => {
-      if (disposed || history.length === 0) {
-        return;
-      }
+    const session = trixNativeChannelClient.getSession();
+    setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
+    setPairingCode(session?.pairingCode ?? null);
+    setPairingStatus(session ? 'paired' : 'idle');
 
-      const historyMessages: ClawbotChannelMessage[] = history.map((message) => ({
-        id: message.id,
-        content: message.content,
-        contentType: message.contentType,
-        mediaUrl: message.mediaUrl,
-        mediaMimeType: message.mediaMimeType,
-        mediaMetadata: message.mediaMetadata,
-        timestamp: message.timestamp,
-        sender: message.sender,
-      }));
-
-      setMessages((prev) => {
-        if (prev.length > 0) {
-          return prev;
-        }
-        return historyMessages;
-      });
-
-      const latestBotMessage = [...historyMessages]
-        .reverse()
-        .find((message) => message.sender === 'bot');
-      if (latestBotMessage) {
-        setLatestBotMessage((prev) => prev ?? latestBotMessage);
-      }
-    });
-
-    const setupListeners = () => {
-      clawbotChannelBridge.on('connecting', () => {
-        setStatus('CONNECTING');
-        setLastError(null);
-      });
-
-      clawbotChannelBridge.on('connected', async () => {
-        setStatus('CONNECTED');
-        setLastError(null);
-
-        try {
-          const pairing = await clawbotChannelBridge.checkPairingStatus();
-          if (pairing.paired) {
-            setPairingStatus('paired');
-            setDeviceId(pairing.deviceId || '');
-          } else {
-            setPairingStatus('idle');
-            setDeviceId('');
-          }
-        } catch (error) {
-          logger.clawbot.warn('同步配对状态失败', error);
-          setLastError(resolveChannelErrorMessage(error));
-        }
-      });
-
-      clawbotChannelBridge.on('disconnected', () => {
-        setStatus('DISCONNECTED');
-        enterIdle();
-      });
-
-      clawbotChannelBridge.on('reconnecting', () => {
-        setStatus('RECONNECTING');
-      });
-
-      clawbotChannelBridge.on('pairing_success', ((data: SocketEvents['pairing_success']) => {
-        setPairingStatus('paired');
-        setDeviceId(data.deviceId || '');
-        setLastError(null);
-      }) as (data: unknown) => void);
-
-      clawbotChannelBridge.on('unpaired', () => {
-        setPairingStatus('idle');
-        setDeviceId('');
-        setHasSessionConversationStarted(false);
-        enterIdle();
-      });
-
-      clawbotChannelBridge.on('bot_offline', (data: unknown) => {
-        const eventData = data as SocketEvents['bot_offline'];
-        toast.error(eventData.message || 'Clawbot 已离线', {
-          duration: 5000,
-          id: `bot_offline_${eventData.timestamp}`,
-        });
-      });
-
-      clawbotChannelBridge.on('bot_online', (data: unknown) => {
-        const eventData = data as SocketEvents['bot_online'];
-        toast.success(eventData.message || 'Clawbot 已重新连接', {
-          duration: 3000,
-          id: `bot_online_${eventData.timestamp}`,
-        });
-      });
-
-      clawbotChannelBridge.on('message', ((message: ClawbotChannelMessage) => {
-        const normalizedMessage = {
-          ...message,
-          id: toPersistedMessageId(message),
-        };
-        upsertMessageState(normalizedMessage);
-        if (user?.id) {
-          void saveClawbotMessage(user.id, {
-            id: normalizedMessage.id || toPersistedMessageId(normalizedMessage),
-            content: normalizedMessage.content,
-            contentType: normalizedMessage.contentType,
-            mediaUrl: normalizedMessage.mediaUrl,
-            mediaMimeType: normalizedMessage.mediaMimeType,
-            mediaMetadata: normalizedMessage.mediaMetadata,
-            timestamp: normalizedMessage.timestamp,
-            sender: normalizedMessage.sender,
-          });
-        }
-        if (message.sender === 'bot') {
-          console.log('[ClawbotChannel] 收到 bot 消息, 切换状态');
-          handleBotMessageState(normalizedMessage);
-        }
-      }) as (data: unknown) => void);
-
-      clawbotChannelBridge.on('error', ((error: ErrorPayload) => {
-        logger.clawbot.error('错误', error);
-        const message = resolveChannelErrorMessage(error);
-        // 只在连接相关的错误时更新状态，消息错误不影响连接状态
-        if (error?.code === 'CONNECT_ERROR' || error?.code === 'CONNECTION_FAILED') {
-          setStatus('ERROR');
-        }
+    if (session) {
+      void trixNativeChannelClient.connect().catch((error: unknown) => {
+        const message = resolveErrorMessage(error);
+        setStatus('ERROR');
         setLastError(message);
-        enterIdle();
-        if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
-          toast.error(message, { id: 'channel_protocol_mismatch' });
-        }
-      }) as (data: unknown) => void);
-
-      clawbotChannelBridge.on('sync_missed_messages', async () => {
-        try {
-          const currentMessages = messagesRef.current;
-          const lastMessage = currentMessages[currentMessages.length - 1];
-          const lastMessageTimestamp = lastMessage ? lastMessage.timestamp : 0;
-          const userId = clawbotChannelBridge.getUserId();
-          if (!userId) {
-            return;
-          }
-
-          const { channelUrl } = getClawbotEndpoints();
-          if (!channelUrl) {
-            return;
-          }
-
-          const syncUrl = new URL(channelUrl);
-          syncUrl.protocol = syncUrl.protocol === 'wss:' ? 'https:' : 'http:';
-          syncUrl.pathname = '/api/messages/sync';
-          syncUrl.searchParams.set('userId', userId);
-          syncUrl.searchParams.set('lastTimestamp', String(lastMessageTimestamp));
-
-          const response = await fetch(syncUrl.toString());
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const result = await response.json();
-          if (!result.success || !result.messages || result.messages.length === 0) {
-            return;
-          }
-
-          type MissedMessageResponse = {
-            message_id?: string;
-            timestamp: number;
-            content: string;
-            content_type?: string;
-            media_url?: string;
-            media_mime_type?: string;
-            media_metadata?: ClawbotChannelMessage['mediaMetadata'];
-            attachment_name?: string;
-            attachment_size?: number;
-            sender: 'user' | 'bot';
-          };
-
-          const missedMessages: ClawbotChannelMessage[] = result.messages.map((msg: MissedMessageResponse) => ({
-            id: msg.message_id || `msg_${msg.timestamp}`,
-            content: msg.content,
-            contentType: msg.content_type || 'text',
-            mediaUrl: msg.media_url,
-            mediaMimeType: msg.media_mime_type,
-            mediaMetadata: msg.media_metadata ?? {
-              originalName: msg.attachment_name,
-              size: msg.attachment_size,
-            },
-            timestamp: msg.timestamp,
-            sender: msg.sender,
-          }));
-
-          setMessages((prev) => {
-            const existingIds = new Set(prev.map((m) => toPersistedMessageId(m)));
-            const newMessages = missedMessages
-              .map((message) => ({ ...message, id: toPersistedMessageId(message) }))
-              .filter((message) => !existingIds.has(message.id || toPersistedMessageId(message)));
-            let next = [...prev, ...newMessages];
-            next.sort((a, b) => a.timestamp - b.timestamp);
-            // 如果超过上限，移除最旧的消息
-            if (next.length > MAX_MESSAGES) {
-              next = next.slice(-MAX_MESSAGES);
-            }
-            return next;
-          });
-
-          if (user?.id) {
-            missedMessages.forEach((message) => {
-              const persistedMessageId = toPersistedMessageId(message);
-              void saveClawbotMessage(user.id!, {
-                id: persistedMessageId,
-                content: message.content,
-                contentType: message.contentType,
-                mediaUrl: message.mediaUrl,
-                mediaMimeType: message.mediaMimeType,
-                mediaMetadata: message.mediaMetadata,
-                timestamp: message.timestamp,
-                sender: message.sender,
-              });
-            });
-          }
-
-          const latestMissedBotMessage = [...missedMessages]
-            .reverse()
-            .find((message) => message.sender === 'bot');
-          if (latestMissedBotMessage) {
-            setLatestBotMessage(latestMissedBotMessage);
-          }
-        } catch (error) {
-          logger.clawbot.error('消息同步失败', error);
-        }
       });
-    };
+    }
+  }, [resetSessionScopedState, user?.id]);
 
-    setupListeners();
-
-    clawbotChannelBridge.connect().catch((err) => {
-      logger.clawbot.error('连接失败', err);
-      setLastError(resolveChannelErrorMessage(err));
-    });
-
-    return () => {
-      disposed = true;
-      clawbotChannelBridge.removeAllListeners();
-      clearSpeakingTimeout();
-      clearThinkingTimeout();
-    };
-  }, [
-    clearSpeakingTimeout,
-    clearThinkingTimeout,
-    enterIdle,
-    handleBotMessageState,
-    toPersistedMessageId,
-    upsertMessageState,
-    user?.id,
-  ]);
-
-  const connect = useCallback(async () => {
-    await clawbotChannelBridge.connect();
+  const connect = useCallback(async (): Promise<void> => {
+    try {
+      await trixNativeChannelClient.connect();
+      const pairing = await trixNativeChannelClient.checkPairingStatus();
+      setPairingStatus(pairing.paired ? 'paired' : 'idle');
+      setBotOnline(pairing.botOnline);
+      setDeviceId(pairing.deviceId || trixNativeChannelClient.getOrCreateClientId());
+      setLastError(null);
+    } catch (error) {
+      const message = resolveErrorMessage(error);
+      setStatus('ERROR');
+      setLastError(message);
+      throw error instanceof Error ? error : new Error(message);
+    }
   }, []);
 
   const disconnect = useCallback(() => {
-    clawbotChannelBridge.disconnect();
+    trixNativeChannelClient.disconnect();
     setStatus('DISCONNECTED');
-    setHasSessionConversationStarted(false);
-    enterIdle();
-  }, [enterIdle]);
+  }, []);
 
   const pairWithCode = useCallback(async (code: string): Promise<boolean> => {
-    if (!clawbotChannelBridge.isConnected()) {
-      setLastError('未连接到服务端');
-      return false;
-    }
-
-    setLastError(null);
-
     try {
-      const result = await clawbotChannelBridge.pairWithCode(code);
-      if (!result.success) {
-        return false;
-      }
-
-      if (result.status === 'paired') {
-        setPairingStatus('paired');
-        return true;
-      }
-
-      setPairingStatus('waiting_for_bot');
-      setTimeout(() => {
-        setPairingStatus((prev) => {
-          if (prev === 'waiting_for_bot') {
-            setLastError('配对超时，请重试');
-            toast.error('配对超时，请重试');
-            return 'idle';
-          }
-          return prev;
-        });
-      }, 30000);
-      return true;
+      setPairingStatus('pairing');
+      setStatus('CONNECTING');
+      const result = await trixNativeChannelClient.pairWithCode(code.trim().toUpperCase());
+      const session = trixNativeChannelClient.getSession();
+      setPairingCode(session?.pairingCode ?? code.trim().toUpperCase());
+      setLastError(null);
+      return result.success;
     } catch (error) {
-      setLastError(error instanceof Error ? error.message : '配对失败');
+      const message = resolveErrorMessage(error);
       setPairingStatus('idle');
+      setStatus('ERROR');
+      setLastError(message);
+      toast.error(message);
       return false;
     }
   }, []);
 
-  const pairWithQR = useCallback(async (token: string): Promise<boolean> => {
-    if (!clawbotChannelBridge.isConnected()) {
-      setLastError('未连接到服务端');
-      return false;
-    }
-
-    setLastError(null);
-
+  const pairWithQR = useCallback(async (payload: string): Promise<boolean> => {
     try {
-      const result = await clawbotChannelBridge.pairWithToken(token);
-      if (!result.success) {
-        return false;
-      }
-
-      if (result.status === 'paired') {
-        setPairingStatus('paired');
-      } else {
-        setPairingStatus('waiting_for_bot');
-      }
-      return true;
+      setPairingStatus('pairing');
+      setStatus('CONNECTING');
+      const result = await trixNativeChannelClient.pairWithQR(payload);
+      const session = trixNativeChannelClient.getSession();
+      setPairingCode(session?.pairingCode ?? null);
+      setLastError(null);
+      return result.success;
     } catch (error) {
-      setLastError(error instanceof Error ? error.message : '配对失败');
+      const message = resolveErrorMessage(error);
       setPairingStatus('idle');
+      setStatus('ERROR');
+      setLastError(message);
+      toast.error(message);
       return false;
     }
   }, []);
 
   const sendMessage = useCallback(async (
     content: string,
-    contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = 'text',
+    contentType: ClawbotChannelMessage['contentType'] = 'text',
     mediaUrl?: string,
     mediaMimeType?: string,
-    mediaMetadata?: ClawbotChannelMessage['mediaMetadata']
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata'],
+    attachments?: NativeMessageAttachmentInput[],
   ): Promise<void> => {
-    if (!clawbotChannelBridge.isPaired()) {
-      const message = '未配对，无法发送消息';
-      setLastError(message);
-      throw new Error(message);
-    }
+    const optimisticMessageId = `client_${generateSecureRandomString(18)}`;
+    const optimisticAttachments = (attachments ?? []).map((attachment) => ({
+      id: attachment.uploadId,
+      kind: attachment.kind || 'file',
+      url: attachment.url || '',
+      mimeType: attachment.mimeType,
+      fileName: attachment.fileName,
+      size: attachment.size,
+      width: attachment.width,
+      height: attachment.height,
+      duration: attachment.duration,
+    }));
 
-    const optimisticUserMessage: ClawbotChannelMessage = {
-      id: `${Date.now()}-${generateSecureRandomString(11)}`,
+    const optimisticMessage: ClawbotChannelMessage = {
+      id: optimisticMessageId,
       content,
       contentType,
-      mediaUrl,
-      mediaMimeType,
-      mediaMetadata,
+      mediaUrl: mediaUrl || optimisticAttachments[0]?.url,
+      mediaMimeType: mediaMimeType || optimisticAttachments[0]?.mimeType,
+      mediaMetadata: mediaMetadata || (optimisticAttachments[0] ? {
+        width: optimisticAttachments[0].width,
+        height: optimisticAttachments[0].height,
+        duration: optimisticAttachments[0].duration,
+        originalName: optimisticAttachments[0].fileName,
+        size: optimisticAttachments[0].size,
+      } : undefined),
+      attachments: optimisticAttachments.length > 0 ? optimisticAttachments : undefined,
+      metadata: {
+        clientMessageId: optimisticMessageId,
+      },
       timestamp: Date.now(),
       sender: 'user',
-    };
-    const optimisticMessageId = optimisticUserMessage.id || toPersistedMessageId(optimisticUserMessage);
-    const normalizedOptimisticMessage = {
-      ...optimisticUserMessage,
-      id: optimisticMessageId,
     };
 
     setHasSessionConversationStarted(true);
     enterThinking();
-    upsertMessageState(normalizedOptimisticMessage);
-    if (user?.id) {
-      void saveClawbotMessage(user.id, {
-        id: optimisticMessageId,
-        content: normalizedOptimisticMessage.content,
-        contentType: normalizedOptimisticMessage.contentType,
-        mediaUrl: normalizedOptimisticMessage.mediaUrl,
-        mediaMimeType: normalizedOptimisticMessage.mediaMimeType,
-        mediaMetadata: normalizedOptimisticMessage.mediaMetadata,
-        timestamp: normalizedOptimisticMessage.timestamp,
-        sender: normalizedOptimisticMessage.sender,
-      });
-    }
+    upsertMessageState(optimisticMessage);
 
     try {
-      await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl, mediaMimeType, mediaMetadata);
+      await trixNativeChannelClient.sendMessage({
+        text: content,
+        contentType,
+        mediaUrl,
+        mediaMimeType,
+        mediaMetadata,
+        attachments,
+        clientMessageId: optimisticMessageId,
+      });
       setLastError(null);
-      // 消息发送成功，保持 THINKING 状态等待 bot 回复
-      // bot 回复时会通过 handleBotMessageState 转换为 SPEAKING 状态
     } catch (error) {
-      logger.clawbot.error('发送消息失败', error);
       setMessages((prev) => prev.filter((message) => toPersistedMessageId(message) !== optimisticMessageId));
-      if (user?.id) {
-        void deleteClawbotMessage(user.id, optimisticMessageId);
-      }
-      const message = error instanceof Error ? error.message : '发送失败';
+      const message = resolveErrorMessage(error);
       setLastError(message);
       toast.error(message);
       enterIdle();
       throw error instanceof Error ? error : new Error(message);
     }
-  }, [enterIdle, enterThinking, toPersistedMessageId, upsertMessageState, user?.id]);
+  }, [enterIdle, enterThinking, toPersistedMessageId, upsertMessageState]);
 
   const notifyVoicePlaybackStarted = useCallback((messageId: string) => {
     if (!voiceEnabled || !messageId) {
@@ -701,11 +482,10 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
 
     clearSpeakingTimeout();
-    clearThinkingTimeout();
     pendingVoiceMessageIdRef.current = null;
     activeVoiceMessageIdRef.current = messageId;
     setBotState('SPEAKING');
-  }, [clearSpeakingTimeout, clearThinkingTimeout, voiceEnabled]);
+  }, [clearSpeakingTimeout, voiceEnabled]);
 
   const notifyVoicePlaybackEnded = useCallback((messageId: string) => {
     if (!messageId || activeVoiceMessageIdRef.current !== messageId) {
@@ -718,48 +498,44 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     if (!messageId) {
       return;
     }
-
     const activeMessageId = activeVoiceMessageIdRef.current;
     const pendingMessageId = pendingVoiceMessageIdRef.current;
     if (activeMessageId !== messageId && pendingMessageId !== messageId) {
       return;
     }
-
     enterIdle();
   }, [enterIdle]);
 
   const uploadMedia = useCallback(async (file: File | Blob): Promise<string> => {
-    try {
-      const url = await clawbotChannelBridge.uploadMedia(file);
-      setLastError(null);
-      return url;
-    } catch (error) {
-      setLastError(error instanceof Error ? error.message : '上传失败');
-      throw error;
-    }
+    const url = await trixNativeChannelClient.uploadMedia(file);
+    setLastError(null);
+    return url;
+  }, []);
+
+  const uploadAttachment = useCallback(async (
+    file: File | Blob,
+    options?: { fileName?: string; kind?: NativeUploadAttachment['kind'] },
+  ): Promise<NativeUploadAttachment> => {
+    const attachment = await trixNativeChannelClient.uploadAttachment(file, options);
+    setLastError(null);
+    return attachment;
   }, []);
 
   const unpair = useCallback(() => {
-    clawbotChannelBridge.unpair();
-    setPairingStatus('idle');
-    setDeviceId('');
-    setPairingCode(null);
-    setQrImage(null);
-    setMessages([]);
-    setLatestBotMessage(null);
-    setHasSessionConversationStarted(false);
-    setLastError(null);
-    enterIdle();
-  }, [enterIdle]);
+    trixNativeChannelClient.unpair();
+    resetSessionScopedState();
+    setDeviceId(trixNativeChannelClient.getOrCreateClientId());
+  }, [resetSessionScopedState]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
 
-  const value: ClawbotChannelContextType = {
+  const value = useMemo<ClawbotChannelContextType>(() => ({
     status,
-    isConnected: status === 'CONNECTED',
+    isConnected: status === 'CONNECTED' || status === 'PAIRED',
     isPaired: pairingStatus === 'paired',
+    botOnline,
     pairingStatus,
     pairingCode,
     qrImage,
@@ -778,10 +554,36 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     notifyVoicePlaybackEnded,
     notifyVoicePlaybackError,
     uploadMedia,
+    uploadAttachment,
     unpair,
     clearMessages,
     lastError,
-  };
+  }), [
+    status,
+    pairingStatus,
+    botOnline,
+    pairingCode,
+    qrImage,
+    deviceId,
+    messages,
+    botState,
+    latestBotMessage,
+    hasSessionConversationStarted,
+    idleEnteredAt,
+    connect,
+    disconnect,
+    pairWithCode,
+    pairWithQR,
+    sendMessage,
+    notifyVoicePlaybackStarted,
+    notifyVoicePlaybackEnded,
+    notifyVoicePlaybackError,
+    uploadMedia,
+    uploadAttachment,
+    unpair,
+    clearMessages,
+    lastError,
+  ]);
 
   return <ClawbotChannelContext.Provider value={value}>{children}</ClawbotChannelContext.Provider>;
 };
@@ -793,3 +595,4 @@ export const useClawbotChannel = () => {
   }
   return context;
 };
+

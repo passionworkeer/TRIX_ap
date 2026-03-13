@@ -1,5 +1,5 @@
 /**
- * 🖼️ MediaMessage Component
+ * 🖼�?MediaMessage Component
  * ============================================
  * Renders images or videos in chat message bubbles
  * Features:
@@ -37,7 +37,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
   const loadStart = React.useRef<number>(0);
 
   // Debug log
-  logger.media.debug('🖼️ [MediaMessage] Rendering:', {
+  logger.media.debug('🖼�?[MediaMessage] Rendering:', {
     type,
     uri,
     thumbnail,
@@ -87,17 +87,17 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           }`}
           onLoad={() => {
             const loadTime = performance.now() - loadStart.current;
-            logger.media.debug(`✅ [MediaMessage] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+            logger.media.debug(`�?[MediaMessage] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
             setIsLoading(false);
           }}
           onError={() => {
-            logger.media.error('❌ [MediaMessage] Image load failed:', uri);
+            logger.media.error('�?[MediaMessage] Image load failed:', uri);
             setIsLoading(false);
             setError(true);
           }}
           loading="eager"
           decoding="async"
-          fetchpriority="high"
+          fetchPriority="high"
           onLoadStart={() => {
             loadStart.current = performance.now();
           }}
@@ -212,11 +212,11 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
             }`}
             onLoad={() => {
               const loadTime = performance.now() - loadStart.current;
-              logger.media.debug(`✅ [MediaMessageInline] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
+              logger.media.debug(`�?[MediaMessageInline] Image loaded in ${loadTime.toFixed(0)}ms:`, uri.substring(0, 50) + '...');
               setIsLoading(false);
             }}
             onError={() => {
-              logger.media.error('❌ [MediaMessageInline] Image load failed:', uri);
+              logger.media.error('�?[MediaMessageInline] Image load failed:', uri);
               setIsLoading(false);
               setError(true);
             }}
@@ -229,7 +229,7 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
             style={{ display: isLoading ? 'none' : 'block' }}
           />
         </div>
-        {/* 右上角关闭按钮 */}
+        {/* 右上角关闭按�?*/}
         {onClose && (
           <button
             onClick={(e) => {
@@ -308,3 +308,4 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
 };
 
 export default MediaMessage;
+

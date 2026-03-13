@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
@@ -26,13 +26,13 @@ interface HomeProps {
   botState?: string;
 }
 
-const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, botState: propBotState }) => {
+const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _devVideoSource, botState: propBotState }) => {
   const navigate = useNavigate();
   const { isConnected: isClawbotConnected, isPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
 
-  // 优先使用 prop_botState，否则使用 context 中的 botState
-  const botState = propBotState ?? contextBotState;
+  // 娴兼ê鍘涙担璺ㄦ暏 prop_botState閿涘苯鎯侀崚娆庡▏閻?context 娑擃厾娈?botState
+  const resolvedBotState = propBotState ?? contextBotState;
 
   const [showMailPanel, setShowMailPanel] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
@@ -93,6 +93,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, bo
 
   return (
     <div
+      data-bot-state={resolvedBotState}
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
     >
@@ -157,11 +158,11 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, bo
           }
           
           try {
-            sendMessage(`我当前的位置是: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
-            showSuccess('位置信息已发送');
+            sendMessage(`閹存垵缍嬮崜宥囨畱娴ｅ秶鐤嗛弰? ${location.name}\n缁绢剙瀹? ${location.latitude}, 缂佸繐瀹? ${location.longitude}`, 'text');
+            showSuccess('娴ｅ秶鐤嗘穱鈩冧紖瀹告彃褰傞柅?);
             setShowLocation(false);
           } catch (error) {
-            showWarning('发送位置失败，请重试');
+            showWarning('閸欐垿鈧椒缍呯純顔笺亼鐠愩儻绱濈拠鐑藉櫢鐠?);
             logger.ui.error('Failed to send location message:', error);
           }
         }}
@@ -171,3 +172,4 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource, bo
 };
 
 export default Home;
+

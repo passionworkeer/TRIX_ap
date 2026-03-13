@@ -26,7 +26,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
 
-    // ✅ 严格类型检查选项
+    // �?严格类型检查选项
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -37,7 +37,7 @@
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
 
-    // ✅ 额外检查
+    // �?额外检�?
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     // "exactOptionalPropertyTypes": true, // 暂时禁用：会导致大量类型定义问题
@@ -61,6 +61,8 @@
     "src/features/study/components",
     "src/hooks/useTouchGestures.ts",
     "src/services/achievementService.ts",
-    "src/types/achievement.ts"
+    "src/types/achievement.ts",
+    "fix_img.js"
   ]
 }
+
