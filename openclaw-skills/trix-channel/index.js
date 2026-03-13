@@ -116,6 +116,7 @@ const gatewayRunMetaMap = new Map();
 const pendingGatewayFallbacks = new Map();
 const gatewaySessionSubscribeState = new Map();
 const pendingGatewayRunWaits = new Set();
+const gatewayStreamBuffers = new Map();
 
 let gatewayAgentWaitSupported = true;
 
@@ -226,7 +227,7 @@ function isGatewayUserPayload(payload = {}) {
 
 function isGatewayFinalState(state) {
   if (!state) {
-    return true;
+    return false;
   }
   if (GATEWAY_NON_FINAL_STATES.has(state)) {
     return false;
@@ -234,7 +235,7 @@ function isGatewayFinalState(state) {
   if (GATEWAY_FINAL_STATES.has(state)) {
     return true;
   }
-  return true;
+  return false;
 }
 
 function normalizeHomePath(input) {
@@ -644,6 +645,55 @@ function clearGatewayFallback(runId) {
   pendingGatewayFallbacks.delete(normalizedRunId);
 }
 
+function appendGatewayStreamChunk(runId, chunk) {
+  const normalizedRunId = String(runId || '').trim();
+  const normalizedChunk = typeof chunk === 'string' ? chunk : String(chunk || '');
+  if (!normalizedRunId || !normalizedChunk.trim()) {
+    return;
+  }
+
+  const current = gatewayStreamBuffers.get(normalizedRunId) || '';
+  gatewayStreamBuffers.set(normalizedRunId, `${current}${normalizedChunk}`);
+  if (gatewayStreamBuffers.size > 1000) {
+    const entries = Array.from(gatewayStreamBuffers.entries()).slice(-500);
+    gatewayStreamBuffers.clear();
+    for (const [key, value] of entries) {
+      gatewayStreamBuffers.set(key, value);
+    }
+  }
+}
+
+function takeGatewayStreamText(runId) {
+  const normalizedRunId = String(runId || '').trim();
+  if (!normalizedRunId) {
+    return '';
+  }
+  const value = gatewayStreamBuffers.get(normalizedRunId) || '';
+  gatewayStreamBuffers.delete(normalizedRunId);
+  return value;
+}
+
+function mergeGatewayTexts(bufferedText, currentText) {
+  const buffered = typeof bufferedText === 'string' ? bufferedText : String(bufferedText || '');
+  const current = typeof currentText === 'string' ? currentText : String(currentText || '');
+  if (!buffered.trim()) {
+    return current;
+  }
+  if (!current.trim()) {
+    return buffered;
+  }
+  if (buffered === current) {
+    return buffered;
+  }
+  if (buffered.endsWith(current)) {
+    return buffered;
+  }
+  if (current.endsWith(buffered)) {
+    return current;
+  }
+  return `${buffered}${current}`;
+}
+
 function triggerGatewayFallback(runId, normalized, reason = 'timeout') {
   const normalizedRunId = String(runId || '').trim();
   if (!normalizedRunId || !normalized || !ENABLE_CLI_AGENT_BRIDGE) {
@@ -651,6 +701,7 @@ function triggerGatewayFallback(runId, normalized, reason = 'timeout') {
   }
 
   clearGatewayFallback(normalizedRunId);
+  takeGatewayStreamText(normalizedRunId);
   if (deliveredGatewayRuns.has(normalizedRunId)) {
     return;
   }
@@ -1705,6 +1756,8 @@ function handleGatewayMessage(msg) {
 
       if (waitPayload) {
         const normalized = normalizeGatewayReply(waitPayload);
+        const streamedText = waitRunId ? takeGatewayStreamText(waitRunId) : '';
+        normalized.content = mergeGatewayTexts(streamedText, normalized.content);
         if (!normalized.content.trim()) {
           if (waitRunId && ENABLE_CLI_AGENT_BRIDGE) {
             const runMeta = gatewayRunMetaMap.get(waitRunId);
@@ -1785,7 +1838,11 @@ function handleGatewayMessage(msg) {
       return true;
     }
 
+    const normalized = normalizeGatewayReply(payload);
     if (!isGatewayFinalState(state)) {
+      if (runId) {
+        appendGatewayStreamChunk(runId, normalized.content);
+      }
       return true;
     }
 
@@ -1812,17 +1869,19 @@ function handleGatewayMessage(msg) {
     }
 
     // 如果不是 chat 事件或没有 runId，则使用传统方式转发
-    const normalized = normalizeGatewayReply(payload);
-    if (!normalized.content.trim()) {
-      return true;
-    }
-
+    // normalized 已在上面声明
     if (runId) {
       clearGatewayFallback(runId);
+      const streamedText = takeGatewayStreamText(runId);
+      normalized.content = mergeGatewayTexts(streamedText, normalized.content);
       deliveredGatewayRuns.add(runId);
       if (deliveredGatewayRuns.size > 500) {
         deliveredGatewayRuns.clear();
       }
+    }
+
+    if (!normalized.content.trim()) {
+      return true;
     }
 
     console.log(
@@ -2064,6 +2123,7 @@ async function connectToGateway() {
       pendingGatewayFallbacks.clear();
       gatewayRunSessionMap.clear();
       gatewayRunMetaMap.clear();
+      gatewayStreamBuffers.clear();
       gatewaySessionSubscribeState.clear();
       if (gatewayReconnectTimer) {
         clearTimeout(gatewayReconnectTimer);
@@ -2174,6 +2234,7 @@ async function stop() {
   gatewayTrackedSessions.clear();
   gatewayRunSessionMap.clear();
   gatewayRunMetaMap.clear();
+  gatewayStreamBuffers.clear();
   for (const { timer } of pendingGatewayFallbacks.values()) {
     clearTimeout(timer);
   }
@@ -2273,7 +2334,11 @@ module.exports = {
     aliases: ['trix', 'trixapp']
   },
   capabilities: {
-    chatTypes: ['direct']
+    chatTypes: ['direct'],
+    media: {
+      upload: ['image/*', 'audio/*', 'video/*'],
+      download: ['image/*', 'audio/*', 'video/*']
+    }
   },
   config: {
     listAccountIds: (cfg) => Object.keys(cfg.channels?.trixApp?.accounts ?? {}),

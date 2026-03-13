@@ -412,7 +412,10 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       clawbotChannelBridge.on('error', ((error: ErrorPayload) => {
         logger.clawbot.error('错误', error);
         const message = resolveChannelErrorMessage(error);
-        setStatus('ERROR');
+        // 只在连接相关的错误时更新状态，消息错误不影响连接状态
+        if (error?.code === 'CONNECT_ERROR' || error?.code === 'CONNECTION_FAILED') {
+          setStatus('ERROR');
+        }
         setLastError(message);
         enterIdle();
         if (error?.code === CHANNEL_PROTOCOL_MISMATCH) {
