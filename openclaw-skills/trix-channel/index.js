@@ -928,7 +928,7 @@ function buildGatewayUserMessage(normalized) {
     return payload.content;
   }
 
-  const mediaLine = `${getMediaPlaceholder(payload.contentType)} ${payload.mediaUrl}`;
+  const mediaLine = buildMediaLine(payload);
   if (!payload.content.trim() || payload.content === getMediaPlaceholder(payload.contentType)) {
     return mediaLine;
   }
@@ -1136,6 +1136,35 @@ function clearAuth() {
   }
 }
 
+function buildMediaMetadata(payload = {}) {
+  const rawMetadata = payload.mediaMetadata ?? payload.media_metadata;
+  const normalizedMetadata = rawMetadata && typeof rawMetadata === 'object'
+    ? { ...rawMetadata }
+    : {};
+
+  const originalName = payload.attachmentName
+    ?? payload.attachment_name
+    ?? payload.filename
+    ?? normalizedMetadata.originalName
+    ?? null;
+  const sizeValue = payload.attachmentSize
+    ?? payload.attachment_size
+    ?? payload.mediaSize
+    ?? payload.media_size
+    ?? normalizedMetadata.size
+    ?? null;
+  const normalizedSize = Number.isFinite(Number(sizeValue)) ? Number(sizeValue) : null;
+
+  if (typeof originalName === 'string' && originalName.trim() && !normalizedMetadata.originalName) {
+    normalizedMetadata.originalName = originalName.trim();
+  }
+  if (normalizedSize !== null && normalizedMetadata.size == null) {
+    normalizedMetadata.size = normalizedSize;
+  }
+
+  return Object.keys(normalizedMetadata).length > 0 ? normalizedMetadata : null;
+}
+
 function normalizeInboundAppMessage(data = {}) {
   const content = data.content ?? data.text ?? data.message ?? data.response ?? '';
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeMessageId('app');
@@ -1146,6 +1175,7 @@ function normalizeInboundAppMessage(data = {}) {
     contentType: data.contentType ?? data.content_type ?? 'text',
     mediaUrl: data.mediaUrl ?? data.media_url ?? null,
     mediaMimeType: data.mediaMimeType ?? data.media_mime_type ?? null,
+    mediaMetadata: buildMediaMetadata(data),
     threadId: data.threadId ?? data.thread_id ?? 'default',
     userId: data.userId ?? data.user_id ?? null,
     timestamp: toTimestamp(data.timestamp),
@@ -1177,6 +1207,7 @@ function normalizeGatewayReply(payload = {}) {
       payload.message?.mediaMimeType ??
       payload.message?.media_mime_type ??
       null,
+    mediaMetadata: buildMediaMetadata(payload.message ?? payload.result ?? payload),
     timestamp: toTimestamp(
       payload.timestamp ?? payload.ts ?? payload.createdAt ?? payload.message?.timestamp ?? payload.result?.timestamp
     ),
@@ -1188,7 +1219,27 @@ function getMediaPlaceholder(contentType) {
   if (contentType === 'image' || contentType === 'mixed') {
     return '[image]';
   }
+  if (contentType === 'video') {
+    return '[video]';
+  }
+  if (contentType === 'file') {
+    return '[file]';
+  }
   return '[media]';
+}
+
+function buildMediaLine(payload) {
+  const parts = [getMediaPlaceholder(payload.contentType)];
+  if (payload.mediaMetadata?.originalName) {
+    parts.push(payload.mediaMetadata.originalName);
+  }
+  if (payload.mediaMimeType && payload.contentType === 'file') {
+    parts.push(`(${payload.mediaMimeType})`);
+  }
+  if (payload.mediaUrl) {
+    parts.push(payload.mediaUrl);
+  }
+  return parts.join(' ');
 }
 
 function withMaterializedContent(normalized) {
@@ -1212,7 +1263,7 @@ function buildCliPrompt(normalized) {
     return payload.content;
   }
 
-  const mediaLine = `${getMediaPlaceholder(payload.contentType)} ${payload.mediaUrl}`;
+  const mediaLine = buildMediaLine(payload);
   if (!payload.content.trim() || payload.content === getMediaPlaceholder(payload.contentType)) {
     return mediaLine;
   }
@@ -1498,6 +1549,7 @@ function forwardToApp(normalized) {
     contentType: payload.contentType,
     mediaUrl: payload.mediaUrl,
     mediaMimeType: payload.mediaMimeType,
+    mediaMetadata: payload.mediaMetadata,
     timestamp: payload.timestamp,
     messageId: payload.messageId
   };
@@ -2335,10 +2387,7 @@ module.exports = {
   },
   capabilities: {
     chatTypes: ['direct'],
-    media: {
-      upload: ['image/*', 'audio/*', 'video/*'],
-      download: ['image/*', 'audio/*', 'video/*']
-    }
+    media: true
   },
   config: {
     listAccountIds: (cfg) => Object.keys(cfg.channels?.trixApp?.accounts ?? {}),

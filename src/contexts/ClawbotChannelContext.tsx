@@ -66,7 +66,8 @@ interface ClawbotChannelContextType {
     content: string,
     contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed',
     mediaUrl?: string,
-    mediaMimeType?: string
+    mediaMimeType?: string,
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata']
   ) => Promise<void>;
   notifyVoicePlaybackStarted: (messageId: string) => void;
   notifyVoicePlaybackEnded: (messageId: string) => void;
@@ -304,6 +305,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         contentType: message.contentType,
         mediaUrl: message.mediaUrl,
         mediaMimeType: message.mediaMimeType,
+        mediaMetadata: message.mediaMetadata,
         timestamp: message.timestamp,
         sender: message.sender,
       }));
@@ -399,6 +401,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             contentType: normalizedMessage.contentType,
             mediaUrl: normalizedMessage.mediaUrl,
             mediaMimeType: normalizedMessage.mediaMimeType,
+            mediaMetadata: normalizedMessage.mediaMetadata,
             timestamp: normalizedMessage.timestamp,
             sender: normalizedMessage.sender,
           });
@@ -461,6 +464,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             content_type?: string;
             media_url?: string;
             media_mime_type?: string;
+            media_metadata?: ClawbotChannelMessage['mediaMetadata'];
+            attachment_name?: string;
+            attachment_size?: number;
             sender: 'user' | 'bot';
           };
 
@@ -470,6 +476,10 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
             contentType: msg.content_type || 'text',
             mediaUrl: msg.media_url,
             mediaMimeType: msg.media_mime_type,
+            mediaMetadata: msg.media_metadata ?? {
+              originalName: msg.attachment_name,
+              size: msg.attachment_size,
+            },
             timestamp: msg.timestamp,
             sender: msg.sender,
           }));
@@ -497,6 +507,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
                 contentType: message.contentType,
                 mediaUrl: message.mediaUrl,
                 mediaMimeType: message.mediaMimeType,
+                mediaMetadata: message.mediaMetadata,
                 timestamp: message.timestamp,
                 sender: message.sender,
               });
@@ -618,7 +629,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     content: string,
     contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = 'text',
     mediaUrl?: string,
-    mediaMimeType?: string
+    mediaMimeType?: string,
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata']
   ): Promise<void> => {
     if (!clawbotChannelBridge.isPaired()) {
       const message = '未配对，无法发送消息';
@@ -632,6 +644,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       contentType,
       mediaUrl,
       mediaMimeType,
+      mediaMetadata,
       timestamp: Date.now(),
       sender: 'user',
     };
@@ -651,13 +664,14 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         contentType: normalizedOptimisticMessage.contentType,
         mediaUrl: normalizedOptimisticMessage.mediaUrl,
         mediaMimeType: normalizedOptimisticMessage.mediaMimeType,
+        mediaMetadata: normalizedOptimisticMessage.mediaMetadata,
         timestamp: normalizedOptimisticMessage.timestamp,
         sender: normalizedOptimisticMessage.sender,
       });
     }
 
     try {
-      await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl, mediaMimeType);
+      await clawbotChannelBridge.sendMessage(content, contentType, mediaUrl, mediaMimeType, mediaMetadata);
       setLastError(null);
       // 消息发送成功，保持 THINKING 状态等待 bot 回复
       // bot 回复时会通过 handleBotMessageState 转换为 SPEAKING 状态

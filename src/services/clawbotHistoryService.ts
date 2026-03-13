@@ -30,6 +30,16 @@ export interface ClawbotHistoryMessage {
   mediaUrl?: string;
   /** MIME type of media attachment (optional) */
   mediaMimeType?: string;
+  /** Attachment metadata (optional) */
+  mediaMetadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    thumbnail?: string;
+    originalName?: string;
+    size?: number;
+    [key: string]: unknown;
+  };
   /** Unix timestamp in milliseconds */
   timestamp: number;
   /** Who sent the message */
@@ -84,6 +94,25 @@ function normalizeClawbotHistoryMessage(raw: unknown): ClawbotHistoryMessage | n
         : typeof obj.media_mime_type === 'string'
           ? obj.media_mime_type
           : undefined,
+    mediaMetadata:
+      obj.mediaMetadata && typeof obj.mediaMetadata === 'object'
+        ? (obj.mediaMetadata as ClawbotHistoryMessage['mediaMetadata'])
+        : obj.media_metadata && typeof obj.media_metadata === 'object'
+          ? (obj.media_metadata as ClawbotHistoryMessage['mediaMetadata'])
+          : {
+              originalName:
+                typeof obj.attachmentName === 'string'
+                  ? obj.attachmentName
+                  : typeof obj.attachment_name === 'string'
+                    ? obj.attachment_name
+                    : undefined,
+              size:
+                typeof obj.attachmentSize === 'number'
+                  ? obj.attachmentSize
+                  : typeof obj.attachment_size === 'number'
+                    ? obj.attachment_size
+                    : undefined,
+            },
     timestamp,
     sender: sender as 'user' | 'bot',
   };

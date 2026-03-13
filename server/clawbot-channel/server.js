@@ -372,11 +372,42 @@ function toNumberTimestamp(input) {
   return now();
 }
 
+function buildMediaMetadata(data = {}) {
+  const rawMetadata = data.mediaMetadata ?? data.media_metadata;
+  const normalizedMetadata = rawMetadata && typeof rawMetadata === 'object'
+    ? { ...rawMetadata }
+    : {};
+
+  const originalName = data.attachmentName
+    ?? data.attachment_name
+    ?? data.filename
+    ?? data.fileName
+    ?? normalizedMetadata.originalName
+    ?? null;
+  const sizeValue = data.attachmentSize
+    ?? data.attachment_size
+    ?? data.mediaSize
+    ?? data.media_size
+    ?? normalizedMetadata.size
+    ?? null;
+  const normalizedSize = Number.isFinite(Number(sizeValue)) ? Number(sizeValue) : null;
+
+  if (typeof originalName === 'string' && originalName.trim() && !normalizedMetadata.originalName) {
+    normalizedMetadata.originalName = originalName.trim();
+  }
+  if (normalizedSize !== null && normalizedMetadata.size == null) {
+    normalizedMetadata.size = normalizedSize;
+  }
+
+  return Object.keys(normalizedMetadata).length > 0 ? normalizedMetadata : null;
+}
+
 function normalizeAppPayload(data = {}, socketUserId) {
   const content = data.content ?? data.text ?? data.message ?? data.response ?? '';
   const contentType = data.contentType ?? data.content_type ?? 'text';
   const mediaUrl = data.mediaUrl ?? data.media_url ?? null;
   const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ?? null;
+  const mediaMetadata = buildMediaMetadata(data);
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeFallbackMessageId('app');
   const threadId = data.threadId ?? data.thread_id ?? 'default';
   const userId = socketUserId ?? data.userId ?? data.user_id ?? null;
@@ -387,6 +418,7 @@ function normalizeAppPayload(data = {}, socketUserId) {
     contentType,
     mediaUrl,
     mediaMimeType,
+    mediaMetadata,
     messageId: String(messageId),
     threadId,
     timestamp: toNumberTimestamp(data.timestamp),
@@ -399,6 +431,7 @@ async function normalizeBotPayload(data = {}, socket) {
   const contentType = data.contentType ?? data.content_type ?? 'text';
   const mediaUrl = data.mediaUrl ?? data.media_url ?? null;
   const mediaMimeType = data.mediaMimeType ?? data.media_mime_type ?? null;
+  const mediaMetadata = buildMediaMetadata(data);
   const messageId = data.messageId ?? data.msg_id ?? data.id ?? makeFallbackMessageId('bot');
 
   let deviceId = data.deviceId ?? data.device_id ?? socket.deviceId ?? null;
@@ -413,6 +446,7 @@ async function normalizeBotPayload(data = {}, socket) {
     contentType,
     mediaUrl,
     mediaMimeType,
+    mediaMetadata,
     messageId: String(messageId),
     timestamp: toNumberTimestamp(data.timestamp),
     raw: data
@@ -433,6 +467,12 @@ function hasMessagePayload(content, mediaUrl) {
 function getMediaPlaceholder(contentType) {
   if (contentType === 'image' || contentType === 'mixed') {
     return '[image]';
+  }
+  if (contentType === 'video') {
+    return '[video]';
+  }
+  if (contentType === 'file') {
+    return '[file]';
   }
   return '[media]';
 }
@@ -486,30 +526,55 @@ function emitStudyRoomStateUpdates(updates = []) {
   }
 }
 
+const BLOCKED_UPLOAD_EXTENSIONS = [
+  '.apk',
+  '.app',
+  '.bat',
+  '.cmd',
+  '.com',
+  '.dmg',
+  '.exe',
+  '.hta',
+  '.iso',
+  '.jar',
+  '.msi',
+  '.ps1',
+  '.scr',
+  '.sh',
+];
+
+const BLOCKED_UPLOAD_MIME_TYPES = [
+  'application/java-archive',
+  'application/vnd.microsoft.portable-executable',
+  'application/x-apple-diskimage',
+  'application/x-msdos-program',
+  'application/x-msdownload',
+  'application/x-sh',
+  'application/x-shellscript',
+];
+
+function hasBlockedUploadExtension(fileName = '') {
+  const normalizedName = String(fileName).trim().toLowerCase();
+  return BLOCKED_UPLOAD_EXTENSIONS.some((extension) => normalizedName.endsWith(extension));
+}
+
+function hasBlockedUploadMimeType(mimeType = '') {
+  const normalizedMimeType = String(mimeType).trim().toLowerCase();
+  return normalizedMimeType ? BLOCKED_UPLOAD_MIME_TYPES.includes(normalizedMimeType) : false;
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024
+    fileSize: 50 * 1024 * 1024
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'video/mp4',
-      'video/mpeg',
-      'video/webm',
-      'application/pdf'
-    ];
-
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
+    if (hasBlockedUploadExtension(file.originalname) || hasBlockedUploadMimeType(file.mimetype)) {
+      cb(new Error(`Unsupported file type: ${file.mimetype || file.originalname}`));
       return;
     }
 
-    cb(new Error(`Unsupported file type: ${file.mimetype}`));
+    cb(null, true);
   }
 });
 
@@ -931,6 +996,7 @@ app.post('/api/tts/synthesize', ttsLimiter, async (req, res) => {
 
 app.post('/webhook/clawbot', async (req, res) => {
   const { deviceId, content, contentType, mediaUrl, mediaMimeType } = req.body;
+  const mediaMetadata = buildMediaMetadata(req.body || {});
 
   try {
     const authHeader = req.headers['x-webhook-secret'];
@@ -943,13 +1009,21 @@ app.post('/webhook/clawbot', async (req, res) => {
       return res.status(404).json({ error: 'Pairing not found' });
     }
 
-    await messageService.saveMessage(pairing.id, 'bot_to_app', content, contentType, mediaUrl);
+    await messageService.saveMessage(
+      pairing.id,
+      'bot_to_app',
+      content,
+      contentType,
+      mediaUrl,
+      mediaMetadata ? { ...mediaMetadata, mediaMimeType } : { mediaMimeType }
+    );
 
     io.to(`user_${pairing.user_id}`).emit('bot_message', {
       content,
       contentType,
       mediaUrl,
       mediaMimeType,
+      mediaMetadata,
       timestamp: now(),
       messageId: makeFallbackMessageId('webhook')
     });
@@ -1707,7 +1781,10 @@ io.on('connection', (socket) => {
         'app_to_bot',
         routedMessage.content,
         routedMessage.contentType,
-        routedMessage.mediaUrl
+        routedMessage.mediaUrl,
+        routedMessage.mediaMetadata
+          ? { ...routedMessage.mediaMetadata, mediaMimeType: routedMessage.mediaMimeType }
+          : { mediaMimeType: routedMessage.mediaMimeType }
       );
 
       const botSocket = getConnectedBot(targetDeviceId);
@@ -1779,6 +1856,7 @@ io.on('connection', (socket) => {
         contentType: routedMessage.contentType,
         mediaUrl: routedMessage.mediaUrl,
         mediaMimeType: routedMessage.mediaMimeType,
+        mediaMetadata: routedMessage.mediaMetadata,
         threadId: routedMessage.threadId,
         timestamp: routedMessage.timestamp,
         sourceEvent
@@ -1795,6 +1873,7 @@ io.on('connection', (socket) => {
         contentType: routedMessage.contentType,
         mediaUrl: routedMessage.mediaUrl,
         mediaMimeType: routedMessage.mediaMimeType,
+        mediaMetadata: routedMessage.mediaMetadata,
         timestamp: routedMessage.timestamp,
         sourceEvent
       });
@@ -1864,13 +1943,17 @@ io.on('connection', (socket) => {
   // 直接透传消息（trix-channel skill 已经处理好了消息完整性）
   async function handleBotToAppMessage(rawData, sourceEvent) {
     try {
-      const content = rawData.content || rawData.response || '';
-      // 使用 messageId，如果为空则生成
-      const messageId = rawData.messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const timestamp = rawData.timestamp || Date.now();
+      const normalized = await normalizeBotPayload(rawData, socket);
+      const deliveredContent = normalizeMediaOnlyContent(
+        normalized.content,
+        normalized.contentType,
+        normalized.mediaUrl
+      );
+      const messageId = normalized.messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const timestamp = normalized.timestamp || Date.now();
 
       // 用 content 前 30 字符作为去重 key（更可靠）
-      const contentKey = content.substring(0, 30);
+      const contentKey = `${messageId}:${deliveredContent.substring(0, 30)}:${normalized.mediaUrl || ''}`;
       const now = Date.now();
 
       // 基于 content 去重
@@ -1890,17 +1973,18 @@ io.on('connection', (socket) => {
         }
       }
 
-      console.log('[Bot->App] 收到消息, content:', content.substring(0, 50), 'messageId:', messageId, '来源:', sourceEvent);
+      console.log('[Bot->App] 收到消息, content:', deliveredContent.substring(0, 50), 'messageId:', messageId, '来源:', sourceEvent);
 
-      if (!content) return;
+      if (!hasMessagePayload(deliveredContent, normalized.mediaUrl)) return;
 
       // 尝试多种方式获取 userId
       let userId = null;
-      const deviceId = rawData.deviceId;
+      let pairing = null;
+      const deviceId = normalized.deviceId;
 
       // 方法1: 通过 socket.pairingId 查找
       if (socket.pairingId) {
-        const pairing = await pairingService.getPairingById(socket.pairingId);
+        pairing = await pairingService.getPairingById(socket.pairingId);
         if (pairing && pairing.user_id) {
           userId = pairing.user_id;
           console.log('[Bot->App] 通过 socket.pairingId 找到 userId:', userId);
@@ -1909,7 +1993,7 @@ io.on('connection', (socket) => {
 
       // 方法2: 通过 deviceId 查找
       if (!userId && deviceId) {
-        const pairing = await pairingService.getPairingByDeviceId(deviceId);
+        pairing = await pairingService.getPairingByDeviceId(deviceId);
         if (pairing && pairing.user_id) {
           userId = pairing.user_id;
           console.log('[Bot->App] 通过 deviceId 找到 userId:', userId);
@@ -1924,16 +2008,32 @@ io.on('connection', (socket) => {
         console.log('[Bot->App] 使用默认 userId:', userId);
       }
 
+      if (pairing?.id) {
+        await messageService.saveMessage(
+          pairing.id,
+          'bot_to_app',
+          deliveredContent,
+          normalized.contentType,
+          normalized.mediaUrl,
+          normalized.mediaMetadata
+            ? { ...normalized.mediaMetadata, mediaMimeType: normalized.mediaMimeType }
+            : { mediaMimeType: normalized.mediaMimeType }
+        );
+      }
+
       // 直接发送完整消息
       io.to(`user_${userId}`).emit('bot_message', {
-        content: content,
-        contentType: 'text',
+        content: deliveredContent,
+        contentType: normalized.contentType,
+        mediaUrl: normalized.mediaUrl,
+        mediaMimeType: normalized.mediaMimeType,
+        mediaMetadata: normalized.mediaMetadata,
         timestamp: timestamp,
         messageId: messageId,
         sourceEvent: sourceEvent
       });
 
-      console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', content.substring(0, 50));
+      console.log('[Bot->App] 已转发消息到 user:', userId, 'content:', deliveredContent.substring(0, 50));
     } catch (error) {
       console.error('[Bot->App] 处理失败:', error);
     }

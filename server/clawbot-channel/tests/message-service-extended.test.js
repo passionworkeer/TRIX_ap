@@ -85,6 +85,38 @@ test('saveMessage should store media URL', async () => {
   assert.equal(typeof msgId, 'string');
 });
 
+test('saveMessage should persist attachment metadata for missed-message sync', async () => {
+  const userId = 'user-attachment-meta-1234567890123456789012';
+  const pairing = await pairingService.createBotPairing('device-msg-test-meta');
+
+  await pairingService.bindUserToPairing(pairing.id, userId);
+  await pairingService.completeBotPairing(pairing.id, 'device-msg-test-meta', 'socket-meta');
+
+  await messageService.saveMessage(
+    pairing.id,
+    'bot_to_app',
+    '[file]',
+    'file',
+    'https://cdn.example.com/deck.pptx',
+    {
+      mediaMimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      originalName: 'deck.pptx',
+      size: 2048,
+    }
+  );
+
+  const result = await messageService.fetchMissedMessages(userId, 0, 10);
+  const attachmentMessage = result.data.find((message) => message.content_type === 'file');
+
+  assert.equal(Boolean(attachmentMessage), true);
+  assert.equal(attachmentMessage.attachment_name, 'deck.pptx');
+  assert.equal(attachmentMessage.attachment_size, 2048);
+  assert.equal(
+    attachmentMessage.media_mime_type,
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  );
+});
+
 test('getUndeliveredMessages should return only undelivered', async () => {
   const pairing = await pairingService.createBotPairing('device-msg-test-3');
 

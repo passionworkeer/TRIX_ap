@@ -38,6 +38,15 @@ export interface ClawbotChannelMessage {
   contentType: 'text' | 'image' | 'video' | 'file' | 'mixed';
   mediaUrl?: string;
   mediaMimeType?: string;
+  mediaMetadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    thumbnail?: string;
+    originalName?: string;
+    size?: number;
+    [key: string]: unknown;
+  };
   timestamp: number;
   sender: 'user' | 'bot';
 }
@@ -68,6 +77,7 @@ export interface SocketEvents {
     contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed';
     mediaUrl?: string;
     mediaMimeType?: string;
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata'];
     timestamp: number;
   };
   message_sent: { messageId: string; timestamp: number };
@@ -390,15 +400,27 @@ class ClawbotChannelBridge {
       mediaUrl?: string;
       mediaMimeType?: string;
       media_mime_type?: string;
+      mediaMetadata?: ClawbotChannelMessage['mediaMetadata'];
+      media_metadata?: ClawbotChannelMessage['mediaMetadata'];
+      attachmentName?: string;
+      attachment_name?: string;
+      attachmentSize?: number;
+      attachment_size?: number;
       timestamp: number;
       messageId?: string;
     }) => {
+      const normalizedMediaMetadata = msg.mediaMetadata ?? msg.media_metadata ?? {
+        originalName: msg.attachmentName ?? msg.attachment_name,
+        size: msg.attachmentSize ?? msg.attachment_size,
+      };
+
       const message: ClawbotChannelMessage = {
         id: msg.messageId || generateMessageId(),
         content: msg.content,
         contentType: msg.contentType ?? 'text',
         mediaUrl: msg.mediaUrl,
         mediaMimeType: msg.mediaMimeType ?? msg.media_mime_type,
+        mediaMetadata: normalizedMediaMetadata,
         timestamp: msg.timestamp || Date.now(),
         sender: 'bot'
       };
@@ -878,7 +900,8 @@ class ClawbotChannelBridge {
     content: string,
     contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = 'text',
     mediaUrl?: string,
-    mediaMimeType?: string
+    mediaMimeType?: string,
+    mediaMetadata?: ClawbotChannelMessage['mediaMetadata']
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.socket || !this.connected) {
@@ -899,6 +922,7 @@ class ClawbotChannelBridge {
         contentType,
         mediaUrl,
         mediaMimeType,
+        mediaMetadata,
         messageId
       });
 

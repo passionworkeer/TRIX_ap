@@ -56,11 +56,41 @@ export const ACCEPTED_AUDIO_TYPES = [
   'audio/wav'
 ];
 
+const BLOCKED_FILE_EXTENSIONS = [
+  '.apk',
+  '.app',
+  '.bat',
+  '.cmd',
+  '.com',
+  '.dmg',
+  '.exe',
+  '.hta',
+  '.iso',
+  '.jar',
+  '.msi',
+  '.ps1',
+  '.scr',
+  '.sh'
+];
+
+const BLOCKED_FILE_MIME_TYPES = [
+  'application/java-archive',
+  'application/vnd.microsoft.portable-executable',
+  'application/x-apple-diskimage',
+  'application/x-msdos-program',
+  'application/x-msdownload',
+  'application/x-sh',
+  'application/x-shellscript'
+];
+
 export const MAX_FILE_SIZE = {
   image: 10 * 1024 * 1024,  // 10MB
   video: 50 * 1024 * 1024,  // 50MB
-  audio: 10 * 1024 * 1024   // 10MB
+  audio: 10 * 1024 * 1024,  // 10MB
+  file: 50 * 1024 * 1024    // 50MB
 };
+
+export type UploadCategory = 'image' | 'video' | 'audio' | 'file';
 
 // ============================================
 // 📝 Type Definitions
@@ -71,7 +101,7 @@ export interface UploadResult {
   path: string;         // Storage path
   type: string;         // MIME type
   size: number;         // File size in bytes
-  category: 'image' | 'video' | 'audio';
+  category: UploadCategory;
   metadata?: UploadMetadata;
 }
 
@@ -80,6 +110,7 @@ export interface UploadMetadata {
   height?: number;      // Image/video height
   duration?: number;    // Video duration in seconds
   thumbnail?: string;   // Thumbnail URI (future)
+  originalName?: string;
 }
 
 export interface UploadError {
@@ -87,20 +118,39 @@ export interface UploadError {
   code?: string;
 }
 
+function hasBlockedExtension(fileName: string): boolean {
+  const normalizedName = fileName.trim().toLowerCase();
+  return BLOCKED_FILE_EXTENSIONS.some((extension) => normalizedName.endsWith(extension));
+}
+
+function hasBlockedMimeType(mimeType: string): boolean {
+  const normalizedMimeType = mimeType.trim().toLowerCase();
+  if (!normalizedMimeType) {
+    return false;
+  }
+
+  return BLOCKED_FILE_MIME_TYPES.includes(normalizedMimeType);
+}
+
 // ============================================
 // ✅ Validation
 // ============================================
 
-function validateFile(file: File, category: 'image' | 'video' | 'audio'): UploadError | null {
+function validateFile(file: File, category: UploadCategory): UploadError | null {
   const acceptedTypes = category === 'image'
     ? ACCEPTED_IMAGE_TYPES
     : category === 'video'
       ? ACCEPTED_VIDEO_TYPES
-      : ACCEPTED_AUDIO_TYPES;
+      : category === 'audio'
+        ? ACCEPTED_AUDIO_TYPES
+        : [];
   const maxSize = MAX_FILE_SIZE[category];
 
   // Check file type
-  if (!acceptedTypes.includes(file.type)) {
+  if (
+    (category === 'file' && (hasBlockedExtension(file.name) || hasBlockedMimeType(file.type)))
+    || (category !== 'file' && !acceptedTypes.includes(file.type))
+  ) {
     return {
       message: `不支持的文件类型: ${file.type}`,
       code: 'INVALID_TYPE'
@@ -195,8 +245,10 @@ async function generateThumbnail(file: File): Promise<string | null> {
   });
 }
 
-async function extractMetadata(file: File, category: 'image' | 'video' | 'audio'): Promise<UploadMetadata> {
-  const metadata: UploadMetadata = {};
+async function extractMetadata(file: File, category: UploadCategory): Promise<UploadMetadata> {
+  const metadata: UploadMetadata = {
+    originalName: file.name,
+  };
 
   if (category === 'image') {
     // Extract image dimensions
@@ -277,13 +329,13 @@ async function extractMetadata(file: File, category: 'image' | 'video' | 'audio'
 /**
  * Upload a file to Supabase Storage
  * @param file - File to upload
- * @param category - 'image', 'video', or 'audio'
+ * @param category - 'image', 'video', 'audio', or 'file'
  * @returns UploadResult with public URL and metadata
  * @throws Error if upload fails
  */
 export async function uploadFile(
   file: File,
-  category: 'image' | 'video' | 'audio'
+  category: UploadCategory
 ): Promise<UploadResult> {
   let compressedFile = file;
 
@@ -313,7 +365,8 @@ export async function uploadFile(
     // 4. Generate unique filename
     const fileExt = compressedFile.name.split('.').pop() || 'bin';
     const fileName = `${crypto.randomUUID()}.${fileExt}`;
-    const filePath = `${user.id}/${category}s/${fileName}`;
+    const folderName = category === 'file' ? 'files' : `${category}s`;
+    const filePath = `${user.id}/${folderName}/${fileName}`;
 
     // 5. Extract metadata
     const metadata = await extractMetadata(compressedFile, category);
@@ -416,11 +469,29 @@ export async function deleteFile(path: string): Promise<void> {
 /**
  * Get file category from MIME type
  */
-export function getFileCategory(mimeType: string): 'image' | 'video' | 'audio' | null {
+export function getFileCategory(mimeType: string): Exclude<UploadCategory, 'file'> | null {
   if (ACCEPTED_IMAGE_TYPES.includes(mimeType as any)) return 'image';
   if (ACCEPTED_VIDEO_TYPES.includes(mimeType as any)) return 'video';
   if (ACCEPTED_AUDIO_TYPES.includes(mimeType as any)) return 'audio';
   return null;
+}
+
+/**
+ * Resolve the upload category for a browser File.
+ * Falls back to generic file uploads for non-media attachments.
+ */
+export function resolveFileCategory(file: Pick<File, 'type' | 'name'>): UploadCategory | null {
+  const mediaCategory = getFileCategory(file.type || '');
+  if (mediaCategory) {
+    return mediaCategory;
+  }
+
+  const normalizedName = String(file.name || '').trim();
+  if (!normalizedName) {
+    return null;
+  }
+
+  return 'file';
 }
 
 /**
@@ -437,11 +508,10 @@ export function formatFileSize(bytes: number): string {
  * Check if file is valid
  */
 export function isValidFile(file: File): boolean {
-  const category = getFileCategory(file.type);
+  const category = resolveFileCategory(file);
   if (!category) return false;
 
-  const maxSize = MAX_FILE_SIZE[category];
-  return file.size <= maxSize;
+  return validateFile(file, category) === null;
 }
 
 // ============================================

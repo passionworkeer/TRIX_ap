@@ -457,6 +457,7 @@ describe('ClawbotChannelContext', () => {
         'Hello',
         'text',
         undefined,
+        undefined,
         undefined
       );
     });
@@ -593,7 +594,7 @@ describe('ClawbotChannelContext', () => {
 
       if (errorHandler) {
         await act(async () => {
-          errorHandler({ message: 'Connection failed', code: 'CONNECTION_ERROR' });
+          errorHandler({ message: 'Connection failed', code: 'CONNECTION_FAILED' });
         });
 
         await waitFor(() => {
@@ -620,7 +621,10 @@ describe('ClawbotChannelContext', () => {
         });
 
         await waitFor(() => {
-          expect(getByTestId('status').textContent).toBe('ERROR');
+          expect(getByTestId('status').textContent).toBe('DISCONNECTED');
+          expect(getByTestId('last-error').textContent).toBe(
+            '当前 8765 服务不是 Clawbot Channel 服务，请启动 server/clawbot-channel/server.js'
+          );
           expect(toast.error).toHaveBeenCalled();
         });
       }

@@ -188,14 +188,16 @@ export async function sendMessageWithMedia(
     uri: string;
     type: string;
     size: number;
-    category: 'image' | 'video' | 'audio';
+    category: 'image' | 'video' | 'audio' | 'file';
     metadata?: {
       width?: number;
       height?: number;
       duration?: number;
+      originalName?: string;
+      size?: number;
     };
   },
-  messageType: 'image' | 'video' | 'mixed' | 'voice'
+  messageType: 'image' | 'video' | 'file' | 'mixed' | 'voice'
 ): Promise<string | null> {
   try {
     const userId = await getCurrentUserId();
@@ -244,7 +246,15 @@ export async function sendMessageWithMedia(
     }
 
     // 更新未读计数（使用预览文本）
-    const typeLabel = messageType === 'image' ? '图片' : messageType === 'video' ? '视频' : messageType === 'voice' ? '语音' : '媒体';
+    const typeLabel = messageType === 'image'
+      ? '图片'
+      : messageType === 'video'
+        ? '视频'
+        : messageType === 'file'
+          ? '文件'
+          : messageType === 'voice'
+            ? '语音'
+            : '媒体';
     const previewText = text || `[${typeLabel}]`;
     await updateUnreadCount(receiverId, senderId, previewText);
 

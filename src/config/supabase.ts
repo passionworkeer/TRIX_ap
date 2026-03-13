@@ -64,7 +64,7 @@ export interface ChatMessage {
   text: string;
   created_at: string;
   // Media fields (optional)
-  message_type?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
+  message_type?: 'text' | 'image' | 'video' | 'file' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
   media_size?: number;
@@ -73,6 +73,8 @@ export interface ChatMessage {
     height?: number;
     duration?: number;
     thumbnail?: string;
+    originalName?: string;
+    size?: number;
   };
   // Voice message fields (optional)
   /** 语音文件 URL */
@@ -95,7 +97,7 @@ export interface ChatMessageDB {
   is_read: boolean;
   created_at: string;
   // Media fields
-  message_type?: 'text' | 'image' | 'video' | 'voice' | 'mixed';
+  message_type?: 'text' | 'image' | 'video' | 'file' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
   media_size?: number;
@@ -104,6 +106,8 @@ export interface ChatMessageDB {
     height?: number;
     duration?: number;
     thumbnail?: string;
+    originalName?: string;
+    size?: number;
   };
   // Voice message fields (database storage)
   /** 语音文件 URL */

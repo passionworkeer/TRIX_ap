@@ -145,6 +145,7 @@ import {
   uploadFile,
   deleteFile,
   getFileCategory,
+  resolveFileCategory,
   formatFileSize,
   isValidFile,
   ACCEPTED_IMAGE_TYPES,
@@ -205,6 +206,21 @@ describe('uploadService', () => {
     });
   });
 
+  describe('resolveFileCategory', () => {
+    it('should resolve generic documents as file attachments', () => {
+      const pdfFile = new File(['pdf'], 'slides.pptx', {
+        type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      });
+
+      expect(resolveFileCategory(pdfFile)).toBe('file');
+    });
+
+    it('should resolve empty MIME files as generic files when name exists', () => {
+      const file = new File(['data'], 'notes.md', { type: '' });
+      expect(resolveFileCategory(file)).toBe('file');
+    });
+  });
+
   describe('isValidFile', () => {
     it('should return true for valid image files under size limit', () => {
       const validImage = new File(['img'], 'test.jpg', { type: 'image/jpeg' });
@@ -217,9 +233,14 @@ describe('uploadService', () => {
       expect(isValidFile(validVideo)).toBe(true);
     });
 
-    it('should return false for invalid file types', () => {
-      const invalidFile = new File(['doc'], 'test.pdf', { type: 'application/pdf' });
-      expect(isValidFile(invalidFile)).toBe(false);
+    it('should return true for supported generic file attachments', () => {
+      const validFile = new File(['doc'], 'test.pdf', { type: 'application/pdf' });
+      expect(isValidFile(validFile)).toBe(true);
+    });
+
+    it('should return false for blocked executable file types', () => {
+      const blockedFile = new File(['bin'], 'installer.exe', { type: 'application/x-msdownload' });
+      expect(isValidFile(blockedFile)).toBe(false);
     });
 
     it('should return false for image files over size limit', () => {
@@ -232,6 +253,15 @@ describe('uploadService', () => {
       // Create a file larger than 50MB
       const largeVideo = new File(['x'.repeat(51 * 1024 * 1024)], 'large.mp4', { type: 'video/mp4' });
       expect(isValidFile(largeVideo)).toBe(false);
+    });
+
+    it('should return false for generic files over size limit', () => {
+      const largeDocument = new File(
+        ['x'.repeat(51 * 1024 * 1024)],
+        'deck.pptx',
+        { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }
+      );
+      expect(isValidFile(largeDocument)).toBe(false);
     });
   });
 
@@ -389,6 +419,18 @@ describe('uploadService', () => {
       // Verify path format for videos
       expect(result.path).toMatch(/^user-123\/videos\/.+/);
     }, 10000);
+
+    it('should upload generic files into the files folder', async () => {
+      const file = new File(['presentation'], 'deck.pptx', {
+        type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      });
+
+      const result = await uploadFile(file, 'file');
+
+      expect(result.category).toBe('file');
+      expect(result.path).toMatch(/^user-123\/files\/.+/);
+      expect(result.metadata?.originalName).toBe('deck.pptx');
+    }, 10000);
   });
 
   // ============================================
@@ -458,6 +500,7 @@ describe('uploadService', () => {
     it('should have correct max file sizes', () => {
       expect(MAX_FILE_SIZE.image).toBe(10 * 1024 * 1024); // 10MB
       expect(MAX_FILE_SIZE.video).toBe(50 * 1024 * 1024); // 50MB
+      expect(MAX_FILE_SIZE.file).toBe(50 * 1024 * 1024); // 50MB
     });
   });
 

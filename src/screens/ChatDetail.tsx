@@ -13,6 +13,7 @@ import { useErrorHandler } from '../utils/errorHandler';
 import { formatTime } from '../utils/dateFormat';
 import Avatar from '../components/Avatar';
 import MediaMessage from '../components/MediaMessage';
+import FileAttachmentCard from '../components/FileAttachmentCard';
 import AIActionSelector from '../components/AIActionSelector';
 import { useConfirmModal } from '../hooks/useConfirmModal';
 import VoiceRecorder from '../components/VoiceRecorder';
@@ -24,7 +25,7 @@ import {
   detectAIActionFromInput,
 } from '../features/chat/utils/aiPrompt';
 import { getChatHistory, sendMessage as dbSendMessage, sendMessageWithMedia, markMessagesAsRead, getFriendById } from '../services/databaseService';
-import { uploadFile, IMAGE_COMPRESSION_OPTIONS } from '../services/uploadService';
+import { uploadFile, IMAGE_COMPRESSION_OPTIONS, resolveFileCategory } from '../services/uploadService';
 import { isServerOssUploadEnabled, uploadFileToServerOss } from '../services/serverOssUploadService';
 import imageCompression from 'browser-image-compression';
 import { supabase, getUsersLastActive, calculateOnlineStatus, getOnlineStatusText, UserOnlineStatus } from '../config/supabase';
@@ -42,14 +43,61 @@ interface UIMessage {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
-  messageType?: 'text' | 'image' | 'video' | 'mixed' | 'voice';
+  messageType?: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
   mediaUri?: string;
   mediaType?: string;
+  mediaSize?: number;
   mediaMetadata?: {
     width?: number;
     height?: number;
     duration?: number;
+    thumbnail?: string;
+    originalName?: string;
+    size?: number;
   };
+}
+
+const ATTACHMENT_PLACEHOLDERS = ['[image]', '[video]', '[file]', '[media]'];
+
+function isVideoAttachment(messageType?: UIMessage['messageType'], mediaType?: string, mediaUri?: string): boolean {
+  const normalizedMimeType = String(mediaType || '').toLowerCase();
+  const normalizedUri = String(mediaUri || '').toLowerCase();
+
+  return messageType === 'video'
+    || normalizedMimeType.startsWith('video/')
+    || ['.mp4', '.webm', '.mov', '.m4v', '.avi', '.mpeg'].some((extension) => normalizedUri.endsWith(extension));
+}
+
+function isFileAttachment(message: UIMessage): boolean {
+  if (!message.mediaUri || message.messageType === 'voice') {
+    return false;
+  }
+
+  if (message.messageType === 'file') {
+    return true;
+  }
+
+  if (message.messageType === 'image' || message.messageType === 'video' || message.messageType === 'mixed') {
+    return false;
+  }
+
+  const normalizedMimeType = String(message.mediaType || '').toLowerCase();
+  return Boolean(normalizedMimeType) && !normalizedMimeType.startsWith('image/') && !normalizedMimeType.startsWith('video/');
+}
+
+function shouldHideAttachmentPlaceholder(text: string, mediaUri?: string): boolean {
+  const normalizedText = String(text || '').trim();
+  const normalizedMediaUri = String(mediaUri || '').trim();
+
+  if (!normalizedText || !normalizedMediaUri) {
+    return false;
+  }
+
+  if (ATTACHMENT_PLACEHOLDERS.includes(normalizedText) || normalizedText === normalizedMediaUri) {
+    return true;
+  }
+
+  return ATTACHMENT_PLACEHOLDERS.some((placeholder) => normalizedText === `${placeholder} ${normalizedMediaUri}`);
 }
 
 // Mock conversations removed; use database data.
@@ -136,8 +184,15 @@ const ChatDetail: React.FC = () => {
     uri: string;
     type: string;
     size?: number;
-    category: 'image' | 'video';
-    metadata?: Record<string, unknown>;
+    category: 'image' | 'video' | 'file';
+    metadata?: {
+      width?: number;
+      height?: number;
+      duration?: number;
+      thumbnail?: string;
+      originalName?: string;
+      size?: number;
+    };
   }
 
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
@@ -249,6 +304,7 @@ const ChatDetail: React.FC = () => {
       uiMessage.messageType = dbMsg.message_type;
       uiMessage.mediaUri = dbMsg.media_uri;
       uiMessage.mediaType = dbMsg.media_type;
+      uiMessage.mediaSize = dbMsg.media_size;
       uiMessage.mediaMetadata = dbMsg.media_metadata;
     }
 
@@ -308,8 +364,11 @@ const ChatDetail: React.FC = () => {
       sender: msg.sender,
       text: typeof msg.content === 'string' ? msg.content : '',
       timestamp: formatTime(new Date(msg.timestamp)),
-      messageType: msg.contentType === 'file' ? 'image' : msg.contentType || 'text',
-      mediaUri: msg.mediaUrl
+      messageType: msg.contentType || 'text',
+      mediaUri: msg.mediaUrl,
+      mediaType: msg.mediaMimeType,
+      mediaSize: typeof msg.mediaMetadata?.size === 'number' ? msg.mediaMetadata.size : undefined,
+      mediaMetadata: msg.mediaMetadata,
     })));
 
     return () => {
@@ -379,6 +438,7 @@ const ChatDetail: React.FC = () => {
                 uiMessage.messageType = newMessage.message_type;
                 uiMessage.mediaUri = newMessage.media_uri;
                 uiMessage.mediaType = newMessage.media_type;
+                uiMessage.mediaSize = newMessage.media_size;
                 uiMessage.mediaMetadata = newMessage.media_metadata;
               }
 
@@ -480,8 +540,12 @@ const ChatDetail: React.FC = () => {
 
     // 特殊处理：机器人会话直接发送到对应 Bridge，不保存到 Supabase
     if (isBotConversation) {
-      const botContentType: 'text' | 'image' | 'mixed' = hasMedia
-        ? (hasText ? 'mixed' : 'image')
+      const botContentType: 'text' | 'image' | 'video' | 'file' | 'mixed' = hasMedia
+        ? mediaData?.category === 'file'
+          ? 'file'
+          : hasText
+            ? 'mixed'
+            : (mediaData?.category ?? 'image')
         : 'text';
 
       const tempUserMessage: UIMessage = {
@@ -492,6 +556,8 @@ const ChatDetail: React.FC = () => {
         messageType: botContentType,
         mediaUri: mediaData?.uri,
         mediaType: mediaData?.type,
+        mediaSize: mediaData?.size,
+        mediaMetadata: mediaData?.metadata,
       };
 
       try {
@@ -507,7 +573,8 @@ const ChatDetail: React.FC = () => {
           messageText,
           botContentType,
           mediaData?.uri,
-          mediaData?.type
+          mediaData?.type,
+          mediaData?.metadata
         );
       } catch (error) {
         logger.chat.error('Bot 消息发送失败:', error);
@@ -526,8 +593,10 @@ const ChatDetail: React.FC = () => {
     const timeString = formatTime(new Date());
 
     // Determine message type
-    const messageType: 'text' | 'image' | 'video' | 'mixed' = hasMedia && hasText
-      ? 'mixed'
+    const messageType: 'text' | 'image' | 'video' | 'file' | 'mixed' = hasMedia && mediaData?.category === 'file'
+      ? 'file'
+      : hasMedia && hasText
+        ? 'mixed'
       : hasMedia
         ? (mediaData?.category === 'image' ? 'image' : 'video')
         : 'text';
@@ -541,6 +610,7 @@ const ChatDetail: React.FC = () => {
       messageType,
       mediaUri: mediaData?.uri,
       mediaType: mediaData?.type,
+      mediaSize: mediaData?.size,
       mediaMetadata: mediaData?.metadata,
     };
 
@@ -565,7 +635,7 @@ const ChatDetail: React.FC = () => {
             category: mediaData.category,
             metadata: mediaData.metadata ?? {},
           },
-          messageType as 'image' | 'video' | 'mixed'
+          messageType as 'image' | 'video' | 'file' | 'mixed'
         );
       } else {
         messageId = await dbSendMessage(friendId, 'user', messageText);
@@ -677,19 +747,24 @@ const ChatDetail: React.FC = () => {
     try {
       setUploadingFile(true);
 
-      const category = file.type.startsWith('image/') ? 'image' : 'video';
-      if (isBotConversation) {
-        if (category !== 'image') {
-          throw new Error('Clawbot 当前仅支持图片附件');
-        }
+      const uploadCategory = resolveFileCategory(file);
+      if (!uploadCategory) {
+        throw new Error('不支持的文件类型');
+      }
 
+      const previewCategory: AttachmentPreview['category'] = uploadCategory === 'image' || uploadCategory === 'video'
+        ? uploadCategory
+        : 'file';
+
+      if (isBotConversation) {
         if (isServerOssUploadEnabled()) {
-          // Compress image before upload for better performance
           let fileToUpload = file;
-          try {
-            fileToUpload = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
-          } catch (compressError) {
-            console.warn('[Upload] Compression failed, using original:', compressError);
+          if (uploadCategory === 'image') {
+            try {
+              fileToUpload = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+            } catch (compressError) {
+              logger.upload.warn('[Upload] Compression failed, using original:', compressError);
+            }
           }
 
           const result = await uploadFileToServerOss(fileToUpload);
@@ -697,22 +772,28 @@ const ChatDetail: React.FC = () => {
             uri: result.url,
             type: result.mimeType,
             size: result.size,
-            category: 'image',
-            metadata: {}
+            category: previewCategory,
+            metadata: {
+              originalName: result.filename || file.name,
+              size: result.size,
+            }
           }]);
           return;
         }
       }
 
-      const result = await uploadFile(file, category);
+      const result = await uploadFile(file, uploadCategory);
 
-      // Add to preview list (including media metadata)?
       setAttachmentPreviews(prev => [...prev, {
         uri: result.uri,
         type: result.type,
         size: result.size,
-        category,
-        metadata: (result.metadata ?? {}) as Record<string, unknown>
+        category: previewCategory,
+        metadata: {
+          ...(result.metadata ?? {}),
+          originalName: result.metadata?.originalName || file.name,
+          size: result.size,
+        }
       }]);
 
     } catch (error) {
@@ -921,12 +1002,11 @@ const ChatDetail: React.FC = () => {
 
                 <div className="flex max-w-[75%] flex-col gap-1">
                   
-                  {/* 图片/视频消息 - 接收者 */}
-                  {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && (
+                  {msg.mediaUri && msg.sender !== 'user' && msg.messageType !== 'voice' && !isFileAttachment(msg) && (
                     <div className="mb-1 overflow-hidden rounded-2xl rounded-tl-sm bg-slate-100 dark:bg-slate-800">
                       <MediaMessage
                         uri={msg.mediaUri}
-                        type={msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? 'video' : 'image'}
+                        type={isVideoAttachment(msg.messageType, msg.mediaType, msg.mediaUri) ? 'video' : 'image'}
                         alt="Attachment"
                         maxSize="sm"
                         className="w-full max-w-[240px] h-auto object-cover"
@@ -934,28 +1014,43 @@ const ChatDetail: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 图片/视频消息 - 发送者 */}
-                  {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && (
-                    <div className="mb-1 flex justify-end">
-                      <div className="relative overflow-hidden rounded-2xl rounded-tr-sm bg-slate-100 dark:bg-slate-800 shadow-sm">
-                        {msg.messageType === 'video' || msg.mediaUri?.endsWith('.mp4') || msg.mediaUri?.endsWith('.webm') || msg.mediaUri?.endsWith('.mov') ? (
-                          <video src={msg.mediaUri} className="max-w-[240px] max-h-[300px] object-cover" controls preload="metadata" />
-                        ) : (
-                          <img
-                            src={msg.mediaUri}
-                            alt="Attachment"
-                            className="max-w-[240px] max-h-[240px] object-cover"
-                            loading="eager"
-                            decoding="async"
-                            fetchpriority="high"
-                          />
-                        )}
-                      </div>
+                  {msg.mediaUri && msg.sender !== 'user' && isFileAttachment(msg) && (
+                    <div className="mb-1">
+                      <FileAttachmentCard
+                        uri={msg.mediaUri}
+                        mimeType={msg.mediaType}
+                        fileName={msg.mediaMetadata?.originalName}
+                        size={msg.mediaSize ?? msg.mediaMetadata?.size}
+                        className="max-w-[280px]"
+                      />
                     </div>
                   )}
 
-                  {/* Bubble for Voice or Text */}
-                  {(msg.messageType === 'voice' || (msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]')) && (
+                  {msg.mediaUri && msg.sender === 'user' && msg.messageType !== 'voice' && !isFileAttachment(msg) && (
+                    <div className="mb-1 flex justify-end">
+                      <MediaMessage
+                        uri={msg.mediaUri}
+                        type={isVideoAttachment(msg.messageType, msg.mediaType, msg.mediaUri) ? 'video' : 'image'}
+                        alt="Attachment"
+                        maxSize="sm"
+                        className="w-full max-w-[240px] h-auto object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {msg.mediaUri && msg.sender === 'user' && isFileAttachment(msg) && (
+                    <div className="mb-1 flex justify-end">
+                      <FileAttachmentCard
+                        uri={msg.mediaUri}
+                        mimeType={msg.mediaType}
+                        fileName={msg.mediaMetadata?.originalName}
+                        size={msg.mediaSize ?? msg.mediaMetadata?.size}
+                        className="max-w-[280px]"
+                      />
+                    </div>
+                  )}
+
+                  {(msg.messageType === 'voice' || (msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msg.mediaUri))) && (
                     <div
                       className={`relative px-4 py-3 text-sm leading-relaxed transition-all duration-200 ${
                         msg.sender === 'user'
@@ -975,7 +1070,7 @@ const ChatDetail: React.FC = () => {
                       )}
                       
                       {/* 文本消息 */}
-                      {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && (
+                      {msg.text && typeof msg.text === 'string' && msg.text !== '[object Object]' && !shouldHideAttachmentPlaceholder(msg.text, msg.mediaUri) && (
                         <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                       )}
                     </div>
@@ -1040,21 +1135,31 @@ const ChatDetail: React.FC = () => {
               >
                 <div className="flex flex-wrap gap-2">
                   {attachmentPreviews.map((preview, index) => (
-                    <div key={index} className="relative shrink-0">
-                      <div className="h-[80px] w-[80px] overflow-hidden rounded-lg border-2 border-slate-300 shadow-lg dark:border-slate-600">
-                        {preview.category === 'video' ? (
-                          <video
-                            src={preview.uri}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <img
-                            src={preview.uri}
-                            alt={`附件预览 ${index + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </div>
+                    <div key={index} className={`relative ${preview.category === 'file' ? 'w-[240px]' : 'shrink-0'}`}>
+                      {preview.category === 'file' ? (
+                        <FileAttachmentCard
+                          uri={preview.uri}
+                          mimeType={preview.type}
+                          fileName={preview.metadata?.originalName}
+                          size={preview.size ?? preview.metadata?.size}
+                          compact
+                        />
+                      ) : (
+                        <div className="h-[80px] w-[80px] overflow-hidden rounded-lg border-2 border-slate-300 shadow-lg dark:border-slate-600">
+                          {preview.category === 'video' ? (
+                            <video
+                              src={preview.uri}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={preview.uri}
+                              alt={`附件预览 ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -1099,7 +1204,7 @@ const ChatDetail: React.FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="*/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
