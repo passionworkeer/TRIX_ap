@@ -23,6 +23,22 @@ function normalizeBaseUrl(baseUrl: string): string {
 }
 
 function resolveChannelHttpBaseUrl(): string {
+  // 生产环境优先使用 __PROD_UPLOAD_URL__
+  if (typeof window !== 'undefined') {
+    const prodUploadUrl = (window as any).__PROD_UPLOAD_URL__;
+    if (prodUploadUrl) {
+      try {
+        const parsed = new URL(prodUploadUrl);
+        parsed.pathname = '';
+        parsed.search = '';
+        parsed.hash = '';
+        return normalizeBaseUrl(parsed.toString());
+      } catch {
+        // Invalid URL, continue to fallback
+      }
+    }
+  }
+
   const { channelUrl } = getClawbotEndpoints();
   if (!channelUrl) {
     throw new Error('Clawbot channel URL is not configured');
