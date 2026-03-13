@@ -48,17 +48,29 @@ function resolveChannelHttpBaseUrl(): string {
     return normalizeBaseUrl(parsed.toString());
   }
 
-  // Fallback: 基于当前页面 URL 自动检测
-  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  if (currentOrigin) {
-    return normalizeBaseUrl(currentOrigin);
+  // 生产环境优先使用 __PROD_UPLOAD_URL__
+  if (typeof window !== 'undefined') {
+    const prodUploadUrl = (window as any).__PROD_UPLOAD_URL__;
+    if (prodUploadUrl) {
+      try {
+        const parsed = new URL(prodUploadUrl);
+        parsed.pathname = '';
+        parsed.search = '';
+        parsed.hash = '';
+        return normalizeBaseUrl(parsed.toString());
+      } catch {
+        // Invalid URL, continue to fallback
+      }
+    }
+
+    // Fallback: 基于当前页面 URL 自动检测
+    const currentOrigin = window.location.origin;
+    if (currentOrigin) {
+      return normalizeBaseUrl(currentOrigin);
+    }
   }
 
-  // 最终 fallback: 硬编码的生产服务器地址（从全局变量读取）
-  if (typeof window !== 'undefined' && (window as any).__PROD_UPLOAD_URL__) {
-    return (window as any).__PROD_UPLOAD_URL__;
-  }
-
+  // 最终 fallback: 硬编码的生产服务器地址
   return 'http://TRIX_SERVER_HOST:8765';
 }
 
