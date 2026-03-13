@@ -1,5 +1,5 @@
-ï»¿import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Camera, Keyboard, Check, Loader2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Camera, Keyboard, Check, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
@@ -8,14 +8,13 @@ import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
-import { getErrorMessage } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
-import { PAIRING_VALIDATION, validateString, getValidationErrorMessage } from '../lib/validation';
+
+const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
   const {
-    isConnected,
     isPaired,
     pairWithCode,
     pairWithQR,
@@ -23,7 +22,7 @@ const Pairing: React.FC = () => {
     lastError,
   } = useClawbotChannel();
 
-  const [mode, setMode] = useState<'scan' | 'input' | 'waiting' | 'success'>('scan');
+  const [mode, setMode] = useState<'scan' | 'input' | 'success'>('scan');
   const [codeInput, setCodeInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -60,7 +59,6 @@ const Pairing: React.FC = () => {
   const startScanner = async () => {
     try {
       await stopScanner();
-
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
@@ -75,317 +73,243 @@ const Pairing: React.FC = () => {
           void handleScanSuccess(decodedText);
         },
         () => {
-          // Ignore normal scanning parse errors.
-        }
+          // Ignore continuous parsing noise.
+        },
       );
 
       isScanning.current = true;
-      toast.success('æ‘„åƒå¤´å·²å¯åŠ¨');
+      toast.success('ÉãÏñÍ·ÒÑÆô¶¯');
     } catch (error) {
       logger.pairing.error('Start scanner failed:', error);
-      toast.error('æ— æ³•è®¿é—®æ‘„åƒå¤´ï¼Œè¯·æ£€æŸ¥æƒé™è®¾ç½®');
+      toast.error('ÎŞ·¨·ÃÎÊÉãÏñÍ·£¬Çë¼ì²éÈ¨ÏŞÉèÖÃ');
     }
+  };
+
+  const handlePairSuccess = async () => {
+    await stopScanner(true);
+    toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
+    toast.success('Åä¶Ô³É¹¦');
+    setMode('success');
+    setTimeout(() => {
+      navigate(AppRoutes.HOME);
+    }, 1200);
   };
 
   const handleScanSuccess = async (decodedText: string) => {
     await stopScanner();
     setLoading(true);
-
-    const normalized = decodedText.trim();
-    let qrToken: string | null = null;
-
     try {
-      const parsed = JSON.parse(normalized);
-      const maybeToken = parsed?.token || parsed?.pairingToken;
-      if (typeof maybeToken === 'string' && maybeToken.trim()) {
-        qrToken = maybeToken.trim();
-      }
-    } catch {
-      // Not JSON; fallback to pairing-code path.
-    }
-
-    try {
-      if (qrToken) {
-        const success = await pairWithQR(qrToken);
-        if (success) {
-          setMode('waiting');
-          return;
-        }
-
-        toast.error('äºŒç»´ç é…å¯¹å¤±è´¥');
+      const success = await pairWithQR(decodedText.trim());
+      if (!success) {
+        toast.error('¶şÎ¬ÂëÅä¶ÔÊ§°Ü');
+        await startScanner();
         return;
       }
-
-      if (normalized.length === 6 && /^[A-Z0-9]+$/i.test(normalized)) {
-        const success = await pairWithCode(normalized.toUpperCase());
-        if (success) {
-          setMode('waiting');
-          return;
-        }
-
-        toast.error('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
-        return;
-      }
-
-      toast.error('æ— æ•ˆçš„äºŒç»´ç å†…å®¹');
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, 'é…å¯¹å¤±è´¥ï¼Œè¯·é‡è¯•'));
+      await handlePairSuccess();
+    } catch (error) {
+      logger.pairing.error('QR pairing failed:', error);
+      toast.error(error instanceof Error ? error.message : '¶şÎ¬ÂëÅä¶ÔÊ§°Ü');
+      await startScanner();
     } finally {
       setLoading(false);
     }
   };
 
   const handlePairWithCode = async () => {
-    // Validate pairing code
-    const codeError = validateString(codeInput, PAIRING_VALIDATION.code, 'code');
-    if (codeError) {
-      toast.error(getValidationErrorMessage(codeError));
+    const normalizedCode = codeInput.trim().toUpperCase();
+    if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
+      toast.error('ÇëÊäÈë 6 µ½ 8 Î»×ÖÄ¸Êı×ÖÅä¶ÔÂë');
       return;
     }
 
     try {
       setLoading(true);
-      const success = await pairWithCode(codeInput.toUpperCase());
-      if (success) {
-        setMode('waiting');
-        toast.success('é…å¯¹è¯·æ±‚å·²æäº¤ï¼Œè¯·ç­‰å¾…è®¾å¤‡ç¡®è®¤');
-      } else {
-        toast.error('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
+      const success = await pairWithCode(normalizedCode);
+      if (!success) {
+        toast.error('Åä¶ÔÂëÎŞĞ§»òÒÑ¹ıÆÚ');
+        return;
       }
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, 'é…å¯¹å¤±è´¥'));
+      await handlePairSuccess();
+    } catch (error) {
+      logger.pairing.error('Code pairing failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Åä¶ÔÊ§°Ü');
     } finally {
       setLoading(false);
     }
   };
 
   const handleUnpair = () => {
-    void stopScanner();
+    void stopScanner(true);
     unpair();
     setMode('scan');
     setCodeInput('');
-    toast.success('å·²å–æ¶ˆé…å¯¹');
+    toast.success('ÒÑÈ¡ÏûÅä¶Ô');
   };
 
   useEffect(() => {
     if (isPaired) {
       setMode('success');
-      void stopScanner();
-      toast.success('é…å¯¹æˆåŠŸ');
+      void stopScanner(true);
+    }
+  }, [isPaired]);
 
-      const timer = window.setTimeout(() => {
-        navigate(AppRoutes.CHAT_DETAIL, {
-          state: {
-            friendId: 'clawbot',
-            name: 'TRIX Bot',
-            avatar: IMAGES.WIZARD_BOY_LOGIN,
-            isBot: true,
-          },
-        });
-      }, 1500);
-
-      return () => window.clearTimeout(timer);
+  useEffect(() => {
+    if (mode === 'scan') {
+      void startScanner();
+    } else {
+      void stopScanner(true);
     }
 
-    return undefined;
-  }, [isPaired, navigate]);
-
-  useEffect(() => {
-    if (mode !== 'input') {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      codeInputRef.current?.focus();
-      codeInputRef.current?.select();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [mode]);
-
-  useEffect(() => {
-    toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
-
-    return () => {
-      toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
-    };
-  }, []);
-
-  useEffect(() => {
     return () => {
       void stopScanner(true);
     };
-  }, []);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode === 'input') {
+      codeInputRef.current?.focus();
+    }
+  }, [mode]);
 
   return (
-    <div className="relative h-screen w-full flex flex-col bg-gradient-to-br from-cyan-100 via-indigo-100 to-pink-100 overflow-hidden">
-      <header className="flex items-center p-4 pt-12 pb-2 justify-between z-20">
+    <div className="min-h-screen bg-gradient-to-br from-[#fdf2ff] via-[#f8fbff] to-[#eef8ff] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center px-6 pb-10 pt-16">
         <button
           type="button"
-          onClick={() => navigate(AppRoutes.PROFILE)}
-          className="ios-pressable ios-icon-button ios-surface-button flex h-10 w-10 shrink-0 items-center justify-center text-slate-800"
+          onClick={() => {
+            void stopScanner(true);
+            navigate(-1);
+          }}
+          className="ios-pressable ios-surface-button absolute left-4 top-12 flex h-11 w-11 items-center justify-center rounded-full shadow-sm"
+          aria-label="·µ»Ø"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={22} className="text-slate-700" />
         </button>
-        <h2 className="text-slate-800 text-lg font-bold flex-1 text-center pr-10">è®¾å¤‡é…å¯¹</h2>
-      </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center relative w-full px-6 pb-24 z-10">
-        {!isConnected && (
-          <div className="ios-glass-surface mb-4 flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/15 px-4 py-2">
-            <AlertCircle size={16} className="text-orange-600" />
-            <span className="text-orange-700 text-sm font-medium">æ­£åœ¨è¿æ¥æœåŠ¡å™¨...</span>
+        <div className="mt-8 flex flex-col items-center">
+          <div className="relative mb-5 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white/80 shadow-[0_18px_48px_rgba(99,102,241,0.18)] ring-1 ring-white/70 backdrop-blur-xl">
+            <img src={IMAGES.WIZARD_BOY_LOGIN} alt="TRIX" className="h-20 w-20 object-contain" />
           </div>
-        )}
+          <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Á¬½Ó TRIX Native</h1>
+          <p className="mt-2 max-w-[280px] text-center text-sm leading-6 text-slate-600">
+            É¨Ãè×ÀÃæ¶ËÉú³ÉµÄ¶şÎ¬Âë£¬»òÊäÈëÅä¶ÔÂë£¬Íê³É¿ç¾ÖÓòÍø³Ö¾Ã°ó¶¨¡£
+          </p>
+        </div>
 
-        {mode === 'scan' && (
-          <>
-            <div className="ios-glass-surface relative mb-6 aspect-square w-full max-w-[300px] overflow-hidden rounded-[2rem] border border-white/30 md:max-w-sm">
-              <div id="qr-reader" className="w-full h-full"></div>
-
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute left-0 w-full h-[2px] bg-purple-600 shadow-[0_0_10px_#9333ea] animate-scan"></div>
+        <GlassPanel className="mt-8 w-full overflow-hidden !rounded-[28px] border border-white/65 bg-white/65 px-5 py-6 shadow-[0_24px_60px_rgba(79,70,229,0.15)] backdrop-blur-2xl">
+          {mode === 'scan' && (
+            <>
+              <div className="relative mb-6 overflow-hidden rounded-[24px] bg-slate-950/90 p-4 shadow-inner">
+                <div id="qr-reader" className="min-h-[300px] w-full overflow-hidden rounded-[20px] bg-black" />
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                  </div>
+                )}
               </div>
 
-              <div className="absolute top-6 left-6 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-xl opacity-80 pointer-events-none"></div>
-              <div className="absolute top-6 right-6 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-xl opacity-80 pointer-events-none"></div>
-              <div className="absolute bottom-6 left-6 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-xl opacity-80 pointer-events-none"></div>
-              <div className="absolute bottom-6 right-6 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-xl opacity-80 pointer-events-none"></div>
-            </div>
+              <div className="flex flex-col items-center gap-2 px-4">
+                <p className="text-center text-base font-medium text-slate-800">É¨Ãè×ÀÃæ¶ËÕ¹Ê¾µÄÅä¶Ô¶şÎ¬Âë</p>
+                <div className="h-1 w-12 rounded-full bg-slate-300" />
+              </div>
 
-            <div className="flex flex-col items-center gap-2 mb-6 px-4">
-              <p className="text-slate-800 text-base font-medium text-center max-w-[280px] md:max-w-md">
-                æ‰«æç”µè„‘ç«¯å±•ç¤ºçš„é…å¯¹äºŒç»´ç 
-              </p>
-              <div className="w-12 h-1 bg-white/40 rounded-full"></div>
-            </div>
+              <GlassPanel
+                className="ios-pressable ios-surface-button mt-6 !rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer"
+                onClick={() => {
+                  setMode('input');
+                  void stopScanner(true);
+                }}
+              >
+                <Keyboard size={18} className="mr-2 text-slate-700" />
+                <span className="text-sm font-bold tracking-wide text-slate-800">ÊÖ¶¯ÊäÈëÅä¶ÔÂë</span>
+              </GlassPanel>
 
-            <GlassPanel
-              className="ios-pressable ios-surface-button !rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer"
-              onClick={() => {
-                setMode('input');
-                void stopScanner(true);
-              }}
-            >
-              <Keyboard size={18} className="mr-2 text-slate-700" />
-              <span className="text-slate-800 text-sm font-bold tracking-wide">æ‰‹åŠ¨è¾“å…¥é…å¯¹ç </span>
-            </GlassPanel>
+              {!isScanning.current && (
+                <button
+                  type="button"
+                  onClick={() => void startScanner()}
+                  className="ios-pressable ios-primary-button mt-4 flex items-center gap-2 rounded-full px-6 py-3 font-medium text-white"
+                >
+                  <Camera size={18} />
+                  ¿ªÆôÉãÏñÍ·
+                </button>
+              )}
+            </>
+          )}
 
-            {!isScanning.current && (
+          {mode === 'input' && (
+            <>
+              <div className="mb-6 w-full px-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700">ÊäÈë 6~8 Î»Åä¶ÔÂë</label>
+                <input
+                  ref={codeInputRef}
+                  type="text"
+                  value={codeInput}
+                  onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8))}
+                  placeholder="AB12CD34"
+                  className="w-full rounded-[1.25rem] border-2 border-purple-200 bg-white/88 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wider text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all placeholder:text-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                  maxLength={8}
+                  autoFocus
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                />
+              </div>
+
               <button
                 type="button"
-                onClick={() => void startScanner()}
-                className="ios-pressable ios-primary-button mt-4 flex items-center gap-2 rounded-full px-6 py-3 font-medium text-white"
-                aria-label="å¯ç”¨æ‘„åƒå¤´æ‰«æ"
+                onClick={() => void handlePairWithCode()}
+                disabled={!PAIRING_CODE_PATTERN.test(codeInput.trim().toUpperCase()) || loading}
+                className="ios-pressable ios-primary-button mb-3 flex w-full items-center justify-center gap-2 rounded-full py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Camera size={18} />
-                å¼€å¯æ‘„åƒå¤´
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    ÑéÖ¤ÖĞ...
+                  </>
+                ) : (
+                  'ÑéÖ¤Åä¶ÔÂë'
+                )}
               </button>
-            )}
-          </>
-        )}
 
-        {mode === 'input' && (
-          <>
-            <div className="w-full max-w-[300px] md:max-w-sm mb-6 px-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                è¾“å…¥ 6 ä½é…å¯¹ç 
-              </label>
-              <input
-                ref={codeInputRef}
-                type="text"
-                value={codeInput}
-                onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
-                placeholder="ABC123"
-                className="w-full rounded-[1.25rem] border-2 border-purple-200 bg-white/88 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wider text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all placeholder:text-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                maxLength={6}
-                autoFocus
-                autoCapitalize="characters"
-                spellCheck={false}
-              />
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('scan');
+                  void startScanner();
+                }}
+                className="ios-pressable ios-surface-button w-full rounded-full py-3 font-medium text-slate-700"
+              >
+                ·µ»ØÉ¨Âë
+              </button>
+            </>
+          )}
+
+          {mode === 'success' && (
+            <div className="flex flex-col items-center py-6">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                <Check size={40} className="text-green-600" />
+              </div>
+              <h3 className="mb-2 text-xl font-bold text-slate-800">Åä¶Ô³É¹¦</h3>
+              <p className="max-w-[260px] text-center text-slate-600">µ±Ç°ä¯ÀÀÆ÷ÒÑ°ó¶¨µ½ TRIX Native Í¨µÀ£¬Ë¢ĞÂºóÒ²»á×Ô¶¯»Ö¸´¡£</p>
+              <button
+                type="button"
+                onClick={handleUnpair}
+                className="ios-pressable mt-6 rounded-full border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600"
+              >
+                ½â³ı°ó¶¨
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => void handlePairWithCode()}
-              disabled={codeInput.length !== 6 || loading}
-              className="ios-pressable ios-primary-button mb-3 flex w-full max-w-[300px] items-center justify-center gap-2 rounded-full py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  éªŒè¯ä¸­...
-                </>
-              ) : (
-                'éªŒè¯é…å¯¹ç '
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleUnpair}
-              className="ios-pressable ios-surface-button w-full max-w-[300px] rounded-full py-3 font-medium text-gray-700"
-            >
-              å–æ¶ˆé…å¯¹
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMode('scan');
-                void startScanner();
-              }}
-              className="ios-pressable mt-4 flex items-center gap-1 rounded-full px-3 py-2 text-sm text-slate-600 transition-colors hover:text-slate-800"
-            >
-              <Camera size={16} />
-              è¿”å›æ‰«ç 
-            </button>
-          </>
-        )}
-
-        {mode === 'waiting' && (
-          <div className="flex flex-col items-center">
-            <div className="w-20 h-20 mb-6 rounded-full bg-purple-100 flex items-center justify-center">
-              <Loader2 size={40} className="text-purple-600 animate-spin" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">ç­‰å¾…è®¾å¤‡ç¡®è®¤</h3>
-            <p className="text-slate-600 text-center max-w-[280px]">è¯·åœ¨ç”µè„‘ç«¯ç¡®è®¤æœ¬æ¬¡é…å¯¹</p>
-          </div>
-        )}
-
-        {mode === 'success' && (
-          <div className="flex flex-col items-center">
-            <div className="w-20 h-20 mb-6 rounded-full bg-green-100 flex items-center justify-center">
-              <Check size={40} className="text-green-600" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">é…å¯¹æˆåŠŸ</h3>
-            <p className="text-slate-600 text-center max-w-[280px] mb-6">ä½ çš„è®¾å¤‡å·²è¿æ¥åˆ° Clawbot</p>
-            <button
-              type="button"
-              onClick={() => navigate(AppRoutes.CHAT_DETAIL, {
-                state: {
-                  friendId: 'clawbot',
-                  name: 'TRIX Bot',
-                  avatar: IMAGES.WIZARD_BOY_LOGIN,
-                  isBot: true,
-                },
-              })}
-              className="ios-pressable ios-primary-button rounded-full px-8 py-3 font-medium text-white"
-            >
-              å¼€å§‹èŠå¤©
-            </button>
-          </div>
-        )}
+          )}
+        </GlassPanel>
 
         {lastError && (
-          <div className="ios-glass-surface fixed left-4 right-4 top-20 z-50 mx-auto flex max-w-md items-center gap-2 rounded-xl border border-red-300/30 bg-red-500/85 px-4 py-3 text-white shadow-lg">
-            <AlertCircle size={18} />
-            <span className="text-sm">{lastError}</span>
-          </div>
+          <p className="mt-4 px-4 text-center text-sm text-red-500">{lastError}</p>
         )}
-      </main>
+      </div>
     </div>
   );
 };
 
 export default Pairing;
+
+

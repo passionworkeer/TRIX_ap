@@ -1,0 +1,9 @@
+{
+  "id": "trix-openclaw-native",
+  "channels": ["trix-native"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -8,22 +8,22 @@ interface UseBotStateMachineOptions {
   voiceEnabled?: boolean;
   /** 最新机器人消息 */
   latestBotMessage?: ClawbotChannelMessage | null;
-  /** 机器人状态变化回调 */
+  /** 机器人状态变化回�?*/
   onStateChange?: (state: BotState) => void;
 }
 
 interface UseBotStateMachineReturn {
-  /** 当前状态 */
+  /** 当前状�?*/
   botState: BotState;
-  /** 进入空闲状态 */
+  /** 进入空闲状�?*/
   enterIdle: () => void;
-  /** 进入思考状态 */
+  /** 进入思考状�?*/
   enterThinking: () => void;
   /** 进入说话状态（带超时） */
   enterSpeakingWithTimeout: (message: ClawbotChannelMessage) => void;
-  /** 处理机器人消息状态 */
+  /** 处理机器人消息状�?*/
   handleBotMessageState: (message: ClawbotChannelMessage) => void;
-  /** 清理所有超时 */
+  /** 清理所有超�?*/
   cleanup: () => void;
 }
 
@@ -31,12 +31,11 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
-const THINKING_MAX_MS = 120000;
 
 /**
  * useBotStateMachine - 机器人状态机 Hook
  *
- * 管理 Clawbot 的状态转换：IDLE → THINKING → SPEAKING → IDLE
+ * 管理 Clawbot 的状态转换：IDLE �?THINKING �?SPEAKING �?IDLE
  */
 export function useBotStateMachine(options: UseBotStateMachineOptions = {}): UseBotStateMachineReturn {
   const { voiceEnabled = false, latestBotMessage, onStateChange } = options;
@@ -48,7 +47,7 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
 
-  // 通知状态变化
+  // 通知状态变�?
   useEffect(() => {
     onStateChange?.(botState);
   }, [botState, onStateChange]);
@@ -72,7 +71,7 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     clearThinkingTimeout();
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
-  // 组件卸载时清理
+  // 组件卸载时清�?
   useEffect(() => {
     return () => {
       cleanup();
@@ -92,7 +91,7 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     clearThinkingTimeout();
     setBotState('THINKING');
     // 注意：已移除默认超时自动切回 IDLE 的逻辑
-    // 现在完全由外部传入的实际消息事件去打断 THINKING 状态
+    // 现在完全由外部传入的实际消息事件去打�?THINKING 状�?
   }, [clearSpeakingTimeout, clearThinkingTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
@@ -121,7 +120,7 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     }
   }, [voiceEnabled, enterSpeakingWithTimeout]);
 
-  // 语音模式切换时处理
+  // 语音模式切换时处�?
   useEffect(() => {
     if (voiceEnabled) return;
     if (botState !== 'THINKING' || !latestBotMessage) return;
@@ -141,3 +140,4 @@ export function useBotStateMachine(options: UseBotStateMachineOptions = {}): Use
     cleanup
   };
 }
+

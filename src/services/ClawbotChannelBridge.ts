@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Clawbot Channel Bridge Service
  * Connect to Clawbot Channel backend pairing service
  *
@@ -32,10 +32,22 @@ function generateMessageId(): string {
   return `${Date.now()}-${generateSecureRandomString(9)}`;
 }
 
+export interface ClawbotChannelAttachment {
+  id?: string;
+  kind: 'image' | 'audio' | 'video' | 'file';
+  url: string;
+  mimeType?: string;
+  fileName?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
 export interface ClawbotChannelMessage {
   id?: string;
   content: string;
-  contentType: 'text' | 'image' | 'video' | 'file' | 'mixed';
+  contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
   mediaUrl?: string;
   mediaMimeType?: string;
   mediaMetadata?: {
@@ -47,10 +59,11 @@ export interface ClawbotChannelMessage {
     size?: number;
     [key: string]: unknown;
   };
+  attachments?: ClawbotChannelAttachment[];
+  metadata?: Record<string, unknown>;
   timestamp: number;
   sender: 'user' | 'bot';
 }
-
 export interface PairingData {
   pairingCode: string;
   qrImage: string;
@@ -58,23 +71,23 @@ export interface PairingData {
 }
 
 /**
- * Socket äº‹ä»¶ç±»å‹å®šä¹‰
+ * Socket ÊÂ¼şÀàĞÍ¶¨Òå
  */
 export interface SocketEvents {
-  // è¿æ¥äº‹ä»¶
+  // Á¬½ÓÊÂ¼ş
   connect: void;
   connected: void;
   disconnect: void;
   reconnecting: { attempt: number };
 
-  // é…å¯¹äº‹ä»¶
+  // Åä¶ÔÊÂ¼ş
   pairing_success: { deviceId: string; deviceName: string };
   unpaired: void;
 
-  // æ¶ˆæ¯äº‹ä»¶
+  // ÏûÏ¢ÊÂ¼ş
   bot_message: {
     content: string;
-    contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed';
+    contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
     mediaUrl?: string;
     mediaMimeType?: string;
     mediaMetadata?: ClawbotChannelMessage['mediaMetadata'];
@@ -82,29 +95,29 @@ export interface SocketEvents {
   };
   message_sent: { messageId: string; timestamp: number };
 
-  // Bot çŠ¶æ€äº‹ä»¶
+  // Bot ×´Ì¬ÊÂ¼ş
   bot_online: { deviceId: string; message: string; timestamp: number };
   bot_offline: { deviceId: string; message: string; timestamp: number };
 
-  // è‡ªä¹ å®¤äº‹ä»¶
+  // ×ÔÏ°ÊÒÊÂ¼ş
   study_room_state: StudyRoomStateEvent;
 
-  // é”™è¯¯äº‹ä»¶
+  // ´íÎóÊÂ¼ş
   error: ErrorPayload;
 }
 
 /**
- * Socket äº‹ä»¶åç§°ç±»å‹
+ * Socket ÊÂ¼şÃû³ÆÀàĞÍ
  */
 export type SocketEventName = keyof SocketEvents;
 
 /**
- * Socket äº‹ä»¶ Payload ç±»å‹æ˜ å°„
+ * Socket ÊÂ¼ş Payload ÀàĞÍÓ³Éä
  */
 export type SocketEventPayload<T extends SocketEventName> = SocketEvents[T];
 
 /**
- * é”™è¯¯è½½è·ç±»å‹
+ * ´íÎóÔØºÉÀàĞÍ
  */
 export interface ErrorPayload {
   code?: string;
@@ -112,7 +125,7 @@ export interface ErrorPayload {
 }
 
 /**
- * Socket.IO å“åº”ç±»å‹
+ * Socket.IO ÏìÓ¦ÀàĞÍ
  */
 export interface SocketResponse {
   success: boolean;
@@ -127,7 +140,7 @@ export interface SocketResponse {
 }
 
 /**
- * é”™è¯¯å¯¹è±¡ç±»å‹ï¼ˆç”¨äº Socket.IO é”™è¯¯å¤„ç†ï¼‰
+ * ´íÎó¶ÔÏóÀàĞÍ£¨ÓÃÓÚ Socket.IO ´íÎó´¦Àí£©
  */
 export interface SocketError {
   code?: string;
@@ -137,7 +150,7 @@ export interface SocketError {
 }
 
 /**
- * OpenClaw æ§åˆ¶å‘½ä»¤ç±»å‹
+ * OpenClaw ¿ØÖÆÃüÁîÀàĞÍ
  */
 export type OpenClawControlAction =
   | 'models_status'
@@ -159,10 +172,10 @@ export type OpenClawControlAction =
   | 'config_backup_info';
 
 /**
- * æ§åˆ¶å‘½ä»¤å‚æ•°
+ * ¿ØÖÆÃüÁî²ÎÊı
  */
 export interface ControlCommandParams {
-  // cron ç›¸å…³
+  // cron Ïà¹Ø
   name?: string;
   schedule?: string;
   type?: 'message' | 'system-event';
@@ -171,12 +184,12 @@ export interface ControlCommandParams {
   to?: string;
   jobId?: string;
 
-  // logs ç›¸å…³
+  // logs Ïà¹Ø
   limit?: number;
 }
 
 /**
- * æ§åˆ¶å‘½ä»¤å“åº”
+ * ¿ØÖÆÃüÁîÏìÓ¦
  */
 export interface ControlCommandResponse<T = unknown> {
   success: boolean;
@@ -185,12 +198,12 @@ export interface ControlCommandResponse<T = unknown> {
 }
 
 /**
- * Socket äº‹ä»¶å›è°ƒç±»å‹ï¼ˆä½¿ç”¨æ³›å‹æ”¯æŒä¸åŒäº‹ä»¶ç±»å‹ï¼‰
+ * Socket ÊÂ¼ş»Øµ÷ÀàĞÍ£¨Ê¹ÓÃ·ºĞÍÖ§³Ö²»Í¬ÊÂ¼şÀàĞÍ£©
  */
 type EventCallback<T = unknown> = (data: T) => void;
 
 /**
- * ç±»å‹å®ˆå«ï¼šæ£€æŸ¥æ˜¯å¦ä¸º SocketResponse
+ * ÀàĞÍÊØÎÀ£º¼ì²éÊÇ·ñÎª SocketResponse
  */
 function isSocketResponse(data: unknown): data is SocketResponse {
   return (
@@ -260,7 +273,7 @@ class ClawbotChannelBridge {
         try {
           callback(data);
         } catch (error) {
-          logger.clawbot.error(`[ClawbotChannel] äº‹ä»¶å›è°ƒé”™è¯¯ (${event}):`, error);
+          logger.clawbot.error(`[ClawbotChannel] ÊÂ¼ş»Øµ÷´íÎó (${event}):`, error);
         }
       });
     }
@@ -304,20 +317,20 @@ class ClawbotChannelBridge {
 
       return session.user.id;
     } catch (error) {
-      logger.clawbot.error('[ClawbotChannel] getSupabaseUserId é”™è¯¯î‡¤:', error);
+      logger.clawbot.error('[ClawbotChannel] getSupabaseUserId ´íÎó¯¯:', error);
       return null;
     }
   }
 
   /**
-   * è¿æ¥åˆ°æœåŠ¡å™¨
+   * Á¬½Óµ½·şÎñÆ÷
    */
   async connect(): Promise<void> {
     // Get user ID
     this.userId = await this.getSupabaseUserId();
     if (!this.userId) {
-      logger.clawbot.error('[ClawbotChannel] ç”¨æˆ·æœªç™»å½•ï¼Œæ— æ³•è¿æ¥');
-      this.emit('error', { message: 'è¯·å…ˆç™»å½•' });
+      logger.clawbot.error('[ClawbotChannel] ÓÃ»§Î´µÇÂ¼£¬ÎŞ·¨Á¬½Ó');
+      this.emit('error', { message: 'ÇëÏÈµÇÂ¼' });
       return;
     }
 
@@ -337,24 +350,24 @@ class ClawbotChannelBridge {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,  // é™ä½é‡è¿æ¬¡æ•°ï¼ˆåŸ 100 æ¬¡ï¼‰
+      reconnectionAttempts: 10,  // ½µµÍÖØÁ¬´ÎÊı£¨Ô­ 100 ´Î£©
       reconnectionDelay: 2000,
-      reconnectionDelayMax: 30000  // é™ä½æœ€å¤§å»¶è¿Ÿï¼ˆåŸæ¥ 60000 æ¯«ç§’ï¼‰
+      reconnectionDelayMax: 30000  // ½µµÍ×î´óÑÓ³Ù£¨Ô­À´ 60000 ºÁÃë£©
     });
 
     this.setupEventHandlers();
 
-    // ç§»åŠ¨ç«¯å‰åå°åˆ‡æ¢å¼ºåˆ¶è¿æ¥æ£€æµ‹
-    // è§£å†³ iOS Safari ç­‰ç§»åŠ¨ç«¯æµè§ˆå™¨å†»ç»“ JS çº¿ç¨‹å¯¼è‡´çš„"å‡æ­»"é—®é¢˜
-    // æ¸…ç†æ—§çš„ç›‘å¬å™¨ï¼ˆå¦‚æœæœ‰ï¼‰
+    // ÒÆ¶¯¶ËÇ°ºóÌ¨ÇĞ»»Ç¿ÖÆÁ¬½Ó¼ì²â
+    // ½â¾ö iOS Safari µÈÒÆ¶¯¶Ëä¯ÀÀÆ÷¶³½á JS Ïß³Ìµ¼ÖÂµÄ"¼ÙËÀ"ÎÊÌâ
+    // ÇåÀí¾ÉµÄ¼àÌıÆ÷£¨Èç¹ûÓĞ£©
     if (this.visibilityChangeHandler) {
       document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
     }
 
     this.visibilityChangeHandler = () => {
       if (document.visibilityState === 'visible') {
-        logger.clawbot.debug('[ClawbotChannel] ğŸ‰ App åˆ‡å›å‰å°ï¼Œæ£€æŸ¥è¿æ¥...');
-        // å¼ºåˆ¶é‡ç½®å¿ƒè·³æ—¶é—´ï¼Œé˜²æ­¢åˆšæ¥æ”¶å°±è¢«åˆ¤å®šè¶…æ—¶æ–­å¼€
+        logger.clawbot.debug('[ClawbotChannel] ?? App ÇĞ»ØÇ°Ì¨£¬¼ì²éÁ¬½Ó...');
+        // Ç¿ÖÆÖØÖÃĞÄÌøÊ±¼ä£¬·ÀÖ¹¸Õ½ÓÊÕ¾Í±»ÅĞ¶¨³¬Ê±¶Ï¿ª
         this.lastPongTime = Date.now();
 
         if (this.socket && this.socket.disconnected) {
@@ -367,24 +380,24 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * ç’å‰§ç–† Socket æµœå¬©æ¬¢æ¾¶å‹­æ‚Š
+   * è®¾ç½® Socket äº‹ä»¶å¤„ç†
    */
   private setupEventHandlers(): void {
     if (!this.socket) return;
 
-    // è¿æ¥æˆåŠŸ
+    // Á¬½Ó³É¹¦
     this.socket.on('connect', () => {
       void this.handleConnected();
     });
 
-    // æ–­å¼€è¿æ¥
+    // ¶Ï¿ªÁ¬½Ó
     this.socket.on('disconnect', () => {
       this.connected = false;
       this.stopHeartbeat();
       this.emit('disconnect');
     });
 
-    // å…¼å®¹æµç¨‹ç”± Clawbot ç«¯å‘èµ·
+    // ¼æÈİÁ÷³ÌÓÉ Clawbot ¶Ë·¢Æğ
     this.socket.on('pairing_success', (data: { deviceId: string; deviceName: string }) => {
       this.paired = true;
       this.deviceId = data.deviceId;
@@ -393,10 +406,10 @@ class ClawbotChannelBridge {
       this.emit('pairing_success', data);
     });
 
-    // é€è·ºåŸŒ Bot å¨‘å Ÿä¼…
+    // æ”¶åˆ° Bot æ¶ˆæ¯
     this.socket.on('bot_message', (msg: {
       content: string;
-      contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed';
+      contentType?: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
       mediaUrl?: string;
       mediaMimeType?: string;
       media_mime_type?: string;
@@ -425,20 +438,20 @@ class ClawbotChannelBridge {
         sender: 'bot'
       };
       this.emit('bot_message', message);
-      (this.emit as any)('message', message); // å…¼å®¹å‰ç«¯ç›‘å¬ 'message' äº‹ä»¶
+      (this.emit as any)('message', message); // ¼æÈİÇ°¶Ë¼àÌı 'message' ÊÂ¼ş
     });
 
-    // Bot ç¦»çº¿é€šçŸ¥
+    // Bot ÀëÏßÍ¨Öª
     this.socket.on('bot_offline', (data: { deviceId: string; message: string; timestamp: number }) => {
       this.emit('bot_offline', data);
     });
 
-    // Bot ä¸Šçº¿é€šçŸ¥
+    // Bot ÉÏÏßÍ¨Öª
     this.socket.on('bot_online', (data: { deviceId: string; message: string; timestamp: number }) => {
       this.emit('bot_online', data);
     });
 
-    // çšî‚¥Ğ’ç¼?
+    // è¢«è§£ç»?
     this.socket.on('unpaired', () => {
       this.paired = false;
       this.deviceId = null;
@@ -451,20 +464,20 @@ class ClawbotChannelBridge {
       this.emit('study_room_state', payload);
     });
 
-    // è¹‡å†­çƒ¦éå¶…ç°²
+    // å¿ƒè·³å“åº”
     this.socket.on('pong', () => {
       this.lastPongTime = Date.now();
     });
 
-    // é”™è¯¯î‡¤
+    // ´íÎó¯¯
     this.socket.on('error', (err: unknown) => {
-      logger.clawbot.error('[ClawbotChannel] é”™è¯¯î‡¤:', err);
-      this.emit('error', this.toErrorPayload(err, 'è¿æ¥é”™è¯¯î‡¤'));
+      logger.clawbot.error('[ClawbotChannel] ´íÎó¯¯:', err);
+      this.emit('error', this.toErrorPayload(err, 'Á¬½Ó´íÎó¯¯'));
     });
 
-    // è¿æ¥é”™è¯¯î‡¤
+    // Á¬½Ó´íÎó¯¯
     this.socket.on('connect_error', (err: Error) => {
-      logger.clawbot.error('[ClawbotChannel] è¿æ¥é”™è¯¯î‡¤:', err);
+      logger.clawbot.error('[ClawbotChannel] Á¬½Ó´íÎó¯¯:', err);
       this.reconnectAttempts++;
       this.emit('reconnecting', { attempt: this.reconnectAttempts });
     });
@@ -557,11 +570,11 @@ class ClawbotChannelBridge {
       await this.probePairingStatusAck(3000);
       this.emit('connected');
 
-      // ä¿®å¤ 2: é€šçŸ¥ UI å±‚å» Supabase æ‹‰å–ç½‘ç»œé—´å¯èƒ½å‘é€çš„æ¶ˆæ¯
-      // è§£å†³ç§»åŠ¨ç«¯åˆ‡åå°/é”å±æœŸé—´çš„æ¶ˆæ¯ç¦»çº¿é—®é¢˜
-      // UI å±‚åº”ç›‘å¬
-      // UI å±‚åº”ç›‘å¬ 'sync_missed_messages' äº‹ä»¶å¹¶ä» Supabase æ‹‰å–æœ€æ–°æ¶ˆæ¯
-      logger.clawbot.debug('[ClawbotChannel] âœ… å·²è§¦å‘æ¶ˆæ¯åŒæ­¥ï¼ŒUI å±‚åº”ä» Supabase æ‹‰å–é—æ¼æ¶ˆæ¯');
+      // ĞŞ¸´ 2: Í¨Öª UI ²ãÈ¥ Supabase À­È¡ÍøÂç¼ä¿ÉÄÜ·¢ËÍµÄÏûÏ¢
+      // ½â¾öÒÆ¶¯¶ËÇĞºóÌ¨/ËøÆÁÆÚ¼äµÄÏûÏ¢ÀëÏßÎÊÌâ
+      // UI ²ãÓ¦¼àÌı
+      // UI ²ãÓ¦¼àÌı 'sync_missed_messages' ÊÂ¼ş²¢´Ó Supabase À­È¡×îĞÂÏûÏ¢
+      logger.clawbot.debug('[ClawbotChannel] ? ÒÑ´¥·¢ÏûÏ¢Í¬²½£¬UI ²ãÓ¦´Ó Supabase À­È¡ÒÅÂ©ÏûÏ¢');
 
     } catch (error: unknown) {
       this.connected = false;
@@ -571,9 +584,9 @@ class ClawbotChannelBridge {
     }
   }
 
-  // é‰‚?å·²åˆ é™¤ requestPairing() æ–¹æ³•
-  // åŸå› : æœåŠ¡å™¨æ²¡æœ‰å¤„ç†
-  // å…¼å®¹æµç¨‹ç”± Clawbot ç«¯å‘èµ·
+  // â?ÒÑÉ¾³ı requestPairing() ·½·¨
+  // Ô­Òò: ·şÎñÆ÷Ã»ÓĞ´¦Àí
+  // ¼æÈİÁ÷³ÌÓÉ Clawbot ¶Ë·¢Æğ
 
   /**
    * Check current user's server-side pairing status
@@ -745,7 +758,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * #14: å‘é€æ¶ˆæ¯åˆ° Clawbotï¼ˆå¸¦ç¡®è®¤æœºåˆ¶ï¼‰
+   * #14: ·¢ËÍÏûÏ¢µ½ Clawbot£¨´øÈ·ÈÏ»úÖÆ£©
    */
   async createStudyRoom(
     displayName: string,
@@ -864,17 +877,17 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * æ‰¹é‡æŸ¥è¯¢å¤šä¸ªç”¨æˆ·çš„è‡ªä¹ å®¤çŠ¶æ€
-   * æ³¨æ„ï¼šç”±äºæœåŠ¡å™¨å¯èƒ½ä¸æ”¯æŒæ‰¹é‡æŸ¥è¯¢ï¼Œè¿™é‡Œä½¿ç”¨å¾ªç¯è°ƒç”¨å•ä¸ªæŸ¥è¯¢
+   * ÅúÁ¿²éÑ¯¶à¸öÓÃ»§µÄ×ÔÏ°ÊÒ×´Ì¬
+   * ×¢Òâ£ºÓÉÓÚ·şÎñÆ÷¿ÉÄÜ²»Ö§³ÖÅúÁ¿²éÑ¯£¬ÕâÀïÊ¹ÓÃÑ­»·µ÷ÓÃµ¥¸ö²éÑ¯
    */
   async lookupStudyRoomsByUsers(userIds: string[]): Promise<{ users: FriendRoomLookupResult[] }> {
     const results: FriendRoomLookupResult[] = [];
 
-    // éå†ç”¨æˆ·æŸ¥è¯¢ï¼ˆå¦‚æœæœåŠ¡å™¨æœ‰æ‰¹é‡æ¥å£å¯ä»¥ä¼˜åŒ–ï¼‰
+    // ±éÀúÓÃ»§²éÑ¯£¨Èç¹û·şÎñÆ÷ÓĞÅúÁ¿½Ó¿Ú¿ÉÒÔÓÅ»¯£©
     for (const userId of userIds) {
       try {
-        // å°è¯•è·å–ç”¨æˆ·åˆ›å»ºçš„æˆ¿é—´çŠ¶æ€ï¼ˆé€šè¿‡æŸ¥è¯¢å¯èƒ½çš„æˆ¿é—´ï¼‰
-        // ç”±äºæ²¡æœ‰ç›´æ¥çš„ APIï¼Œè¿™é‡Œè¿”å›é»˜è®¤çŠ¶æ€
+        // ³¢ÊÔ»ñÈ¡ÓÃ»§´´½¨µÄ·¿¼ä×´Ì¬£¨Í¨¹ı²éÑ¯¿ÉÄÜµÄ·¿¼ä£©
+        // ÓÉÓÚÃ»ÓĞÖ±½ÓµÄ API£¬ÕâÀï·µ»ØÄ¬ÈÏ×´Ì¬
         results.push({
           userId,
           inRoom: false,
@@ -916,7 +929,7 @@ class ClawbotChannelBridge {
 
       const messageId = generateMessageId();
 
-      // ç›´æ¥å‘é€æ¶ˆæ¯ï¼Œä¸ç­‰å¾…ç¡®è®¤
+      // Ö±½Ó·¢ËÍÏûÏ¢£¬²»µÈ´ıÈ·ÈÏ
       this.socket.emit('app_message', {
         content,
         contentType,
@@ -926,13 +939,13 @@ class ClawbotChannelBridge {
         messageId
       });
 
-      // ç›´æ¥è¿”å›æˆåŠŸ
+      // Ö±½Ó·µ»Ø³É¹¦
       resolve();
     });
   }
 
   /**
-   * å‘é€æ§åˆ¶å‘½ä»¤åˆ° OpenClaw
+   * ·¢ËÍ¿ØÖÆÃüÁîµ½ OpenClaw
    */
   async sendControlCommand<T = unknown>(
     action: string,
@@ -951,7 +964,7 @@ class ClawbotChannelBridge {
 
       const timeout = setTimeout(() => {
         reject(new Error('control_command timeout'));
-      }, 60000); // 60 ç§’è¶…æ—¶
+      }, 60000); // 60 Ãë³¬Ê±
 
       this.socket.emit('control_command', { action, params }, (response: { success: boolean; data?: T; error?: string }) => {
         clearTimeout(timeout);
@@ -978,7 +991,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * è§£ï½‡ç²¦
+   * ½â£ç»‘
    */
   unpair(): void {
     if (this.socket && this.connected) {
@@ -992,7 +1005,7 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * éšîˆšå§©è¹‡å†­çƒ¦
+   * å¯åŠ¨å¿ƒè·³
    */
   private startHeartbeat(): void {
     this.stopHeartbeat();
@@ -1020,12 +1033,12 @@ class ClawbotChannelBridge {
   }
 
   /**
-   * æ–­å¼€è¿æ¥
+   * ¶Ï¿ªÁ¬½Ó
    */
   disconnect(): void {
     this.stopHeartbeat();
 
-    // æ¸…ç† visibilitychange ç›‘å¬å™¨ï¼Œé˜²æ­¢å†…å­˜æ³„æ¼
+    // ÇåÀí visibilitychange ¼àÌıÆ÷£¬·ÀÖ¹ÄÚ´æĞ¹Â©
     if (this.visibilityChangeHandler) {
       document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
       this.visibilityChangeHandler = null;
@@ -1078,5 +1091,8 @@ class ClawbotChannelBridge {
 // Export singleton instance
 export const clawbotChannelBridge = new ClawbotChannelBridge();
 export default clawbotChannelBridge;
+
+
+
 
 

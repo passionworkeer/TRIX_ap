@@ -6,7 +6,7 @@ const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_ANON_KEY',
 ] as const;
 
-const PRODUCTION_REQUIRED_ENV_VARS = [
+const LEGACY_PRODUCTION_REQUIRED_ENV_VARS = [
   'VITE_CLAWBOT_CHANNEL_URL',
   'VITE_GATEWAY_WS_URL',
   'VITE_GATEWAY_AUTH_TOKEN',
@@ -16,6 +16,8 @@ const OPTIONAL_ENV_VARS = [
   'VITE_CLAWBOT_CHANNEL_URL',
   'VITE_GATEWAY_WS_URL',
   'VITE_GATEWAY_AUTH_TOKEN',
+  'VITE_TRIX_NATIVE_SERVER_URL',
+  'VITE_TRIX_NATIVE_PUBLIC_URL',
   'VITE_CLAWBOT_GATEWAY_URL',
   'VITE_CLAWBOT_GATEWAY_TOKEN',
   'VITE_PC_WEBSOCKET_URL',
@@ -100,20 +102,42 @@ function validateEnvVars(): ValidationError[] {
   }
 
   if (!import.meta.env.DEV) {
-    validateRequiredVars(PRODUCTION_REQUIRED_ENV_VARS, errors, {
-      prefix: 'Production requirement: ',
+    const endpoints = getClawbotEndpoints();
+    const hasNativeServerConfig = Boolean(import.meta.env.VITE_TRIX_NATIVE_SERVER_URL?.trim());
+    const hasLegacyGatewayConfig = LEGACY_PRODUCTION_REQUIRED_ENV_VARS.every((envVar) => {
+      const value = import.meta.env[envVar];
+      return Boolean(value && value.trim() !== '');
     });
 
-    const endpoints = getClawbotEndpoints();
+    if (!hasNativeServerConfig && !hasLegacyGatewayConfig) {
+      errors.push({
+        variable: 'VITE_TRIX_NATIVE_SERVER_URL',
+        message: 'Production requirement: set VITE_TRIX_NATIVE_SERVER_URL for the native channel, or provide the full legacy gateway trio',
+      });
+    }
 
-    if (endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
+    if (hasNativeServerConfig && endpoints.nativeServerUrl && isLoopbackUrl(endpoints.nativeServerUrl)) {
+      errors.push({
+        variable: 'VITE_TRIX_NATIVE_SERVER_URL',
+        message: `Invalid production URL: loopback address is not allowed (${endpoints.nativeServerUrl})`,
+      });
+    }
+
+    if (import.meta.env.VITE_TRIX_NATIVE_PUBLIC_URL?.trim() && endpoints.nativePublicUrl && isLoopbackUrl(endpoints.nativePublicUrl)) {
+      errors.push({
+        variable: 'VITE_TRIX_NATIVE_PUBLIC_URL',
+        message: `Invalid production URL: loopback address is not allowed (${endpoints.nativePublicUrl})`,
+      });
+    }
+
+    if (hasLegacyGatewayConfig && endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
       errors.push({
         variable: 'VITE_CLAWBOT_CHANNEL_URL',
         message: `Invalid production URL: loopback address is not allowed (${endpoints.channelUrl})`,
       });
     }
 
-    if (endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
+    if (hasLegacyGatewayConfig && endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
       errors.push({
         variable: 'VITE_GATEWAY_WS_URL',
         message: `Invalid production URL: loopback address is not allowed (${endpoints.gatewayUrl})`,
@@ -171,8 +195,10 @@ function displayOptionalInfo(): void {
     logger.ui.debug('Environment Variables: All required variables loaded');
   }
 
-  logger.ui.debug(`  - Clawbot Channel URL: ${endpoints.channelUrl}`);
-  logger.ui.debug(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl}`);
+  logger.ui.debug(`  - TRIX Native Server URL: ${endpoints.nativeServerUrl || 'MISSING'}`);
+  logger.ui.debug(`  - TRIX Native Public URL: ${endpoints.nativePublicUrl || 'MISSING'}`);
+  logger.ui.debug(`  - Clawbot Channel URL: ${endpoints.channelUrl || 'DISABLED'}`);
+  logger.ui.debug(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl || 'DISABLED'}`);
   logger.ui.debug(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
 
   if (import.meta.env.VITE_OSS_ENDPOINT?.trim()) {

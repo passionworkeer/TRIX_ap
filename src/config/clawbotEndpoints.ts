@@ -1,10 +1,13 @@
 const DEV_DEFAULT_CHANNEL_URL = 'ws://localhost:8765';
 const DEV_DEFAULT_GATEWAY_URL = 'ws://localhost:18789';
+const DEV_DEFAULT_NATIVE_SERVER_URL = 'http://localhost:8788';
 
 export interface ClawbotEndpoints {
   channelUrl: string;
   gatewayUrl: string;
   gatewayToken: string;
+  nativeServerUrl: string;
+  nativePublicUrl: string;
 }
 
 function cleanValue(value: string | undefined): string {
@@ -45,23 +48,45 @@ export function maskSecret(secret: string | undefined | null): string {
 export function getClawbotEndpoints(): ClawbotEndpoints {
   const channelUrl = withDevFallback(
     pickValue(import.meta.env.VITE_CLAWBOT_CHANNEL_URL),
-    DEV_DEFAULT_CHANNEL_URL
+    DEV_DEFAULT_CHANNEL_URL,
   );
 
   const gatewayUrl = withDevFallback(
     pickValue(
       import.meta.env.VITE_GATEWAY_WS_URL,
       import.meta.env.VITE_CLAWBOT_GATEWAY_URL,
-      import.meta.env.VITE_PC_WEBSOCKET_URL
+      import.meta.env.VITE_PC_WEBSOCKET_URL,
     ),
-    DEV_DEFAULT_GATEWAY_URL
+    DEV_DEFAULT_GATEWAY_URL,
   );
 
   const gatewayToken = pickValue(
     import.meta.env.VITE_GATEWAY_AUTH_TOKEN,
     import.meta.env.VITE_CLAWBOT_GATEWAY_TOKEN,
-    import.meta.env.VITE_PC_AUTH_TOKEN
+    import.meta.env.VITE_PC_AUTH_TOKEN,
   );
 
-  return { channelUrl, gatewayUrl, gatewayToken };
+  const nativeServerUrl = withDevFallback(
+    pickValue(
+      import.meta.env.VITE_TRIX_NATIVE_SERVER_URL,
+      import.meta.env.VITE_TRIX_NATIVE_PUBLIC_URL,
+    ),
+    DEV_DEFAULT_NATIVE_SERVER_URL,
+  );
+
+  const nativePublicUrl = withDevFallback(
+    pickValue(
+      import.meta.env.VITE_TRIX_NATIVE_PUBLIC_URL,
+      import.meta.env.VITE_TRIX_NATIVE_SERVER_URL,
+    ),
+    DEV_DEFAULT_NATIVE_SERVER_URL,
+  );
+
+  return {
+    channelUrl,
+    gatewayUrl,
+    gatewayToken,
+    nativeServerUrl,
+    nativePublicUrl,
+  };
 }

@@ -9,6 +9,10 @@ interface ImportMetaEnv {
   readonly VITE_GATEWAY_WS_URL?: string
   readonly VITE_GATEWAY_AUTH_TOKEN?: string
 
+  // Native TRIX channel endpoints
+  readonly VITE_TRIX_NATIVE_SERVER_URL?: string
+  readonly VITE_TRIX_NATIVE_PUBLIC_URL?: string
+
   // Legacy compatibility variables
   readonly VITE_CLAWBOT_GATEWAY_URL?: string
   readonly VITE_CLAWBOT_GATEWAY_TOKEN?: string

@@ -6,10 +6,10 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- 移动端视口优化：防止缩放和黑底闪烁 -->
+    <!-- 缁夎濮╃粩顖濐潒閸欙絼绱崠鏍电窗闂冨弶顒涚紓鈺傛杹閸滃矂绮︽惔鏇㈡／閻?-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
-    <!-- PWA 元数据 -->
+    <!-- PWA 閸忓啯鏆熼幑?-->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TRIX" />
@@ -19,9 +19,15 @@
     <meta name="msapplication-TileColor" content="#8b5cf6" />
     <meta name="msapplication-config" content="/browserconfig.xml" />
 
-    <!-- SEO 元数据 -->
-    <meta name="description" content="TRIX 3D Companion - AI 伴侣应用，随时陪伴，沉浸学习" />
-    <meta name="keywords" content="AI, 学习, 专注, 伴侣, TRIX" />
+    <!-- SEO 閸忓啯鏆熼幑?-->
+    <meta name="description" content="TRIX 3D Companion - AI 娴肩繝鑽嗘惔鏃傛暏閿涘矂娈㈤弮鍫曟珨娴艰揪绱濆▽澶嬭箞鐎涳缚绡? />
+    <meta name="keywords" content="AI, 鐎涳缚绡? 娑撴挻鏁? 娴肩繝鑽? TRIX" />
+
+    <!-- 閻㈢喍楠囬悳顖氼暔闁板秶鐤?-->
+    <script>
+      // 瀵搫鍩楃拋鍓х枂娑撳﹣绱堕崷鏉挎絻
+      window.__PROD_UPLOAD_URL__ = window.location.origin;
+    </script>
 
     <title>TRIX 3D Companion</title>
   </head>
@@ -29,16 +35,16 @@
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
 
-    <!-- 注册 Service Worker -->
+    <!-- 濞夈劌鍞?Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
-              console.log('✅ SW registered:', registration.scope);
+              console.log('閴?SW registered:', registration.scope);
             })
             .catch((error) => {
-              console.error('❌ SW registration failed:', error);
+              console.error('閴?SW registration failed:', error);
             });
         });
       }
