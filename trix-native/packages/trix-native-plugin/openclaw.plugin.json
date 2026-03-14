@@ -1,0 +1,33 @@
+{
+  "id": "trix-native",
+  "name": "TRIX Native Channel",
+  "description": "通过配对码或QR码连接TRIX手机App,支持完整多模态消息收发",
+  "version": "1.0.0",
+  "channels": ["trix-native"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["serverUrl"],
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "name": {
+        "type": "string",
+        "default": "TRIX Native"
+      },
+      "serverUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "TRIX Native服务器地址,如 http://TRIX_SERVER_HOST:8788"
+      }
+    }
+  },
+  "uiHints": {
+    "serverUrl": {
+      "label": "Server URL",
+      "help": "TRIX Native服务器地址,如 http://TRIX_SERVER_HOST:8788"
+    }
+  }
+}
