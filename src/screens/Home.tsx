@@ -158,11 +158,11 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
           }
           
           try {
-            sendMessage(`閹存垵缍嬮崜宥囨畱娴ｅ秶鐤嗛弰? ${location.name}\n缁绢剙瀹? ${location.latitude}, 缂佸繐瀹? ${location.longitude}`, 'text');
-            showSuccess('娴ｅ秶鐤嗘穱鈩冧紖瀹告彃褰傞柅?);
+            sendMessage(`📍 分享位置: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
+            showSuccess('位置消息已发送');
             setShowLocation(false);
           } catch (error) {
-            showWarning('閸欐垿鈧椒缍呯純顔笺亼鐠愩儻绱濈拠鐑藉櫢鐠?);
+            showWarning('发送位置消息失败，请稍后重试');
             logger.ui.error('Failed to send location message:', error);
           }
         }}

@@ -239,7 +239,7 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
     const url = new URL(raw);
     const code = url.searchParams.get('code');
     if (!code) {
-      throw new Error('浜岀淮鐮侀噷缂哄皯閰嶅鐮?);
+      throw new Error('二维码缺少配对码');
     }
     return {
       serverUrl: `${url.protocol}//${url.host}`,
@@ -380,7 +380,7 @@ class TrixNativeChannelClient {
       };
 
       socket.onerror = () => {
-        reject(new Error('鏃犳硶杩炴帴鍒?TRIX Native Channel 鏈嶅姟鍣?));
+        reject(new Error('无法连接到 TRIX Native Channel 服务器'));
       };
 
       socket.onclose = () => {
@@ -391,7 +391,7 @@ class TrixNativeChannelClient {
           this.emit('reconnecting', { attempt: this.reconnectAttempts });
           this.reconnectTimer = window.setTimeout(() => {
             void this.connect().catch((error: unknown) => {
-              this.emit('error', { message: error instanceof Error ? error.message : '閲嶈繛澶辫触' });
+              this.emit('error', { message: error instanceof Error ? error.message : '重连失败' });
             });
           }, Math.min(5000, 1000 * this.reconnectAttempts));
         }
@@ -484,8 +484,8 @@ class TrixNativeChannelClient {
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '浜岀淮鐮侀厤瀵瑰け璐? }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '浜岀淮鐮侀厤瀵瑰け璐?);
+      const payload = await response.json().catch(() => ({ error: '二维码配对失败' }));
+      throw new Error(typeof payload.error === 'string' ? payload.error : '二维码配对失败');
     }
 
     const claim = await response.json() as ClaimResponse;
@@ -655,8 +655,8 @@ class TrixNativeChannelClient {
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '鍙戦€佹秷鎭け璐? }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '鍙戦€佹秷鎭け璐?);
+      const payload = await response.json().catch(() => ({ error: '发送消息失败 }));
+      throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败);
     }
 
     return clientMessageId;
@@ -672,7 +672,7 @@ class TrixNativeChannelClient {
   private requireSession(): StoredSession {
     const session = this.getSession();
     if (!session) {
-      throw new Error('褰撳墠璁惧灏氭湭閰嶅');
+      throw new Error('当前设备尚未配对');
     }
     return session;
   }
