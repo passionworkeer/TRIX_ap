@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN" class="light">
   <head>
     <meta charset="UTF-8" />
@@ -6,10 +6,10 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- 缁夎濮╃粩顖濐潒閸欙絼绱崠鏍电窗闂冨弶顒涚紓鈺傛杹閸滃矂绮︽惔鏇㈡／閻?-->
+    <!-- TRIX 3D Companion - AI 3D 建模伴侣 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
-    <!-- PWA 閸忓啯鏆熼幑?-->
+    <!-- PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TRIX" />
@@ -19,13 +19,13 @@
     <meta name="msapplication-TileColor" content="#8b5cf6" />
     <meta name="msapplication-config" content="/browserconfig.xml" />
 
-    <!-- SEO 閸忓啯鏆熼幑?-->
-    <meta name="description" content="TRIX 3D Companion - AI 娴肩繝鑽嗘惔鏃傛暏閿涘矂娈㈤弮鍫曟珨娴艰揪绱濆▽澶嬭箞鐎涳缚绡? />
-    <meta name="keywords" content="AI, 鐎涳缚绡? 娑撴挻鏁? 娴肩繝鑽? TRIX" />
+    <!-- SEO -->
+    <meta name="description" content="TRIX 3D Companion - AI 3D 建模伴侣，智能语音交互" />
+    <meta name="keywords" content="AI, 3D建模, 智能助手, TRIX" />
 
-    <!-- 閻㈢喍楠囬悳顖氼暔闁板秶鐤?-->
+    <!-- 生产环境配置 -->
     <script>
-      // 瀵搫鍩楃拋鍓х枂娑撳﹣绱堕崷鏉挎絻
+      // 生产环境上传地址
       window.__PROD_UPLOAD_URL__ = window.location.origin;
     </script>
 
@@ -34,20 +34,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
-
-    <!-- 濞夈劌鍞?Service Worker -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('閴?SW registered:', registration.scope);
-            })
-            .catch((error) => {
-              console.error('閴?SW registration failed:', error);
-            });
-        });
-      }
-    </script>
   </body>
 </html>
