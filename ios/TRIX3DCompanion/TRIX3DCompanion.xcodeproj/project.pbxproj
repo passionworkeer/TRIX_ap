@@ -43,6 +43,7 @@
 		19BB1D6599B5129D4556EA15 /* ColorGradientExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 767B9A533CD99856F34FC668 /* ColorGradientExtension.swift */; };
 		1B669C23EEB2D1CA90C873AF /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = EAA2C654FC724BA8095FFD6A /* FirebaseAnalytics */; };
 		1BF8D25C751AEB6316452BBB /* hero_render.png in Resources */ = {isa = PBXBuildFile; fileRef = E86492E1B8749E6DE341275A /* hero_render.png */; };
+		1D11E7F9AEE27F31B77BB3CE /* AuthFormPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AB7C0C91667E7B903EFBAB5 /* AuthFormPaletteTests.swift */; };
 		1D3CE9D5B7A794817E4F646D /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AFD5D739B209CBA3A2ADD5 /* AboutScreen.swift */; };
 		1F87E8B4792206B364FD22E7 /* InputValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02F961C8E88BBA2D398E8E3 /* InputValidator.swift */; };
 		1FA950AB8229753A73D4772D /* StoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A366B14F6CCAB0CC6AE4CAC /* StoreView.swift */; };
@@ -171,6 +172,7 @@
 		A8AA03C19BE837094C00407A /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FFD2EF7AAD7536F0BF7AA4 /* SupabaseService.swift */; };
 		A8F099505F1C087673E5BAF2 /* FriendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48C046F678AC6DF2BFF570E /* FriendService.swift */; };
 		A9BEC788D3190B9873E01719 /* role.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BB7B95D452563E21953D84B0 /* role.jpg */; };
+		AA3B3A56A69C2D6E70011649 /* RelayLocalGatewaySmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787F96727C33FE420A3DEC86 /* RelayLocalGatewaySmokeTests.swift */; };
 		AC7C66F8ADBFAAF9285B4CFF /* Schedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3675246A672EB198616C74 /* Schedule.swift */; };
 		AC9A5B26AA956CE797467B3B /* CelebrationAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 376A1DB1B4C71C04ED4969C3 /* CelebrationAnimationView.swift */; };
 		ACEDA16433032DA8070212C9 /* WardrobeServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09DD455B287A4DB8F80E09C /* WardrobeServiceProtocol.swift */; };
@@ -333,6 +335,7 @@
 		28903960B942093BD2167D6C /* AnimatedQRDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedQRDisplay.swift; sourceTree = "<group>"; };
 		2A01CB31FF2BEFAB3F230338 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		2A4FE7F5AB325E34C1F9A9F1 /* StudyTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyTimerView.swift; sourceTree = "<group>"; };
+		2AB7C0C91667E7B903EFBAB5 /* AuthFormPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthFormPaletteTests.swift; sourceTree = "<group>"; };
 		2E353AD6E7225070D79D0712 /* VoiceRecordingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingButton.swift; sourceTree = "<group>"; };
 		2EF88DCF5939FD2C33BAE502 /* StudyRoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoom.swift; sourceTree = "<group>"; };
 		309D5779B85E2AA0BA5BF26F /* NotificationManagerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManagerProtocol.swift; sourceTree = "<group>"; };
@@ -407,6 +410,7 @@
 		7631C5D07D8B69B495BA6103 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		767B9A533CD99856F34FC668 /* ColorGradientExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorGradientExtension.swift; sourceTree = "<group>"; };
 		785BFD9A17B0B3F2B4DFE11E /* DiagnosticViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticViewModel.swift; sourceTree = "<group>"; };
+		787F96727C33FE420A3DEC86 /* RelayLocalGatewaySmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayLocalGatewaySmokeTests.swift; sourceTree = "<group>"; };
 		79DD671BD98BE0D1CAC286B0 /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		7BCCE9935E737D4B63FB7440 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
 		7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
@@ -658,11 +662,13 @@
 			isa = PBXGroup;
 			children = (
 				0C05D876754A6EA827228194 /* AuthenticatedBackendSmokeTests.swift */,
+				2AB7C0C91667E7B903EFBAB5 /* AuthFormPaletteTests.swift */,
 				626A2E7FDA9EC5E084EBCF31 /* AuthLiveLoginSmokeTests.swift */,
 				8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */,
 				D9DC891DFEA4C4062F19757E /* GatewayProtocolSmokeTests.swift */,
 				56886B73B4BCA992C7BEC5A9 /* InputValidatorSmokeTests.swift */,
 				9A390D541E8E81AD4FA59CB5 /* LiveBackendTestSupport.swift */,
+				787F96727C33FE420A3DEC86 /* RelayLocalGatewaySmokeTests.swift */,
 			);
 			name = Smoke;
 			path = Tests/TRIX3DCompanionTests/Smoke;
@@ -1537,12 +1543,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1D11E7F9AEE27F31B77BB3CE /* AuthFormPaletteTests.swift in Sources */,
 				AF14745CA5C484BC881D416A /* AuthLiveLoginSmokeTests.swift in Sources */,
 				3324665C82287CCCE87EDFD0 /* AuthenticatedBackendSmokeTests.swift in Sources */,
 				728D0F763AF1316A1237B3A0 /* FriendErrorPresentationSmokeTests.swift in Sources */,
 				0BC9F9C4DE45B5D5893F8A19 /* GatewayProtocolSmokeTests.swift in Sources */,
 				7758187BF4FD4C41CB56768D /* InputValidatorSmokeTests.swift in Sources */,
 				256DCACB329D5CE44886D4FA /* LiveBackendTestSupport.swift in Sources */,
+				AA3B3A56A69C2D6E70011649 /* RelayLocalGatewaySmokeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import Supabase
 
 // MARK: - Auth Error
 
@@ -44,9 +45,9 @@ enum AuthError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidCredentials:
-            return "Invalid email or password"
+            return NSLocalizedString("auth.error.invalid.credentials", comment: "Invalid credentials error")
         case .emailAlreadyExists:
-            return "An account with this email already exists"
+            return NSLocalizedString("auth.error.email.exists", comment: "Email already exists error")
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         case .tokenExpired:
@@ -120,6 +121,9 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     private let apiClient: APIClient
     private let keychainManager: KeychainManager
 
+    /// Supabase client for realtime features
+    let supabase: SupabaseClient
+
     // MARK: - Private Properties
 
     /// Token expiration buffer (5 minutes before actual expiration)
@@ -145,7 +149,14 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         keychainManager: KeychainManager? = nil
     ) {
         self.apiClient = apiClient ?? .shared
-        self.keychainManager = keychainManager ?? .shared
+        let km = keychainManager ?? .shared
+        self.keychainManager = km
+
+        // Initialize Supabase client for realtime features
+        self.supabase = SupabaseClient(
+            supabaseURL: URL(string: SupabaseConfig.url)!,
+            supabaseKey: SupabaseConfig.anonKey
+        )
 
         // Restore session on initialization
         if shouldBypassSessionRestoreForLaunchArguments() {
@@ -494,6 +505,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         case .unauthorized:
             return .invalidCredentials
         case .custom(let message):
+            let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if normalized.contains("invalid login credentials")
+                || normalized.contains("invalid email or password")
+                || normalized.contains("email not confirmed") {
+                return .invalidCredentials
+            }
             return .validationError(message: message)
         default:
             return .unknown(underlying: error)

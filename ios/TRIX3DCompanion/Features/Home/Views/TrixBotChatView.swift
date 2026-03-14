@@ -102,6 +102,9 @@ struct TrixBotChatView: View {
         .task {
             await initializeChatContextIfNeeded()
         }
+        .onAppear {
+            UITestEventLogger.log("TrixBotChatView onAppear")
+        }
         .onChange(of: displayMessages.count) { _ in
             scrollToBottom = true
         }
@@ -509,81 +512,116 @@ private struct TrixDisplayMessageBubble: View {
     let message: TrixDisplayMessage
 
     var body: some View {
-        HStack {
-            if message.isFromUser {
-                Spacer(minLength: 48)
+        HStack(alignment: .top, spacing: 8) {
+            // 左侧头像 - Bot 消息显示在左边
+            if !message.isFromUser {
+                avatarView(isBot: true)
             }
 
-            VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 5) {
-                Text(message.isFromUser ? "你" : "TRIX Bot")
+            // 消息内容
+            VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 4) {
+                // 发送者名称
+                Text(message.isFromUser ? "" : "TRIX Bot")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    .padding(.leading, message.isFromUser ? 0 : 4)
+                    .padding(.trailing, message.isFromUser ? 4 : 0)
 
-                if let mediaURL = message.mediaURL, let url = URL(string: mediaURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView()
-                                .frame(width: 180, height: 180)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 180, height: 180)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        case .failure:
-                            Image(systemName: "photo")
-                                .frame(width: 180, height: 180)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
+                // 消息气泡
+                messageBubble
+
+                // 时间
+                HStack(spacing: 4) {
+                    Text(formatTime(message.timestamp))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
-
-                if !message.content.isEmpty {
-                    Text(message.content)
-                        .font(.body)
-                        .foregroundColor(message.isFromUser ? .white : .primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            message.isFromUser
-                                ? AnyView(
-                                    LinearGradient(
-                                        colors: [.brandPurple, .brandPink],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                : AnyView(Color.white.opacity(0.14))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.white.opacity(message.isFromUser ? 0.16 : 0.22), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(
-                            color: message.isFromUser
-                                ? Color.brandPurple.opacity(0.18)
-                                : Color.black.opacity(0.06),
-                            radius: 6,
-                            x: 0,
-                            y: 3
-                        )
-                }
-
-                Text(formatTime(message.timestamp))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                .padding(.leading, message.isFromUser ? 0 : 4)
+                .padding(.trailing, message.isFromUser ? 4 : 0)
             }
 
-            if !message.isFromUser {
-                Spacer(minLength: 48)
+            // 右侧头像 - 用户消息显示在右边
+            if message.isFromUser {
+                avatarView(isBot: false)
             }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Avatar View
+    private func avatarView(isBot: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isBot ? Color.brandPurple.opacity(0.2) : Color.blue.opacity(0.2))
+
+            Image(systemName: isBot ? "sparkles" : "person.fill")
+                .font(.system(size: 16))
+                .foregroundColor(isBot ? .brandPurple : .blue)
+        }
+        .frame(width: 36, height: 36)
+    }
+
+    // MARK: - Message Bubble
+    @ViewBuilder
+    private var messageBubble: some View {
+        if let mediaURL = message.mediaURL, let url = URL(string: mediaURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                        .frame(width: 180, height: 180)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 180, height: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                case .failure:
+                    Image(systemName: "photo")
+                        .frame(width: 180, height: 180)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: message.isFromUser ? .trailing : .leading)
+        }
+
+        if !message.content.isEmpty {
+            Text(message.content)
+                .font(.body)
+                .foregroundColor(message.isFromUser ? .white : .primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    message.isFromUser
+                        ? AnyView(
+                            LinearGradient(
+                                colors: [.brandPurple, .brandPink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        : AnyView(Color(.systemGray6))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(message.isFromUser ? Color.white.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 0.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(
+                    color: message.isFromUser
+                        ? Color.brandPurple.opacity(0.25)
+                        : Color.black.opacity(0.08),
+                    radius: 4,
+                    x: 0,
+                    y: 2
+                )
+                .frame(maxWidth: .infinity, alignment: message.isFromUser ? .trailing : .leading)
         }
     }
 

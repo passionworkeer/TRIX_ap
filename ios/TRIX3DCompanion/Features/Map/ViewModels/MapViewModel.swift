@@ -73,6 +73,9 @@ final class MapViewModel: ObservableObject {
     /// Whether location permission is granted
     @Published var hasLocationPermission: Bool = false
 
+    /// Whether to show location permission banner (can be dismissed)
+    @Published var showLocationPermissionBanner: Bool = true
+
     /// Whether user location is available
     @Published var isUserLocationAvailable: Bool = false
 
@@ -129,10 +132,14 @@ final class MapViewModel: ObservableObject {
         // Check location permission
         checkLocationPermission()
 
-        // Load data from API (not mock by default)
-        // Mock data is available via loadMockData() for development
+        // Load data from API (falls back to mock for demo)
         Task {
             await loadLocationsFromAPI()
+        }
+
+        // Load friend locations (falls back to mock for demo)
+        Task {
+            await loadFriendLocationsFromAPI()
         }
     }
 
@@ -145,13 +152,18 @@ final class MapViewModel: ObservableObject {
 
         do {
             let locations: [Location] = try await APIClient.shared.get(.placeNearby)
-            allLocations = locations
-            filteredLocations = locations
+            // If API returns empty, fallback to mock data for demo
+            if locations.isEmpty {
+                loadMockData()
+            } else {
+                allLocations = locations
+                filteredLocations = locations
+                applyCategoryFilter()
+            }
         } catch {
-            // API failed - show error state instead of fallback to mock
-            errorMessage = "无法加载地点: \(error.localizedDescription)"
-            allLocations = []
-            filteredLocations = []
+            // API failed - fallback to mock data for demo
+            print("[MapViewModel] loadLocationsFromAPI failed: \(error.localizedDescription), using mock data")
+            loadMockData()
         }
 
         isLoading = false
@@ -161,9 +173,8 @@ final class MapViewModel: ObservableObject {
     /// - Note: Requires backend API endpoint (e.g., GET /friends/locations)
     /// - Currently returns empty until API is implemented
     private func loadFriendLocationsFromAPI() async {
-        // Friend locations API not yet implemented
-        // Will be added when backend endpoint is available
-        friendLocations = []
+        // Friend locations API not yet implemented - use mock for demo
+        loadMockFriends()
     }
 
     // MARK: - Mock Data
@@ -183,78 +194,141 @@ final class MapViewModel: ObservableObject {
         let baseLng = 121.4737
 
         let mockPlaces: [Location] = [
+            // 学习场所
             Location(
-                id: "place-1",
+                id: "place-study-1",
                 userId: "system",
-                name: "星巴克咖啡",
-                description: "和朋友聚会喝咖啡",
-                latitude: baseLat + 0.001,
-                longitude: baseLng + 0.002,
-                address: "陆家嘴环路",
-                category: .cafe,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "place-2",
-                userId: "system",
-                name: "海底捞火锅",
-                description: "热闹的火锅聚餐",
-                latitude: baseLat - 0.001,
-                longitude: baseLng + 0.003,
-                address: "世纪大道",
-                category: .other,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "place-3",
-                userId: "system",
-                name: "万达影城",
-                description: "最新电影上映中",
-                latitude: baseLat + 0.002,
-                longitude: baseLng - 0.002,
-                address: "浦东南路",
-                category: .other,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "place-4",
-                userId: "system",
-                name: "静安雕塑公园",
-                description: "适合散步和聊天",
-                latitude: baseLat - 0.002,
-                longitude: baseLng - 0.003,
-                address: "静安区",
-                category: .park,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "place-5",
-                userId: "system",
-                name: "24小时自习室",
-                description: "安静的学习环境",
-                latitude: baseLat + 0.003,
-                longitude: baseLng + 0.001,
-                address: "浦东新区",
+                name: "24H 沉浸自习室",
+                description: "提供绝对安静的学习环境，配备人体工学椅与护眼灯，适合考研党凌晨冲刺。",
+                latitude: baseLat + 0.0015,
+                longitude: baseLng - 0.0015,
+                address: "市中心",
                 category: .library,
                 createdAt: Date(),
                 updatedAt: Date()
             ),
             Location(
-                id: "place-6",
+                id: "place-study-2",
                 userId: "system",
-                name: "KTV 唱歌",
-                description: "聚会唱K放松",
-                latitude: baseLat - 0.003,
-                longitude: baseLng + 0.001,
-                address: "长宁区",
-                category: .other,
+                name: "中心区市立图书馆",
+                description: "全市最大的综合性图书馆，藏书丰富，顶层有绝佳的观景阅读区。",
+                latitude: baseLat - 0.0018,
+                longitude: baseLng - 0.0026,
+                address: "中心区",
+                category: .library,
                 createdAt: Date(),
                 updatedAt: Date()
-            )
+            ),
+            Location(
+                id: "place-study-3",
+                userId: "system",
+                name: "TRIX 青年创客空间",
+                description: "独立开发者的聚集地，网速极快，咖啡免费续杯。",
+                latitude: baseLat + 0.0028,
+                longitude: baseLng + 0.0022,
+                address: "科技园区",
+                category: .library,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            // 餐饮场所
+            Location(
+                id: "place-dining-1",
+                userId: "system",
+                name: "Blue Bottle 蓝瓶咖啡",
+                description: "在简约静谧的工业风空间里，享受一杯顶级的单品手冲咖啡。",
+                latitude: baseLat + 0.0006,
+                longitude: baseLng + 0.0012,
+                address: "静安区",
+                category: .cafe,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-dining-2",
+                userId: "system",
+                name: "Fumin Bagel",
+                description: "现烤健康贝果与特调拿铁，排队人数经常爆满的网红店！",
+                latitude: baseLat - 0.0012,
+                longitude: baseLng + 0.0018,
+                address: "法租界",
+                category: .cafe,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-dining-3",
+                userId: "system",
+                name: "Giglio La Pizza",
+                description: "柴火窑烤的正宗那不勒斯披萨，满口都是芝士与麦香。",
+                latitude: baseLat + 0.0022,
+                longitude: baseLng + 0.0036,
+                address: "意式餐厅区",
+                category: .restaurant,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-dining-4",
+                userId: "system",
+                name: "深夜食堂·和风居居酒屋",
+                description: "温暖疲惫灵魂的寿司与烧鸟，学习完来这里抚慰一下肠胃吧。",
+                latitude: baseLat - 0.0016,
+                longitude: baseLng + 0.0028,
+                address: "长宁区",
+                category: .restaurant,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            // 娱乐和公园场所
+            Location(
+                id: "place-ent-1",
+                userId: "system",
+                name: "光年 Livehouse 星光 KTV",
+                description: "百万级音响设备，周末放松解压、跟好友尽情嗨唱的绝佳去处！",
+                latitude: baseLat - 0.0028,
+                longitude: baseLng + 0.0008,
+                address: "娱乐中心",
+                category: .entertainment,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-ent-2",
+                userId: "system",
+                name: "VR 零界探索·超空间",
+                description: "全沉浸式的虚拟现实体验馆，带你穿越到赛博朋克异世界。",
+                latitude: baseLat + 0.0032,
+                longitude: baseLng - 0.0012,
+                address: "科技馆",
+                category: .entertainment,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-park-1",
+                userId: "system",
+                name: "城市绿洲极客公园",
+                description: "繁华都市中的自然氧吧，林荫大道与慢跑径，适合傍晚散步放松。",
+                latitude: baseLat - 0.0008,
+                longitude: baseLng - 0.0032,
+                address: "滨江绿地",
+                category: .park,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "place-park-2",
+                userId: "system",
+                name: "滨江现代艺术展览中心",
+                description: "依水而建的现代艺术展览馆，近期正在举办《未来科技与艺术》特展。",
+                latitude: baseLat + 0.0042,
+                longitude: baseLng - 0.0028,
+                address: "滨江新区",
+                category: .park,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
         ]
 
         allLocations = mockPlaces
@@ -266,18 +340,31 @@ final class MapViewModel: ObservableObject {
         let baseLat = 31.2304
         let baseLng = 121.4737
 
-        // Helper to generate offset positions
+        // Helper to generate offset positions similar to web
         let offsets: [(Double, Double)] = [
-            (0.001, 0.002),
-            (-0.001, 0.003),
-            (0.002, -0.002)
+            (0.0015, -0.0015),
+            (-0.0018, -0.0026),
+            (0.0028, 0.0022),
+            (-0.0012, 0.0018),
+            (0.0022, 0.0036),
+            (-0.0016, 0.0028)
+        ]
+
+        // Mock avatar URLs (using pravatar.cc for demo)
+        let avatarURLs = [
+            "https://i.pravatar.cc/150?img=1",   // Ava
+            "https://i.pravatar.cc/150?img=3",   // Leo
+            "https://i.pravatar.cc/150?img=5",   // Mia
+            "https://i.pravatar.cc/150?img=8",   // David
+            "https://i.pravatar.cc/150?img=11",  // Bob
+            "https://i.pravatar.cc/150?img=9"    // Alice
         ]
 
         friendLocations = [
             FriendMapLocation(
                 id: "friend-1",
                 name: "Ava",
-                avatarUrl: nil,  // Will use default avatar
+                avatarUrl: avatarURLs[0],
                 latitude: baseLat + offsets[0].0,
                 longitude: baseLng + offsets[0].1,
                 isStudying: true,
@@ -286,7 +373,7 @@ final class MapViewModel: ObservableObject {
             FriendMapLocation(
                 id: "friend-2",
                 name: "Leo",
-                avatarUrl: nil,
+                avatarUrl: avatarURLs[1],
                 latitude: baseLat + offsets[1].0,
                 longitude: baseLng + offsets[1].1,
                 isStudying: false,
@@ -295,11 +382,38 @@ final class MapViewModel: ObservableObject {
             FriendMapLocation(
                 id: "friend-3",
                 name: "Mia",
-                avatarUrl: nil,
+                avatarUrl: avatarURLs[2],
                 latitude: baseLat + offsets[2].0,
                 longitude: baseLng + offsets[2].1,
                 isStudying: true,
                 status: "away"
+            ),
+            FriendMapLocation(
+                id: "friend-4",
+                name: "David",
+                avatarUrl: avatarURLs[3],
+                latitude: baseLat + offsets[3].0,
+                longitude: baseLng + offsets[3].1,
+                isStudying: false,
+                status: "offline"
+            ),
+            FriendMapLocation(
+                id: "friend-5",
+                name: "Bob",
+                avatarUrl: avatarURLs[4],
+                latitude: baseLat + offsets[4].0,
+                longitude: baseLng + offsets[4].1,
+                isStudying: false,
+                status: "online"
+            ),
+            FriendMapLocation(
+                id: "friend-6",
+                name: "Alice",
+                avatarUrl: avatarURLs[5],
+                latitude: baseLat + offsets[5].0,
+                longitude: baseLng + offsets[5].1,
+                isStudying: true,
+                status: "online"
             )
         ]
     }
@@ -391,16 +505,19 @@ final class MapViewModel: ObservableObject {
 
         switch result {
         case .success(let locations):
-            // Use API result - even if empty, don't fallback to mock
-            allLocations = locations
-            filteredLocations = locations
-            applyCategoryFilter()
+            // Use API result - if empty, fallback to mock for demo
+            if locations.isEmpty {
+                loadMockData()
+            } else {
+                allLocations = locations
+                filteredLocations = locations
+                applyCategoryFilter()
+            }
 
         case .failure(let error):
-            // Show error state, don't fallback to mock
-            errorMessage = error.errorDescription
-            allLocations = []
-            filteredLocations = []
+            // API failed, fallback to mock data for demo
+            print("[MapViewModel] API failed: \(error.errorDescription), using mock data")
+            loadMockData()
         }
 
         isLoading = false
@@ -537,6 +654,10 @@ extension MapViewModel {
             return .purple
         case .cafe:
             return .orange
+        case .restaurant:
+            return .red
+        case .entertainment:
+            return .pink
         case .home:
             return .green
         case .park:
@@ -559,6 +680,10 @@ extension MapViewModel {
             return "books.vertical.fill"
         case .cafe:
             return "cup.and.saucer.fill"
+        case .restaurant:
+            return "fork.knife"
+        case .entertainment:
+            return "gamecontroller.fill"
         case .home:
             return "house.fill"
         case .park:

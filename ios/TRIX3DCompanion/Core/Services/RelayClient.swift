@@ -80,6 +80,10 @@ final class RelayClient: NSObject, ObservableObject {
     private var serverUrl: String?
     private var currentGatewayId: String?
     private var currentAccessCode: String?
+    private var gatewaySessionKey: String?
+    private var connectChallengeNonce: String?
+    private var gatewayModeEnabled = false
+    private var directGatewayMode = false
 
     private var eventHandlers = [String: [((Any?) -> Void)]]()
     private var pendingRequests = [String: CheckedContinuation<[String: Any], Error>]()
@@ -128,12 +132,8 @@ final class RelayClient: NSObject, ObservableObject {
 
     /// 连接到中继服务器
     func connect(server: String, gatewayId: String, accessCode: String) async throws {
-        // 转换 http/https 到 ws/wss
-        let wsServer = server.replacingOccurrences(of: "http://", with: "ws://")
-            .replacingOccurrences(of: "https://", with: "wss://")
-
-        // 使用 /relay 路径 (原生 WebSocket)
-        let relayUrl = "\(wsServer)/relay"
+        let relayUrl = buildWebSocketURL(server: server)
+        directGatewayMode = isDirectGatewayURL(server)
         print("[RelayClient] Connecting to: \(relayUrl)")
 
         self.serverUrl = server
@@ -146,16 +146,49 @@ final class RelayClient: NSObject, ObservableObject {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
+            let finishLock = NSLock()
+            var continuationRef: CheckedContinuation<Void, Error>? = continuation
+            var timeoutWorkItem: DispatchWorkItem?
+            func finish(_ result: Result<Void, Error>) {
+                let toResume: CheckedContinuation<Void, Error>?
+                finishLock.lock()
+                toResume = continuationRef
+                continuationRef = nil
+                timeoutWorkItem?.cancel()
+                finishLock.unlock()
+
+                guard let toResume else { return }
+                switch result {
+                case .success:
+                    toResume.resume()
+                case let .failure(error):
+                    toResume.resume(throwing: error)
+                }
+            }
+
             webSocket = urlSession.webSocketTask(with: url)
             webSocket?.resume()
 
             // 等待连接
             self.receiveMessage()
 
+            // 连接超时
+            let workItem = DispatchWorkItem { [weak self] in
+                if !(self?.connected ?? false) {
+                    self?.webSocket?.cancel()
+                    finish(.failure(RelayError.connectionFailed))
+                }
+            }
+            timeoutWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: workItem)
+
             // 认证
             Task {
                 do {
-                    let displayName = try await self.authenticate(gatewayId: gatewayId, accessCode: accessCode)
+                    let displayName = try await self.authenticateWithOpenClawGateway(
+                        gatewayId: gatewayId,
+                        accessCode: accessCode
+                    )
                     await MainActor.run {
                         self.connected = true
                         self.authenticated = true
@@ -165,25 +198,118 @@ final class RelayClient: NSObject, ObservableObject {
                         self.connectionSubject.send(true)
                     }
                     self.flushMessageQueue()
-                    continuation.resume()
+                    finish(.success(()))
                 } catch {
-                    await MainActor.run {
-                        self.connected = false
-                        self.authenticated = false
-                        self.webSocket?.cancel()
+                    if !self.directGatewayMode && self.shouldFallbackToLegacyRelay(error) {
+                        // Legacy relay fallback: old /relay auth flow.
+                        do {
+                            let displayName = try await self.authenticate(gatewayId: gatewayId, accessCode: accessCode)
+                            await MainActor.run {
+                                self.connected = true
+                                self.authenticated = true
+                                self.gatewayId = gatewayId
+                                self.displayName = displayName
+                                self.reconnectAttempts = 0
+                                self.gatewayModeEnabled = false
+                                self.connectionSubject.send(true)
+                            }
+                            self.flushMessageQueue()
+                            finish(.success(()))
+                        } catch {
+                            await MainActor.run {
+                                self.connected = false
+                                self.authenticated = false
+                                self.webSocket?.cancel()
+                            }
+                            finish(.failure(error))
+                        }
+                    } else {
+                        await MainActor.run {
+                            self.connected = false
+                            self.authenticated = false
+                            self.webSocket?.cancel()
+                        }
+                        finish(.failure(error))
                     }
-                    continuation.resume(throwing: error)
-                }
-            }
-
-            // 连接超时
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-                if !(self?.connected ?? false) {
-                    self?.webSocket?.cancel()
-                    continuation.resume(throwing: RelayError.connectionFailed)
                 }
             }
         }
+    }
+
+    private func authenticateWithOpenClawGateway(gatewayId: String, accessCode: String) async throws -> String? {
+        connectChallengeNonce = nil
+
+        let params: [String: Any] = [
+            "minProtocol": 3,
+            "maxProtocol": 3,
+            "role": "operator",
+            "scopes": ["operator.read", "operator.write"],
+            "client": [
+                // OpenClaw local gateway schema currently only accepts these values.
+                "id": "cli",
+                "displayName": "TRIX iOS",
+                "version": "1.0.0",
+                "platform": "ios",
+                "mode": "backend",
+                "instanceId": "ios-\(UUID().uuidString)"
+            ],
+            "auth": [
+                "token": accessCode
+            ]
+        ]
+
+        _ = try await request(method: "connect", params: params)
+        gatewayModeEnabled = true
+        gatewaySessionKey = resolveGatewaySessionKey(from: gatewayId)
+        return "OpenClaw"
+    }
+
+    private func shouldFallbackToLegacyRelay(_ error: Error) -> Bool {
+        guard case let RelayError.serverError(message) = error else {
+            return false
+        }
+        let lowercased = message.lowercased()
+        return lowercased.contains("unknown method")
+            || lowercased.contains("method not found")
+            || lowercased.contains("unsupported method")
+    }
+
+    private func buildWebSocketURL(server: String) -> String {
+        let trimmed = server.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wsServer = trimmed
+            .replacingOccurrences(of: "http://", with: "ws://")
+            .replacingOccurrences(of: "https://", with: "wss://")
+
+        if wsServer.hasSuffix("/relay") {
+            return wsServer
+        }
+
+        if isDirectGatewayURL(trimmed) {
+            return wsServer
+        }
+
+        return wsServer + "/relay"
+    }
+
+    private func isDirectGatewayURL(_ server: String) -> Bool {
+        guard let components = URLComponents(string: server) else {
+            return server.contains(":18789") || server.contains("/ws")
+        }
+
+        if components.port == 18789 {
+            return true
+        }
+
+        let path = components.path.lowercased()
+        return path == "/ws" || path.hasPrefix("/ws/")
+    }
+
+    private func resolveGatewaySessionKey(from gatewayId: String) -> String {
+        let trimmed = gatewayId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("agent:") {
+            return trimmed
+        }
+        return "agent:main:main"
     }
 
     /// 认证
@@ -216,6 +342,9 @@ final class RelayClient: NSObject, ObservableObject {
         authenticated = false
         gatewayId = nil
         displayName = nil
+        gatewaySessionKey = nil
+        connectChallengeNonce = nil
+        gatewayModeEnabled = false
 
         // 拒绝所有待处理请求
         for (_, continuation) in pendingRequests {
@@ -232,6 +361,19 @@ final class RelayClient: NSObject, ObservableObject {
     func sendToDevice(method: String, params: [String: Any]? = nil) async throws {
         guard connected, authenticated else {
             throw RelayError.notConnected
+        }
+
+        // OpenClaw native path: send chat directly to agent session.
+        if gatewayModeEnabled && method == "chat.send" {
+            let text = (params?["message"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return }
+
+            _ = try await request(method: "chat.send", params: [
+                "sessionKey": gatewaySessionKey ?? "agent:main:main",
+                "message": text,
+                "idempotencyKey": UUID().uuidString
+            ])
+            return
         }
 
         let result: [String: Any] = try await request(method: "relay.to_device", params: [
@@ -377,12 +519,33 @@ final class RelayClient: NSObject, ObservableObject {
 
         let payload = frame["payload"]
 
+        if event == "connect.challenge",
+           let dict = payload as? [String: Any],
+           let nonce = dict["nonce"] as? String {
+            connectChallengeNonce = nonce
+            return
+        }
+
         // 处理设备消息
         if event == "from_device" {
             if let dict = payload as? [String: Any] {
                 messageSubject.send(dict)
             }
             return;
+        }
+
+        // OpenClaw chat stream events
+        if event == "chat" ||
+            event == "agent" ||
+            event.hasPrefix("chat.") ||
+            event.hasPrefix("agent.") {
+            if let dict = payload as? [String: Any] {
+                messageSubject.send([
+                    "event": event,
+                    "payload": dict
+                ])
+            }
+            return
         }
 
         // 处理网关状态

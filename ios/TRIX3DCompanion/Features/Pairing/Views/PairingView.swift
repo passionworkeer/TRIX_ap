@@ -21,6 +21,12 @@ enum PairingMode: String, CaseIterable {
 
 /// Main view for device pairing - single screen like Web version
 struct PairingView: View {
+    private struct OpenClawSetupPayload {
+        let server: String
+        let gatewayId: String
+        let accessCode: String
+    }
+
     // MARK: - Properties
 
     /// Current pairing mode
@@ -48,6 +54,20 @@ struct PairingView: View {
 
     /// Error message
     @State private var errorMessage = ""
+
+    // Persist last successful Relay config for faster reconnect.
+    private let relayServerDefaultsKey = "pairing.relay.server"
+    private let relayGatewayDefaultsKey = "pairing.relay.gatewayId"
+    private let relayAccessCodeDefaultsKey = "pairing.relay.accessCode"
+
+    private let localRelayServerCandidates = [
+        "http://127.0.0.1:18789",
+        "http://localhost:18789",
+        "http://127.0.0.1:8765",
+        "http://localhost:8765",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000"
+    ]
 
     /// Clawbot Channel service
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
@@ -101,6 +121,13 @@ struct PairingView: View {
             Color.clear
                 .frame(height: 12)
         }
+        .onAppear {
+            UITestEventLogger.log("PairingView onAppear")
+            restoreRelayDefaults()
+            connectionMode = .relay
+            mode = .relayInput
+            clawbotChannel.connectionMode = .relay
+        }
         .sheet(isPresented: $showQRScanner) {
             QRScannerView(
                 onCodeScanned: handleQRScanned,
@@ -122,6 +149,7 @@ struct PairingView: View {
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         connectionMode = mode
+                        clawbotChannel.connectionMode = mode
                         self.mode = mode == .relay ? .relayInput : .scan
                     }
                 }) {
@@ -331,7 +359,7 @@ struct PairingView: View {
                 }) {
                     HStack {
                         if isLoading {
-                            ProgressView()
+                            SwiftUI.ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
                             Text("验证配对码")
@@ -425,6 +453,39 @@ struct PairingView: View {
 
                 // Manual input fields
                 VStack(spacing: 16) {
+                    Button(action: {
+                        Task {
+                            await quickConnectLocalRelay()
+                        }
+                    }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "desktopcomputer")
+                            Text(isLoading ? "正在连接本机..." : "同机快速连接")
+                                .fontWeight(.bold)
+                            if isLoading {
+                                Spacer(minLength: 0)
+                                SwiftUI.ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            }
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .padding(.horizontal, 14)
+                        .background(
+                            LinearGradient(
+                                colors: isLoading
+                                    ? [Color.gray.opacity(0.9), Color.gray.opacity(0.75)]
+                                    : [Color.brandPurple, Color.brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(14)
+                    }
+                    .disabled(isLoading)
+
                     // Server URL
                     VStack(alignment: .leading, spacing: 8) {
                         Text("服务器地址")
@@ -476,10 +537,11 @@ struct PairingView: View {
                             await connectRelay()
                         }
                     }) {
-                        HStack {
+                        HStack(spacing: 10) {
                             if isLoading {
-                                ProgressView()
+                                SwiftUI.ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                Text("连接中...")
                             } else {
                                 Image(systemName: "link")
                                 Text("连接")
@@ -517,7 +579,7 @@ struct PairingView: View {
 
     private var waitingContent: some View {
         VStack(spacing: 24) {
-            ProgressView()
+            SwiftUI.ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
                 .scaleEffect(1.5)
 
@@ -647,6 +709,13 @@ struct PairingView: View {
             return
         }
 
+        if let setup = parseOpenClawSetupPayload(from: code) {
+            Task {
+                await connectRelayWithSetupPayload(setup)
+            }
+            return
+        }
+
         // Otherwise, process as normal pairing QR
         Task {
             await processQRCode(code)
@@ -656,6 +725,11 @@ struct PairingView: View {
     private func processQRCode(_ code: String) async {
         let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines)
         var qrToken: String?
+
+        if let setup = parseOpenClawSetupPayload(from: normalized) {
+            await connectRelayWithSetupPayload(setup)
+            return
+        }
 
         // Try to parse as JSON
         if let data = normalized.data(using: .utf8),
@@ -708,6 +782,189 @@ struct PairingView: View {
         }
     }
 
+    private func parseOpenClawSetupPayload(from rawCode: String) -> OpenClawSetupPayload? {
+        let normalized = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        if let components = URLComponents(string: normalized),
+           let scheme = components.scheme?.lowercased(),
+           ["trix", "openclaw"].contains(scheme) {
+            var queryDict: [String: String] = [:]
+            for item in components.queryItems ?? [] {
+                guard let value = item.value?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !value.isEmpty else { continue }
+                queryDict[item.name] = value
+            }
+            if let payload = parseSetupPayload(from: queryDict) {
+                return payload
+            }
+        }
+
+        if let data = normalized.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let payload = parseSetupPayload(from: json) {
+            return payload
+        }
+
+        if normalized.contains("=") {
+            var kvPairs: [String: String] = [:]
+            let entries = normalized.components(separatedBy: CharacterSet(charactersIn: "&;,\n"))
+            for entry in entries {
+                let parts = entry.split(separator: "=", maxSplits: 1).map(String.init)
+                guard parts.count == 2 else { continue }
+                let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !key.isEmpty, !value.isEmpty {
+                    kvPairs[key] = value
+                }
+            }
+            if let payload = parseSetupPayload(from: kvPairs) {
+                return payload
+            }
+        }
+
+        return nil
+    }
+
+    private func parseSetupPayload(from json: [String: Any]) -> OpenClawSetupPayload? {
+        let explicitURL = firstString(
+            in: json,
+            keys: ["url", "gatewayUrl", "gateway_url", "gateway", "g"]
+        )
+        let serverFallback = firstString(in: json, keys: ["server"])
+        let hasRelayCredentials = firstString(in: json, keys: ["gatewayId", "gateway_id", "accessCode", "access_code"]) != nil
+        let rawServer = explicitURL ?? (hasRelayCredentials ? serverFallback : nil)
+
+        let rawAccessCode = firstString(
+            in: json,
+            keys: ["accessCode", "access_code", "token", "gatewayToken", "gateway_token", "pairingToken", "pairing_token", "t"]
+        )
+        let rawGatewayId = firstString(
+            in: json,
+            keys: ["gatewayId", "gateway_id", "sessionKey", "session_key", "agentId", "agent_id"]
+        ) ?? "agent:main:main"
+
+        guard let rawServer, let rawAccessCode else { return nil }
+        guard let normalizedServer = normalizeRelayServerURL(rawServer) else { return nil }
+
+        return OpenClawSetupPayload(
+            server: normalizedServer,
+            gatewayId: rawGatewayId,
+            accessCode: rawAccessCode
+        )
+    }
+
+    private func parseSetupPayload(from values: [String: String]) -> OpenClawSetupPayload? {
+        let rawServer = firstString(
+            in: values,
+            keys: ["url", "server", "gatewayUrl", "gateway_url", "gateway", "g"]
+        )
+        let rawAccessCode = firstString(
+            in: values,
+            keys: ["accessCode", "access_code", "token", "gatewayToken", "gateway_token", "pairingToken", "pairing_token", "t"]
+        )
+        let rawGatewayId = firstString(
+            in: values,
+            keys: ["gatewayId", "gateway_id", "sessionKey", "session_key", "agentId", "agent_id"]
+        ) ?? "agent:main:main"
+
+        guard let rawServer, let rawAccessCode else { return nil }
+        guard let normalizedServer = normalizeRelayServerURL(rawServer) else { return nil }
+
+        return OpenClawSetupPayload(
+            server: normalizedServer,
+            gatewayId: rawGatewayId,
+            accessCode: rawAccessCode
+        )
+    }
+
+    private func firstString(in values: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = values[key] as? String {
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return trimmed
+                }
+            }
+        }
+        return nil
+    }
+
+    private func firstString(in values: [String: String], keys: [String]) -> String? {
+        for key in keys {
+            if let value = values[key] {
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return trimmed
+                }
+            }
+        }
+        return nil
+    }
+
+    private func normalizeRelayServerURL(_ value: String) -> String? {
+        var raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+
+        if raw.hasPrefix("ws://") {
+            raw = raw.replacingOccurrences(of: "ws://", with: "http://")
+        } else if raw.hasPrefix("wss://") {
+            raw = raw.replacingOccurrences(of: "wss://", with: "https://")
+        } else if !raw.contains("://") {
+            raw = "http://\(raw)"
+        }
+
+        guard var components = URLComponents(string: raw), components.host != nil else {
+            return nil
+        }
+
+        if components.path.lowercased() == "/relay" || components.path == "/" {
+            components.path = ""
+        }
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else { return nil }
+        var normalized = url.absoluteString
+        while normalized.hasSuffix("/") {
+            normalized.removeLast()
+        }
+        return normalized
+    }
+
+    private func connectRelayWithSetupPayload(_ payload: OpenClawSetupPayload) async {
+        relayServer = payload.server
+        relayGatewayId = payload.gatewayId
+        relayAccessCode = payload.accessCode
+        connectionMode = .relay
+        clawbotChannel.connectionMode = .relay
+
+        isLoading = true
+        let success = await clawbotChannel.connectRelayManual(
+            server: payload.server,
+            gatewayId: payload.gatewayId,
+            accessCode: payload.accessCode
+        )
+        isLoading = false
+
+        if success {
+            persistRelayDefaults(
+                server: payload.server,
+                gatewayId: payload.gatewayId,
+                accessCode: payload.accessCode
+            )
+            withAnimation(.spring(response: 0.3)) {
+                mode = .success
+            }
+        } else {
+            errorMessage = clawbotChannel.lastError ?? "连接失败，请检查配对信息"
+            showError = true
+            withAnimation(.spring(response: 0.3)) {
+                mode = .relayInput
+            }
+        }
+    }
+
     // MARK: - Relay Actions
 
     private func connectRelay() async {
@@ -728,6 +985,7 @@ struct PairingView: View {
         isLoading = false
 
         if success {
+            persistRelayDefaults(server: server, gatewayId: gatewayId, accessCode: accessCode)
             withAnimation(.spring(response: 0.3)) {
                 mode = .success
             }
@@ -735,6 +993,56 @@ struct PairingView: View {
             errorMessage = clawbotChannel.lastError ?? "连接失败，请检查配置"
             showError = true
         }
+    }
+
+    private func quickConnectLocalRelay() async {
+        let gatewayId = relayGatewayId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let accessCode = relayAccessCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !gatewayId.isEmpty, !accessCode.isEmpty else {
+            errorMessage = "请先输入 Gateway ID 和访问码，再使用同机快速连接"
+            showError = true
+            return
+        }
+
+        isLoading = true
+        for candidate in localRelayServerCandidates {
+            let success = await clawbotChannel.connectRelayManual(
+                server: candidate,
+                gatewayId: gatewayId,
+                accessCode: accessCode
+            )
+            if success {
+                relayServer = candidate
+                persistRelayDefaults(server: candidate, gatewayId: gatewayId, accessCode: accessCode)
+                isLoading = false
+                withAnimation(.spring(response: 0.3)) {
+                    mode = .success
+                }
+                return
+            }
+        }
+
+        isLoading = false
+        errorMessage = clawbotChannel.lastError ?? "同机快速连接失败，请确认 OpenClaw/Relay 服务已在本机启动"
+        showError = true
+    }
+
+    private func restoreRelayDefaults() {
+        let defaults = UserDefaults.standard
+        relayServer = defaults.string(forKey: relayServerDefaultsKey) ?? relayServer
+        relayGatewayId = defaults.string(forKey: relayGatewayDefaultsKey) ?? relayGatewayId
+        relayAccessCode = defaults.string(forKey: relayAccessCodeDefaultsKey) ?? relayAccessCode
+        if relayServer.isEmpty {
+            relayServer = localRelayServerCandidates.first ?? ""
+        }
+    }
+
+    private func persistRelayDefaults(server: String, gatewayId: String, accessCode: String) {
+        let defaults = UserDefaults.standard
+        defaults.set(server, forKey: relayServerDefaultsKey)
+        defaults.set(gatewayId, forKey: relayGatewayDefaultsKey)
+        defaults.set(accessCode, forKey: relayAccessCodeDefaultsKey)
     }
 
     private func handleRelayQRScanned(_ code: String) {

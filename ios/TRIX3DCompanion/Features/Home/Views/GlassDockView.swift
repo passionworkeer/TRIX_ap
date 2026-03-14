@@ -32,7 +32,7 @@ struct GlassDockTab: Identifiable, Hashable {
 // MARK: - GlassDock View
 
 struct GlassDockView: View {
-    @Binding var selectedTab: MainTab
+    @EnvironmentObject private var appState: AppState
     @Binding var isWorkbenchPresented: Bool
 
     @State private var animateGlow = false
@@ -87,9 +87,10 @@ struct GlassDockView: View {
         Button {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
+            UITestEventLogger.log("Dock tapped -> \(dockTab.tab.rawValue)")
 
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedTab = dockTab.tab
+                appState.selectTab(dockTab.tab)
                 isWorkbenchPresented = false
             }
         } label: {
@@ -151,14 +152,15 @@ struct GlassDockView: View {
         Button {
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
+            UITestEventLogger.log("Dock core tapped")
 
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                if selectedTab == .home && isWorkbenchPresented {
+                if appState.selectedTab == .home && isWorkbenchPresented {
                     isWorkbenchPresented = false
                     return
                 }
 
-                selectedTab = .home
+                appState.selectTab(.home)
                 isWorkbenchPresented = true
             }
         } label: {
@@ -219,7 +221,7 @@ struct GlassDockView: View {
     // MARK: - Helpers
 
     private var normalizedSelectedTab: MainTab {
-        selectedTab == .home ? .core : selectedTab
+        appState.selectedTab == .home ? .core : appState.selectedTab
     }
 
     private func startGlowAnimation() {
@@ -238,10 +240,8 @@ struct GlassDockView: View {
 
         VStack {
             Spacer()
-            GlassDockView(
-                selectedTab: .constant(.home),
-                isWorkbenchPresented: .constant(false)
-            )
+            GlassDockView(isWorkbenchPresented: .constant(false))
+                .environmentObject(AppState.shared)
         }
     }
 }

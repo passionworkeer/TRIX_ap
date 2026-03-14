@@ -46,6 +46,8 @@
 "auth.email.required" = "请输入邮箱";
 "auth.password.required" = "请输入密码";
 "auth.username.required" = "请输入用户名";
+"auth.error.invalid.credentials" = "邮箱或密码错误，请检查后重试";
+"auth.error.email.exists" = "该邮箱已注册，请直接登录";
 
 // MARK: - Chat
 "chat.title" = "消息";

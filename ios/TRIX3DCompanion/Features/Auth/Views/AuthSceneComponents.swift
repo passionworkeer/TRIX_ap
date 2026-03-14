@@ -115,6 +115,15 @@ struct AuthFeaturePill: View {
     }
 }
 
+enum AuthFormPalette {
+    static let primaryText = Color(hex: "111827")
+    static let secondaryText = Color(hex: "667085")
+    static let placeholderText = Color(hex: "6B7280")
+    static let iconTint = Color.brandPurple.opacity(0.82)
+    static let fieldBackground = Color.white.opacity(0.84)
+    static let fieldBorder = Color.white.opacity(0.96)
+}
+
 struct AuthFormPanel<Content: View>: View {
     let title: String
     let subtitle: String
@@ -125,11 +134,11 @@ struct AuthFormPanel<Content: View>: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.textPrimary)
+                    .foregroundStyle(AuthFormPalette.primaryText)
 
                 Text(subtitle)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(AuthFormPalette.secondaryText)
             }
 
             content
@@ -231,11 +240,11 @@ struct AuthLoadingOverlay: View {
                 VStack(spacing: 8) {
                     Text(title)
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.textPrimary)
+                        .foregroundStyle(AuthFormPalette.primaryText)
 
                     Text(subtitle)
                         .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(AuthFormPalette.secondaryText)
                         .multilineTextAlignment(.center)
                 }
 
@@ -311,7 +320,7 @@ private struct AuthLoadingStepRow: View {
 
             Text(title)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(isActive ? Color.textPrimary : Color.textSecondary)
+                .foregroundStyle(isActive ? AuthFormPalette.primaryText : AuthFormPalette.secondaryText)
 
             Spacer()
         }
@@ -343,7 +352,7 @@ private struct AuthLoadingStepRow: View {
     }
 
     private var iconForeground: Color {
-        isComplete || isActive ? .white : Color.textSecondary
+        isComplete || isActive ? .white : AuthFormPalette.secondaryText
     }
 
     private var rowBackground: LinearGradient {

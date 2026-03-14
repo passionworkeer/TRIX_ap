@@ -13,24 +13,26 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
         let initialDarkMode = switchState(for: darkModeToggle)
         let initialNotifications = switchState(for: notificationsToggle)
 
-        darkModeToggle.tap()
-        notificationsToggle.tap()
+        scrollToElement(darkModeToggle)
+        tapCenter(of: darkModeToggle)
+        scrollToElement(notificationsToggle)
+        tapCenter(of: notificationsToggle)
 
         if let initialDarkMode {
-            XCTAssertTrue(waitForSwitchState(!initialDarkMode, for: darkModeToggle))
+            XCTAssertTrue(waitForSwitchState(!initialDarkMode, identifier: AppUIIdentifiers.profileDarkModeToggle))
         }
         if let initialNotifications {
-            XCTAssertTrue(waitForSwitchState(!initialNotifications, for: notificationsToggle))
+            XCTAssertTrue(waitForSwitchState(!initialNotifications, identifier: AppUIIdentifiers.profileNotificationsToggle))
         }
 
-        darkModeToggle.tap()
-        notificationsToggle.tap()
+        tapCenter(of: switchControl(withIdentifier: AppUIIdentifiers.profileDarkModeToggle))
+        tapCenter(of: switchControl(withIdentifier: AppUIIdentifiers.profileNotificationsToggle))
 
         if let initialDarkMode {
-            XCTAssertTrue(waitForSwitchState(initialDarkMode, for: darkModeToggle))
+            XCTAssertTrue(waitForSwitchState(initialDarkMode, identifier: AppUIIdentifiers.profileDarkModeToggle))
         }
         if let initialNotifications {
-            XCTAssertTrue(waitForSwitchState(initialNotifications, for: notificationsToggle))
+            XCTAssertTrue(waitForSwitchState(initialNotifications, identifier: AppUIIdentifiers.profileNotificationsToggle))
         }
     }
 
@@ -87,6 +89,9 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
             timeout: 10
         )
 
-        XCTAssertNotNil(destination)
+        if destination == nil {
+            attachDebugHierarchy(named: "chat-trixbot-after-tap")
+            XCTFail("Expected chat TRIX Bot entry to open pairing or TRIX Bot screen.")
+        }
     }
 }

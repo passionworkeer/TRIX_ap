@@ -38,6 +38,8 @@ enum LocationCategory: String, Codable, CaseIterable {
     case school
     case library
     case cafe
+    case restaurant
+    case entertainment
     case home
     case park
     case other

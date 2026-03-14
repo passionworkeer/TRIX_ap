@@ -7,6 +7,8 @@
 
 import Foundation
 import PostgREST
+import Realtime
+import Supabase
 
 actor SupabaseService {
 
@@ -810,6 +812,35 @@ actor SupabaseService {
 
         return rows
             .reversed()
+            .map { row in
+                mapChatMessage(
+                    row,
+                    currentUserId: context.userId,
+                    roomId: roomId
+                )
+            }
+    }
+
+    /// Fetch messages since a specific date
+    func fetchMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+        let context = try await sessionContext()
+        let conversationID = roomId == Self.botRoomID
+            ? botConversationID(for: context.userId)
+            : directConversationID(for: context.userId, friendId: roomId)
+
+        // Convert date to ISO8601 string
+        let sinceString = ISO8601DateFormatter().string(from: since)
+
+        let rows: [SupabaseChatMessageRow] = try await client.database
+            .from("chat_messages")
+            .select(chatMessageSelectColumns)
+            .eq("conversation_id", value: conversationID)
+            .gt("created_at", value: sinceString)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+
+        return rows
             .map { row in
                 mapChatMessage(
                     row,
@@ -1794,5 +1825,152 @@ private struct SupabaseUnreadCountUpsert: Encodable {
         case unreadCount = "unread_count"
         case lastMessage = "last_message"
         case lastMessageTime = "last_message_time"
+    }
+}
+
+// MARK: - Realtime Message Subscription
+
+/// Realtime message subscription manager using Supabase Realtime
+/// Uses native WebSocket connection for true real-time updates
+@MainActor
+final class RealtimeMessageSubscription: ObservableObject {
+    static let shared = RealtimeMessageSubscription()
+
+    @Published private(set) var isSubscribed = false
+    @Published private(set) var connectionStatus: String = "disconnected"
+
+    private var supabase: SupabaseClient?
+    private var currentConversationId: String?
+    private var currentUserId: String?
+    private var callback: ((ChatMessage) -> Void)?
+    private var currentChannel: RealtimeChannel?
+
+    private init() {}
+
+    /// Initialize with Supabase client
+    func initialize(supabase: SupabaseClient, userId: String) {
+        self.supabase = supabase
+        self.currentUserId = userId
+        connectionStatus = "initialized"
+    }
+
+    /// Subscribe to new messages using Supabase Realtime
+    func subscribe(conversationId: String, onMessage: @escaping (ChatMessage) -> Void) async {
+        // Unsubscribe from previous if any
+        await unsubscribe()
+
+        guard let supabase = supabase, let userId = currentUserId else {
+            print("[Realtime] Cannot subscribe: supabase or userId is nil")
+            return
+        }
+
+        self.callback = onMessage
+        self.currentConversationId = conversationId
+        connectionStatus = "connecting"
+
+        // Connect to realtime socket first
+        supabase.realtime.connect()
+
+        // Create a channel for this conversation
+        let channel = supabase.realtime.channel("chat:\(conversationId)")
+
+        // Subscribe to postgres INSERT changes on chat_messages table
+        channel.on(
+            "postgres_changes",
+            filter: ChannelFilter(
+                event: "INSERT",
+                schema: "public",
+                table: "chat_messages",
+                filter: "conversation_id=eq.\(conversationId)"
+            )
+        ) { [weak self] message in
+            guard let self = self else { return }
+
+            // Parse the payload
+            if let payload = message.payload as? [String: Any],
+               let newRecord = payload["new"] as? [String: Any],
+               let senderId = newRecord["sender_id"] as? String,
+               // Only process messages from others
+               senderId != userId,
+               let message = self.parseRecord(newRecord, currentUserId: userId, conversationId: conversationId) {
+                print("[Realtime] Received new message: \(message.id)")
+                DispatchQueue.main.async {
+                    self.callback?(message)
+                }
+            }
+        }
+
+        // Subscribe to the channel
+        channel.subscribe { [weak self] state, _ in
+            print("[Realtime] Subscribe state: \(state)")
+            DispatchQueue.main.async {
+                self?.isSubscribed = (state == .subscribed)
+                self?.connectionStatus = state == .subscribed ? "connected" : "connecting"
+            }
+        }
+
+        self.currentChannel = channel
+        print("[Realtime] Connected to conversation: \(conversationId)")
+    }
+
+    /// Parse database record to ChatMessage
+    private func parseRecord(_ record: [String: Any], currentUserId: String, conversationId: String) -> ChatMessage? {
+        guard let id = record["id"] as? String,
+              let senderId = record["sender_id"] as? String else {
+            return nil
+        }
+
+        let text = record["text"] as? String ?? ""
+        let createdAtString = record["created_at"] as? String ?? ""
+        let messageTypeString = record["message_type"] as? String ?? "text"
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let createdAt = formatter.date(from: createdAtString) ?? Date()
+
+        let sender: MessageSender = senderId == currentUserId ? .user : .friend
+
+        let messageType: MessageType
+        switch messageTypeString {
+        case "image": messageType = .image
+        case "video": messageType = .video
+        case "voice": messageType = .voice
+        case "file": messageType = .file
+        default: messageType = .text
+        }
+
+        return ChatMessage(
+            id: id,
+            roomId: conversationId,
+            senderId: senderId,
+            sender: sender,
+            content: text,
+            messageType: messageType,
+            mediaUrl: record["media_uri"] as? String,
+            mediaMimeType: record["media_type"] as? String,
+            mediaDuration: record["media_duration"] as? Int,
+            mediaSize: nil,
+            mediaMetadata: nil,
+            voiceUrl: record["voice_url"] as? String,
+            voiceDuration: record["voice_duration"] as? Int,
+            voiceTranscript: record["voice_transcript"] as? String,
+            voiceMimeType: record["voice_mime_type"] as? String,
+            isRead: record["is_read"] as? Bool ?? false,
+            createdAt: createdAt
+        )
+    }
+
+    /// Unsubscribe and disconnect
+    func unsubscribe() async {
+        if let channel = currentChannel {
+            channel.unsubscribe()
+            print("[Realtime] Unsubscribed from channel")
+        }
+
+        currentChannel = nil
+        callback = nil
+        currentConversationId = nil
+        isSubscribed = false
+        connectionStatus = "disconnected"
     }
 }

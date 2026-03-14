@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 private func loc(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
@@ -280,31 +281,40 @@ struct RegisterView: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.brandPurple.opacity(0.82))
+                .foregroundStyle(AuthFormPalette.iconTint)
                 .frame(width: 22)
 
             Group {
                 if autocapitalization {
-                    TextField(placeholder, text: text)
+                    TextField(
+                        "",
+                        text: text,
+                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
+                    )
                         .textInputAutocapitalization(.sentences)
                 } else {
-                    TextField(placeholder, text: text)
+                    TextField(
+                        "",
+                        text: text,
+                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
+                    )
                         .textInputAutocapitalization(.never)
                 }
             }
             .font(.system(size: 16, weight: .medium, design: .rounded))
-            .foregroundStyle(Color.textPrimary)
+            .foregroundStyle(AuthFormPalette.primaryText)
             .keyboardType(keyboardType)
             .textContentType(textContentType)
+            .tint(Color.brandPurple)
             .autocorrectionDisabled()
             .accessibilityIdentifier(accessibilityIdentifier)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.84))
+        .background(AuthFormPalette.fieldBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
@@ -319,26 +329,33 @@ struct RegisterView: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.brandPurple.opacity(0.82))
+                .foregroundStyle(AuthFormPalette.iconTint)
                 .frame(width: 22)
 
-            SecureField(placeholder, text: text)
+            SecureField(
+                "",
+                text: text,
+                prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
+            )
                 .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(Color.textPrimary)
+                .foregroundStyle(AuthFormPalette.primaryText)
                 .textContentType(textContentType)
+                .tint(Color.brandPurple)
                 .accessibilityIdentifier(accessibilityIdentifier)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.84))
+        .background(AuthFormPalette.fieldBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.96), lineWidth: 1)
+                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func handleRegister() async {
+        dismissInputFocus()
+
         guard !username.isEmpty else {
             errorMessage = loc("auth.username.required")
             showingError = true
@@ -394,6 +411,11 @@ struct RegisterView: View {
             errorMessage = error.localizedDescription
             showingError = true
         }
+    }
+
+    private func dismissInputFocus() {
+        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 

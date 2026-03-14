@@ -33,50 +33,53 @@ struct LocationDetailView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header with icon
-                    headerSection
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header with icon
+                headerSection
 
-                    // Location info
-                    locationInfoSection
+                // Location info
+                locationInfoSection
 
-                    // Action buttons
-                    actionButtonsSection
+                // Action buttons
+                actionButtonsSection
 
-                    // Map preview
-                    mapPreviewSection
-                }
-                .padding()
+                // Map preview
+                mapPreviewSection
             }
-            .background(backgroundGradient)
-            .navigationTitle("Location Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                }
-            }
-            .alert("Share Location", isPresented: $showShareConfirmation) {
-                Button("Share") {
-                    onShare()
+            .padding()
+        }
+        .background(backgroundGradient)
+        .safeAreaInset(edge: .top) {
+            HStack {
+                Spacer()
+                Button {
                     dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Share this location with your companion?")
+                .padding(.trailing, 16)
+                .padding(.top, 8)
             }
-            .alert("Check In", isPresented: $showCheckInConfirmation) {
-                Button("Check In") {
-                    performCheckIn()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Check in at \(location.name)?")
+        }
+        .alert("Share Location", isPresented: $showShareConfirmation) {
+            Button("Share") {
+                onShare()
+                dismiss()
             }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Share this location with your companion?")
+        }
+        .alert("Check In", isPresented: $showCheckInConfirmation) {
+            Button("Check In") {
+                performCheckIn()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Check in at \(location.name)?")
         }
     }
 

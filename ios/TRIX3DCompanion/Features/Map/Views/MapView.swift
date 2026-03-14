@@ -131,6 +131,7 @@ struct MapView: View {
             await viewModel.loadNearbyLocations()
         }
         .onAppear {
+            UITestEventLogger.log("MapView onAppear")
             viewModel.checkLocationPermission()
         }
         .sheet(isPresented: $viewModel.showLocationDetail) {
@@ -140,8 +141,9 @@ struct MapView: View {
                     onNavigate: { navigateToLocation(location) },
                     onShare: { shareLocationWithCompanion(location) }
                 )
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.fraction(0.5), .fraction(0.75), .large])
                 .presentationDragIndicator(.visible)
+                .modifier(PresentationBackgroundModifier())
             }
         }
         .sheet(
@@ -179,7 +181,7 @@ struct MapView: View {
             }
             .ignoresSafeArea()
 
-            // Heat zone overlays
+            // Heat zone overlays - with hit testing disabled
             ForEach(viewModel.heatZones) { heatZone in
                 HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
             }
@@ -453,7 +455,7 @@ struct MapView: View {
 
     @ViewBuilder
     private var noticeBanner: some View {
-        if !viewModel.hasLocationPermission {
+        if !viewModel.hasLocationPermission && viewModel.showLocationPermissionBanner {
             MapNoticeBanner(
                 icon: "location.slash.fill",
                 tint: .warning,
@@ -462,7 +464,9 @@ struct MapView: View {
                 primaryTitle: locationPermissionPrimaryActionTitle,
                 primaryAction: handleLocationPermissionAction,
                 secondaryTitle: "map.permission.action.dismiss".localized,
-                secondaryAction: { }
+                secondaryAction: {
+                    viewModel.showLocationPermissionBanner = false
+                }
             )
                 .transition(.move(edge: .top).combined(with: .opacity))
         } else if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
@@ -784,6 +788,8 @@ struct SearchResultRow: View {
         case .school: return .blue
         case .library: return .purple
         case .cafe: return .orange
+        case .restaurant: return .red
+        case .entertainment: return .pink
         case .home: return .green
         case .park: return .green
         case .other: return .gray
@@ -860,6 +866,10 @@ extension LocationCategory {
             return "map.filter.library".localized
         case .cafe:
             return "map.filter.cafe".localized
+        case .restaurant:
+            return "map.filter.restaurant".localized
+        case .entertainment:
+            return "map.filter.entertainment".localized
         case .home:
             return "map.filter.home".localized
         case .park:
@@ -878,6 +888,10 @@ extension LocationCategory {
             return "books.vertical.fill"
         case .cafe:
             return "cup.and.saucer.fill"
+        case .restaurant:
+            return "fork.knife"
+        case .entertainment:
+            return "gamecontroller.fill"
         case .home:
             return "house.fill"
         case .park:
@@ -1147,19 +1161,11 @@ private struct FriendMarkerView: View {
             HStack(spacing: 8) {
                 // Avatar with status
                 ZStack(alignment: .bottomTrailing) {
-                    Circle()
-                        .fill(avatarGradient)
+                    // Avatar image or placeholder
+                    avatarView
                         .frame(width: 26, height: 26)
-                        .overlay(
-                            Text(String(friend.name.prefix(1)).uppercased())
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(.white.opacity(0.9), lineWidth: 1)
-                        )
 
+                    // Status indicator
                     Circle()
                         .fill(statusColor)
                         .frame(width: 9, height: 9)
@@ -1200,6 +1206,51 @@ private struct FriendMarkerView: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Avatar view - shows image if available, fallback to initial
+    @ViewBuilder
+    private var avatarView: some View {
+        if let avatarUrl = friend.avatarUrl, !avatarUrl.isEmpty {
+            AsyncImage(url: URL(string: avatarUrl)) { phase in
+                switch phase {
+                case .empty:
+                    avatarPlaceholder
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 26, height: 26)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white.opacity(0.9), lineWidth: 1)
+                        )
+                case .failure:
+                    avatarPlaceholder
+                @unknown default:
+                    avatarPlaceholder
+                }
+            }
+        } else {
+            avatarPlaceholder
+        }
+    }
+
+    /// Avatar placeholder with initial
+    private var avatarPlaceholder: some View {
+        Circle()
+            .fill(avatarGradient)
+            .frame(width: 26, height: 26)
+            .overlay(
+                Text(String(friend.name.prefix(1)).uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+            )
+            .overlay(
+                Circle()
+                    .strokeBorder(.white.opacity(0.9), lineWidth: 1)
+            )
     }
 
     private var avatarGradient: LinearGradient {
@@ -1255,6 +1306,7 @@ struct HeatZoneOverlay: View {
                 x: coordinateToPosition(heatZone.coordinate).x,
                 y: coordinateToPosition(heatZone.coordinate).y
             )
+            .allowsHitTesting(false)
     }
 
     /// Convert coordinate to view position (simplified)
@@ -1274,5 +1326,19 @@ struct HeatZoneOverlay: View {
             x: (0.5 + lngDiff) * screenWidth,
             y: (0.5 - latDiff) * screenHeight
         )
+    }
+}
+
+// MARK: - Presentation Background Modifier
+
+/// Custom modifier for presentation background with iOS version check
+struct PresentationBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content
+                .presentationBackground(.ultraThinMaterial)
+        } else {
+            content
+        }
     }
 }

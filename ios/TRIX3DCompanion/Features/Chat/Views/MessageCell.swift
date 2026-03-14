@@ -20,41 +20,67 @@ struct MessageCell: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            // Avatar for received messages
+        HStack(alignment: .top, spacing: 8) {
+            // 左侧头像 - 对方消息（靠左）
             if !isCurrentUser {
                 avatarView
+            } else {
+                // 占位，保持对齐
+                Color.clear.frame(width: 36, height: 36)
             }
 
-            // Message content
+            // 消息内容
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                // Message bubble
+                // 发送者名称 (仅对方消息显示)
+                if !isCurrentUser {
+                    Text(avatarUsername)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 4)
+                }
+
+                // 消息气泡
                 messageBubble
 
-                // Timestamp
+                // 时间
                 timestampView
             }
+            .frame(maxWidth: UIScreen.main.bounds.width * 0.7, alignment: isCurrentUser ? .trailing : .leading)
 
-            // Spacer for alignment
+            // 右侧头像 - 自己消息（靠右）
             if isCurrentUser {
-                Spacer(minLength: 60)
+                userAvatarView
             } else {
-                Spacer()
+                // 占位，保持对齐
+                Color.clear.frame(width: 36, height: 36)
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
         .padding(.vertical, 4)
     }
 
     // MARK: - View Components
 
-    /// Avatar view for received messages - using AvatarView component
+    /// Avatar view for received messages
     private var avatarView: some View {
         AvatarView(
             size: .small,
             username: avatarUsername,
             isOnline: senderIsOnline
         )
+    }
+
+    /// User avatar view (right side)
+    private var userAvatarView: some View {
+        ZStack {
+            Circle()
+                .fill(Color.blue.opacity(0.2))
+
+            Image(systemName: "person.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.blue)
+        }
+        .frame(width: 36, height: 36)
     }
 
     /// Avatar username derived from sender
@@ -128,7 +154,10 @@ struct MessageCell: View {
     private var messageBubbleBorder: some View {
         if !isCurrentUser {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.separator.opacity(0.5), lineWidth: 0.5)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+        } else {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
         }
     }
 

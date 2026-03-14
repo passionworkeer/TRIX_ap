@@ -23,7 +23,8 @@ struct ChatDetailView: View {
     @State private var showingImagePicker = false
     @State private var showingAttachmentOptions = false
     @State private var showingCamera = false
-    @State private var scrollToBottom = false
+    @State private var previousMessageCount: Int = 0
+    @State private var shouldScrollToBottom: Bool = false
 
     @FocusState private var isInputFocused: Bool
 
@@ -97,18 +98,37 @@ struct ChatDetailView: View {
     private var messagesList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 4) {
                     if chatService.hasMoreMessages && !chatService.currentMessages.isEmpty {
                         loadMoreButton
                     }
                     ForEach(chatService.currentMessages) { message in
-                        MessageCell(message: message, isCurrentUser: message.senderId == appState.currentUser?.id).id(message.id)
+                        MessageCell(message: message, isCurrentUser: message.sender == .user).id(message.id)
                     }
-                }.padding(.horizontal).padding(.bottom, 8)
+                }
+                .padding(.horizontal).padding(.bottom, 8)
             }
-            .onChange(of: chatService.currentMessages.count) { _ in
-                withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+            .onAppear {
+                // 记录初始消息数
+                previousMessageCount = chatService.currentMessages.count
+                // 滚动到底部
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    scrollToBottom(proxy: proxy)
+                }
             }
+            .onChange(of: chatService.currentMessages.count) { newCount in
+                // 如果消息数增加了，滚动到底部
+                if newCount > previousMessageCount {
+                    scrollToBottom(proxy: proxy)
+                }
+                previousMessageCount = newCount
+            }
+        }
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        if let lastMessage = chatService.currentMessages.last {
+            proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
 
@@ -157,6 +177,7 @@ struct ChatDetailView: View {
 
     private func loadConversation() async {
         chatService.selectRoom(roomId: conversation.id)
+        // 延迟获取消息，确保selectRoom完成
         _ = await chatService.fetchMessages(roomId: conversation.id, before: nil)
     }
 

@@ -37,6 +37,11 @@ enum MainTab: String, CaseIterable {
     }
 }
 
+enum PendingCompanionRoute: Equatable {
+    case trixBot
+    case pairing
+}
+
 /// Supported in-app languages
 enum AppDisplayLanguage: String, CaseIterable, Identifiable {
     case simplifiedChinese = "zh-Hans"
@@ -81,6 +86,36 @@ enum AppNetworkStatus {
     case disconnected
 }
 
+enum UITestEventLogger {
+    private static let logFileName = "trix-ui-events.log"
+
+    static var isEnabled: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--skip-onboarding")
+    }
+
+    static func log(_ message: String) {
+        guard isEnabled else { return }
+
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let line = "\(timestamp) \(message)\n"
+        guard let data = line.data(using: .utf8) else { return }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(logFileName)
+
+        if FileManager.default.fileExists(atPath: url.path) {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                defer { try? handle.close() }
+                try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+            }
+            return
+        }
+
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
 // MARK: - App State
 
 /// Global application state manager
@@ -103,6 +138,9 @@ final class AppState: ObservableObject {
 
     /// Currently selected tab
     @Published var selectedTab: MainTab = .chat
+
+    /// Pending cross-tab companion destination triggered from other surfaces.
+    @Published var pendingCompanionRoute: PendingCompanionRoute?
 
     /// Dark mode setting
     @Published var isDarkMode: Bool = false
@@ -387,6 +425,7 @@ final class AppState: ObservableObject {
 
     /// Update selected tab
     func selectTab(_ tab: MainTab) {
+        UITestEventLogger.log("selectTab -> \(tab.rawValue)")
         selectedTab = tab
     }
 

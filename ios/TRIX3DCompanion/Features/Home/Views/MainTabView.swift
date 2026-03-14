@@ -20,75 +20,53 @@ struct MainTabView: View {
 
     @State private var isWorkbenchPresented = false
     @State private var navigationPath = NavigationPath()
-    @State private var showingPairingSheet = false
-    @State private var showingTrixBotSheet = false
 
     // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Tab content using NavigationStack for proper navigation
-            NavigationStack(path: $navigationPath) {
-                ZStack {
-                    tabContent
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
-                .navigationDestination(for: ChatConversation.self) { conversation in
-                    ChatDetailView(conversation: conversation)
-                }
+        NavigationStack(path: $navigationPath) {
+            ZStack {
+                tabContent
             }
-            .navigationBarHidden(true)
-            .allowsHitTesting(true)
-            .sheet(isPresented: $showingPairingSheet) {
-                NavigationStack {
-                    PairingView()
-                        .environmentObject(ClawbotChannelViewModel.shared)
-                }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
+            .navigationDestination(for: ChatConversation.self) { conversation in
+                ChatDetailView(conversation: conversation)
             }
-            .sheet(isPresented: $showingTrixBotSheet) {
-                NavigationStack {
-                    TrixBotChatView()
-                        .environmentObject(ClawbotChannelViewModel.shared)
-                }
+        }
+        .navigationBarHidden(true)
+        .allowsHitTesting(true)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if shouldShowTabBar {
+                GlassDockView(isWorkbenchPresented: $isWorkbenchPresented)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-
-            // GlassDock Navigation - 根据导航状态显示/隐藏
-            GlassDockView(
-                selectedTab: $appState.selectedTab,
-                isWorkbenchPresented: $isWorkbenchPresented
-            )
-            .zIndex(1)
-            .opacity(shouldShowTabBar ? 1 : 0)
-            .allowsHitTesting(shouldShowTabBar)
-            .animation(.easeInOut(duration: 0.24), value: shouldShowTabBar)
         }
         .ignoresSafeArea(.keyboard)
         .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.mainTabView)
         .uiTestMarker(MainNavigationAccessibilityIdentifiers.selectedTab(for: appState.selectedTab))
         .onChange(of: appState.selectedTab) { newTab in
+            UITestEventLogger.log("MainTabView observed selectedTab -> \(newTab.rawValue)")
             handleTabChange(to: newTab)
         }
+        .animation(.easeInOut(duration: 0.24), value: shouldShowTabBar)
     }
 
     // MARK: - Computed Properties
 
     private var shouldShowTabBar: Bool {
-        let isNavigating = !navigationPath.isEmpty
-        let isShowingSheet = showingPairingSheet || showingTrixBotSheet
-        return !isNavigating && !isShowingSheet
+        Self.shouldShowDock(
+            selectedTab: appState.selectedTab,
+            isWorkbenchPresented: isWorkbenchPresented,
+            isNavigating: !navigationPath.isEmpty
+        )
     }
 
     @ViewBuilder
     private var tabContent: some View {
         switch appState.selectedTab {
         case .home, .core:
-            HomeView(
-                isWorkbenchPresented: $isWorkbenchPresented,
-                onOpenTrixBot: {
-                    showingTrixBotSheet = true
-                }
-            )
+            HomeView(isWorkbenchPresented: $isWorkbenchPresented)
             .id("tab.home")
         case .map:
             MapView()
@@ -97,17 +75,9 @@ struct MainTabView: View {
             StudyListView()
                 .id("tab.study")
         case .chat:
-            ChatListView(
-                onNavigateToChat: { conversation in
-                    navigationPath.append(conversation)
-                },
-                onNavigateToPairing: {
-                    showingPairingSheet = true
-                },
-                onNavigateToTrixBot: {
-                    showingTrixBotSheet = true
-                }
-            )
+            ChatListView(onNavigateToChat: { conversation in
+                navigationPath.append(conversation)
+            })
             .id("tab.chat")
         case .profile:
             ProfileView()
@@ -117,11 +87,30 @@ struct MainTabView: View {
 
     // MARK: - Event Handlers
 
+    static func shouldShowDock(
+        selectedTab: MainTab,
+        isWorkbenchPresented: Bool,
+        isNavigating: Bool
+    ) -> Bool {
+        guard !isNavigating else { return false }
+
+        let isHomeSurface = selectedTab == .home || selectedTab == .core
+        if isHomeSurface {
+            return isWorkbenchPresented
+        }
+
+        return true
+    }
+
     /// Handle tab selection changes
     private func handleTabChange(to tab: MainTab) {
         // Add haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+
+        if tab != .home && tab != .core {
+            isWorkbenchPresented = false
+        }
 
         // Save to UserDefaults
         UserDefaults.standard.set(tab.rawValue, forKey: "selectedTab")

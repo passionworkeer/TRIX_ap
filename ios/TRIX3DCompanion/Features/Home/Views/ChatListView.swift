@@ -91,19 +91,11 @@ struct ChatListView: View {
     // MARK: - Callbacks
 
     var onNavigateToChat: ((ChatConversation) -> Void)?
-    var onNavigateToPairing: (() -> Void)?
-    var onNavigateToTrixBot: (() -> Void)?
 
     // MARK: - State
 
-    init(
-        onNavigateToChat: ((ChatConversation) -> Void)? = nil,
-        onNavigateToPairing: (() -> Void)? = nil,
-        onNavigateToTrixBot: (() -> Void)? = nil
-    ) {
+    init(onNavigateToChat: ((ChatConversation) -> Void)? = nil) {
         self.onNavigateToChat = onNavigateToChat
-        self.onNavigateToPairing = onNavigateToPairing
-        self.onNavigateToTrixBot = onNavigateToTrixBot
     }
 
     @StateObject private var friendService = FriendService.shared
@@ -171,12 +163,22 @@ struct ChatListView: View {
             Task {
                 await loadFriends()
             }
+            consumePendingCompanionRouteIfNeeded()
         }
         .sheet(isPresented: $showingTrixBotChat) {
             NavigationStack {
                 TrixBotChatView()
                     .environmentObject(clawbotChannel)
             }
+        }
+        .onChange(of: appState.pendingCompanionRoute) { _ in
+            consumePendingCompanionRouteIfNeeded()
+        }
+        .onChange(of: showingPairing) { isPresented in
+            UITestEventLogger.log("Chat showingPairing -> \(isPresented)")
+        }
+        .onChange(of: showingTrixBotChat) { isPresented in
+            UITestEventLogger.log("Chat showingTrixBotChat -> \(isPresented)")
         }
         .alert("操作失败", isPresented: Binding(
             get: { friendActionError != nil },
@@ -261,11 +263,11 @@ struct ChatListView: View {
     private var trixBotEntry: some View {
         Button {
             if clawbotChannel.isPaired {
-                // If already paired, go to chat via callback
-                onNavigateToTrixBot?()
+                UITestEventLogger.log("Chat TRIX Bot card tapped -> chat")
+                showingTrixBotChat = true
             } else {
-                // If not paired, use callback to navigate to pairing
-                onNavigateToPairing?()
+                UITestEventLogger.log("Chat TRIX Bot card tapped -> pairing")
+                showingPairing = true
             }
         } label: {
             HStack(spacing: 14) {
@@ -370,7 +372,6 @@ struct ChatListView: View {
             .shadow(color: Color.brandPurple.opacity(0.12), radius: 16, x: 0, y: 10)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
     }
 
@@ -484,9 +485,9 @@ struct ChatListView: View {
                     VStack(spacing: 10) {
                         Button {
                             if clawbotChannel.isPaired {
-                                onNavigateToTrixBot?()
+                                showingTrixBotChat = true
                             } else {
-                                onNavigateToPairing?()
+                                showingPairing = true
                             }
                         } label: {
                             HStack {
@@ -655,6 +656,21 @@ struct ChatListView: View {
         selectedConversation = botConversation
         // Navigate to TRIX Bot chat
         showingTrixBotChat = true
+    }
+
+    private func consumePendingCompanionRouteIfNeeded() {
+        guard let route = appState.pendingCompanionRoute else { return }
+
+        switch route {
+        case .trixBot:
+            UITestEventLogger.log("Chat consuming pending route -> trixBot")
+            showingTrixBotChat = true
+        case .pairing:
+            UITestEventLogger.log("Chat consuming pending route -> pairing")
+            showingPairing = true
+        }
+
+        appState.pendingCompanionRoute = nil
     }
 
     private func addUser(_ user: RecommendedUser) async {

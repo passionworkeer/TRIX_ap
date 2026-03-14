@@ -46,6 +46,8 @@
 "auth.email.required" = "Email is required";
 "auth.password.required" = "Password is required";
 "auth.username.required" = "Username is required";
+"auth.error.invalid.credentials" = "Incorrect email or password. Please try again.";
+"auth.error.email.exists" = "This email is already registered. Please sign in instead.";
 
 // MARK: - Chat
 "chat.title" = "Messages";

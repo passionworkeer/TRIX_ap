@@ -45,3 +45,42 @@ final class GatewayProtocolSmokeTests: XCTestCase {
         XCTAssertEqual(status.botOnline, true)
     }
 }
+
+final class MainTabDockVisibilitySmokeTests: XCTestCase {
+    func testDockHiddenOnHomeWhenWorkbenchCollapsed() {
+        XCTAssertFalse(
+            MainTabView.shouldShowDock(
+                selectedTab: .home,
+                isWorkbenchPresented: false,
+                isNavigating: false
+            )
+        )
+    }
+
+    func testDockVisibleOnHomeWhenWorkbenchExpanded() {
+        XCTAssertTrue(
+            MainTabView.shouldShowDock(
+                selectedTab: .home,
+                isWorkbenchPresented: true,
+                isNavigating: false
+            )
+        )
+    }
+
+    func testDockVisibilityPreservesNonHomeRootNavigation() {
+        XCTAssertTrue(
+            MainTabView.shouldShowDock(
+                selectedTab: .chat,
+                isWorkbenchPresented: false,
+                isNavigating: false
+            )
+        )
+        XCTAssertFalse(
+            MainTabView.shouldShowDock(
+                selectedTab: .chat,
+                isWorkbenchPresented: false,
+                isNavigating: true
+            )
+        )
+    }
+}

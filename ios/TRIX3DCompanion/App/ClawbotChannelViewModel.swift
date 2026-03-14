@@ -25,7 +25,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     @Published private(set) var botState: BotState = .idle
 
     // Connection mode
-    @Published var connectionMode: ConnectionMode = .socketIO
+    @Published var connectionMode: ConnectionMode = .relay
 
     // Relay specific
     @Published private(set) var relayConnected: Bool = false
@@ -47,6 +47,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     private let service = ClawbotChannelService.shared
     private let relayClient = RelayClient.shared
     private var cancellables = Set<AnyCancellable>()
+    private var relayStreamBuffers: [String: String] = [:]
 
     // MARK: - Initialization
 
@@ -64,8 +65,10 @@ final class ClawbotChannelViewModel: ObservableObject {
 
         do {
             try await relayClient.connect(server: server, gatewayId: gatewayId, accessCode: accessCode)
+            connectionMode = .relay
             relayConnected = true
             relayDeviceName = relayClient.displayName
+            isConnected = true
             isPaired = true
             isSending = false
             return true
@@ -106,6 +109,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         relayClient.disconnect()
         relayConnected = false
         relayDeviceName = nil
+        relayStreamBuffers.removeAll()
         isPaired = false
     }
 
@@ -119,7 +123,9 @@ final class ClawbotChannelViewModel: ObservableObject {
         isSending = true
 
         do {
-            try await relayClient.sendToDevice(method: "chat.send", params: ["message": content])
+            var relayParams: [String: Any] = ["message": content]
+            relayParams["stream"] = true
+            try await relayClient.sendToDevice(method: "chat.send", params: relayParams)
             // Add user message to local list
             let userMessage = ClawbotMessage(
                 id: generateMessageId(),
@@ -145,19 +151,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         relayClient.messageSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
-                // Handle incoming message from device
-                if let content = data["content"] as? String {
-                    let botMessage = ClawbotMessage(
-                        id: self?.generateMessageId() ?? UUID().uuidString,
-                        content: content,
-                        contentType: .text,
-                        mediaUrl: nil,
-                        mediaMimeType: nil,
-                        timestamp: Date(),
-                        sender: .bot
-                    )
-                    self?.messages.append(botMessage)
-                }
+                self?.handleRelayIncomingMessage(data)
             }
             .store(in: &cancellables)
 
@@ -260,6 +254,12 @@ final class ClawbotChannelViewModel: ObservableObject {
         isSending = true
         lastError = nil
 
+        if relayConnected || connectionMode == .relay {
+            let relaySuccess = await sendMessageRelay(content)
+            isSending = false
+            return relaySuccess
+        }
+
         do {
             try await service.sendMessage(
                 content,
@@ -332,5 +332,161 @@ final class ClawbotChannelViewModel: ObservableObject {
 
     private func generateMessageId() -> String {
         return "\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100000...999999))"
+    }
+
+    private func handleRelayIncomingMessage(_ data: [String: Any]) {
+        let relayEvent = (data["event"] as? String)?.lowercased()
+        let (payload, streamId) = normalizeRelayPayload(data)
+
+        let delta = firstString(
+            in: payload,
+            keys: ["delta", "contentDelta", "content_delta"]
+        ) ?? nestedString(
+            in: payload,
+            dictKey: "data",
+            keys: ["delta", "contentDelta", "content_delta"]
+        )
+
+        let content = firstString(
+            in: payload,
+            keys: ["content", "message", "text", "reply"]
+        ) ?? nestedString(
+            in: payload,
+            dictKey: "data",
+            keys: ["content", "message", "text", "reply"]
+        ) ?? nestedString(
+            in: payload,
+            dictKey: "message",
+            keys: ["content", "text", "reply"]
+        ) ?? extractGatewayMessageText(from: payload)
+
+        let eventIsFinal = relayEvent == "chat.final" ||
+            relayEvent == "agent.final" ||
+            relayEvent == "chat.done" ||
+            relayEvent == "agent.done" ||
+            relayEvent == "chat.completed" ||
+            relayEvent == "agent.completed"
+        let isFinal = eventIsFinal || detectFinalFlag(in: payload)
+
+        if let delta, !delta.isEmpty {
+            relayStreamBuffers[streamId, default: ""].append(delta)
+        } else if let content, !content.isEmpty, !isFinal {
+            relayStreamBuffers[streamId, default: ""].append(content)
+        }
+
+        if isFinal {
+            var finalText = relayStreamBuffers.removeValue(forKey: streamId) ?? ""
+            if let content, !content.isEmpty, !finalText.hasSuffix(content) {
+                finalText += content
+            }
+            if finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return
+            }
+            appendBotMessage(finalText)
+            return
+        }
+
+        if let content,
+           !content.isEmpty,
+           delta == nil,
+           relayStreamBuffers[streamId] == nil {
+            appendBotMessage(content)
+        }
+    }
+
+    private func normalizeRelayPayload(_ raw: [String: Any]) -> ([String: Any], String) {
+        var payload = raw
+
+        if let params = raw["params"] as? [String: Any] {
+            payload = params
+        } else if let nestedPayload = raw["payload"] as? [String: Any] {
+            payload = nestedPayload
+        }
+
+        let streamId = firstString(
+            in: payload,
+            keys: ["runId", "messageId", "id", "requestId", "sessionId"]
+        ) ?? firstString(
+            in: raw,
+            keys: ["runId", "messageId", "id", "requestId", "sessionId"]
+        ) ?? "default-stream"
+
+        return (payload, streamId)
+    }
+
+    private func detectFinalFlag(in payload: [String: Any]) -> Bool {
+        if let final = payload["final"] as? Bool, final { return true }
+        if let done = payload["done"] as? Bool, done { return true }
+        if let finished = payload["finished"] as? Bool, finished { return true }
+
+        if let status = (payload["status"] as? String)?.lowercased(),
+           ["final", "done", "completed", "stop", "stopped", "finished"].contains(status) {
+            return true
+        }
+        if let state = (payload["state"] as? String)?.lowercased(),
+           ["final", "done", "completed", "stop", "stopped", "finished"].contains(state) {
+            return true
+        }
+
+        if let data = payload["data"] as? [String: Any] {
+            if let final = data["final"] as? Bool, final { return true }
+            if let done = data["done"] as? Bool, done { return true }
+            if let finishReason = data["finishReason"] as? String, !finishReason.isEmpty { return true }
+            if let finishReason = data["finish_reason"] as? String, !finishReason.isEmpty { return true }
+            if let status = (data["status"] as? String)?.lowercased(),
+               ["final", "done", "completed", "stop", "stopped", "finished"].contains(status) {
+                return true
+            }
+            if let state = (data["state"] as? String)?.lowercased(),
+               ["final", "done", "completed", "stop", "stopped", "finished"].contains(state) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func firstString(in dict: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = dict[key] as? String {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func nestedString(in dict: [String: Any], dictKey: String, keys: [String]) -> String? {
+        guard let nested = dict[dictKey] as? [String: Any] else { return nil }
+        return firstString(in: nested, keys: keys)
+    }
+
+    private func appendBotMessage(_ content: String) {
+        let botMessage = ClawbotMessage(
+            id: generateMessageId(),
+            content: content,
+            contentType: .text,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            timestamp: Date(),
+            sender: .bot
+        )
+        messages.append(botMessage)
+    }
+
+    private func extractGatewayMessageText(from payload: [String: Any]) -> String? {
+        guard let message = payload["message"] as? [String: Any] else { return nil }
+        if let text = message["text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let content = message["content"] as? String, !content.isEmpty {
+            return content
+        }
+        if let blocks = message["content"] as? [[String: Any]] {
+            let text = blocks
+                .compactMap { $0["text"] as? String }
+                .joined()
+            return text.isEmpty ? nil : text
+        }
+        return nil
     }
 }

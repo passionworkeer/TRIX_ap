@@ -27,7 +27,6 @@ struct HomeView: View {
     // MARK: - Bindings
 
     @Binding var isWorkbenchPresented: Bool
-    let onOpenTrixBot: () -> Void
 
     // MARK: - State
 
@@ -52,7 +51,6 @@ struct HomeView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // 视频背景 - 根据 Web 端实现，使用 ClawbotChannel 的 botState
                 if useRobotBackground {
                     VideoBackgroundView(botState: clawbotChannel.botState)
                         .frame(width: geometry.size.width, height: geometry.size.height)
@@ -70,23 +68,19 @@ struct HomeView: View {
                 )
                 .ignoresSafeArea()
 
-                // Main content - 顶部工具栏，根据工作台状态显示/隐藏
-                // 使用覆盖整个屏幕的点击区域
-                VStack(spacing: 0) {
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // Web端逻辑：点击背景显示工作台
-                    // 工作台带有半透明背景，点击半透明背景可以关闭工作台
-                    if !isWorkbenchPresented {
-                        isWorkbenchPresented = true
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        if !isWorkbenchPresented {
+                            UITestEventLogger.log("Home background tapped -> workbench")
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                                isWorkbenchPresented = true
+                            }
+                        }
                     }
-                }
-                .allowsHitTesting(!isWorkbenchPresented)
+                    .allowsHitTesting(!isWorkbenchPresented)
 
-                // Workbench Modal (appears on background tap) - 底部浮窗效果
                 if isWorkbenchPresented {
                     WorkbenchOverlay(
                         isPresented: $isWorkbenchPresented,
@@ -95,12 +89,15 @@ struct HomeView: View {
                 }
 
                 VStack(spacing: 0) {
-                    homeHeader
-                        .padding(.horizontal, 20)
-                        .padding(.top, geometry.safeAreaInsets.top + 10)
-
+                    if isWorkbenchPresented {
+                        topBar
+                            .padding(.horizontal, 20)
+                            .padding(.top, geometry.safeAreaInsets.top + 12)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                     Spacer()
                 }
+                .animation(.easeInOut(duration: 0.24), value: isWorkbenchPresented)
 
                 VStack {
                     HStack {
@@ -108,24 +105,20 @@ struct HomeView: View {
                         HomeBotBubbleView(
                             botName: "TRIX",
                             botAvatar: "sparkles"
-                        ) { onOpenTrixBot() }
+                        ) {
+                            let destination: PendingCompanionRoute = clawbotChannel.isPaired ? .trixBot : .pairing
+                            UITestEventLogger.log(
+                                "Home bot bubble tapped -> \(destination == .trixBot ? "chat" : "pairing")"
+                            )
+                            appState.pendingCompanionRoute = destination
+                            appState.selectTab(.chat)
+                        }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, geometry.safeAreaInsets.top + 110)
+                    .padding(.top, geometry.safeAreaInsets.top + (isWorkbenchPresented ? 86 : 36))
                     Spacer()
                 }
-
-                VStack {
-                    Spacer()
-                    commandDeck
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 112)
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                                isWorkbenchPresented = true
-                            }
-                        }
-                }
+                .animation(.easeInOut(duration: 0.24), value: isWorkbenchPresented)
             }
 
             // Study Room Overlay
@@ -207,157 +200,77 @@ struct HomeView: View {
         .sheet(isPresented: $showTodo) {
             TodoListView(showAsSheet: true)
         }
+        .onChange(of: isWorkbenchPresented) { isPresented in
+            UITestEventLogger.log("Home isWorkbenchPresented -> \(isPresented)")
+        }
         .uiTestMarker(HomeAccessibilityIdentifiers.screen)
     }
 
-    // MARK: - Header
+    // MARK: - Top Bar
 
-    private var homeHeader: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("TRIX Companion")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+    private var topBar: some View {
+        HStack {
+            Spacer()
 
-                    Text("机器人当前处于\(clawbotChannel.botState.displayName)状态，点击下方卡片可快速打开拍照、日程、待办和定位。")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.82))
-                        .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                toolbarCapsuleButton(icon: "envelope.fill", accessibilityLabel: "Mail") {
+                    showMailPanel = true
                 }
 
-                Spacer(minLength: 16)
-
-                HStack(spacing: 12) {
-                    toolbarOrbButton(icon: "envelope.fill", accessibilityLabel: "Mail") {
-                        showMailPanel = true
-                    }
-
-                    toolbarOrbButton(icon: "bell.fill", accessibilityLabel: "Notifications") {
-                        showNotificationPanel = true
-                    }
+                toolbarCapsuleButton(icon: "bell.fill", accessibilityLabel: "Notifications") {
+                    showNotificationPanel = true
                 }
             }
-
-            HStack(spacing: 10) {
-                statusChip(icon: "waveform.badge.mic", text: "TRIX 在线")
-                statusChip(icon: "hand.tap.fill", text: "点空白打开工作台")
-            }
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.black.opacity(0.32),
-                            Color.brandPurple.opacity(0.18),
-                            Color.brandPink.opacity(0.12)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.35), Color.white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
                     )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.16), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.2), radius: 22, x: 0, y: 12)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+        }
     }
 
-    private var commandDeck: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("打开工作台")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-
-                    Text("一键进入快拍、定位、日程和 Todo 的主操作层。")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.78))
-                }
-
-                Spacer()
-
-                Image(systemName: "square.grid.2x2.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.92))
-                    .padding(12)
-                    .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-
-            HStack(spacing: 10) {
-                quickFeaturePill(icon: "camera.fill", text: "快拍")
-                quickFeaturePill(icon: "calendar", text: "日程")
-                quickFeaturePill(icon: "checklist", text: "Todo")
-                quickFeaturePill(icon: "location.fill", text: "定位")
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.brandPurple.opacity(0.26),
-                            Color.black.opacity(0.34),
-                            Color.brandPink.opacity(0.16)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.28), radius: 24, x: 0, y: 14)
-    }
-
-    private func toolbarOrbButton(icon: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
+    private func toolbarCapsuleButton(icon: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.title3.weight(.semibold))
-                .foregroundColor(.white)
-                .frame(width: 48, height: 48)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.brandPurple.opacity(0.36), Color.brandPink.opacity(0.22)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.18),
+                                Color.brandPurple.opacity(0.20),
+                                Color.black.opacity(0.12)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                )
-                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-                .shadow(color: .black.opacity(0.16), radius: 10, x: 0, y: 4)
+                    )
+
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.96))
+            }
+            .frame(width: 42, height: 42)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private func statusChip(icon: String, text: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.white.opacity(0.1), in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
-    }
-
-    private func quickFeaturePill(icon: String, text: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(Color.white.opacity(0.1), in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
     }
 
     // MARK: - Workbench Card Actions
@@ -396,14 +309,53 @@ struct WorkbenchOverlay: View {
     @Binding var isPresented: Bool
     let onCardClick: (String) -> Void
 
-    @State private var offset: CGFloat = 300
+    @State private var offset: CGFloat = 180
     @State private var backdropOpacity: Double = 0
 
     // 底部 Dock 高度 + 安全区域
     private let dockHeight: CGFloat = 120
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
+    private let shortcuts: [WorkbenchShortcut] = [
+        WorkbenchShortcut(
+            id: "snapshot",
+            icon: "camera.fill",
+            label: loc("workbench.snapshot"),
+            subtitle: "拍照、选图、查看快拍",
+            color: .orange,
+            accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchSnapshotCard
+        ),
+        WorkbenchShortcut(
+            id: "location",
+            icon: "location.fill",
+            label: loc("workbench.location"),
+            subtitle: "地图、地点与位置选择",
+            color: .green,
+            accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchLocationCard
+        ),
+        WorkbenchShortcut(
+            id: "schedule",
+            icon: "calendar",
+            label: loc("workbench.schedule"),
+            subtitle: "学习节奏和时间安排",
+            color: .blue,
+            accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchScheduleCard
+        ),
+        WorkbenchShortcut(
+            id: "todo",
+            icon: "checklist",
+            label: loc("workbench.todo"),
+            subtitle: "快速记录待办事项",
+            color: .purple,
+            accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchTodoCard
+        )
+    ]
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             // 半透明背景 - 点击关闭
             Color.black.opacity(backdropOpacity)
                 .ignoresSafeArea()
@@ -411,108 +363,96 @@ struct WorkbenchOverlay: View {
                     closeWorkbench()
                 }
 
-            // 底部浮窗卡片 - 往上移动，避开底部 Dock
-            VStack {
-                Spacer()
+            VStack(alignment: .leading, spacing: 18) {
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(0.36))
+                    .frame(width: 38, height: 5)
+                    .frame(maxWidth: .infinity)
 
-                // 卡片内容
-                VStack(spacing: 0) {
-                    // Handle bar
-                    RoundedRectangle(cornerRadius: 2.5)
-                        .fill(Color.white.opacity(0.4))
-                        .frame(width: 40, height: 5)
-                        .padding(.top, 12)
-                        .padding(.bottom, 12)
-
-                    VStack(spacing: 6) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(loc("workbench.title"))
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
 
-                        Text("常用动作集中到这里，轻点即可打开对应功能。")
+                        Text("常用动作集中到这里，点空白即可回到专注状态。")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.72))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.bottom, 18)
 
-                    // Cards scroll
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 20) {
-                            WorkbenchOverlayCard(
-                                icon: "camera.fill",
-                                label: loc("workbench.snapshot"),
-                                subtitle: "拍照、选图、查看快拍",
-                                color: .orange,
-                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchSnapshotCard,
-                                action: {
-                                    onCardClick("snapshot")
-                                    closeWorkbench()
-                                }
-                            )
+                    Spacer(minLength: 0)
 
-                            WorkbenchOverlayCard(
-                                icon: "location.fill",
-                                label: loc("workbench.location"),
-                                subtitle: "地图、地点与位置选择",
-                                color: .green,
-                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchLocationCard,
-                                action: {
-                                    onCardClick("location")
-                                    closeWorkbench()
-                                }
-                            )
+                    Text("轻点空白收起")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                }
+                .padding(.bottom, 2)
 
-                            WorkbenchOverlayCard(
-                                icon: "calendar",
-                                label: loc("workbench.schedule"),
-                                subtitle: "学习节奏和时间安排",
-                                color: .blue,
-                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchScheduleCard,
-                                action: {
-                                    onCardClick("schedule")
-                                    closeWorkbench()
-                                }
-                            )
-
-                            WorkbenchOverlayCard(
-                                icon: "checklist",
-                                label: loc("workbench.todo"),
-                                subtitle: "快速记录待办事项",
-                                color: .purple,
-                                accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchTodoCard,
-                                action: {
-                                    onCardClick("todo")
-                                    closeWorkbench()
-                                }
-                            )
-                        }
-                        .padding(.horizontal, 20)
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(shortcuts) { shortcut in
+                        WorkbenchOverlayCard(
+                            icon: shortcut.icon,
+                            label: shortcut.label,
+                            subtitle: shortcut.subtitle,
+                            color: shortcut.color,
+                            accessibilityIdentifier: shortcut.accessibilityIdentifier,
+                            action: {
+                                onCardClick(shortcut.id)
+                                closeWorkbench()
+                            }
+                        )
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
-                .frame(height: 224)
-                .background(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 18)
+            .frame(maxWidth: 380, alignment: .leading)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(.ultraThinMaterial)
+
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.black.opacity(0.72),
+                                    Color.black.opacity(0.56),
                                     Color.brandPurple.opacity(0.24),
-                                    Color.brandPink.opacity(0.18)
+                                    Color.brandPink.opacity(0.12),
+                                    Color.black.opacity(0.46)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.24), radius: 20)
-            }
-            .padding(.bottom, dockHeight)  // 避开底部 Dock
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 14)
+            .padding(.horizontal, 18)
+            .padding(.bottom, dockHeight + 8)
             .offset(y: offset)
         }
         .accessibilityIdentifier(HomeAccessibilityIdentifiers.workbenchOverlay)
@@ -523,21 +463,30 @@ struct WorkbenchOverlay: View {
     }
 
     private func openWorkbench() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.84)) {
             offset = 0
-            backdropOpacity = 0.3
+            backdropOpacity = 0.34
         }
     }
 
     private func closeWorkbench() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            offset = 300
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            offset = 180
             backdropOpacity = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
             isPresented = false
         }
     }
+}
+
+private struct WorkbenchShortcut: Identifiable {
+    let id: String
+    let icon: String
+    let label: String
+    let subtitle: String
+    let color: Color
+    let accessibilityIdentifier: String
 }
 
 // MARK: - Workbench Overlay Card
@@ -547,63 +496,76 @@ struct WorkbenchOverlayCard: View {
     let label: String
     let subtitle: String
     let color: Color
-    let accessibilityIdentifier: String?
+    let accessibilityIdentifier: String
     let action: () -> Void
 
     @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [color, color.opacity(0.7)],
+                                colors: [color, color.opacity(0.72)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 58, height: 58)
+                        .frame(width: 48, height: 48)
 
                     Image(systemName: icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(label)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
 
                     Text(subtitle)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.74))
+                        .foregroundStyle(.white.opacity(0.72))
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.42))
             }
-            .frame(width: 148, height: 156, alignment: .topLeading)
-            .padding(18)
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.16),
-                                color.opacity(0.18),
-                                Color.black.opacity(0.18)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color.white.opacity(0.10))
+
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    color.opacity(0.18),
+                                    Color.white.opacity(0.03),
+                                    Color.black.opacity(0.16)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
+                }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
-            .shadow(color: color.opacity(0.2), radius: 18, x: 0, y: 10)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .shadow(color: color.opacity(0.12), radius: 14, x: 0, y: 8)
+            .scaleEffect(isPressed ? 0.97 : 1.0)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
@@ -658,9 +620,7 @@ struct StudyRoomOverlay: View {
 // MARK: - Preview
 
 #Preview("Home View") {
-    HomeView(
-        isWorkbenchPresented: .constant(false),
-        onOpenTrixBot: {}
-    )
+    HomeView(isWorkbenchPresented: .constant(false))
     .environmentObject(AppState.shared)
+    .environmentObject(ClawbotChannelViewModel.shared)
 }

@@ -268,12 +268,29 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // MARK: - Configuration
 
+    private let channelURLDefaultsKey = "clawbot.channel.url"
+    private let debugChannelUserIdDefaultsKey = "clawbot.channel.debugUserId"
+
     private var channelUrl: String {
         #if DEBUG
-        return "http://localhost:8765"
+        let defaults = UserDefaults.standard
+        let raw = defaults.string(forKey: channelURLDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let configured = raw.isEmpty ? "http://TRIX_SERVER_HOST:8765" : raw
+        return normalizeSocketIOBaseURL(configured)
         #else
         return "https://api.trix3d.com"
         #endif
+    }
+
+    private func normalizeSocketIOBaseURL(_ value: String) -> String {
+        if value.hasPrefix("ws://") {
+            return value.replacingOccurrences(of: "ws://", with: "http://")
+        }
+        if value.hasPrefix("wss://") {
+            return value.replacingOccurrences(of: "wss://", with: "https://")
+        }
+        return value
     }
 
     // MARK: - Initialization
@@ -295,7 +312,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // MARK: - Public Methods
 
     func connect() async throws {
-        guard let supabaseUserId = await getSupabaseUserId() else {
+        guard let supabaseUserId = await resolveChannelUserId() else {
             throw ClawbotError.userNotLoggedIn
         }
 
@@ -766,8 +783,29 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         return "\(Int(Date().timeIntervalSince1970 * 1000))-\(generateSecureRandomString(9))"
     }
 
+    private func resolveChannelUserId() async -> String? {
+        if let userId = await getSupabaseUserId() {
+            return userId
+        }
+
+        #if DEBUG
+        let fallbackFromDefaults = UserDefaults.standard
+            .string(forKey: debugChannelUserIdDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !fallbackFromDefaults.isEmpty {
+            return fallbackFromDefaults
+        }
+
+        if let deviceId, !deviceId.isEmpty {
+            return "debug-\(deviceId)"
+        }
+        #endif
+
+        return nil
+    }
+
     private func getSupabaseUserId() async -> String? {
-        return await MainActor.run {
+        await MainActor.run {
             AuthService.shared.currentUser?.id
         }
     }

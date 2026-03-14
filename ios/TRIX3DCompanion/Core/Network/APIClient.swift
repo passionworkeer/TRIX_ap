@@ -622,6 +622,10 @@ extension APIClient {
         )
     }
 
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+        return try await SupabaseService.shared.fetchMessagesSince(roomId: roomId, since: since)
+    }
+
     func deleteChatRoom(roomId: String) async throws {
         try await SupabaseService.shared.deleteChatRoom(roomId: roomId)
     }

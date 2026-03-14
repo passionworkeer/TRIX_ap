@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import Supabase
 
 // MARK: - Chat Error
 
@@ -141,6 +142,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     /// Cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
+
+    /// Timer for polling new messages
+    private var messagePollingTimer: Timer?
 
     /// Default page size for message pagination
     private let defaultPageSize: Int = 50
@@ -329,17 +333,21 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
                 messagesCache[roomId] = []
             }
 
-            // If loading more (pagination), append to cache
+            // API返回的是降序（最新的在前），转换为升序（最旧的在前 -> 最新在后）
+            let sortedMessages = messages.sorted { $0.createdAt < $1.createdAt }
+
+            // If loading more (pagination), prepend to cache
             // Otherwise, replace cache with fresh data
             if before != nil || page > 1 {
-                // Append new messages and deduplicate
+                // Prepend new messages (older messages go at the beginning)
                 var existing = messagesCache[roomId] ?? []
-                let newMessages = messages.filter { msg in
+                let newMessages = sortedMessages.filter { msg in
                     !existing.contains { $0.id == msg.id }
                 }
-                messagesCache[roomId] = existing + newMessages
+                messagesCache[roomId] = newMessages + existing
             } else {
-                messagesCache[roomId] = messages
+                // 替换缓存，保持升序
+                messagesCache[roomId] = sortedMessages
             }
 
             // Update current messages if this is the active room
@@ -498,12 +506,114 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
         // Update pagination state
         hasMoreMessages = paginationTracker[roomId]?.hasMore ?? true
+
+        // Subscribe to realtime messages (using Supabase Realtime)
+        subscribeToRealtime(roomId: roomId)
+    }
+
+    /// Subscribe to realtime messages using Supabase Realtime
+    private func subscribeToRealtime(roomId: String) {
+        // Stop polling if running
+        stopMessagePolling()
+
+        // Get conversation ID for realtime subscription
+        let conversationId = getConversationId(for: roomId)
+
+        // Get user ID
+        guard let userId = authService.currentUser?.id else {
+            print("[ChatService] Cannot subscribe: userId is nil")
+            return
+        }
+
+        // Initialize realtime subscription with user info
+        Task { @MainActor in
+            RealtimeMessageSubscription.shared.initialize(
+                supabase: authService.supabase,
+                userId: userId
+            )
+
+            // Subscribe to realtime channel
+            await RealtimeMessageSubscription.shared.subscribe(conversationId: conversationId) { [weak self] newMessage in
+                guard let self = self else { return }
+
+                // Add message to cache if it doesn't exist (same logic as web)
+                if !(self.messagesCache[roomId]?.contains(where: { $0.id == newMessage.id }) ?? false) {
+                    self.messagesCache[roomId]?.append(newMessage)
+                    // Sort by timestamp (oldest first)
+                    self.messagesCache[roomId]?.sort { $0.createdAt < $1.createdAt }
+
+                    // Update current messages if this is the active room
+                    if self.currentRoomId == roomId {
+                        self.updateCurrentMessages()
+                    }
+
+                    print("[ChatService] Received realtime message: \(newMessage.id)")
+                }
+            }
+        }
+    }
+
+    /// Get conversation ID for a room ID
+    private func getConversationId(for roomId: String) -> String {
+        // For bot rooms, use bot conversation ID format
+        if Self.isLocalRoom(roomId) {
+            return "bot_\(authService.currentUser?.id ?? "")"
+        }
+        // For friend rooms, use the friend ID directly as conversation ID
+        return roomId
+    }
+
+    /// Start polling for new messages (fallback if realtime fails)
+    private func startMessagePolling(roomId: String) {
+        // Stop any existing timer
+        stopMessagePolling()
+
+        // Start new timer to poll for new messages every 2 seconds (near real-time)
+        messagePollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self, !self.isLoadingMessages else { return }
+                await self.fetchNewMessages(roomId: roomId)
+            }
+        }
+    }
+
+    /// Stop polling for new messages
+    private func stopMessagePolling() {
+        messagePollingTimer?.invalidate()
+        messagePollingTimer = nil
+    }
+
+    /// Fetch new messages since last fetch
+    private func fetchNewMessages(roomId: String) async {
+        guard let lastMessage = messagesCache[roomId]?.last else { return }
+
+        do {
+            // 获取最新消息之后的消息
+            let newMessages = try await apiClient.getChatMessagesSince(roomId: roomId, since: lastMessage.createdAt)
+            if !newMessages.isEmpty {
+                // 使用addMessageToCache来避免重复
+                for message in newMessages {
+                    addMessageToCache(message, for: roomId)
+                }
+                updateCurrentMessages()
+            }
+        } catch {
+            // Silently fail for polling
+        }
     }
 
     /// Deselect the current room
     func deselectRoom() {
         currentRoomId = nil
         currentMessages = []
+
+        // Stop polling for new messages
+        stopMessagePolling()
+
+        // Unsubscribe from realtime
+        Task { @MainActor in
+            await RealtimeMessageSubscription.shared.unsubscribe()
+        }
     }
 
     // MARK: - Public Methods - WebSocket
@@ -720,9 +830,8 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         // Check if message already exists
         if let messages = messagesCache[roomId], !messages.contains(where: { $0.id == message.id }) {
             messagesCache[roomId]?.append(message)
-
-            // Sort by timestamp
-            messagesCache[roomId]?.sort { $0.createdAt < $1.createdAt }
+            // 新消息时间戳通常是最新的，直接追加即可，不需要每次都排序
+            // 只有在需要时（如加载历史消息时才排序）
         }
     }
 
@@ -733,6 +842,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             return
         }
 
+        // 直接引用缓存，避免不必要的数组拷贝
         currentMessages = messagesCache[roomId] ?? []
     }
 

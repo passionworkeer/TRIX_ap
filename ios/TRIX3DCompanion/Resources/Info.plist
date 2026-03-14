@@ -49,6 +49,35 @@
 	<string>TRIX 3D Companion accesses your photo library to let you share photos with study partners and save snapshots.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>TRIX 3D Companion uses speech recognition to convert your voice messages into text for convenient chat input.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>TRIX_SERVER_HOST</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 	<key>TRIX_TEST_EMAIL</key>
 	<string>$(TRIX_TEST_EMAIL)</string>
 	<key>TRIX_TEST_PASSWORD</key>

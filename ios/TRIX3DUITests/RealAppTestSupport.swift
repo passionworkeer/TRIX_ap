@@ -205,9 +205,53 @@ class RealAppUITestCase: XCTestCase {
         waitForElement(withIdentifier: identifier, timeout: timeout)
     }
 
-    func tapCenter(of element: XCUIElement, timeout: TimeInterval = 5) {
+    func waitForHittable(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if element.exists && element.isHittable {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return element.exists && element.isHittable
+    }
+
+    @discardableResult
+    func tapReliably(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 6
+    ) -> Bool {
         XCTAssertTrue(element.waitForExistence(timeout: timeout))
+
+        if waitForHittable(element, timeout: timeout) {
+            element.tap()
+            return true
+        }
+
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        return true
+    }
+
+    func waitForMainNavigationReady(
+        selectedTabIdentifier: String,
+        timeout: TimeInterval = 10
+    ) -> Bool {
+        guard waitForElement(withIdentifier: AppUIIdentifiers.mainTabView, timeout: timeout) != nil else {
+            return false
+        }
+
+        guard waitForElement(withIdentifier: selectedTabIdentifier, timeout: timeout) != nil else {
+            return false
+        }
+
+        return waitForHittable(button(withIdentifier: AppUIIdentifiers.mapTab), timeout: timeout)
+    }
+
+    func tapCenter(of element: XCUIElement, timeout: TimeInterval = 5) {
+        _ = tapReliably(element, timeout: timeout)
     }
 
     func tapCenterOfApp() {
@@ -221,6 +265,18 @@ class RealAppUITestCase: XCTestCase {
             app.swipeUp()
             remainingSwipes -= 1
         }
+    }
+
+    func attachDebugHierarchy(named name: String) {
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "\(name)-hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "\(name)-screenshot"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     func switchState(for element: XCUIElement) -> Bool? {
@@ -257,6 +313,25 @@ class RealAppUITestCase: XCTestCase {
 
         while Date() < deadline {
             if switchState(for: element) == expected {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return false
+    }
+
+    func waitForSwitchState(
+        _ expected: Bool,
+        identifier: String,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            let candidate = switchControl(withIdentifier: identifier)
+            if switchState(for: candidate) == expected {
                 return true
             }
 
