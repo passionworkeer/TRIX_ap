@@ -261,7 +261,7 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
     return { code: normalizedCode };
   }
 
-  throw new Error('鏃犳硶瑙ｆ瀽閰嶅浜岀淮鐮佹垨閰嶅閾炬帴');
+  throw new Error('无法解析配对二维码或配对链接');
 }
 
 class TrixNativeChannelClient {
@@ -443,8 +443,8 @@ class TrixNativeChannelClient {
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '閰嶅澶辫触' }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '閰嶅澶辫触');
+      const payload = await response.json().catch(() => ({ error: '配对失败' }));
+      throw new Error(typeof payload.error === 'string' ? payload.error : '配对失败');
     }
 
     const claim = await response.json() as ClaimResponse;
@@ -655,8 +655,8 @@ class TrixNativeChannelClient {
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '发送消息失败 }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败);
+      const payload = await response.json().catch(() => ({ error: '发送消息失败' }));
+      throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败');
     }
 
     return clientMessageId;
@@ -691,7 +691,7 @@ class TrixNativeChannelClient {
         if (this.agentOnline) {
           this.emit('bot_online', {
             deviceId: 'openclaw',
-            message: 'OpenClaw 宸茶繛鎺?,
+            message: 'OpenClaw 已连接',
             timestamp: Date.now(),
           });
         }
@@ -705,13 +705,13 @@ class TrixNativeChannelClient {
         if (isOnline) {
           this.emit('bot_online', {
             deviceId: 'openclaw',
-            message: 'OpenClaw 宸茶繛鎺?,
+            message: 'OpenClaw 已连接',
             timestamp: Date.now(),
           });
         } else {
           this.emit('bot_offline', {
             deviceId: 'openclaw',
-            message: 'OpenClaw 褰撳墠绂荤嚎',
+            message: 'OpenClaw 当前离线',
             timestamp: Date.now(),
           });
         }
@@ -727,7 +727,7 @@ class TrixNativeChannelClient {
       }
     } catch (error) {
       this.emit('error', {
-        message: error instanceof Error ? error.message : '瑙ｆ瀽鏈嶅姟鍣ㄦ秷鎭け璐?,
+        message: error instanceof Error ? error.message : '解析服务器消息失败',
       });
     }
   }
