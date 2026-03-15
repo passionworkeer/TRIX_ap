@@ -38,7 +38,6 @@ export function initDatabase(): Database.Database {
       device_public_key TEXT,
       device_id TEXT,
       device_name TEXT,
-      device_public_key TEXT,
       plugin_token TEXT,
       refresh_token TEXT,
       created_at TEXT NOT NULL,
