@@ -427,7 +427,7 @@ class TrixNativeChannelClient {
     const session = this.getSession();
     const serverUrl = normalizeServerUrl(session?.serverUrl || endpoints.nativeServerUrl);
     if (!serverUrl) {
-      throw new Error('鏈厤缃?TRIX Native Server 鍦板潃锛岃鍏堣缃?VITE_TRIX_NATIVE_SERVER_URL');
+      throw new Error('未配置 TRIX Native Server 地址，请先设置 VITE_TRIX_NATIVE_SERVER_URL');
     }
 
     const clientId = this.getOrCreateClientId();
