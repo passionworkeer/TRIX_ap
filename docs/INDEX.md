@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-03-04
+> **最后更新**: 2026-03-15
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -14,7 +14,10 @@ docs/
 ├── 📦 核心文档
 │   ├── FEATURES.md                   # 功能文档
 │   ├── CHANGELOG.md                  # 开发迭代日志
-│   ├── CLAUDE-WORKFLOW.md            # Claude 工作流程
+│   ├── PRD.md                        # 产品需求文档
+│   ├── PRD-WEB.md                    # Web 端 PRD
+│   ├── PRD-IOS.md                   # iOS 端 PRD
+│   ├── TRIX_NATIVE_IMPLEMENTATION_PLAN.md  # TRIX Native 实现计划
 │   └── DOCUMENTATION_GUIDELINES.md   # 文档规范
 │
 ├── 📊 项目报告
@@ -34,6 +37,7 @@ docs/
 │       ├── PAIRING_INPUT_GUIDE.md    # 配对输入
 │       ├── UNPAIR_FEATURE_GUIDE.md   # 解绑功能
 │       └── SSH-SETUP.md              # SSH 配置
+│       └── IOS_TEST_DEPLOY_GUIDE.md  # iOS 测试部署
 │
 ├── 🌐 快速开始
 │   └── getting-started/
@@ -42,9 +46,6 @@ docs/
 ├── 📡 API 文档
 │   └── api/
 │       └── new_clawbot_api.md        # Clawbot Channel API
-│
-└── 📦 归档文档
-    └── archive/                      # 历史文档（不再维护）
 ```
 
 ---
@@ -59,6 +60,7 @@ docs/
 | [project-reports/PROJECT.md](./project-reports/PROJECT.md) | 项目总览 | 10 分钟 |
 | [FEATURES.md](./FEATURES.md) | 功能文档 | 10 分钟 |
 | [development/ARCHITECTURE.md](./development/ARCHITECTURE.md) | 架构设计 | 15 分钟 |
+| [TRIX_NATIVE_IMPLEMENTATION_PLAN.md](./TRIX_NATIVE_IMPLEMENTATION_PLAN.md) | TRIX Native 实现计划 | 10 分钟 |
 
 ### 📊 审计报告
 
@@ -119,13 +121,12 @@ PROJECT.md → 审查待办事项
 
 | 目录 | 文档数量 | 状态 |
 |------|----------|------|
-| 核心文档 | 4 | ✅ 维护中 |
+| 核心文档 | 6 | ✅ 维护中 |
 | 项目报告 | 2 | ✅ 维护中 |
-| 开发文档 | 3+ | ✅ 维护中 |
+| 开发文档 | 2 | ✅ 维护中 |
 | 用户指南 | 6 | ✅ 维护中 |
-| API 文档 | 1 | ✅ 维护中 |
-| 归档文档 | 20+ | 📦 只读 |
-| **活跃文档** | **~16** | - |
+| API 文档 | 2 | ✅ 维护中 |
+| **活跃文档** | **~37** | - |
 
 ---
 
@@ -140,12 +141,8 @@ PROJECT.md → 审查待办事项
 
 ### Q: 历史文档在哪里？
 
-所有历史文档已归档到 [archive/](./archive/) 目录，包括：
-- 旧版 API 文档
-- 历史修复报告
-- 废弃的集成方案
-- 早期部署日志
+历史文档已清理，不再保留过时的文档。
 
 ---
 
-**最后更新**: 2026-03-04
+**最后更新**: 2026-03-15

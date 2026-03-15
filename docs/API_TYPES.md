@@ -1,8 +1,8 @@
 # TRIX3D API TypeScript 类型定义
 
 > 本文档为 AI 提供完整的 TypeScript 类型定义，方便理解和调用 API
-> 版本: 1.1.0
-> 最后更新: 2026-03-04
+> 版本: 1.2.0
+> 最后更新: 2026-03-15
 
 ---
 
@@ -17,6 +17,8 @@
 7. [商城模块](#商城模块)
 8. [位置模块](#位置模块)
 9. [通知模块](#通知模块)
+10. [TRIX Native 模块](#trix-native-模块)
+11. [错误码详解](#错误码详解)
 
 ---
 
@@ -1226,5 +1228,145 @@ interface WSStudyRoomEvent {
 
 ---
 
-*文档生成时间: 2026-03-04*
-*适用于 TRIX3D API v1.1.0*
+## TRIX Native 模块
+
+### 概述
+
+TRIX Native 模块提供 iOS 设备与 Web 前端的双向通信能力，基于 OpenClaw 平台实现。
+
+### 配对相关类型
+
+```typescript
+// 配对请求响应
+type ClaimResponse = {
+  conversationId: string;
+  clientToken: string;
+  websocketUrl: string;
+  pairing: {
+    code: string;  // 6位配对码，如 "JJ3JSW7Z"
+  };
+  agentOnline?: boolean;
+};
+
+// 存储的会话信息
+type StoredSession = {
+  serverUrl: string;
+  websocketUrl: string;
+  conversationId: string;
+  clientToken: string;
+  clientId: string;
+  deviceName?: string;
+  pairingCode?: string;
+};
+```
+
+### 消息相关类型
+
+```typescript
+// 附件上传响应
+type UploadResponse = {
+  attachment: {
+    id: string;
+    url: string;
+    kind: 'image' | 'audio' | 'video' | 'file';
+    mimeType: string;
+    fileName: string;
+    size: number;
+    width?: number;
+    height?: number;
+    duration?: number;
+  };
+};
+
+// 消息附件输入
+interface NativeMessageAttachmentInput {
+  uploadId?: string;
+  kind?: 'image' | 'audio' | 'video' | 'file';
+  url?: string;
+  mimeType?: string;
+  fileName?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
+// 上传附件响应
+export interface NativeUploadAttachment {
+  attachmentId: string;
+  url: string;
+  kind: 'image' | 'audio' | 'video' | 'file';
+  mimeType: string;
+  fileName: string;
+  size: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
+// 会话消息响应
+type ConversationMessagesResponse = {
+  messages: Array<{
+    id: string;
+    conversationId: string;
+    direction: 'inbound' | 'outbound' | 'system';
+    text: string;
+    attachments: Array<{
+      id: string;
+      kind: 'image' | 'audio' | 'video' | 'file';
+      mimeType: string;
+      fileName: string;
+      sizeBytes: number;
+      publicUrl?: string;
+      width?: number;
+      height?: number;
+      durationMs?: number;
+    }>;
+    senderId: string;
+    senderName?: string;
+    createdAt: number;  // Unix 时间戳
+    metadata?: Record<string, unknown>;
+  }>;
+  agentOnline?: boolean;
+};
+```
+
+### WebSocket 事件类型
+
+```typescript
+type NativeSocketEvents = {
+  connecting: void;
+  connected: { agentOnline: boolean };
+  disconnected: void;
+  reconnecting: { attempt: number };
+  pairing_success: { deviceId: string; deviceName: string };
+  unpaired: void;
+  bot_online: { deviceId: string; message: string; timestamp: number };
+  bot_offline: { deviceId: string; message: string; timestamp: number };
+  message: ClawbotChannelMessage;
+  error: ErrorPayload;
+  history: ClawbotChannelMessage[];
+};
+
+type NativeSocketEventName = keyof NativeSocketEvents;
+type NativeSocketEventPayload<TEvent extends NativeSocketEventName> = NativeSocketEvents[TEvent];
+type EventCallback<TPayload> = (payload: TPayload) => void;
+```
+
+### 服务器配置
+
+| 环境变量 | 说明 | 默认值 |
+|----------|------|--------|
+| VITE_TRIX_NATIVE_SERVER_URL | TRIX Native 服务器地址 | http://TRIX_SERVER_HOST:8788 |
+
+### 配对流程
+
+1. 用户在 iOS 设备上生成配对码（6位字母数字）
+2. 用户在 Web 前端输入配对码
+3. Web 前端调用 `/claim` 接口获取会话信息
+4. 建立 WebSocket 连接进行消息通信
+
+---
+
+*文档生成时间: 2026-03-15*
+*适用于 TRIX3D API v1.2.0*

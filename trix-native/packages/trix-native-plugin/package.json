@@ -1,6 +1,6 @@
 {
   "name": "@trix-app/trix-native-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TRIX Native Channel Plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
@@ -11,12 +11,18 @@
     "test": "vitest run"
   },
   "openclaw": {
-    "extensions": ["./src/index.ts"],
+    "extensions": [
+      "./src/index.ts"
+    ],
     "channel": {
       "id": "trix-native",
       "label": "TRIX Native",
       "selectionLabel": "TRIX Native (手机配对)",
-      "aliases": ["trix", "native", "phone"]
+      "aliases": [
+        "trix",
+        "native",
+        "phone"
+      ]
     },
     "install": {
       "npmSpec": "@trix-app/trix-native-plugin"
@@ -29,5 +35,8 @@
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }

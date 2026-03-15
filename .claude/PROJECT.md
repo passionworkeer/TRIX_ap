@@ -250,6 +250,7 @@ VITE_SUPABASE_ANON_KEY=<supabase-anon-key>
 VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
 VITE_GATEWAY_WS_URL=ws://localhost:18789
 VITE_GATEWAY_AUTH_TOKEN=<token>
+VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
 > ⚠️ 生产环境必须使用真实域名，不能用 localhost

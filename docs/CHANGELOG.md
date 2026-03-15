@@ -4,6 +4,63 @@
 
 ---
 
+## 📅 2026-03-14 - TRIX Native Channel 实现（OpenClaw 集成）
+
+### 背景
+需要在 iOS 应用中实现与 Web 前端的双向通信，支持消息同步、文件传输等功能。通过 OpenClaw 平台实现 Native Channel。
+
+### 完成内容
+
+#### 1. TRIX Native Server 开发
+- 创建 `trix-native-server` 服务（端口 8788）
+- 实现配对码生成和管理（6 位字母数字）
+- 支持消息接收和转发
+- SQLite 本地持久化
+
+#### 2. OpenClaw 插件开发
+- 创建 `trix-native-plugin` 包
+- 实现结构化配置（对象格式优于云端字符串）
+- 支持 inbound 消息接收和 outbound 消息发送
+- 推送到 GitHub 远程仓库
+
+#### 3. iOS 端集成
+- 实现 `TrixNativeChannelClient`
+- 配对码配对流程
+- 消息发送/接收处理
+- 中文编码修复（ISO 字符串时间戳转换）
+
+#### 4. 前端集成
+- 创建 `TrixNativeChannelService`
+- 配对码显示（QRCode）
+- 消息同步处理
+
+### Git 提交记录
+- 5f80f1b: feat: auto-configure serverUrl in setup.ts with hardcoded default
+- 361ca29: refactor: update plugin to match official OpenClaw channel API
+- 4167a36: feat: implement SQLite persistence and outbound sendText/sendMedia
+- 38ad72e: refactor: update TRIX Native plugin to match OpenClaw channel API
+- 54ad7c8: fix: convert ISO string timestamp to number for correct message sorting
+
+### 服务器配置
+- TRIX Native Server: http://TRIX_SERVER_HOST:8788
+- 配对码示例: JJ3JSW7Z, MABSWTZG
+
+---
+
+## 📅 2026-03-13 - 前端部署与中文编码修复
+
+### 完成内容
+1. 修复前端中文编码问题（TrixNativeChannelClient.ts 第 446 行）
+2. 重新构建并部署前端到 Nginx
+3. 确认 TRIX Native Server 运行状态
+
+### 服务器配置
+- SSH: root@TRIX_SERVER_HOST:22222
+- Nginx 根目录: /var/www/html
+- 前端地址: http://TRIX_SERVER_HOST
+
+---
+
 ## 📅 2026-02-25 - TypeScript 类型安全重构
 
 ### 背景
@@ -346,4 +403,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-02-11
+**最后更新**: 2026-03-15

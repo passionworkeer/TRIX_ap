@@ -140,22 +140,16 @@ trix-3d-companion/
 │   ├── project-reports/          # 项目报告
 │   ├── guides/                   # 用户指南
 │   ├── api/                      # API 文档
-│   ├── deployment-guides/        # 部署指南
-│   ├── feature-implementation/   # 功能实现
-│   ├── integration/              # 集成文档
-│   └── archive/                  # 归档文档
+│   ├── development/              # 开发文档
+│   └── getting-started/          # 快速开始
 │
 ├── tests/                        # 测试文件
 │   └── smoke/                    # Smoke 测试
 │       └── mvp-smoke.test.mjs
-│
+
 ├── scripts/                      # 工具脚本
 │   └── database/                 # 数据库脚本
-│
-├── archive/                      # 归档文件
-│   ├── nanobot/                  # Nanobot 旧代码
-│   └── deploy-scripts/           # 旧部署脚本
-│
+
 ├── public/                       # 静态资源
 ├── .claude/                      # Claude 配置
 ├── CLAUDE.md                     # Claude 协作配置
