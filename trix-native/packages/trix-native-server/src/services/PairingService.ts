@@ -152,12 +152,19 @@ export class PairingService {
 
     console.log(`[PairingService] Pairing claimed: ${code} -> device: ${deviceIdFinal}`);
 
+    // 构建 WebSocket URL
+    const wsUrl = this.config.serverUrl.replace(/^http/, 'ws') + '/ws';
+
     return {
       success: true,
+      conversationId: deviceIdFinal,
+      clientToken: pluginToken,
+      websocketUrl: wsUrl,
+      pairing: {
+        code: code
+      },
+      agentOnline: true,
       deviceId: deviceIdFinal,
-      pluginToken,
-      refreshToken,
-      serverUrl: this.config.serverUrl,
       expiresIn: 365 * 24 * 60 * 60 // 1年
     };
   }

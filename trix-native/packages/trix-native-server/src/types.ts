@@ -50,10 +50,14 @@ export interface PairingClaimRequest {
 
 export interface PairingClaimResponse {
   success: true;
+  conversationId: string;
+  clientToken: string;
+  websocketUrl: string;
+  pairing: {
+    code: string;
+  };
+  agentOnline?: boolean;
   deviceId: string;
-  pluginToken: string;
-  refreshToken: string;
-  serverUrl: string;
   expiresIn: number;
 }
 
