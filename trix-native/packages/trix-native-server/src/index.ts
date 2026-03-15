@@ -17,6 +17,7 @@ import { createPairingRoutes } from './routes/pairings.js';
 import { createMessageRoutes } from './routes/messages.js';
 import { createUploadRoutes } from './routes/upload.js';
 import { createDeviceRoutes } from './routes/devices.js';
+import { createAuthRoutes } from './routes/auth.js';
 
 import { PhoneWebSocketHandler } from './ws/phone.js';
 import { PluginWebSocketHandler } from './ws/plugin.js';
@@ -87,6 +88,7 @@ async function main() {
   app.use('/api/messages', createMessageRoutes(messageService));
   app.use('/api/upload', createUploadRoutes(storageService));
   app.use('/api/devices', createDeviceRoutes());
+  app.use('/api/auth', createAuthRoutes());
 
   // WebSocket 处理
   const phoneWsHandler = new PhoneWebSocketHandler(io, pairingService, messageService);

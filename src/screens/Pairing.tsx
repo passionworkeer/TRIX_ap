@@ -10,7 +10,7 @@ import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
 import { logger } from '../utils/logger';
 
-const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
+const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
@@ -172,129 +172,152 @@ const Pairing: React.FC = () => {
   }, [mode]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fdf2ff] via-[#f8fbff] to-[#eef8ff] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center px-6 pb-10 pt-16">
-        <button
-          type="button"
-          onClick={() => {
-            void stopScanner(true);
-            navigate(-1);
-          }}
-          className="ios-pressable ios-surface-button absolute left-4 top-12 flex h-11 w-11 items-center justify-center rounded-full shadow-sm"
-          aria-label="返回"
-        >
-          <ArrowLeft size={22} className="text-slate-700" />
-        </button>
-
-        <div className="mt-8 flex flex-col items-center">
-          <div className="relative mb-5 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white/80 shadow-[0_18px_48px_rgba(99,102,241,0.18)] ring-1 ring-white/70 backdrop-blur-xl">
-            <img src={IMAGES.WIZARD_BOY_LOGIN} alt="TRIX" className="h-20 w-20 object-contain" />
+    <div className="min-h-screen bg-gradient-to-br from-[#fdf2ff] via-[#f8fbff] to-[#eef8ff] dark:from-slate-950 dark:via-slate-910 dark:to-slate-950">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center px-6 pb-28 pt-8 md:pt-16">
+        
+        {/* Header Section */}
+        <div className="relative flex w-full items-center justify-center mb-8">
+          <button
+            type="button"
+            onClick={() => {
+              void stopScanner(true);
+              navigate(-1);
+            }}
+            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-white/50 backdrop-blur-md border border-slate-200/50 shadow-sm transition-all active:scale-95 dark:bg-slate-800/50 dark:border-slate-700/50"
+            aria-label="返回"
+          >
+            <ArrowLeft strokeWidth={2.5} size={20} className="text-slate-700 dark:text-slate-300" />
+          </button>
+          
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-[20px] bg-white/80 shadow-[0_8px_24px_rgba(99,102,241,0.12)] ring-1 ring-white/70 backdrop-blur-xl dark:bg-slate-800/80 dark:ring-slate-700/50">
+            <img src={IMAGES.WIZARD_BOY_LOGIN} alt="TRIX" className="h-[52px] w-[52px] object-contain" />
           </div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">配对 TRIX Native</h1>
-          <p className="mt-2 max-w-[280px] text-center text-sm leading-6 text-slate-600">
-            扫描屏幕上的二维码，或输入配对码，即可快速绑定
+        </div>
+
+        <div className="flex flex-col items-center mb-6">
+          <h1 className="text-[26px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">配对 TRIX Native</h1>
+          <p className="mt-2 text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+            扫描屏幕上的二维码<br />或输入配对码完成绑定
           </p>
         </div>
 
-        <GlassPanel className="mt-8 w-full overflow-hidden !rounded-[28px] border border-white/65 bg-white/65 px-5 py-6 shadow-[0_24px_60px_rgba(79,70,229,0.15)] backdrop-blur-2xl">
+        {/* Main Content Card */}
+        <GlassPanel className="w-full flex-1 md:flex-none overflow-hidden !rounded-[32px] border border-white/60 bg-white/70 px-5 py-6 shadow-[0_20px_40px_-15px_rgba(79,70,229,0.1)] backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/70 mb-4">
+          
           {mode === 'scan' && (
-            <>
-              <div className="relative mb-6 overflow-hidden rounded-[24px] bg-slate-950/90 p-4 shadow-inner">
-                <div id="qr-reader" className="min-h-[300px] w-full overflow-hidden rounded-[20px] bg-black" />
+            <div className="flex h-full flex-col">
+              <div className="group relative mb-6 overflow-hidden rounded-[24px] bg-slate-950 shadow-inner ring-1 ring-black/5 dark:ring-white/10">
+                <div id="qr-reader" className="min-h-[280px] w-full overflow-hidden bg-black object-cover [&>video]:object-cover" />
                 {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
+                    <Loader2 className="mb-3 h-10 w-10 animate-spin text-white" />
+                    <span className="text-sm font-medium text-white/90">验证中...</span>
+                  </div>
+                )}
+                {/* Custom scanning frame overlay */}
+                {!loading && isScanning.current && (
+                  <div className="pointer-events-none absolute inset-0 z-10 border-[40px] border-black/40">
+                    <div className="h-full w-full border-2 border-dashed border-white/30 rounded-lg"></div>
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col items-center gap-2 px-4">
-                <p className="text-center text-base font-medium text-slate-800">扫描屏幕上显示的二维码</p>
-                <div className="h-1 w-12 rounded-full bg-slate-300" />
-              </div>
-
-              <GlassPanel
-                className="ios-pressable ios-surface-button mt-6 !rounded-xl h-12 px-8 flex items-center justify-center cursor-pointer"
-                onClick={() => {
-                  setMode('input');
-                  void stopScanner(true);
-                }}
-              >
-                <Keyboard size={18} className="mr-2 text-slate-700" />
-                <span className="text-sm font-bold tracking-wide text-slate-800">手动输入</span>
-              </GlassPanel>
-
-              {!isScanning.current && (
+              <div className="mt-auto flex flex-col gap-3">
                 <button
                   type="button"
-                  onClick={() => void startScanner()}
-                  className="ios-pressable ios-primary-button mt-4 flex items-center gap-2 rounded-full px-6 py-3 font-medium text-white"
+                  onClick={() => {
+                    setMode('input');
+                    void stopScanner(true);
+                  }}
+                  className="group relative flex w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-5 py-4 font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/50 transition-all hover:bg-slate-50 active:scale-[0.98] dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
                 >
-                  <Camera size={18} />
-                  重新扫描
+                  <Keyboard size={18} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                  <span>手动输入配对码</span>
                 </button>
-              )}
-            </>
+
+                {!isScanning.current && (
+                  <button
+                    type="button"
+                    onClick={() => void startScanner()}
+                    className="group relative flex w-full items-center justify-center gap-2.5 rounded-2xl bg-indigo-50 px-5 py-4 font-medium text-indigo-600 transition-all hover:bg-indigo-100 active:scale-[0.98] dark:bg-indigo-500/10 dark:text-indigo-400"
+                  >
+                    <Camera size={18} />
+                    <span>重新启动相机</span>
+                  </button>
+                )}
+              </div>
+            </div>
           )}
 
           {mode === 'input' && (
-            <>
-              <div className="mb-6 w-full px-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">请输入 6~8 位代码</label>
-                <input
-                  ref={codeInputRef}
-                  type="text"
-                  value={codeInput}
-                  onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8))}
-                  placeholder="AB12CD34"
-                  className="w-full rounded-[1.25rem] border-2 border-purple-200 bg-white/88 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wider text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all placeholder:text-slate-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                  maxLength={8}
-                  autoFocus
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                />
+            <div className="flex h-full flex-col justify-center py-4">
+              <div className="mb-8 w-full">
+                <label className="mb-4 block text-center text-sm font-medium text-slate-600 dark:text-slate-400">请输入 TRIX Native 上的 6 位代码</label>
+                <div className="relative">
+                  <input
+                    ref={codeInputRef}
+                    type="text"
+                    value={codeInput}
+                    onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
+                    placeholder="AB12CD34"
+                    className="w-full rounded-[20px] border-2 border-indigo-100 bg-white px-5 py-4 text-center font-mono text-[28px] font-bold tracking-[0.2em] text-slate-800 shadow-sm transition-all focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
+                    maxLength={6}
+                    autoFocus
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                  />
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void handlePairWithCode()}
-                disabled={!PAIRING_CODE_PATTERN.test(codeInput.trim().toUpperCase()) || loading}
-                className="ios-pressable ios-primary-button mb-3 flex w-full items-center justify-center gap-2 rounded-full py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    验证中...
-                  </>
-                ) : (
-                  '验证配对'
-                )}
-              </button>
+              <div className="mt-auto flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handlePairWithCode()}
+                  disabled={!PAIRING_CODE_PATTERN.test(codeInput.trim().toUpperCase()) || loading}
+                  className="group relative flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-4 font-medium text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-700 hover:shadow-indigo-600/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>验证中...</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold">验证配对</span>
+                  )}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('scan');
-                  void startScanner();
-                }}
-                className="ios-pressable ios-surface-button w-full rounded-full py-3 font-medium text-slate-700"
-              >
-                返回扫描
-              </button>
-            </>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('scan');
+                    void startScanner();
+                  }}
+                  className="flex w-full items-center justify-center rounded-2xl px-5 py-4 font-medium text-slate-500 transition-colors hover:bg-slate-100/50 hover:text-slate-700 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
+                >
+                  返回扫码
+                </button>
+              </div>
+            </div>
           )}
 
           {mode === 'success' && (
-            <div className="flex flex-col items-center py-6">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                <Check size={40} className="text-green-600" />
+            <div className="flex h-full flex-col items-center justify-center py-8">
+              <div className="relative mb-6">
+                <div className="absolute -inset-4 animate-pulse rounded-full bg-green-100 opacity-50 dark:bg-green-500/10" />
+                <div className="absolute -inset-2 rounded-full bg-green-100 dark:bg-green-500/20" />
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-green-500 text-white shadow-lg shadow-green-500/30">
+                  <Check strokeWidth={3} size={36} />
+                </div>
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-800">配对成功</h3>
-              <p className="max-w-[260px] text-center text-slate-600">当前设备已绑定到 TRIX Native 通道，刷新后也可自动重新连接</p>
+              <h3 className="mb-3 text-[22px] font-bold text-slate-800 dark:text-slate-100">配对成功</h3>
+              <p className="mb-8 max-w-[240px] text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                当前设备已绑定到 TRIX Native，随时可以进行交互互动
+              </p>
+              
               <button
                 type="button"
                 onClick={handleUnpair}
-                className="ios-pressable mt-6 rounded-full border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600"
+                className="rounded-2xl border border-red-200 bg-white px-6 py-3 font-medium text-red-600 shadow-sm transition-all hover:bg-red-50 active:scale-95 dark:border-red-900/50 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-950/30"
               >
                 解除绑定
               </button>
@@ -303,7 +326,9 @@ const Pairing: React.FC = () => {
         </GlassPanel>
 
         {lastError && (
-          <p className="mt-4 px-4 text-center text-sm text-red-500">{lastError}</p>
+          <div className="w-full max-w-sm rounded-[16px] bg-red-50/80 px-4 py-3 text-center text-sm font-medium text-red-600 backdrop-blur-sm dark:bg-red-500/10 dark:text-red-400">
+            {lastError}
+          </div>
         )}
       </div>
     </div>

@@ -3,7 +3,7 @@
 // ============================================
 
 import QRCode from 'qrcode';
-import { store } from '../services/MemoryStore.js';
+import { pairingDB, deviceDB, initDatabase } from './SQLiteStore.js';
 import type { Pairing, PairingCreateResponse, PairingStatusResponse, PairingClaimResponse } from '../types.js';
 import {
   generatePairingCode,
@@ -25,7 +25,10 @@ export class PairingService {
       pairingCodeLength?: number;
       pairingExpiresIn?: number;
     }
-  ) {}
+  ) {
+    // 初始化数据库
+    initDatabase();
+  }
 
   /**
    * 创建新的配对
@@ -44,7 +47,8 @@ export class PairingService {
       expiresAt
     };
 
-    store.pairings.set(code, pairing);
+    // 保存到数据库
+    pairingDB.create(pairing);
 
     // 生成 QR 码
     const qrData = JSON.stringify({
@@ -77,7 +81,7 @@ export class PairingService {
    * 获取配对状态
    */
   async getPairingStatus(code: string): Promise<PairingStatusResponse> {
-    const pairing = store.pairings.get(code.toUpperCase());
+    const pairing = pairingDB.findByCode(code);
 
     if (!pairing) {
       throw new Error('PAIRING_NOT_FOUND');
@@ -86,6 +90,7 @@ export class PairingService {
     // 检查是否过期
     if (pairing.status !== 'paired' && isExpired(pairing.expiresAt)) {
       pairing.status = 'expired';
+      pairingDB.update(code, { status: 'expired' });
     }
 
     return {
@@ -107,7 +112,7 @@ export class PairingService {
     deviceName: string,
     publicKey?: string
   ): Promise<PairingClaimResponse> {
-    const pairing = store.pairings.get(code.toUpperCase());
+    const pairing = pairingDB.findByCode(code);
 
     if (!pairing) {
       throw new Error('PAIRING_NOT_FOUND');
@@ -122,7 +127,7 @@ export class PairingService {
     }
 
     if (isExpired(pairing.expiresAt)) {
-      pairing.status = 'expired';
+      pairingDB.update(code, { status: 'expired' });
       throw new Error('PAIRING_EXPIRED');
     }
 
@@ -131,23 +136,27 @@ export class PairingService {
     const pluginToken = generateToken('plugin', this.config.jwtSecret, this.config.jwtExpiresIn);
     const refreshToken = generateToken('refresh', this.config.jwtSecret, '30d');
 
+    const now = new Date();
+
     // 更新配对状态
-    pairing.status = 'paired';
-    pairing.deviceId = deviceIdFinal;
-    pairing.deviceName = deviceName;
-    pairing.devicePublicKey = publicKey;
-    pairing.pluginToken = pluginToken;
-    pairing.refreshToken = refreshToken;
-    pairing.pairedAt = new Date();
+    pairingDB.update(code, {
+      status: 'paired',
+      device_id: deviceIdFinal,
+      device_name: deviceName,
+      device_public_key: publicKey,
+      plugin_token: pluginToken,
+      refresh_token: refreshToken,
+      paired_at: now.toISOString()
+    });
 
     // 存储设备信息
-    store.devices.set(deviceIdFinal, {
+    deviceDB.create({
       id: deviceIdFinal,
       name: deviceName,
       type: 'phone',
       status: 'active',
-      lastSeen: new Date(),
-      createdAt: new Date()
+      lastSeen: now,
+      createdAt: now
     });
 
     console.log(`[PairingService] Pairing claimed: ${code} -> device: ${deviceIdFinal}`);
@@ -173,31 +182,55 @@ export class PairingService {
    * 获取配对 (通过 code)
    */
   getPairingByCode(code: string): Pairing | undefined {
-    return store.pairings.get(code.toUpperCase());
+    const result = pairingDB.findByCode(code);
+    return result ?? undefined;
   }
 
   /**
    * 获取配对 (通过 deviceId)
    */
   getPairingByDeviceId(deviceId: string): Pairing | undefined {
-    for (const pairing of store.pairings.values()) {
-      if (pairing.deviceId === deviceId) {
-        return pairing;
-      }
-    }
-    return undefined;
+    const result = pairingDB.findByDeviceId(deviceId);
+    return result ?? undefined;
   }
 
   /**
    * 更新配对状态
    */
   updatePairingStatus(code: string, status: Pairing['status']): void {
-    const pairing = store.pairings.get(code.toUpperCase());
-    if (pairing) {
-      pairing.status = status;
-      if (status === 'paired') {
-        pairing.pairedAt = new Date();
-      }
+    pairingDB.update(code, { status });
+  }
+
+  /**
+   * 验证 token
+   */
+  validateToken(token: string): boolean {
+    const pairings = pairingDB.findAll() as any[];
+    return pairings.some(p => p.plugin_token === token);
+  }
+
+  /**
+   * 刷新 token
+   */
+  refreshToken(refreshToken: string): { pluginToken: string; refreshToken: string } | null {
+    const pairings = pairingDB.findAll() as any[];
+    const pairing = pairings.find(p => p.refresh_token === refreshToken);
+
+    if (!pairing) {
+      return null;
     }
+
+    const newPluginToken = generateToken('plugin', this.config.jwtSecret, this.config.jwtExpiresIn);
+    const newRefreshToken = generateToken('refresh', this.config.jwtSecret, '30d');
+
+    pairingDB.update(pairing.code, {
+      plugin_token: newPluginToken,
+      refresh_token: newRefreshToken
+    });
+
+    return {
+      pluginToken: newPluginToken,
+      refreshToken: newRefreshToken
+    };
   }
 }

@@ -3,7 +3,7 @@
 // ============================================
 
 import { Router } from 'express';
-import { store } from '../services/MemoryStore.js';
+import { pairingDB } from '../services/SQLiteStore.js';
 
 const router = Router();
 
@@ -24,17 +24,11 @@ router.post('/refresh', async (req, res) => {
       return;
     }
 
-    // 查找匹配的设备
-    let foundDevice: { id: string; refreshToken?: string } | null = null;
+    // 查找匹配的 pairing
+    const pairings = pairingDB.findAll() as any[];
+    const pairing = pairings.find(p => p.refresh_token === refreshToken);
 
-    for (const device of store.devices.values()) {
-      if ((device as any).refreshToken === refreshToken) {
-        foundDevice = device;
-        break;
-      }
-    }
-
-    if (!foundDevice) {
+    if (!pairing) {
       res.status(401).json({
         success: false,
         error: 'INVALID_REFRESH_TOKEN',
@@ -49,14 +43,11 @@ router.post('/refresh', async (req, res) => {
     const newPluginToken = generateToken('plugin', jwtSecret, '1y');
     const newRefreshToken = generateToken('refresh', jwtSecret, '30d');
 
-    // 更新设备的 token（简化版本，实际应该找到对应的 pairing）
-    for (const pairing of store.pairings.values()) {
-      if (pairing.deviceId === foundDevice!.id) {
-        pairing.pluginToken = newPluginToken;
-        pairing.refreshToken = newRefreshToken;
-        break;
-      }
-    }
+    // 更新 pairing
+    pairingDB.update(pairing.code, {
+      plugin_token: newPluginToken,
+      refresh_token: newRefreshToken
+    });
 
     res.json({
       success: true,
@@ -91,13 +82,8 @@ router.get('/validate', async (req, res) => {
     }
 
     // 查找匹配的 pairing
-    let valid = false;
-    for (const pairing of store.pairings.values()) {
-      if (pairing.pluginToken === token) {
-        valid = true;
-        break;
-      }
-    }
+    const pairings = pairingDB.findAll() as any[];
+    const valid = pairings.some(p => p.plugin_token === token);
 
     res.json({ valid });
   } catch (error) {

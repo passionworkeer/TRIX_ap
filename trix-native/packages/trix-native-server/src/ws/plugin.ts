@@ -1,18 +1,23 @@
 // ============================================
-// Plugin WebSocket 处理器 (可选优化)
+// Plugin WebSocket 处理器
 // ============================================
 
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { verifyToken } from '../utils/helpers.js';
-import { store } from '../services/MemoryStore.js';
+import { deviceDB, pairingDB, initDatabase } from '../services/SQLiteStore.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'trix-native-secret-change-in-production';
+
+// 内存中的连接映射（不需要持久化）
+const pluginConnections = new Map<string, string>();
 
 export class PluginWebSocketHandler {
   private io: SocketIOServer;
 
   constructor(io: SocketIOServer) {
     this.io = io;
+    // 初始化数据库
+    initDatabase();
   }
 
   /**
@@ -43,7 +48,7 @@ export class PluginWebSocketHandler {
       }
 
       const deviceId = payload.deviceId as string;
-      const device = store.devices.get(deviceId);
+      const device = deviceDB.findById(deviceId);
 
       if (!device || device.status !== 'active') {
         socket.emit('error', { message: 'Device not found or inactive' });
@@ -52,10 +57,10 @@ export class PluginWebSocketHandler {
       }
 
       // 更新设备在线状态
-      device.lastSeen = new Date();
+      deviceDB.update(deviceId, { last_seen: new Date().toISOString() });
 
       // 保存连接映射
-      store.pluginConnections.set(socket.id, deviceId);
+      pluginConnections.set(socket.id, deviceId);
 
       // 确认连接成功
       socket.emit('connected', {
@@ -72,19 +77,18 @@ export class PluginWebSocketHandler {
       // 处理心跳
       socket.on('ping', () => {
         socket.emit('pong');
-        device.lastSeen = new Date();
+        deviceDB.update(deviceId, { last_seen: new Date().toISOString() });
       });
 
       // 处理确认
       socket.on('ack', (data: { messageIds: string[] }) => {
         console.log(`[PluginWS] Received ack for messages:`, data.messageIds);
-        // 可以在这里标记消息已送达
       });
 
       // 处理断开
       socket.on('disconnect', () => {
         console.log(`[PluginWS] Client disconnected: ${socket.id}`);
-        store.pluginConnections.delete(socket.id);
+        pluginConnections.delete(socket.id);
       });
     });
   }
@@ -114,7 +118,7 @@ export class PluginWebSocketHandler {
     const pluginNamespace = this.io.of('/ws/plugin');
 
     // 查找对应的 socket
-    for (const [socketId, connectedDeviceId] of store.pluginConnections) {
+    for (const [socketId, connectedDeviceId] of pluginConnections) {
       if (connectedDeviceId === deviceId) {
         const socket = pluginNamespace.sockets.get(socketId);
         if (socket && socket.connected) {

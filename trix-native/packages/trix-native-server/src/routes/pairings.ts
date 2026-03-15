@@ -63,18 +63,20 @@ export function createPairingRoutes(pairingService: PairingService): Router {
   router.post('/:code/claim', validatePairingCode, async (req, res) => {
     try {
       const { code } = req.params;
-      const { deviceId, deviceName, publicKey } = req.body;
+      // Accept both deviceId and clientId (clientId takes precedence if both provided)
+      const { deviceId, clientId, deviceName, publicKey } = req.body;
+      const finalDeviceId = clientId || deviceId;
 
-      if (!deviceId || !deviceName) {
+      if (!finalDeviceId || !deviceName) {
         res.status(400).json({
           success: false,
           error: 'MISSING_PARAMS',
-          message: 'deviceId and deviceName are required'
+          message: 'deviceId/clientId and deviceName are required'
         });
         return;
       }
 
-      const result = await pairingService.claimPairing(code, deviceId, deviceName, publicKey);
+      const result = await pairingService.claimPairing(code, finalDeviceId, deviceName, publicKey);
       res.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

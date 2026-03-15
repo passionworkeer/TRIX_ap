@@ -2,9 +2,9 @@
 // TRIX Native Channel 定义
 // ============================================
 
-import type { ChannelPlugin, OpenClawPluginApi } from 'openclaw/plugin-sdk';
+import type { ChannelPlugin, OpenClawPluginApi, ChannelOutboundContext } from 'openclaw/plugin-sdk';
 import { TrixNativeAPI } from './api.js';
-import { saveCredentials } from './credentials.js';
+import { saveCredentials, loadCredentials } from './credentials.js';
 import { getDeviceName } from './utils.js';
 import type { PluginCredentials, TrixNativeConfig } from './types.js';
 
@@ -115,6 +115,76 @@ export const trixNativeChannel: ChannelPlugin = {
     resolveAccount: (cfg, accountId) => {
       return resolveAccount(cfg, accountId ?? undefined);
     }
+  },
+
+  // Outbound: 发送消息到手机
+  outbound: {
+    deliveryMode: 'direct',
+
+    // 发送文本消息
+    sendText: async (ctx: ChannelOutboundContext): Promise<{ ok: boolean; channel: string; messageId: string }> => {
+      const { account, credentials, conversation, text } = ctx as any;
+
+      console.log(`[TRIX Native] Sending text: ${conversation.id}`);
+
+      const trixApi = new TrixNativeAPI(account.serverUrl);
+
+      const result = await trixApi.sendToPhone(
+        {
+          conversationId: conversation.id,
+          text
+        },
+        credentials.pluginToken
+      );
+
+      return { ok: true, channel: 'trix-native', messageId: result.messageId };
+    },
+
+    // 发送媒体消息
+    sendMedia: async (ctx: ChannelOutboundContext): Promise<{ ok: boolean; channel: string; messageId: string }> => {
+      const { account, credentials, conversation, mediaUrl, mediaPath } = ctx as any;
+
+      console.log(`[TRIX Native] Sending media: ${conversation.id}`);
+
+      const trixApi = new TrixNativeAPI(account.serverUrl);
+
+      // 获取媒体内容
+      let blob: Blob | null = null;
+      const url = mediaPath || mediaUrl;
+
+      if (url) {
+        const response = await fetch(url);
+        blob = await response.blob();
+      }
+
+      if (!blob) {
+        throw new Error('No media content');
+      }
+
+      // 上传到服务器
+      const uploadResult = await trixApi.uploadFile(
+        blob,
+        'attachment',
+        'file',
+        credentials.pluginToken
+      );
+
+      // 发送消息
+      const result = await trixApi.sendToPhone(
+        {
+          conversationId: conversation.id,
+          attachments: [{
+            type: 'file',
+            url: uploadResult.url,
+            mimeType: uploadResult.mimeType,
+            size: uploadResult.size
+          }]
+        },
+        credentials.pluginToken
+      );
+
+      return { ok: true, channel: 'trix-native', messageId: result.messageId };
+    }
   }
 };
 
@@ -122,7 +192,7 @@ export const trixNativeChannel: ChannelPlugin = {
 export default function registerPlugin(api: OpenClawPluginApi) {
   console.log('[TRIX Native] Registering channel plugin...');
 
-  // 注册 channel
+  // 注册 channel（包含 inbound 和 outbound）
   api.registerChannel({
     plugin: trixNativeChannel
   });
