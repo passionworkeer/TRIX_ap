@@ -52,7 +52,7 @@ export async function performPairing(
         const credentials: PluginCredentials = {
           version: '1.0',
           accountId: 'default',
-          serverUrl: api.serverUrl,
+          serverUrl: api.getServerUrl(),
           deviceId: claim.deviceId,
           pluginToken: claim.pluginToken,
           refreshToken: claim.refreshToken,

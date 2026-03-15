@@ -19,7 +19,7 @@ export function sleep(ms: number): Promise<void> {
 /**
  * 获取设备名称
  */
-export function getDeviceName(): string {
+export async function getDeviceName(): Promise<string> {
   // 尝试获取主机名
   try {
     const os = await import('os');
