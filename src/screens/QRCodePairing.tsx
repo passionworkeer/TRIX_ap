@@ -20,7 +20,7 @@ const QRCodePairing: React.FC = () => {
 
   useEffect(() => {
     if (isPaired) {
-      showSuccess('Åä¶Ô³É¹¦£¬ÕýÔÚ·µ»ØÊ×Ò³');
+      showSuccess('é…å¯¹æˆåŠŸï¼Œå³å°†è·³è½¬é¡µé¢');
       const timer = setTimeout(() => {
         navigate(AppRoutes.HOME);
       }, 1200);
@@ -32,7 +32,7 @@ const QRCodePairing: React.FC = () => {
   const handleManualPairing = async () => {
     const normalizedCode = manualCode.trim().toUpperCase();
     if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
-      showError('ÇëÊäÈë 6 µ½ 8 Î»×ÖÄ¸Êý×ÖÅä¶ÔÂë');
+      showError('è¯·è¾“å…¥ 6 åˆ° 8 ä½çš„å­—æ¯æ•°å­—ç»„åˆ');
       return;
     }
 
@@ -40,10 +40,10 @@ const QRCodePairing: React.FC = () => {
       setLoading(true);
       const success = await pairWithCode(normalizedCode);
       if (!success) {
-        showError('Åä¶ÔÂëÎÞÐ§»òÒÑ¹ýÆÚ');
+        showError('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Åä¶ÔÊ§°Ü');
+      showError(error instanceof Error ? error.message : 'é…å¯¹å¤±è´¥');
     } finally {
       setLoading(false);
     }
@@ -54,11 +54,11 @@ const QRCodePairing: React.FC = () => {
       setLoading(true);
       const success = await pairWithQR(decodedText);
       if (!success) {
-        showError('¶þÎ¬ÂëÅä¶ÔÊ§°Ü');
+        showError('äºŒç»´ç é…å¯¹å¤±è´¥');
       }
       setShowScanner(false);
     } catch (error) {
-      showError(error instanceof Error ? error.message : '¶þÎ¬ÂëÅä¶ÔÊ§°Ü');
+      showError(error instanceof Error ? error.message : 'äºŒç»´ç é…å¯¹å¤±è´¥');
     } finally {
       setLoading(false);
     }
@@ -75,7 +75,7 @@ const QRCodePairing: React.FC = () => {
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">TRIX Native Åä¶Ô</h1>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">TRIX Native é…å¯¹</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -97,10 +97,10 @@ const QRCodePairing: React.FC = () => {
 
             <div>
               <h2 className="mb-2 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                {isPaired ? 'ÒÑÁ¬½Ó' : 'Á¬½Ó Clawbot'}
+                {isPaired ? 'å·²é…å¯¹' : 'é…å¯¹ Clawbot'}
               </h2>
               <p className="text-slate-600 dark:text-slate-300">
-                É¨Ãè×ÀÃæ¶Ë¶þÎ¬Âë£¬»òÖ±½ÓÊäÈë×ÀÃæ¶ËÏÔÊ¾µÄÅä¶ÔÂë¡£
+                æ‰«æå±å¹•ä¸Šçš„äºŒç»´ç ï¼Œå³å¯ç›´æŽ¥è·³è½¬é…å¯¹é¡µé¢ã€‚
               </p>
             </div>
           </div>
@@ -119,12 +119,12 @@ const QRCodePairing: React.FC = () => {
             disabled={loading}
           >
             <Scan className="h-5 w-5" />
-            É¨Ãè¶þÎ¬Âë
+            æ‰«æäºŒç»´ç 
           </button>
 
           <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
             <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-              ÊÖ¶¯ÊäÈëÅä¶ÔÂë
+              æ‰‹åŠ¨è¾“å…¥é…å¯¹ç 
             </label>
             <div className="flex gap-3">
               <input
@@ -149,12 +149,12 @@ const QRCodePairing: React.FC = () => {
           <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertCircle className="h-4 w-4" />
-              Ê¹ÓÃËµÃ÷
+              ä½¿ç”¨è¯´æ˜Ž
             </div>
             <ol className="space-y-1.5 pl-5 list-decimal">
-              <li>ÔÚµçÄÔ¶ËÆô¶¯ `trix-openclaw-native` ·þÎñ²¢´´½¨Åä¶ÔÂë¡£</li>
-              <li>ÊÖ»ú¶ËÉ¨ÂëÊ±ÓÅÏÈÊ¹ÓÃ¶þÎ¬Âë£»ÍøÂç²»·½±ãÊ±¿ÉÊÖÊäÅä¶ÔÂë¡£</li>
-              <li>°ó¶¨ºó»á±£Áô»á»°ÐÅÏ¢£¬Ë¢ÐÂÍøÒ³ºó»á×Ô¶¯»Ö¸´¡£</li>
+              <li>åœ¨ç”µè„‘ç«¯è¿è¡Œ `trix-openclaw-native` åº”ç”¨å¹¶æ‰“å¼€ã€‚</li>
+              <li>æ‰‹æœºæ‰«ç æ—¶è¯·ä½¿ç”¨äºŒç»´ç ï¼›é…å¯¹ä¸åœ¨æ—¶ï¼Œè¯·æ‰‹åŠ¨è¾“å…¥</li>
+              <li>ç»‘å®šåŽä¼šä¿å­˜ä¼šè¯ä¿¡æ¯ï¼Œåˆ·æ–°é¡µé¢åŽä¼šè‡ªåŠ¨é‡æ–°è¿žæŽ¥</li>
             </ol>
           </div>
 

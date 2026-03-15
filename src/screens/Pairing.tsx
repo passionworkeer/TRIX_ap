@@ -78,17 +78,17 @@ const Pairing: React.FC = () => {
       );
 
       isScanning.current = true;
-      toast.success('ÉãÏñÍ·ÒÑÆô¶¯');
+      toast.success('æ‘„åƒå¤´å·²å¯åŠ¨');
     } catch (error) {
       logger.pairing.error('Start scanner failed:', error);
-      toast.error('ÎÞ·¨·ÃÎÊÉãÏñÍ·£¬Çë¼ì²éÈ¨ÏÞÉèÖÃ');
+      toast.error('æ— æ³•å¯åŠ¨æ‘„åƒå¤´ï¼Œè¯·æ£€æŸ¥ç›¸æœºæƒé™');
     }
   };
 
   const handlePairSuccess = async () => {
     await stopScanner(true);
     toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
-    toast.success('Åä¶Ô³É¹¦');
+    toast.success('é…å¯¹æˆåŠŸ');
     setMode('success');
     setTimeout(() => {
       navigate(AppRoutes.HOME);
@@ -101,14 +101,14 @@ const Pairing: React.FC = () => {
     try {
       const success = await pairWithQR(decodedText.trim());
       if (!success) {
-        toast.error('¶þÎ¬ÂëÅä¶ÔÊ§°Ü');
+        toast.error('äºŒç»´ç é…å¯¹å¤±è´¥');
         await startScanner();
         return;
       }
       await handlePairSuccess();
     } catch (error) {
       logger.pairing.error('QR pairing failed:', error);
-      toast.error(error instanceof Error ? error.message : '¶þÎ¬ÂëÅä¶ÔÊ§°Ü');
+      toast.error(error instanceof Error ? error.message : 'äºŒç»´ç é…å¯¹å¤±è´¥');
       await startScanner();
     } finally {
       setLoading(false);
@@ -118,7 +118,7 @@ const Pairing: React.FC = () => {
   const handlePairWithCode = async () => {
     const normalizedCode = codeInput.trim().toUpperCase();
     if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
-      toast.error('ÇëÊäÈë 6 µ½ 8 Î»×ÖÄ¸Êý×ÖÅä¶ÔÂë');
+      toast.error('è¯·è¾“å…¥ 6 åˆ° 8 ä½çš„å­—æ¯æ•°å­—ç»„åˆ');
       return;
     }
 
@@ -126,13 +126,13 @@ const Pairing: React.FC = () => {
       setLoading(true);
       const success = await pairWithCode(normalizedCode);
       if (!success) {
-        toast.error('Åä¶ÔÂëÎÞÐ§»òÒÑ¹ýÆÚ');
+        toast.error('é…å¯¹ç æ— æ•ˆæˆ–å·²è¿‡æœŸ');
         return;
       }
       await handlePairSuccess();
     } catch (error) {
       logger.pairing.error('Code pairing failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Åä¶ÔÊ§°Ü');
+      toast.error(error instanceof Error ? error.message : 'é…å¯¹å¤±è´¥');
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ const Pairing: React.FC = () => {
     unpair();
     setMode('scan');
     setCodeInput('');
-    toast.success('ÒÑÈ¡ÏûÅä¶Ô');
+    toast.success('é…å¯¹æˆåŠŸ');
   };
 
   useEffect(() => {
@@ -181,7 +181,7 @@ const Pairing: React.FC = () => {
             navigate(-1);
           }}
           className="ios-pressable ios-surface-button absolute left-4 top-12 flex h-11 w-11 items-center justify-center rounded-full shadow-sm"
-          aria-label="·µ»Ø"
+          aria-label="è¿”å›ž"
         >
           <ArrowLeft size={22} className="text-slate-700" />
         </button>
@@ -190,9 +190,9 @@ const Pairing: React.FC = () => {
           <div className="relative mb-5 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white/80 shadow-[0_18px_48px_rgba(99,102,241,0.18)] ring-1 ring-white/70 backdrop-blur-xl">
             <img src={IMAGES.WIZARD_BOY_LOGIN} alt="TRIX" className="h-20 w-20 object-contain" />
           </div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Á¬½Ó TRIX Native</h1>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">é…å¯¹ TRIX Native</h1>
           <p className="mt-2 max-w-[280px] text-center text-sm leading-6 text-slate-600">
-            É¨Ãè×ÀÃæ¶ËÉú³ÉµÄ¶þÎ¬Âë£¬»òÊäÈëÅä¶ÔÂë£¬Íê³É¿ç¾ÖÓòÍø³Ö¾Ã°ó¶¨¡£
+            æ‰«æå±å¹•ä¸Šçš„äºŒç»´ç ï¼Œæˆ–è¾“å…¥é…å¯¹ç ï¼Œå³å¯å¿«é€Ÿç»‘å®š
           </p>
         </div>
 
@@ -209,7 +209,7 @@ const Pairing: React.FC = () => {
               </div>
 
               <div className="flex flex-col items-center gap-2 px-4">
-                <p className="text-center text-base font-medium text-slate-800">É¨Ãè×ÀÃæ¶ËÕ¹Ê¾µÄÅä¶Ô¶þÎ¬Âë</p>
+                <p className="text-center text-base font-medium text-slate-800">æ‰«æå±å¹•ä¸Šæ˜¾ç¤ºçš„äºŒç»´ç </p>
                 <div className="h-1 w-12 rounded-full bg-slate-300" />
               </div>
 
@@ -221,7 +221,7 @@ const Pairing: React.FC = () => {
                 }}
               >
                 <Keyboard size={18} className="mr-2 text-slate-700" />
-                <span className="text-sm font-bold tracking-wide text-slate-800">ÊÖ¶¯ÊäÈëÅä¶ÔÂë</span>
+                <span className="text-sm font-bold tracking-wide text-slate-800">æ‰‹åŠ¨è¾“å…¥</span>
               </GlassPanel>
 
               {!isScanning.current && (
@@ -231,7 +231,7 @@ const Pairing: React.FC = () => {
                   className="ios-pressable ios-primary-button mt-4 flex items-center gap-2 rounded-full px-6 py-3 font-medium text-white"
                 >
                   <Camera size={18} />
-                  ¿ªÆôÉãÏñÍ·
+                  é‡æ–°æ‰«æ
                 </button>
               )}
             </>
@@ -240,7 +240,7 @@ const Pairing: React.FC = () => {
           {mode === 'input' && (
             <>
               <div className="mb-6 w-full px-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">ÊäÈë 6~8 Î»Åä¶ÔÂë</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">è¯·è¾“å…¥ 6~8 ä½ä»£ç </label>
                 <input
                   ref={codeInputRef}
                   type="text"
@@ -264,10 +264,10 @@ const Pairing: React.FC = () => {
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    ÑéÖ¤ÖÐ...
+                    éªŒè¯ä¸­...
                   </>
                 ) : (
-                  'ÑéÖ¤Åä¶ÔÂë'
+                  'éªŒè¯é…å¯¹'
                 )}
               </button>
 
@@ -279,7 +279,7 @@ const Pairing: React.FC = () => {
                 }}
                 className="ios-pressable ios-surface-button w-full rounded-full py-3 font-medium text-slate-700"
               >
-                ·µ»ØÉ¨Âë
+                è¿”å›žæ‰«æ
               </button>
             </>
           )}
@@ -289,14 +289,14 @@ const Pairing: React.FC = () => {
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
                 <Check size={40} className="text-green-600" />
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-800">Åä¶Ô³É¹¦</h3>
-              <p className="max-w-[260px] text-center text-slate-600">µ±Ç°ä¯ÀÀÆ÷ÒÑ°ó¶¨µ½ TRIX Native Í¨µÀ£¬Ë¢ÐÂºóÒ²»á×Ô¶¯»Ö¸´¡£</p>
+              <h3 className="mb-2 text-xl font-bold text-slate-800">é…å¯¹æˆåŠŸ</h3>
+              <p className="max-w-[260px] text-center text-slate-600">å½“å‰è®¾å¤‡å·²ç»‘å®šåˆ° TRIX Native é€šé“ï¼Œåˆ·æ–°åŽä¹Ÿå¯è‡ªåŠ¨é‡æ–°è¿žæŽ¥</p>
               <button
                 type="button"
                 onClick={handleUnpair}
                 className="ios-pressable mt-6 rounded-full border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600"
               >
-                ½â³ý°ó¶¨
+                è§£é™¤ç»‘å®š
               </button>
             </div>
           )}
