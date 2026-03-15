@@ -11,11 +11,15 @@
     "test": "vitest run"
   },
   "openclaw": {
-    "extensions": ["./dist/index.js"],
+    "extensions": ["./src/index.ts"],
     "channel": {
       "id": "trix-native",
       "label": "TRIX Native",
+      "selectionLabel": "TRIX Native (手机配对)",
       "aliases": ["trix", "native", "phone"]
+    },
+    "install": {
+      "npmSpec": "@trix-app/trix-native-plugin"
     }
   },
   "peerDependencies": {
