@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -56,6 +57,62 @@ async function main() {
     }
   });
 
+  // 创建原生 WebSocket 服务器
+  const wss = new WebSocketServer({ noServer: true });
+
+  // 处理 WebSocket 升级请求
+  httpServer.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url || '', `http://${request.headers.host}`);
+
+    if (url.pathname === '/ws') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
+  // 处理原生 WebSocket 连接
+  wss.on('connection', (ws: WebSocket, request) => {
+    const url = new URL(request.url || '', `http://${request.headers.host}`);
+    const role = url.searchParams.get('role');
+    const conversationId = url.searchParams.get('conversationId');
+    const clientId = url.searchParams.get('clientId');
+    const clientToken = url.searchParams.get('clientToken');
+
+    console.log(`[NativeWS] Client connected: role=${role}, conversationId=${conversationId}`);
+
+    if (role === 'user') {
+      if (!conversationId || !clientId || !clientToken) {
+        ws.close(4000, 'Missing required parameters');
+        return;
+      }
+
+      // 验证 token
+      const pairing = pairingService.getPairingByDeviceId(conversationId);
+      if (!pairing || pairing.pluginToken !== clientToken) {
+        ws.close(4001, 'Invalid client token');
+        return;
+      }
+
+      console.log(`[NativeWS] User authenticated: ${clientId}`);
+
+      ws.on('message', (data) => {
+        console.log(`[NativeWS] Received message from ${clientId}:`, data.toString());
+      });
+
+      ws.on('close', () => {
+        console.log(`[NativeWS] User disconnected: ${clientId}`);
+      });
+
+      // 发送连接成功消息
+      ws.send(JSON.stringify({ type: 'open' }));
+    } else {
+      ws.close(4000, 'Invalid role');
+    }
+  });
+
   // 中间件
   app.use(cors());
   app.use(express.json());
@@ -97,7 +154,7 @@ async function main() {
   const pluginWsHandler = new PluginWebSocketHandler(io);
   pluginWsHandler.initialize();
 
-  const agentWsHandler = new AgentWebSocketHandler(io);
+  const agentWsHandler = new AgentWebSocketHandler(io, pairingService);
   agentWsHandler.initialize();
 
   // 全局错误处理

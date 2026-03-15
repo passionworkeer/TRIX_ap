@@ -89,6 +89,7 @@ type ClaimResponse = {
   conversationId: string;
   clientToken: string;
   websocketUrl: string;
+  serverUrl?: string;
   pairing: {
     code: string;
   };
@@ -203,6 +204,8 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
   const timestamp = typeof rawMessage.createdAt === 'number'
     ? rawMessage.createdAt
     : new Date(rawMessage.createdAt).getTime();
+  // 处理 direction 字段，可能来自不同的服务器实现
+  const direction = rawMessage.direction || (rawMessage as any).from === 'agent' ? 'outbound' : 'inbound';
   return {
     id: rawMessage.id,
     content: rawMessage.text,
@@ -213,7 +216,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     attachments,
     metadata: rawMessage.metadata,
     timestamp,
-    sender: rawMessage.direction === 'outbound' ? 'bot' : 'user',
+    sender: direction === 'outbound' ? 'bot' : 'user',
   };
 }
 
@@ -452,9 +455,10 @@ class TrixNativeChannelClient {
     }
 
     const claim = await response.json() as ClaimResponse;
+    const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
-      serverUrl,
-      websocketUrl: claim.websocketUrl,
+      serverUrl: finalServerUrl,
+      websocketUrl: claim.websocketUrl || finalServerUrl.replace(/^http/, 'ws') + '/ws',
       conversationId: claim.conversationId,
       clientToken: claim.clientToken,
       clientId,
@@ -493,9 +497,10 @@ class TrixNativeChannelClient {
     }
 
     const claim = await response.json() as ClaimResponse;
+    const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
-      serverUrl,
-      websocketUrl: claim.websocketUrl,
+      serverUrl: finalServerUrl,
+      websocketUrl: claim.websocketUrl || finalServerUrl.replace(/^http/, 'ws') + '/ws',
       conversationId: claim.conversationId,
       clientToken: claim.clientToken,
       clientId,
@@ -519,7 +524,7 @@ class TrixNativeChannelClient {
 
   async fetchHistory(): Promise<ClawbotChannelMessage[]> {
     const session = this.requireSession();
-    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
+    const response = await fetch(`${session.serverUrl}/api/messages/${encodeURIComponent(session.conversationId)}`, {
       headers: {
         'x-trix-client-token': session.clientToken,
       },

@@ -14,7 +14,7 @@ import {
   isExpired
 } from '../utils/helpers.js';
 
-const DEFAULT_PAIRING_EXPIRY = 5; // 5分钟
+const DEFAULT_PAIRING_EXPIRY = 30; // 30分钟
 
 export class PairingService {
   constructor(
@@ -54,7 +54,7 @@ export class PairingService {
     const qrData = JSON.stringify({
       type: 'trix-native',
       code,
-      server: this.config.serverUrl
+      serverUrl: this.config.serverUrl
     });
 
     const qrDataUrl = await QRCode.toDataURL(qrData, {
@@ -169,6 +169,7 @@ export class PairingService {
       conversationId: deviceIdFinal,
       clientToken: pluginToken,
       websocketUrl: wsUrl,
+      serverUrl: this.config.serverUrl,
       pairing: {
         code: code
       },

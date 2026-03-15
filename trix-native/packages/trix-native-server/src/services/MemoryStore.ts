@@ -13,6 +13,7 @@ class MemoryStore {
   phoneConnections: Map<string, string> = new Map(); // socketId -> pairingCode
   pluginConnections: Map<string, string> = new Map(); // socketId -> deviceId
   agentConnections: Map<string, string> = new Map(); // socketId -> accountId
+  userConnections: Map<string, { conversationId: string; clientId: string }> = new Map(); // socketId -> { conversationId, clientId }
 
   // 清理过期配对
   cleanup(): void {
