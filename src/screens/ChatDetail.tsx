@@ -553,7 +553,7 @@ const ChatDetail: React.FC = () => {
     };
   }, [messages, loading]);
 
-  // ESC 閿叧闂彍鍗?
+  // ESC 键关闭菜单
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && showMenu) {

@@ -31,7 +31,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
   const { isConnected: isClawbotConnected, isPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
 
-  // 娴兼ê鍘涙担璺ㄦ暏 prop_botState閿涘苯鎯侀崚娆庡▏閻?context 娑擃厾娈?botState
+  // 使用 prop_botState 优先，确保正确处理状态
   const resolvedBotState = propBotState ?? contextBotState;
 
   const [showMailPanel, setShowMailPanel] = useState(false);

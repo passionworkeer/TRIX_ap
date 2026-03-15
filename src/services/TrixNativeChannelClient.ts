@@ -467,7 +467,7 @@ class TrixNativeChannelClient {
     const parsed = parseQrOrClaimPayload(rawPayload);
     const serverUrl = normalizeServerUrl(parsed.serverUrl || getClawbotEndpoints().nativeServerUrl || this.getSession()?.serverUrl || '');
     if (!serverUrl) {
-      throw new Error('浜岀淮鐮佹病鏈夊寘鍚湇鍔″櫒鍦板潃锛屼笖褰撳墠鐜鏈厤缃?VITE_TRIX_NATIVE_SERVER_URL');
+      throw new Error('二维码没有包含服务器地址，且当前环境未配置 VITE_TRIX_NATIVE_SERVER_URL');
     }
 
     const clientId = this.getOrCreateClientId();
