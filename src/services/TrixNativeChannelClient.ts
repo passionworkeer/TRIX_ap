@@ -407,7 +407,7 @@ class TrixNativeChannelClient {
       this.emit('history', history);
     } catch (error) {
       this.emit('error', {
-        message: error instanceof Error ? error.message : '鍔犺浇娑堟伅鍘嗗彶澶辫触',
+        message: error instanceof Error ? error.message : '加载消息历史失败',
       });
     }
   }
@@ -521,7 +521,7 @@ class TrixNativeChannelClient {
       },
     });
     if (!response.ok) {
-      throw new Error('鍔犺浇娑堟伅鍘嗗彶澶辫触');
+      throw new Error('加载消息历史失败');
     }
     const payload = await response.json() as ConversationMessagesResponse;
     this.agentOnline = Boolean(payload.agentOnline);
@@ -532,7 +532,7 @@ class TrixNativeChannelClient {
     const session = this.requireSession();
     const serverUrl = normalizeServerUrl(session.serverUrl);
     if (!serverUrl) {
-      throw new Error('鏈厤缃?TRIX Native Server 鍦板潃');
+      throw new Error('未配置 TRIX Native Server 地址');
     }
 
     const derivedFileName = options.fileName || (file instanceof File ? file.name : `attachment-${Date.now()}`);
@@ -552,7 +552,7 @@ class TrixNativeChannelClient {
     });
 
     if (!response.ok) {
-      throw new Error('涓婁紶闄勪欢澶辫触');
+      throw new Error('上传附件失败');
     }
 
     const payload = await response.json() as UploadResponse;
