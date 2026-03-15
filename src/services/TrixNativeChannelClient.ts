@@ -199,6 +199,10 @@ function mapAttachments(rawAttachments: ConversationMessagesResponse['messages']
 function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][number]): ClawbotChannelMessage {
   const attachments = mapAttachments(rawMessage.attachments);
   const primaryAttachment = attachments[0];
+  // 将 createdAt 转换为毫秒时间戳
+  const timestamp = typeof rawMessage.createdAt === 'number'
+    ? rawMessage.createdAt
+    : new Date(rawMessage.createdAt).getTime();
   return {
     id: rawMessage.id,
     content: rawMessage.text,
@@ -208,7 +212,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     mediaMetadata: toMediaMetadata(attachments),
     attachments,
     metadata: rawMessage.metadata,
-    timestamp: rawMessage.createdAt,
+    timestamp,
     sender: rawMessage.direction === 'outbound' ? 'bot' : 'user',
   };
 }
