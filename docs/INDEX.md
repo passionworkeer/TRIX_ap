@@ -18,6 +18,9 @@ docs/
 │   ├── PRD-WEB.md                    # Web 端 PRD
 │   ├── PRD-IOS.md                   # iOS 端 PRD
 │   ├── TRIX_NATIVE_IMPLEMENTATION_PLAN.md  # TRIX Native 实现计划
+│   ├── FIXES_20260313.md            # 修复记录
+│   ├── SETUP.md                     # 环境配置指南
+│   ├── SERVER_GUIDE.md              # 服务器部署指南
 │   └── DOCUMENTATION_GUIDELINES.md   # 文档规范
 │
 ├── 📊 项目报告
@@ -36,8 +39,9 @@ docs/
 │       ├── QR_PAIRING_USER_GUIDE.md  # 扫码配对
 │       ├── PAIRING_INPUT_GUIDE.md    # 配对输入
 │       ├── UNPAIR_FEATURE_GUIDE.md   # 解绑功能
-│       └── SSH-SETUP.md              # SSH 配置
-│       └── IOS_TEST_DEPLOY_GUIDE.md  # iOS 测试部署
+│       ├── SSH-SETUP.md              # SSH 配置
+│       ├── IOS_TEST_DEPLOY_GUIDE.md  # iOS 测试部署
+│       └── IOS_BACKEND_SERVER_DB_MANUAL_STEPS.md  # iOS 后端数据库手动步骤
 │
 ├── 🌐 快速开始
 │   └── getting-started/
@@ -121,12 +125,12 @@ PROJECT.md → 审查待办事项
 
 | 目录 | 文档数量 | 状态 |
 |------|----------|------|
-| 核心文档 | 6 | ✅ 维护中 |
+| 核心文档 | 10 | ✅ 维护中 |
 | 项目报告 | 2 | ✅ 维护中 |
 | 开发文档 | 2 | ✅ 维护中 |
-| 用户指南 | 6 | ✅ 维护中 |
+| 用户指南 | 7 | ✅ 维护中 |
 | API 文档 | 2 | ✅ 维护中 |
-| **活跃文档** | **~37** | - |
+| **活跃文档** | **~40** | - |
 
 ---
 

@@ -3,6 +3,7 @@
 // ============================================
 
 import Database from 'better-sqlite3';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -21,7 +22,6 @@ export function initDatabase(): Database.Database {
 
   // 确保目录存在
   const dbDir = path.dirname(DB_PATH);
-  const fs = require('fs');
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
   }
