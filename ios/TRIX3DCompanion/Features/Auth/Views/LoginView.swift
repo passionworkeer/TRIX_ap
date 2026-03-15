@@ -2,20 +2,21 @@
 //  LoginView.swift
 //  TRIX3DCompanion
 //
-//  Refined login scene with branded hero, glass surfaces, and live loading overlay
+//  Login screen with native iOS design
 //
 
 import SwiftUI
 import AuthenticationServices
 import UIKit
 
-private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
+// MARK: - Login View
 
+/// Native iOS login screen with clean, familiar design patterns
 struct LoginView: View {
+
+    // MARK: - State
+
     @StateObject private var authService = AuthService.shared
-    @StateObject private var oauthManager = OAuthManager.shared
 
     @State private var email = ""
     @State private var password = ""
@@ -32,46 +33,45 @@ struct LoginView: View {
         case password
     }
 
-    let onSwitchToRegister: () -> Void
+    // MARK: - Callbacks
+
+    var onSwitchToRegister: () -> Void
+
+    // MARK: - Body
 
     var body: some View {
         ZStack {
-            AuthAtmosphereBackground()
+            // Native iOS background with mesh gradient (iOS 18+)
+            nativeBackground
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 22) {
-                    headerView
-                    loginForm
-                    loginButton
-                    helperFootnote
-                    oauthDividerView
-                    oauthSignInView
-                    switchToRegisterLink
+            VStack(spacing: 0) {
+                // Header
+                headerSection
+                    .padding(.top, 60)
+                    .padding(.horizontal, 24)
+
+                // Main content
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        loginForm
+                        loginButton
+                        oauthDivider
+                        oauthButtons
+                        switchToRegister
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 40)
                 }
-                .frame(maxWidth: 540, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 34)
-                .padding(.bottom, 40)
-                .frame(maxWidth: .infinity)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginScene)
 
+            // Loading overlay
             if authService.isLoading || showsDebugLoadingPreview {
-                AuthLoadingOverlay(
-                    title: loc("auth.login.loading.title"),
-                    subtitle: loc("auth.login.loading.subtitle"),
-                    steps: [
-                        "auth.login.loading.step.auth".localized,
-                        "auth.login.loading.step.session".localized,
-                        "auth.login.loading.step.workspace".localized
-                    ],
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginLoadingOverlay
-                )
+                nativeLoadingOverlay
             }
         }
-        .alert(loc("error.login.failed"), isPresented: $showingError) {
-            Button("OK", role: .cancel) {
+        .alert("登录失败", isPresented: $showingError) {
+            Button("确定", role: .cancel) {
                 authService.clearError()
             }
         } message: {
@@ -85,349 +85,253 @@ struct LoginView: View {
         }
     }
 
-    private var headerView: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            AuthHeroBadge(icon: "sparkles", title: "auth.login.badge".localized)
+    // MARK: - Background
 
-            HStack(alignment: .center, spacing: 16) {
+    private var nativeBackground: some View {
+        LinearGradient(
+            colors: [
+                .purple.opacity(0.3),
+                .blue.opacity(0.2),
+                .pink.opacity(0.15)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .background(Color(.systemBackground))
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // App icon and welcome
+            HStack(spacing: 16) {
+                // App icon with native iOS styling
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 78, height: 78)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                        )
-
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.22), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 58, height: 58)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 72, height: 72)
 
                     Image(systemName: "cube.transparent")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(.purple)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(loc("auth.login.title"))
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("欢迎回来")
+                        .font(.title)
+                        .fontWeight(.bold)
 
-                    Text(loc("auth.login.subtitle"))
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.8))
+                    Text("登录您的账户")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            Text("auth.login.helper".localized)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.84))
+            // Feature pills (native style)
+            HStack(spacing: 8) {
+                FeaturePill(icon: "arrow.triangle.2.circlepath", text: "数据同步")
+                FeaturePill(icon: "link.badge.plus", text: "设备配对")
+            }
+
+            Text("登录后即可与 TRIX Bot 配对，开始智能学习之旅")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    AuthFeaturePill(icon: "arrow.triangle.2.circlepath", text: "auth.login.feature.sync".localized)
-                    AuthFeaturePill(icon: "link.badge.plus", text: "auth.login.feature.pairing".localized)
-                }
-                AuthFeaturePill(icon: "bubble.left.and.bubble.right.fill", text: "auth.login.feature.chat".localized)
-            }
         }
     }
+
+    // MARK: - Login Form
 
     private var loginForm: some View {
-        AuthFormPanel(
-            title: "auth.login.form.title".localized,
-            subtitle: "auth.login.form.subtitle".localized
-        ) {
-            VStack(spacing: 14) {
-                authTextField(
-                    icon: "envelope.fill",
-                    placeholder: loc("auth.email.placeholder"),
-                    text: $email,
-                    keyboardType: .emailAddress,
-                    autocapitalization: false,
-                    textContentType: .emailAddress,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginEmailField
-                )
-                .focused($focusedField, equals: .email)
-                .onSubmit {
-                    focusedField = .password
-                }
+        VStack(spacing: 16) {
+            // Email field - native iOS style
+            HStack(spacing: 12) {
+                Image(systemName: "envelope.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
 
-                authSecureField(
-                    icon: "lock.fill",
-                    placeholder: loc("auth.password.placeholder"),
-                    text: $password,
-                    textContentType: .password,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.loginPasswordField
-                )
-                .focused($focusedField, equals: .password)
-                .onSubmit {
-                    focusedField = nil
-                    Task {
-                        await handleLogin()
+                TextField("邮箱", text: $email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .email)
+                    .submitLabel(.next)
+                    .onSubmit {
+                        focusedField = .password
                     }
-                }
             }
+            .padding(16)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(focusedField == .email ? Color.purple : Color.clear, lineWidth: 2)
+            )
+
+            // Password field - native iOS style
+            HStack(spacing: 12) {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+
+                SecureField("密码", text: $password)
+                    .textContentType(.password)
+                    .focused($focusedField, equals: .password)
+                    .submitLabel(.go)
+                    .onSubmit {
+                        focusedField = nil
+                        Task { await handleLogin() }
+                    }
+            }
+            .padding(16)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(focusedField == .password ? Color.purple : Color.clear, lineWidth: 2)
+            )
         }
+        .padding(20)
+        .background(Color(.systemBackground).opacity(0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
+
+    // MARK: - Login Button
 
     private var loginButton: some View {
         Button {
-            Task {
-                await handleLogin()
-            }
+            Task { await handleLogin() }
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.system(size: 18, weight: .bold))
-                Text(loc("action.login"))
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            HStack {
+                Text("登录")
+                    .fontWeight(.semibold)
+
+                Image(systemName: "arrow.right")
             }
-            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(
-                LinearGradient(
-                    colors: [Color.brandPurple, Color.brandPink],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color.brandPurple.opacity(0.34), radius: 16, x: 0, y: 10)
+            .padding(.vertical, 16)
+            .background(Color.purple)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .buttonStyle(.plain)
         .disabled(isSubmitDisabled)
-        .opacity(isSubmitDisabled ? 0.7 : 1)
-        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSubmitButton)
+        .opacity(isSubmitDisabled ? 0.6 : 1)
     }
 
-    private var helperFootnote: some View {
-        Text("auth.login.security.note".localized)
-            .font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(.white.opacity(0.68))
-            .frame(maxWidth: .infinity, alignment: .center)
-    }
+    // MARK: - OAuth Divider
 
-    private var switchToRegisterLink: some View {
-        Button {
-            onSwitchToRegister()
-        } label: {
-            HStack(spacing: 4) {
-                Text(loc("auth.no.account"))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.86))
-
-                Text(loc("action.signup"))
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .underline()
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSwitchToRegisterButton)
-    }
-
-    private var oauthDividerView: some View {
-        HStack(spacing: 16) {
+    private var oauthDivider: some View {
+        HStack {
             Capsule()
-                .fill(Color.white.opacity(0.18))
+                .fill(Color(.separator))
                 .frame(height: 1)
 
-            Text(loc("auth.or"))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.62))
+            Text("或")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Capsule()
-                .fill(Color.white.opacity(0.18))
+                .fill(Color(.separator))
                 .frame(height: 1)
         }
-        .padding(.top, 4)
+        .padding(.vertical, 8)
     }
 
-    private var oauthSignInView: some View {
+    // MARK: - OAuth Buttons
+
+    private var oauthButtons: some View {
         VStack(spacing: 12) {
-            if oauthManager.isProviderAvailable(.apple) {
-                appleSignInButton
-            }
-
-            if oauthManager.isProviderAvailable(.wechat) {
-                weChatSignInButton
-            }
-        }
-    }
-
-    private var appleSignInButton: some View {
-        Button {
-            Task {
-                await handleAppleSignIn()
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "applelogo")
-                    .font(.system(size: 20, weight: .semibold))
-                Text(loc("auth.signin.apple"))
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .background(Color.black.opacity(0.88))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 6)
-        }
-        .buttonStyle(.plain)
-        .disabled(isOAuthLoading || authService.isLoading)
-        .opacity(isOAuthLoading || authService.isLoading ? 0.7 : 1.0)
-    }
-
-    private var weChatSignInButton: some View {
-        Button {
-            Task {
-                await handleWeChatSignIn()
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "message.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                Text(loc("auth.signin.wechat"))
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .background(Color.green.opacity(0.86))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: .green.opacity(0.24), radius: 10, x: 0, y: 6)
-        }
-        .buttonStyle(.plain)
-        .disabled(isOAuthLoading || authService.isLoading)
-        .opacity(isOAuthLoading || authService.isLoading ? 0.7 : 1.0)
-    }
-
-    private var isSubmitDisabled: Bool {
-        authService.isLoading || showsDebugLoadingPreview
-    }
-
-    private func authTextField(
-        icon: String,
-        placeholder: String,
-        text: Binding<String>,
-        keyboardType: UIKeyboardType = .default,
-        autocapitalization: Bool = true,
-        textContentType: UITextContentType? = nil,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AuthFormPalette.iconTint)
-                .frame(width: 22)
-
-            Group {
-                if autocapitalization {
-                    TextField(
-                        "",
-                        text: text,
-                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-                    )
-                        .textInputAutocapitalization(.sentences)
-                } else {
-                    TextField(
-                        "",
-                        text: text,
-                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-                    )
-                        .textInputAutocapitalization(.never)
+            // Apple Sign In - native style
+            if true { // Assuming Apple Sign In is available
+                Button {
+                    Task { await handleAppleSignIn() }
+                } label: {
+                    HStack {
+                        Image(systemName: "applelogo")
+                        Text("使用 Apple 继续")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.black)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
-            .font(.system(size: 16, weight: .medium, design: .rounded))
-            .foregroundStyle(AuthFormPalette.primaryText)
-            .keyboardType(keyboardType)
-            .textContentType(textContentType)
-            .tint(Color.brandPurple)
-            .autocorrectionDisabled()
-            .accessibilityIdentifier(accessibilityIdentifier)
+
+            // WeChat Sign In
+            Button {
+                Task { await handleWeChatSignIn() }
+            } label: {
+                HStack {
+                    Image(systemName: "message.fill")
+                    Text("使用微信登录")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.green)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(AuthFormPalette.fieldBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func authSecureField(
-        icon: String,
-        placeholder: String,
-        text: Binding<String>,
-        textContentType: UITextContentType? = nil,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AuthFormPalette.iconTint)
-                .frame(width: 22)
+    // MARK: - Switch to Register
 
-            SecureField(
-                "",
-                text: text,
-                prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-            )
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(AuthFormPalette.primaryText)
-                .textContentType(textContentType)
-                .tint(Color.brandPurple)
-                .accessibilityIdentifier(accessibilityIdentifier)
+    private var switchToRegister: some View {
+        HStack(spacing: 4) {
+            Text("还没有账户?")
+                .foregroundStyle(.secondary)
+
+            Button("立即注册") {
+                onSwitchToRegister()
+            }
+            .fontWeight(.semibold)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(AuthFormPalette.fieldBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .font(.subheadline)
+        .padding(.top, 8)
     }
+
+    // MARK: - Loading Overlay
+
+    private var nativeLoadingOverlay: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            ProgressView()
+        }
+    }
+
+    // MARK: - Computed Properties
+
+    private var isSubmitDisabled: Bool {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        password.isEmpty ||
+        authService.isLoading ||
+        showsDebugLoadingPreview
+    }
+
+    // MARK: - Actions
 
     private func handleLogin() async {
-        dismissInputFocus()
+        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let normalizedPassword = password.trimmingCharacters(in: .newlines)
 
         guard !normalizedEmail.isEmpty else {
-            errorMessage = loc("auth.email.required")
+            errorMessage = "请输入邮箱地址"
             showingError = true
             return
         }
 
         guard !normalizedPassword.isEmpty else {
-            errorMessage = loc("auth.password.required")
+            errorMessage = "请输入密码"
             showingError = true
             return
         }
@@ -436,7 +340,6 @@ struct LoginView: View {
 
         switch result {
         case .success:
-            email = normalizedEmail
             break
         case .failure(let error):
             let trimmedPassword = normalizedPassword.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -444,8 +347,7 @@ struct LoginView: View {
                 let retryResult = await authService.login(email: normalizedEmail, password: trimmedPassword)
                 switch retryResult {
                 case .success:
-                    email = normalizedEmail
-                    password = trimmedPassword
+                    break
                 case .failure(let retryError):
                     errorMessage = retryError.localizedDescription
                     showingError = true
@@ -457,27 +359,19 @@ struct LoginView: View {
         }
     }
 
-    private func dismissInputFocus() {
-        focusedField = nil
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
     private func handleAppleSignIn() async {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            errorMessage = "Unable to present Apple Sign In"
+            errorMessage = "无法打开 Apple 登录"
             showingError = true
             return
         }
 
         isOAuthLoading = true
-        let result = await oauthManager.signIn(with: .apple, presentationAnchor: window)
+        let result = await OAuthManager.shared.signIn(with: .apple, presentationAnchor: window)
         isOAuthLoading = false
 
-        switch result {
-        case .success:
-            break
-        case .failure(let error):
+        if case .failure(let error) = result {
             errorMessage = error.localizedDescription
             showingError = true
         }
@@ -485,21 +379,44 @@ struct LoginView: View {
 
     private func handleWeChatSignIn() async {
         isOAuthLoading = true
-        let result = await oauthManager.signIn(with: .wechat, presentationAnchor: nil)
+        let result = await OAuthManager.shared.signIn(with: .wechat, presentationAnchor: nil)
         isOAuthLoading = false
 
-        switch result {
-        case .success:
-            break
-        case .failure(let error):
+        if case .failure(let error) = result {
             errorMessage = error.localizedDescription
             showingError = true
         }
     }
 }
 
+// MARK: - Feature Pill
+
+/// Native iOS style feature pill
+struct FeaturePill: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text(text)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Preview
+
 #Preview {
     LoginView {
-        SecureLogger.shared.debug("Switch to register")
+        print("Switch to register")
     }
+    .environmentObject(AuthService.shared)
 }

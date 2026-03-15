@@ -116,6 +116,7 @@
 		6FBA42208D5025A6C393BEFD /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014D83AD04520216CC061357 /* AuthService.swift */; };
 		70FD5A5918CE80FEFC241A71 /* SnapshotAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2832DC55449B4BDB98D5E5B5 /* SnapshotAnalysisView.swift */; };
 		7104A5336579E00685EB2F65 /* 02_SCREENSHOT_SPECS.md in Resources */ = {isa = PBXBuildFile; fileRef = 5D7249DAD1DBBED0330BF348 /* 02_SCREENSHOT_SPECS.md */; };
+		71844C02751DBCFB3EC72324 /* ChatDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B43FC51891CC05C3728F15 /* ChatDetailViewModel.swift */; };
 		71DD82BFA4FB42C61710A9CA /* RobotHeroBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDE17FAAB97CBB735A0AF96 /* RobotHeroBackgroundView.swift */; };
 		728D0F763AF1316A1237B3A0 /* FriendErrorPresentationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */; };
 		72B30C8BE3472F87C3BDFA64 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */; };
@@ -423,6 +424,7 @@
 		82F633E388510A7A3298A5E5 /* UserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserService.swift; sourceTree = "<group>"; };
 		8322C04544641981D969D41D /* boring.mp4 */ = {isa = PBXFileReference; path = boring.mp4; sourceTree = "<group>"; };
 		84B39717025400C1E5F4BCFB /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
+		84B43FC51891CC05C3728F15 /* ChatDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailViewModel.swift; sourceTree = "<group>"; };
 		851CE702189CACA3A2AD2134 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		8636DE591832F45D43A94DC8 /* VoiceMessagePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMessagePlayerView.swift; sourceTree = "<group>"; };
 		86F21F7491DF0599008C3BDA /* NoInternetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoInternetView.swift; sourceTree = "<group>"; };
@@ -1328,6 +1330,7 @@
 		F358CA86C400EBC588F5B39B /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				84B43FC51891CC05C3728F15 /* ChatDetailViewModel.swift */,
 				9AE48AF5BF3697283FD20E52 /* ChatListViewModel.swift */,
 			);
 			path = ViewModels;
@@ -1602,6 +1605,7 @@
 				F3E6B5910B7EB454E3810253 /* CameraViewModel.swift in Sources */,
 				AC9A5B26AA956CE797467B3B /* CelebrationAnimationView.swift in Sources */,
 				C208ACA5D39BBF595C1CCE72 /* ChatDetailView.swift in Sources */,
+				71844C02751DBCFB3EC72324 /* ChatDetailViewModel.swift in Sources */,
 				4CCB80085A99B2C992E844E0 /* ChatInputBar.swift in Sources */,
 				244B3055A9F7EA6BFE15389F /* ChatListView.swift in Sources */,
 				BF9A1D10031AE7756CF5D1EB /* ChatListViewModel.swift in Sources */,
@@ -1876,7 +1880,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -1973,7 +1977,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Resources/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;

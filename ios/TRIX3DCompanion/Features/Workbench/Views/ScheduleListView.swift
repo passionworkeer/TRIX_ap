@@ -7,14 +7,9 @@
 
 import SwiftUI
 
-// Helper function for localization
-private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
-
 // MARK: - Schedule List View
 
-/// Schedule list view displaying schedule items
+/// Schedule list view displaying schedule items with native iOS design
 struct ScheduleListView: View {
 
     // MARK: - Environment
@@ -44,13 +39,13 @@ struct ScheduleListView: View {
                 // Schedule List
                 scheduleList
             }
-            .background(backgroundGradient)
-            .navigationTitle(loc("schedule.title"))
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("日程")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button(loc("action.done")) {
+                        Button("完成") {
                             dismiss()
                         }
                     }
@@ -72,11 +67,11 @@ struct ScheduleListView: View {
                     editingSchedule: viewModel.editingSchedule
                 )
             }
-            .alert("Error", isPresented: .init(
+            .alert("错误", isPresented: .init(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.clearMessages() } }
             )) {
-                Button("OK") {
+                Button("确定") {
                     viewModel.clearMessages()
                 }
             } message: {
@@ -107,15 +102,15 @@ struct ScheduleListView: View {
 
     /// Statistics section
     private var statsSection: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             StatBadge(
-                title: "Today",
+                title: "今天",
                 value: viewModel.todayCount,
                 color: .blue
             )
 
             StatBadge(
-                title: "Upcoming",
+                title: "即将到来",
                 value: viewModel.upcomingCount,
                 color: .green
             )
@@ -137,9 +132,6 @@ struct ScheduleListView: View {
                                 viewModel.showEditForm(for: schedule)
                             }
                         )
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     }
                     .onDelete { indexSet in
                         indexSet.forEach { index in
@@ -150,57 +142,23 @@ struct ScheduleListView: View {
                         }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .listStyle(.insetGrouped)
             }
         }
     }
 
     /// Empty state view
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
-
-            Text("No schedules yet")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            Text("Tap + to add a new schedule")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Button {
+        ContentUnavailableView {
+            Label("暂无日程", systemImage: "calendar.badge.plus")
+        } description: {
+            Text("点击右上角按钮添加新日程")
+        } actions: {
+            Button("添加日程") {
                 viewModel.showAddForm()
-            } label: {
-                Text("Add Schedule")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .clipShape(Capsule())
             }
-            .padding(.top, 8)
-
-            Spacer()
+            .buttonStyle(.borderedProminent)
         }
-    }
-
-    /// Background gradient
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.blue.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
     }
 
     // MARK: - Helper Methods
@@ -212,7 +170,7 @@ struct ScheduleListView: View {
 
 // MARK: - Schedule Row
 
-/// Single schedule row component
+/// Single schedule row component with native iOS style
 struct ScheduleRow: View {
     let schedule: Schedule
     let onTap: () -> Void
@@ -221,7 +179,7 @@ struct ScheduleRow: View {
         HStack(spacing: 12) {
             // Time indicator
             VStack(spacing: 4) {
-                Text(schedule.isToday ? "Today" : (schedule.isTomorrow ? "Tmrw" : ""))
+                Text(schedule.isToday ? "今天" : (schedule.isTomorrow ? "明天" : ""))
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundColor(.white)
@@ -304,9 +262,7 @@ struct ScheduleRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()

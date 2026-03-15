@@ -280,45 +280,54 @@ struct SnapshotAnalysisView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
-            TextEditor(text: $promptText)
-                .font(.body)
-                .foregroundColor(.white)
-                .frame(minHeight: 100)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.3))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-                .overlay(
-                    Group {
-                        if promptText.isEmpty {
-                            VStack {
-                                Text("点击上方按钮后，这里会出现对应提示词")
-                                    .font(.caption)
-                                    .foregroundColor(.textTertiary)
-                                    .padding(.top, 12)
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 16)
-                        }
-                    }
-                )
+            promptTextEditor
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
-        )
-        .background(.ultraThinMaterial)
+        .background(promptSectionBackground)
+    }
+
+    @ViewBuilder
+    private var promptTextEditor: some View {
+        TextEditor(text: $promptText)
+            .font(.body)
+            .foregroundColor(.white)
+            .frame(minHeight: 100)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(0.3))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
+            .overlay(alignment: .topLeading) {
+                if promptText.isEmpty {
+                    emptyPromptPlaceholder
+                }
+            }
+    }
+
+    private var emptyPromptPlaceholder: some View {
+        VStack(alignment: .leading) {
+            Text("点击上方按钮后，这里会出现对应提示词")
+                .font(.caption)
+                .foregroundColor(.textTertiary)
+                .padding(.top, 12)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 16)
+    }
+
+    private var promptSectionBackground: some View {
+        RoundedRectangle(cornerRadius: 20)
+            .fill(Color.white.opacity(0.05))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .background(.ultraThinMaterial)
     }
 
     // MARK: - Action Buttons

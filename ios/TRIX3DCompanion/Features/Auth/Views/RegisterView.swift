@@ -2,17 +2,19 @@
 //  RegisterView.swift
 //  TRIX3DCompanion
 //
-//  Refined registration scene aligned with the updated login experience
+//  Registration screen with native iOS design
 //
 
 import SwiftUI
 import UIKit
 
-private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
+// MARK: - Register View
 
+/// Native iOS registration screen with clean, familiar design patterns
 struct RegisterView: View {
+
+    // MARK: - State
+
     @StateObject private var authService = AuthService.shared
 
     @State private var username = ""
@@ -32,53 +34,52 @@ struct RegisterView: View {
         case confirmPassword
     }
 
-    let onSwitchToLogin: () -> Void
+    // MARK: - Callbacks
+
+    var onSwitchToLogin: () -> Void
+
+    // MARK: - Body
 
     var body: some View {
         ZStack {
-            AuthAtmosphereBackground()
+            // Native iOS background
+            nativeBackground
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 22) {
-                    headerView
-                    registerForm
-                    registerButton
-                    helperFootnote
-                    switchToLoginLink
+            VStack(spacing: 0) {
+                // Header
+                headerSection
+                    .padding(.top, 60)
+                    .padding(.horizontal, 24)
+
+                // Main content
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        registerForm
+                        registerButton
+                        switchToLogin
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 40)
                 }
-                .frame(maxWidth: 540, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 28)
-                .padding(.bottom, 40)
-                .frame(maxWidth: .infinity)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerScene)
 
+            // Loading overlay
             if authService.isLoading {
-                AuthLoadingOverlay(
-                    title: loc("auth.register.creating"),
-                    subtitle: loc("auth.register.success.message"),
-                    steps: [
-                        "auth.register.loading.step.account".localized,
-                        "auth.register.loading.step.profile".localized,
-                        "auth.register.loading.step.workspace".localized
-                    ],
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.registerLoadingOverlay
-                )
+                nativeLoadingOverlay
             }
         }
-        .alert(loc("error.register.failed"), isPresented: $showingError) {
-            Button("OK", role: .cancel) {
+        .alert("注册失败", isPresented: $showingError) {
+            Button("确定", role: .cancel) {
                 authService.clearError()
             }
         } message: {
             Text(errorMessage)
         }
-        .alert(loc("auth.register.success"), isPresented: $showingSuccess) {
-            Button("OK") {}
+        .alert("注册成功", isPresented: $showingSuccess) {
+            Button("确定") {}
         } message: {
-            Text(loc("auth.register.success.message"))
+            Text("您的账户已创建成功")
         }
         .onChange(of: authService.lastError) { newError in
             if let error = newError {
@@ -88,320 +89,310 @@ struct RegisterView: View {
         }
     }
 
-    private var headerView: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            AuthHeroBadge(icon: "person.crop.circle.badge.plus", title: "auth.register.badge".localized)
+    // MARK: - Background
 
-            HStack(alignment: .center, spacing: 16) {
+    private var nativeBackground: some View {
+        LinearGradient(
+            colors: [
+                .purple.opacity(0.3),
+                .blue.opacity(0.2),
+                .pink.opacity(0.15)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .background(Color(.systemBackground))
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // App icon and welcome
+            HStack(spacing: 16) {
+                // App icon with native iOS styling
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 78, height: 78)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                        )
-
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.22), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 58, height: 58)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 72, height: 72)
 
                     Image(systemName: "person.badge.plus")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(.purple)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(loc("auth.register.title"))
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("创建账户")
+                        .font(.title)
+                        .fontWeight(.bold)
 
-                    Text(loc("auth.register.subtitle"))
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.8))
+                    Text("注册一个新账户")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            Text("auth.register.helper".localized)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.84))
+            // Feature pills (native style)
+            HStack(spacing: 8) {
+                FeaturePill(icon: "checkmark.seal.fill", text: "身份验证")
+                FeaturePill(icon: "person.2.fill", text: "好友配对")
+            }
+
+            Text("注册后即可与 TRIX Bot 配对，开始智能学习之旅")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    AuthFeaturePill(icon: "checkmark.seal.fill", text: "auth.register.feature.identity".localized)
-                    AuthFeaturePill(icon: "person.2.fill", text: "auth.register.feature.companion".localized)
-                }
-                AuthFeaturePill(icon: "book.closed.fill", text: "auth.register.feature.study".localized)
-            }
         }
     }
+
+    // MARK: - Register Form
 
     private var registerForm: some View {
-        AuthFormPanel(
-            title: "auth.register.form.title".localized,
-            subtitle: "auth.register.form.subtitle".localized
-        ) {
-            VStack(spacing: 14) {
-                authTextField(
-                    icon: "person.fill",
-                    placeholder: loc("auth.username.placeholder"),
-                    text: $username,
-                    autocapitalization: false,
-                    textContentType: .username,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.registerUsernameField
-                )
-                .focused($focusedField, equals: .username)
-                .onSubmit {
-                    focusedField = .email
-                }
-
-                authTextField(
-                    icon: "envelope.fill",
-                    placeholder: loc("auth.email.placeholder"),
-                    text: $email,
-                    keyboardType: .emailAddress,
-                    autocapitalization: false,
-                    textContentType: .emailAddress,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.registerEmailField
-                )
-                .focused($focusedField, equals: .email)
-                .onSubmit {
-                    focusedField = .password
-                }
-
-                authSecureField(
-                    icon: "lock.fill",
-                    placeholder: loc("auth.password.placeholder"),
-                    text: $password,
-                    textContentType: .newPassword,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.registerPasswordField
-                )
-                .focused($focusedField, equals: .password)
-                .onSubmit {
-                    focusedField = .confirmPassword
-                }
-
-                authSecureField(
-                    icon: "checkmark.shield.fill",
-                    placeholder: loc("auth.confirm.password"),
-                    text: $confirmPassword,
-                    textContentType: .newPassword,
-                    accessibilityIdentifier: AuthAccessibilityIdentifiers.registerConfirmPasswordField
-                )
-                .focused($focusedField, equals: .confirmPassword)
-                .onSubmit {
-                    focusedField = nil
-                    Task {
-                        await handleRegister()
-                    }
-                }
-            }
-        }
-    }
-
-    private var registerButton: some View {
-        Button {
-            Task {
-                await handleRegister()
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "person.badge.plus.fill")
-                    .font(.system(size: 18, weight: .bold))
-                Text(loc("action.register"))
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(
-                LinearGradient(
-                    colors: [Color.brandPurple, Color.brandPink],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+        VStack(spacing: 16) {
+            // Username field - native iOS style
+            formTextField(
+                icon: "person.fill",
+                placeholder: "用户名",
+                text: $username,
+                textContentType: .username
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color.brandPurple.opacity(0.34), radius: 16, x: 0, y: 10)
-        }
-        .buttonStyle(.plain)
-        .disabled(authService.isLoading)
-        .opacity(authService.isLoading ? 0.7 : 1.0)
-        .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerSubmitButton)
-    }
-
-    private var helperFootnote: some View {
-        Text("auth.register.security.note".localized)
-            .font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(.white.opacity(0.68))
-            .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var switchToLoginLink: some View {
-        Button {
-            onSwitchToLogin()
-        } label: {
-            HStack(spacing: 4) {
-                Text(loc("auth.has.account"))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.86))
-
-                Text(loc("action.login"))
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .underline()
+            .focused($focusedField, equals: .username)
+            .onSubmit {
+                focusedField = .email
             }
-            .frame(maxWidth: .infinity)
+
+            // Email field - native iOS style
+            formTextField(
+                icon: "envelope.fill",
+                placeholder: "邮箱",
+                text: $email,
+                keyboardType: .emailAddress,
+                textContentType: .emailAddress
+            )
+            .focused($focusedField, equals: .email)
+            .onSubmit {
+                focusedField = .password
+            }
+
+            // Password field - native iOS style
+            formSecureField(
+                icon: "lock.fill",
+                placeholder: "密码",
+                text: $password
+            )
+            .focused($focusedField, equals: .password)
+            .onSubmit {
+                focusedField = .confirmPassword
+            }
+
+            // Confirm Password field - native iOS style
+            formSecureField(
+                icon: "checkmark.shield.fill",
+                placeholder: "确认密码",
+                text: $confirmPassword
+            )
+            .focused($focusedField, equals: .confirmPassword)
+            .onSubmit {
+                focusedField = nil
+                Task { await handleRegister() }
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerSwitchToLoginButton)
+        .padding(20)
+        .background(Color(.systemBackground).opacity(0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 
-    private func authTextField(
+    private func formTextField(
         icon: String,
         placeholder: String,
         text: Binding<String>,
         keyboardType: UIKeyboardType = .default,
-        autocapitalization: Bool = true,
-        textContentType: UITextContentType? = nil,
-        accessibilityIdentifier: String
+        textContentType: UITextContentType? = nil
     ) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AuthFormPalette.iconTint)
-                .frame(width: 22)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
 
-            Group {
-                if autocapitalization {
-                    TextField(
-                        "",
-                        text: text,
-                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-                    )
-                        .textInputAutocapitalization(.sentences)
-                } else {
-                    TextField(
-                        "",
-                        text: text,
-                        prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-                    )
-                        .textInputAutocapitalization(.never)
-                }
-            }
-            .font(.system(size: 16, weight: .medium, design: .rounded))
-            .foregroundStyle(AuthFormPalette.primaryText)
-            .keyboardType(keyboardType)
-            .textContentType(textContentType)
-            .tint(Color.brandPurple)
-            .autocorrectionDisabled()
-            .accessibilityIdentifier(accessibilityIdentifier)
+            TextField(placeholder, text: text)
+                .textContentType(textContentType)
+                .keyboardType(keyboardType)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(AuthFormPalette.fieldBackground)
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(focusedField == getField(for: placeholder) ? Color.purple : Color.clear, lineWidth: 2)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func authSecureField(
+    private func getField(for placeholder: String) -> Field? {
+        switch placeholder {
+        case "用户名": return .username
+        case "邮箱": return .email
+        case "密码": return .password
+        case "确认密码": return .confirmPassword
+        default: return nil
+        }
+    }
+
+    private func formSecureField(
         icon: String,
         placeholder: String,
-        text: Binding<String>,
-        textContentType: UITextContentType? = nil,
-        accessibilityIdentifier: String
+        text: Binding<String>
     ) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AuthFormPalette.iconTint)
-                .frame(width: 22)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
 
-            SecureField(
-                "",
-                text: text,
-                prompt: Text(placeholder).foregroundColor(AuthFormPalette.placeholderText)
-            )
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(AuthFormPalette.primaryText)
-                .textContentType(textContentType)
-                .tint(Color.brandPurple)
-                .accessibilityIdentifier(accessibilityIdentifier)
+            SecureField(placeholder, text: text)
+                .textContentType(.newPassword)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .background(AuthFormPalette.fieldBackground)
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuthFormPalette.fieldBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(focusedField == getField(for: placeholder) ? Color.purple : Color.clear, lineWidth: 2)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
+    // MARK: - Register Button
+
+    private var registerButton: some View {
+        Button {
+            Task { await handleRegister() }
+        } label: {
+            HStack {
+                Image(systemName: "person.badge.plus.fill")
+                Text("注册")
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.purple)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .disabled(isSubmitDisabled)
+        .opacity(isSubmitDisabled ? 0.6 : 1)
+    }
+
+    // MARK: - Switch to Login
+
+    private var switchToLogin: some View {
+        HStack(spacing: 4) {
+            Text("已有账户?")
+                .foregroundStyle(.secondary)
+
+            Button("立即登录") {
+                onSwitchToLogin()
+            }
+            .fontWeight(.semibold)
+        }
+        .font(.subheadline)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Loading Overlay
+
+    private var nativeLoadingOverlay: some View {
+        ZStack {
+            Color(.systemBackground)
+                .opacity(0.9)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.purple)
+
+                Text("正在注册...")
+                    .font(.headline)
+
+                Text("请稍候")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(40)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+        }
+    }
+
+    // MARK: - Computed Properties
+
+    private var isSubmitDisabled: Bool {
+        username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        authService.isLoading
+    }
+
+    // MARK: - Actions
+
     private func handleRegister() async {
-        dismissInputFocus()
+        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
-        guard !username.isEmpty else {
-            errorMessage = loc("auth.username.required")
+        let normalizedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedConfirmPassword = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalizedUsername.isEmpty else {
+            errorMessage = "请输入用户名"
             showingError = true
             return
         }
 
-        guard username.count >= 3 else {
-            errorMessage = loc("auth.username.min.length")
+        guard normalizedUsername.count >= 3 else {
+            errorMessage = "用户名至少需要3个字符"
             showingError = true
             return
         }
 
-        guard !email.isEmpty else {
-            errorMessage = loc("auth.email.required")
+        guard !normalizedEmail.isEmpty else {
+            errorMessage = "请输入邮箱地址"
             showingError = true
             return
         }
 
-        guard !password.isEmpty else {
-            errorMessage = loc("auth.password.required")
+        guard !normalizedPassword.isEmpty else {
+            errorMessage = "请输入密码"
             showingError = true
             return
         }
 
-        guard password.count >= 6 else {
-            errorMessage = loc("auth.password.min.length")
+        guard normalizedPassword.count >= 6 else {
+            errorMessage = "密码至少需要6个字符"
             showingError = true
             return
         }
 
-        guard !confirmPassword.isEmpty else {
-            errorMessage = loc("auth.confirm.password.required")
+        guard !normalizedConfirmPassword.isEmpty else {
+            errorMessage = "请确认密码"
             showingError = true
             return
         }
 
-        guard password == confirmPassword else {
-            errorMessage = loc("auth.password.mismatch")
+        guard normalizedPassword == normalizedConfirmPassword else {
+            errorMessage = "两次输入的密码不一致"
             showingError = true
             return
         }
 
         let result = await authService.register(
-            username: username,
-            email: email,
-            password: password
+            username: normalizedUsername,
+            email: normalizedEmail,
+            password: normalizedPassword
         )
 
         switch result {
@@ -412,15 +403,12 @@ struct RegisterView: View {
             showingError = true
         }
     }
-
-    private func dismissInputFocus() {
-        focusedField = nil
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
 }
+
+// MARK: - Preview
 
 #Preview {
     RegisterView {
-        SecureLogger.shared.debug("Switch to login")
+        print("Switch to login")
     }
 }

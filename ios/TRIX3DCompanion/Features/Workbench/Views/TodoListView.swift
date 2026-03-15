@@ -7,14 +7,9 @@
 
 import SwiftUI
 
-// Helper function for localization
-private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
-
 // MARK: - Todo List View
 
-/// Todo list view displaying todo items
+/// Todo list view displaying todo items with native iOS design
 struct TodoListView: View {
 
     // MARK: - Environment
@@ -44,13 +39,13 @@ struct TodoListView: View {
                 // Todo List
                 todoList
             }
-            .background(backgroundGradient)
-            .navigationTitle(loc("todo.title"))
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("待办事项")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button(loc("action.done")) {
+                        Button("完成") {
                             dismiss()
                         }
                     }
@@ -72,11 +67,11 @@ struct TodoListView: View {
                     editingTodo: viewModel.editingTodo
                 )
             }
-            .alert("Error", isPresented: .init(
+            .alert("错误", isPresented: .init(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.clearMessages() } }
             )) {
-                Button("OK") {
+                Button("确定") {
                     viewModel.clearMessages()
                 }
             } message: {
@@ -126,7 +121,7 @@ struct TodoListView: View {
                     .font(.caption)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.gray.opacity(0.15))
+                    .background(Color(.tertiarySystemFill))
                     .clipShape(Capsule())
                 }
             }
@@ -137,28 +132,28 @@ struct TodoListView: View {
 
     /// Statistics section
     private var statsSection: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             StatBadge(
-                title: "Active",
+                title: "进行中",
                 value: viewModel.activeCount,
                 color: .blue
             )
 
             StatBadge(
-                title: "Completed",
+                title: "已完成",
                 value: viewModel.completedCount,
                 color: .green
             )
 
             StatBadge(
-                title: "High Priority",
+                title: "高优先级",
                 value: viewModel.highPriorityCount,
                 color: .red
             )
 
             if viewModel.overdueCount > 0 {
                 StatBadge(
-                    title: "Overdue",
+                    title: "已逾期",
                     value: viewModel.overdueCount,
                     color: .orange
                 )
@@ -184,9 +179,6 @@ struct TodoListView: View {
                                 viewModel.showEditForm(for: todo)
                             }
                         )
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     }
                     .onDelete { indexSet in
                         indexSet.forEach { index in
@@ -195,57 +187,23 @@ struct TodoListView: View {
                         }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .listStyle(.insetGrouped)
             }
         }
     }
 
     /// Empty state view
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "checklist")
-                .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.5))
-
-            Text("No todos yet")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            Text("Tap + to add a new todo")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Button {
+        ContentUnavailableView {
+            Label("暂无待办事项", systemImage: "checklist")
+        } description: {
+            Text("点击右上角按钮添加新待办")
+        } actions: {
+            Button("添加待办") {
                 viewModel.showAddForm()
-            } label: {
-                Text("Add Todo")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.purple)
-                    .clipShape(Capsule())
             }
-            .padding(.top, 8)
-
-            Spacer()
+            .buttonStyle(.borderedProminent)
         }
-    }
-
-    /// Background gradient
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.purple.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
     }
 
     // MARK: - Helper Methods
@@ -257,7 +215,7 @@ struct TodoListView: View {
 
 // MARK: - Filter Chip
 
-/// Filter chip component
+/// Filter chip component with native iOS style
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
@@ -270,7 +228,7 @@ struct FilterChip: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.purple : Color.gray.opacity(0.15))
+                .background(isSelected ? Color.purple : Color(.tertiarySystemFill))
                 .foregroundColor(isSelected ? .white : .primary)
                 .clipShape(Capsule())
         }
@@ -280,7 +238,7 @@ struct FilterChip: View {
 
 // MARK: - Stat Badge
 
-/// Statistics badge component
+/// Statistics badge component with native iOS style
 struct StatBadge: View {
     let title: String
     let value: Int
@@ -306,7 +264,7 @@ struct StatBadge: View {
 
 // MARK: - Todo Row
 
-/// Single todo row component
+/// Single todo row component with native iOS style
 struct TodoRow: View {
     let todo: Todo
     let onToggle: () -> Void
@@ -370,9 +328,7 @@ struct TodoRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()

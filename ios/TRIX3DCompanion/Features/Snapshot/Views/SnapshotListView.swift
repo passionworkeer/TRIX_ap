@@ -7,14 +7,9 @@
 
 import SwiftUI
 
-// Helper function for localization
-private func loc(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
-
 // MARK: - Snapshot List View
 
-/// Photo gallery grid view with infinite scroll
+/// Photo gallery grid view with native iOS design
 struct SnapshotListView: View {
 
     // MARK: - State Objects
@@ -50,7 +45,8 @@ struct SnapshotListView: View {
         NavigationView {
             ZStack {
                 // Background
-                backgroundGradient
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
 
                 // Content
                 if viewModel.isEmpty {
@@ -59,11 +55,11 @@ struct SnapshotListView: View {
                     snapshotGrid
                 }
             }
-            .navigationTitle(loc("snapshot.title"))
+            .navigationTitle("快拍相册")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(loc("action.close")) {
+                    Button("关闭") {
                         dismiss()
                     }
                 }
@@ -79,22 +75,20 @@ struct SnapshotListView: View {
                     SnapshotDetailView(snapshot: snapshot)
                 }
             }
-            .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
-                Button("Delete", role: .destructive) {
+            .confirmationDialog("删除照片", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button("删除", role: .destructive) {
                     if let snapshot = snapshotToDelete {
                         Task {
                             await viewModel.deleteSnapshot(snapshot)
                         }
                     }
                 }
-                Button("Cancel", role: .cancel) {
+                Button("取消", role: .cancel) {
                     snapshotToDelete = nil
                 }
-            } message: {
-                Text("Are you sure you want to delete this photo? This action cannot be undone.")
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK") {
+            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("确定") {
                     viewModel.clearError()
                 }
             } message: {
@@ -107,39 +101,18 @@ struct SnapshotListView: View {
 
     // MARK: - View Components
 
-    /// Background gradient
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.05),
-                Color.brandPink.opacity(0.03),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-
-    /// Empty state view
+    /// Empty state view with native iOS design
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 60))
-                .foregroundColor(.textTertiary)
-
-            VStack(spacing: 8) {
-                Text("No Photos Yet")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("Your captured photos will appear here")
-                    .font(.subheadline)
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
+        ContentUnavailableView {
+            Label("暂无照片", systemImage: "photo.on.rectangle.angled")
+        } description: {
+            Text("您拍摄的照片将显示在这里")
+        } actions: {
+            Button("拍照") {
+                // Navigate to camera
             }
+            .buttonStyle(.borderedProminent)
         }
-        .padding()
     }
 
     /// Snapshot grid view
@@ -174,12 +147,12 @@ struct SnapshotListView: View {
     /// Loading footer
     private var loadingFooter: some View {
         HStack(spacing: 12) {
-            ProgressView(value: 0)
-                .tint(.brandPurple)
+            ProgressView()
+                .tint(.purple)
 
-            Text("Loading more...")
+            Text("正在加载更多...")
                 .font(.subheadline)
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondary)
         }
         .padding(.vertical, 20)
     }
@@ -187,7 +160,7 @@ struct SnapshotListView: View {
 
 // MARK: - Snapshot Cell
 
-/// Grid cell for snapshot thumbnail
+/// Grid cell for snapshot thumbnail with native iOS style
 struct SnapshotCell: View {
     let snapshot: Snapshot
     let onTap: () -> Void
@@ -251,26 +224,26 @@ struct SnapshotCell: View {
     /// Placeholder view
     private var placeholderView: some View {
         ZStack {
-            Color.secondaryBackground
+            Color(.secondarySystemBackground)
 
-            ProgressView(value: 0)
-                .tint(.brandPurple)
+            ProgressView()
+                .tint(.purple)
         }
     }
 
     /// Error view
     private var errorView: some View {
         ZStack {
-            Color.secondaryBackground
+            Color(.secondarySystemBackground)
 
             VStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.title)
-                    .foregroundColor(.textTertiary)
+                    .foregroundColor(.secondary)
 
-                Text("Failed to load")
+                Text("加载失败")
                     .font(.caption2)
-                    .foregroundColor(.textTertiary)
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -284,7 +257,7 @@ struct SnapshotCell: View {
             formatter.timeStyle = .short
             return formatter.string(from: date)
         } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
+            return "昨天"
         } else {
             let formatter = DateFormatter()
             formatter.dateStyle = .short
@@ -295,7 +268,7 @@ struct SnapshotCell: View {
 
 // MARK: - Snapshot Detail View
 
-/// Detail view for single snapshot
+/// Detail view for single snapshot with native iOS design
 struct SnapshotDetailView: View {
     let snapshot: Snapshot
 
@@ -309,7 +282,7 @@ struct SnapshotDetailView: View {
                     AsyncImage(url: URL(string: snapshot.imageUrl)) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView(value: 0)
+                            ProgressView()
                                 .frame(height: 300)
 
                         case .success(let image):
@@ -320,11 +293,11 @@ struct SnapshotDetailView: View {
                         case .failure:
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.system(size: 60))
-                                .foregroundColor(.textTertiary)
+                                .foregroundColor(.secondary)
                                 .frame(height: 300)
 
                         @unknown default:
-                            ProgressView(value: 0)
+                            ProgressView()
                                 .frame(height: 300)
                         }
                     }
@@ -334,9 +307,9 @@ struct SnapshotDetailView: View {
                         // Caption
                         if let caption = snapshot.caption {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Caption")
+                                Text("描述")
                                     .font(.caption)
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.secondary)
 
                                 Text(caption)
                                     .font(.body)
@@ -346,13 +319,13 @@ struct SnapshotDetailView: View {
                         // Location
                         if let locationName = snapshot.locationName {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Location")
+                                Text("位置")
                                     .font(.caption)
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.secondary)
 
                                 HStack(spacing: 6) {
                                     Image(systemName: "mappin.circle.fill")
-                                        .foregroundColor(.brandPurple)
+                                        .foregroundColor(.purple)
                                     Text(locationName)
                                         .font(.body)
                                 }
@@ -361,9 +334,9 @@ struct SnapshotDetailView: View {
 
                         // Date
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Date")
+                            Text("日期")
                                 .font(.caption)
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.secondary)
 
                             Text(snapshot.createdAt.formatted(date: .long, time: .shortened))
                                 .font(.body)
@@ -375,11 +348,11 @@ struct SnapshotDetailView: View {
                     Spacer()
                 }
             }
-            .navigationTitle("Photo Details")
+            .navigationTitle("照片详情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
+                    Button("关闭") {
                         dismiss()
                     }
                 }
@@ -396,9 +369,4 @@ struct SnapshotDetailView: View {
 
 #Preview("Empty State") {
     SnapshotListView()
-}
-
-#Preview("Dark Mode") {
-    SnapshotListView(viewModel: .preview)
-        .preferredColorScheme(.dark)
 }

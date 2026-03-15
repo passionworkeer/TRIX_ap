@@ -2,14 +2,14 @@
 //  StoreView.swift
 //  TRIX3DCompanion
 //
-//  Points Store main view - product listings and navigation
+//  Points Store main view with native iOS design
 //
 
 import SwiftUI
 
 // MARK: - Store View
 
-/// Main store view showing products and subscription options
+/// Main store view showing products and subscription options with native iOS design
 struct StoreView: View {
 
     // MARK: - State
@@ -23,8 +23,8 @@ struct StoreView: View {
     // MARK: - Tabs
 
     enum StoreTab: String, CaseIterable {
-        case points = "Points"
-        case subscription = "Premium"
+        case points = "积分"
+        case subscription = "高级版"
 
         var icon: String {
             switch self {
@@ -66,9 +66,9 @@ struct StoreView: View {
                             .padding(.horizontal)
                     }
                 }
-                .background(Color(UIColor.systemGroupedBackground))
+                .background(Color(.systemGroupedBackground))
             }
-            .navigationTitle("Store")
+            .navigationTitle("商店")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 await viewModel.refreshPoints()
@@ -81,8 +81,8 @@ struct StoreView: View {
             .sheet(isPresented: $showSubscription) {
                 SubscriptionView()
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK") {
+            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("确定") {
                     viewModel.clearError()
                 }
             } message: {
@@ -95,18 +95,16 @@ struct StoreView: View {
 
     // MARK: - View Components
 
-    /// Points balance card
+    /// Points balance card with native iOS style
     private var pointsBalanceCard: some View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "star.fill")
                     .font(.title2)
-                    .foregroundColor(.orange)
-                    .accessibilityLabel("Points")
+                    .foregroundStyle(.orange)
 
-                Text("My Points")
+                Text("我的积分")
                     .font(.headline)
-                    .foregroundColor(.primary)
 
                 Spacer()
 
@@ -118,30 +116,22 @@ struct StoreView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.body)
-                        .foregroundColor(.blue)
-                        .accessibilityLabel("Refresh")
+                        .foregroundStyle(.blue)
                 }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(viewModel.formatPoints(viewModel.userPoints))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
 
-                Text("points")
+                Text("积分")
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(UIColor.separator), lineWidth: 0.5)
-        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     /// Tab picker
@@ -182,95 +172,70 @@ struct StoreView: View {
         .padding(.horizontal)
     }
 
-    /// Premium banner
+    /// Premium banner with native iOS style
     private var premiumBanner: some View {
         VStack(spacing: 12) {
             Image(systemName: "crown.fill")
                 .font(.system(size: 48))
-                .foregroundGradient(
-                    colors: [.yellow, .orange],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                .foregroundStyle(.yellow)
 
-            Text("Go Premium")
+            Text("开通高级版")
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Unlock all features and remove ads")
+            Text("解锁全部功能，移除广告")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             if viewModel.hasActiveSubscription {
                 VStack(spacing: 4) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Active Subscription")
+                            .foregroundStyle(.green)
+                        Text("已订阅")
                             .font(.subheadline)
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                     }
 
                     if let expiryDate = viewModel.subscriptionExpiryDate {
-                        Text("Renews \(expiryDate, style: .date)")
+                        Text("有效期至 \(expiryDate, style: .date)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.green.opacity(0.1))
-                )
+                .background(Color.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.yellow.opacity(0.2), Color.orange.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     /// Info section
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("About Points")
+            Text("关于积分")
                 .font(.headline)
-                .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 8) {
-                InfoRow(icon: "star.fill", title: "Earn Points", description: "Complete study sessions to earn points")
-                InfoRow(icon: "gift.fill", title: "Get Bonuses", description: "Daily login and streaks reward extra points")
-                InfoRow(icon: "cart.fill", title: "Spend Points", description: "Use points to unlock premium content")
+                InfoRow(icon: "star.fill", title: "获取积分", description: "完成学习任务获取积分")
+                InfoRow(icon: "gift.fill", title: "获取奖励", description: "每日登录和连续学习获得额外积分")
+                InfoRow(icon: "cart.fill", title: "消费积分", description: "使用积分解锁高级内容")
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(UIColor.separator), lineWidth: 0.5)
-        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
 // MARK: - Product Card
 
-/// Product card component
+/// Product card component with native iOS style
 struct ProductCard: View {
     let product: StoreProduct
     let onTap: () -> Void
@@ -281,30 +246,26 @@ struct ProductCard: View {
                 // Icon
                 Image(systemName: "star.circle.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
 
                 VStack(alignment: .leading, spacing: 4) {
                     // Product name
                     Text(product.name)
                         .font(.headline)
-                        .foregroundColor(.primary)
 
                     // Product description
                     Text(product.description)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     // Bonus badge
                     if let bonus = bonusPoints {
-                        Text("Bonus +\(bonus) points")
+                        Text("赠送 +\(bonus) 积分")
                             .font(.caption)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(Color.orange)
-                            )
+                            .background(Capsule().fill(Color.orange))
                     }
                 }
 
@@ -315,38 +276,29 @@ struct ProductCard: View {
                     Text(product.price)
                         .font(.title3)
                         .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
 
                     // Points amount
                     if let points = product.points {
-                        Text("\(points) pts")
+                        Text("\(points) 积分")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     // Best value badge
                     if isBestValue {
-                        Text("Best Value")
+                        Text("超值")
                             .font(.caption)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(Color.green)
-                            )
+                            .background(Capsule().fill(Color.green))
                     }
                 }
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(UIColor.secondarySystemGroupedBackground))
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color(UIColor.separator), lineWidth: 0.5)
-            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
     }
@@ -371,7 +323,7 @@ struct ProductCard: View {
 
 // MARK: - Subscription Card
 
-/// Subscription card component
+/// Subscription card component with native iOS style
 struct SubscriptionCard: View {
     let product: StoreProduct
     let onTap: () -> Void
@@ -382,29 +334,24 @@ struct SubscriptionCard: View {
                 // Icon
                 Image(systemName: "crown.fill")
                     .font(.system(size: 48))
-                    .foregroundGradient(
-                        colors: [.yellow, .orange],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    .foregroundStyle(.yellow)
 
                 VStack(alignment: .leading, spacing: 4) {
                     // Product name
                     Text(product.name)
                         .font(.headline)
-                        .foregroundColor(.primary)
 
                     // Period
                     if let period = product.subscriptionPeriod {
                         Text(period.localizedDescription)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     // Features
-                    Text("Full access • Ad-free • Priority support")
+                    Text("全部功能 • 无广告 • 优先支持")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -414,38 +361,29 @@ struct SubscriptionCard: View {
                     Text(product.price)
                         .font(.title3)
                         .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
 
                     // Per period
                     if let period = product.subscriptionPeriod {
-                        Text(period.unit == .year ? "/year" : "/month")
+                        Text(period.unit == .year ? "/年" : "/月")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
 
                     // Popular badge
                     if isPopular {
-                        Text("Popular")
+                        Text("热门")
                             .font(.caption)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(Color.blue)
-                            )
+                            .background(Capsule().fill(Color.blue))
                     }
                 }
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(UIColor.secondarySystemGroupedBackground))
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
     }
@@ -457,7 +395,7 @@ struct SubscriptionCard: View {
 
 // MARK: - Info Row
 
-/// Info row component
+/// Info row component with native iOS style
 struct InfoRow: View {
     let icon: String
     let title: String
@@ -467,7 +405,7 @@ struct InfoRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -477,7 +415,7 @@ struct InfoRow: View {
 
                 Text(description)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()

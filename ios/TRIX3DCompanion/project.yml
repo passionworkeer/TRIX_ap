@@ -2,7 +2,7 @@ name: TRIX3DCompanion
 options:
   bundleIdPrefix: com.trix3d
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "18.0"
   xcodeVersion: "15.0"
   generateEmptyDirectories: true
   groupSortPosition: top

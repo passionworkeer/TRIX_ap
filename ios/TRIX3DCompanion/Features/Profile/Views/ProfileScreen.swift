@@ -2,14 +2,14 @@
 //  NewProfileView.swift
 //  TRIX3DCompanion
 //
-//  Profile main view - comprehensive user profile with stats and actions
+//  Profile main view with native iOS design
 //
 
 import SwiftUI
 
 // MARK: - New Profile View
 
-/// Main profile screen showing user information and quick actions
+/// Main profile screen with native iOS design
 struct NewProfileView: View {
 
     // MARK: - State Objects
@@ -32,8 +32,8 @@ struct NewProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background gradient
-                backgroundGradient
+                // Background
+                Color(.systemGroupedBackground)
                     .ignoresSafeArea()
 
                 // Content
@@ -43,7 +43,7 @@ struct NewProfileView: View {
                     contentView
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("个人资料")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 toolbarContent
@@ -52,11 +52,10 @@ struct NewProfileView: View {
                 EditProfileSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showOpenClawControl) {
-                // OpenClawControlPanel placeholder
                 Text("OpenClaw Control")
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK") {
+            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("确定") {
                     viewModel.clearMessages()
                 }
             } message: {
@@ -77,23 +76,22 @@ struct NewProfileView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button(action: { showEditProfile = true }) {
-                    Label("Edit Profile", systemImage: "pencil")
+                    Label("编辑资料", systemImage: "pencil")
                 }
 
                 Button(action: { /* Settings */ }) {
-                    Label("Settings", systemImage: "gear")
+                    Label("设置", systemImage: "gear")
                 }
 
                 Divider()
 
                 Button(role: .destructive, action: { showDeleteAlert = true }) {
-                    Label("Delete Account", systemImage: "trash")
+                    Label("删除账户", systemImage: "trash")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(.title3)
-                    .foregroundColor(.brandPurple)
-                    .accessibilityLabel("Menu")
+                    .foregroundColor(.purple)
             }
         }
     }
@@ -102,7 +100,7 @@ struct NewProfileView: View {
 
     private var contentView: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 // Profile info card
                 ProfileInfoCard(
                     user: viewModel.user,
@@ -116,25 +114,14 @@ struct NewProfileView: View {
                 )
                 .padding(.horizontal)
 
-                // Quick actions
-                quickActions
-                    .padding(.horizontal)
-
                 // Points card
                 pointsCard
                     .padding(.horizontal)
 
                 // Stats section
                 if let stats = viewModel.userStats {
-                    StatsSection(
-                        totalPoints: viewModel.totalPoints,
-                        level: viewModel.level,
-                        totalStudyTime: viewModel.totalStudyTime,
-                        todayStudyTime: stats.todayDuration,
-                        streakDays: stats.streakDays,
-                        sessionCount: stats.sessionCount
-                    )
-                    .padding(.horizontal)
+                    statsSection(stats: stats)
+                        .padding(.horizontal)
                 }
 
                 // Additional actions
@@ -153,185 +140,166 @@ struct NewProfileView: View {
         }
     }
 
-    private var quickActions: some View {
-        HStack(spacing: 12) {
-            ProfileQuickActionButton(
-                icon: "star.fill",
-                title: "Points",
-                subtitle: "\(viewModel.totalPoints)",
-                color: .yellow
-            ) {
-                // Points history
-            }
-
-            ProfileQuickActionButton(
-                icon: "gearshape.fill",
-                title: "Settings",
-                subtitle: "Preferences",
-                color: .purple
-            ) {
-                // Settings
-            }
-
-            ProfileQuickActionButton(
-                icon: "hand.raised.fill",
-                title: "Privacy",
-                subtitle: "Security",
-                color: .blue
-            ) {
-                // Privacy
-            }
-        }
-    }
-
     private var pointsCard: some View {
-        GlassPanelContainer {
-            VStack(spacing: 16) {
-                // Header
+        VStack(spacing: 16) {
+            // Header
+            HStack {
+                Image(systemName: "star.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.yellow)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("积分余额")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+
+                    Text("等级 \(viewModel.level)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+            }
+
+            // Points display
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(viewModel.totalPoints)")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundStyle(.yellow)
+
+                Text("积分")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+            }
+
+            // Progress bar
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Image(systemName: "star.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Points Balance")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-
-                        Text("Level \(viewModel.level)")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                    }
+                    Text("距离等级 \(viewModel.level + 1)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
                     Spacer()
 
-                    Button(action: { /* History */ }) {
-                        Text("History")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.brandPurple)
-                    }
-                    .buttonStyle(.plain)
+                    Text("\(viewModel.level * 1000 - viewModel.totalPoints) 积分")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
-                // Points display
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(viewModel.totalPoints)")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(.systemGray5))
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.yellow)
+                            .frame(
+                                width: geometry.size.width *
+                                    Double((viewModel.totalPoints % 1000)) / 1000.0
                             )
-                        )
-
-                    Text("pts")
-                        .font(.headline)
-                        .foregroundColor(.textSecondary)
-                }
-
-                // Progress bar
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Progress to Level \(viewModel.level + 1)")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-
-                        Spacer()
-
-                        Text("\(viewModel.level * 1000 - viewModel.totalPoints) pts to go")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
                     }
-
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.gray.opacity(0.2))
-
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.yellow, .orange],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(
-                                    width: geometry.size.width *
-                                        Double((viewModel.totalPoints % 1000)) / 1000.0
-                                )
-                        }
-                        .frame(height: 8)
-                    }
+                    .frame(height: 8)
                 }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func statsSection(stats: UserStats) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("学习统计")
+                .font(.headline)
+                .padding(.horizontal, 4)
+
+            HStack(spacing: 12) {
+                StatCard(
+                    title: "今日学习",
+                    value: formatDuration(stats.todayDuration),
+                    icon: "clock.fill",
+                    color: .blue
+                )
+
+                StatCard(
+                    title: "连续天数",
+                    value: "\(stats.streakDays)",
+                    icon: "flame.fill",
+                    color: .orange
+                )
+
+                StatCard(
+                    title: "学习次数",
+                    value: "\(stats.sessionCount)",
+                    icon: "book.fill",
+                    color: .green
+                )
             }
         }
     }
 
     private var additionalActions: some View {
-        VStack(spacing: 0) {
-            SettingsRow(
-                icon: "trophy.fill",
-                title: "Achievements",
-                description: "View your achievements",
-                color: .yellow,
-                action: { /* TODO: Show achievements */ }
-            )
+        List {
+            Section {
+                Button {
+                    // Points history
+                } label: {
+                    Label("积分历史", systemImage: "star.fill")
+                }
 
-            Divider()
-                .padding(.leading, 60)
+                Button {
+                    // Settings
+                } label: {
+                    Label("设置", systemImage: "gear")
+                }
 
-            SettingsRow(
-                icon: "clock.fill",
-                title: "Study History",
-                description: "View your study sessions",
-                color: .blue,
-                action: { /* TODO: Show study history */ }
-            )
+                Button {
+                    // Privacy
+                } label: {
+                    Label("隐私与安全", systemImage: "hand.raised.fill")
+                }
+            }
 
-            Divider()
-                .padding(.leading, 60)
+            Section {
+                Button {
+                    // Achievements
+                } label: {
+                    Label("成就", systemImage: "trophy.fill")
+                }
 
-            SettingsRow(
-                icon: "robot.fill",
-                title: "OpenClaw 控制面板",
-                description: "远程控制 OpenClaw",
-                color: .orange,
-                action: { showOpenClawControl = true }
-            )
+                Button {
+                    // Study History
+                } label: {
+                    Label("学习历史", systemImage: "clock.fill")
+                }
 
-            Divider()
-                .padding(.leading, 60)
+                Button {
+                    showOpenClawControl = true
+                } label: {
+                    Label("OpenClaw 控制面板", systemImage: "robot.fill")
+                }
+            }
 
-            SettingsRow(
-                icon: "info.circle.fill",
-                title: "About",
-                description: "App version and info",
-                color: .gray,
-                action: { /* About */ }
-            )
+            Section {
+                Button {
+                    // About
+                } label: {
+                    Label("关于", systemImage: "info.circle.fill")
+                }
+            }
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .listStyle(.insetGrouped)
     }
 
     private var versionInfo: some View {
         VStack(spacing: 4) {
             Text("TRIX 3D Companion")
                 .font(.caption)
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondary)
 
-            Text("Version 1.0.0")
+            Text("版本 1.0.0")
                 .font(.caption2)
-                .foregroundColor(.textTertiary)
+                .foregroundColor(Color(.tertiaryLabel))
         }
     }
 
@@ -340,76 +308,21 @@ struct NewProfileView: View {
             ProgressView()
                 .scaleEffect(1.5)
 
-            Text("Loading profile...")
+            Text("加载中...")
                 .font(.subheadline)
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondary)
         }
     }
 
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.brandPurple.opacity(0.1),
-                Color.brandPink.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-}
+    // MARK: - Helper Methods
 
-// MARK: - Quick Action Button
-
-struct ProfileQuickActionButton: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(color.opacity(0.15))
-                        .frame(width: 50, height: 50)
-
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundColor(color)
-                }
-
-                VStack(spacing: 2) {
-                    Text(title)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.1), .clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
+    private func formatDuration(_ duration: Int) -> String {
+        let hours = duration / 3600
+        let minutes = duration / 60 % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
         }
-        .buttonStyle(.plain)
+        return "\(minutes)m"
     }
 }
 
@@ -425,26 +338,26 @@ struct EditProfileSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Display Name") {
-                    TextField("Your display name", text: $displayName)
+                Section("显示名称") {
+                    TextField("您的显示名称", text: $displayName)
                 }
 
-                Section("Bio") {
+                Section("简介") {
                     TextEditor(text: $bio)
                         .frame(minHeight: 100)
                 }
             }
-            .navigationTitle("Edit Profile")
+            .navigationTitle("编辑资料")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button("取消") {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button("保存") {
                         Task {
                             await viewModel.updateDisplayName(displayName)
                             await viewModel.updateBio(bio)
@@ -452,7 +365,7 @@ struct EditProfileSheet: View {
                         }
                     }
                     .fontWeight(.semibold)
-                    .foregroundColor(.brandPurple)
+                    .foregroundColor(.purple)
                 }
             }
         }
@@ -468,30 +381,4 @@ struct EditProfileSheet: View {
 #Preview("Profile View") {
     NewProfileView()
         .environmentObject(AppState.shared)
-}
-
-#Preview("Quick Actions") {
-    HStack(spacing: 12) {
-        ProfileQuickActionButton(
-            icon: "star.fill",
-            title: "Points",
-            subtitle: "2450",
-            color: .yellow
-        ) {}
-
-        ProfileQuickActionButton(
-            icon: "gearshape.fill",
-            title: "Settings",
-            subtitle: "Preferences",
-            color: .purple
-        ) {}
-    }
-    .padding()
-    .background(
-        LinearGradient(
-            colors: [.brandPurple.opacity(0.1), .brandPink.opacity(0.05)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    )
 }
