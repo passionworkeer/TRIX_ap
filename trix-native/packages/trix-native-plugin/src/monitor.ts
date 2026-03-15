@@ -1,13 +1,14 @@
 // ============================================
-// TRIX Native Monitor - WebSocket 长连接接收消息
+// TRIX Native Monitor - Socket.IO 长连接接收消息
 // ============================================
 
+import { io, Socket } from 'socket.io-client';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk';
 
-let ws: WebSocket | null = null;
+let socket: Socket | null = null;
 
 /**
- * 启动 WebSocket 监控服务
+ * 启动 Socket.IO 监控服务
  */
 export async function startMonitor(api: OpenClawPluginApi, ctx: any): Promise<void> {
   console.log('[TRIX Native Monitor] Starting...');
@@ -35,18 +36,26 @@ export async function startMonitor(api: OpenClawPluginApi, ctx: any): Promise<vo
 
     console.log('[TRIX Native Monitor] Connecting to:', wsUrl);
 
-    // 建立 WebSocket 连接
-    ws = new WebSocket(wsUrl);
+    // 建立 Socket.IO 连接
+    socket = io(wsUrl, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000
+    });
 
-    ws.onopen = () => {
-      console.log('[TRIX Native Monitor] WebSocket connected');
-    };
+    socket.on('connect', () => {
+      console.log('[TRIX Native Monitor] Socket.IO connected');
+    });
 
-    ws.onmessage = async (event) => {
+    socket.on('connected', (data) => {
+      console.log('[TRIX Native Monitor] Device connected:', data.deviceId, data.deviceName);
+    });
+
+    socket.on('message', (data: any) => {
+      console.log('[TRIX Native Monitor] Received message:', data.type || 'unknown');
+
       try {
-        const data = JSON.parse(event.data.toString());
-        console.log('[TRIX Native Monitor] Received:', data.type);
-
         if (data.type === 'message' || data.messages) {
           const messages = data.messages || [data];
 
@@ -64,31 +73,33 @@ export async function startMonitor(api: OpenClawPluginApi, ctx: any): Promise<vo
           }
         }
       } catch (error) {
-        console.error('[TRIX Native Monitor] Failed to parse message:', error);
+        console.error('[TRIX Native Monitor] Failed to dispatch message:', error);
       }
-    };
+    });
 
-    ws.onerror = (error) => {
-      console.error('[TRIX Native Monitor] WebSocket error:', error);
-    };
+    socket.on('error', (error: any) => {
+      console.error('[TRIX Native Monitor] Socket.IO error:', error);
+    });
 
-    ws.onclose = () => {
-      console.log('[TRIX Native Monitor] WebSocket closed, reconnecting in 5s...');
-      // 断线后 5 秒重连
-      setTimeout(() => startMonitor(api, ctx), 5000);
-    };
+    socket.on('disconnect', (reason) => {
+      console.log('[TRIX Native Monitor] Socket.IO disconnected:', reason);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('[TRIX Native Monitor] Connection error:', error.message);
+    });
   } catch (error) {
     console.error('[TRIX Native Monitor] Failed to start:', error);
   }
 }
 
 /**
- * 停止 WebSocket 连接
+ * 停止 Socket.IO 连接
  */
 export function stopMonitor(): void {
-  if (ws) {
-    ws.close();
-    ws = null;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
     console.log('[TRIX Native Monitor] Stopped');
   }
 }
