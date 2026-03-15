@@ -590,5 +590,46 @@ WHERE points > 0;
 
 ---
 
-**最后更新**: 2026-03-04
-**版本**: 2.0
+## 9. SQLite 本地数据库 (TRIX Native)
+
+TRIX Native Server 使用 SQLite 进行本地数据持久化。
+
+### 9.1 表结构
+
+#### pairings 表 (配对信息)
+
+```sql
+CREATE TABLE pairings (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  device_id TEXT,
+  device_name TEXT,
+  status TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  paired_at INTEGER,
+  websocket_url TEXT,
+  client_token TEXT
+);
+```
+
+#### messages 表 (消息存储)
+
+```sql
+CREATE TABLE messages (
+  id TEXT PRIMARY KEY,
+  pairing_id TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  text TEXT,
+  attachments TEXT,
+  sender_id TEXT,
+  sender_name TEXT,
+  created_at INTEGER NOT NULL,
+  status TEXT DEFAULT 'pending'
+);
+```
+
+---
+
+**最后更新**: 2026-03-15
+**版本**: 2.1
