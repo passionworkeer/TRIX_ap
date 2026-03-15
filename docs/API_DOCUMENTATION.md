@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
-> 版本: 1.1.0
-> 最后更新: 2026-03-03
+> 版本: 1.2.0
+> 最后更新: 2026-03-15
 
 ---
 
@@ -11,9 +11,10 @@
 2. [基础配置](#基础配置)
 3. [认证](#认证)
 4. [API 端点列表](#api-端点列表)
-5. [响应格式](#响应格式)
-6. [错误码](#错误码)
-7. [数据库表结构](#数据库表结构)
+5. [TRIX Native Server API](#trix-native-server-api)
+6. [响应格式](#响应格式)
+7. [错误码](#错误码)
+8. [数据库表结构](#数据库表结构)
 
 ---
 
@@ -21,11 +22,18 @@
 
 本 API 为 TRIX3D 应用提供后端服务，支持用户管理、社交、学习、商城等功能。
 
+### 服务端口
+
+| 服务 | 端口 | 描述 |
+|------|------|------|
+| Clawbot Channel | 8765 | AI 对话服务 |
+| TRIX Native Server | 8788 | iOS-Web 消息同步 |
+
 ### 技术栈
 
 - **运行时**: Node.js
 - **框架**: Express.js
-- **数据库**: PostgreSQL (Supabase)
+- **数据库**: PostgreSQL (Supabase) + SQLite (本地)
 - **实时通信**: Socket.io
 
 ---
@@ -34,10 +42,12 @@
 
 ### 基础 URL
 
-| 环境 | URL |
-|------|-----|
-| 开发环境 | `http://TRIX_SERVER_HOST:8765/api` |
-| 生产环境 | `https://api.trix3d.com/api` |
+| 环境 | 服务 | URL |
+|------|------|-----|
+| 开发环境 | Clawbot Channel | `http://TRIX_SERVER_HOST:8765/api` |
+| 生产环境 | Clawbot Channel | `https://api.trix3d.com/api` |
+| 开发环境 | TRIX Native | `http://TRIX_SERVER_HOST:8788/api` |
+| 生产环境 | TRIX Native | `https://trix-native.trix3d.com/api` |
 
 ### 请求头
 
@@ -349,6 +359,55 @@ curl -X GET http://TRIX_SERVER_HOST:8765/api/user/profile \
 | POST | `/study/goals` | ✅ | 创建学习目标 |
 | PUT | `/study/goals/:id` | ✅ | 更新学习目标 |
 | DELETE | `/study/goals/:id` | ✅ | 删除学习目标 |
+
+---
+
+## TRIX Native Server API
+
+TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息同步。
+
+### 配对相关
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/pairings` | 生成配对码 |
+| GET | `/api/pairings/:code` | 查询配对状态 |
+| POST | `/api/pairings/:code/claim` | 确认配对 |
+
+### 认证
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/auth` | 认证获取 token |
+
+### 消息
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/messages/from-plugin` | Plugin 发送消息到手机 |
+| GET | `/api/messages/to-plugin` | Plugin 拉取手机消息 |
+
+### 文件上传
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/upload` | 上传图片/音频/视频/文件 |
+
+### WebSocket
+
+| 路径 | 描述 |
+|------|------|
+| `/ws/phone?code=XXX` | iOS 连接，实时接收消息 |
+| `/ws/plugin?token=XXX` | OpenClaw Plugin 连接 |
+
+### 配对码流程
+
+```
+1. iOS 生成配对码 → POST /api/pairings
+2. Web 前端输入配对码 → GET /api/pairings/:code
+3. iOS 确认配对 → POST /api/pairings/:code/claim
+4. 双方建立 WebSocket 连接 → /ws/phone
+```
 
 ---
 

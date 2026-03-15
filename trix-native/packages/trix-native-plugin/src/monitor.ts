@@ -60,8 +60,8 @@ export async function startMonitor(api: OpenClawPluginApi, ctx: any): Promise<vo
           const messages = data.messages || [data];
 
           for (const msg of messages) {
-            // 注入 OpenClaw，触发 Agent 处理
-            ctx.dispatch({
+            // 构建 dispatch 消息
+            const dispatchData = {
               channel: 'trix-native',
               accountId: 'default',
               conversationId: msg.conversationId || creds.deviceId,
@@ -69,7 +69,13 @@ export async function startMonitor(api: OpenClawPluginApi, ctx: any): Promise<vo
               text: msg.text,
               attachments: msg.attachments,
               timestamp: msg.timestamp || Date.now()
-            });
+            };
+
+            // 调试日志：打印 dispatch 数据格式
+            console.log('[TRIX Native Monitor] dispatching:', JSON.stringify(dispatchData, null, 2));
+
+            // 注入 OpenClaw，触发 Agent 处理
+            ctx.dispatch(dispatchData);
           }
         }
       } catch (error) {

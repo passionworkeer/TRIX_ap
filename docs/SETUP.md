@@ -276,6 +276,18 @@ npm run dev
 
 服务器将在 `http://localhost:8765` 启动。
 
+### TRIX Native Server (端口 8788)
+
+TRIX Native Server 提供 iOS 与 Web 的双向消息同步。
+
+```bash
+cd trix-native/packages/trix-native-server
+npm install
+npm run dev
+```
+
+服务器将在 `http://localhost:8788` 启动。
+
 ### 主要 API 模块
 
 | 模块 | 前缀 | 描述 |

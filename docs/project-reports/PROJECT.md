@@ -1,8 +1,8 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-02-22
+> **最后更新**: 2026-03-15
 > **版本**: v1.0
-> **技术栈**: React 19 + TypeScript + Vite 6 + Supabase
+> **技术栈**: React 19 + TypeScript + Vite 6 + Supabase + SwiftUI
 
 ---
 
@@ -14,6 +14,7 @@
 
 - 🎭 **Zero UI 设计** - 首页仅展示全屏 3D 角色，点击后显示功能面板
 - 🤖 **AI 对话** - 通过 WebSocket 连接 Clawbot Gateway，实现流式 AI 响应
+- 📱 **TRIX Native** - 通过 OpenClaw 平台实现 iOS 与 Web 双向消息同步
 - 👥 **社交功能** - 好友聊天、实时消息、未读提醒
 - ⏱️ **学习计时** - 番茄钟学习工具，支持状态同步和虚拟自习室
 - 🗣️ **语音交互** - TTS 语音合成（豆包集成）、语音识别
@@ -42,7 +43,7 @@
 ```
 trix-3d-companion/
 ├── src/                          # 前端源代码
-│   ├── components/               # UI 组件 (27个)
+│   ├── components/               # UI 组件 (60+)
 │   │   ├── common/               # 通用组件
 │   │   ├── layout/               # 布局组件
 │   │   ├── modals/               # 模态框
@@ -116,7 +117,7 @@ trix-3d-companion/
 │   └── App.tsx                   # 主应用组件
 │
 ├── server/                       # 后端服务器
-│   └── clawbot-channel/          # Clawbot Channel 服务
+│   └── clawbot-channel/          # Clawbot Channel 服务 (端口 8765)
 │       ├── server.js             # 主服务入口
 │       ├── config/               # 配置
 │       │   └── database.js       # 数据库配置
@@ -126,6 +127,22 @@ trix-3d-companion/
 │       │   ├── ossService.js     # OSS 服务
 │       │   └── ttsService.js     # TTS 服务
 │       └── tests/                # 测试
+│
+├── trix-native/                  # TRIX Native (OpenClaw 集成)
+│   ├── packages/
+│   │   ├── trix-native-server/  # Node.js 服务器 (端口 8788)
+│   │   │   ├── src/
+│   │   │   │   ├── index.ts    # 入口
+│   │   │   │   ├── app.ts      # Express 应用
+│   │   │   │   ├── routes/     # API 路由
+│   │   │   │   ├── services/   # 服务层 (SQLiteStore, MessageService, PairingService)
+│   │   │   │   └── websocket/  # WebSocket 处理
+│   │   │   └── data/           # SQLite 数据库
+│   │   └── trix-native-plugin/ # OpenClaw 插件
+│   │       ├── src/
+│   │       │   ├── index.ts    # 插件入口
+│   │       │   └── setup.ts    # 配对设置
+│   │       └── package.json    # 已发布到 npm
 │
 ├── database/                     # 数据库脚本
 │   ├── INIT_ALL.sql              # 统一初始化脚本

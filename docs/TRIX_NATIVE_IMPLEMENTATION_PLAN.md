@@ -1,7 +1,7 @@
 # TRIX Native OpenClaw Channel - 完整实施计划
 
 > 项目目标: 构建完整的 TRIX Native Channel，使任何安装了 OpenClaw 的用户可通过一行命令快速连接，支持完整多模态消息收发
-> 版本: 1.0 | 更新: 2024-03-14
+> 版本: 1.0 | 更新: 2026-03-14
 
 ---
 
@@ -115,7 +115,7 @@ OpenClaw → 手机:
 | 服务器运行时 | Node.js 20 LTS | 与现有项目统一,生态成熟 |
 | Web框架 | Express 5 | 轻量,灵活,中间件丰富 |
 | 实时通信 | Socket.IO 4 | 自动重连,房间管理,跨浏览器 |
-| 数据库 | Redis (消息队列) + PostgreSQL (持久化) | Redis高性能队列,PG可靠存储 |
+| 数据库 | SQLite (本地持久化) | 轻量,无需额外服务,内置于 Node.js |
 | 文件存储 | 本地磁盘 + Nginx | 简单可靠,配合CDN |
 | Plugin开发 | TypeScript 5.8 | 类型安全,OpenClaw SDK兼容 |
 | iOS开发 | SwiftUI + Combine | 与现有项目统一 |
