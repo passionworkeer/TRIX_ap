@@ -42,6 +42,17 @@
   "peerDependencies": {
     "openclaw": ">=2026.3.8"
   },
+  "openclaw": {
+    "extensions": ["./src/index.ts"],
+    "channel": {
+      "id": "trix-native",
+      "label": "TRIX Native",
+      "aliases": ["trix", "native"]
+    },
+    "install": {
+      "npmSpec": "@trix-app/openclaw-native-channel"
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@types/qrcode": "^1.5.5",

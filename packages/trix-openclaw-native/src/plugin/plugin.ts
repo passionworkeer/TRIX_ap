@@ -145,6 +145,8 @@ export function createTrixNativePlugin() {
         return { connected: false, message: 'Timed out waiting for TRIX Native pairing.' };
       },
       startAccount: async (ctx: Record<string, unknown>) => {
+        const log = (ctx.log as { info?: (msg: string) => void } | undefined) ?? {};
+        log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
         const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
         const effectiveAccount = {
           ...account,
