@@ -8,6 +8,12 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Content View
 
 /// Root view that determines whether to show auth or main app
@@ -189,7 +195,7 @@ struct ContentViewWithLoading: View {
                 .scaleEffect(1.5)
                 .tint(.white)
 
-            Text("Loading...")
+            Text(L("common.loading"))
                 .font(.headlineStyle)
                 .foregroundStyle(.white)
         }

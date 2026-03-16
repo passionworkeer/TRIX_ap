@@ -8,8 +8,9 @@
 import SwiftUI
 import MapKit
 
-// Helper function for localization
-private func loc(_ key: String) -> String {
+// MARK: - Localization Helper
+
+private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
@@ -67,19 +68,19 @@ struct LocationPickerView: View {
                     selectedLocationInfo(coordinate: location)
                 }
             }
-            .navigationTitle(loc("location.pick"))
+            .navigationTitle(L("location.pick"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if showAsSheet {
-                        Button(loc("action.cancel")) {
+                        Button(L("action.cancel")) {
                             dismiss()
                         }
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(loc("action.done")) {
+                    Button(L("action.done")) {
                         // Handle done action
                         if showAsSheet {
                             dismiss()
@@ -98,7 +99,7 @@ struct LocationPickerView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
 
-            TextField("Search for a place", text: $searchText)
+            TextField(L("location.search"), text: $searchText)
                 .textFieldStyle(.plain)
         }
         .padding(12)
@@ -131,7 +132,7 @@ struct LocationPickerView: View {
                 Image(systemName: "location.fill")
                     .foregroundColor(.purple)
 
-                Text("Selected Location")
+                Text(L("location.selected"))
                     .font(.headline)
 
                 Spacer()
