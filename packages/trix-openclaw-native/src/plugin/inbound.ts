@@ -139,139 +139,96 @@ async function dispatchInboundMessage(params: {
   });
 }
 
-export async function startInboundMonitor(gatewayContext: Record<string, unknown>, account: ResolvedPluginAccount): Promise<void> {
+export async function startInboundMonitor(
+  gatewayContext: Record<string, unknown>,
+  account: ResolvedPluginAccount
+): Promise<void> {
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
-  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
-  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(account.adminToken ?? '')}&accountId=${encodeURIComponent(account.accountId)}`;
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
+  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
+  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
+    account.adminToken ?? ''
+  )}&accountId=${encodeURIComponent(account.accountId)}`;
 
-  let isReconnecting = false;
-  let reconnectAttempts = 0;
-  const maxReconnectAttempts = 10;
-  const baseReconnectDelayMs = 1000;
-  const maxReconnectDelayMs = 30000;
+  // stopped = true 时不再重连，也不处理任何消息
+  let stopped = false;
+  // 当前活跃的 socket，用于 abort 时主动关闭
+  let currentSocket: WebSocket | null = null;
 
-  // 记录通道状态变化
-  function logChannelStatus(online: boolean): void {
-    if (online) {
-      log.info?.(`TRIX Native channel is now online (${account.accountId})`);
-    } else {
-      log.warn?.(`TRIX Native channel is now offline (${account.accountId})`);
-    }
-  }
-
-  // 创建 WebSocket 连接
-  function createSocket(): WebSocket {
-    return new WebSocket(wsUrl);
-  }
-
-  // 处理入站消息
-  async function handleMessage(data: WebSocket.RawData): Promise<void> {
-    try {
-      const envelope = JSON.parse(data.toString()) as ClientEnvelope<{ message?: MessageRecord }>;
-      if (envelope.type !== 'message.created' || !envelope.payload.message) {
-        return;
-      }
-      if (envelope.payload.message.direction !== 'inbound') {
-        return;
-      }
-      await dispatchInboundMessage({
-        gatewayContext,
-        account,
-        message: envelope.payload.message,
-      });
-    } catch (error) {
-      log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
-    }
-  }
-
-  // 启动 WebSocket 监听
-  async function startListening(socket: WebSocket): Promise<void> {
-    socket.on('message', handleMessage);
-
-    socket.on('close', (code, reason) => {
-      // 忽略主动关闭（code 1000 是正常关闭）
-      if (code === 1000) {
-        log.info?.(`TRIX Native websocket closed normally (${account.accountId}): ${reason}`);
-        return;
-      }
-
-      log.warn?.(`TRIX Native websocket disconnected (${account.accountId}): code=${code}, reason=${reason}`);
-      logChannelStatus(false);
-
-      // 如果不是主动关闭，尝试重连
-      if (!isReconnecting && !abortSignal?.aborted) {
-        scheduleReconnect();
-      }
-    });
-
-    socket.on('error', (error) => {
-      log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(error)}`);
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      socket.once('open', () => {
-        log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
-        logChannelStatus(true);
-        reconnectAttempts = 0; // 重置重连计数
-        resolve();
-      });
-      socket.once('error', (error) => {
-        reject(error);
-      });
-    });
-  }
-
-  // 调度重连
-  function scheduleReconnect(): void {
-    if (isReconnecting || abortSignal?.aborted) {
-      return;
-    }
-
-    isReconnecting = true;
-    reconnectAttempts++;
-
-    // 计算延迟（指数退避）
-    const delay = Math.min(
-      baseReconnectDelayMs * Math.pow(2, reconnectAttempts - 1),
-      maxReconnectDelayMs
-    );
-
-    log.info?.(`TRIX Native scheduling reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms (${account.accountId})`);
-
-    setTimeout(async () => {
-      if (abortSignal?.aborted) {
-        isReconnecting = false;
-        return;
-      }
-
-      try {
-        log.info?.(`TRIX Native reconnecting (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
-        const newSocket = createSocket();
-        await startListening(newSocket);
-        log.info?.(`TRIX Native reconnected successfully (${account.accountId})`);
-        isReconnecting = false;
-        reconnectAttempts = 0;
-      } catch (error) {
-        log.error?.(`TRIX Native reconnection failed (attempt ${reconnectAttempts}/${maxReconnectAttempts}): ${String(error)}`);
-        isReconnecting = false;
-
-        // 如果还有重试次数，继续调度
-        if (reconnectAttempts < maxReconnectAttempts && !abortSignal?.aborted) {
-          scheduleReconnect();
-        } else if (reconnectAttempts >= maxReconnectAttempts) {
-          log.error?.(`TRIX Native max reconnection attempts reached, giving up (${account.accountId})`);
-        }
-      }
-    }, delay);
-  }
-
-  // 创建初始连接
-  const socket = createSocket();
-  await startListening(socket);
-
-  // 监听 abort 信号
+  // abort 信号：标记停止，关闭当前 socket
   abortSignal?.addEventListener('abort', () => {
-    socket.close(1000, 'plugin stop');
+    stopped = true;
+    currentSocket?.close(1000, 'plugin stop');
+    currentSocket = null;
   });
+
+  async function connect(): Promise<void> {
+    if (stopped) return;
+
+    const socket = new WebSocket(wsUrl);
+    currentSocket = socket;
+
+    // 消息处理
+    socket.on('message', async (data) => {
+      if (stopped) return;
+      try {
+        const envelope = JSON.parse(data.toString()) as ClientEnvelope<{
+          message?: MessageRecord;
+        }>;
+        if (envelope.type !== 'message.created' || !envelope.payload.message) return;
+        if (envelope.payload.message.direction !== 'inbound') return;
+        await dispatchInboundMessage({
+          gatewayContext,
+          account,
+          message: envelope.payload.message,
+        });
+      } catch (error) {
+        log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
+      }
+    });
+
+    // 关闭处理：code 1000 是主动关闭，不重连
+    // 其他 code 是异常断开，5 秒后重连一次
+    socket.on('close', (code) => {
+      if (currentSocket === socket) currentSocket = null;
+      if (stopped || code === 1000) {
+        log.info?.(`TRIX Native websocket closed normally (${account.accountId})`);
+        return;
+      }
+      log.warn?.(
+        `TRIX Native websocket closed unexpectedly (code=${code}), ` +
+        `reconnecting in 5s... (${account.accountId})`
+      );
+      setTimeout(() => {
+        connect().catch((err) => {
+          log.error?.(`TRIX Native reconnect failed: ${String(err)}`);
+        });
+      }, 5000);
+    });
+
+    // 运行时错误只记录，不抛出（避免崩溃 gateway）
+    socket.on('error', (err) => {
+      log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(err)}`);
+    });
+
+    // 等待初始连接建立
+    // 用互相清理的方式避免 open/error 竞争条件
+    await new Promise<void>((resolve, reject) => {
+      function onOpen() {
+        socket.removeListener('error', onError);
+        log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
+        resolve();
+      }
+      function onError(err: Error) {
+        socket.removeListener('open', onOpen);
+        currentSocket = null;
+        reject(err);
+      }
+      socket.once('open', onOpen);
+      socket.once('error', onError);
+    });
+  }
+
+  // 首次连接失败直接抛出，让 gateway 知道启动失败
+  await connect();
 }
