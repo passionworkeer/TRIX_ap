@@ -9,6 +9,9 @@ import type {
 } from '../types.js';
 import { resolveOpenClawCompat } from './sdk.js';
 
+// 防止重复启动的 Map
+const activeMonitors = new Map<string, boolean>();
+
 type LogSink = {
   info?: (message: string) => void;
   warn?: (message: string) => void;
@@ -144,11 +147,29 @@ export async function startInboundMonitor(
   account: ResolvedPluginAccount
 ): Promise<void> {
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
+
+  // 防止重复启动
+  const key = account.accountId;
+  if (activeMonitors.get(key)) {
+    log.info?.(`Inbound monitor already running for ${key}, skipping`);
+    return;
+  }
+  activeMonitors.set(key, true);
+
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
   const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
   const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
     account.adminToken ?? ''
   )}&accountId=${encodeURIComponent(account.accountId)}`;
+
+  // 清理函数
+  const cleanup = () => {
+    activeMonitors.delete(key);
+  };
+
+  abortSignal?.addEventListener('abort', () => {
+    cleanup();
+  });
 
   // stopped = true 时不再重连，也不处理任何消息
   let stopped = false;

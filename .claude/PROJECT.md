@@ -26,13 +26,13 @@
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Web 前端 (React)                     │
-│  src/screens/  src/components/  src/services/  src/    │
+│  src/screens/  src/components/  src/services/          │
 └──────────────────────┬──────────────────────────────────┘
                       │ WebSocket + REST
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│              后端服务 (Node.js + Express)               │
-│         server/clawbot-channel/ (端口 8765)            │
+│              TRIX Native Server (独立部署)              │
+│         配对服务 / 消息中继 / 设备管理                   │
 └──────────────────────┬──────────────────────────────────┘
                       │ REST
                       ▼
@@ -54,7 +54,8 @@
 |------|------|------|
 | Web 前端 | `src/` | React 组件和服务 |
 | iOS | `ios/TRIX3DCompanion/` | SwiftUI 代码 |
-| 后端 | `server/clawbot-channel/` | Express API |
+| OpenClaw 插件 | `packages/trix-openclaw-native/` | TRIX Native Channel |
+| 中继客户端 | `packages/trix-relay-client/` | WebSocket 中继 |
 | 数据库 | `database/init/` | SQL 初始化脚本 |
 | 文档 | `docs/` | 完整项目文档 |
 | 配置 | `.claude/` | Claude Code 配置 |
@@ -66,7 +67,7 @@
 | 功能 | 描述 | 关键文件 |
 |------|------|---------|
 | Zero UI 首页 | 全屏 3D 角色，点击显示面板 | `src/screens/Home.tsx` |
-| AI 对话 | WebSocket 流式响应 | `src/contexts/ClawbotChannelContext.tsx` |
+| AI 对话 | WebSocket 流式响应 | `src/services/TrixNativeChannelClient.ts` |
 | 好友聊天 | 实时消息 + 未读计数 | `src/screens/Chat.tsx` |
 | 学习计时 | 番茄钟 + 虚拟自习室 | `src/screens/Study.tsx` |
 | 位置共享 | Leaflet 地图 | `src/screens/SnapMapScreen.tsx` |
@@ -193,28 +194,6 @@ xcodegen generate
 
 详见: `docs/DATABASE_SCHEMA.md`
 
-基础 URL: `http://TRIX_SERVER_HOST:8765` (开发) / `https://api.trix3d.com/api` (生产)
-
-| 模块 | 前缀 | 主要端点 |
-|------|------|---------|
-| 用户 | `/user` | profile, stats, settings, avatar |
-| 好友 | `/friends` | list, request, accept, decline |
-| 聊天 | `/chat` | rooms, messages, read |
-| 学习 | `/study` | sessions, rooms, stats, goals, history |
-| 日程 | `/schedules` | CRUD, range, upcoming |
-| 待办 | `/todos` | CRUD, toggle |
-| 成就 | `/achievements` | list, check, unlock |
-| 商城 | `/mall` | items, purchase, history |
-| 衣柜 | `/wardrobe` | outfits, equip, unequip |
-| 积分 | `/points` | get, history, add, deduct |
-| 配对 | `/pairing` | request, confirm, devices |
-| 通知 | `/notifications` | list, read, settings |
-| 地点 | `/places` | nearby, search, favorites |
-| 位置 | `/locations` | share, list |
-| 快照 | `/snapshots` | CRUD |
-| AI 对话 | `/clawbot` | conversations, messages |
-| 未读 | `/unread` | counts, read-all |
-
 ---
 
 ## 🛠️ 常用命令
@@ -229,13 +208,12 @@ npm run test:e2e         # E2E 测试
 npm run lint             # 代码检查
 npm run type-check       # 类型检查
 
-# 后端开发
-cd server/clawbot-channel
-npm run dev              # 启动后端服务
-
 # iOS (macOS only)
 cd ios
 xcodegen generate        # 生成 Xcode 项目
+
+# 包管理
+npm run build:packages   # 构建 packages
 ```
 
 ---
@@ -247,9 +225,6 @@ xcodegen generate        # 生成 Xcode 项目
 ```env
 VITE_SUPABASE_URL=<supabase-url>
 VITE_SUPABASE_ANON_KEY=<supabase-anon-key>
-VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
-VITE_GATEWAY_WS_URL=ws://localhost:18789
-VITE_GATEWAY_AUTH_TOKEN=<token>
 VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
@@ -306,4 +281,4 @@ VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 
 ---
 
-**最后更新**: 2026-03-08
+**最后更新**: 2026-03-16
