@@ -14,6 +14,10 @@ private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
+private func L(_ key: String, _ value: String) -> String {
+    String(format: NSLocalizedString(key, comment: ""), value)
+}
+
 // MARK: - Subscription View
 
 /// View for purchasing premium subscription
@@ -158,7 +162,7 @@ struct SubscriptionView: View {
                 }
                 Button(L("action.cancel"), role: .cancel) {}
             } message: { plan in
-                Text("You will be charged \(plan.displayPrice) for \(plan.period). Auto-renews until cancelled.")
+                Text(String(format: L("store.subscription.charged"), plan.displayPrice, plan.period))
             }
             .sheet(isPresented: $showPaymentResult) {
                 if let result = purchaseResult {

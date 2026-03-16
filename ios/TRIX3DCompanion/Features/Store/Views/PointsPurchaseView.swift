@@ -14,6 +14,10 @@ private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
+private func L(_ key: String, _ value: String) -> String {
+    String(format: NSLocalizedString(key, comment: ""), value)
+}
+
 // MARK: - Points Purchase View
 
 /// View for purchasing points packages
@@ -135,7 +139,7 @@ struct PointsPurchaseView: View {
                 }
                 Button(L("action.cancel"), role: .cancel) {}
             } message: { package in
-                Text("You will be charged \(package.displayPrice) for \(package.totalPoints) points")
+                Text(String(format: L("store.points.charged"), package.displayPrice, package.totalPoints))
             }
             .sheet(isPresented: $showPaymentResult) {
                 if let result = purchaseResult {
