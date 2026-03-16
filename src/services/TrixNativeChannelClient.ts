@@ -205,7 +205,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     ? rawMessage.createdAt
     : new Date(rawMessage.createdAt).getTime();
   // 处理 direction 字段，可能来自不同的服务器实现
-  const direction = rawMessage.direction || (rawMessage as any).from === 'agent' ? 'outbound' : 'inbound';
+  const direction = rawMessage.direction || ((rawMessage as any).from === 'agent' ? 'outbound' : 'inbound');
   return {
     id: rawMessage.id,
     content: rawMessage.text,
@@ -216,7 +216,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     attachments,
     metadata: rawMessage.metadata,
     timestamp,
-    sender: direction === 'outbound' ? 'user' : 'bot',
+    sender: direction === 'inbound' ? 'user' : 'bot',
   };
 }
 

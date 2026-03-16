@@ -224,7 +224,18 @@ export async function startInboundMonitor(
         currentSocket = null;
         reject(err);
       }
-      socket.once('open', onOpen);
+      socket.once('open', () => {
+        onOpen();
+        // 每 30 秒发一次心跳，防止服务器超时断开
+        const heartbeat = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.ping();
+          } else {
+            clearInterval(heartbeat);
+          }
+        }, 30000);
+        socket.once('close', () => clearInterval(heartbeat));
+      });
       socket.once('error', onError);
     });
   }

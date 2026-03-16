@@ -367,6 +367,11 @@ export class TrixNativeServer {
       clientId,
     });
 
+    // 响应客户端 ping，保持连接活跃
+    socket.on('ping', () => {
+      socket.pong();
+    });
+
     socket.send(
       JSON.stringify({
         type: 'connected',
