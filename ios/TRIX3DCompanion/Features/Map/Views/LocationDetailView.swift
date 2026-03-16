@@ -13,6 +13,10 @@ private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
+private func L(_ key: String, _ value: String) -> String {
+    String(format: NSLocalizedString(key, comment: ""), value)
+}
+
 // MARK: - Location Detail View
 
 /// Location detail sheet with actions
@@ -76,7 +80,7 @@ struct LocationDetailView: View {
             }
             Button(L("action.cancel"), role: .cancel) {}
         } message: {
-            Text("Share this location with your companion?")
+            Text(L("location.share.question"))
         }
         .alert(L("location.check.in"), isPresented: $showCheckInConfirmation) {
             Button(L("location.check.in")) {
@@ -84,7 +88,7 @@ struct LocationDetailView: View {
             }
             Button(L("action.cancel"), role: .cancel) {}
         } message: {
-            Text("Check in at \(location.name)?")
+            Text(L("location.check.in.question", location.name))
         }
     }
 
@@ -223,7 +227,7 @@ struct LocationDetailView: View {
     /// Map preview section
     private var mapPreviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Location Preview")
+            Text(L("location.preview"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
