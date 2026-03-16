@@ -2,27 +2,36 @@
 
 ## ⚡ 30 秒快速启动
 
-### 第 1 步：PC 端启动（10 秒）
+### 第 1 步：启动 TRIX Native Server（10 秒）
 
 ```bash
-# 在 OpenClaw 中输入：
-启动 TRIX Channel
+# 方式 1: 使用 CLI 启动
+cd packages/trix-openclaw-native
+npm run cli -- server start --port 8788
 
-# 等待看到：
-✅ TRIX Channel 已启动
-📡 服务器: http://TRIX_SERVER_HOST:8765
+# 方式 2: 使用 OpenClaw 插件
+openclaw trix setup
+```
+
+服务器启动后会显示：
+```
+✅ TRIX Native Server 已启动
+📡 服务器: http://localhost:8788
 ```
 
 ### 第 2 步：生成配对码（5 秒）
 
-```bash
-# 在 OpenClaw 中输入：
-生成 TRIX 配对码
+在 OpenClaw 中：
+```
+# 生成配对码
+openclaw trix pair
+```
 
-# 会显示：
+会显示：
+```
 ✅ 配对码已生成！
 📱 配对码：ABC123
-⏰ 有效期：5分钟
+⏰ 有效期：30分钟
 ```
 
 ### 第 3 步：App 配对（15 秒）
@@ -30,9 +39,10 @@
 ```
 1. 打开 TRIX App
 2. 进入配对页面
-3. 输入配对码：ABC123
-4. 点击确认配对
-5. ✅ 配对成功！
+3. 选择"扫码配对"或"手动输入"
+4. 输入配对码：ABC123
+5. 点击确认配对
+6. ✅ 配对成功！
 ```
 
 ---
@@ -47,7 +57,7 @@ App 发送：你好
 
 ### 测试 2：Bot 响应
 ```
-PC 端：OpenClaw 自动回复
+OpenClaw: 自动回复
 ✅ App 应该收到回复
 ```
 
@@ -55,7 +65,7 @@ PC 端：OpenClaw 自动回复
 ```
 1. App 发送消息
 2. 立即锁屏/切后台
-3. PC 端回复
+3. OpenClaw 回复
 4. 解锁/切回 App
 5. ✅ 消息应该自动出现！
 ```
@@ -64,20 +74,20 @@ PC 端：OpenClaw 自动回复
 
 ## 🔧 如果遇到问题
 
-### PC 端无法启动
+### 服务器无法启动
 
-**检查 OpenClaw Gateway**：
+**检查端口占用**：
 ```bash
 # Windows
-netstat -ano | findstr 18789
+netstat -ano | findstr 8788
 
 # Linux/Mac
-lsof -i :18789
+lsof -i :8788
 ```
 
 **解决方案**：
-- 确保 OpenClaw 正在运行
-- Gateway 默认端口：18789
+- 确保端口 8788 未被占用
+- 检查 Node.js 版本 >= 18
 
 ### App 无法配对
 
@@ -88,21 +98,25 @@ ping TRIX_SERVER_HOST
 
 **检查服务器状态**：
 ```bash
-curl http://TRIX_SERVER_HOST:8765/health
+curl http://TRIX_SERVER_HOST:8788/health
 ```
 
 ### 消息收不到
 
 **查看服务器日志**：
 ```bash
+# 本地
+pm2 logs trix-native
+
+# 远程服务器
 ssh root@TRIX_SERVER_HOST
-pm2 logs clawbot-channel --lines 100
+pm2 logs trix-native --lines 100
 ```
 
 **查看关键词**：
-- `app_message` - App 发来的消息
-- `bot_response` - Bot 的回复
-- `消息已保存` - 消息落库成功
+- `收到配对请求` - 配对流程
+- `配对成功` - 配对完成
+- `收到消息` - App 发来的消息
 
 ---
 
@@ -110,7 +124,7 @@ pm2 logs clawbot-channel --lines 100
 
 | 操作 | 预期时间 |
 |------|----------|
-| 启动 Channel | ~3 秒 |
+| 启动 Server | ~3 秒 |
 | 生成配对码 | ~1 秒 |
 | App 配对 | ~2 秒 |
 | 消息延迟 | ~100ms |
@@ -123,19 +137,19 @@ pm2 logs clawbot-channel --lines 100
 
 当你看到以下日志时，说明系统运行正常：
 
-### PC 端
+### 服务端
 ```
-✅ TRIX Channel 已启动
-♻️  恢复配对: pair_xxx
+✅ TRIX Native Server 已启动
+📡 端口: 8788
+✅ 配对成功: device_xxx
 📩 收到 App 消息: ...
 ```
 
-### 服务器端
+### OpenClaw 端
 ```
-✅ 消息表已就绪
-📩 收到 Bot 响应
-✅ Bot 消息已保存到数据库
-➡️  已转发给 App
+✅ TRIX Native Channel 已连接
+♻️  恢复配对: pair_xxx
+📩 收到 App 消息: ...
 ```
 
 ### App 端
@@ -154,33 +168,40 @@ pm2 logs clawbot-channel --lines 100
 ### 1. 连接问题
 ```bash
 # 测试服务器连通性
-curl -I http://TRIX_SERVER_HOST:8765
+curl -I http://TRIX_SERVER_HOST:8788/health
 
-# 预期：HTTP 200 OK
+# 预期：{"status":"ok"}
 ```
 
 ### 2. 配对问题
 ```bash
-# 检查配对状态
-# App 端查看 localStorage
-localStorage.getItem('clawbot_paired')
-# 应该返回："true"
+# 检查配对状态 API
+curl http://TRIX_SERVER_HOST:8788/api/pairings/{CODE}
+
+# 预期：{"code":"XXX","status":"paired"}
 ```
 
 ### 3. 消息问题
 ```bash
 # 测试消息同步 API
-curl "http://TRIX_SERVER_HOST:8765/api/messages/sync?userId=test&lastTimestamp=0"
+curl "http://TRIX_SERVER_HOST:8788/api/messages/{CONVERSATION_ID}" \
+  -H "x-trix-client-token: {TOKEN}"
 
 # 预期：{"success":true,"messages":[...]}
 ```
 
 ---
 
-## 🎊 完成！
+## 📚 相关文档
 
-**如果以上所有测试都通过，恭喜你！三端联通系统已成功运行！** 🎉
+| 文档 | 说明 |
+|------|------|
+| [docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md) | 完整配对架构 |
+| [docs/guides/QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 扫码配对指南 |
+| [docs/guides/PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 手动输入配对 |
 
 ---
 
-**需要帮助？** 查看 [THREE_TIER_TEST_GUIDE.md](THREE_TIER_TEST_GUIDE.md) 完整测试指南
+## 🎊 完成！
+
+**如果以上所有测试都通过，恭喜你！三端联通系统已成功运行！** 🎉

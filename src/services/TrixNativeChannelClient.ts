@@ -216,7 +216,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     attachments,
     metadata: rawMessage.metadata,
     timestamp,
-    sender: direction === 'outbound' ? 'bot' : 'user',
+    sender: direction === 'outbound' ? 'user' : 'bot',
   };
 }
 
@@ -651,7 +651,7 @@ class TrixNativeChannelClient {
       body: JSON.stringify({
         conversationId: session.conversationId,
         clientToken: session.clientToken,
-        direction: 'inbound',
+        direction: 'outbound',
         senderId: session.clientId,
         senderName: session.deviceName || defaultDeviceName(),
         text: params.text,

@@ -212,14 +212,16 @@ src/
 
 ## 4. 核心服务
 
-### 4.1 ClawbotChannelBridge (WebSocket 通信)
+### 4.1 TrixNativeChannelClient (TRIX Native 通信)
 
-**功能**: 与 clawbot-channel 服务器建立 WebSocket 连接，实现实时消息收发。
+**功能**: 与 TRIX Native Server 服务器建立 WebSocket 连接，实现实时消息收发。
+
+> **注意**: 旧版 `ClawbotChannelBridge` 已废弃，请使用 `TrixNativeChannelClient`。
 
 ```typescript
 // 核心功能
-class ClawbotChannelBridge {
-  private socket: Socket;
+class TrixNativeChannelClient {
+  private ws: WebSocket;
 
   // 连接服务器
   connect(url: string): void;

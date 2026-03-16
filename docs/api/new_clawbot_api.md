@@ -1,20 +1,22 @@
-# Clawbot Channel API 文档
+# Clawbot Channel API 文档 (已废弃)
 
-> **版本**: v2.0
-> **最后更新**: 2026-02-22
-> **服务器**: `server/clawbot-channel/`
+> **⚠️ 注意**: 此文档已废弃，旧版 `server/clawbot-channel` 已停用。
+>
+> 请使用新版 **TRIX Native Channel** API，详见：
+> - [docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md](../requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md)
+> - [docs/api/API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 
 ---
 
 ## 🌐 基础信息
 
-### 服务端口
+### 服务端口 (旧版)
 ```
 HTTP:  8765
 WebSocket: 8765 (同一端口)
 ```
 
-### 基础 URL
+### 基础 URL (旧版)
 ```
 开发环境: http://localhost:8765
 生产环境: http://TRIX_SERVER_HOST:8765
@@ -22,12 +24,9 @@ WebSocket: 8765 (同一端口)
 
 ---
 
-## 📡 HTTP API
+## 📡 TRIX Native Server API
 
-### 健康检查
-
-```
-GET /health
+请参考 [TRIX_NATIVE_PAIRING_ARCHITECTURE.md](../requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md) 获取最新的 API 文档。
 ```
 
 **响应**:
@@ -423,17 +422,28 @@ pm2 start ecosystem.config.js
 # 查看状态
 pm2 status
 
-# 查看日志
-pm2 logs clawbot-channel
+# 查看 TRIX Native 日志
+pm2 logs trix-native
 
-# 重启服务
-pm2 restart clawbot-channel
+# 重启 TRIX Native 服务
+pm2 restart trix-native
+```
+
+### TRIX Native Server 启动
+
+```bash
+cd packages/trix-openclaw-native
+npm run cli -- server start --port 8788
 ```
 
 ### 健康检查
 
 ```bash
+# Clawbot Channel (旧版)
 curl http://localhost:8765/health
+
+# TRIX Native Server (新版)
+curl http://localhost:8788/health
 ```
 
 ---

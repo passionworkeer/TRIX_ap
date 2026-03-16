@@ -143,14 +143,30 @@ export async function startInboundMonitor(gatewayContext: Record<string, unknown
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
   const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
   const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(account.adminToken ?? '')}&accountId=${encodeURIComponent(account.accountId)}`;
-  const socket = new WebSocket(wsUrl);
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
 
-  abortSignal?.addEventListener('abort', () => {
-    socket.close(1000, 'plugin stop');
-  });
+  let isReconnecting = false;
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 10;
+  const baseReconnectDelayMs = 1000;
+  const maxReconnectDelayMs = 30000;
 
-  socket.on('message', async (data) => {
+  // 记录通道状态变化
+  function logChannelStatus(online: boolean): void {
+    if (online) {
+      log.info?.(`TRIX Native channel is now online (${account.accountId})`);
+    } else {
+      log.warn?.(`TRIX Native channel is now offline (${account.accountId})`);
+    }
+  }
+
+  // 创建 WebSocket 连接
+  function createSocket(): WebSocket {
+    return new WebSocket(wsUrl);
+  }
+
+  // 处理入站消息
+  async function handleMessage(data: WebSocket.RawData): Promise<void> {
     try {
       const envelope = JSON.parse(data.toString()) as ClientEnvelope<{ message?: MessageRecord }>;
       if (envelope.type !== 'message.created' || !envelope.payload.message) {
@@ -167,15 +183,95 @@ export async function startInboundMonitor(gatewayContext: Record<string, unknown
     } catch (error) {
       log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
     }
-  });
+  }
 
-  await new Promise<void>((resolve, reject) => {
-    socket.once('open', () => {
-      log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
-      resolve();
+  // 启动 WebSocket 监听
+  async function startListening(socket: WebSocket): Promise<void> {
+    socket.on('message', handleMessage);
+
+    socket.on('close', (code, reason) => {
+      // 忽略主动关闭（code 1000 是正常关闭）
+      if (code === 1000) {
+        log.info?.(`TRIX Native websocket closed normally (${account.accountId}): ${reason}`);
+        return;
+      }
+
+      log.warn?.(`TRIX Native websocket disconnected (${account.accountId}): code=${code}, reason=${reason}`);
+      logChannelStatus(false);
+
+      // 如果不是主动关闭，尝试重连
+      if (!isReconnecting && !abortSignal?.aborted) {
+        scheduleReconnect();
+      }
     });
-    socket.once('error', (error) => {
-      reject(error);
+
+    socket.on('error', (error) => {
+      log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(error)}`);
     });
+
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => {
+        log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
+        logChannelStatus(true);
+        reconnectAttempts = 0; // 重置重连计数
+        resolve();
+      });
+      socket.once('error', (error) => {
+        reject(error);
+      });
+    });
+  }
+
+  // 调度重连
+  function scheduleReconnect(): void {
+    if (isReconnecting || abortSignal?.aborted) {
+      return;
+    }
+
+    isReconnecting = true;
+    reconnectAttempts++;
+
+    // 计算延迟（指数退避）
+    const delay = Math.min(
+      baseReconnectDelayMs * Math.pow(2, reconnectAttempts - 1),
+      maxReconnectDelayMs
+    );
+
+    log.info?.(`TRIX Native scheduling reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms (${account.accountId})`);
+
+    setTimeout(async () => {
+      if (abortSignal?.aborted) {
+        isReconnecting = false;
+        return;
+      }
+
+      try {
+        log.info?.(`TRIX Native reconnecting (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
+        const newSocket = createSocket();
+        await startListening(newSocket);
+        log.info?.(`TRIX Native reconnected successfully (${account.accountId})`);
+        isReconnecting = false;
+        reconnectAttempts = 0;
+      } catch (error) {
+        log.error?.(`TRIX Native reconnection failed (attempt ${reconnectAttempts}/${maxReconnectAttempts}): ${String(error)}`);
+        isReconnecting = false;
+
+        // 如果还有重试次数，继续调度
+        if (reconnectAttempts < maxReconnectAttempts && !abortSignal?.aborted) {
+          scheduleReconnect();
+        } else if (reconnectAttempts >= maxReconnectAttempts) {
+          log.error?.(`TRIX Native max reconnection attempts reached, giving up (${account.accountId})`);
+        }
+      }
+    }, delay);
+  }
+
+  // 创建初始连接
+  const socket = createSocket();
+  await startListening(socket);
+
+  // 监听 abort 信号
+  abortSignal?.addEventListener('abort', () => {
+    socket.close(1000, 'plugin stop');
   });
 }

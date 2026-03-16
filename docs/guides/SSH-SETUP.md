@@ -40,7 +40,8 @@ ssh trix-server "echo '免密登录成功！'"
 配置完成后，Claude 可以直接使用：
 ```bash
 ssh trix-server "tail -100 /path/to/log"
-ssh trix-server "systemctl status clawbot-channel"
+ssh trix-server "pm2 status"
+ssh trix-server "pm2 logs trix-native"
 ```
 
 ## Post-Quantum 警告说明

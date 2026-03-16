@@ -132,26 +132,28 @@ TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息�
 ## 3. 目录结构
 
 ```
-server/clawbot-channel/
-├── server.js                    # 主服务器入口
-├── config/
-│   └── database.js             # SQLite 数据库配置
-├── services/
-│   ├── pairingService.js       # 配对服务
-│   ├── messageService.js       # 消息服务
-│   ├── ossService.js           # 阿里云 OSS 服务
-│   ├── ttsService.js           # 语音合成服务
-│   ├── ttsTextSanitizer.js     # TTS 文本清理
-│   └── studyRoomService.js     # 学习室服务
-├── data/                       # SQLite 数据目录
-│   └── pairing.db              # 配对数据库
-├── tests/                      # 测试文件
-│   ├── *.test.js
-├── .env                        # 环境变量
-├── package.json                 # 依赖配置
-├── ecosystem.config.js         # PM2 配置
+packages/trix-openclaw-native/          # TRIX Native Channel 插件
+├── src/
+│   ├── plugin/                         # OpenClaw 插件接口
+│   │   ├── plugin.ts                   # 插件主入口
+│   │   ├── accounts.ts                 # 账号管理
+│   │   ├── inbound.ts                  # 消息入站
+│   │   └── outbound.ts                 # 消息出站
+│   ├── server/                        # TRIX Native Server
+│   │   ├── TrixNativeServer.ts        # 服务器主入口
+│   │   ├── routes/                    # API 路由
+│   │   └── websocket/                 # WebSocket 处理
+│   ├── pairing/                       # 配对服务
+│   │   └── PairingService.ts
+│   ├── storage/                       # 存储服务
+│   │   └── JsonStateStore.ts          # JSON 状态存储
+│   └── types.ts                       # 类型定义
+├── cli.ts                             # CLI 入口
+├── package.json                       # 依赖配置
 └── README.md
 ```
+
+> **注意**: 旧版 `server/clawbot-channel/` 已废弃，相关功能已迁移到 `packages/trix-openclaw-native/`
 
 ---
 
@@ -497,23 +499,23 @@ const io = new Server(server, {
 
 ## 8. 部署
 
-### 8.1 PM2 配置
+### 8.1 PM2 配置 (TRIX Native Server)
 
 ```javascript
 // ecosystem.config.js
 module.exports = {
   apps: [{
-    name: 'clawbot-channel',
-    script: './server.js',
+    name: 'trix-native',
+    script: './dist/server/TrixNativeServer.js',
     instances: 1,
     exec_mode: 'fork',
     env: {
       NODE_ENV: 'development',
-      PORT: 8765
+      PORT: 8788
     },
     env_production: {
       NODE_ENV: 'production',
-      PORT: 8765
+      PORT: 8788
     },
     error_file: './logs/error.log',
     out_file: './logs/out.log',
@@ -527,39 +529,38 @@ module.exports = {
 
 ```bash
 # 开发环境
-npm start
+cd packages/trix-openclaw-native
+npm run cli -- server start --port 8788
 
 # 生产环境 (PM2)
 pm2 start ecosystem.config.js --env production
 
 # 日志查看
-pm2 logs clawbot-channel
+pm2 logs trix-native
 
 # 重启
-pm2 restart clawbot-channel
+pm2 restart trix-native
 
 # 停止
-pm2 stop clawbot-channel
+pm2 stop trix-native
 ```
 
 ### 8.3 环境变量
 
 ```bash
 # Server
-PORT=8765
+PORT=8788
 NODE_ENV=production
 
-# CORS (逗号分隔)
-CORS_ORIGINS=https://example.com,https://app.example.com
+# TRIX Native
+TRIX_NATIVE_ADMIN_TOKEN=your-admin-token
+TRIX_NATIVE_PUBLIC_BASE_URL=http://TRIX_SERVER_HOST:8788
+TRIX_NATIVE_STORAGE_DIR=./.trix-native-channel
 
-# Database
-DATABASE_PATH=./data/pairing.db
-
-# Message
-MESSAGE_DEDUP_TTL_MS=10000
-
-#
-GATEWAY OpenClaw Gateway_URL=ws://127.0.0.1:18789
+# OpenClaw Gateway
+GATEWAY_URL=ws://127.0.0.1:18789
+GATEWAY_AUTH_TOKEN=your-auth-token
+```
 
 # Aliyun OSS
 ALIYUN_ACCESS_KEY_ID=xxx

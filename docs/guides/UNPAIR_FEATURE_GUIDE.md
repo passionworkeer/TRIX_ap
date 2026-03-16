@@ -265,7 +265,7 @@
 
 3. **服务器日志**：
    ```bash
-   ssh root@TRIX_SERVER_HOST "pm2 logs clawbot-channel --lines 50"
+   ssh root@TRIX_SERVER_HOST "pm2 logs trix-native --lines 50"
    ```
 
 ---

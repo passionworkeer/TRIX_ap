@@ -30,8 +30,8 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-repo/trix-3d-companion.git
-cd trix-3d-companion
+git clone https://github.com/passionworkeer/TRIX_ap.git
+cd TRIX_ap
 ```
 
 ### 2. 安装依赖
@@ -40,10 +40,9 @@ cd trix-3d-companion
 # 前端依赖
 npm install
 
-# 后端依赖 (可选，如需本地运行服务端)
-cd server/clawbot-channel
+# 安装 OpenClaw 插件 (可选)
+cd packages/trix-openclaw-native
 npm install
-cd ../..
 ```
 
 ### 3. 配置环境变量
@@ -70,22 +69,17 @@ VITE_GATEWAY_WS_URL=ws://localhost:18789
 VITE_GATEWAY_AUTH_TOKEN=your-dev-token
 
 # ===================
-# 生产环境配置 (可选)
+# TRIX Native Channel (可选，本地开发)
 # ===================
-VITE_CLAWBOT_CHANNEL_URL=https://api.trix3d.com/api
-VITE_GATEWAY_WS_URL=wss://gateway.trix3d.com
+VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
-> ⚠️ **注意**: 生产环境的 `VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 不能使用 `localhost` 或 `127.0.0.1`。
+> ⚠️ **注意**: 生产环境的 URL 不能使用 `localhost` 或 `127.0.0.1`。
 
 ### 4. 启动开发服务器
 
 ```bash
 # 前端开发服务器 (默认 http://localhost:5173)
-npm run dev
-
-# 后端开发服务器 (可选，如需本地运行 API)
-cd server/clawbot-channel
 npm run dev
 ```
 
@@ -97,33 +91,24 @@ npm run dev
 trix-3d-companion/
 ├── src/                    # React Web 前端
 │   ├── screens/           # 页面组件 (18个)
-│   ├── components/        # UI 组件 (48个)
+│   ├── components/        # UI 组件 (60+)
 │   ├── contexts/          # React Context (6个)
-│   ├── features/          # 功能模块 (5个)
-│   ├── services/          # 业务服务 (26个)
-│   ├── hooks/             # 自定义 Hooks (12个)
-│   ├── types/             # TypeScript 类型
-│   ├── utils/             # 工具函数
-│   └── lib/               # 库配置
+│   ├── services/         # 业务服务 (30+)
+│   ├── hooks/            # 自定义 Hooks (12+)
+│   ├── types/            # TypeScript 类型
+│   ├── utils/            # 工具函数
+│   └── lib/              # 库配置
 │
-├── ios/                   # SwiftUI iOS 应用
+├── ios/                   # SwiftUI iOS 应用 (25,000+ 行)
 │   └── TRIX3DCompanion/
 │       ├── App/           # 应用主程序
 │       ├── Core/          # 核心功能
 │       ├── Features/      # 功能模块
-│       ├── Shared/        # 共享代码
-│       └── ...
+│       └── Shared/        # 共享代码
 │
-├── server/                # Node.js 后端
-│   └── clawbot-channel/
-│       ├── routes/        # API 路由
-│       │   ├── mvp.js    # 核心 API
-│       │   ├── extended.js # 扩展 API
-│       │   └── supplement.js # 补充 API
-│       ├── services/      # 业务逻辑
-│       ├── middleware/    # 中间件
-│       ├── server.js      # 入口文件
-│       └── package.json
+├── packages/              # NPM 包
+│   ├── trix-openclaw-native/  # OpenClaw 原生通道插件 ⭐
+│   └── trix-relay-client/    # Gateway 中继客户端
 │
 ├── database/              # 数据库脚本
 │   └── init/
@@ -185,20 +170,8 @@ npm run test:unit:coverage
 # 运行冒烟测试
 npm run test:smoke
 
-# 运行服务端测试
-npm run test:server
-
-# 运行 API 集成测试
-npm run test:api
-
 # 运行 E2E 测试
 npm run test:e2e
-
-# 运行 E2E 测试 (UI 模式)
-npm run test:e2e:ui
-
-# 运行 E2E 测试 (调试模式)
-npm run test:e2e:debug
 
 # 运行全部测试
 npm run test:all
@@ -260,56 +233,48 @@ xcodegen generate
 supabase db reset
 ```
 
-数据库 Schema 详见: `docs/DATABASE_SCHEMA.md`
+数据库 Schema 详见: `docs/database/DATABASE_SCHEMA.md`
 
 ---
 
-## 🔌 后端服务 (可选)
+## 🔌 TRIX Native Channel
 
-### 本地运行
+TRIX Native Channel 是项目的核心配对系统，提供 iOS 与 Web 的双向消息同步。
 
-```bash
-cd server/clawbot-channel
-npm install
-npm run dev
+### 架构
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   iOS App   │────►│  TRIX Native     │────►│  OpenClaw       │
+│             │◄────│  Server          │◄────│  Gateway        │
+└─────────────┘     │  (端口 8788)    │     │  (端口 18789)   │
+                    └──────────────────┘     └─────────────────┘
 ```
 
-服务器将在 `http://localhost:8765` 启动。
-
-### TRIX Native Server (端口 8788)
-
-TRIX Native Server 提供 iOS 与 Web 的双向消息同步。
+### 本地运行 TRIX Native Server
 
 ```bash
-cd trix-native/packages/trix-native-server
-npm install
-npm run dev
+# 使用 CLI 启动
+cd packages/trix-openclaw-native
+npm run cli -- server start --port 8788
 ```
 
-服务器将在 `http://localhost:8788` 启动。
+或通过 OpenClaw 插件运行：
 
-### 主要 API 模块
+```bash
+# 安装插件后使用
+openclaw plugins install ./packages/trix-openclaw-native
+openclaw trix setup
+```
 
-| 模块 | 前缀 | 描述 |
-|------|------|------|
-| 用户 | `/user` | 用户资料管理 |
-| 好友 | `/friends` | 好友关系 |
-| 聊天 | `/chat` | 实时消息 |
-| 学习 | `/study` | 学习记录、自习室、目标 |
-| 日程 | `/schedules` | 日程管理 |
-| 待办 | `/todos` | 待办管理 |
-| 成就 | `/achievements` | 成就系统 |
-| 商城 | `/mall` | 商品购买 |
-| 衣柜 | `/wardrobe` | 虚拟装扮 |
-| 积分 | `/points` | 积分系统 |
-| 配对 | `/pairing` | 设备配对 |
-| 通知 | `/notifications` | 推送通知 |
-| 地点 | `/places` | 地点搜索收藏 |
-| 位置 | `/locations` | 位置共享 |
-| 快照 | `/snapshots` | 截图功能 |
-| AI 对话 | `/clawbot` | AI 对话 |
+### 配对方式
 
-完整 API 文档: [API.md](./API.md)
+| 方式 | 描述 |
+|------|------|
+| QR 码扫描 | 使用手机扫描电脑上的配对 QR 码 |
+| 手动输入 | 输入 6 位配对码完成配对 |
+
+详见: `docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md`
 
 ---
 
@@ -334,11 +299,11 @@ npm run dev
 2. 确认 Xcode 版本 >= 15
 3. 运行 `xcodegen generate` 重新生成项目
 
-### Q: 后端 API 报错
+### Q: TRIX Native 配对失败
 
-1. 确认后端服务已启动
-2. 检查端口 8765 是否被占用
-3. 查看后端日志排查问题
+1. 确认 TRIX Native Server 已启动 (`http://localhost:8788`)
+2. 检查防火墙设置
+3. 查看服务器日志排查问题
 
 ---
 
@@ -346,11 +311,11 @@ npm run dev
 
 | 文档 | 说明 |
 |------|------|
-| [README.md](./README.md) | 项目概览 |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南 |
-| [API.md](./API.md) | API 快速参考 |
-| [docs/INDEX.md](./docs/INDEX.md) | 完整文档索引 |
+| [README.md](../README.md) | 项目概览 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指南 |
+| [docs/INDEX.md](./INDEX.md) | 完整文档索引 |
+| [docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md) | TRIX Native 配对架构 |
 
 ---
 
-**最后更新**: 2026-03-08
+**最后更新**: 2026-03-16
