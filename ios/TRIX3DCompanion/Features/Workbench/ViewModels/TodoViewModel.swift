@@ -9,6 +9,13 @@ import Foundation
 import UIKit
 import Combine
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Todo View Model
 
 /// Todo view model managing todo items state and operations
@@ -112,7 +119,7 @@ final class TodoViewModel: ObservableObject {
                 let created = try await todoService.createTodo(request)
                 todos.append(created)
                 isLoading = false
-                successMessage = "Todo added successfully"
+                successMessage = L("todo.add.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -138,7 +145,7 @@ final class TodoViewModel: ObservableObject {
                     todos[index] = updated
                 }
                 isLoading = false
-                successMessage = "Todo updated successfully"
+                successMessage = L("todo.edit.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -155,7 +162,7 @@ final class TodoViewModel: ObservableObject {
                 try await todoService.deleteTodo(id: id.uuidString)
                 todos.removeAll { $0.id == id }
                 isLoading = false
-                successMessage = "Todo deleted"
+                successMessage = L("todo.delete.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -184,7 +191,7 @@ final class TodoViewModel: ObservableObject {
         for id in completedIds {
             deleteTodo(id)
         }
-        successMessage = "Completed todos cleared"
+        successMessage = L("todo.completed.cleared")
     }
 
     // MARK: - Public Methods - Form
@@ -273,7 +280,7 @@ final class TodoViewModel: ObservableObject {
             } catch {
                 isLoading = false
                 // Silent fail - keep existing data or empty array
-                errorMessage = "Failed to load todos: \(error.localizedDescription)"
+                errorMessage = String(format: L("todo.load.error"), error.localizedDescription)
             }
         }
     }

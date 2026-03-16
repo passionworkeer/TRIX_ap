@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Workbench Card Model
 
 struct WorkbenchCardModel: Identifiable, Hashable {
@@ -26,28 +33,28 @@ struct WorkbenchCardModel: Identifiable, Hashable {
 
     static let cards: [WorkbenchCardModel] = [
         WorkbenchCardModel(
-            title: NSLocalizedString("workbench.snapshot", comment: ""),
+            title: L("workbench.snapshot"),
             icon: "camera.fill",
             iconColor: .orange,
             gradientColors: [Color.orange.opacity(0.8), Color.red.opacity(0.6)],
             action: .snapshot
         ),
         WorkbenchCardModel(
-            title: NSLocalizedString("workbench.location", comment: ""),
+            title: L("workbench.location"),
             icon: "location.fill",
             iconColor: .green,
             gradientColors: [Color.green.opacity(0.8), Color.teal.opacity(0.6)],
             action: .location
         ),
         WorkbenchCardModel(
-            title: NSLocalizedString("workbench.schedule", comment: ""),
+            title: L("workbench.schedule"),
             icon: "calendar",
             iconColor: .blue,
             gradientColors: [Color.blue.opacity(0.8), Color.indigo.opacity(0.6)],
             action: .schedule
         ),
         WorkbenchCardModel(
-            title: NSLocalizedString("workbench.todo", comment: ""),
+            title: L("workbench.todo"),
             icon: "checklist",
             iconColor: .purple,
             gradientColors: [Color.purple.opacity(0.8), Color.pink.opacity(0.6)],
@@ -113,11 +120,11 @@ struct WorkbenchView: View {
 
     private var titleSection: some View {
         VStack(spacing: 4) {
-            Text(NSLocalizedString("workbench.title", comment: ""))
+            Text(L("workbench.title"))
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text(NSLocalizedString("workbench.subtitle", comment: ""))
+            Text(L("workbench.subtitle"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }

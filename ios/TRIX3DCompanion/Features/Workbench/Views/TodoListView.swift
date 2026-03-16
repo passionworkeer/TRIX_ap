@@ -153,14 +153,14 @@ struct TodoListView: View {
             )
 
             StatBadge(
-                title: "高优先级",
+                title: L("todo.high.priority"),
                 value: viewModel.highPriorityCount,
                 color: .red
             )
 
             if viewModel.overdueCount > 0 {
                 StatBadge(
-                    title: "已逾期",
+                    title: L("todo.overdue"),
                     value: viewModel.overdueCount,
                     color: .orange
                 )

@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Todo Form View
 
 /// Form view for adding/editing todo items
@@ -62,12 +69,12 @@ struct TodoFormView: View {
             Form {
                 // Title Section
                 Section {
-                    TextField("Todo title", text: $title)
+                    TextField(L("todo.title"), text: $title)
                         .font(.body)
                 } header: {
-                    Text("Title")
+                    Text(L("todo.title.label"))
                 } footer: {
-                    Text("Enter a brief title for your todo")
+                    Text(L("todo.title.hint"))
                 }
 
                 // Description Section
@@ -75,14 +82,14 @@ struct TodoFormView: View {
                     TextEditor(text: $description)
                         .frame(minHeight: 80)
                 } header: {
-                    Text("Description")
+                    Text(L("todo.description"))
                 } footer: {
-                    Text("Optional: Add more details")
+                    Text(L("todo.description.hint"))
                 }
 
                 // Priority Section
                 Section {
-                    Picker("Priority", selection: $priority) {
+                    Picker(L("todo.priority"), selection: $priority) {
                         ForEach(Todo.Priority.allCases, id: \.self) { priority in
                             HStack {
                                 Circle()
@@ -95,35 +102,35 @@ struct TodoFormView: View {
                     }
                     .pickerStyle(.menu)
                 } header: {
-                    Text("Priority")
+                    Text(L("todo.priority"))
                 }
 
                 // Due Date Section
                 Section {
-                    Toggle("Set due date", isOn: $hasDueDate)
+                    Toggle(L("todo.set.due.date"), isOn: $hasDueDate)
 
                     if hasDueDate {
                         DatePicker(
-                            "Due date",
+                            L("todo.due.date"),
                             selection: $dueDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
                     }
                 } header: {
-                    Text("Due Date")
+                    Text(L("todo.due.date"))
                 }
             }
-            .navigationTitle(isEditing ? "Edit Todo" : "New Todo")
+            .navigationTitle(isEditing ? L("todo.edit") : L("todo.new"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(L("action.cancel")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(L("action.save")) {
                         saveTodo()
                     }
                     .fontWeight(.semibold)

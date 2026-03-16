@@ -12,6 +12,13 @@ import Foundation
 /// Magic number: 15 minutes in seconds
 private let FIFTEEN_MINUTES_SECONDS: TimeInterval = 900
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Schedule Model
 
 /// Schedule item model
@@ -144,9 +151,9 @@ struct Schedule: Identifiable, Codable, Equatable {
     /// Formatted date string - uses cached formatters
     var dateString: String {
         if isToday {
-            return "Today"
+            return L("schedule.today")
         } else if isTomorrow {
-            return "Tomorrow"
+            return L("schedule.tomorrow")
         }
 
         return Self._dateFormatter.string(from: startTime)
@@ -176,10 +183,10 @@ enum ScheduleFilter: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .all: return "All"
-        case .upcoming: return "Upcoming"
-        case .today: return "Today"
-        case .past: return "Past"
+        case .all: return L("schedule.filter.all")
+        case .upcoming: return L("schedule.filter.upcoming")
+        case .today: return L("schedule.filter.today")
+        case .past: return L("schedule.filter.past")
         }
     }
 

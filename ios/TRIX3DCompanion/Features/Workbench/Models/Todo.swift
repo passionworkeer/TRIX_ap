@@ -8,6 +8,13 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Todo Model
 
 /// Todo item model
@@ -32,9 +39,9 @@ struct Todo: Identifiable, Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .low: return "Low"
-            case .medium: return "Medium"
-            case .high: return "High"
+            case .low: return L("todo.priority.low")
+            case .medium: return L("todo.priority.medium")
+            case .high: return L("todo.priority.high")
             }
         }
 
@@ -148,10 +155,10 @@ struct Todo: Identifiable, Codable, Equatable {
 
         if Calendar.current.isDateInToday(due) {
             let time = Self._timeFormatter.string(from: due)
-            return "Today \(time)"
+            return String(format: L("todo.dueDate.today"), time)
         } else if Calendar.current.isDateInTomorrow(due) {
             let time = Self._timeFormatter.string(from: due)
-            return "Tomorrow \(time)"
+            return String(format: L("todo.dueDate.tomorrow"), time)
         } else {
             return Self._dueDateFormatter.string(from: due)
         }
@@ -168,9 +175,9 @@ enum TodoFilter: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .all: return "All"
-        case .active: return "Active"
-        case .completed: return "Completed"
+        case .all: return L("todo.filter.all")
+        case .active: return L("todo.filter.active")
+        case .completed: return L("todo.filter.completed")
         }
     }
 
@@ -230,10 +237,10 @@ enum TodoSortOption: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .createdAt: return "Created Date"
-        case .dueDate: return "Due Date"
-        case .priority: return "Priority"
-        case .title: return "Title"
+        case .createdAt: return L("todo.sort.created")
+        case .dueDate: return L("todo.sort.dueDate")
+        case .priority: return L("todo.sort.priority")
+        case .title: return L("todo.sort.title")
         }
     }
 

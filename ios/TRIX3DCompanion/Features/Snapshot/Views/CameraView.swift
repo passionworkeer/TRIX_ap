@@ -9,6 +9,11 @@ import SwiftUI
 import AVFoundation
 import PhotosUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Camera View
 
 /// Full-screen camera view with capture controls
@@ -66,18 +71,18 @@ struct CameraView: View {
                 await handlePhotoSelection(newValue)
             }
         }
-        .alert("Camera Permission Required", isPresented: $showPermissionDenied) {
-            Button("Settings") {
+        .alert(L("camera.permission.required"), isPresented: $showPermissionDenied) {
+            Button(L("camera.settings")) {
                 openAppSettings()
             }
-            Button("Cancel", role: .cancel) {
+            Button(L("action.cancel"), role: .cancel) {
                 dismiss()
             }
         } message: {
-            Text("Please enable camera access in Settings to take photos.")
+            Text(L("camera.enable.access"))
         }
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") {
+        .alert(L("store.error"), isPresented: .constant(viewModel.errorMessage != nil)) {
+            Button(L("action.confirm")) {
                 viewModel.clearError()
             }
         } message: {
@@ -128,11 +133,11 @@ struct CameraView: View {
                     .font(.system(size: 60))
                     .foregroundColor(.white.opacity(0.5))
 
-                Text("Camera Access Denied")
+                Text(L("camera.access.denied"))
                     .font(.title2)
                     .foregroundColor(.white)
 
-                Button("Open Settings") {
+                Button(L("camera.open.settings")) {
                     showPermissionDenied = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -141,7 +146,7 @@ struct CameraView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(1.5)
 
-                Text("Starting Camera...")
+                Text(L("camera.starting"))
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -167,7 +172,7 @@ struct CameraView: View {
             // Grid toggle
             ControlButton(
                 icon: viewModel.showGrid ? "grid" : "grid",
-                title: "Grid",
+                title: L("camera.grid"),
                 color: viewModel.showGrid ? .brandPurple : .white
             ) {
                 viewModel.toggleGrid()
@@ -176,7 +181,7 @@ struct CameraView: View {
             // Switch camera
             ControlButton(
                 icon: "camera.rotate.fill",
-                title: "Flip",
+                title: L("camera.flip"),
                 color: .white
             ) {
                 viewModel.switchCamera()
@@ -185,7 +190,7 @@ struct CameraView: View {
             // Close button
             ControlButton(
                 icon: "xmark",
-                title: "Close",
+                title: L("camera.close"),
                 color: .white
             ) {
                 dismiss()
@@ -285,7 +290,7 @@ struct CameraView: View {
             Button(action: { viewModel.retakePhoto() }) {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.counterclockwise")
-                    Text("Retake")
+                    Text(L("camera.retake"))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -319,7 +324,7 @@ struct CameraView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("Uploaded successfully")
+                    Text(L("camera.uploaded.success"))
                         .font(.subheadline)
                         .foregroundColor(.white)
                 }
@@ -335,7 +340,7 @@ struct CameraView: View {
                         Image(systemName: "checkmark.circle.fill")
                     }
 
-                    Text("Use Photo")
+                    Text(L("camera.use.photo"))
                         .font(.headline)
                 }
                 .foregroundColor(.white)
@@ -360,7 +365,7 @@ struct CameraView: View {
                 ProgressView(value: viewModel.uploadProgress)
                     .progressViewStyle(LinearProgressViewStyle(tint: .brandPurple))
 
-                Text("Uploading... \(Int(viewModel.uploadProgress * 100))%")
+                Text(String(format: L("camera.uploading"), Int(viewModel.uploadProgress * 100)))
                     .font(.subheadline)
                     .foregroundColor(.white)
             }
@@ -411,7 +416,7 @@ struct CameraView: View {
             }
         } catch {
             await MainActor.run {
-                viewModel.errorMessage = "Failed to load selected photo."
+                viewModel.errorMessage = L("camera.failed.load.photo")
             }
         }
     }

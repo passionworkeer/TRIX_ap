@@ -28,6 +28,8 @@
 "action.logout" = "登出";
 "action.register" = "註冊";
 "action.signup" = "註冊";
+"action.done" = "完成";
+"action.apply" = "套用";
 
 // MARK: - Auth
 "auth.login.title" = "歡迎回來";
@@ -580,6 +582,197 @@
 "music.paused" = "已暫停";
 "music.all" = "全部";
 
+// MARK: - Camera
+"camera.permission.required" = "需要相機權限";
+"camera.settings" = "設定";
+"camera.enable.access" = "請在設定中啟用相機權限才能拍照。";
+"camera.access.denied" = "相機存取被拒";
+"camera.open.settings" = "開啟設定";
+"camera.starting" = "正在啟動相機...";
+"camera.grid" = "網格";
+"camera.flip" = "翻轉";
+"camera.close" = "關閉";
+"camera.retake" = "重拍";
+"camera.uploaded.success" = "上傳成功";
+"camera.use.photo" = "使用照片";
+"camera.uploading" = "上傳中... %d%%";
+"camera.failed.load.photo" = "載入所選照片失敗。";
+
+// MARK: - Store
+"store.product.details" = "產品詳情";
+"store.error" = "錯誤";
+"store.for.points" = "%d 積分";
+"store.whats.included" = "包含內容";
+"store.limited.time.offer" = "限時優惠";
+"store.get.bonus" = "免費獲得 %d bonus 積分！";
+"store.best.value" = "超值";
+"store.processing" = "處理中...";
+
+// MARK: - Subscription
+"store.subscription.monthly" = "月付";
+"store.subscription.month" = "1個月";
+"store.subscription.yearly" = "年付";
+"store.subscription.year" = "1年";
+"store.subscription.premium" = "高級版";
+"store.subscription.restore" = "恢復購買";
+"store.subscription.confirm" = "確認訂閱";
+"store.subscription.subscribe.for" = "訂閱 %@/%@";
+"store.subscription.charged" = "您將被收取 %@/%@。會自動續訂直到取消。";
+"store.subscription.premium.title" = "高級版訂閱";
+"store.subscription.go.premium" = "開通高級版";
+"store.subscription.unlock.features" = "解鎖全部功能，移除廣告";
+"store.subscription.active" = "已訂閱";
+"store.subscription.renews.on" = "續訂日期：%@";
+"store.subscription.auto.renew" = "已啟用自動續訂";
+"store.subscription.choose.plan" = "選擇套餐";
+"store.subscription.premium.benefits" = "高級版特權";
+"store.subscription.terms.privacy" = "條款與隱私";
+"store.subscription.subscribe" = "訂閱";
+
+// MARK: - Points Purchase
+"store.points.buy" = "購買積分";
+"store.points.purchase.question" = "購買 %d 積分需要 %@？";
+"store.points.charged" = "您將被收取 %@ 購買 %d 積分";
+"store.points.purchase" = "購買積分";
+"store.points.choose.package" = "選擇一個積分套餐繼續";
+"store.points.current.balance" = "目前餘額";
+"store.points.refresh" = "重新整理";
+"store.points.information" = "資訊";
+
+// MARK: - Diagnostic
+"diagnostic.title" = "診斷";
+"diagnostic.advanced" = "進階";
+"diagnostic.network.status" = "網路狀態";
+"diagnostic.connection" = "連線";
+"diagnostic.quality" = "品質";
+"diagnostic.status" = "狀態";
+"diagnostic.connected" = "已連線";
+"diagnostic.disconnected" = "未連線";
+"diagnostic.test.network" = "測試網路";
+"diagnostic.tap.to.check" = "點擊'測試網路'檢查API連線";
+"diagnostic.storage.status" = "儲存空間狀態";
+"diagnostic.tap.to.check.storage" = "點擊'重新整理'檢查儲存空間";
+"diagnostic.total" = "總計";
+"diagnostic.check.storage" = "檢查儲存空間";
+"diagnostic.quick.actions" = "快捷操作";
+"diagnostic.clear.cache" = "清除快取";
+"diagnostic.view.logs" = "查看日誌";
+"diagnostic.performance" = "效能";
+"diagnostic.advanced.title" = "進階診斷";
+"diagnostic.no.logs" = "暫無日誌";
+"diagnostic.logs.appear" = "日誌將在此處顯示";
+"diagnostic.clear.all.caches" = "清除所有快取";
+"diagnostic.clear.caches.warning" = "這將清除所有快取資料。應用程式將根據需要重新下載必要的資料。";
+"diagnostic.cache.size" = "快取總大小";
+"diagnostic.cache.types" = "快取類型";
+
+// MARK: - Pairing
+"pairing.scan.qr" = "掃描QR Code";
+"pairing.align.qr" = "將QR Code對準框內";
+"pairing.camera.access" = "相機存取";
+"pairing.camera.required" = "需要相機權限";
+"pairing.camera.description" = "要掃描QR Code進行裝置配對，請在設定中允許相機存取。";
+"pairing.open.settings" = "開啟設定";
+"pairing.enter.code" = "輸入配對碼";
+"pairing.server.address" = "伺服器位址";
+"pairing.gateway.id" = "Gateway ID";
+
+// MARK: - Location
+"location.share" = "分享位置";
+"location.share.question" = "與您的夥伴分享此位置？";
+"location.check.in" = "簽到";
+"location.check.in.question" = "在 %@ 簽到？";
+"location.navigate.maps" = "在地圖中導航";
+"location.share.companion" = "與夥伴分享";
+"location.check.in.here" = "在此簽到";
+"location.preview" = "位置預覽";
+"location.search" = "搜尋地點";
+"location.selected" = "已選位置";
+
+// MARK: - Chat Input
+"chat.input.message" = "訊息...";
+"chat.input.select.photo" = "選擇照片";
+"chat.input.choose.photo" = "從相簿選擇照片";
+"chat.input.take.photo" = "拍照";
+"chat.input.capture.photo" = "拍攝新照片傳送";
+"chat.input.open.camera" = "開啟相機";
+"chat.input.photo.library" = "相簿";
+"chat.input.camera" = "相機";
+"chat.input.speech.error" = "語音辨識錯誤";
+"chat.input.hey.there" = "你好！";
+"chat.input.how.are.you" = "今天過得怎麼樣？";
+
+// MARK: - Chat Messages
+"chat.message.failed.load" = "載入失敗";
+"chat.message.loading" = "載入中...";
+"chat.message.failed.image" = "圖片載入失敗";
+"chat.message.loading.image" = "正在載入圖片...";
+"chat.message.play.error" = "播放音訊失敗：%@";
+
+// MARK: - Workbench
+"workbench.location.picker" = "位置選擇器";
+"workbench.select.location" = "在地圖上選擇位置";
+"workbench.pick.location" = "選擇位置";
+"workbench.done" = "完成";
+"workbench.quick.actions" = "快捷操作";
+"workbench.tap.card" = "點擊卡片存取功能";
+"workbench.cancel" = "取消";
+
+// MARK: - Todo
+"todo.new" = "新建待辦";
+"todo.edit" = "編輯待辦";
+"todo.title" = "待辦標題";
+"todo.title.label" = "標題";
+"todo.title.hint" = "輸入待辦標題";
+"todo.description" = "描述";
+"todo.description.hint" = "可選：新增更多詳情";
+"todo.priority" = "優先級";
+"todo.due.date" = "截止日期";
+"todo.save" = "儲存";
+"todo.high.priority" = "高優先級";
+"todo.overdue" = "已逾期";
+
+// MARK: - Schedule
+"schedule.new" = "新建日程";
+"schedule.edit" = "編輯日程";
+"schedule.title" = "日程標題";
+"schedule.title.label" = "標題";
+"schedule.title.hint" = "輸入日程標題";
+"schedule.description.label" = "描述";
+"schedule.description.hint" = "可選：新增更多詳情";
+"schedule.date.time" = "日期和時間";
+"schedule.location.optional" = "位置（可選）";
+"schedule.location.label" = "位置";
+"schedule.remind.me" = "提醒我";
+"schedule.reminder" = "提醒";
+"schedule.reminder.hint" = "您將在日程開始前收到通知";
+"schedule.load.sample" = "載入範例";
+
+// MARK: - Study Room
+" study.room.start.session" = "開始專注";
+" study.room.view.active" = "查看進行中";
+" study.room.leave" = "離開房間";
+" study.room.join" = "加入房間";
+" study.room.information" = "房間資訊";
+" study.room.session" = "會話";
+" study.room.settings" = "房間設定";
+" study.room.focus.duration" = "專注時長";
+" study.room.timer.settings" = "計時器設定";
+
+// MARK: - Study Statistics
+" study.stats.title" = "學習統計";
+" study.stats.time.range" = "時間範圍";
+
+// MARK: - AI Action Selector
+"ai.action.selected.chat" = "已選擇：AI聊天";
+"ai.action.selected.image" = "已選擇：AI圖片";
+
+// MARK: - Empty States
+"empty.yesterday" = "昨天";
+"empty.photo.detail" = "照片詳情";
+"pairing.camera.required.error" = "需要相機權限才能掃描QR Code。請在設定中啟用。";
+"pairing.invalid.qr" = "這不是有效的TRIX配對QR Code。請掃描您的OpenClaw裝置產生的QR Code。";
+
 // MARK: - Pairing
 "pairing.title" = "尋找好友";
 "pairing.scan" = "掃描二維碼";
@@ -622,3 +815,181 @@
 "pairing.local.quick.connect.requires.credentials" = "請先輸入 Gateway ID 和訪問碼，再使用同機快速連接";
 "pairing.local.quick.connect.failed" = "同機快速連接失敗，請確認 OpenClaw/Relay 服務已在本機啟動";
 "pairing.qr.connection.failed" = "二維碼連接失敗";
+
+// MARK: - Mail
+"mail.title" = "郵件";
+"mail.empty" = "暫無郵件";
+"mail.load.failed" = "載入失敗: %@";
+
+// MARK: - Robot Background
+"robot.video.layer" = "影片層";
+
+// MARK: - Study Room Additional
+"study.room.participants" = "參與者";
+"study.room.no.participants" = "暫無參與者";
+"study.room.be.first" = "成為第一個加入房間的人吧！";
+"study.room.session.progress" = "學習進度";
+"study.room.elapsed" = "已用時";
+"study.room.no.active.session" = "無進行中的學習";
+"study.room.state.idle" = "閒置";
+"study.room.state.focusing" = "專注中";
+"study.room.state.resting" = "休息中";
+"study.room.code" = "房間代碼";
+"study.room.max.members" = "最大人數";
+"study.room.current.state" = "目前狀態";
+
+// MARK: - Study Statistics Additional
+"study.stats.today" = "今天";
+"study.stats.this.week" = "本週";
+"study.stats.this.month" = "本月";
+"study.stats.all.time" = "全部";
+"study.stats.trend" = "學習趨勢";
+"study.stats.no.data" = "暫無資料";
+"study.stats.start.studying" = "開始學習以查看你的趨勢！";
+"study.stats.focus.insights" = "專注洞察";
+"study.stats.recent.achievements" = "最近成就";
+"study.stats.focus.excellent" = "優秀";
+"study.stats.focus.good" = "不錯";
+"study.stats.focus.na" = "暫無";
+
+// MARK: - Study Timer Additional
+"study.timer.exit.focus" = "退出專注";
+"study.timer.focus.mode" = "專注模式";
+"study.timer.ready" = "準備開始";
+"study.timer.break.time" = "休息時間";
+"study.timer.breathe.in" = "吸氣";
+"study.timer.hold" = "屏息";
+"study.timer.breathe.out" = "呼氣";
+"study.timer.progress" = "進度";
+"study.timer.restart" = "重新開始";
+"study.timer.end" = "結束";
+"study.timer.focus.duration" = "專注時長";
+"study.timer.minutes" = "%d 分鐘";
+
+// MARK: - Study Notifications
+"study.notification.focus.complete" = "專注完成！";
+"study.notification.break.over" = "休息結束！";
+"study.notification.break.message" = "休息一下吧。";
+"study.notification.focus.message" = "準備好再次專注了嗎？";
+"study.notification.great.job" = "做得好！";
+"study.notification.session.complete" = "你已完成學習。";
+
+// MARK: - Workbench Additional
+"workbench.overview" = "概覽";
+"workbench.quick.actions" = "快捷操作";
+"workbench.tap.card" = "點擊卡片存取功能";
+"workbench.subtitle" = "您的個人效率中心";
+
+// MARK: - Todo Additional
+"todo.add.success" = "待辦事項新增成功";
+"todo.edit.success" = "待辦事項更新成功";
+"todo.delete.success" = "待辦事項已刪除";
+"todo.completed.cleared" = "已完成的待辦事項已清除";
+"todo.load.error" = "載入待辦事項失敗：%@";
+"todo.set.due.date" = "設定截止日期";
+"todo.dueDate.today" = "今天 %@";
+"todo.dueDate.tomorrow" = "明天 %@";
+"todo.priority.low" = "低";
+"todo.priority.medium" = "中";
+"todo.priority.high" = "高";
+"todo.filter.all" = "全部";
+"todo.filter.active" = "進行中";
+"todo.filter.completed" = "已完成";
+"todo.sort.created" = "建立日期";
+"todo.sort.dueDate" = "截止日期";
+"todo.sort.priority" = "優先級";
+"todo.sort.title" = "標題";
+
+// MARK: - Schedule Additional
+"schedule.start" = "開始";
+"schedule.end" = "結束";
+"schedule.set.end.time" = "設定結束時間";
+"schedule.set.reminder" = "設定提醒";
+"schedule.filter.all" = "全部";
+"schedule.filter.upcoming" = "即將到來";
+"schedule.filter.today" = "今天";
+"schedule.filter.past" = "已過期";
+"schedule.reminder.5min" = "5分鐘";
+"schedule.reminder.15min" = "15分鐘";
+"schedule.reminder.30min" = "30分鐘";
+"schedule.reminder.1hour" = "1小時";
+"schedule.reminder.2hours" = "2小時";
+"schedule.reminder.1day" = "1天";
+
+// MARK: - Store Additional
+"store.purchase.now" = "立即購買";
+"store.subscribe.now" = "立即訂閱";
+"store.points.per.yuan" = "%.1f 積分/¥";
+"store.error.invalid.product" = "產品配置無效";
+"store.error.no.product" = "未選擇產品";
+"store.error.payment.failed" = "支付失敗";
+
+// MARK: - Store Features
+"store.feature.points" = "%d 積分";
+"store.feature.bonus.points" = "贈送 +%d 積分";
+"store.feature.instant.delivery" = "即時到帳";
+"store.feature.no.expiration" = "永不过期";
+"store.feature.unlimited.access" = "無限訪問";
+"store.feature.premium.features" = "高級功能";
+"store.feature.ad.free" = "無廣告";
+"store.feature.priority.support" = "優先支援";
+"store.feature.exclusive.content" = "專屬內容";
+"store.feature.cancel.anytime" = "隨時取消";
+"store.feature.everything.monthly" = "月付所有權益";
+"store.feature.save.18.percent" = "相比月付省18%%";
+"store.feature.priority.over.monthly" = "優先於月付訂閱者";
+"store.feature.early.access" = "新功能優先體驗";
+"store.feature.yearly.badge" = "年度專屬徽章";
+"store.feature.access.premium" = "訪問全部高級功能";
+
+// MARK: - Store Benefits
+"store.benefit.bonus.points" = "購買此套餐獲得 %d 贈送積分！";
+"store.benefit.purchase.points" = "購買積分解鎖高級功能";
+"store.benefit.subscribe" = "訂閱以解鎖全部功能";
+"store.benefit.unlimited.access" = "訪問全部高級功能";
+"store.benefit.ad.free" = "享受無干擾體驗";
+"store.benefit.priority.support" = "獲得更快幫助";
+"store.benefit.exclusive.content" = "專屬資源";
+"store.benefit.early.access" = "優先體驗新功能";
+
+// MARK: - Store Subscription Warning
+"store.subscription.warning" = "訂閱將在到期前24小時自動續訂。可在設定中管理。";
+
+// MARK: - Payment Result
+"store.payment.success" = "支付成功！";
+"store.payment.failed" = "支付失敗";
+"store.payment.success.points" = "您已成功購買 %d 積分！";
+"store.payment.success.subscription" = "您已成功訂閱 %@！";
+"store.payment.failed.message" = "無法處理您的支付，請重試。";
+
+// MARK: - Order Details
+"store.order.details" = "訂單詳情";
+"store.order.id" = "訂單號";
+"store.order.amount" = "金額";
+"store.order.date" = "日期";
+"store.order.transaction" = "交易號";
+"store.points.added" = "積分已添加";
+"store.view" = "查看";
+
+// MARK: - Payment Summary
+"store.summary.purchase.points" = "購買積分";
+"store.summary.subscribe" = "訂閱 %@";
+"store.confirm.purchase.points" = "確認購買 %d 積分，價格 %@？";
+"store.confirm.subscribe" = "確認訂閱 %@，價格 %@？";
+"store.confirm.subscribe.period" = "確認訂閱 %@（%@），價格 %@？";
+
+// MARK: - Subscription Terms
+"store.subscription.go.premium" = "開通高級版";
+"store.subscription.manage" = "管理訂閱";
+"store.subscription.terms.1" = "訂閱將在目前週期結束前至少24小時自動續訂。";
+"store.subscription.terms.2" = "購買確認時將向您的Apple ID帳戶收取費用。";
+"store.subscription.terms.3" = "可在Apple ID帳戶設定中管理或取消訂閱。";
+"store.subscription.terms.4" = "免費試用期的未使用部分在購買訂閱後將失效。";
+
+// MARK: - Points Purchase Additional
+"store.points.confirm.purchase" = "確認購買";
+"store.points.info.instant" = "購買後即時到帳";
+"store.points.info.no.expire" = "積分永不过期";
+"store.points.info.secure" = "Apple Pay安全支付";
+"store.points.info.no.refund" = "積分購買不可退款";
+"store.bonus" = "贈送 %d";

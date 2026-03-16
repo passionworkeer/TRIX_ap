@@ -10,6 +10,11 @@ import SwiftUI
 import Speech
 import Combine
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Chat Input Bar
 
 /// Glass-morphism input bar for composing messages
@@ -102,8 +107,8 @@ struct ChatInputBar: View {
                 }
             )
         }
-        .alert("Speech Recognition Error", isPresented: $showSpeechError) {
-            Button("OK", role: .cancel) {}
+        .alert(L("chat.input.speech.error"), isPresented: $showSpeechError) {
+            Button(L("action.confirm"), role: .cancel) {}
         } message: {
             Text(speechErrorMessage)
         }
@@ -196,7 +201,7 @@ struct ChatInputBar: View {
 
     private var textInputContainer: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("Message...", text: $text, axis: .vertical)
+            TextField(L("chat.input.message"), text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.body)
                 .focused($isFocused)
@@ -317,7 +322,7 @@ struct ChatInputBar: View {
         Button(role: .cancel) {
             showAttachmentMenu = false
         } label: {
-            Text("Cancel")
+            Text(L("workbench.cancel"))
         }
     }
 
@@ -330,11 +335,11 @@ struct ChatInputBar: View {
                     .font(.system(size: 60))
                     .foregroundColor(.purple)
 
-                Text("Select Photo")
+                Text(L("chat.input.select.photo"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Choose a photo from your library")
+                Text(L("chat.input.choose.photo"))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -347,7 +352,7 @@ struct ChatInputBar: View {
                 .buttonStyle(.borderedProminent)
             }
             .padding()
-            .navigationTitle("Photo Library")
+            .navigationTitle(L("chat.input.photo.library"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -366,24 +371,24 @@ struct ChatInputBar: View {
                     .font(.system(size: 60))
                     .foregroundColor(.purple)
 
-                Text("Take Photo")
+                Text(L("chat.input.take.photo"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Capture a new photo to send")
+                Text(L("chat.input.capture.photo"))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding()
 
-                Button("Open Camera") {
+                Button(L("chat.input.open.camera")) {
                     showCamera = false
                     onAttach?(.camera)
                 }
                 .buttonStyle(.borderedProminent)
             }
             .padding()
-            .navigationTitle("Camera")
+            .navigationTitle(L("chat.input.camera"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

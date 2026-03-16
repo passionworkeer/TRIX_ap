@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Points Purchase View
 
 /// View for purchasing points packages
@@ -107,17 +114,17 @@ struct PointsPurchaseView: View {
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
-            .navigationTitle("Buy Points")
+            .navigationTitle(L("store.points.buy"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
             }
             .confirmationDialog(
-                "Confirm Purchase",
+                L("store.points.confirm.purchase"),
                 isPresented: $showConfirmation,
                 presenting: selectedPackage
             ) { package in
@@ -126,7 +133,7 @@ struct PointsPurchaseView: View {
                         await purchasePackage(package)
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(L("action.cancel"), role: .cancel) {}
             } message: { package in
                 Text("You will be charged \(package.displayPrice) for \(package.totalPoints) points")
             }
@@ -156,11 +163,11 @@ struct PointsPurchaseView: View {
                     endPoint: .bottomTrailing
                 )
 
-            Text("Purchase Points")
+            Text(L("store.points.purchase"))
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Choose a points package to continue")
+            Text(L("store.points.choose.package"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -174,17 +181,17 @@ struct PointsPurchaseView: View {
                 .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Current Balance")
+                Text(L("store.points.current.balance"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                Text("\(viewModel.userPoints) points")
+                Text("\(viewModel.userPoints) " + L("store.points"))
                     .font(.headline)
             }
 
             Spacer()
 
-            Button("Refresh") {
+            Button(L("store.points.refresh")) {
                 Task {
                     await viewModel.refreshPoints()
                 }
@@ -224,15 +231,15 @@ struct PointsPurchaseView: View {
     /// Terms section
     private var termsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Information")
+            Text(L("store.points.information"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 8) {
-                InfoItem(icon: "checkmark.circle.fill", text: "Instant delivery after purchase")
-                InfoItem(icon: "checkmark.circle.fill", text: "Points never expire")
-                InfoItem(icon: "checkmark.circle.fill", text: "Secure payment via Apple Pay")
-                InfoItem(icon: "info.circle.fill", text: "No refunds on point purchases")
+                InfoItem(icon: "checkmark.circle.fill", text: L("store.points.info.instant"))
+                InfoItem(icon: "checkmark.circle.fill", text: L("store.points.info.no.expire"))
+                InfoItem(icon: "checkmark.circle.fill", text: L("store.points.info.secure"))
+                InfoItem(icon: "info.circle.fill", text: L("store.points.info.no.refund"))
             }
         }
         .padding()
@@ -293,11 +300,11 @@ struct PackageCard: View {
                     Spacer()
 
                     if package.isPopular {
-                        PointsBadge(text: "Popular", color: .blue)
+                        PointsBadge(text: L("store.popular"), color: .blue)
                     }
 
                     if package.isBestValue {
-                        PointsBadge(text: "Best Value", color: .green)
+                        PointsBadge(text: L("store.best.value"), color: .green)
                     }
                 }
 
@@ -307,7 +314,7 @@ struct PackageCard: View {
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
 
-                    Text("points")
+                    Text(L("store.points"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -335,7 +342,7 @@ struct PackageCard: View {
                     .foregroundColor(.blue)
 
                 // Points per yuan
-                Text(String(format: "%.1f pts/¥", Double(package.totalPoints) / package.price))
+                Text(String(format: L("store.points.per.yuan"), Double(package.totalPoints) / package.price))
                     .font(.caption)
                         .foregroundColor(.secondary)
             }

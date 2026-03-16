@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Diagnostic View
 
 /// Main diagnostic screen showing system status
@@ -35,7 +40,7 @@ struct DiagnosticView: View {
                 // Content
                 contentView
             }
-            .navigationTitle("Diagnostics")
+            .navigationTitle(L("diagnostic.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -60,7 +65,7 @@ struct DiagnosticView: View {
                         }
                         .disabled(viewModel.isRefreshing)
 
-                        Button("Advanced") {
+                        Button(L("diagnostic.advanced")) {
                             showingAdvancedView = true
                         }
                     }
@@ -117,7 +122,7 @@ struct DiagnosticView: View {
                     .font(.title2)
                     .foregroundColor(.brandPurple)
 
-                Text("Network Status")
+                Text(L("diagnostic.network.status"))
                     .font(.headline)
                     .fontWeight(.semibold)
 
@@ -129,7 +134,7 @@ struct DiagnosticView: View {
             // Connection Details
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Connection")
+                    Text(L("diagnostic.connection"))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
 
@@ -139,7 +144,7 @@ struct DiagnosticView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Quality")
+                    Text(L("diagnostic.quality"))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
 

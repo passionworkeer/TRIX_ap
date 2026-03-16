@@ -28,6 +28,8 @@
 "action.logout" = "Logout";
 "action.register" = "Register";
 "action.signup" = "Sign Up";
+"action.done" = "Done";
+"action.apply" = "Apply";
 
 // MARK: - Auth
 "auth.login.title" = "Welcome Back";
@@ -772,3 +774,373 @@
 "music.playing" = "Playing";
 "music.paused" = "Paused";
 "music.all" = "All";
+
+// MARK: - Camera
+"camera.permission.required" = "Camera Permission Required";
+"camera.settings" = "Settings";
+"camera.enable.access" = "Please enable camera access in Settings to take photos.";
+"camera.access.denied" = "Camera Access Denied";
+"camera.open.settings" = "Open Settings";
+"camera.starting" = "Starting Camera...";
+"camera.grid" = "Grid";
+"camera.flip" = "Flip";
+"camera.close" = "Close";
+"camera.retake" = "Retake";
+"camera.uploaded.success" = "Uploaded successfully";
+"camera.use.photo" = "Use Photo";
+"camera.uploading" = "Uploading... %d%%";
+"camera.failed.load.photo" = "Failed to load selected photo.";
+
+// MARK: - Store
+"store.product.details" = "Product Details";
+"store.error" = "Error";
+"store.for.points" = "for %d points";
+"store.whats.included" = "What's Included";
+"store.limited.time.offer" = "Limited Time Offer";
+"store.get.bonus" = "Get %d bonus points free!";
+"store.best.value" = "Best Value";
+"store.processing" = "Processing...";
+
+// MARK: - Subscription
+"store.subscription.monthly" = "Monthly";
+"store.subscription.month" = "1 month";
+"store.subscription.yearly" = "Yearly";
+"store.subscription.year" = "1 year";
+"store.subscription.premium" = "Premium";
+"store.subscription.restore" = "Restore";
+"store.subscription.confirm" = "Confirm Subscription";
+"store.subscription.subscribe.for" = "Subscribe for %@/%@";
+"store.subscription.charged" = "You will be charged %@ for %@. Auto-renews until cancelled.";
+"store.subscription.premium.title" = "Premium Subscription";
+"store.subscription.go.premium" = "Go Premium";
+"store.subscription.unlock.features" = "Unlock all features and remove ads";
+"store.subscription.active" = "Active Subscription";
+"store.subscription.renews.on" = "Renews on %@";
+"store.subscription.auto.renew" = "Auto-renew enabled";
+"store.subscription.choose.plan" = "Choose Your Plan";
+"store.subscription.premium.benefits" = "Premium Benefits";
+"store.subscription.terms.privacy" = "Terms & Privacy";
+"store.subscription.subscribe" = "Subscribe";
+
+// MARK: - Points Purchase
+"store.points.buy" = "Buy Points";
+"store.points.purchase.question" = "Purchase %d points for %@?";
+"store.points.charged" = "You will be charged %@ for %d points";
+"store.points.purchase" = "Purchase Points";
+"store.points.choose.package" = "Choose a points package to continue";
+"store.points.current.balance" = "Current Balance";
+"store.points.refresh" = "Refresh";
+"store.points.information" = "Information";
+
+// MARK: - Diagnostic
+"diagnostic.title" = "Diagnostics";
+"diagnostic.advanced" = "Advanced";
+"diagnostic.network.status" = "Network Status";
+"diagnostic.connection" = "Connection";
+"diagnostic.quality" = "Quality";
+"diagnostic.status" = "Status";
+"diagnostic.connected" = "Connected";
+"diagnostic.disconnected" = "Disconnected";
+"diagnostic.test.network" = "Test Network";
+"diagnostic.tap.to.check" = "Tap 'Test Network' to check API connectivity";
+"diagnostic.storage.status" = "Storage Status";
+"diagnostic.tap.to.check.storage" = "Tap 'Refresh' to check storage";
+"diagnostic.total" = "Total";
+"diagnostic.check.storage" = "Check Storage";
+"diagnostic.quick.actions" = "Quick Actions";
+"diagnostic.clear.cache" = "Clear Cache";
+"diagnostic.view.logs" = "View Logs";
+"diagnostic.performance" = "Performance";
+"diagnostic.advanced.title" = "Advanced Diagnostics";
+"diagnostic.no.logs" = "No logs available";
+"diagnostic.logs.appear" = "Logs will appear here when available";
+"diagnostic.clear.all.caches" = "Clear All Caches";
+"diagnostic.clear.caches.warning" = "This will clear all cached data. The app will re-download necessary data as needed.";
+"diagnostic.cache.size" = "Total Cache Size";
+"diagnostic.cache.types" = "Cache Types";
+
+// MARK: - Pairing
+"pairing.scan.qr" = "Scan QR Code";
+"pairing.align.qr" = "Align QR code within the frame";
+"pairing.camera.access" = "Camera Access";
+"pairing.camera.required" = "Camera Access Required";
+"pairing.camera.description" = "To scan QR codes for device pairing, please allow camera access in Settings.";
+"pairing.open.settings" = "Open Settings";
+"pairing.enter.code" = "Enter Pairing Code";
+"pairing.server.address" = "Server Address";
+"pairing.gateway.id" = "Gateway ID";
+
+// MARK: - Location
+"location.share" = "Share Location";
+"location.share.question" = "Share this location with your companion?";
+"location.check.in" = "Check In";
+"location.check.in.question" = "Check in at %@?";
+"location.navigate.maps" = "Navigate in Maps";
+"location.share.companion" = "Share with Companion";
+"location.check.in.here" = "Check In Here";
+"location.preview" = "Location Preview";
+"location.search" = "Search for a place";
+"location.selected" = "Selected Location";
+
+// MARK: - Chat Input
+"chat.input.message" = "Message...";
+"chat.input.select.photo" = "Select Photo";
+"chat.input.choose.photo" = "Choose a photo from your library";
+"chat.input.take.photo" = "Take Photo";
+"chat.input.capture.photo" = "Capture a new photo to send";
+"chat.input.open.camera" = "Open Camera";
+"chat.input.photo.library" = "Photo Library";
+"chat.input.camera" = "Camera";
+"chat.input.speech.error" = "Speech Recognition Error";
+"chat.input.hey.there" = "Hey there!";
+"chat.input.how.are.you" = "How are you doing today?";
+
+// MARK: - Chat Messages
+"chat.message.failed.load" = "Failed to load";
+"chat.message.loading" = "Loading...";
+"chat.message.failed.image" = "Failed to load image";
+"chat.message.loading.image" = "Loading image...";
+"chat.message.play.error" = "Failed to play audio: %@";
+
+// MARK: - Workbench
+"workbench.location.picker" = "Location Picker";
+"workbench.select.location" = "Select a location on the map";
+"workbench.pick.location" = "Pick Location";
+"workbench.done" = "Done";
+"workbench.quick.actions" = "Quick Actions";
+"workbench.tap.card" = "Tap a card to access features";
+"workbench.cancel" = "Cancel";
+
+// MARK: - Todo
+"todo.new" = "New Todo";
+"todo.edit" = "Edit Todo";
+"todo.title" = "Todo title";
+"todo.title.label" = "Title";
+"todo.title.hint" = "Enter a brief title for your todo";
+"todo.description" = "Description";
+"todo.description.hint" = "Optional: Add more details";
+"todo.priority" = "Priority";
+"todo.due.date" = "Due Date";
+"todo.save" = "Save";
+"todo.high.priority" = "High Priority";
+"todo.overdue" = "Overdue";
+
+// MARK: - Schedule
+"schedule.new" = "New Schedule";
+"schedule.edit" = "Edit Schedule";
+"schedule.title" = "Schedule title";
+"schedule.title.label" = "Title";
+"schedule.title.hint" = "Enter a title for your schedule";
+"schedule.description.label" = "Description";
+"schedule.description.hint" = "Optional: Add more details";
+"schedule.date.time" = "Date & Time";
+"schedule.location.optional" = "Location (optional)";
+"schedule.location.label" = "Location";
+"schedule.remind.me" = "Remind me";
+"schedule.reminder" = "Reminder";
+"schedule.reminder.hint" = "You'll receive a notification before the schedule starts";
+"schedule.load.sample" = "Load Sample";
+
+// MARK: - Study Room
+"study.room.start.session" = "Start Focus Session";
+"study.room.view.active" = "View Active Session";
+"study.room.leave" = "Leave Room";
+"study.room.join" = "Join Room";
+"study.room.information" = "Room Information";
+"study.room.session" = "Session";
+"study.room.settings" = "Room Settings";
+"study.room.focus.duration" = "Focus Duration";
+"study.room.timer.settings" = "Timer Settings";
+
+// MARK: - Study Statistics
+"study.stats.title" = "Study Statistics";
+"study.stats.time.range" = "Time Range";
+
+// MARK: - AI Action Selector
+"ai.action.selected.chat" = "Selected: AI Chat";
+"ai.action.selected.image" = "Selected: AI Image";
+
+// MARK: - Empty States
+"empty.yesterday" = "Yesterday";
+"empty.photo.detail" = "Photo Detail";
+"pairing.camera.required.error" = "Camera access is required to scan QR codes. Please enable it in Settings.";
+"pairing.invalid.qr" = "This is not a valid TRIX pairing QR code. Please scan a code generated by your OpenClaw device.";
+
+// MARK: - Mail
+"mail.title" = "Messages";
+"mail.empty" = "No messages";
+"mail.load.failed" = "Failed to load: %@";
+
+// MARK: - Robot Background
+"robot.video.layer" = "Video Layer";
+
+// MARK: - Study Room Additional
+"study.room.participants" = "Participants";
+"study.room.no.participants" = "No participants yet";
+"study.room.be.first" = "Be the first to join this room!";
+"study.room.session.progress" = "Session Progress";
+"study.room.elapsed" = "Elapsed";
+"study.room.no.active.session" = "No active session";
+"study.room.state.idle" = "Idle";
+"study.room.state.focusing" = "Focusing";
+"study.room.state.resting" = "Resting";
+"study.room.code" = "Room Code";
+"study.room.max.members" = "Max Members";
+"study.room.current.state" = "Current State";
+
+// MARK: - Study Statistics Additional
+"study.stats.today" = "Today";
+"study.stats.this.week" = "This Week";
+"study.stats.this.month" = "This Month";
+"study.stats.all.time" = "All Time";
+"study.stats.trend" = "Study Trend";
+"study.stats.no.data" = "No data yet";
+"study.stats.start.studying" = "Start studying to see your trends!";
+"study.stats.focus.insights" = "Focus Insights";
+"study.stats.recent.achievements" = "Recent Achievements";
+"study.stats.focus.excellent" = "Excellent";
+"study.stats.focus.great" = "Great";
+"study.stats.focus.good" = "Good";
+"study.stats.focus.na" = "N/A";
+
+// MARK: - Study Timer Additional
+"study.timer.exit.focus" = "Exit Focus";
+"study.timer.focus.mode" = "Focus Mode";
+"study.timer.ready" = "Ready to Start";
+"study.timer.break.time" = "Break Time";
+"study.timer.breathe.in" = "Breathe In";
+"study.timer.hold" = "Hold";
+"study.timer.breathe.out" = "Breathe Out";
+"study.timer.progress" = "Progress";
+"study.timer.restart" = "Restart";
+"study.timer.end" = "End";
+"study.timer.focus.duration" = "Focus Duration";
+"study.timer.minutes" = "%d minutes";
+
+// MARK: - Study Notifications
+"study.notification.focus.complete" = "Focus Session Complete!";
+"study.notification.break.over" = "Break Time Over!";
+"study.notification.break.message" = "Time for a break.";
+"study.notification.focus.message" = "Ready to focus again?";
+"study.notification.great.job" = "Great Job!";
+"study.notification.session.complete" = "You've completed your study session.";
+
+// MARK: - Workbench Additional
+"workbench.overview" = "Overview";
+"workbench.quick.actions" = "Quick Actions";
+"workbench.tap.card" = "Tap a card to access features";
+"workbench.subtitle" = "Your personal productivity hub";
+
+// MARK: - Todo Additional
+"todo.add.success" = "Todo added successfully";
+"todo.edit.success" = "Todo updated successfully";
+"todo.delete.success" = "Todo deleted";
+"todo.completed.cleared" = "Completed todos cleared";
+"todo.load.error" = "Failed to load todos: %@";
+"todo.set.due.date" = "Set due date";
+"todo.dueDate.today" = "Today %@";
+"todo.dueDate.tomorrow" = "Tomorrow %@";
+"todo.priority.low" = "Low";
+"todo.priority.medium" = "Medium";
+"todo.priority.high" = "High";
+"todo.filter.all" = "All";
+"todo.filter.active" = "Active";
+"todo.filter.completed" = "Completed";
+"todo.sort.created" = "Created Date";
+"todo.sort.dueDate" = "Due Date";
+"todo.sort.priority" = "Priority";
+"todo.sort.title" = "Title";
+
+// MARK: - Schedule Additional
+"schedule.start" = "Start";
+"schedule.end" = "End";
+"schedule.set.end.time" = "Set end time";
+"schedule.set.reminder" = "Set reminder";
+"schedule.filter.all" = "All";
+"schedule.filter.upcoming" = "Upcoming";
+"schedule.filter.today" = "Today";
+"schedule.filter.past" = "Past";
+"schedule.reminder.5min" = "5 minutes";
+"schedule.reminder.15min" = "15 minutes";
+"schedule.reminder.30min" = "30 minutes";
+"schedule.reminder.1hour" = "1 hour";
+"schedule.reminder.2hours" = "2 hours";
+"schedule.reminder.1day" = "1 day";
+
+// MARK: - Store Additional
+"store.purchase.now" = "Purchase Now";
+"store.subscribe.now" = "Subscribe Now";
+"store.points.per.yuan" = "%.1f pts/¥";
+"store.error.invalid.product" = "Invalid product configuration";
+"store.error.no.product" = "No product selected";
+"store.error.payment.failed" = "Payment failed";
+
+// MARK: - Store Features
+"store.feature.points" = "%d Points";
+"store.feature.bonus.points" = "Bonus +%d Points";
+"store.feature.instant.delivery" = "Instant Delivery";
+"store.feature.no.expiration" = "No Expiration";
+"store.feature.unlimited.access" = "Unlimited Access";
+"store.feature.premium.features" = "Premium Features";
+"store.feature.ad.free" = "Ad-Free";
+"store.feature.priority.support" = "Priority Support";
+"store.feature.exclusive.content" = "Exclusive Content";
+"store.feature.cancel.anytime" = "Cancel Anytime";
+"store.feature.everything.monthly" = "Everything in Monthly";
+"store.feature.save.18.percent" = "Save 18%% compared to monthly";
+"store.feature.priority.over.monthly" = "Priority over monthly subscribers";
+"store.feature.early.access" = "Early access to new features";
+"store.feature.yearly.badge" = "Exclusive yearly member badge";
+"store.feature.access.premium" = "Access to all premium features";
+
+// MARK: - Store Benefits
+"store.benefit.bonus.points" = "Get %d bonus points with this pack!";
+"store.benefit.purchase.points" = "Purchase points to unlock premium features";
+"store.benefit.subscribe" = "Subscribe for unlimited access to all features";
+"store.benefit.unlimited.access" = "Access all premium features";
+"store.benefit.ad.free" = "Enjoy without interruptions";
+"store.benefit.priority.support" = "Get help faster";
+"store.benefit.exclusive.content" = "Premium-only resources";
+"store.benefit.early.access" = "Try new features first";
+
+// MARK: - Store Subscription Warning
+"store.subscription.warning" = "Subscription auto-renews unless cancelled. Manage in Settings.";
+
+// MARK: - Payment Result
+"store.payment.success" = "Payment Successful!";
+"store.payment.failed" = "Payment Failed";
+"store.payment.success.points" = "You've successfully purchased %d points!";
+"store.payment.success.subscription" = "You've successfully subscribed to %@!";
+"store.payment.failed.message" = "We couldn't process your payment. Please try again.";
+
+// MARK: - Order Details
+"store.order.details" = "Order Details";
+"store.order.id" = "Order ID";
+"store.order.amount" = "Amount";
+"store.order.date" = "Date";
+"store.order.transaction" = "Transaction";
+"store.points.added" = "Points Added";
+"store.view" = "View";
+
+// MARK: - Payment Summary
+"store.summary.purchase.points" = "Purchase Points";
+"store.summary.subscribe" = "Subscribe to %@";
+"store.confirm.purchase.points" = "Confirm purchase of %d points for %@?";
+"store.confirm.subscribe" = "Confirm subscription to %@ for %@?";
+"store.confirm.subscribe.period" = "Confirm subscription to %@ (%@) for %@?";
+
+// MARK: - Subscription Terms
+"store.subscription.go.premium" = "Go Premium";
+"store.subscription.manage" = "Manage Subscription";
+"store.subscription.terms.1" = "Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.";
+"store.subscription.terms.2" = "Payment will be charged to your Apple ID account at confirmation of purchase.";
+"store.subscription.terms.3" = "Manage or cancel your subscription in your Apple ID account settings.";
+"store.subscription.terms.4" = "Any unused portion of a free trial period will be forfeited when purchasing a subscription.";
+
+// MARK: - Points Purchase Additional
+"store.points.confirm.purchase" = "Confirm Purchase";
+"store.points.info.instant" = "Instant delivery after purchase";
+"store.points.info.no.expire" = "Points never expire";
+"store.points.info.secure" = "Secure payment via Apple Pay";
+"store.points.info.no.refund" = "No refunds on point purchases";
+"store.bonus" = "+%d bonus";

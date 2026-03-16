@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Product Detail View
 
 /// Detailed view for a single product with purchase option
@@ -62,11 +69,11 @@ struct ProductDetailView: View {
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
-            .navigationTitle("Product Details")
+            .navigationTitle(L("store.product.details"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
@@ -86,8 +93,8 @@ struct ProductDetailView: View {
                 )
             }
         }
-        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK") {
+        .alert(L("store.error"), isPresented: .constant(viewModel.errorMessage != nil)) {
+            Button(L("action.confirm")) {
                 viewModel.clearError()
             }
         } message: {
@@ -140,7 +147,7 @@ struct ProductDetailView: View {
                     .foregroundColor(.blue)
 
                 if let points = viewModel.pointsValue {
-                    Text("for \(points) points")
+                    Text(String(format: L("store.for.points"), points))
                         .font(.title3)
                         .foregroundColor(.secondary)
                 }
@@ -166,7 +173,7 @@ struct ProductDetailView: View {
     /// Features section
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("What's Included")
+            Text(L("store.whats.included"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
@@ -195,12 +202,12 @@ struct ProductDetailView: View {
                 .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Limited Time Offer")
+                Text(L("store.limited.time.offer"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
                 if let bonus = viewModel.bonusPoints {
-                    Text("Get \(bonus) bonus points free!")
+                    Text(String(format: L("store.get.bonus"), bonus))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -210,13 +217,13 @@ struct ProductDetailView: View {
 
             if let value = viewModel.valuePerYuan {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(String(format: "%.1f pts/¥", value))
+                    Text(String(format: L("store.points.per.yuan"), value))
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundColor(.orange)
 
                     if viewModel.isBestValue {
-                        Text("Best Value")
+                        Text(L("store.best.value"))
                             .font(.caption)
                             .foregroundColor(.green)
                     }
@@ -305,7 +312,7 @@ struct ProductDetailView: View {
                 ProgressView()
                     .scaleEffect(1.5)
 
-                Text("Processing...")
+                Text(L("store.processing"))
                     .font(.subheadline)
                     .foregroundColor(.white)
             }
@@ -340,9 +347,9 @@ struct ProductDetailView: View {
     private var buttonTitle: String {
         switch viewModel.productType {
         case .points:
-            return "Purchase Now"
+            return L("store.purchase.now")
         case .subscription:
-            return "Subscribe Now"
+            return L("store.subscribe.now")
         }
     }
 }

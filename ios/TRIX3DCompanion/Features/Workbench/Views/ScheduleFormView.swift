@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Schedule Form View
 
 /// Form view for adding/editing schedule items
@@ -45,12 +52,12 @@ struct ScheduleFormView: View {
     // MARK: - Reminder Options
 
     let reminderOptions: [(String, Int)] = [
-        ("5 minutes", 5),
-        ("15 minutes", 15),
-        ("30 minutes", 30),
-        ("1 hour", 60),
-        ("2 hours", 120),
-        ("1 day", 1440)
+        (L("schedule.reminder.5min"), 5),
+        (L("schedule.reminder.15min"), 15),
+        (L("schedule.reminder.30min"), 30),
+        (L("schedule.reminder.1hour"), 60),
+        (L("schedule.reminder.2hours"), 120),
+        (L("schedule.reminder.1day"), 1440)
     ]
 
     // MARK: - Initialization
@@ -79,12 +86,12 @@ struct ScheduleFormView: View {
             Form {
                 // Title Section
                 Section {
-                    TextField("Schedule title", text: $title)
+                    TextField(L("schedule.title"), text: $title)
                         .font(.body)
                 } header: {
-                    Text("Title")
+                    Text(L("schedule.title.label"))
                 } footer: {
-                    Text("Enter a title for your schedule")
+                    Text(L("schedule.title.hint"))
                 }
 
                 // Description Section
@@ -92,71 +99,71 @@ struct ScheduleFormView: View {
                     TextEditor(text: $description)
                         .frame(minHeight: 60)
                 } header: {
-                    Text("Description")
+                    Text(L("schedule.description.label"))
                 } footer: {
-                    Text("Optional: Add more details")
+                    Text(L("schedule.description.hint"))
                 }
 
                 // Date & Time Section
                 Section {
                     DatePicker(
-                        "Start",
+                        L("schedule.start"),
                         selection: $startDate,
                         displayedComponents: [.date, .hourAndMinute]
                     )
 
-                    Toggle("Set end time", isOn: $hasEndTime)
+                    Toggle(L("schedule.set.end.time"), isOn: $hasEndTime)
 
                     if hasEndTime {
                         DatePicker(
-                            "End",
+                            L("schedule.end"),
                             selection: $endDate,
                             in: startDate...,
                             displayedComponents: [.date, .hourAndMinute]
                         )
                     }
                 } header: {
-                    Text("Date & Time")
+                    Text(L("schedule.date.time"))
                 }
 
                 // Location Section
                 Section {
-                    TextField("Location (optional)", text: $location)
+                    TextField(L("schedule.location.optional"), text: $location)
                         .font(.body)
                 } header: {
-                    Text("Location")
+                    Text(L("schedule.location.label"))
                 }
 
                 // Reminder Section
                 Section {
-                    Toggle("Set reminder", isOn: $hasReminder)
+                    Toggle(L("schedule.set.reminder"), isOn: $hasReminder)
 
                     if hasReminder {
-                        Picker("Remind me", selection: $reminderMinutes) {
+                        Picker(L("schedule.remind.me"), selection: $reminderMinutes) {
                             ForEach(reminderOptions, id: \.1) { option in
                                 Text(option.0).tag(option.1)
                             }
                         }
                     }
                 } header: {
-                    Text("Reminder")
+                    Text(L("schedule.reminder"))
                 } footer: {
                     if hasReminder {
-                        Text("You'll receive a notification before the schedule starts")
+                        Text(L("schedule.reminder.hint"))
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Schedule" : "New Schedule")
+            .navigationTitle(isEditing ? L("schedule.edit") : L("schedule.new"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(L("action.cancel")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(L("action.save")) {
                         saveSchedule()
                     }
                     .fontWeight(.semibold)

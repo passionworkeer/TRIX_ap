@@ -8,6 +8,13 @@
 import Foundation
 import Combine
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in ViewModels
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Payment ViewModel
 
 /// Payment view model managing payment flow and order tracking
@@ -139,7 +146,7 @@ final class PaymentViewModel: ObservableObject {
                 paymentState = .success(order: updatedOrder)
                 showResult = true
             } else if updatedOrder.isFailed {
-                paymentState = .failed(error: "Payment failed")
+                paymentState = .failed(error: L("store.error.payment.failed"))
                 showResult = true
             }
         }
@@ -160,8 +167,8 @@ final class PaymentViewModel: ObservableObject {
     /// Confirm and process purchase
     func confirmPurchase() async {
         guard let product = selectedProduct else {
-            errorMessage = "No product selected"
-            paymentState = .failed(error: "No product selected")
+            errorMessage = L("store.error.no.product")
+            paymentState = .failed(error: L("store.error.no.product"))
             return
         }
 
@@ -173,8 +180,8 @@ final class PaymentViewModel: ObservableObject {
         switch product.type {
         case .points:
             guard let points = product.points else {
-                errorMessage = "Invalid product configuration"
-                paymentState = .failed(error: "Invalid product configuration")
+                errorMessage = L("store.error.invalid.product")
+                paymentState = .failed(error: L("store.error.invalid.product"))
                 return
             }
             result = await paymentService.purchasePoints(productId: product.id, points: points)
@@ -317,7 +324,7 @@ final class PaymentViewModel: ObservableObject {
             currentOrder = order
 
         case .failed(let error):
-            paymentState = .failed(error: error.errorDescription ?? "Payment failed")
+            paymentState = .failed(error: error.errorDescription ?? L("store.error.payment.failed"))
             errorMessage = error.errorDescription
             showResult = true
 
@@ -337,7 +344,7 @@ final class PaymentViewModel: ObservableObject {
                 paymentState = .success(order: updatedOrder)
                 showResult = true
             } else if updatedOrder.isFailed {
-                paymentState = .failed(error: "Payment failed")
+                paymentState = .failed(error: L("store.error.payment.failed"))
                 showResult = true
             }
         }
@@ -355,12 +362,12 @@ extension PaymentViewModel {
         switch product.type {
         case .points:
             if let points = product.points {
-                return "Purchase \(points) Points"
+                return String(format: L("store.summary.purchase.points"), points)
             }
-            return "Purchase Points"
+            return L("store.summary.purchase.points")
 
         case .subscription:
-            return "Subscribe to \(product.name)"
+            return String(format: L("store.summary.subscribe"), product.name)
         }
     }
 
@@ -380,13 +387,13 @@ extension PaymentViewModel {
 
         switch product.type {
         case .points:
-            return "Confirm purchase of \(product.points ?? 0) points for \(product.price)?"
+            return String(format: L("store.confirm.purchase.points"), product.points ?? 0, product.price)
 
         case .subscription:
             if let period = product.subscriptionPeriod {
-                return "Confirm subscription to \(product.name) (\(period.localizedDescription)) for \(product.price)?"
+                return String(format: L("store.confirm.subscribe.period"), product.name, period.localizedDescription, product.price)
             }
-            return "Confirm subscription to \(product.name) for \(product.price)?"
+            return String(format: L("store.confirm.subscribe"), product.name, product.price)
         }
     }
 

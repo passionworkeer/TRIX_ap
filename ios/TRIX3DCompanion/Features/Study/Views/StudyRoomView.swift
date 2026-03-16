@@ -8,6 +8,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Study Room View
 
 /// 学习房间详情视图
@@ -70,7 +75,7 @@ struct StudyRoomView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
@@ -88,8 +93,8 @@ struct StudyRoomView: View {
             .fullScreenCover(isPresented: $isShowingTimer) {
                 StudyTimerView(roomState: $roomState)
             }
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+            .alert(L("error.unknown"), isPresented: .constant(errorMessage != nil)) {
+                Button(L("action.confirm")) {
                     errorMessage = nil
                 }
             } message: {
@@ -108,7 +113,7 @@ struct StudyRoomView: View {
             // Room name
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Study Room")
+                    Text(L("study.room.title"))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
 
@@ -189,7 +194,7 @@ struct StudyRoomView: View {
     /// 参与者列表部分
     private var participantsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Participants")
+            Text(L("study.room.participants"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -220,11 +225,11 @@ struct StudyRoomView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.textTertiary)
 
-            Text("No participants yet")
+            Text(L("study.room.no.participants"))
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
 
-            Text("Be the first to join this room!")
+            Text(L("study.room.be.first"))
                 .font(.caption)
                 .foregroundColor(.textTertiary)
         }
@@ -235,7 +240,7 @@ struct StudyRoomView: View {
     /// 学习进度部分
     private var studyProgressSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Session Progress")
+            Text(L("study.room.session.progress"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -247,7 +252,7 @@ struct StudyRoomView: View {
                         .scaleEffect(y: 2)
 
                     HStack {
-                        Text("Elapsed")
+                        Text(L("study.room.elapsed"))
                             .font(.caption2)
                             .foregroundColor(.textSecondary)
 
@@ -259,7 +264,7 @@ struct StudyRoomView: View {
                     }
                 }
             } else {
-                Text("No active session")
+                Text(L("study.room.no.active.session"))
                     .font(.subheadline)
                     .foregroundColor(.textTertiary)
                     .frame(maxWidth: .infinity)
@@ -278,7 +283,7 @@ struct StudyRoomView: View {
                 // Member controls
                 if roomState.sessionState == .idle {
                     Button(action: { openTimer() }) {
-                        Label("Start Focus Session", systemImage: "timer")
+                        Label(L("study.room.start.session"), systemImage: "timer")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -288,7 +293,7 @@ struct StudyRoomView: View {
                     }
                 } else {
                     Button(action: { openTimer() }) {
-                        Label("View Active Session", systemImage: "eye.fill")
+                        Label(L("study.room.view.active"), systemImage: "eye.fill")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -299,7 +304,7 @@ struct StudyRoomView: View {
                 }
 
                 Button(action: { leaveRoom() }) {
-                    Label("Leave Room", systemImage: "door.left.hand.open")
+                    Label(L("study.room.leave"), systemImage: "door.left.hand.open")
                         .font(.subheadline)
                         .foregroundColor(Color.error)
                         .frame(maxWidth: .infinity)
@@ -310,7 +315,7 @@ struct StudyRoomView: View {
             } else {
                 // Join button
                 Button(action: { joinRoom() }) {
-                    Label("Join Room", systemImage: "arrow.right.circle.fill")
+                    Label(L("study.room.join"), systemImage: "arrow.right.circle.fill")
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -350,11 +355,11 @@ struct StudyRoomView: View {
     private var sessionStateText: String {
         switch roomState.sessionState {
         case .idle:
-            return "Idle"
+            return L("study.room.state.idle")
         case .focusing:
-            return "Focusing"
+            return L("study.room.state.focusing")
         case .resting:
-            return "Resting"
+            return L("study.room.state.resting")
         }
     }
 
@@ -512,36 +517,36 @@ struct StudyRoomSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Room Information") {
+                Section(L("study.room.information")) {
                     HStack {
-                        Text("Room Code")
+                        Text(L("study.room.code"))
                         Spacer()
                         Text(roomState.roomCode)
                             .foregroundColor(.textSecondary)
                     }
 
                     HStack {
-                        Text("Max Members")
+                        Text(L("study.room.max.members"))
                         Spacer()
                         Text("\(roomState.maxMembers)")
                             .foregroundColor(.textSecondary)
                     }
                 }
 
-                Section("Session") {
+                Section(L("study.room.session")) {
                     HStack {
-                        Text("Current State")
+                        Text(L("study.room.current.state"))
                         Spacer()
                         Text(sessionStateText)
                             .foregroundColor(.textSecondary)
                     }
                 }
             }
-            .navigationTitle("Room Settings")
+            .navigationTitle(L("study.room.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(L("action.done")) {
                         dismiss()
                     }
                 }
@@ -552,11 +557,11 @@ struct StudyRoomSettingsSheet: View {
     private var sessionStateText: String {
         switch roomState.sessionState {
         case .idle:
-            return "Idle"
+            return L("study.room.state.idle")
         case .focusing:
-            return "Focusing"
+            return L("study.room.state.focusing")
         case .resting:
-            return "Resting"
+            return L("study.room.state.resting")
         }
     }
 }

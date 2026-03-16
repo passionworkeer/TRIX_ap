@@ -9,6 +9,11 @@
 import SwiftUI
 import Charts
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Study Stats View
 
 /// 学习统计视图
@@ -61,7 +66,7 @@ struct StudyStatsView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Study Statistics")
+            .navigationTitle(L("study.stats.title"))
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 await loadStats()
@@ -72,8 +77,8 @@ struct StudyStatsView: View {
                         .progressViewStyle(CircularProgressViewStyle())
                 }
             }
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+            .alert(L("error.unknown"), isPresented: .constant(errorMessage != nil)) {
+                Button(L("action.confirm")) {
                     errorMessage = nil
                 }
             } message: {
@@ -91,11 +96,11 @@ struct StudyStatsView: View {
 
     /// 时间范围选择器
     private var timeRangeSelector: some View {
-        Picker("Time Range", selection: $selectedTimeRange) {
-            Text("Today").tag(TimeRange.today)
-            Text("This Week").tag(TimeRange.week)
-            Text("This Month").tag(TimeRange.month)
-            Text("All Time").tag(TimeRange.allTime)
+        Picker(L("study.stats.time.range"), selection: $selectedTimeRange) {
+            Text(L("study.stats.today")).tag(TimeRange.today)
+            Text(L("study.stats.this.week")).tag(TimeRange.week)
+            Text(L("study.stats.this.month")).tag(TimeRange.month)
+            Text(L("study.stats.all.time")).tag(TimeRange.allTime)
         }
         .pickerStyle(.segmented)
         .onChange(of: selectedTimeRange) { _ in
@@ -144,7 +149,7 @@ struct StudyStatsView: View {
     /// 每周图表部分
     private var weeklyChartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Study Trend")
+            Text(L("study.stats.trend"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -225,11 +230,11 @@ struct StudyStatsView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.textTertiary)
 
-            Text("No data yet")
+            Text(L("study.stats.no.data"))
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
 
-            Text("Start studying to see your trends!")
+            Text(L("study.stats.start.studying"))
                 .font(.caption)
                 .foregroundColor(.textTertiary)
         }
@@ -240,7 +245,7 @@ struct StudyStatsView: View {
     /// 专注度统计部分
     private var focusStatsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Focus Insights")
+            Text(L("study.stats.focus.insights"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -275,7 +280,7 @@ struct StudyStatsView: View {
     /// 成就部分
     private var achievementsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Recent Achievements")
+            Text(L("study.stats.recent.achievements"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -345,13 +350,13 @@ struct StudyStatsView: View {
     private var focusScoreText: String {
         let avgDuration = stats?.averageDuration ?? 0
         if avgDuration >= 3600 { // 1 hour+
-            return "Excellent"
+            return L("study.stats.focus.excellent")
         } else if avgDuration >= 1800 { // 30 min+
-            return "Great"
+            return L("study.stats.focus.great")
         } else if avgDuration > 0 {
-            return "Good"
+            return L("study.stats.focus.good")
         } else {
-            return "N/A"
+            return L("study.stats.focus.na")
         }
     }
 

@@ -9,6 +9,15 @@
 import SwiftUI
 import UserNotifications
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 // MARK: - Points Service Integration
 
 /// Extension to add study points via PointsService
@@ -158,7 +167,7 @@ struct StudyTimerView: View {
             Button(action: { toggleFocusMode() }) {
                 HStack(spacing: 6) {
                     Image(systemName: isFocusMode ? "eye.slash.fill" : "eye.fill")
-                    Text(isFocusMode ? "Exit Focus" : "Focus Mode")
+                    Text(isFocusMode ? L("study.timer.exit.focus") : L("study.timer.focus.mode"))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -323,7 +332,7 @@ struct StudyTimerView: View {
                 .scaleEffect(y: 3)
 
             HStack {
-                Text("Progress")
+                Text(L("study.timer.progress"))
                     .font(.caption2)
                     .foregroundColor(.textSecondary)
 
@@ -350,7 +359,7 @@ struct StudyTimerView: View {
             if timerState != .idle {
                 ControlButton(
                     icon: "stop.fill",
-                    title: "End",
+                    title: L("study.timer.end"),
                     color: .error,
                     action: { endSession() }
                 )
@@ -388,11 +397,11 @@ struct StudyTimerView: View {
     private var sessionStateText: String {
         switch roomState.sessionState {
         case .idle:
-            return "Ready to Start"
+            return L("study.timer.ready")
         case .focusing:
-            return "Focus Time"
+            return L("study.timer.focus.time")
         case .resting:
-            return "Break Time"
+            return L("study.timer.break.time")
         }
     }
 
@@ -411,11 +420,11 @@ struct StudyTimerView: View {
     /// 呼吸文本
     private var breathingText: String {
         if breathingScale < 1.1 {
-            return "Breathe In"
+            return L("study.timer.breathe.in")
         } else if breathingScale < 1.2 {
-            return "Hold"
+            return L("study.timer.hold")
         } else {
-            return "Breathe Out"
+            return L("study.timer.breathe.out")
         }
     }
 
@@ -444,13 +453,13 @@ struct StudyTimerView: View {
     private var controlButtonTitle: String {
         switch timerState {
         case .idle:
-            return "Start"
+            return L("study.timer.start")
         case .running, .focusing, .resting:
-            return "Pause"
+            return L("study.timer.pause")
         case .paused:
-            return "Resume"
+            return L("study.timer.resume")
         case .completed:
-            return "Restart"
+            return L("study.timer.restart")
         }
     }
 
@@ -653,8 +662,8 @@ struct StudyTimerView: View {
         guard notificationPermissionGranted else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = timerState == .focusing ? "Focus Session Complete!" : "Break Time Over!"
-        content.body = timerState == .focusing ? "Time for a break." : "Ready to focus again?"
+        content.title = timerState == .focusing ? L("study.notification.focus.complete") : L("study.notification.break.over")
+        content.body = timerState == .focusing ? L("study.notification.break.message") : L("study.notification.focus.message")
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: Double(remainingSeconds), repeats: false)
@@ -668,8 +677,8 @@ struct StudyTimerView: View {
         guard notificationPermissionGranted else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Great Job!"
-        content.body = "You've completed your study session."
+        content.title = L("study.notification.great.job")
+        content.body = L("study.notification.session.complete")
         content.sound = .default
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
@@ -685,23 +694,23 @@ private struct TimerSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Focus Duration") {
+                Section(L("study.timer.focus.duration")) {
                     Stepper(value: $focusMinutes, in: 1...180) {
-                        Text("\(focusMinutes) minutes")
+                        Text(L("study.timer.minutes", focusMinutes))
                     }
                 }
             }
-            .navigationTitle("Timer Settings")
+            .navigationTitle(L("study.timer.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(L("action.cancel")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Apply") {
+                    Button(L("action.apply")) {
                         onApply()
                         dismiss()
                     }

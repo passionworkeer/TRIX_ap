@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Workbench Card
 
 /// Workbench feature card component
@@ -127,8 +134,8 @@ struct WorkbenchCardItem: Identifiable {
     HStack(spacing: 16) {
         WorkbenchCard(
             icon: "camera.fill",
-            title: "Snapshot",
-            subtitle: "Quick capture",
+            title: L("workbench.snapshot"),
+            subtitle: L("workbench.snapshot.subtitle"),
             color: .purple
         ) {
             print("Snapshot tapped")
@@ -136,8 +143,8 @@ struct WorkbenchCardItem: Identifiable {
 
         WorkbenchCard(
             icon: "location.fill",
-            title: "Location",
-            subtitle: "Share place",
+            title: L("workbench.location"),
+            subtitle: L("workbench.location.subtitle"),
             color: .green
         ) {
             print("Location tapped")

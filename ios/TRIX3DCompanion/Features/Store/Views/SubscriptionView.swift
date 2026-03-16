@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Subscription View
 
 /// View for purchasing premium subscription
@@ -70,21 +77,21 @@ struct SubscriptionView: View {
 
         static var monthlyFeatures: [String] {
             [
-                "Access to all premium features",
-                "Ad-free experience",
-                "Priority customer support",
-                "Exclusive content and resources",
-                "Cancel anytime"
+                L("store.feature.access.premium"),
+                L("store.feature.ad.free"),
+                L("store.feature.priority.support"),
+                L("store.feature.exclusive.content"),
+                L("store.feature.cancel.anytime")
             ]
         }
 
         static var yearlyFeatures: [String] {
             [
-                "Everything in Monthly",
-                "Save 18% compared to monthly",
-                "Priority over monthly subscribers",
-                "Early access to new features",
-                "Exclusive yearly member badge"
+                L("store.feature.everything.monthly"),
+                L("store.feature.save.18.percent"),
+                L("store.feature.priority.over.monthly"),
+                L("store.feature.early.access"),
+                L("store.feature.yearly.badge")
             ]
         }
     }
@@ -121,17 +128,17 @@ struct SubscriptionView: View {
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
-            .navigationTitle("Premium")
+            .navigationTitle(L("store.subscription.premium"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Restore") {
+                    Button(L("store.subscription.restore")) {
                         Task {
                             await restorePurchases()
                         }
@@ -140,7 +147,7 @@ struct SubscriptionView: View {
                 }
             }
             .confirmationDialog(
-                "Confirm Subscription",
+                L("store.subscription.confirm"),
                 isPresented: $showConfirmation,
                 presenting: selectedPlan
             ) { plan in
@@ -149,7 +156,7 @@ struct SubscriptionView: View {
                         await subscribeTo(plan)
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(L("action.cancel"), role: .cancel) {}
             } message: { plan in
                 Text("You will be charged \(plan.displayPrice) for \(plan.period). Auto-renews until cancelled.")
             }
@@ -179,11 +186,11 @@ struct SubscriptionView: View {
                     endPoint: .bottomTrailing
                 )
 
-            Text("Go Premium")
+            Text(L("store.subscription.go.premium"))
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Unlock all features and remove ads")
+            Text(L("store.subscription.unlock.features"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -196,13 +203,13 @@ struct SubscriptionView: View {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
-                Text("Active Subscription")
+                Text(L("store.subscription.active"))
                     .font(.headline)
                     .foregroundColor(.green)
             }
 
             if let expiryDate = viewModel.subscriptionExpiryDate {
-                Text("Renews on \(expiryDate, style: .date)")
+                Text("\(L("store.subscription.renews.on")) \(expiryDate, style: .date)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -211,7 +218,7 @@ struct SubscriptionView: View {
                 HStack {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
-                    Text("Auto-renew enabled")
+                    Text(L("store.subscription.auto.renew"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -219,7 +226,7 @@ struct SubscriptionView: View {
 
             Divider()
 
-            Button("Manage Subscription") {
+            Button(L("store.subscription.manage")) {
                 // Open subscription management in iOS settings
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                     UIApplication.shared.open(url)
@@ -242,7 +249,7 @@ struct SubscriptionView: View {
     /// Plans section
     private var plansSection: some View {
         VStack(spacing: 16) {
-            Text("Choose Your Plan")
+            Text(L("store.subscription.choose.plan"))
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -261,16 +268,16 @@ struct SubscriptionView: View {
     /// Benefits section
     private var benefitsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Premium Benefits")
+            Text(L("store.subscription.premium.benefits"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 8) {
-                BenefitRow(icon: "star.fill", title: "Unlimited Access", description: "Access all premium features")
-                BenefitRow(icon: "nodisk", title: "Ad-Free", description: "Enjoy without interruptions")
-                BenefitRow(icon: "bolt.fill", title: "Priority Support", description: "Get help faster")
-                BenefitRow(icon: "gift.fill", title: "Exclusive Content", description: "Premium-only resources")
-                BenefitRow(icon: "sparkles", title: "Early Access", description: "Try new features first")
+                BenefitRow(icon: "star.fill", title: L("store.feature.unlimited.access"), description: L("store.benefit.unlimited.access"))
+                BenefitRow(icon: "nodisk", title: L("store.feature.ad.free"), description: L("store.benefit.ad.free"))
+                BenefitRow(icon: "bolt.fill", title: L("store.feature.priority.support"), description: L("store.benefit.priority.support"))
+                BenefitRow(icon: "gift.fill", title: L("store.feature.exclusive.content"), description: L("store.benefit.exclusive.content"))
+                BenefitRow(icon: "sparkles", title: L("store.feature.early.access"), description: L("store.benefit.early.access"))
             }
         }
         .padding()
@@ -287,15 +294,15 @@ struct SubscriptionView: View {
     /// Terms section
     private var termsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Terms & Privacy")
+            Text(L("store.subscription.terms.privacy"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("• Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.")
-                Text("• Payment will be charged to your Apple ID account at confirmation of purchase.")
-                Text("• Manage or cancel your subscription in your Apple ID account settings.")
-                Text("• Any unused portion of a free trial period will be forfeited when purchasing a subscription.")
+                Text(L("store.subscription.terms.1"))
+                Text(L("store.subscription.terms.2"))
+                Text(L("store.subscription.terms.3"))
+                Text(L("store.subscription.terms.4"))
             }
             .font(.caption)
             .foregroundColor(.secondary)
@@ -371,7 +378,7 @@ struct PlanCard: View {
                     Spacer()
 
                     if plan.isPopular {
-                        Badge(text: "Popular", color: .blue)
+                        Badge(text: L("store.popular"), color: .blue)
                     }
                 }
 
@@ -412,7 +419,7 @@ struct PlanCard: View {
                 }
 
                 // Subscribe button
-                Text("Subscribe")
+                Text(L("store.subscription.subscribe"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)

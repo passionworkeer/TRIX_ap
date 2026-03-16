@@ -234,6 +234,11 @@ import Combine
     )
 }
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Video Transition Manager
 
 /// Manages video transitions for the 3D robot hero background
@@ -320,7 +325,7 @@ struct VideoLayersView: View {
         Rectangle()
             .fill(Color.black.opacity(0.3))
             .overlay(
-                Text("Video Layer")
+                Text(L("robot.video.layer"))
                     .foregroundColor(.white)
             )
     }

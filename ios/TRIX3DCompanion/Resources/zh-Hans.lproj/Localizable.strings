@@ -28,6 +28,8 @@
 "action.logout" = "退出登录";
 "action.register" = "注册";
 "action.signup" = "注册";
+"action.done" = "完成";
+"action.apply" = "应用";
 
 // MARK: - Auth
 "auth.login.title" = "欢迎回来";
@@ -804,3 +806,370 @@
 "music.playing" = "正在播放";
 "music.paused" = "已暂停";
 "music.all" = "全部";
+
+// MARK: - Camera
+"camera.permission.required" = "需要相机权限";
+"camera.settings" = "设置";
+"camera.enable.access" = "请在设置中启用相机权限以拍照。";
+"camera.access.denied" = "相机访问被拒绝";
+"camera.open.settings" = "打开设置";
+"camera.starting" = "正在启动相机...";
+"camera.grid" = "网格";
+"camera.flip" = "翻转";
+"camera.close" = "关闭";
+"camera.retake" = "重拍";
+"camera.uploaded.success" = "上传成功";
+"camera.use.photo" = "使用照片";
+"camera.uploading" = "上传中... %d%%";
+"camera.failed.load.photo" = "加载所选照片失败。";
+
+// MARK: - Store
+"store.product.details" = "产品详情";
+"store.error" = "错误";
+"store.for.points" = "%d 积分";
+"store.whats.included" = "包含内容";
+"store.limited.time.offer" = "限时优惠";
+"store.get.bonus" = "免费获得 %d bonus 积分！";
+"store.best.value" = "超值";
+"store.processing" = "处理中...";
+
+// MARK: - Subscription
+"store.subscription.monthly" = "月付";
+"store.subscription.month" = "1个月";
+"store.subscription.yearly" = "年付";
+"store.subscription.year" = "1年";
+"store.subscription.premium" = "高级版";
+"store.subscription.restore" = "恢复购买";
+"store.subscription.confirm" = "确认订阅";
+"store.subscription.subscribe.for" = "订阅 %@/%@";
+"store.subscription.charged" = "您将被收取 %@/%@。会自动续订直到取消。";
+"store.subscription.premium.title" = "高级版订阅";
+"store.subscription.go.premium" = "开通高级版";
+"store.subscription.unlock.features" = "解锁全部功能，移除广告";
+"store.subscription.active" = "已订阅";
+"store.subscription.renews.on" = "续订日期：%@";
+"store.subscription.auto.renew" = "已启用自动续订";
+"store.subscription.choose.plan" = "选择套餐";
+"store.subscription.premium.benefits" = "高级版特权";
+"store.subscription.terms.privacy" = "条款与隐私";
+"store.subscription.subscribe" = "订阅";
+
+// MARK: - Points Purchase
+"store.points.buy" = "购买积分";
+"store.points.purchase.question" = "购买 %d 积分需要 %@？";
+"store.points.charged" = "您将被收取 %@ 购买 %d 积分";
+"store.points.purchase" = "购买积分";
+"store.points.choose.package" = "选择一个积分套餐继续";
+"store.points.current.balance" = "当前余额";
+"store.points.refresh" = "刷新";
+"store.points.information" = "信息";
+
+// MARK: - Diagnostic
+"diagnostic.title" = "诊断";
+"diagnostic.advanced" = "高级";
+"diagnostic.network.status" = "网络状态";
+"diagnostic.connection" = "连接";
+"diagnostic.quality" = "质量";
+"diagnostic.status" = "状态";
+"diagnostic.connected" = "已连接";
+"diagnostic.disconnected" = "未连接";
+"diagnostic.test.network" = "测试网络";
+"diagnostic.tap.to.check" = "点击'测试网络'检查API连接";
+"diagnostic.storage.status" = "存储状态";
+"diagnostic.tap.to.check.storage" = "点击'刷新'检查存储";
+"diagnostic.total" = "总计";
+"diagnostic.check.storage" = "检查存储";
+"diagnostic.quick.actions" = "快捷操作";
+"diagnostic.clear.cache" = "清除缓存";
+"diagnostic.view.logs" = "查看日志";
+"diagnostic.performance" = "性能";
+"diagnostic.advanced.title" = "高级诊断";
+"diagnostic.no.logs" = "暂无日志";
+"diagnostic.logs.appear" = "日志将在此处显示";
+"diagnostic.clear.all.caches" = "清除所有缓存";
+"diagnostic.clear.caches.warning" = "这将清除所有缓存数据。应用程序将根据需要重新下载必要的数据。";
+"diagnostic.cache.size" = "缓存总大小";
+"diagnostic.cache.types" = "缓存类型";
+
+// MARK: - Pairing
+"pairing.scan.qr" = "扫描二维码";
+"pairing.align.qr" = "将二维码对准框内";
+"pairing.camera.access" = "相机访问";
+"pairing.camera.required" = "需要相机权限";
+"pairing.camera.description" = "要扫描二维码进行设备配对，请在设置中允许相机访问。";
+"pairing.open.settings" = "打开设置";
+"pairing.enter.code" = "输入配对码";
+"pairing.server.address" = "服务器地址";
+"pairing.gateway.id" = "网关ID";
+
+// MARK: - Location
+"location.share" = "分享位置";
+"location.share.question" = "与您的伙伴分享此位置？";
+"location.check.in" = "签到";
+"location.check.in.question" = "在 %@ 签到？";
+"location.navigate.maps" = "在地图中导航";
+"location.share.companion" = "与伙伴分享";
+"location.check.in.here" = "在此签到";
+"location.preview" = "位置预览";
+"location.search" = "搜索地点";
+"location.selected" = "已选位置";
+
+// MARK: - Chat Input
+"chat.input.message" = "消息...";
+"chat.input.select.photo" = "选择照片";
+"chat.input.choose.photo" = "从相册选择照片";
+"chat.input.take.photo" = "拍照";
+"chat.input.capture.photo" = "拍摄新照片发送";
+"chat.input.open.camera" = "打开相机";
+"chat.input.photo.library" = "相册";
+"chat.input.camera" = "相机";
+"chat.input.speech.error" = "语音识别错误";
+"chat.input.hey.there" = "你好！";
+"chat.input.how.are.you" = "今天过得怎么样？";
+
+// MARK: - Chat Messages
+"chat.message.failed.load" = "加载失败";
+"chat.message.loading" = "加载中...";
+"chat.message.failed.image" = "图片加载失败";
+"chat.message.loading.image" = "正在加载图片...";
+"chat.message.play.error" = "播放音频失败：%@";
+
+// MARK: - Workbench
+"workbench.location.picker" = "位置选择器";
+"workbench.select.location" = "在地图上选择位置";
+"workbench.pick.location" = "选择位置";
+"workbench.done" = "完成";
+"workbench.quick.actions" = "快捷操作";
+"workbench.tap.card" = "点击卡片访问功能";
+"workbench.cancel" = "取消";
+
+// MARK: - Todo
+"todo.new" = "新建待办";
+"todo.edit" = "编辑待办";
+"todo.title" = "待办标题";
+"todo.title.label" = "标题";
+"todo.title.hint" = "输入待办标题";
+"todo.description" = "描述";
+"todo.description.hint" = "可选：添加更多详情";
+"todo.priority" = "优先级";
+"todo.due.date" = "截止日期";
+"todo.save" = "保存";
+"todo.high.priority" = "高优先级";
+"todo.overdue" = "已逾期";
+
+// MARK: - Schedule
+"schedule.new" = "新建日程";
+"schedule.edit" = "编辑日程";
+"schedule.title" = "日程标题";
+"schedule.title.label" = "标题";
+"schedule.title.hint" = "输入日程标题";
+"schedule.description.label" = "描述";
+"schedule.description.hint" = "可选：添加更多详情";
+"schedule.date.time" = "日期和时间";
+"schedule.location.optional" = "位置（可选）";
+"schedule.location.label" = "位置";
+"schedule.remind.me" = "提醒我";
+"schedule.reminder" = "提醒";
+"schedule.reminder.hint" = "您将在日程开始前收到通知";
+"schedule.load.sample" = "加载示例";
+
+// MARK: - Study Room
+"study.room.start.session" = "开始专注";
+"study.room.view.active" = "查看进行中";
+"study.room.leave" = "离开房间";
+"study.room.join" = "加入房间";
+"study.room.information" = "房间信息";
+"study.room.session" = "会话";
+"study.room.settings" = "房间设置";
+"study.room.focus.duration" = "专注时长";
+"study.room.timer.settings" = "计时器设置";
+
+// MARK: - Study Statistics
+"study.stats.title" = "学习统计";
+"study.stats.time.range" = "时间范围";
+
+// MARK: - AI Action Selector
+"ai.action.selected.chat" = "已选择：AI聊天";
+"ai.action.selected.image" = "已选择：AI图片";
+
+// MARK: - Empty States
+"empty.yesterday" = "昨天";
+"empty.photo.detail" = "照片详情";
+"pairing.camera.required.error" = "需要相机权限才能扫描二维码。请在设置中启用。";
+"pairing.invalid.qr" = "这不是有效的TRIX配对二维码。请扫描您的OpenClaw设备生成的二维码。";
+
+// MARK: - Mail
+"mail.load.failed" = "加载失败: %@";
+
+// MARK: - Robot Background
+"robot.video.layer" = "视频层";
+
+// MARK: - Study Room Additional
+"study.room.participants" = "参与者";
+"study.room.no.participants" = "暂无参与者";
+"study.room.be.first" = "成为第一个加入房间的人吧！";
+"study.room.session.progress" = "学习进度";
+"study.room.elapsed" = "已用时";
+"study.room.no.active.session" = "无进行中的学习";
+"study.room.state.idle" = "空闲";
+"study.room.state.focusing" = "专注中";
+"study.room.state.resting" = "休息中";
+"study.room.code" = "房间代码";
+"study.room.max.members" = "最大人数";
+"study.room.current.state" = "当前状态";
+
+// MARK: - Study Statistics Additional
+"study.stats.today" = "今天";
+"study.stats.this.week" = "本周";
+"study.stats.this.month" = "本月";
+"study.stats.all.time" = "全部";
+"study.stats.trend" = "学习趋势";
+"study.stats.no.data" = "暂无数据";
+"study.stats.start.studying" = "开始学习以查看你的趋势！";
+"study.stats.focus.insights" = "专注洞察";
+"study.stats.recent.achievements" = "最近成就";
+"study.stats.focus.excellent" = "优秀";
+"study.stats.focus.good" = "不错";
+"study.stats.focus.na" = "暂无";
+
+// MARK: - Study Timer Additional
+"study.timer.exit.focus" = "退出专注";
+"study.timer.focus.mode" = "专注模式";
+"study.timer.ready" = "准备开始";
+"study.timer.break.time" = "休息时间";
+"study.timer.breathe.in" = "吸气";
+"study.timer.hold" = "屏息";
+"study.timer.breathe.out" = "呼气";
+"study.timer.progress" = "进度";
+"study.timer.restart" = "重新开始";
+"study.timer.end" = "结束";
+"study.timer.focus.duration" = "专注时长";
+"study.timer.minutes" = "%d 分钟";
+
+// MARK: - Study Notifications
+"study.notification.focus.complete" = "专注完成！";
+"study.notification.break.over" = "休息结束！";
+"study.notification.break.message" = "休息一下吧。";
+"study.notification.focus.message" = "准备好再次专注了吗？";
+"study.notification.great.job" = "做得好！";
+"study.notification.session.complete" = "你已完成学习。";
+
+// MARK: - Workbench Additional
+"workbench.overview" = "概览";
+"workbench.quick.actions" = "快捷操作";
+"workbench.tap.card" = "点击卡片访问功能";
+"workbench.subtitle" = "您的个人效率中心";
+
+// MARK: - Todo Additional
+"todo.add.success" = "待办事项添加成功";
+"todo.edit.success" = "待办事项更新成功";
+"todo.delete.success" = "待办事项已删除";
+"todo.completed.cleared" = "已完成的待办事项已清除";
+"todo.load.error" = "加载待办事项失败：%@";
+"todo.set.due.date" = "设置截止日期";
+"todo.dueDate.today" = "今天 %@";
+"todo.dueDate.tomorrow" = "明天 %@";
+"todo.priority.low" = "低";
+"todo.priority.medium" = "中";
+"todo.priority.high" = "高";
+"todo.filter.all" = "全部";
+"todo.filter.active" = "进行中";
+"todo.filter.completed" = "已完成";
+"todo.sort.created" = "创建日期";
+"todo.sort.dueDate" = "截止日期";
+"todo.sort.priority" = "优先级";
+"todo.sort.title" = "标题";
+
+// MARK: - Schedule Additional
+"schedule.start" = "开始";
+"schedule.end" = "结束";
+"schedule.set.end.time" = "设置结束时间";
+"schedule.set.reminder" = "设置提醒";
+"schedule.filter.all" = "全部";
+"schedule.filter.upcoming" = "即将到来";
+"schedule.filter.today" = "今天";
+"schedule.filter.past" = "已过期";
+"schedule.reminder.5min" = "5分钟";
+"schedule.reminder.15min" = "15分钟";
+"schedule.reminder.30min" = "30分钟";
+"schedule.reminder.1hour" = "1小时";
+"schedule.reminder.2hours" = "2小时";
+"schedule.reminder.1day" = "1天";
+
+// MARK: - Store Additional
+"store.purchase.now" = "立即购买";
+"store.subscribe.now" = "立即订阅";
+"store.points.per.yuan" = "%.1f 积分/¥";
+"store.error.invalid.product" = "产品配置无效";
+"store.error.no.product" = "未选择产品";
+"store.error.payment.failed" = "支付失败";
+
+// MARK: - Store Features
+"store.feature.points" = "%d 积分";
+"store.feature.bonus.points" = "赠送 +%d 积分";
+"store.feature.instant.delivery" = "即时到账";
+"store.feature.no.expiration" = "永不过期";
+"store.feature.unlimited.access" = "无限访问";
+"store.feature.premium.features" = "高级功能";
+"store.feature.ad.free" = "无广告";
+"store.feature.priority.support" = "优先支持";
+"store.feature.exclusive.content" = "专属内容";
+"store.feature.cancel.anytime" = "随时取消";
+"store.feature.everything.monthly" = "月付所有权益";
+"store.feature.save.18.percent" = "相比月付省18%%";
+"store.feature.priority.over.monthly" = "优先于月付订阅者";
+"store.feature.early.access" = "新功能优先体验";
+"store.feature.yearly.badge" = "年度专属徽章";
+"store.feature.access.premium" = "访问全部高级功能";
+
+// MARK: - Store Benefits
+"store.benefit.bonus.points" = "购买此套餐获得 %d 赠送积分！";
+"store.benefit.purchase.points" = "购买积分解锁高级功能";
+"store.benefit.subscribe" = "订阅以解锁全部功能";
+"store.benefit.unlimited.access" = "访问全部高级功能";
+"store.benefit.ad.free" = "享受无干扰体验";
+"store.benefit.priority.support" = "获得更快帮助";
+"store.benefit.exclusive.content" = "专属资源";
+"store.benefit.early.access" = "优先体验新功能";
+
+// MARK: - Store Subscription Warning
+"store.subscription.warning" = "订阅将在到期前24小时自动续订。可在设置中管理。";
+
+// MARK: - Payment Result
+"store.payment.success" = "支付成功！";
+"store.payment.failed" = "支付失败";
+"store.payment.success.points" = "您已成功购买 %d 积分！";
+"store.payment.success.subscription" = "您已成功订阅 %@！";
+"store.payment.failed.message" = "无法处理您的支付，请重试。";
+
+// MARK: - Order Details
+"store.order.details" = "订单详情";
+"store.order.id" = "订单号";
+"store.order.amount" = "金额";
+"store.order.date" = "日期";
+"store.order.transaction" = "交易号";
+"store.points.added" = "积分已添加";
+"store.view" = "查看";
+
+// MARK: - Payment Summary
+"store.summary.purchase.points" = "购买积分";
+"store.summary.subscribe" = "订阅 %@";
+"store.confirm.purchase.points" = "确认购买 %d 积分，价格 %@？";
+"store.confirm.subscribe" = "确认订阅 %@，价格 %@？";
+"store.confirm.subscribe.period" = "确认订阅 %@（%@），价格 %@？";
+
+// MARK: - Subscription Terms
+"store.subscription.go.premium" = "开通高级版";
+"store.subscription.manage" = "管理订阅";
+"store.subscription.terms.1" = "订阅将在当前周期结束前至少24小时自动续订。";
+"store.subscription.terms.2" = "购买确认时将向您的Apple ID账户收取费用。";
+"store.subscription.terms.3" = "可在Apple ID账户设置中管理或取消订阅。";
+"store.subscription.terms.4" = "免费试用期的未使用部分在购买订阅后将失效。";
+
+// MARK: - Points Purchase Additional
+"store.points.confirm.purchase" = "确认购买";
+"store.points.info.instant" = "购买后即时到账";
+"store.points.info.no.expire" = "积分永不过期";
+"store.points.info.secure" = "Apple Pay安全支付";
+"store.points.info.no.refund" = "积分购买不可退款";
+"store.bonus" = "赠送 %d";

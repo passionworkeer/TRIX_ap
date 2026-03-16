@@ -169,7 +169,7 @@ struct MailPanelView: View {
                 isLoading = false
             } catch {
                 isLoading = false
-                errorMessage = "加载失败: \(error.localizedDescription)"
+                errorMessage = L("mail.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
             }
         }
     }

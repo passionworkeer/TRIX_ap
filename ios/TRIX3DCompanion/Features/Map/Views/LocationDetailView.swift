@@ -8,6 +8,11 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Location Detail View
 
 /// Location detail sheet with actions
@@ -64,20 +69,20 @@ struct LocationDetailView: View {
                 .padding(.top, 8)
             }
         }
-        .alert("Share Location", isPresented: $showShareConfirmation) {
-            Button("Share") {
+        .alert(L("location.share"), isPresented: $showShareConfirmation) {
+            Button(L("action.share")) {
                 onShare()
                 dismiss()
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L("action.cancel"), role: .cancel) {}
         } message: {
             Text("Share this location with your companion?")
         }
-        .alert("Check In", isPresented: $showCheckInConfirmation) {
-            Button("Check In") {
+        .alert(L("location.check.in"), isPresented: $showCheckInConfirmation) {
+            Button(L("location.check.in")) {
                 performCheckIn()
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L("action.cancel"), role: .cancel) {}
         } message: {
             Text("Check in at \(location.name)?")
         }
@@ -170,7 +175,7 @@ struct LocationDetailView: View {
         VStack(spacing: 12) {
             // Navigate button
             Button(action: onNavigate) {
-                Label("Navigate in Maps", systemImage: "map.fill")
+                Label(L("location.navigate.maps"), systemImage: "map.fill")
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -181,7 +186,7 @@ struct LocationDetailView: View {
 
             // Share with companion button
             Button(action: { showShareConfirmation = true }) {
-                Label("Share with Companion", systemImage: "heart.fill")
+                Label(L("location.share.companion"), systemImage: "heart.fill")
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -201,7 +206,7 @@ struct LocationDetailView: View {
                         Image(systemName: "checkmark.circle.fill")
                     }
 
-                    Text("Check In Here")
+                    Text(L("location.check.in.here"))
                         .fontWeight(.semibold)
                 }
                 .font(.subheadline)

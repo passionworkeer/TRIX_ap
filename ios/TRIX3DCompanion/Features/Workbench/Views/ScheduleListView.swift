@@ -81,7 +81,7 @@ struct ScheduleListView: View {
                 Button(L("action.confirm")) {
                     viewModel.clearMessages()
                 }
-                Button("加载示例") {
+                Button(L("schedule.load.sample")) {
                     viewModel.loadSampleSchedules()
                 }
             } message: {

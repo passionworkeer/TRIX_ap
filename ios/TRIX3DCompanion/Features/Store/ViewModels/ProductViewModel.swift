@@ -9,6 +9,13 @@ import Foundation
 import Combine
 import StoreKit
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in ViewModels
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Product ViewModel
 
 /// Product detail view model for individual product information and purchase
@@ -232,7 +239,7 @@ final class ProductViewModel: ObservableObject {
     private func purchasePoints() async {
         guard let points = product.points else {
             purchaseState = .failed
-            errorMessage = "Invalid product configuration"
+            errorMessage = L("store.error.invalid.product")
             return
         }
 
@@ -294,26 +301,26 @@ extension ProductViewModel {
         var features: [String] = []
 
         if let points = product.points {
-            features.append("\(points) Points")
+            features.append(String(format: L("store.feature.points"), points))
         }
 
         if let bonus = bonusPoints {
-            features.append("Bonus +\(bonus) Points")
+            features.append(String(format: L("store.feature.bonus.points"), bonus))
         }
 
-        features.append("Instant Delivery")
-        features.append("No Expiration")
+        features.append(L("store.feature.instant.delivery"))
+        features.append(L("store.feature.no.expiration"))
 
         return features
     }
 
     private var subscriptionFeatures: [String] {
         return [
-            "Unlimited Access",
-            "Premium Features",
-            "Ad-Free Experience",
-            "Priority Support",
-            "Exclusive Content"
+            L("store.feature.unlimited.access"),
+            L("store.feature.premium.features"),
+            L("store.feature.ad.free"),
+            L("store.feature.priority.support"),
+            L("store.feature.exclusive.content")
         ]
     }
 
@@ -322,12 +329,12 @@ extension ProductViewModel {
         switch product.type {
         case .points:
             if let bonus = bonusPoints {
-                return "Get \(bonus) bonus points with this pack!"
+                return String(format: L("store.benefit.bonus.points"), bonus)
             }
-            return "Purchase points to unlock premium features"
+            return L("store.benefit.purchase.points")
 
         case .subscription:
-            return "Subscribe for unlimited access to all features"
+            return L("store.benefit.subscribe")
         }
     }
 
@@ -338,7 +345,7 @@ extension ProductViewModel {
             return nil
 
         case .subscription:
-            return "Subscription auto-renews unless cancelled. Manage in Settings."
+            return L("store.subscription.warning")
         }
     }
 }

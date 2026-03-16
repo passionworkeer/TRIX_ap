@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Payment Result View
 
 /// View displaying payment completion result
@@ -84,37 +91,37 @@ struct PaymentResultView: View {
 
     /// Status title
     private var statusTitle: String {
-        isSuccess ? "Payment Successful!" : "Payment Failed"
+        isSuccess ? L("store.payment.success") : L("store.payment.failed")
     }
 
     /// Status message
     private var statusMessage: String {
         if isSuccess {
             if let points = points {
-                return "You've successfully purchased \(points) points!"
+                return String(format: L("store.payment.success.points"), points)
             } else {
-                return "You've successfully subscribed to \(productName)!"
+                return String(format: L("store.payment.success.subscription"), productName)
             }
         } else {
-            return "We couldn't process your payment. Please try again."
+            return L("store.payment.failed.message")
         }
     }
 
     /// Order details card
     private func orderDetailsCard(_ order: AppOrder) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Order Details")
+            Text(L("store.order.details"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
             Divider()
 
-            OrderRow(label: "Order ID", value: order.id.prefix(8) + "...")
-            OrderRow(label: "Amount", value: String(format: "¥%.2f", order.amount))
-            OrderRow(label: "Date", value: formatDate(order.createdAt))
+            OrderRow(label: L("store.order.id"), value: order.id.prefix(8) + "...")
+            OrderRow(label: L("store.order.amount"), value: String(format: "¥%.2f", order.amount))
+            OrderRow(label: L("store.order.date"), value: formatDate(order.createdAt))
 
             if let transactionId = order.transactionId {
-                OrderRow(label: "Transaction", value: transactionId.prefix(8) + "...")
+                OrderRow(label: L("store.order.transaction"), value: transactionId.prefix(8) + "...")
             }
         }
         .padding()
@@ -136,11 +143,11 @@ struct PaymentResultView: View {
                 .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Points Added")
+                Text(L("store.points.added"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                Text("+\(points) points")
+                Text("+\(points) " + L("store.points"))
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
@@ -148,7 +155,7 @@ struct PaymentResultView: View {
 
             Spacer()
 
-            Button("View") {
+            Button(L("store.view")) {
                 // Navigate to store or profile
                 dismiss()
             }
@@ -189,7 +196,7 @@ struct PaymentResultView: View {
 
     /// Button title
     private var buttonTitle: String {
-        isSuccess ? "Done" : "Try Again"
+        isSuccess ? L("action.done") : L("action.retry")
     }
 
     // MARK: - Helpers

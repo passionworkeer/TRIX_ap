@@ -8,6 +8,13 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Placeholder Location Picker View
 
 /// Placeholder for LocationPickerView when the Map module is not available
@@ -21,22 +28,22 @@ struct WorkbenchLocationPicker: View {
                     .font(.system(size: 60))
                     .foregroundColor(.purple)
 
-                Text("Location Picker")
+                Text(L("workbench.location.picker"))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("Select a location on the map")
+                Text(L("workbench.select.location"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
             }
             .padding(.top, 50)
-            .navigationTitle("Pick Location")
+            .navigationTitle(L("workbench.pick.location"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(L("action.done")) {
                         // Dismiss handled by parent
                     }
                 }
@@ -83,11 +90,11 @@ struct WorkbenchSheet: View {
                 Spacer()
             }
             .background(backgroundGradient)
-            .navigationTitle("Workbench")
+            .navigationTitle(L("workbench.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(L("action.done")) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -113,11 +120,11 @@ struct WorkbenchSheet: View {
     /// Header section with greeting
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Quick Actions")
+            Text(L("workbench.quick.actions"))
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Tap a card to access features")
+            Text(L("workbench.tap.card"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -163,8 +170,8 @@ struct WorkbenchSheet: View {
             HStack(spacing: 16) {
                 WorkbenchCard(
                     icon: "camera.fill",
-                    title: "Snapshot",
-                    subtitle: "Quick capture",
+                    title: L("workbench.snapshot"),
+                    subtitle: L("workbench.snapshot.subtitle"),
                     color: .purple
                 ) {
                     showSnapshot = true
@@ -172,8 +179,8 @@ struct WorkbenchSheet: View {
 
                 WorkbenchCard(
                     icon: "location.fill",
-                    title: "Location",
-                    subtitle: "Share place",
+                    title: L("workbench.location"),
+                    subtitle: L("workbench.location.subtitle"),
                     color: .green
                 ) {
                     showLocationPicker = true
@@ -181,8 +188,8 @@ struct WorkbenchSheet: View {
 
                 WorkbenchCard(
                     icon: "calendar",
-                    title: "Schedule",
-                    subtitle: "Manage events",
+                    title: L("workbench.schedule"),
+                    subtitle: L("workbench.schedule.subtitle"),
                     color: .blue
                 ) {
                     showScheduleList = true
@@ -190,8 +197,8 @@ struct WorkbenchSheet: View {
 
                 WorkbenchCard(
                     icon: "checklist",
-                    title: "Todo",
-                    subtitle: "Task list",
+                    title: L("workbench.todo"),
+                    subtitle: L("workbench.todo.subtitle"),
                     color: .orange
                 ) {
                     showTodoList = true
@@ -244,10 +251,10 @@ enum WorkbenchTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .overview: return "Overview"
-        case .todo: return "Todo"
-        case .schedule: return "Schedule"
-        case .location: return "Location"
+        case .overview: return L("workbench.overview")
+        case .todo: return L("workbench.todo")
+        case .schedule: return L("workbench.schedule")
+        case .location: return L("workbench.location")
         }
     }
 
@@ -310,7 +317,7 @@ struct SnapshotViewWrapper: View {
                 .ignoresSafeArea()
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") {
+                        Button(L("action.cancel")) {
                             dismiss()
                         }
                     }
