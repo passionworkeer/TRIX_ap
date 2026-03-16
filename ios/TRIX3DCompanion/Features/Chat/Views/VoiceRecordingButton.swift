@@ -365,13 +365,13 @@ enum RecordingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .recorderCreationFailed:
-            return "Failed to create audio recorder"
+            return L("voice.error.recorder.create")
         case .permissionDenied:
-            return "Microphone permission denied"
+            return L("voice.error.permission.denied")
         case .invalidOutputURL:
-            return "Invalid output file path"
+            return L("voice.error.invalid.url")
         case .recordingFailed(let error):
-            return "Recording failed: \(error.localizedDescription)"
+            return L("voice.error.recording.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
         }
     }
 }
@@ -525,7 +525,7 @@ struct VoiceRecordingButton: View {
             }
 
             // Duration
-            Text(viewModel.isRecording ? viewModel.formattedDuration : "00:00")
+            Text(viewModel.isRecording ? viewModel.formattedDuration : L("voice.duration.default"))
                 .font(.system(.title, design: .rounded))
                 .fontWeight(.semibold)
                 .foregroundColor(.white)

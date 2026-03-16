@@ -117,11 +117,11 @@ struct TypingStatusView: View {
         if names.isEmpty {
             return ""
         } else if names.count == 1 {
-            return "\(names[0]) 正在输入..."
+            return String(format: NSLocalizedString("chat.typing.single", comment: "Single typing"), names[0])
         } else if names.count == 2 {
-            return "\(names[0]) 和 \(names[1]) 正在输入..."
+            return String(format: NSLocalizedString("chat.typing.dual", comment: "Dual typing"), names[0], names[1])
         } else {
-            return "\(names.count) 人正在输入..."
+            return String(format: NSLocalizedString("chat.typing.multiple", comment: "Multiple typing"), names.count)
         }
     }
 

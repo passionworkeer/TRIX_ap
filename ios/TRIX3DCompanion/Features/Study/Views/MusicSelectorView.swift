@@ -8,6 +8,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 struct MusicSelectorView: View {
 
     // MARK: - Environment
@@ -44,11 +49,11 @@ struct MusicSelectorView: View {
                     .padding()
                 }
             }
-            .navigationTitle("背景音乐")
+            .navigationTitle(L("music.background"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(L("music.done")) {
                         dismiss()
                     }
                     .foregroundColor(.brandPurple)
@@ -72,7 +77,7 @@ struct MusicSelectorView: View {
                             .font(.headline)
                             .foregroundColor(.white)
 
-                        Text(audioPlayer.state == .playing ? "正在播放" : "已暂停")
+                        Text(audioPlayer.state == .playing ? L("music.playing") : L("music.paused"))
                             .font(.caption)
                             .foregroundColor(.brandPurple)
                     }
@@ -123,7 +128,7 @@ struct MusicSelectorView: View {
             HStack(spacing: 12) {
                 // 全部按钮
                 MusicCategoryButton(
-                    title: "全部",
+                    title: L("music.all"),
                     isSelected: selectedCategory == nil,
                     action: { selectedCategory = nil }
                 )

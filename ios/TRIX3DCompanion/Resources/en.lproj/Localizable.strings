@@ -389,6 +389,8 @@
 "home.takePhoto" = "Take Photo";
 "home.selectFromAlbum" = "Select from Album";
 "home.viewAlbum" = "View Album";
+"home.toolbar.mail" = "Mail";
+"home.toolbar.notifications" = "Notifications";
 
 // MARK: - Study Room
 "study.room.title" = "Study Room";
@@ -691,3 +693,82 @@
 "store.per.year" = "/year";
 "store.per.month" = "/month";
 "store.popular" = "Popular";
+
+// MARK: - Bot State
+"bot.state.idle" = "Idle";
+"bot.state.thinking" = "Thinking";
+"bot.state.speaking" = "Speaking";
+"bot.state.boring" = "Bored";
+
+// MARK: - Accessibility Labels
+"accessibility.home" = "Home";
+"accessibility.chat" = "Chat";
+"accessibility.study" = "Study";
+"accessibility.profile" = "Profile";
+"accessibility.settings" = "Settings";
+"accessibility.send" = "Send";
+"accessibility.cancel" = "Cancel";
+"accessibility.confirm" = "Confirm";
+"accessibility.delete" = "Delete";
+"accessibility.edit" = "Edit";
+"accessibility.back" = "Back";
+"accessibility.close" = "Close";
+"accessibility.retry" = "Retry";
+"accessibility.refresh" = "Refresh";
+"accessibility.take.photo" = "Take Photo";
+"accessibility.select.photo" = "Select Photo";
+"accessibility.record.video" = "Record Video";
+"accessibility.voice.message" = "Voice Message";
+"accessibility.loading" = "Loading";
+"accessibility.sending" = "Sending";
+"accessibility.connecting" = "Connecting";
+"accessibility.offline" = "Offline";
+"accessibility.online" = "Online";
+"accessibility.no.messages" = "No messages";
+"accessibility.no.friends" = "No friends";
+"accessibility.no.study.sessions" = "No study sessions";
+"accessibility.no.notifications" = "No notifications";
+"accessibility.no.points" = "No points";
+"accessibility.network.error" = "Network Error";
+"accessibility.server.error" = "Server Error";
+"accessibility.permission.denied" = "Permission Denied";
+
+// MARK: - Voice Playback
+"voice.playback.speed" = "Playback Speed";
+"voice.clear" = "Clear";
+
+// MARK: - TTS
+"tts.pitch.low" = "Low";
+"tts.pitch.standard" = "Standard";
+"tts.pitch.high" = "High";
+"tts.input.required" = "Please enter text to speak";
+"tts.test.text" = "This is a test text to demonstrate the text-to-speech feature.";
+
+// MARK: - Chat Status
+"chat.status.online" = "Online";
+"chat.status.offline" = "Offline";
+"chat.status.away" = "Away";
+"chat.status.busy" = "Busy";
+"chat.typing.single" = "%@ is typing...";
+"chat.typing.dual" = "%@ and %@ are typing...";
+"chat.typing.multiple" = "%d people are typing...";
+
+// MARK: - AI Actions
+"ai.action.chat" = "AI Chat";
+"ai.action.doc" = "AI Doc";
+"ai.action.slide" = "AI Slides";
+"ai.action.table" = "AI Table";
+"ai.action.image" = "AI Image";
+"ai.action.video" = "AI Video";
+
+// MARK: - Map
+"map.studying" = "Studying";
+"map.not.studying" = "Not Studying";
+"map.location.format" = "Lat %.4f, Lng %.4f";
+
+// MARK: - Music Selector
+"music.background" = "Background Music";
+"music.done" = "Done";
+"music.playing" = "Playing";
+"music.paused" = "Paused";
+"music.all" = "All";

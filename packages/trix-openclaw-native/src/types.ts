@@ -115,7 +115,9 @@ export interface PairingClaimResponse {
   conversationId: string;
   clientToken: string;
   websocketUrl: string;
+  serverUrl?: string;
   pairing: PairingRecord;
+  agentOnline?: boolean;
 }
 
 export interface CreateMessageInput {

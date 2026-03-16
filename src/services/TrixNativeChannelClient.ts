@@ -429,7 +429,7 @@ class TrixNativeChannelClient {
     this.socket = null;
   }
 
-  async pairWithCode(code: string, deviceName: string = defaultDeviceName()): Promise<{ success: boolean }> {
+  async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string): Promise<{ success: boolean }> {
     const endpoints = getClawbotEndpoints();
     const session = this.getSession();
     const serverUrl = normalizeServerUrl(session?.serverUrl || endpoints.nativeServerUrl);
@@ -446,6 +446,7 @@ class TrixNativeChannelClient {
       body: JSON.stringify({
         clientId,
         deviceName,
+        secret,
       }),
     });
 

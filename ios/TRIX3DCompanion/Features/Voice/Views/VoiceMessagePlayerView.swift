@@ -262,7 +262,7 @@ struct VoiceMessagePlayerView: View {
         }
         .buttonStyle(.plain)
         .confirmationDialog(
-            "播放速度",
+            NSLocalizedString("voice.playback.speed", comment: "Playback speed"),
             isPresented: $viewModel.showSpeedSelector,
             titleVisibility: .hidden
         ) {
@@ -288,7 +288,7 @@ struct VoiceMessagePlayerView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button("清除") {
+            Button(NSLocalizedString("voice.clear", comment: "Clear")) {
                 viewModel.clearError()
             }
             .font(.caption)

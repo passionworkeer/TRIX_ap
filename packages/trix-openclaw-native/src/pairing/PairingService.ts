@@ -10,7 +10,7 @@ import type {
 } from '../types.js';
 import { JsonStateStore } from '../storage/JsonStateStore.js';
 
-const DEFAULT_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour - 足够时间扫描二维码
 
 export class PairingService {
   constructor(private readonly store: JsonStateStore) {}

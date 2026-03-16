@@ -185,6 +185,8 @@
 "home.takePhoto" = "拍照";
 "home.selectFromAlbum" = "從相簿選擇";
 "home.viewAlbum" = "查看快拍相簿";
+"home.toolbar.mail" = "郵件";
+"home.toolbar.notifications" = "通知";
 
 // MARK: - Study Room
 "study.room.title" = "學習房間";
@@ -498,6 +500,85 @@
 "store.per.year" = "/年";
 "store.per.month" = "/月";
 "store.popular" = "熱門";
+
+// MARK: - Bot State
+"bot.state.idle" = "待機";
+"bot.state.thinking" = "思考中";
+"bot.state.speaking" = "說話中";
+"bot.state.boring" = "無聊";
+
+// MARK: - Accessibility Labels
+"accessibility.home" = "首頁";
+"accessibility.chat" = "聊天";
+"accessibility.study" = "學習";
+"accessibility.profile" = "我的";
+"accessibility.settings" = "設定";
+"accessibility.send" = "傳送";
+"accessibility.cancel" = "取消";
+"accessibility.confirm" = "確認";
+"accessibility.delete" = "刪除";
+"accessibility.edit" = "編輯";
+"accessibility.back" = "返回";
+"accessibility.close" = "關閉";
+"accessibility.retry" = "重試";
+"accessibility.refresh" = "重新整理";
+"accessibility.take.photo" = "拍照";
+"accessibility.select.photo" = "選擇照片";
+"accessibility.record.video" = "錄製影片";
+"accessibility.voice.message" = "語音訊息";
+"accessibility.loading" = "載入中";
+"accessibility.sending" = "傳送中";
+"accessibility.connecting" = "連線中";
+"accessibility.offline" = "離線";
+"accessibility.online" = "上線";
+"accessibility.no.messages" = "暫無訊息";
+"accessibility.no.friends" = "暫無好友";
+"accessibility.no.study.sessions" = "暫無學習記錄";
+"accessibility.no.notifications" = "暫無通知";
+"accessibility.no.points" = "暫無積分";
+"accessibility.network.error" = "網路錯誤";
+"accessibility.server.error" = "伺服器錯誤";
+"accessibility.permission.denied" = "權限被拒絕";
+
+// MARK: - Voice Playback
+"voice.playback.speed" = "播放速度";
+"voice.clear" = "清除";
+
+// MARK: - TTS
+"tts.pitch.low" = "低音";
+"tts.pitch.standard" = "標準";
+"tts.pitch.high" = "高音";
+"tts.input.required" = "請輸入要朗讀的文字";
+"tts.test.text" = "這是一段測試文字，用於演示語音朗讀功能。";
+
+// MARK: - Chat Status
+"chat.status.online" = "上線";
+"chat.status.offline" = "離線";
+"chat.status.away" = "離開";
+"chat.status.busy" = "忙碌";
+"chat.typing.single" = "%@ 正在輸入...";
+"chat.typing.dual" = "%@ 和 %@ 正在輸入...";
+"chat.typing.multiple" = "%d 人正在輸入...";
+
+// MARK: - AI Actions
+"ai.action.chat" = "AI聊天";
+"ai.action.doc" = "AI文件";
+"ai.action.slide" = "AI簡報";
+"ai.action.table" = "AI表格";
+"ai.action.image" = "AI圖片";
+"ai.action.video" = "AI影片";
+
+// MARK: - Map
+"map.studying" = "正在學習";
+"map.not.studying" = "暫未學習";
+"map.location.format" = "緯度 %.4f，經度 %.4f";
+
+// MARK: - Music Selector
+"music.background" = "背景音樂";
+"music.done" = "完成";
+"music.playing" = "正在播放";
+"music.paused" = "已暫停";
+"music.all" = "全部";
 
 // MARK: - Pairing
 "pairing.title" = "尋找好友";

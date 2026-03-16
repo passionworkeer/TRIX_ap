@@ -100,9 +100,9 @@ final class TTSViewModel: ObservableObject {
     /// Available pitch options
     var availablePitchOptions: [SpeechPitchOption] {
         [
-            SpeechPitchOption(value: 0.8, displayName: "低音"),
-            SpeechPitchOption(value: 1.0, displayName: "标准"),
-            SpeechPitchOption(value: 1.2, displayName: "高音")
+            SpeechPitchOption(value: 0.8, displayName: NSLocalizedString("tts.pitch.low", comment: "Low pitch")),
+            SpeechPitchOption(value: 1.0, displayName: NSLocalizedString("tts.pitch.standard", comment: "Standard pitch")),
+            SpeechPitchOption(value: 1.2, displayName: NSLocalizedString("tts.pitch.high", comment: "High pitch"))
         ]
     }
 
@@ -139,7 +139,7 @@ final class TTSViewModel: ObservableObject {
     func speak(_ text: String) async {
         guard isEnabled else { return }
         guard !text.isEmpty else {
-            errorMessage = "请输入要朗读的文本"
+            errorMessage = NSLocalizedString("tts.input.required", comment: "TTS input required")
             return
         }
 
@@ -337,7 +337,7 @@ extension TTSViewModel {
         vm.selectedLanguage = .chinese
         vm.isSpeaking = true
         vm.isSpeakingText = true
-        vm.textToSpeak = "这是一段测试文本，用于演示语音朗读功能。"
+        vm.textToSpeak = NSLocalizedString("tts.test.text", comment: "Test TTS text")
         return vm
     }
 }

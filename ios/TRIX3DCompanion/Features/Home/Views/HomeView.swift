@@ -213,11 +213,11 @@ struct HomeView: View {
             Spacer()
 
             HStack(spacing: 12) {
-                toolbarCapsuleButton(icon: "envelope.fill", accessibilityLabel: "Mail") {
+                toolbarCapsuleButton(icon: "envelope.fill", accessibilityLabel: L("home.toolbar.mail")) {
                     showMailPanel = true
                 }
 
-                toolbarCapsuleButton(icon: "bell.fill", accessibilityLabel: "Notifications") {
+                toolbarCapsuleButton(icon: "bell.fill", accessibilityLabel: L("home.toolbar.notifications")) {
                     showNotificationPanel = true
                 }
             }

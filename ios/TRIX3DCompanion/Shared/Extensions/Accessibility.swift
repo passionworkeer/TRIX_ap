@@ -12,47 +12,47 @@ import SwiftUI
 /// Standard accessibility labels used throughout the app
 enum AccessibilityLabel {
     // Navigation
-    static let home = "首页"
-    static let chat = "聊天"
-    static let study = "学习"
-    static let profile = "我的"
-    static let settings = "设置"
+    static let home = NSLocalizedString("accessibility.home", comment: "Home nav")
+    static let chat = NSLocalizedString("accessibility.chat", comment: "Chat nav")
+    static let study = NSLocalizedString("accessibility.study", comment: "Study nav")
+    static let profile = NSLocalizedString("accessibility.profile", comment: "Profile nav")
+    static let settings = NSLocalizedString("accessibility.settings", comment: "Settings nav")
 
     // Actions
-    static let send = "发送"
-    static let cancel = "取消"
-    static let confirm = "确认"
-    static let delete = "删除"
-    static let edit = "编辑"
-    static let back = "返回"
-    static let close = "关闭"
-    static let retry = "重试"
-    static let refresh = "刷新"
+    static let send = NSLocalizedString("accessibility.send", comment: "Send action")
+    static let cancel = NSLocalizedString("accessibility.cancel", comment: "Cancel action")
+    static let confirm = NSLocalizedString("accessibility.confirm", comment: "Confirm action")
+    static let delete = NSLocalizedString("accessibility.delete", comment: "Delete action")
+    static let edit = NSLocalizedString("accessibility.edit", comment: "Edit action")
+    static let back = NSLocalizedString("accessibility.back", comment: "Back action")
+    static let close = NSLocalizedString("accessibility.close", comment: "Close action")
+    static let retry = NSLocalizedString("accessibility.retry", comment: "Retry action")
+    static let refresh = NSLocalizedString("accessibility.refresh", comment: "Refresh action")
 
     // Media
-    static let takePhoto = "拍照"
-    static let selectPhoto = "选择照片"
-    static let recordVideo = "录制视频"
-    static let voiceMessage = "语音消息"
+    static let takePhoto = NSLocalizedString("accessibility.take.photo", comment: "Take photo")
+    static let selectPhoto = NSLocalizedString("accessibility.select.photo", comment: "Select photo")
+    static let recordVideo = NSLocalizedString("accessibility.record.video", comment: "Record video")
+    static let voiceMessage = NSLocalizedString("accessibility.voice.message", comment: "Voice message")
 
     // Status
-    static let loading = "加载中"
-    static let sending = "发送中"
-    static let connecting = "连接中"
-    static let offline = "离线"
-    static let online = "在线"
+    static let loading = NSLocalizedString("accessibility.loading", comment: "Loading status")
+    static let sending = NSLocalizedString("accessibility.sending", comment: "Sending status")
+    static let connecting = NSLocalizedString("accessibility.connecting", comment: "Connecting status")
+    static let offline = NSLocalizedString("accessibility.offline", comment: "Offline status")
+    static let online = NSLocalizedString("accessibility.online", comment: "Online status")
 
     // Empty states
-    static let noMessages = "暂无消息"
-    static let noFriends = "暂无好友"
-    static let noStudySessions = "暂无学习记录"
-    static let noNotifications = "暂无通知"
-    static let noPoints = "暂无积分"
+    static let noMessages = NSLocalizedString("accessibility.no.messages", comment: "No messages")
+    static let noFriends = NSLocalizedString("accessibility.no.friends", comment: "No friends")
+    static let noStudySessions = NSLocalizedString("accessibility.no.study.sessions", comment: "No study sessions")
+    static let noNotifications = NSLocalizedString("accessibility.no.notifications", comment: "No notifications")
+    static let noPoints = NSLocalizedString("accessibility.no.points", comment: "No points")
 
     // Errors
-    static let networkError = "网络错误"
-    static let serverError = "服务器错误"
-    static let permissionDenied = "权限被拒绝"
+    static let networkError = NSLocalizedString("accessibility.network.error", comment: "Network error")
+    static let serverError = NSLocalizedString("accessibility.server.error", comment: "Server error")
+    static let permissionDenied = NSLocalizedString("accessibility.permission.denied", comment: "Permission denied")
 }
 
 // MARK: - Accessibility Traits

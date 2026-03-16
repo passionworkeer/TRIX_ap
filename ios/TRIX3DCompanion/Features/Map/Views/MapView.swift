@@ -938,7 +938,7 @@ private struct FriendDetailSheet: View {
 
             HStack(spacing: 10) {
                 Label(
-                    friend.isStudying ? "正在学习" : "暂未学习",
+                    friend.isStudying ? NSLocalizedString("map.studying", comment: "Studying") : NSLocalizedString("map.not.studying", comment: "Not studying"),
                     systemImage: friend.isStudying ? "book.fill" : "moon.zzz.fill"
                 )
                 .font(.subheadline)
@@ -950,7 +950,7 @@ private struct FriendDetailSheet: View {
             HStack(spacing: 10) {
                 Image(systemName: "mappin.and.ellipse")
                     .foregroundStyle(Color.brandPurple)
-                Text(String(format: "纬度 %.4f，经度 %.4f", friend.latitude, friend.longitude))
+                Text(String(format: NSLocalizedString("map.location.format", comment: "Location format"), friend.latitude, friend.longitude))
                     .font(.caption)
                     .foregroundStyle(Color.textSecondary)
                 Spacer()
@@ -984,11 +984,11 @@ private struct FriendDetailSheet: View {
     private var statusText: String {
         switch friend.status {
         case "online":
-            return "在线"
+            return NSLocalizedString("chat.status.online", comment: "Online")
         case "away":
-            return "离开中"
+            return NSLocalizedString("chat.status.away", comment: "Away")
         default:
-            return "离线"
+            return NSLocalizedString("chat.status.offline", comment: "Offline")
         }
     }
 }

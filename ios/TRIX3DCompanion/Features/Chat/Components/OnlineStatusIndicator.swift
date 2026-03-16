@@ -39,13 +39,13 @@ extension FriendStatus {
     var displayName: String {
         switch self {
         case .online:
-            return "在线"
+            return NSLocalizedString("chat.status.online", comment: "Online status")
         case .offline:
-            return "离线"
+            return NSLocalizedString("chat.status.offline", comment: "Offline status")
         case .away:
-            return "离开"
+            return NSLocalizedString("chat.status.away", comment: "Away status")
         case .busy:
-            return "忙碌"
+            return NSLocalizedString("chat.status.busy", comment: "Busy status")
         }
     }
 }

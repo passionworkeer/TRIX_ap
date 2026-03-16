@@ -81,7 +81,7 @@ struct TrixBotChatView: View {
                 ]
             )
         )
-        .navigationTitle("TRIX Bot")
+        .navigationTitle(L("chat.trixbot.name"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -557,7 +557,7 @@ private struct TrixDisplayMessageBubble: View {
             // 消息内容
             VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 4) {
                 // 发送者名称
-                Text(message.isFromUser ? "" : "TRIX Bot")
+                Text(message.isFromUser ? "" : L("chat.trixbot.name"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.leading, message.isFromUser ? 0 : 4)

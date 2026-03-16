@@ -27,13 +27,13 @@ enum BotState: String, Equatable, CaseIterable {
     var displayName: String {
         switch self {
         case .idle:
-            return "待机"
+            return NSLocalizedString("bot.state.idle", comment: "Bot idle state")
         case .thinking:
-            return "思考中"
+            return NSLocalizedString("bot.state.thinking", comment: "Bot thinking state")
         case .speaking:
-            return "说话"
+            return NSLocalizedString("bot.state.speaking", comment: "Bot speaking state")
         case .boring:
-            return "无聊"
+            return NSLocalizedString("bot.state.boring", comment: "Bot boring state")
         }
     }
 

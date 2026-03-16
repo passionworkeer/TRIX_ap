@@ -156,7 +156,7 @@ export class TrixNativeServer {
           },
           { role: 'agent' },
         );
-        sendJson(response, 200, { ...result, agentOnline: this.isAgentOnline() });
+        sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isAgentOnline() });
         return;
       }
 
@@ -219,6 +219,16 @@ export class TrixNativeServer {
         await this.assertConversationAccess(request, conversationMessagesMatch[1]!);
         const state = await this.stateStore.read();
         const messages = state.messages.filter((entry) => entry.conversationId === conversationMessagesMatch[1]);
+        sendJson(response, 200, { messages, agentOnline: this.isAgentOnline() });
+        return;
+      }
+
+      // 兼容旧版前端：/api/messages/:conversationId
+      const legacyMessagesMatch = url.pathname.match(/^\/api\/messages\/([^/]+)$/);
+      if (request.method === 'GET' && legacyMessagesMatch) {
+        await this.assertConversationAccess(request, legacyMessagesMatch[1]!);
+        const state = await this.stateStore.read();
+        const messages = state.messages.filter((entry) => entry.conversationId === legacyMessagesMatch[1]);
         sendJson(response, 200, { messages, agentOnline: this.isAgentOnline() });
         return;
       }

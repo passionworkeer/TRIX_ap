@@ -21,12 +21,12 @@ enum AIActionType: String, CaseIterable, Identifiable {
     /// Display label for the action
     var label: String {
         switch self {
-        case .chat: return "AI聊天"
-        case .doc: return "AI文档"
-        case .slide: return "AI幻灯片"
-        case .table: return "AI表格"
-        case .image: return "AI图片"
-        case .video: return "AI视频"
+        case .chat: return NSLocalizedString("ai.action.chat", comment: "AI Chat")
+        case .doc: return NSLocalizedString("ai.action.doc", comment: "AI Doc")
+        case .slide: return NSLocalizedString("ai.action.slide", comment: "AI Slides")
+        case .table: return NSLocalizedString("ai.action.table", comment: "AI Table")
+        case .image: return NSLocalizedString("ai.action.image", comment: "AI Image")
+        case .video: return NSLocalizedString("ai.action.video", comment: "AI Video")
         }
     }
 
