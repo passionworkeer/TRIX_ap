@@ -57,6 +57,9 @@
 "chat.image" = "圖片";
 "chat.today" = "今天";
 "chat.yesterday" = "昨天";
+"chat.sender.ai" = "AI";
+"chat.sender.friend" = "好友";
+"chat.sender.you" = "我";
 "chat Typing" = "正在輸入...";
 "chat.delivered" = "已送達";
 "chat.read" = "已讀";
@@ -665,6 +668,56 @@
 "diagnostic.clear.caches.warning" = "這將清除所有快取資料。應用程式將根據需要重新下載必要的資料。";
 "diagnostic.cache.size" = "快取總大小";
 "diagnostic.cache.types" = "快取類型";
+"diagnostic.logs.allLevels" = "所有級別";
+"diagnostic.logs.empty" = "暫無日誌";
+"diagnostic.logs.empty.description" = "日誌將在此處顯示";
+"diagnostic.logs.cleared" = "日誌已清除";
+"diagnostic.performance.healthy" = "系統健康";
+"diagnostic.performance.attention" = "需要留意";
+"diagnostic.performance.metricsStatus" = "%@/%@ 項指標健康";
+"diagnostic.performance.collected" = "效能指標已收集";
+"diagnostic.cache.totalSize" = "快取總大小";
+"diagnostic.cache.clearAll.title" = "清除所有快取";
+"diagnostic.cache.clearAll.message" = "這將清除所有快取資料。應用程式將根據需要重新下載必要的資料。";
+"diagnostic.cache.clearAll.button" = "清除所有快取";
+"diagnostic.cache.clear" = "清除";
+"diagnostic.cache.allCleared" = "所有快取已清除";
+"diagnostic.cache.clearFailed" = "清除快取失敗: %@";
+"diagnostic.cache.typeCleared" = "%@ 快取已清除";
+"diagnostic.cache.never" = "從未";
+"diagnostic.cache.sizeLarge" = "快取較大";
+"diagnostic.cache.sizeNormal" = "快取正常";
+"diagnostic.cache.itemsInfo" = "%@ 項 - 上次清除: %@";
+"diagnostic.status.na" = "N/A";
+"diagnostic.status.ok" = "正常";
+"diagnostic.status.warning" = "警告";
+"diagnostic.status.error" = "錯誤";
+"diagnostic.status.testing" = "測試中...";
+"diagnostic.status.unknown" = "未知";
+"diagnostic.format.latency" = "%.0f 毫秒";
+"diagnostic.endpoint.health" = "健康檢查";
+"diagnostic.endpoint.auth" = "驗證";
+"diagnostic.endpoint.userProfile" = "使用者資料";
+"diagnostic.endpoint.studySessions" = "學習工作階段";
+"diagnostic.endpoint.chatMessages" = "聊天訊息";
+"diagnostic.storage.userDefaults.desc" = "使用者偏好設定";
+"diagnostic.storage.fileStorage.desc" = "本機檔案儲存";
+"diagnostic.storage.cache.desc" = "暫時快取資料";
+"diagnostic.storage.database.desc" = "本機資料庫";
+"diagnostic.storage.containsData" = "包含資料";
+"diagnostic.storage.empty" = "為空";
+"diagnostic.storage.documentsDir" = "文件目錄";
+"diagnostic.storage.checkCompleted" = "儲存空間檢查完成";
+"diagnostic.unit.mb" = "MB";
+"diagnostic.unit.percent" = "%";
+"diagnostic.unit.gb" = "GB";
+"diagnostic.unit.fps" = "幀/秒";
+"diagnostic.unit.ms" = "毫秒";
+"diagnostic.network.testsPassed" = "所有網路測試通過";
+"diagnostic.network.connectionFailed" = "連線失敗";
+"diagnostic.tab.logs" = "日誌";
+"diagnostic.tab.performance" = "效能";
+"diagnostic.tab.cache" = "快取";
 
 // MARK: - Pairing
 "pairing.scan.qr" = "掃描QR Code";
@@ -704,6 +757,7 @@
 
 // MARK: - Chat Messages
 "chat.message.failed.load" = "載入失敗";
+"chat.message.file.default" = "檔案";
 "chat.message.loading" = "載入中...";
 "chat.message.failed.image" = "圖片載入失敗";
 "chat.message.loading.image" = "正在載入圖片...";
@@ -1075,3 +1129,73 @@
 "auth.error.session.expired" = "您的登入已過期，請重新登入。";
 "auth.error.refresh.failed" = "重新整理工作階段失敗，請重新登入。";
 "error.network.description" = "網路錯誤：%@";
+
+// MARK: - Profile - Points History
+"profile.points.history" = "積分歷史";
+"profile.points.history.empty.title" = "暫無積分記錄";
+"profile.points.history.empty.description" = "您的積分交易記錄將顯示在這裡";
+"profile.points.total" = "總積分";
+"profile.points.balance" = "積分餘額";
+"profile.points.to.next" = "到下一級";
+"profile.points.to.level" = "距離等級";
+"profile.points.this.period" = "本期";
+"profile.points.total.transactions" = "總交易次數";
+"profile.points.transactions" = "交易記錄";
+"profile.points.loading" = "載入中...";
+
+// MARK: - Profile - Privacy Settings
+"profile.privacy.section" = "隱私";
+"profile.privacy.account" = "帳戶";
+"profile.privacy.security" = "隱私與安全";
+"profile.privacy.location.sharing" = "位置分享";
+"profile.privacy.online.status" = "上線狀態可見";
+"profile.privacy.read.receipts" = "已讀回條";
+"profile.privacy.friend.requests" = "允許好友邀請";
+"profile.privacy.leaderboard" = "顯示在排行榜";
+"profile.privacy.deletion.pending" = "帳戶刪除待處理";
+"profile.privacy.deletion.scheduled" = "預定刪除日期";
+"profile.privacy.deletion.time.remaining" = "剩餘時間";
+"profile.privacy.deletion.cancel" = "取消刪除";
+"profile.privacy.delete.account" = "刪除帳戶";
+"profile.privacy.delete.confirm.title" = "刪除帳戶";
+"profile.privacy.delete.confirm.message" = "您確定要刪除帳戶嗎？此操作無法撤銷。您有7天時間可以取消。";
+
+// MARK: - Profile - Stats
+"profile.stats" = "統計資料";
+"profile.stats.today" = "今天";
+"profile.stats.today.study" = "今日學習";
+"profile.stats.this.week" = "本週";
+"profile.stats.streak" = "連續天數";
+"profile.stats.sessions" = "學習次數";
+"profile.stats.total" = "總計";
+"profile.stats.minutes" = "分鐘";
+"profile.stats.days" = "天";
+
+// MARK: - Profile - About
+"profile.openclaw.control" = "OpenClaw 控制面板";
+"profile.study.history" = "學習歷史";
+"profile.edit.title" = "編輯資料";
+"profile.display.name.placeholder" = "您的顯示名稱";
+
+// MARK: - About Screen
+"about.description" = "關於";
+"about.features" = "功能特色";
+"about.support" = "支援";
+"about.help" = "說明與支援";
+"about.privacy" = "隱私權政策";
+"about.terms" = "服務條款";
+"about.copyright" = "版權所有 2024 TRIX 3D";
+"about.rights" = "保留所有權利";
+"about.feature.3d.learning" = "3D學習";
+"about.feature.3d.learning.desc" = "互動式3D建模課程";
+"about.feature.points" = "積分系統";
+"about.feature.points.desc" = "學習獲得獎勵";
+"about.feature.streaks" = "學習連續簽到";
+"about.feature.streaks.desc" = "透過每日目標保持動力";
+"about.feature.tracking" = "進度追蹤";
+"about.feature.tracking.desc" = "監控您的成長";
+
+// MARK: - Common
+"common.loading" = "載入中...";
+"common.error" = "錯誤";
+"common.ok" = "確定";

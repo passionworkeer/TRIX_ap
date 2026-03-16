@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 // MARK: - Diagnostic Advanced View
 
 /// Advanced diagnostic screen with logs, performance metrics, and cache management
@@ -52,11 +61,11 @@ struct DiagnosticAdvancedView: View {
                     .tabViewStyle(.page(indexDisplayMode: .never))
                 }
             }
-            .navigationTitle("Advanced Diagnostics")
+            .navigationTitle(L("diagnostic.advanced.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
@@ -132,7 +141,13 @@ enum DiagnosticTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String { rawValue }
+    var title: String {
+        switch self {
+        case .logs: return L("diagnostic.tab.logs")
+        case .performance: return L("diagnostic.tab.performance")
+        case .cache: return L("diagnostic.tab.cache")
+        }
+    }
 
     var icon: String {
         switch self {
@@ -169,7 +184,7 @@ struct LogViewerView: View {
         HStack {
             // Level Filter
             Menu {
-                Button("All Levels") {
+                Button(L("diagnostic.logs.allLevels")) {
                     viewModel.selectedLogLevel = nil
                 }
                 ForEach(DiagnosticLogLevel.allCases, id: \.self) { level in
@@ -185,7 +200,7 @@ struct LogViewerView: View {
             } label: {
                 HStack {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(viewModel.selectedLogLevel?.rawValue ?? "All Levels")
+                    Text(viewModel.selectedLogLevel?.rawValue ?? L("diagnostic.logs.allLevels"))
                 }
                 .font(.subheadline)
                 .foregroundColor(.brandPurple)
@@ -230,11 +245,11 @@ struct LogViewerView: View {
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
 
-            Text("No logs available")
+            Text(L("diagnostic.logs.empty"))
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("Logs will appear here when available")
+            Text(L("diagnostic.logs.empty.description"))
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
 
@@ -331,10 +346,10 @@ struct PerformanceDashboardView: View {
                 .foregroundColor(allHealthy ? .green : .yellow)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(allHealthy ? "System Healthy" : "Attention Needed")
+                Text(allHealthy ? L("diagnostic.performance.healthy") : L("diagnostic.performance.attention"))
                     .font(.headline)
 
-                Text("\(healthyCount)/\(totalCount) metrics are healthy")
+                Text(L("diagnostic.performance.metricsStatus", "\(healthyCount)", "\(totalCount)"))
                     .font(.caption)
                     .foregroundColor(.textSecondary)
             }
@@ -404,15 +419,15 @@ struct CacheManagerView: View {
             }
             .padding()
         }
-        .alert("Clear All Caches", isPresented: $showClearConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Clear", role: .destructive) {
+        .alert(L("diagnostic.cache.clearAll.title"), isPresented: $showClearConfirmation) {
+            Button(L("action.cancel"), role: .cancel) { }
+            Button(L("diagnostic.cache.clear"), role: .destructive) {
                 Task {
                     await viewModel.clearAllCaches()
                 }
             }
         } message: {
-            Text("This will clear all cached data. The app will re-download necessary data as needed.")
+            Text(L("diagnostic.cache.clearAll.message"))
         }
     }
 
@@ -425,7 +440,7 @@ struct CacheManagerView: View {
                 .foregroundColor(.brandPurple)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Total Cache Size")
+                Text(L("diagnostic.cache.totalSize"))
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
 
@@ -454,7 +469,7 @@ struct CacheManagerView: View {
 
     private var cacheItemsList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Cache Types")
+            Text(L("diagnostic.cache.types"))
                 .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 4)
@@ -480,7 +495,7 @@ struct CacheManagerView: View {
         }) {
             HStack {
                 Image(systemName: "trash.fill")
-                Text("Clear All Caches")
+                Text(L("diagnostic.cache.clearAll.button"))
             }
             .font(.headline)
             .foregroundColor(.white)
@@ -521,7 +536,7 @@ struct CacheItemRow: View {
                     .fontWeight(.medium)
 
                 if let info = info {
-                    Text("\(info.entryCount) items - Last cleared: \(info.formattedLastCleared)")
+                    Text(L("diagnostic.cache.itemsInfo", "\(info.entryCount)", info.formattedLastCleared))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
                 }

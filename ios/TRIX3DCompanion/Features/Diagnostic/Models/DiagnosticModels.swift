@@ -7,6 +7,15 @@
 
 import Foundation
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 // MARK: - Network Diagnostic Models
 
 /// Network diagnostic result
@@ -35,8 +44,8 @@ struct NetworkDiagnosticResult: Identifiable, Equatable {
     }
 
     var formattedLatency: String {
-        guard let latency = latencyMs else { return "N/A" }
-        return String(format: "%.0f ms", latency)
+        guard let latency = latencyMs else { return L("diagnostic.status.na") }
+        return String(format: L("diagnostic.format.latency"), latency)
     }
 }
 
@@ -48,11 +57,11 @@ struct DiagnosticAPIEndpoint: Identifiable {
     let method: String
 
     static let defaultEndpoints: [DiagnosticAPIEndpoint] = [
-        DiagnosticAPIEndpoint(id: "health", name: "Health Check", url: "/health", method: "GET"),
-        DiagnosticAPIEndpoint(id: "auth", name: "Auth", url: "/api/v1/auth/me", method: "GET"),
-        DiagnosticAPIEndpoint(id: "user", name: "User Profile", url: "/api/v1/users/me", method: "GET"),
-        DiagnosticAPIEndpoint(id: "study", name: "Study Sessions", url: "/api/v1/study/sessions", method: "GET"),
-        DiagnosticAPIEndpoint(id: "chat", name: "Chat Messages", url: "/api/v1/chat/messages", method: "GET")
+        DiagnosticAPIEndpoint(id: "health", name: L("diagnostic.endpoint.health"), url: "/health", method: "GET"),
+        DiagnosticAPIEndpoint(id: "auth", name: L("diagnostic.endpoint.auth"), url: "/api/v1/auth/me", method: "GET"),
+        DiagnosticAPIEndpoint(id: "user", name: L("diagnostic.endpoint.userProfile"), url: "/api/v1/users/me", method: "GET"),
+        DiagnosticAPIEndpoint(id: "study", name: L("diagnostic.endpoint.studySessions"), url: "/api/v1/study/sessions", method: "GET"),
+        DiagnosticAPIEndpoint(id: "chat", name: L("diagnostic.endpoint.chatMessages"), url: "/api/v1/chat/messages", method: "GET")
     ]
 }
 
@@ -92,10 +101,10 @@ enum StorageType: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .userDefaults: return "User preferences and settings"
-        case .fileStorage: return "Local file storage"
-        case .cache: return "Temporary cached data"
-        case .database: return "Local database"
+        case .userDefaults: return L("diagnostic.storage.userDefaults.desc")
+        case .fileStorage: return L("diagnostic.storage.fileStorage.desc")
+        case .cache: return L("diagnostic.storage.cache.desc")
+        case .database: return L("diagnostic.storage.database.desc")
         }
     }
 }
@@ -112,11 +121,11 @@ enum DiagnosticStatus: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .success: return "OK"
-        case .warning: return "Warning"
-        case .error: return "Error"
-        case .testing: return "Testing..."
-        case .unknown: return "Unknown"
+        case .success: return L("diagnostic.status.ok")
+        case .warning: return L("diagnostic.status.warning")
+        case .error: return L("diagnostic.status.error")
+        case .testing: return L("diagnostic.status.testing")
+        case .unknown: return L("diagnostic.status.unknown")
         }
     }
 
@@ -180,11 +189,11 @@ enum PerformanceMetricType: String, CaseIterable, Identifiable {
 
     var unit: String {
         switch self {
-        case .memoryUsage: return "MB"
-        case .cpuUsage: return "%"
-        case .diskUsage: return "GB"
-        case .fps: return "fps"
-        case .networkLatency: return "ms"
+        case .memoryUsage: return L("diagnostic.unit.mb")
+        case .cpuUsage: return L("diagnostic.unit.percent")
+        case .diskUsage: return L("diagnostic.unit.gb")
+        case .fps: return L("diagnostic.unit.fps")
+        case .networkLatency: return L("diagnostic.unit.ms")
         }
     }
 
@@ -281,7 +290,7 @@ struct CacheInfo: Identifiable {
     }
 
     var formattedLastCleared: String {
-        guard let date = lastCleared else { return "Never" }
+        guard let date = lastCleared else { return L("diagnostic.cache.never") }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())

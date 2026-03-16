@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Profile Info Card
 
 /// Profile information card displaying user avatar, name, and status
@@ -187,7 +192,7 @@ struct ProfileInfoCard: View {
                         .stroke(Color.white, lineWidth: 1)
                 )
 
-            Text(isStudying ? "Currently Studying" : "Idle")
+            Text(isStudying ? L("profile.currently.studying") : L("profile.idle"))
                 .font(.caption)
                 .fontWeight(.medium)
         }

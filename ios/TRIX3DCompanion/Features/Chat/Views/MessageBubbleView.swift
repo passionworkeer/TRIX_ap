@@ -8,6 +8,12 @@
 
 import SwiftUI
 
+// MARK: - Localizable Helper
+
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Message Bubble View
 
 /// Chat message bubble with different styles for sent/received messages
@@ -243,7 +249,7 @@ struct MessageBubbleView: View {
     // MARK: - File Properties
 
     private var fileName: String {
-        message.content.isEmpty ? "File" : message.content
+        message.content.isEmpty ? L("chat.message.file.default") : message.content
     }
 
     private var fileSize: Int? {
@@ -282,7 +288,7 @@ struct MessageBubbleView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
-                    Text("Failed to load")
+                    Text(L("chat.message.failed.load"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

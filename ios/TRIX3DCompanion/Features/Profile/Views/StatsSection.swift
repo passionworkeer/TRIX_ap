@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Stats Section
 
 /// Statistics section displaying user metrics
@@ -64,7 +69,7 @@ struct StatsSection: View {
                     )
                 )
 
-            Text("Statistics")
+            Text(L("profile.stats"))
                 .font(.headline)
                 .fontWeight(.semibold)
 
@@ -78,49 +83,49 @@ struct StatsSection: View {
             // First row
             HStack(spacing: 12) {
                 StatCard(
-                    title: "Total Points",
+                    title: L("profile.points.total"),
                     value: "\(totalPoints)",
                     icon: "star.fill",
                     color: .yellow,
-                    subtitle: "Level \(level)"
+                    subtitle: "\(L("profile.level")) \(level)"
                 )
 
                 StatCard(
-                    title: "Study Time",
+                    title: L("profile.study.time"),
                     value: formattedStudyTime,
                     icon: "clock.fill",
                     color: .blue,
-                    subtitle: "Total"
+                    subtitle: L("profile.stats.total")
                 )
             }
 
             // Second row
             HStack(spacing: 12) {
                 StatCard(
-                    title: "Today",
+                    title: L("profile.stats.today"),
                     value: formatMinutes(todayStudyTime),
                     icon: "sun.max.fill",
                     color: .orange,
-                    subtitle: "minutes"
+                    subtitle: L("profile.stats.minutes")
                 )
 
                 StatCard(
-                    title: "Streak",
+                    title: L("profile.stats.streak"),
                     value: "\(streakDays)",
                     icon: "flame.fill",
                     color: .red,
-                    subtitle: "days"
+                    subtitle: L("profile.stats.days")
                 )
             }
 
             // Third row (optional)
             if sessionCount > 0 {
                 StatCard(
-                    title: "Sessions",
+                    title: L("profile.stats.sessions"),
                     value: "\(sessionCount)",
                     icon: "book.fill",
                     color: .purple,
-                    subtitle: "total"
+                    subtitle: L("profile.stats.total")
                 )
                 .frame(maxWidth: .infinity)
             }

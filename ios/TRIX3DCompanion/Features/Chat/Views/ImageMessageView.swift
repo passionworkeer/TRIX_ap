@@ -8,6 +8,12 @@
 
 import SwiftUI
 
+// MARK: - Localizable Helper
+
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Image Message View
 
 /// Image message component with async loading and zoom preview
@@ -133,7 +139,7 @@ struct ImageMessageView: View {
                         .frame(width: 30, height: 30)
                         .opacity(0.5)
 
-                    Text("Loading...")
+                    Text(L("chat.message.loading"))
                         .font(.caption)
                         .foregroundColor(isCurrentUser ? .white : .secondary)
                 }
@@ -151,7 +157,7 @@ struct ImageMessageView: View {
                         .font(.largeTitle)
                         .foregroundColor(isCurrentUser ? .white : .secondary)
 
-                    Text("Failed to load")
+                    Text(L("chat.message.failed.load"))
                         .font(.caption)
                         .foregroundColor(isCurrentUser ? .white : .secondary)
                 }
@@ -266,7 +272,7 @@ struct ImageViewer: View {
                 .frame(width: 40, height: 40)
                 .opacity(0.5)
 
-            Text("Loading image...")
+            Text(L("chat.message.loading.image"))
                 .font(.headline)
                 .foregroundColor(.white)
         }
@@ -279,7 +285,7 @@ struct ImageViewer: View {
                 .font(.system(size: 60))
                 .foregroundColor(.white)
 
-            Text("Failed to load image")
+            Text(L("chat.message.failed.image"))
                 .font(.headline)
                 .foregroundColor(.white)
         }

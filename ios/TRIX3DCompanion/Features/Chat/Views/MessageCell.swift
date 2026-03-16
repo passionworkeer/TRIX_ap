@@ -7,6 +7,12 @@
 
 import SwiftUI
 
+// MARK: - Localizable Helper
+
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Message Cell
 
 /// Message bubble component displaying a single chat message
@@ -87,11 +93,11 @@ struct MessageCell: View {
     private var avatarUsername: String {
         switch message.sender {
         case .bot:
-            return "AI"
+            return L("chat.sender.ai")
         case .friend:
-            return "Friend"
+            return L("chat.sender.friend")
         case .user:
-            return "You"
+            return L("chat.sender.you")
         }
     }
 
@@ -204,7 +210,7 @@ struct MessageCell: View {
             return formatter.string(from: date)
         } else if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now)!) {
             // Yesterday
-            return "Yesterday"
+            return L("chat.yesterday")
         } else {
             // Older: show date
             let formatter = DateFormatter()

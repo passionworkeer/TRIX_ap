@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - New Profile View
 
 /// Main profile screen with native iOS design
@@ -43,7 +48,7 @@ struct NewProfileView: View {
                     contentView
                 }
             }
-            .navigationTitle("个人资料")
+            .navigationTitle(L("profile.title"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 toolbarContent
@@ -52,10 +57,10 @@ struct NewProfileView: View {
                 EditProfileSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showOpenClawControl) {
-                Text("OpenClaw Control")
+                Text(L("profile.openclaw.control"))
             }
-            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("确定") {
+            .alert(L("common.error"), isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button(L("common.ok")) {
                     viewModel.clearMessages()
                 }
             } message: {
@@ -76,17 +81,17 @@ struct NewProfileView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button(action: { showEditProfile = true }) {
-                    Label("编辑资料", systemImage: "pencil")
+                    Label(L("profile.edit.profile"), systemImage: "pencil")
                 }
 
                 Button(action: { /* Settings */ }) {
-                    Label("设置", systemImage: "gear")
+                    Label(L("profile.settings"), systemImage: "gear")
                 }
 
                 Divider()
 
                 Button(role: .destructive, action: { showDeleteAlert = true }) {
-                    Label("删除账户", systemImage: "trash")
+                    Label(L("profile.delete.account"), systemImage: "trash")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -149,11 +154,11 @@ struct NewProfileView: View {
                     .foregroundStyle(.yellow)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("积分余额")
+                    Text(L("profile.points.balance"))
                         .font(.headline)
                         .fontWeight(.semibold)
 
-                    Text("等级 \(viewModel.level)")
+                    Text("\(L("profile.level")) \(viewModel.level)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -167,7 +172,7 @@ struct NewProfileView: View {
                     .font(.system(size: 36, weight: .bold))
                     .foregroundStyle(.yellow)
 
-                Text("积分")
+                Text(L("profile.points"))
                     .font(.headline)
                     .foregroundColor(.secondary)
             }
@@ -175,13 +180,13 @@ struct NewProfileView: View {
             // Progress bar
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("距离等级 \(viewModel.level + 1)")
+                    Text("\(L("profile.points.to.level")) \(viewModel.level + 1)")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
                     Spacer()
 
-                    Text("\(viewModel.level * 1000 - viewModel.totalPoints) 积分")
+                    Text("\(viewModel.level * 1000 - viewModel.totalPoints) \(L("profile.points"))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -209,27 +214,27 @@ struct NewProfileView: View {
 
     private func statsSection(stats: UserStats) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("学习统计")
+            Text(L("profile.stats"))
                 .font(.headline)
                 .padding(.horizontal, 4)
 
             HStack(spacing: 12) {
                 StatCard(
-                    title: "今日学习",
+                    title: L("profile.stats.today.study"),
                     value: formatDuration(stats.todayDuration),
                     icon: "clock.fill",
                     color: .blue
                 )
 
                 StatCard(
-                    title: "连续天数",
+                    title: L("profile.stats.streak"),
                     value: "\(stats.streakDays)",
                     icon: "flame.fill",
                     color: .orange
                 )
 
                 StatCard(
-                    title: "学习次数",
+                    title: L("profile.stats.sessions"),
                     value: "\(stats.sessionCount)",
                     icon: "book.fill",
                     color: .green
@@ -244,19 +249,19 @@ struct NewProfileView: View {
                 Button {
                     // Points history
                 } label: {
-                    Label("积分历史", systemImage: "star.fill")
+                    Label(L("profile.points.history"), systemImage: "star.fill")
                 }
 
                 Button {
                     // Settings
                 } label: {
-                    Label("设置", systemImage: "gear")
+                    Label(L("profile.settings"), systemImage: "gear")
                 }
 
                 Button {
                     // Privacy
                 } label: {
-                    Label("隐私与安全", systemImage: "hand.raised.fill")
+                    Label(L("profile.privacy.security"), systemImage: "hand.raised.fill")
                 }
             }
 
@@ -264,19 +269,19 @@ struct NewProfileView: View {
                 Button {
                     // Achievements
                 } label: {
-                    Label("成就", systemImage: "trophy.fill")
+                    Label(L("profile.achievements"), systemImage: "trophy.fill")
                 }
 
                 Button {
                     // Study History
                 } label: {
-                    Label("学习历史", systemImage: "clock.fill")
+                    Label(L("profile.study.history"), systemImage: "clock.fill")
                 }
 
                 Button {
                     showOpenClawControl = true
                 } label: {
-                    Label("OpenClaw 控制面板", systemImage: "robot.fill")
+                    Label(L("profile.openclaw.control"), systemImage: "robot.fill")
                 }
             }
 
@@ -284,7 +289,7 @@ struct NewProfileView: View {
                 Button {
                     // About
                 } label: {
-                    Label("关于", systemImage: "info.circle.fill")
+                    Label(L("profile.about"), systemImage: "info.circle.fill")
                 }
             }
         }
@@ -293,11 +298,11 @@ struct NewProfileView: View {
 
     private var versionInfo: some View {
         VStack(spacing: 4) {
-            Text("TRIX 3D Companion")
+            Text(L("about.app.name"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Text("版本 1.0.0")
+            Text(String(format: L("about.app.version"), "1.0.0"))
                 .font(.caption2)
                 .foregroundColor(Color(.tertiaryLabel))
         }
@@ -308,7 +313,7 @@ struct NewProfileView: View {
             ProgressView()
                 .scaleEffect(1.5)
 
-            Text("加载中...")
+            Text(L("common.loading"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -338,26 +343,26 @@ struct EditProfileSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("显示名称") {
-                    TextField("您的显示名称", text: $displayName)
+                Section(L("profile.display.name")) {
+                    TextField(L("profile.display.name.placeholder"), text: $displayName)
                 }
 
-                Section("简介") {
+                Section(L("profile.bio")) {
                     TextEditor(text: $bio)
                         .frame(minHeight: 100)
                 }
             }
-            .navigationTitle("编辑资料")
+            .navigationTitle(L("profile.edit.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button(L("action.cancel")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("保存") {
+                    Button(L("action.save")) {
                         Task {
                             await viewModel.updateDisplayName(displayName)
                             await viewModel.updateBio(bio)

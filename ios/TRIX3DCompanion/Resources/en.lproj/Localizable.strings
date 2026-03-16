@@ -59,6 +59,9 @@
 "chat.image" = "Image";
 "chat.today" = "Today";
 "chat.yesterday" = "Yesterday";
+"chat.sender.ai" = "AI";
+"chat.sender.friend" = "Friend";
+"chat.sender.you" = "You";
 "chat Typing" = "is typing...";
 "chat.delivered" = "Delivered";
 "chat.read" = "Read";
@@ -858,6 +861,56 @@
 "diagnostic.clear.caches.warning" = "This will clear all cached data. The app will re-download necessary data as needed.";
 "diagnostic.cache.size" = "Total Cache Size";
 "diagnostic.cache.types" = "Cache Types";
+"diagnostic.logs.allLevels" = "All Levels";
+"diagnostic.logs.empty" = "No logs available";
+"diagnostic.logs.empty.description" = "Logs will appear here when available";
+"diagnostic.logs.cleared" = "Logs cleared";
+"diagnostic.performance.healthy" = "System Healthy";
+"diagnostic.performance.attention" = "Attention Needed";
+"diagnostic.performance.metricsStatus" = "%@/%@ metrics are healthy";
+"diagnostic.performance.collected" = "Performance metrics collected";
+"diagnostic.cache.totalSize" = "Total Cache Size";
+"diagnostic.cache.clearAll.title" = "Clear All Caches";
+"diagnostic.cache.clearAll.message" = "This will clear all cached data. The app will re-download necessary data as needed.";
+"diagnostic.cache.clearAll.button" = "Clear All Caches";
+"diagnostic.cache.clear" = "Clear";
+"diagnostic.cache.allCleared" = "All caches cleared";
+"diagnostic.cache.clearFailed" = "Failed to clear caches: %@";
+"diagnostic.cache.typeCleared" = "%@ cache cleared";
+"diagnostic.cache.never" = "Never";
+"diagnostic.cache.sizeLarge" = "Cache size is large";
+"diagnostic.cache.sizeNormal" = "Cache is normal";
+"diagnostic.cache.itemsInfo" = "%@ items - Last cleared: %@";
+"diagnostic.status.na" = "N/A";
+"diagnostic.status.ok" = "OK";
+"diagnostic.status.warning" = "Warning";
+"diagnostic.status.error" = "Error";
+"diagnostic.status.testing" = "Testing...";
+"diagnostic.status.unknown" = "Unknown";
+"diagnostic.format.latency" = "%.0f ms";
+"diagnostic.endpoint.health" = "Health Check";
+"diagnostic.endpoint.auth" = "Auth";
+"diagnostic.endpoint.userProfile" = "User Profile";
+"diagnostic.endpoint.studySessions" = "Study Sessions";
+"diagnostic.endpoint.chatMessages" = "Chat Messages";
+"diagnostic.storage.userDefaults.desc" = "User preferences and settings";
+"diagnostic.storage.fileStorage.desc" = "Local file storage";
+"diagnostic.storage.cache.desc" = "Temporary cached data";
+"diagnostic.storage.database.desc" = "Local database";
+"diagnostic.storage.containsData" = "Contains data";
+"diagnostic.storage.empty" = "Empty";
+"diagnostic.storage.documentsDir" = "Documents directory";
+"diagnostic.storage.checkCompleted" = "Storage check completed";
+"diagnostic.unit.mb" = "MB";
+"diagnostic.unit.percent" = "%";
+"diagnostic.unit.gb" = "GB";
+"diagnostic.unit.fps" = "fps";
+"diagnostic.unit.ms" = "ms";
+"diagnostic.network.testsPassed" = "All network tests passed";
+"diagnostic.network.connectionFailed" = "Connection failed";
+"diagnostic.tab.logs" = "Logs";
+"diagnostic.tab.performance" = "Performance";
+"diagnostic.tab.cache" = "Cache";
 
 // MARK: - Pairing
 "pairing.scan.qr" = "Scan QR Code";
@@ -897,6 +950,7 @@
 
 // MARK: - Chat Messages
 "chat.message.failed.load" = "Failed to load";
+"chat.message.file.default" = "File";
 "chat.message.loading" = "Loading...";
 "chat.message.failed.image" = "Failed to load image";
 "chat.message.loading.image" = "Loading image...";
@@ -1226,3 +1280,73 @@
 "auth.error.session.expired" = "Your session has expired. Please log in again.";
 "auth.error.refresh.failed" = "Failed to refresh session. Please log in again.";
 "error.network.description" = "Network error: %@";
+
+// MARK: - Profile - Points History
+"profile.points.history" = "Points History";
+"profile.points.history.empty.title" = "No Points History";
+"profile.points.history.empty.description" = "Your points transactions will appear here";
+"profile.points.total" = "Total Points";
+"profile.points.balance" = "Points Balance";
+"profile.points.to.next" = "to next";
+"profile.points.to.level" = "Distance to Level";
+"profile.points.this.period" = "This Period";
+"profile.points.total.transactions" = "Total Transactions";
+"profile.points.transactions" = "Transactions";
+"profile.points.loading" = "Loading...";
+
+// MARK: - Profile - Privacy Settings
+"profile.privacy.section" = "Privacy";
+"profile.privacy.account" = "Account";
+"profile.privacy.security" = "Privacy & Security";
+"profile.privacy.location.sharing" = "Location Sharing";
+"profile.privacy.online.status" = "Online Status Visible";
+"profile.privacy.read.receipts" = "Read Receipts";
+"profile.privacy.friend.requests" = "Allow Friend Requests";
+"profile.privacy.leaderboard" = "Show in Leaderboard";
+"profile.privacy.deletion.pending" = "Account Deletion Pending";
+"profile.privacy.deletion.scheduled" = "Scheduled for";
+"profile.privacy.deletion.time.remaining" = "Time remaining";
+"profile.privacy.deletion.cancel" = "Cancel Deletion";
+"profile.privacy.delete.account" = "Delete Account";
+"profile.privacy.delete.confirm.title" = "Delete Account";
+"profile.privacy.delete.confirm.message" = "Are you sure you want to delete your account? This action cannot be undone. You have 7 days to cancel.";
+
+// MARK: - Profile - Stats
+"profile.stats" = "Statistics";
+"profile.stats.today" = "Today";
+"profile.stats.today.study" = "Today's Study";
+"profile.stats.this.week" = "This Week";
+"profile.stats.streak" = "Streak Days";
+"profile.stats.sessions" = "Study Sessions";
+"profile.stats.total" = "Total";
+"profile.stats.minutes" = "minutes";
+"profile.stats.days" = "days";
+
+// MARK: - Profile - About
+"profile.openclaw.control" = "OpenClaw Control Panel";
+"profile.study.history" = "Study History";
+"profile.edit.title" = "Edit Profile";
+"profile.display.name.placeholder" = "Your display name";
+
+// MARK: - About Screen
+"about.description" = "About";
+"about.features" = "Features";
+"about.support" = "Support";
+"about.help" = "Help & Support";
+"about.privacy" = "Privacy Policy";
+"about.terms" = "Terms of Service";
+"about.copyright" = "Copyright 2024 TRIX 3D";
+"about.rights" = "All rights reserved";
+"about.feature.3d.learning" = "3D Learning";
+"about.feature.3d.learning.desc" = "Interactive 3D modeling lessons";
+"about.feature.points" = "Points System";
+"about.feature.points.desc" = "Earn rewards as you learn";
+"about.feature.streaks" = "Study Streaks";
+"about.feature.streaks.desc" = "Stay motivated with daily goals";
+"about.feature.tracking" = "Progress Tracking";
+"about.feature.tracking.desc" = "Monitor your growth";
+
+// MARK: - Common
+"common.loading" = "Loading...";
+"common.error" = "Error";
+"common.ok" = "OK";

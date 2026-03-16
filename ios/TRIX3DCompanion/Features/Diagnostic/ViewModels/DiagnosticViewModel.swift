@@ -9,6 +9,15 @@ import Foundation
 import Combine
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 // MARK: - Diagnostic ViewModel
 
 /// Main ViewModel for diagnostic functionality
@@ -96,7 +105,7 @@ final class DiagnosticViewModel: ObservableObject {
         // Check if all tests passed
         let failedCount = networkTests.filter { $0.status == .error }.count
         if failedCount == 0 {
-            successMessage = "All network tests passed"
+            successMessage = L("diagnostic.network.testsPassed")
         }
     }
 
@@ -109,7 +118,7 @@ final class DiagnosticViewModel: ObservableObject {
                 return NetworkDiagnosticResult(
                     endpoint: endpoint.name,
                     status: .error,
-                    errorMessage: "Connection failed"
+                    errorMessage: L("diagnostic.network.connectionFailed")
                 )
             }
 
@@ -174,7 +183,7 @@ final class DiagnosticViewModel: ObservableObject {
             type: .userDefaults,
             status: .success,
             sizeBytes: userDefaultsSize,
-            details: "\(userDefaultsSize > 0 ? "Contains data" : "Empty")",
+            details: userDefaultsSize > 0 ? L("diagnostic.storage.containsData") : L("diagnostic.storage.empty"),
             errorMessage: nil
         ))
 
@@ -185,7 +194,7 @@ final class DiagnosticViewModel: ObservableObject {
             type: .fileStorage,
             status: .success,
             sizeBytes: fileStorageSize,
-            details: "Documents directory",
+            details: L("diagnostic.storage.documentsDir"),
             errorMessage: nil
         ))
 
@@ -196,7 +205,7 @@ final class DiagnosticViewModel: ObservableObject {
             type: .cache,
             status: cacheSize > 100 * 1024 * 1024 ? .warning : .success,
             sizeBytes: cacheSize,
-            details: cacheSize > 100 * 1024 * 1024 ? "Cache size is large" : "Cache is normal",
+            details: cacheSize > 100 * 1024 * 1024 ? L("diagnostic.cache.sizeLarge") : L("diagnostic.cache.sizeNormal"),
             errorMessage: nil
         ))
 
@@ -207,7 +216,7 @@ final class DiagnosticViewModel: ObservableObject {
 
         isCheckingStorage = false
 
-        successMessage = "Storage check completed"
+        successMessage = L("diagnostic.storage.checkCompleted")
     }
 
     /// Calculate UserDefaults size
@@ -364,7 +373,7 @@ final class DiagnosticViewModel: ObservableObject {
 
         isCollectingMetrics = false
 
-        successMessage = "Performance metrics collected"
+        successMessage = L("diagnostic.performance.collected")
     }
 
     /// Get current memory usage
@@ -436,7 +445,7 @@ final class DiagnosticViewModel: ObservableObject {
     /// Clear log entries
     func clearLogs() {
         logEntries = []
-        successMessage = "Logs cleared"
+        successMessage = L("diagnostic.logs.cleared")
     }
 
     /// Get filtered log entries
@@ -457,9 +466,9 @@ final class DiagnosticViewModel: ObservableObject {
         do {
             try await cacheService.clearAll()
             await runStorageDiagnostics()
-            successMessage = "All caches cleared"
+            successMessage = L("diagnostic.cache.allCleared")
         } catch {
-            errorMessage = "Failed to clear caches: \(error.localizedDescription)"
+            errorMessage = L("diagnostic.cache.clearFailed", error.localizedDescription)
         }
 
         isRefreshing = false
@@ -485,9 +494,9 @@ final class DiagnosticViewModel: ObservableObject {
 
             try await cacheService.clear(type: serviceCacheType)
             await runStorageDiagnostics()
-            successMessage = "\(type.rawValue) cache cleared"
+            successMessage = L("diagnostic.cache.typeCleared", type.rawValue)
         } catch {
-            errorMessage = "Failed to clear cache: \(error.localizedDescription)"
+            errorMessage = L("diagnostic.cache.clearFailed", error.localizedDescription)
         }
 
         isRefreshing = false

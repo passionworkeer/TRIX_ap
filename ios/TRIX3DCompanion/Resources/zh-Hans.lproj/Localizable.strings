@@ -59,6 +59,9 @@
 "chat.image" = "图片";
 "chat.today" = "今天";
 "chat.yesterday" = "昨天";
+"chat.sender.ai" = "AI";
+"chat.sender.friend" = "好友";
+"chat.sender.you" = "我";
 "chat Typing" = "正在输入...";
 "chat.delivered" = "已送达";
 "chat.read" = "已读";
@@ -890,6 +893,56 @@
 "diagnostic.clear.caches.warning" = "这将清除所有缓存数据。应用程序将根据需要重新下载必要的数据。";
 "diagnostic.cache.size" = "缓存总大小";
 "diagnostic.cache.types" = "缓存类型";
+"diagnostic.logs.allLevels" = "所有级别";
+"diagnostic.logs.empty" = "暂无日志";
+"diagnostic.logs.empty.description" = "日志将在此处显示";
+"diagnostic.logs.cleared" = "日志已清除";
+"diagnostic.performance.healthy" = "系统健康";
+"diagnostic.performance.attention" = "需要注意";
+"diagnostic.performance.metricsStatus" = "%@/%@ 项指标健康";
+"diagnostic.performance.collected" = "性能指标已收集";
+"diagnostic.cache.totalSize" = "缓存总大小";
+"diagnostic.cache.clearAll.title" = "清除所有缓存";
+"diagnostic.cache.clearAll.message" = "这将清除所有缓存数据。应用程序将根据需要重新下载必要的数据。";
+"diagnostic.cache.clearAll.button" = "清除所有缓存";
+"diagnostic.cache.clear" = "清除";
+"diagnostic.cache.allCleared" = "所有缓存已清除";
+"diagnostic.cache.clearFailed" = "清除缓存失败: %@";
+"diagnostic.cache.typeCleared" = "%@ 缓存已清除";
+"diagnostic.cache.never" = "从未";
+"diagnostic.cache.sizeLarge" = "缓存较大";
+"diagnostic.cache.sizeNormal" = "缓存正常";
+"diagnostic.cache.itemsInfo" = "%@ 项 - 上次清除: %@";
+"diagnostic.status.na" = "N/A";
+"diagnostic.status.ok" = "正常";
+"diagnostic.status.warning" = "警告";
+"diagnostic.status.error" = "错误";
+"diagnostic.status.testing" = "测试中...";
+"diagnostic.status.unknown" = "未知";
+"diagnostic.format.latency" = "%.0f 毫秒";
+"diagnostic.endpoint.health" = "健康检查";
+"diagnostic.endpoint.auth" = "认证";
+"diagnostic.endpoint.userProfile" = "用户资料";
+"diagnostic.endpoint.studySessions" = "学习会话";
+"diagnostic.endpoint.chatMessages" = "聊天消息";
+"diagnostic.storage.userDefaults.desc" = "用户偏好设置";
+"diagnostic.storage.fileStorage.desc" = "本地文件存储";
+"diagnostic.storage.cache.desc" = "临时缓存数据";
+"diagnostic.storage.database.desc" = "本地数据库";
+"diagnostic.storage.containsData" = "包含数据";
+"diagnostic.storage.empty" = "为空";
+"diagnostic.storage.documentsDir" = "文档目录";
+"diagnostic.storage.checkCompleted" = "存储检查完成";
+"diagnostic.unit.mb" = "MB";
+"diagnostic.unit.percent" = "%";
+"diagnostic.unit.gb" = "GB";
+"diagnostic.unit.fps" = "帧/秒";
+"diagnostic.unit.ms" = "毫秒";
+"diagnostic.network.testsPassed" = "所有网络测试通过";
+"diagnostic.network.connectionFailed" = "连接失败";
+"diagnostic.tab.logs" = "日志";
+"diagnostic.tab.performance" = "性能";
+"diagnostic.tab.cache" = "缓存";
 
 // MARK: - Pairing
 "pairing.scan.qr" = "扫描二维码";
@@ -929,6 +982,7 @@
 
 // MARK: - Chat Messages
 "chat.message.failed.load" = "加载失败";
+"chat.message.file.default" = "文件";
 "chat.message.loading" = "加载中...";
 "chat.message.failed.image" = "图片加载失败";
 "chat.message.loading.image" = "正在加载图片...";
@@ -1255,3 +1309,73 @@
 "auth.error.session.expired" = "您的登录已过期，请重新登录。";
 "auth.error.refresh.failed" = "刷新会话失败，请重新登录。";
 "error.network.description" = "网络错误：%@";
+
+// MARK: - Profile - Points History
+"profile.points.history" = "积分历史";
+"profile.points.history.empty.title" = "暂无积分记录";
+"profile.points.history.empty.description" = "您的积分交易记录将显示在这里";
+"profile.points.total" = "总积分";
+"profile.points.balance" = "积分余额";
+"profile.points.to.next" = "到下一级";
+"profile.points.to.level" = "距离等级";
+"profile.points.this.period" = "本期";
+"profile.points.total.transactions" = "总交易次数";
+"profile.points.transactions" = "交易记录";
+"profile.points.loading" = "加载中...";
+
+// MARK: - Profile - Privacy Settings
+"profile.privacy.section" = "隐私";
+"profile.privacy.account" = "账户";
+"profile.privacy.security" = "隐私与安全";
+"profile.privacy.location.sharing" = "位置共享";
+"profile.privacy.online.status" = "在线状态可见";
+"profile.privacy.read.receipts" = "已读回执";
+"profile.privacy.friend.requests" = "允许好友请求";
+"profile.privacy.leaderboard" = "显示在排行榜";
+"profile.privacy.deletion.pending" = "账户删除待处理";
+"profile.privacy.deletion.scheduled" = "计划删除日期";
+"profile.privacy.deletion.time.remaining" = "剩余时间";
+"profile.privacy.deletion.cancel" = "取消删除";
+"profile.privacy.delete.account" = "删除账户";
+"profile.privacy.delete.confirm.title" = "删除账户";
+"profile.privacy.delete.confirm.message" = "您确定要删除账户吗？此操作无法撤销。您有7天时间可以取消。";
+
+// MARK: - Profile - Stats
+"profile.stats" = "统计数据";
+"profile.stats.today" = "今天";
+"profile.stats.today.study" = "今日学习";
+"profile.stats.this.week" = "本周";
+"profile.stats.streak" = "连续天数";
+"profile.stats.sessions" = "学习次数";
+"profile.stats.total" = "总计";
+"profile.stats.minutes" = "分钟";
+"profile.stats.days" = "天";
+
+// MARK: - Profile - About
+"profile.openclaw.control" = "OpenClaw 控制面板";
+"profile.study.history" = "学习历史";
+"profile.edit.title" = "编辑资料";
+"profile.display.name.placeholder" = "您的显示名称";
+
+// MARK: - About Screen
+"about.description" = "关于";
+"about.features" = "功能特点";
+"about.support" = "支持";
+"about.help" = "帮助与支持";
+"about.privacy" = "隐私政策";
+"about.terms" = "服务条款";
+"about.copyright" = "版权所有 2024 TRIX 3D";
+"about.rights" = "保留所有权利";
+"about.feature.3d.learning" = "3D学习";
+"about.feature.3d.learning.desc" = "互动式3D建模课程";
+"about.feature.points" = "积分系统";
+"about.feature.points.desc" = "学习获得奖励";
+"about.feature.streaks" = "学习连续签到";
+"about.feature.streaks.desc" = "通过每日目标保持动力";
+"about.feature.tracking" = "进度追踪";
+"about.feature.tracking.desc" = "监控您的成长";
+
+// MARK: - Common
+"common.loading" = "加载中...";
+"common.error" = "错误";
+"common.ok" = "确定";
