@@ -1357,3 +1357,13 @@
 "common.loading" = "Loading...";
 "common.error" = "Error";
 "common.ok" = "OK";
+
+// MARK: - Diagnostic Additional
+"diagnostic.testNetwork" = "Test Network";
+"diagnostic.api.connectivity" = "API Connectivity";
+"diagnostic.api.testHint" = "Tap 'Test Network' to check API connectivity";
+"diagnostic.storage.testHint" = "Tap 'Refresh' to check storage";
+"diagnostic.storage.total" = "Total";
+"diagnostic.checkStorage" = "Check Storage";
+"diagnostic.quickActions" = "Quick Actions";
+"diagnostic.clearCache" = "Clear Cache";

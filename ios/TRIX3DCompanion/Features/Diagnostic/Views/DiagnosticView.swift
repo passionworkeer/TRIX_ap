@@ -154,11 +154,11 @@ struct DiagnosticView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Status")
+                    Text(L("diagnostic.status"))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
 
-                    Text(viewModel.networkStatus.isConnected ? "Connected" : "Disconnected")
+                    Text(viewModel.networkStatus.isConnected ? L("diagnostic.connected") : L("diagnostic.disconnected"))
                         .font(.subheadline)
                         .fontWeight(.medium)
                 }
@@ -172,7 +172,7 @@ struct DiagnosticView: View {
             }) {
                 HStack {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("Test Network")
+                    Text(L("diagnostic.testNetwork"))
                 }
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -198,7 +198,7 @@ struct DiagnosticView: View {
                     .font(.title2)
                     .foregroundColor(.blue)
 
-                Text("API Connectivity")
+                Text(L("diagnostic.api.connectivity"))
                     .font(.headline)
                     .fontWeight(.semibold)
 
@@ -212,7 +212,7 @@ struct DiagnosticView: View {
 
             // API Results
             if viewModel.networkTests.isEmpty {
-                Text("Tap 'Test Network' to check API connectivity")
+                Text(L("diagnostic.api.testHint"))
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -239,7 +239,7 @@ struct DiagnosticView: View {
                     .font(.title2)
                     .foregroundColor(.orange)
 
-                Text("Storage Status")
+                Text(L("diagnostic.storage.status"))
                     .font(.headline)
                     .fontWeight(.semibold)
 
@@ -250,7 +250,7 @@ struct DiagnosticView: View {
 
             // Storage Details
             if viewModel.storageResults.isEmpty {
-                Text("Tap 'Refresh' to check storage")
+                Text(L("diagnostic.storage.testHint"))
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -265,7 +265,7 @@ struct DiagnosticView: View {
                         .padding(.vertical, 8)
 
                     HStack {
-                        Text("Total")
+                        Text(L("diagnostic.storage.total"))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -287,7 +287,7 @@ struct DiagnosticView: View {
             }) {
                 HStack {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("Check Storage")
+                    Text(L("diagnostic.checkStorage"))
                 }
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -307,7 +307,7 @@ struct DiagnosticView: View {
 
     private var quickActionsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Quick Actions")
+            Text(L("diagnostic.quickActions"))
                 .font(.headline)
                 .fontWeight(.semibold)
 

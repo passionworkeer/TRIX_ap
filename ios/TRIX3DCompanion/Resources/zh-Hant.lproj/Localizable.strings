@@ -1206,3 +1206,13 @@
 "common.loading" = "載入中...";
 "common.error" = "錯誤";
 "common.ok" = "確定";
+
+// MARK: - Diagnostic Additional
+"diagnostic.testNetwork" = "測試網路";
+"diagnostic.api.connectivity" = "API連線";
+"diagnostic.api.testHint" = "點擊'測試網路'檢查API連線";
+"diagnostic.storage.testHint" = "點擊'重新整理'檢查儲存空間";
+"diagnostic.storage.total" = "總計";
+"diagnostic.checkStorage" = "檢查儲存空間";
+"diagnostic.quickActions" = "快捷操作";
+"diagnostic.clearCache" = "清除快取";

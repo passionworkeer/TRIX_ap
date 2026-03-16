@@ -1386,3 +1386,13 @@
 "common.loading" = "加载中...";
 "common.error" = "错误";
 "common.ok" = "确定";
+
+// MARK: - Diagnostic Additional
+"diagnostic.testNetwork" = "测试网络";
+"diagnostic.api.connectivity" = "API连接";
+"diagnostic.api.testHint" = "点击'测试网络'检查API连接";
+"diagnostic.storage.testHint" = "点击'刷新'检查存储";
+"diagnostic.storage.total" = "总计";
+"diagnostic.checkStorage" = "检查存储";
+"diagnostic.quickActions" = "快捷操作";
+"diagnostic.clearCache" = "清除缓存";
