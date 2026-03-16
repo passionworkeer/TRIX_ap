@@ -611,6 +611,9 @@
 "chat.conversation.new" = "新对话";
 "chat.time.justnow" = "刚刚";
 "action.add" = "添加";
+"chat.connection.lost" = "连接已断开，正在重新连接...";
+"chat.direct.message" = "私信";
+"chat.ai.action" = "AI 功能";
 
 // MARK: - Study Animation
 "study.focus.prepare" = "准备专注";

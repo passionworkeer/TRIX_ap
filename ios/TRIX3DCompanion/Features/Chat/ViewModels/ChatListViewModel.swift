@@ -9,6 +9,11 @@ import Foundation
 import Combine
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Chat List ViewModel
 
 /// ViewModel managing chat room list with search, filtering, and real-time updates
@@ -85,7 +90,7 @@ final class ChatListViewModel: ObservableObject {
             .sink { [weak self] isConnected in
                 if !isConnected {
                     self?.hasError = true
-                    self?.errorMessage = "Connection lost. Reconnecting..."
+                    self?.errorMessage = L("chat.connection.lost")
                 }
             }
             .store(in: &cancellables)
@@ -278,7 +283,7 @@ final class ChatListViewModel: ObservableObject {
         }
 
         // Create new DM
-        return await createChatRoom(name: "Direct Message", type: .privateChat)
+        return await createChatRoom(name: L("chat.direct.message"), type: .privateChat)
     }
 
     // MARK: - Public Methods - Computed Properties

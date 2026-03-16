@@ -579,6 +579,9 @@
 "chat.conversation.new" = "New Conversation";
 "chat.time.justnow" = "Just now";
 "action.add" = "Add";
+"chat.connection.lost" = "Connection lost. Reconnecting...";
+"chat.direct.message" = "Direct Message";
+"chat.ai.action" = "AI Action";
 
 // MARK: - Study Animation
 "study.focus.prepare" = "Prepare to Focus";

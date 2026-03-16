@@ -355,6 +355,9 @@
 "chat.conversation.new" = "新對話";
 "chat.time.justnow" = "剛剛";
 "action.add" = "新增";
+"chat.connection.lost" = "連線已斷開，正在重新連線...";
+"chat.direct.message" = "私訊";
+"chat.ai.action" = "AI 功能";
 
 // MARK: - Study Animation
 "study.focus.prepare" = "準備專注";

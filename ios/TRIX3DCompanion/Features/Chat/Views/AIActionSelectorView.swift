@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// Glass-morphism AI Action selector with popup menu
 struct AIActionSelectorView: View {
 
@@ -53,7 +58,7 @@ struct AIActionSelectorView: View {
                     .foregroundColor(.white)
             }
         }
-        .accessibilityLabel("AI Action: \(selectedAction.label)")
+        .accessibilityLabel(L("chat.ai.action") + ": \(selectedAction.label)")
         .contextMenu {
             ForEach(AIActionType.allCases) { action in
                 Button(action: {
