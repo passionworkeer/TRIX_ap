@@ -548,6 +548,10 @@
 // MARK: - Voice Playback
 "voice.playback.speed" = "播放速度";
 "voice.clear" = "清除";
+"voice.pause" = "暫停";
+"voice.play" = "播放";
+"voice.skip.backward" = "後退 15 秒";
+"voice.skip.forward" = "前進 15 秒";
 
 // MARK: - TTS
 "tts.pitch.low" = "低音";

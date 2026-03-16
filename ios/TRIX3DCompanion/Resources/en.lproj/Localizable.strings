@@ -741,6 +741,10 @@
 // MARK: - Voice Playback
 "voice.playback.speed" = "Playback Speed";
 "voice.clear" = "Clear";
+"voice.pause" = "Pause";
+"voice.play" = "Play";
+"voice.skip.backward" = "Skip backward 15 seconds";
+"voice.skip.forward" = "Skip forward 15 seconds";
 
 // MARK: - TTS
 "tts.pitch.low" = "Low";

@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Voice Message Player View
 
 /// A view displaying a voice message player with playback controls
@@ -154,7 +159,7 @@ struct VoiceMessagePlayerView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(viewModel.isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(viewModel.isPlaying ? L("voice.pause") : L("voice.play"))
     }
 
     // MARK: - Skip Buttons
@@ -172,7 +177,7 @@ struct VoiceMessagePlayerView: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Skip backward 15 seconds")
+        .accessibilityLabel(L("voice.skip.backward"))
     }
 
     private var skipForwardButton: some View {
@@ -188,7 +193,7 @@ struct VoiceMessagePlayerView: View {
                 .background(.ultraThinMaterial, in: Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Skip forward 15 seconds")
+        .accessibilityLabel(L("voice.skip.forward"))
     }
 
     // MARK: - Stop Button
@@ -262,7 +267,7 @@ struct VoiceMessagePlayerView: View {
         }
         .buttonStyle(.plain)
         .confirmationDialog(
-            NSLocalizedString("voice.playback.speed", comment: "Playback speed"),
+            L("voice.playback.speed"),
             isPresented: $viewModel.showSpeedSelector,
             titleVisibility: .hidden
         ) {
@@ -288,7 +293,7 @@ struct VoiceMessagePlayerView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button(NSLocalizedString("voice.clear", comment: "Clear")) {
+            Button(L("voice.clear")) {
                 viewModel.clearError()
             }
             .font(.caption)
