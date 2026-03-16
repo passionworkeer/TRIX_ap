@@ -26,15 +26,15 @@
 
 | 服务 | 端口 | 描述 |
 |------|------|------|
-| Clawbot Channel | 8765 | AI 对话服务 |
-| TRIX Native Server | 8788 | iOS-Web 消息同步 |
+| Clawbot Channel | ~~8765~~ (已废弃) | AI 对话服务 |
+| TRIX Native Server | 8788 | iOS-Web 消息同步 (当前唯一) |
 
 ### 技术栈
 
 - **运行时**: Node.js
 - **框架**: Express.js
 - **数据库**: PostgreSQL (Supabase) + SQLite (本地)
-- **实时通信**: Socket.io
+- **实时通信**: WebSocket
 
 ---
 
@@ -44,8 +44,8 @@
 
 | 环境 | 服务 | URL |
 |------|------|-----|
-| 开发环境 | Clawbot Channel | `http://TRIX_SERVER_HOST:8765/api` |
-| 生产环境 | Clawbot Channel | `https://api.trix3d.com/api` |
+| ~~开发环境~~ | ~~Clawbot Channel~~ | ~~已废弃~~ |
+| ~~生产环境~~ | ~~Clawbot Channel~~ | ~~已废弃~~ |
 | 开发环境 | TRIX Native | `http://TRIX_SERVER_HOST:8788/api` |
 | 生产环境 | TRIX Native | `https://trix-native.trix3d.com/api` |
 
@@ -98,7 +98,7 @@ Token 通过 Supabase Auth 获取。
 **GET /user/profile**
 
 ```bash
-curl -X GET http://TRIX_SERVER_HOST:8765/api/user/profile \
+curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -545,7 +545,7 @@ device_tokens -- 设备令牌
 ### 连接
 
 ```javascript
-const socket = io('http://TRIX_SERVER_HOST:8765');
+const socket = new WebSocket('ws://TRIX_SERVER_HOST:8788/ws/phone');
 ```
 
 ### 事件列表

@@ -114,12 +114,9 @@ trix-3d-companion/
 │       └── Shared/               # 共享组件
 │           └── Theme/            # 主题系统
 │
-├── server/                       # 后端服务
-│   └── clawbot-channel/
-│       ├── server.js             # 主服务器
-│       ├── config/               # 配置
-│       ├── services/             # 服务
-│       └── tests/                # 测试
+├── packages/                       # npm 包
+│   ├── trix-openclaw-native/     # TRIX Native OpenClaw 通道
+│   └── trix-relay-client/        # WebSocket 中继客户端
 │
 ├── docs/                         # 文档目录
 ├── package.json                  # Web 依赖
@@ -160,21 +157,11 @@ open TRIX3DCompanion.xcodeproj
 swift build
 ```
 
-### 后端服务
+### TRIX Native Server
 
 ```bash
-# 安装依赖
-cd server/clawbot-channel
-npm install
-
-# 配置环境变量
-cp .env.example .env
-
-# 启动服务器
-npm start
-
-# 或使用 PM2
-pm2 start ecosystem.config.js
+# TRIX Native Server 独立部署
+# 详见 packages/trix-openclaw-native/README.md
 ```
 
 ---
@@ -247,10 +234,10 @@ npm run test:all
 - 通过率: 100%
 - 覆盖率: ~80%
 
-### 后端测试
+### 包测试
 
 ```bash
-cd server/clawbot-channel
+cd packages/trix-openclaw-native
 npm test
 ```
 

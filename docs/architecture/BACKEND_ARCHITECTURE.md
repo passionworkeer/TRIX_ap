@@ -49,7 +49,7 @@
 
 | 服务 | 端口 | 描述 |
 |------|------|------|
-| Clawbot Channel | 8765 | AI 对话服务 |
+| Clawbot Channel | 8765 | ~~AI 对话服务~~ (已废弃) |
 | TRIX Native Server | 8788 | iOS-Web 消息同步 |
 | Gateway | 18789 | 设备网关 |
 
@@ -611,7 +611,7 @@ console.log(`[Message] New message from ${from} to ${to}`);
 
 ```bash
 # 检查服务状态
-curl http://TRIX_SERVER_HOST:8765/health
+curl http://TRIX_SERVER_HOST:8788/health
 ```
 
 ---

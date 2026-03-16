@@ -116,35 +116,21 @@ trix-3d-companion/
 │   │
 │   └── App.tsx                   # 主应用组件
 │
-├── server/                       # 后端服务器
-│   └── clawbot-channel/          # Clawbot Channel 服务 (端口 8765)
-│       ├── server.js             # 主服务入口
-│       ├── config/               # 配置
-│       │   └── database.js       # 数据库配置
-│       ├── services/             # 服务层
-│       │   ├── pairingService.js # 配对服务
-│       │   ├── messageService.js # 消息服务
-│       │   ├── ossService.js     # OSS 服务
-│       │   └── ttsService.js     # TTS 服务
-│       └── tests/                # 测试
+├── packages/                       # npm 包
+│   ├── trix-openclaw-native/     # TRIX Native OpenClaw 通道
+│   │   ├── src/
+│   │   │   ├── plugin/           # OpenClaw 插件
+│   │   │   │   ├── plugin.ts
+│   │   │   │   ├── accounts.ts
+│   │   │   │   ├── inbound.ts
+│   │   │   │   └── outbound.ts
+│   │   │   └── cli.ts            # CLI 入口
+│   │   └── package.json
+│   │
+│   └── trix-relay-client/        # WebSocket 中继客户端
+│       └── package.json
 │
-├── trix-native/                  # TRIX Native (OpenClaw 集成)
-│   ├── packages/
-│   │   ├── trix-native-server/  # Node.js 服务器 (端口 8788)
-│   │   │   ├── src/
-│   │   │   │   ├── index.ts    # 入口
-│   │   │   │   ├── app.ts      # Express 应用
-│   │   │   │   ├── routes/     # API 路由
-│   │   │   │   ├── services/   # 服务层 (SQLiteStore, MessageService, PairingService)
-│   │   │   │   └── websocket/  # WebSocket 处理
-│   │   │   └── data/           # SQLite 数据库
-│   │   └── trix-native-plugin/ # OpenClaw 插件
-│   │       ├── src/
-│   │       │   ├── index.ts    # 插件入口
-│   │       │   └── setup.ts    # 配对设置
-│   │       └── package.json    # 已发布到 npm
-│
-├── database/                     # 数据库脚本
+├── database/                     # 数据库脚本 (Supabase)
 │   ├── INIT_ALL.sql              # 统一初始化脚本
 │   ├── docs/                     # 数据库文档
 │   │   ├── README.md
@@ -349,10 +335,8 @@ VITE_GATEWAY_AUTH_TOKEN=<your-gateway-token>
 # 前端开发服务器
 npm run dev
 
-# 后端服务器
-cd server/clawbot-channel
-npm install
-npm start
+# TRIX Native Server (独立部署)
+# 详见 packages/trix-openclaw-native/README.md
 ```
 
 ---

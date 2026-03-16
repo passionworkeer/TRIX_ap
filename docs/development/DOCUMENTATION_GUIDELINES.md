@@ -54,9 +54,12 @@ src/features/chat/
 ├── hooks/
 └── services/
 
-server/clawbot-channel/
-├── README.md              # 服务器说明（已有）
-└── DEPLOYMENT_GUIDE.md    # 部署指南（已有）
+packages/trix-openclaw-native/
+├── README.md              # 包说明
+├── src/
+│   ├── plugin/            # OpenClaw 插件
+│   └── cli.ts             # CLI 入口
+└── package.json
 ```
 
 **适用场景**（仅当满足以下条件时创建）：
