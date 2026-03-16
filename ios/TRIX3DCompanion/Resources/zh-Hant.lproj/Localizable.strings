@@ -137,9 +137,14 @@
 // MARK: - Schedule
 "schedule.title" = "日程";
 "schedule.add" = "新增日程";
+"schedule.add.success" = "日程新增成功";
 "schedule.edit" = "編輯日程";
+"schedule.edit.success" = "日程更新成功";
+"schedule.delete.success" = "日程已刪除";
+"schedule.load.error" = "載入日程失敗：%@";
 "schedule.empty" = "暫無日程";
 "schedule.today" = "今天";
+"schedule.tomorrow" = "明天";
 "schedule.upcoming" = "即將到來";
 
 // MARK: - Location

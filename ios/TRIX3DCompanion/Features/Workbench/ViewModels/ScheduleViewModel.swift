@@ -9,6 +9,13 @@ import Foundation
 import UIKit
 import UserNotifications
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Haptic Feedback Protocol
 
 /// Protocol for haptic feedback - allows dependency injection for testing
@@ -145,7 +152,7 @@ final class ScheduleViewModel: ObservableObject {
                     await scheduleReminder(for: created, minutesBefore: reminderMinutes)
                 }
 
-                successMessage = "Schedule added successfully"
+                successMessage = L("schedule.add.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -179,7 +186,7 @@ final class ScheduleViewModel: ObservableObject {
                     schedules[index] = updated
                 }
                 isLoading = false
-                successMessage = "Schedule updated successfully"
+                successMessage = L("schedule.edit.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -197,7 +204,7 @@ final class ScheduleViewModel: ObservableObject {
                 await cancelReminder(for: id)
                 schedules.removeAll { $0.id == id }
                 isLoading = false
-                successMessage = "Schedule deleted"
+                successMessage = L("schedule.delete.success")
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -302,7 +309,7 @@ final class ScheduleViewModel: ObservableObject {
                 isLoading = false
             } catch {
                 isLoading = false
-                errorMessage = "Failed to load schedules: \(error.localizedDescription)"
+                errorMessage = String(format: L("schedule.load.error"), error.localizedDescription)
             }
         }
     }
@@ -310,6 +317,12 @@ final class ScheduleViewModel: ObservableObject {
     /// Refresh schedules from backend
     func refresh() {
         loadSchedules()
+    }
+
+    /// Load sample schedules for preview/offline mode
+    func loadSampleSchedules() {
+        schedules = Schedule.sampleSchedules
+        errorMessage = nil
     }
 }
 
@@ -325,11 +338,6 @@ extension ScheduleViewModel {
         )
         vm.loadSampleSchedules()
         return vm
-    }
-
-    /// Internal method to load sample schedules for preview
-    func loadSampleSchedules() {
-        schedules = Schedule.sampleSchedules
     }
 }
 

@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Schedule List View
 
 /// Schedule list view displaying schedule items with native iOS design
@@ -40,12 +47,12 @@ struct ScheduleListView: View {
                 scheduleList
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("日程")
+            .navigationTitle(L("schedule.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button("完成") {
+                        Button(L("action.done")) {
                             dismiss()
                         }
                     }
@@ -67,15 +74,21 @@ struct ScheduleListView: View {
                     editingSchedule: viewModel.editingSchedule
                 )
             }
-            .alert("错误", isPresented: .init(
+            .alert(L("error.unknown"), isPresented: .init(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.clearMessages() } }
             )) {
-                Button("确定") {
+                Button(L("action.confirm")) {
                     viewModel.clearMessages()
+                }
+                Button("加载示例") {
+                    viewModel.loadSampleSchedules()
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "")
+            }
+            .task {
+                viewModel.loadSchedules()
             }
         }
     }
@@ -104,13 +117,13 @@ struct ScheduleListView: View {
     private var statsSection: some View {
         HStack(spacing: 12) {
             StatBadge(
-                title: "今天",
+                title: L("schedule.today"),
                 value: viewModel.todayCount,
                 color: .blue
             )
 
             StatBadge(
-                title: "即将到来",
+                title: L("schedule.upcoming"),
                 value: viewModel.upcomingCount,
                 color: .green
             )
@@ -150,11 +163,11 @@ struct ScheduleListView: View {
     /// Empty state view
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("暂无日程", systemImage: "calendar.badge.plus")
+            Label(L("schedule.empty"), systemImage: "calendar.badge.plus")
         } description: {
             Text("点击右上角按钮添加新日程")
         } actions: {
-            Button("添加日程") {
+            Button(L("schedule.add")) {
                 viewModel.showAddForm()
             }
             .buttonStyle(.borderedProminent)
@@ -179,7 +192,7 @@ struct ScheduleRow: View {
         HStack(spacing: 12) {
             // Time indicator
             VStack(spacing: 4) {
-                Text(schedule.isToday ? "今天" : (schedule.isTomorrow ? "明天" : ""))
+                Text(schedule.isToday ? L("schedule.today") : (schedule.isTomorrow ? L("schedule.tomorrow") : ""))
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundColor(.white)

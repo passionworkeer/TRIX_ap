@@ -58,7 +58,18 @@ struct GlassDockView: View {
         .background(
             RoundedRectangle(cornerRadius: 35)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+                .overlay(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.22),
+                            Color.brandPurple.opacity(0.05),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: 8)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 35)
@@ -72,7 +83,7 @@ struct GlassDockView: View {
                 )
         )
         .padding(.horizontal, 20)
-        .padding(.bottom, 18)
+        .padding(.bottom, 10)
         .onAppear {
             startGlowAnimation()
         }

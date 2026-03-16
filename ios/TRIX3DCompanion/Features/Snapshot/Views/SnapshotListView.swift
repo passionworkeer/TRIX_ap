@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Snapshot List View
 
 /// Photo gallery grid view with native iOS design
@@ -55,11 +62,11 @@ struct SnapshotListView: View {
                     snapshotGrid
                 }
             }
-            .navigationTitle("快拍相册")
+            .navigationTitle(L("snapshot.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
@@ -75,20 +82,20 @@ struct SnapshotListView: View {
                     SnapshotDetailView(snapshot: snapshot)
                 }
             }
-            .confirmationDialog("删除照片", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
-                Button("删除", role: .destructive) {
+            .confirmationDialog(L("snapshot.delete"), isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button(L("action.delete"), role: .destructive) {
                     if let snapshot = snapshotToDelete {
                         Task {
                             await viewModel.deleteSnapshot(snapshot)
                         }
                     }
                 }
-                Button("取消", role: .cancel) {
+                Button(L("action.cancel"), role: .cancel) {
                     snapshotToDelete = nil
                 }
             }
-            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("确定") {
+            .alert(L("error.unknown"), isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button(L("action.confirm")) {
                     viewModel.clearError()
                 }
             } message: {
@@ -104,11 +111,11 @@ struct SnapshotListView: View {
     /// Empty state view with native iOS design
     private var emptyStateView: some View {
         ContentUnavailableView {
-            Label("暂无照片", systemImage: "photo.on.rectangle.angled")
+            Label(L("snapshot.empty"), systemImage: "photo.on.rectangle.angled")
         } description: {
             Text("您拍摄的照片将显示在这里")
         } actions: {
-            Button("拍照") {
+            Button(L("snapshot.take")) {
                 // Navigate to camera
             }
             .buttonStyle(.borderedProminent)
@@ -352,7 +359,7 @@ struct SnapshotDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("关闭") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }

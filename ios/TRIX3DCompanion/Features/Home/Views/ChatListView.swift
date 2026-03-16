@@ -56,23 +56,18 @@ struct ChatListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Native iOS grouped background
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+        ZStack {
+            chatBackground
 
-                VStack(spacing: 0) {
-                    // Search bar with native iOS style
-                    searchBar
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    VStack(spacing: 16) {
+                        searchBar
+                        trixBotEntry
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
 
-                    // TRIX Bot entry card
-                    trixBotEntry
-                        .padding(.horizontal)
-                        .padding(.top, 4)
-                        .padding(.bottom, 8)
-
-                    // Main content
                     if isLoading {
                         loadingView
                     } else if filteredConversations.isEmpty && recommendedUsers.isEmpty {
@@ -80,85 +75,125 @@ struct ChatListView: View {
                     } else {
                         contentView
                     }
+
+                    Color.clear
+                        .frame(height: 24)
                 }
-            }
-            .navigationTitle("聊天")
-            .safeAreaInset(edge: .bottom) {
-                Color.clear
-                    .frame(height: 1)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: createNewChat) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingCreateChat) { createChatSheet }
-            .sheet(isPresented: $showingPairing) {
-                NavigationStack {
-                    PairingView()
-                        .environmentObject(clawbotChannel)
-                }
-            }
-            .onAppear {
-                Task {
-                    await loadFriends()
-                }
-                consumePendingCompanionRouteIfNeeded()
-            }
-            .sheet(isPresented: $showingTrixBotChat) {
-                NavigationStack {
-                    TrixBotChatView()
-                        .environmentObject(clawbotChannel)
-                }
-            }
-            .onChange(of: appState.pendingCompanionRoute) { _ in
-                consumePendingCompanionRouteIfNeeded()
-            }
-            .alert("操作失败", isPresented: Binding(
-                get: { friendActionError != nil },
-                set: { newValue in
-                    if !newValue {
-                        friendActionError = nil
-                    }
-                }
-            )) {
-                Button("确定", role: .cancel) {
-                    friendActionError = nil
-                }
-            } message: {
-                Text(friendActionError ?? "未知错误")
+                .padding(.bottom, 20)
             }
         }
+        .navigationTitle("聊天")
+        .navigationBarTitleDisplayMode(.large)
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.screen)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: createNewChat) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.brandPurple)
+                        .frame(width: 36, height: 36)
+                        .background(.regularMaterial, in: Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .sheet(isPresented: $showingCreateChat) { createChatSheet }
+        .sheet(isPresented: $showingPairing) {
+            NavigationStack {
+                PairingView()
+                    .environmentObject(clawbotChannel)
+            }
+        }
+        .onAppear {
+            Task {
+                await loadFriends()
+            }
+            consumePendingCompanionRouteIfNeeded()
+        }
+        .sheet(isPresented: $showingTrixBotChat) {
+            NavigationStack {
+                TrixBotChatView()
+                    .environmentObject(clawbotChannel)
+            }
+        }
+        .onChange(of: appState.pendingCompanionRoute) { _ in
+            consumePendingCompanionRouteIfNeeded()
+        }
+        .alert("操作失败", isPresented: Binding(
+            get: { friendActionError != nil },
+            set: { newValue in
+                if !newValue {
+                    friendActionError = nil
+                }
+            }
+        )) {
+            Button("确定", role: .cancel) {
+                friendActionError = nil
+            }
+        } message: {
+            Text(friendActionError ?? "未知错误")
+        }
+    }
+
+    private var chatBackground: some View {
+        Color(.systemGroupedBackground)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [
+                        Color.brandPurple.opacity(0.08),
+                        Color.brandPink.opacity(0.04),
+                        .clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 260)
+                .allowsHitTesting(false)
+            }
+            .ignoresSafeArea()
     }
 
     // MARK: - Loading View
 
     private var loadingView: some View {
-        ZStack {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
+        VStack(spacing: 12) {
+            SwiftUI.ProgressView()
+                .controlSize(.large)
+                .tint(Color.brandPurple)
 
-            ProgressView()
+            Text("正在载入会话")
+                .font(.headline)
+
+            Text("同步 TRIX Bot 与好友消息")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, minHeight: 240)
+        .padding(.horizontal, 20)
+        .trixSurfaceCard(cornerRadius: 28, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 10)
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Content View
 
     @ViewBuilder
     private var contentView: some View {
-        // Quick add section - only show if there are recommendations
-        if showQuickAdd && !recommendedUsers.isEmpty {
-            quickAddSection
-        }
+        VStack(spacing: 18) {
+            if showQuickAdd && !recommendedUsers.isEmpty {
+                quickAddSection
+            }
 
-        // Main content
-        if filteredConversations.isEmpty {
-            conversationEmptyState
-        } else {
-            conversationList
+            if filteredConversations.isEmpty {
+                conversationEmptyState
+            } else {
+                conversationList
+            }
         }
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Search Bar
@@ -179,11 +214,14 @@ struct ChatListView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal)
-        .padding(.top, 4)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.searchField)
     }
 
     // MARK: - TRIX Bot Entry
@@ -202,20 +240,24 @@ struct ChatListView: View {
                     Image("AvatarHead")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 56, height: 56)
                         .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.7), lineWidth: 2)
+                        )
 
                     Circle()
                         .fill(clawbotChannel.isPaired ? .green : .orange)
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                        .frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(.white, lineWidth: 2.5))
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text("TRIX Bot")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                            .font(.headline)
+                            .fontWeight(.bold)
 
                         if clawbotChannel.isPaired {
                             Text("在线")
@@ -232,19 +274,44 @@ struct ChatListView: View {
                     Text(clawbotChannel.isPaired ? "点击开始对话" : "配对后即可对话")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    Text(clawbotChannel.isPaired ? "对话已准备好，随时继续" : "先完成设备配对，再进入实时聊天")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                Image(systemName: "arrow.up.right.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.brandPurple, Color.brandPink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             }
-            .padding(12)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(18)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(.secondarySystemGroupedBackground),
+                        Color(.systemBackground).opacity(0.96)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.8), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: 8)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
     }
 
     // MARK: - Quick Add Section - Redesigned to match list style
@@ -268,8 +335,7 @@ struct ChatListView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 4)
+            .padding(.bottom, 12)
 
             // Horizontal scrolling cards - matching list style
             ScrollView(.horizontal, showsIndicators: false) {
@@ -280,16 +346,15 @@ struct ChatListView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 20)
             }
-            .padding(.bottom, 4)
-
-            // Divider
-            Rectangle()
-                .fill(Color(.separator))
-                .frame(height: 0.5)
-                .padding(.horizontal, 20)
         }
+        .padding(18)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
     }
 
     // MARK: - Conversation List
@@ -300,31 +365,41 @@ struct ChatListView: View {
     }
 
     private var conversationList: some View {
-        List {
-            ForEach(filteredConversations) { conversation in
-                ConversationRow(conversation: conversation)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onNavigateToChat?(conversation)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            // Delete action
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("最近会话")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+
+            ForEach(Array(filteredConversations.enumerated()), id: \.element.id) { index, conversation in
+                Button {
+                    onNavigateToChat?(conversation)
+                } label: {
+                    ConversationRow(conversation: conversation)
+                }
+                .buttonStyle(.plain)
+
+                if index < filteredConversations.count - 1 {
+                    Divider()
+                        .padding(.leading, 84)
+                }
             }
         }
-        .listStyle(.plain)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
     }
 
     // MARK: - Conversation Empty State
 
     private var conversationEmptyState: some View {
         VStack(spacing: 16) {
-            Spacer()
-
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.system(size: 50))
                 .foregroundStyle(.secondary)
@@ -341,21 +416,34 @@ struct ChatListView: View {
                 showingCreateChat = true
             }
             .buttonStyle(.borderedProminent)
-
-            Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 40)
+        .padding(.vertical, 36)
+        .padding(.horizontal, 24)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label("暂无对话", systemImage: "bubble.left.and.bubble.right")
-        } description: {
+        VStack(spacing: 14) {
+            Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(Color.brandPurple.opacity(0.78))
+
+            Text("暂无对话")
+                .font(.title3)
+                .fontWeight(.bold)
+
             Text("开始一个新的对话或配对 TRIX Bot")
-        } actions: {
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
             Button(clawbotChannel.isPaired ? "开始对话" : "配对 TRIX Bot") {
                 if clawbotChannel.isPaired {
                     showingTrixBotChat = true
@@ -372,6 +460,16 @@ struct ChatListView: View {
                 .buttonStyle(.bordered)
             }
         }
+        .frame(maxWidth: .infinity, minHeight: 260)
+        .padding(.horizontal, 24)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
+        .padding(.horizontal, 20)
+        .accessibilityIdentifier(ChatAccessibilityIdentifiers.emptyState)
     }
 
     // MARK: - Actions
@@ -511,12 +609,12 @@ struct QuickAddUserCard: View {
     let onAdd: () -> Void
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             // Avatar with shadow
             ZStack {
                 Circle()
                     .fill(user.avatarColor.gradient)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 56, height: 56)
 
                 Text(String(user.name.prefix(1)))
                     .font(.headline)
@@ -527,25 +625,28 @@ struct QuickAddUserCard: View {
             Text(user.name)
                 .font(.caption)
                 .lineLimit(1)
-                .frame(width: 60)
+                .frame(width: 72)
 
             Button(action: onAdd) {
                 Text("添加")
-                    .font(.caption2)
-                    .fontWeight(.medium)
+                    .font(.caption)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
                     .background(Color(.systemBlue))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
         }
-        .frame(width: 70)
-        .padding(.vertical, 6)
-        .padding(.horizontal, 2)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(width: 88)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(Color(.systemBackground).opacity(0.92), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+        )
     }
 }
 
@@ -571,7 +672,7 @@ struct ConversationRow: View {
                     Circle()
                         .fill(.green)
                         .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                        .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                 }
             }
 
@@ -602,20 +703,27 @@ struct ConversationRow: View {
                         .lineLimit(1)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Unread badge
-            if conversation.unreadCount > 0 {
-                Text("\(conversation.unreadCount)")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.yellow)
-                    .clipShape(Capsule())
+            HStack(spacing: 10) {
+                if conversation.unreadCount > 0 {
+                    Text("\(conversation.unreadCount)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.yellow)
+                        .clipShape(Capsule())
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 }
 

@@ -298,12 +298,16 @@ struct LoginView: View {
     // MARK: - Loading Overlay
 
     private var nativeLoadingOverlay: some View {
-        ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-
-            ProgressView()
-        }
+        AuthLoadingOverlay(
+            title: "正在登录",
+            subtitle: "正在安全连接你的 TRIX 空间",
+            steps: [
+                "验证账户信息",
+                "同步会话状态",
+                "准备你的学习空间"
+            ],
+            accessibilityIdentifier: AuthAccessibilityIdentifiers.loginLoadingOverlay
+        )
     }
 
     // MARK: - Computed Properties

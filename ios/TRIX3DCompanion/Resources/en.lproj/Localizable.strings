@@ -216,9 +216,14 @@
 // MARK: - Schedule
 "schedule.title" = "Schedule";
 "schedule.add" = "Add Schedule";
+"schedule.add.success" = "Schedule added successfully";
 "schedule.edit" = "Edit Schedule";
+"schedule.edit.success" = "Schedule updated successfully";
+"schedule.delete.success" = "Schedule deleted";
+"schedule.load.error" = "Failed to load schedules: %@";
 "schedule.empty" = "No schedules yet";
 "schedule.today" = "Today";
+"schedule.tomorrow" = "Tomorrow";
 "schedule.upcoming" = "Upcoming";
 
 // MARK: - Auth Polish

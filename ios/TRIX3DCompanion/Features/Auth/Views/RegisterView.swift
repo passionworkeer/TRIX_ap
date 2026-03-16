@@ -303,27 +303,16 @@ struct RegisterView: View {
     // MARK: - Loading Overlay
 
     private var nativeLoadingOverlay: some View {
-        ZStack {
-            Color(.systemBackground)
-                .opacity(0.9)
-                .ignoresSafeArea()
-
-            VStack(spacing: 20) {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.purple)
-
-                Text("正在注册...")
-                    .font(.headline)
-
-                Text("请稍候")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(40)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-        }
+        AuthLoadingOverlay(
+            title: "正在注册",
+            subtitle: "正在创建账户并初始化你的 TRIX 空间",
+            steps: [
+                "创建账户信息",
+                "同步基础资料",
+                "准备首次体验"
+            ],
+            accessibilityIdentifier: AuthAccessibilityIdentifiers.registerLoadingOverlay
+        )
     }
 
     // MARK: - Computed Properties

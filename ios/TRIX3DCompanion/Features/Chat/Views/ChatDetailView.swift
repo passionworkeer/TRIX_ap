@@ -43,8 +43,8 @@ struct ChatDetailView: View {
 
             // Messages list
             messagesList
-
-            // Input area
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             inputArea
         }
         .background(backgroundGradient)
@@ -81,7 +81,7 @@ struct ChatDetailView: View {
     private var connectionStatusBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash").font(.caption)
-            Text("Disconnected").font(.caption)
+            Text("连接已断开").font(.caption)
             Spacer()
             Button("Retry") {
                 Task {
@@ -89,16 +89,28 @@ struct ChatDetailView: View {
                         _ = await chatService.connectWebSocket(userId: userId)
                     }
                 }
-            }.font(.caption).buttonStyle(.bordered)
-        }.padding(.horizontal).padding(.vertical, 8).background(.yellow.opacity(0.2))
+            }
+            .font(.caption)
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.76), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
 
     // MARK: - Messages List
 
     private var messagesList: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 4) {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 8) {
                     if chatService.hasMoreMessages && !chatService.currentMessages.isEmpty {
                         loadMoreButton
                     }
@@ -106,8 +118,11 @@ struct ChatDetailView: View {
                         MessageCell(message: message, isCurrentUser: message.sender == .user).id(message.id)
                     }
                 }
-                .padding(.horizontal).padding(.bottom, 8)
+                .padding(.horizontal, 4)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onAppear {
                 // 记录初始消息数
                 previousMessageCount = chatService.currentMessages.count
@@ -146,25 +161,59 @@ struct ChatDetailView: View {
     private var inputArea: some View {
         HStack(alignment: .bottom, spacing: 12) {
             Button(action: { showingAttachmentOptions = true }) {
-                Image(systemName: "plus.circle.fill").font(.title2).foregroundColor(.purple)
-            }.disabled(!chatService.isConnected)
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.brandPurple)
+            }
+            .disabled(!chatService.isConnected)
 
             HStack(alignment: .bottom, spacing: 8) {
-                TextField("Type a message...", text: $messageText, axis: .vertical).textFieldStyle(.plain).font(.body).focused($isInputFocused).lineLimit(1...6).disabled(!chatService.isConnected)
+                TextField("输入消息...", text: $messageText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                    .focused($isInputFocused)
+                    .lineLimit(1...6)
+                    .disabled(!chatService.isConnected)
 
                 if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button(action: sendMessage) {
-                        Image(systemName: "arrow.up.circle.fill").font(.title2).foregroundColor(.purple)
-                    }.disabled(!chatService.isConnected)
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.brandPurple)
+                    }
+                    .disabled(!chatService.isConnected)
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.76), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 6)
         }
-        .padding(.horizontal).padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Rectangle())
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .background(
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        Color(.systemGroupedBackground).opacity(0.56),
+                        Color(.systemGroupedBackground).opacity(0.92)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.88)
+            }
+            .ignoresSafeArea(edges: .bottom)
+        )
     }
 
     // MARK: - Background Gradient

@@ -61,6 +61,8 @@ struct TrixBotChatView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
             messagesList
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             inputArea
         }
         .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.screen)
@@ -139,7 +141,7 @@ struct TrixBotChatView: View {
 
     private var messagesList: some View {
         ScrollViewReader { proxy in
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 12) {
                     if displayMessages.isEmpty {
                         emptyState
@@ -155,8 +157,9 @@ struct TrixBotChatView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.bottom, 20)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onAppear {
                 scrollToBottom = true
             }
@@ -218,14 +221,30 @@ struct TrixBotChatView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
+                .padding(.vertical, 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.white.opacity(0.76), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 6)
 
                 Button(action: sendMessage) {
                     ZStack {
                         Circle()
-                            .fill(canSend ? Color.brandPurple : Color.gray)
-                            .frame(width: 44, height: 44)
+                            .fill(
+                                canSend
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [Color.brandPurple, Color.brandPink],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyShapeStyle(Color(.systemGray4))
+                            )
+                            .frame(width: 48, height: 48)
+                            .shadow(color: canSend ? Color.brandPurple.opacity(0.24) : .clear, radius: 12, x: 0, y: 6)
 
                         if isSendingMessage || isUploadingAttachment {
                             ProgressView()
@@ -245,13 +264,25 @@ struct TrixBotChatView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .overlay(
-            Rectangle()
-                .fill(Color.white.opacity(0.15))
-                .frame(height: 1),
-            alignment: .top
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .background(
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        Color(.systemGroupedBackground).opacity(0.56),
+                        Color(.systemGroupedBackground).opacity(0.92)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.88)
+            }
+            .ignoresSafeArea(edges: .bottom)
         )
     }
 

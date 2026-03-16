@@ -255,9 +255,14 @@
 // MARK: - Schedule
 "schedule.title" = "日程";
 "schedule.add" = "添加日程";
+"schedule.add.success" = "日程添加成功";
 "schedule.edit" = "编辑日程";
+"schedule.edit.success" = "日程更新成功";
+"schedule.delete.success" = "日程已删除";
+"schedule.load.error" = "加载日程失败：%@";
 "schedule.empty" = "暂无日程";
 "schedule.today" = "今天";
+"schedule.tomorrow" = "明天";
 "schedule.upcoming" = "即将到来";
 
 // MARK: - Auth Polish

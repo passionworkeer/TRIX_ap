@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Store View
 
 /// Main store view showing products and subscription options with native iOS design
@@ -68,7 +75,7 @@ struct StoreView: View {
                 }
                 .background(Color(.systemGroupedBackground))
             }
-            .navigationTitle("商店")
+            .navigationTitle(L("store.title"))
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
                 await viewModel.refreshPoints()
@@ -81,8 +88,8 @@ struct StoreView: View {
             .sheet(isPresented: $showSubscription) {
                 SubscriptionView()
             }
-            .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("确定") {
+            .alert(L("error.unknown"), isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button(L("action.confirm")) {
                     viewModel.clearError()
                 }
             } message: {
@@ -103,7 +110,7 @@ struct StoreView: View {
                     .font(.title2)
                     .foregroundStyle(.orange)
 
-                Text("我的积分")
+                Text(L("store.points"))
                     .font(.headline)
 
                 Spacer()
@@ -124,7 +131,7 @@ struct StoreView: View {
                 Text(viewModel.formatPoints(viewModel.userPoints))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
 
-                Text("积分")
+                Text(L("store.points"))
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }

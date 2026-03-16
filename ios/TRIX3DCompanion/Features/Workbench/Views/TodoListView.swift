@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+
+/// Helper for localizing strings in SwiftUI views
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Todo List View
 
 /// Todo list view displaying todo items with native iOS design
@@ -40,12 +47,12 @@ struct TodoListView: View {
                 todoList
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("待办事项")
+            .navigationTitle(L("todo.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: navigationBarLeading(showAsSheet: showAsSheet)) {
                     if showAsSheet {
-                        Button("完成") {
+                        Button(L("action.done")) {
                             dismiss()
                         }
                     }
@@ -67,11 +74,11 @@ struct TodoListView: View {
                     editingTodo: viewModel.editingTodo
                 )
             }
-            .alert("错误", isPresented: .init(
+            .alert(L("error.unknown"), isPresented: .init(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.clearMessages() } }
             )) {
-                Button("确定") {
+                Button(L("action.confirm")) {
                     viewModel.clearMessages()
                 }
             } message: {
@@ -134,13 +141,13 @@ struct TodoListView: View {
     private var statsSection: some View {
         HStack(spacing: 12) {
             StatBadge(
-                title: "进行中",
+                title: L("todo.pending"),
                 value: viewModel.activeCount,
                 color: .blue
             )
 
             StatBadge(
-                title: "已完成",
+                title: L("todo.completed"),
                 value: viewModel.completedCount,
                 color: .green
             )
@@ -195,11 +202,11 @@ struct TodoListView: View {
     /// Empty state view
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("暂无待办事项", systemImage: "checklist")
+            Label(L("todo.empty"), systemImage: "checklist")
         } description: {
             Text("点击右上角按钮添加新待办")
         } actions: {
-            Button("添加待办") {
+            Button(L("todo.add")) {
                 viewModel.showAddForm()
             }
             .buttonStyle(.borderedProminent)
