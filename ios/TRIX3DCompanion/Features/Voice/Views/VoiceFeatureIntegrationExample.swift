@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Voice Feature Integration Example
 
 /// Example view demonstrating Voice feature integration
@@ -42,7 +47,7 @@ struct VoiceFeatureIntegrationExample: View {
             }
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("语音功能")
+        .navigationTitle(L("voice.feature.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -98,7 +103,7 @@ struct VoiceFeatureIntegrationExample: View {
 
             // Compact players
             VStack(alignment: .leading, spacing: 12) {
-                Text("紧凑模式")
+                Text(L("voice.compact.mode"))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
@@ -128,7 +133,7 @@ struct VoiceFeatureIntegrationExample: View {
 
             // Compact TTS controls
             VStack(alignment: .leading, spacing: 12) {
-                Text("紧凑模式")
+                Text(L("voice.compact.mode"))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
@@ -153,7 +158,7 @@ struct VoiceFeatureIntegrationExample: View {
         VStack(spacing: 20) {
             // Voice player with TTS
             VStack(alignment: .leading, spacing: 16) {
-                Text("语音播放器 + TTS")
+                Text(L("voice.player.with.tts"))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
@@ -166,26 +171,26 @@ struct VoiceFeatureIntegrationExample: View {
 
             // Use case example
             VStack(alignment: .leading, spacing: 16) {
-                Text("使用场景示例")
+                Text(L("voice.use.cases"))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
                 useCaseCard(
                     icon: "speaker.wave.3.fill",
-                    title: "课堂录音回放",
-                    description: "播放课堂录音的同时，使用 TTS 朗读重要笔记"
+                    title: L("voice.usecase.class.recording"),
+                    description: L("voice.usecase.class.recording.desc")
                 )
 
                 useCaseCard(
                     icon: "mic.fill",
-                    title: "语音消息转文字",
-                    description: "收听语音消息，TTS 自动朗读内容"
+                    title: L("voice.usecase.voice.message"),
+                    description: L("voice.usecase.voice.message.desc")
                 )
 
                 useCaseCard(
                     icon: "books.vertical.fill",
-                    title: "学习辅助",
-                    description: "播放音频教材，TTS 朗读配套文本"
+                    title: L("voice.usecase.study.assistant"),
+                    description: L("voice.usecase.study.assistant.desc")
                 )
             }
         }
@@ -253,9 +258,9 @@ enum VoiceTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .player: return "播放器"
-        case .tts: return "TTS"
-        case .combined: return "组合"
+        case .player: return L("voice.tab.player")
+        case .tts: return L("voice.tab.tts")
+        case .combined: return L("voice.tab.combined")
         }
     }
 

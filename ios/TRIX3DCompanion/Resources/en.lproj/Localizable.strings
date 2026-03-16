@@ -167,6 +167,9 @@
 "error.permission" = "Permission Denied";
 "error.login.failed" = "Login Failed";
 "error.register.failed" = "Registration Failed";
+"auth.login.failed" = "Login Failed";
+"auth.register.failed" = "Registration Failed";
+"auth.signin.apple.error" = "Unable to open Apple Sign In";
 
 // MARK: - Empty States
 "empty.messages" = "No messages yet";
@@ -174,6 +177,23 @@
 "empty.study.sessions" = "No study sessions";
 "empty.notifications" = "No notifications";
 "empty.points" = "No points yet";
+
+// MARK: - Empty State Details
+"empty.internet.title" = "Network Connection Failed";
+"empty.internet.description" = "Please check your network connection, or try offline mode to continue browsing cached content";
+"empty.internet.retrying" = "Retrying...";
+"empty.internet.reload" = "Reload";
+"empty.internet.offlineMode" = "Offline Mode";
+"empty.message.description" = "Start chatting with friends to share study tips and daily life";
+"empty.message.action" = "Start Chat";
+"empty.notification.description" = "You will see notifications here when there are new activities, messages, or reminders";
+"empty.notification.action" = "Go Home";
+"empty.friend.description" = "Add friends to study together, motivate each other, and make progress";
+"empty.friend.add" = "Add Friend";
+"empty.friend.scan" = "Scan QR Code";
+"empty.points.title" = "No Points Record";
+"empty.points.description" = "Complete tasks and participate in activities to earn points, which can be exchanged for various rewards";
+"empty.points.action" = "Earn Points";
 
 // MARK: - Loading States
 "loading" = "Loading...";
@@ -205,11 +225,47 @@
 "pairing.success" = "Pairing Successful!";
 "pairing.failed" = "Pairing Failed";
 
+// MARK: - Pairing Additional
+"pairing.mode.relay" = "Relay";
+"pairing.mode.direct" = "Direct";
+"pairing.mode.pair" = "Pair";
+"pairing.device.title" = "Device Pairing";
+"pairing.scan.qrcode.computer" = "Scan the pairing QR code displayed on the computer";
+"pairing.open.camera" = "Open Camera";
+"common.or" = "OR";
+"pairing.manual.input" = "Manual Input Pairing Code";
+"pairing.input.6.digit" = "Enter 6-digit Pairing Code";
+"pairing.verify.code" = "Verify Pairing Code";
+"pairing.back.to.scan" = "Back to Scan";
+"pairing.scan.relay.qr" = "Scan Relay QR Code";
+"pairing.scan.relay.qr.description" = "Scan the relay QR code displayed on OpenClaw device";
+"pairing.or.manual.input" = "Or Manual Input";
+"pairing.connecting.local" = "Connecting to local...";
+"pairing.quick.connect.local" = "Local Quick Connect";
+"pairing.server.address" = "Server Address";
+"pairing.gateway.id" = "Gateway ID";
+"pairing.access.code" = "Access Code";
+"pairing.access.code.placeholder" = "Access Code";
+"pairing.connecting" = "Connecting...";
+"pairing.connect" = "Connect";
+"pairing.waiting.confirm" = "Waiting for Device Confirmation";
+"pairing.confirm.on.computer" = "Please confirm on computer";
+"pairing.connected.to.trixbot" = "Your device is connected to TRIX Bot";
+"pairing.start.chatting" = "Start Chatting";
+"pairing.failed.please.retry" = "Pairing failed, please retry";
+"pairing.qr.failed" = "QR code pairing failed";
+"pairing.connection.failed.check.info" = "Connection failed, please check pairing info";
+"pairing.connection.failed.check.config" = "Connection failed, please check config";
+"pairing.local.quick.connect.requires.credentials" = "Please enter Gateway ID and access code first, then use local quick connect";
+"pairing.local.quick.connect.failed" = "Local quick connect failed, please confirm OpenClaw/Relay service is running on this machine";
+"pairing.qr.connection.failed" = "QR code connection failed";
+
 // MARK: - Todo
 "todo.title" = "Todo List";
 "todo.add" = "Add Todo";
 "todo.edit" = "Edit Todo";
 "todo.empty" = "No todos yet";
+"todo.empty.hint" = "Tap the + button to add a new todo";
 "todo.completed" = "Completed";
 "todo.pending" = "Pending";
 
@@ -222,6 +278,7 @@
 "schedule.delete.success" = "Schedule deleted";
 "schedule.load.error" = "Failed to load schedules: %@";
 "schedule.empty" = "No schedules yet";
+"schedule.empty.hint" = "Tap the + button to add a new schedule";
 "schedule.today" = "Today";
 "schedule.tomorrow" = "Tomorrow";
 "schedule.upcoming" = "Upcoming";
@@ -250,6 +307,8 @@
 "auth.register.loading.step.account" = "Create account";
 "auth.register.loading.step.profile" = "Set up profile";
 "auth.register.loading.step.workspace" = "Prepare workspace";
+"auth.register.loading.title" = "Creating account";
+"auth.register.loading.subtitle" = "Setting up your TRIX space";
 
 // MARK: - Chat Polish
 "chat.search.placeholder" = "Search chats, friends, or TRIX Bot";
@@ -303,6 +362,12 @@
 // MARK: - Snapshot
 "snapshot.title" = "Photos";
 "snapshot.empty" = "No photos yet";
+"snapshot.empty.hint" = "Your captured photos will appear here";
+"snapshot.loading.more" = "Loading more...";
+"snapshot.load.failed" = "Failed to load";
+"snapshot.detail.caption" = "Caption";
+"snapshot.detail.location" = "Location";
+"snapshot.detail.date" = "Date";
 "snapshot.take" = "Take Photo";
 "snapshot.delete" = "Delete Photo";
 
@@ -312,6 +377,23 @@
 "workbench.location" = "Location";
 "workbench.schedule" = "Schedule";
 "workbench.todo" = "Todo";
+"workbench.snapshot.subtitle" = "Take photos, select images, view albums";
+"workbench.location.subtitle" = "Map, places and location selection";
+"workbench.schedule.subtitle" = "Learning schedule and time management";
+"workbench.todo.subtitle" = "Quickly record todo items";
+"workbench.instruction" = "Quick actions are here. Tap empty space to return to focused state.";
+"workbench.dismissHint" = "Tap empty to dismiss";
+
+// MARK: - Home
+"home.quickSnap" = "Quick Snap";
+"home.takePhoto" = "Take Photo";
+"home.selectFromAlbum" = "Select from Album";
+"home.viewAlbum" = "View Album";
+
+// MARK: - Study Room
+"study.room.title" = "Study Room";
+"study.room.subtitle" = "Study with friends";
+"study.room.start" = "Start Studying";
 
 // MARK: - Action Done
 "action.done" = "Done";
@@ -327,6 +409,30 @@
 "auth.register.creating" = "Creating account...";
 "auth.signin.apple" = "Sign in with Apple";
 "auth.signin.wechat" = "Sign in with WeChat";
+
+// MARK: - Profile Wardrobe
+"profile.wardrobe.title" = "My Wardrobe";
+"profile.wardrobe.manage" = "Manage";
+"profile.achievements.empty" = "No achievements yet";
+"wardrobe.item.star.hat" = "Star Hat";
+"wardrobe.item.study.glasses" = "Study Glasses";
+"wardrobe.item.streak.flame" = "Streak Flame";
+"wardrobe.item.nature.style" = "Nature Style";
+"wardrobe.item.night.owl" = "Night Owl Badge";
+"wardrobe.item.glory.crown" = "Glory Crown";
+
+// MARK: - Settings Status
+"settings.enabled" = "Enabled";
+"settings.disabled" = "Disabled";
+"settings.syncing" = "Syncing...";
+"settings.sync.now" = "Sync Now";
+"settings.sync.success" = "Synced %d item(s).";
+"settings.sync.failed" = "Sync failed: %@";
+
+// MARK: - About App
+"about.app.name" = "TRIX 3D Companion";
+"about.app.version" = "Version %@";
+"about.app.description" = "Your intelligent study companion for collaborative learning";
 
 // MARK: - Settings Screen
 "settings.title" = "Settings";
@@ -418,3 +524,170 @@
 "map.permission.action.dismiss" = "Later";
 "map.error.title" = "Map is temporarily unavailable";
 "map.error.action.retry" = "Reload";
+
+// MARK: - Chat Detail
+"chat.detail.connection.disconnected" = "Connection Lost";
+"chat.detail.input.placeholder" = "Enter message...";
+
+// MARK: - TRIX Bot Chat
+"chat.trixbot.default.prompt" = "Please analyze this image and give me actionable suggestions.";
+"chat.trixbot.close" = "Close";
+"chat.trixbot.mode.device" = "Device Mode";
+"chat.trixbot.mode.cloud" = "Cloud Mode";
+"chat.trixbot.send.failed" = "Send Failed";
+"chat.trixbot.ok" = "OK";
+"chat.trixbot.banner.paired" = "Device paired, messages will be sent to TRIX in real-time";
+"chat.trixbot.banner.unpaired" = "Not paired, currently using Trixbook cloud chat";
+"chat.trixbot.empty.hint" = "Upload an image and enter a prompt, TRIX will give you processing suggestions";
+"chat.trixbot.input.placeholder" = "Enter prompt...";
+"chat.trixbot.send" = "Send message";
+"chat.trixbot.image.attached" = "Image Attached";
+"chat.trixbot.upload.on.send" = "Upload when sending";
+"chat.trixbot.uploaded.pending" = "Uploaded, pending send";
+"chat.trixbot.send.failed.message" = "Message failed to send. Please try again later.";
+
+// MARK: - Chat List
+"error.operation.failed" = "Operation Failed";
+"chat.loading.sessions" = "Loading conversations";
+"chat.loading.sync" = "Syncing TRIX Bot and friend messages";
+"chat.trixbot.name" = "TRIX Bot";
+"chat.trixbot.action.ready" = "Tap to start chatting";
+"chat.trixbot.action.pair.first" = "Pair device to start chatting";
+"chat.trixbot.status.ready" = "Conversation is ready, continue anytime";
+"chat.trixbot.instruction.pair.first" = "Complete device pairing first, then enter real-time chat";
+"chat.recommendations.title" = "Suggested Friends";
+"action.hide" = "Hide";
+"chat.recent.conversations" = "Recent Conversations";
+"chat.empty.start" = "Start a new conversation";
+"chat.create.conversation" = "Create Conversation";
+"chat.empty.connect.trixbot" = "Start a new conversation or pair TRIX Bot";
+"chat.trixbot.action.start" = "Start Chat";
+"chat.trixbot.action.pair" = "Pair TRIX Bot";
+"profile.bio.empty" = "No bio yet";
+"chat.friend.add.failed" = "Failed to add friend";
+"chat.conversation.name" = "Conversation Name";
+"chat.conversation.name.placeholder" = "Enter name";
+"action.create" = "Create";
+"chat.create.title" = "New Conversation";
+"chat.conversation.new" = "New Conversation";
+"chat.time.justnow" = "Just now";
+"action.add" = "Add";
+
+// MARK: - Study Animation
+"study.focus.prepare" = "Prepare to Focus";
+"study.focus.duration.belong" = "The next %d minutes belong only to you";
+"study.focus.breathe" = "Breathe...";
+"study.focus.start" = "Let's Focus!";
+"study.focus.encourage" = "Go for it, you can do it!";
+"study.celebration.complete" = "Focus Complete!";
+"study.celebration.end" = "End Focus";
+"study.celebration.great" = "Awesome! You completed all focus time!";
+"study.celebration.progress" = "Every focus session is progress!";
+"study.celebration.return" = "Return to Study Room";
+"study.celebration.duration" = "This Session Duration";
+"study.celebration.minutes" = "minutes";
+"study.celebration.goal" = "Goal: 25 minutes (%d%%)";
+"study.celebration.together" = "Spent focused time with %@";
+"study.celebration.points" = "+%d Points";
+
+// MARK: - Voice / TTS
+"tts.title" = "Voice Readout";
+"tts.speaking" = "Speaking...";
+"tts.tap.to.speak" = "Tap below button to start reading";
+"tts.input.label" = "Text to read";
+"tts.characters" = "characters";
+"tts.input.placeholder" = "Enter text to read here...";
+"tts.speaking.in.progress" = "Reading...";
+"tts.start.speaking" = "Start Reading";
+"tts.quick.actions" = "Quick Actions";
+"tts.settings" = "Settings";
+"tts.settings.title" = "Voice Settings";
+"tts.close" = "Close";
+"tts.language" = "Language";
+"tts.speed" = "Speed";
+"tts.pitch" = "Pitch";
+"tts.reset.defaults" = "Reset to Defaults";
+"tts.pomodoro.start" = "Pomodoro Start";
+"tts.pomodoro.complete" = "Pomodoro Complete";
+"tts.rest.complete" = "Rest Complete";
+"tts.goal.reminder" = "Goal Reminder";
+
+"voice.feature.title" = "Voice Features";
+"voice.compact.mode" = "Compact Mode";
+"voice.player.with.tts" = "Voice Player + TTS";
+"voice.use.cases" = "Use Cases";
+"voice.tab.player" = "Player";
+"voice.tab.tts" = "TTS";
+"voice.tab.combined" = "Combined";
+"voice.usecase.class.recording" = "Class Recording Playback";
+"voice.usecase.class.recording.desc" = "Play class recordings while TTS reads important notes";
+"voice.usecase.voice.message" = "Voice to Text";
+"voice.usecase.voice.message.desc" = "Listen to voice messages with auto TTS narration";
+"voice.usecase.study.assistant" = "Study Assistant";
+"voice.usecase.study.assistant.desc" = "Play audio materials while TTS reads accompanying text";
+
+// MARK: - Snapshot Analysis
+"snapshot.analysis.title" = "Snapshot Analysis";
+"snapshot.photo.captured" = "Captured Photo";
+"snapshot.no.image" = "No Image";
+"snapshot.hint.generate" = "Click the buttons below to auto-generate prompts";
+"snapshot.prompt.label" = "Prompt";
+"snapshot.prompt.placeholder" = "Click a button above to generate a prompt here";
+"snapshot.retake" = "Retake";
+"snapshot.send.to.trix" = "Send to TRIX Bot";
+"snapshot.sent.to.chat" = "Sent to Chat";
+"snapshot.uploading" = "Uploading...";
+"snapshot.action.identify.label" = "Identify Content";
+"snapshot.action.extract.label" = "Extract Text";
+"snapshot.action.study.label" = "Generate Study Points";
+"snapshot.action.next.label" = "Get Next Steps";
+"snapshot.action.identify.prompt" = "Please identify the main subjects, key objects, and possible scenes in this image.";
+"snapshot.action.extract.prompt" = "Please extract all readable text from this image and organize it structurally.";
+"snapshot.action.study.prompt" = "Based on the image content, summarize study points with 3-5 key takeaways.";
+"snapshot.action.next.prompt" = "Based on the image content, provide actionable next step suggestions.";
+
+// MARK: - Study Active Rooms
+"study.active.rooms.title" = "Active Study Rooms";
+
+// MARK: - Notification Filter
+"notification.filter.all" = "All";
+"notification.filter.unread" = "Unread";
+"notification.filter.system" = "System";
+"notification.mark.all.read" = "Mark All Read";
+"notification.load.failed" = "Failed to load: %@";
+
+// MARK: - Voice Recording
+"voice.permission.denied" = "Microphone permission denied. Please allow microphone access in Settings.";
+"voice.permission.failed" = "Failed to request microphone permission: %@";
+"voice.need.permission" = "Microphone permission required to record";
+"voice.recording.failed" = "Recording failed. Please try again.";
+"voice.encode.error" = "Recording encoding error: %@";
+"voice.instruction.release.send" = "Release to send, slide up to cancel";
+"voice.preparing" = "Preparing to record...";
+"voice.can.retry" = "Tap microphone to retry";
+"voice.release.cancel" = "Release to cancel";
+"voice.cancel" = "Cancel";
+"voice.settings" = "Open Settings";
+
+// MARK: - Store
+"store.tab.points" = "Points";
+"store.tab.subscription" = "Premium";
+"store.premium.title" = "Get Premium";
+"store.premium.description" = "Unlock all features, remove ads";
+"store.premium.subscribed" = "Subscribed";
+"store.premium.expiry" = "Expires on";
+"store.about.title" = "About Points";
+"store.about.get.points" = "Earn Points";
+"store.about.get.points.desc" = "Earn points by completing study tasks";
+"store.about.get.reward" = "Get Rewards";
+"store.about.get.reward.desc" = "Earn extra points for daily login and consistent study";
+"store.about.spend.points" = "Spend Points";
+"store.about.spend.points.desc" = "Use points to unlock premium content";
+"store.bonus" = "Bonus";
+"store.bonus.with.points" = "Bonus + %d points";
+"store.points.amount" = "points";
+"store.best.value" = "Best Value";
+"store.all.features" = "All Features • No Ads • Priority Support";
+"store.per.year" = "/year";
+"store.per.month" = "/month";
+"store.popular" = "Popular";

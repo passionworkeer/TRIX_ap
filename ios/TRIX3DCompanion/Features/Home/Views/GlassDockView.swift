@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - GlassDock Tab Model
 
 struct GlassDockTab: Identifiable, Hashable {
@@ -219,7 +224,7 @@ struct GlassDockView: View {
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
 
-                    Text("Core")
+                    Text(L("nav.core"))
                         .font(.system(size: 8, weight: .bold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.88))
                 }

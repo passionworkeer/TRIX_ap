@@ -165,7 +165,7 @@ struct ScheduleListView: View {
         ContentUnavailableView {
             Label(L("schedule.empty"), systemImage: "calendar.badge.plus")
         } description: {
-            Text("点击右上角按钮添加新日程")
+            Text(L("schedule.empty.hint"))
         } actions: {
             Button(L("schedule.add")) {
                 viewModel.showAddForm()

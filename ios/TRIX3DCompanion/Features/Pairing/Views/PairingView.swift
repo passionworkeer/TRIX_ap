@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Pairing Mode
 
 enum PairingMode: String, CaseIterable {
@@ -134,8 +139,8 @@ struct PairingView: View {
                 onDismiss: { showQRScanner = false }
             )
         }
-        .alert("配对失败", isPresented: $showError) {
-            Button("确定", role: .cancel) {}
+        .alert(L("pairing.failed"), isPresented: $showError) {
+            Button(L("action.confirm"), role: .cancel) {}
         } message: {
             Text(errorMessage)
         }
@@ -184,9 +189,9 @@ struct PairingView: View {
 
     private func modeLabel(for mode: ConnectionMode) -> String {
         switch mode {
-        case .relay: return "中继"
-        case .gateway: return "直连"
-        case .socketIO: return "配对"
+        case .relay: return L("pairing.mode.relay")
+        case .gateway: return L("pairing.mode.direct")
+        case .socketIO: return L("pairing.mode.pair")
         }
     }
 
@@ -213,7 +218,7 @@ struct PairingView: View {
 
             Spacer()
 
-            Text("设备配对")
+            Text(L("pairing.device.title"))
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.textPrimary)
@@ -245,7 +250,7 @@ struct PairingView: View {
                             )
                         )
 
-                    Text("扫描电脑端展示的配对二维码")
+                    Text(L("pairing.scan.qrcode.computer"))
                         .font(.body)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
@@ -266,7 +271,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "camera.fill")
-                    Text("开启摄像头")
+                    Text(L("pairing.open.camera"))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -290,7 +295,7 @@ struct PairingView: View {
                     .fill(Color.textTertiary)
                     .frame(height: 1)
 
-                Text("或")
+                Text(L("common.or"))
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
 
@@ -308,7 +313,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "keyboard")
-                    Text("手动输入配对码")
+                    Text(L("pairing.manual.input"))
                 }
                 .font(.headline)
                 .foregroundStyle(
@@ -329,7 +334,7 @@ struct PairingView: View {
         VStack(spacing: 32) {
             // Input field
             VStack(spacing: 16) {
-                Text("输入 6 位配对码")
+                Text(L("pairing.input.6.digit"))
                     .font(.headline)
                     .foregroundColor(.textPrimary)
 
@@ -362,7 +367,7 @@ struct PairingView: View {
                             SwiftUI.ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
-                            Text("验证配对码")
+                            Text(L("pairing.verify.code"))
                         }
                     }
                     .font(.headline)
@@ -395,7 +400,7 @@ struct PairingView: View {
             }) {
                 HStack {
                     Image(systemName: "qrcode.viewfinder")
-                    Text("返回扫码")
+                    Text(L("pairing.back.to.scan"))
                 }
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
@@ -420,11 +425,11 @@ struct PairingView: View {
                             )
                         )
 
-                    Text("扫描中继二维码")
+                    Text(L("pairing.scan.relay.qr"))
                         .font(.headline)
                         .foregroundColor(.textPrimary)
 
-                    Text("扫描 OpenClaw 设备显示的中继二维码")
+                    Text(L("pairing.scan.relay.qr.description"))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
@@ -442,7 +447,7 @@ struct PairingView: View {
                         .fill(Color.textTertiary)
                         .frame(height: 1)
 
-                    Text("或手动输入")
+                    Text(L("pairing.or.manual.input"))
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
 
@@ -460,7 +465,7 @@ struct PairingView: View {
                     }) {
                         HStack(spacing: 10) {
                             Image(systemName: "desktopcomputer")
-                            Text(isLoading ? "正在连接本机..." : "同机快速连接")
+                            Text(isLoading ? L("pairing.connecting.local") : L("pairing.quick.connect.local"))
                                 .fontWeight(.bold)
                             if isLoading {
                                 Spacer(minLength: 0)
@@ -488,7 +493,7 @@ struct PairingView: View {
 
                     // Server URL
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("服务器地址")
+                        Text(L("pairing.server.address"))
                             .font(.subheadline)
                             .foregroundColor(.textSecondary)
 
@@ -504,7 +509,7 @@ struct PairingView: View {
 
                     // Gateway ID
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Gateway ID")
+                        Text(L("pairing.gateway.id"))
                             .font(.subheadline)
                             .foregroundColor(.textSecondary)
 
@@ -519,11 +524,11 @@ struct PairingView: View {
 
                     // Access Code
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("访问码")
+                        Text(L("pairing.access.code"))
                             .font(.subheadline)
                             .foregroundColor(.textSecondary)
 
-                        SecureField("访问码", text: $relayAccessCode)
+                        SecureField(L("pairing.access.code.placeholder"), text: $relayAccessCode)
                             .font(.body)
                             .textInputAutocapitalization(.characters)
                             .padding(12)
@@ -541,10 +546,10 @@ struct PairingView: View {
                             if isLoading {
                                 SwiftUI.ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                Text("连接中...")
+                                Text(L("pairing.connecting"))
                             } else {
                                 Image(systemName: "link")
-                                Text("连接")
+                                Text(L("pairing.connect"))
                             }
                         }
                         .font(.headline)
@@ -583,12 +588,12 @@ struct PairingView: View {
                 .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
                 .scaleEffect(1.5)
 
-            Text("等待设备确认")
+            Text(L("pairing.waiting.confirm"))
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.textPrimary)
 
-            Text("请在电脑端确认本次配对")
+            Text(L("pairing.confirm.on.computer"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -598,7 +603,7 @@ struct PairingView: View {
                     mode = .scan
                 }
             }) {
-                Text("取消")
+                Text(L("action.cancel"))
                     .font(.headline)
                     .foregroundColor(.textSecondary)
             }
@@ -625,12 +630,12 @@ struct PairingView: View {
                     .foregroundColor(.success)
             }
 
-            Text("配对成功")
+            Text(L("pairing.success"))
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.textPrimary)
 
-            Text("你的设备已连接到 TRIX Bot")
+            Text(L("pairing.connected.to.trixbot"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -638,7 +643,7 @@ struct PairingView: View {
             Button(action: {
                 dismiss()
             }) {
-                Text("开始聊天")
+                Text(L("pairing.start.chatting"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -691,7 +696,7 @@ struct PairingView: View {
                 }
             }
         } else {
-            errorMessage = clawbotChannel.lastError ?? "配对失败，请重试"
+            errorMessage = clawbotChannel.lastError ?? L("pairing.failed.please.retry")
             showError = true
             codeInput = ""
         }
@@ -777,7 +782,7 @@ struct PairingView: View {
                 }
             }
         } else {
-            errorMessage = "二维码配对失败"
+            errorMessage = L("pairing.qr.failed")
             showError = true
         }
     }
@@ -957,7 +962,7 @@ struct PairingView: View {
                 mode = .success
             }
         } else {
-            errorMessage = clawbotChannel.lastError ?? "连接失败，请检查配对信息"
+            errorMessage = clawbotChannel.lastError ?? L("pairing.connection.failed.check.info")
             showError = true
             withAnimation(.spring(response: 0.3)) {
                 mode = .relayInput
@@ -990,7 +995,7 @@ struct PairingView: View {
                 mode = .success
             }
         } else {
-            errorMessage = clawbotChannel.lastError ?? "连接失败，请检查配置"
+            errorMessage = clawbotChannel.lastError ?? L("pairing.connection.failed.check.config")
             showError = true
         }
     }
@@ -1000,7 +1005,7 @@ struct PairingView: View {
         let accessCode = relayAccessCode.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !gatewayId.isEmpty, !accessCode.isEmpty else {
-            errorMessage = "请先输入 Gateway ID 和访问码，再使用同机快速连接"
+            errorMessage = L("pairing.local.quick.connect.requires.credentials")
             showError = true
             return
         }
@@ -1024,7 +1029,7 @@ struct PairingView: View {
         }
 
         isLoading = false
-        errorMessage = clawbotChannel.lastError ?? "同机快速连接失败，请确认 OpenClaw/Relay 服务已在本机启动"
+        errorMessage = clawbotChannel.lastError ?? L("pairing.local.quick.connect.failed")
         showError = true
     }
 
@@ -1065,7 +1070,7 @@ struct PairingView: View {
                 mode = .success
             }
         } else {
-            errorMessage = clawbotChannel.lastError ?? "二维码连接失败"
+            errorMessage = clawbotChannel.lastError ?? L("pairing.qr.connection.failed")
             showError = true
         }
     }

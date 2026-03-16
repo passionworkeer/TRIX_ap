@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// 空消息列表视图
 /// 当用户没有消息时显示
 struct EmptyMessageListView: View {
@@ -19,13 +24,13 @@ struct EmptyMessageListView: View {
             }
 
             // 标题
-            Text("还没有消息")
+            Text(L("empty.messages"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
 
             // 描述
-            Text("开始和好友聊天，分享学习心得和生活点滴")
+            Text(L("empty.message.description"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -36,7 +41,7 @@ struct EmptyMessageListView: View {
                 Button(action: onStartChat) {
                     HStack(spacing: 8) {
                         Image(systemName: "message.badge.fill")
-                        Text("开始聊天")
+                        Text(L("empty.message.action"))
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)

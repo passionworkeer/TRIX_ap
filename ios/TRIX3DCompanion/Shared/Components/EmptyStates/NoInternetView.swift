@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// 无网络连接视图
 /// 当设备没有网络连接时显示
 struct NoInternetView: View {
@@ -22,13 +27,13 @@ struct NoInternetView: View {
             }
 
             // 标题
-            Text("网络连接失败")
+            Text(L("empty.internet.title"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
 
             // 描述
-            Text("请检查您的网络连接，或尝试使用离线模式继续浏览已缓存的内容")
+            Text(L("empty.internet.description"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -48,7 +53,7 @@ struct NoInternetView: View {
                             } else {
                                 Image(systemName: "arrow.clockwise")
                             }
-                            Text(isRetrying ? "重试中..." : "重新加载")
+                            Text(isRetrying ? L("empty.internet.retrying") : L("empty.internet.reload"))
                         }
                         .font(.subheadline)
                         .fontWeight(.semibold)
@@ -71,7 +76,7 @@ struct NoInternetView: View {
                     Button(action: onOfflineMode) {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.down.circle")
-                            Text("离线模式")
+                            Text(L("empty.internet.offlineMode"))
                         }
                         .font(.subheadline)
                         .fontWeight(.semibold)

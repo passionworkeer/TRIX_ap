@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - TTS Control View
 
 /// A view displaying TTS controls with language selection and speed adjustment
@@ -77,11 +82,11 @@ struct TTSControlView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("语音朗读")
+                    Text(L("tts.title"))
                         .font(.headline)
                         .foregroundColor(.primary)
 
-                    Text(viewModel.isSpeaking ? "正在朗读..." : "点击下方按钮开始朗读")
+                    Text(viewModel.isSpeaking ? L("tts.speaking") : L("tts.tap.to.speak"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -102,14 +107,14 @@ struct TTSControlView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Label
             HStack {
-                Text("要朗读的文本")
+                Text(L("tts.input.label"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 if !viewModel.textToSpeak.isEmpty {
-                    Text("\(viewModel.textToSpeak.count) 字符")
+                    Text("\(viewModel.textToSpeak.count) \(L("tts.characters"))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -118,7 +123,7 @@ struct TTSControlView: View {
             // Text field
             ZStack(alignment: .topLeading) {
                 if viewModel.textToSpeak.isEmpty {
-                    Text("在此输入要朗读的文本...")
+                    Text(L("tts.input.placeholder"))
                         .font(.body)
                         .foregroundColor(Color.secondary.opacity(0.5))
                         .padding(.vertical, 12)
@@ -148,7 +153,7 @@ struct TTSControlView: View {
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: viewModel.isSpeakingText ? "speaker.wave.3.fill" : "play.fill")
-                        Text(viewModel.isSpeakingText ? "朗读中..." : "开始朗读")
+                        Text(viewModel.isSpeakingText ? L("tts.speaking.in.progress") : L("tts.start.speaking"))
                     }
                     .font(.system(.body, design: .rounded).weight(.semibold))
                     .foregroundColor(.white)
@@ -204,7 +209,7 @@ struct TTSControlView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header
             HStack {
-                Text("快捷操作")
+                Text(L("tts.quick.actions"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
@@ -214,7 +219,7 @@ struct TTSControlView: View {
                     viewModel.toggleSettings()
                 }) {
                     HStack(spacing: 4) {
-                        Text("设置")
+                        Text(L("tts.settings"))
                         Image(systemName: "chevron.right")
                             .font(.caption)
                     }
@@ -231,7 +236,7 @@ struct TTSControlView: View {
             ], spacing: 12) {
                 TTSQuickActionButton(
                     icon: "timer",
-                    title: "番茄钟开始",
+                    title: L("tts.pomodoro.start"),
                     color: .blue
                 ) {
                     Task {
@@ -241,7 +246,7 @@ struct TTSControlView: View {
 
                 TTSQuickActionButton(
                     icon: "checkmark.circle.fill",
-                    title: "番茄钟完成",
+                    title: L("tts.pomodoro.complete"),
                     color: .green
                 ) {
                     Task {
@@ -251,7 +256,7 @@ struct TTSControlView: View {
 
                 TTSQuickActionButton(
                     icon: "bell.fill",
-                    title: "休息结束",
+                    title: L("tts.rest.complete"),
                     color: .orange
                 ) {
                     Task {
@@ -261,7 +266,7 @@ struct TTSControlView: View {
 
                 TTSQuickActionButton(
                     icon: "exclamationmark.bubble.fill",
-                    title: "目标提醒",
+                    title: L("tts.goal.reminder"),
                     color: .purple
                 ) {
                     Task {
@@ -278,13 +283,13 @@ struct TTSControlView: View {
         VStack(spacing: 16) {
             // Section header
             HStack {
-                Text("语音设置")
+                Text(L("tts.settings.title"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Button("关闭") {
+                Button(L("tts.close")) {
                     viewModel.toggleSettings()
                 }
                 .font(.caption)
@@ -294,7 +299,7 @@ struct TTSControlView: View {
 
             // Language selector
             VStack(alignment: .leading, spacing: 8) {
-                Text("语言")
+                Text(L("tts.language"))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -328,7 +333,7 @@ struct TTSControlView: View {
             // Speech rate slider
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("语速")
+                    Text(L("tts.speed"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -352,7 +357,7 @@ struct TTSControlView: View {
             // Speech pitch slider
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("音调")
+                    Text(L("tts.pitch"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -379,7 +384,7 @@ struct TTSControlView: View {
                     await viewModel.resetToDefaults()
                 }
             }) {
-                Text("恢复默认设置")
+                Text(L("tts.reset.defaults"))
                     .font(.caption)
                     .foregroundColor(.purple)
                     .padding(.vertical, 8)
@@ -453,7 +458,7 @@ struct CompactTTSControlView: View {
                 .labelsHidden()
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("语音朗读")
+                Text(L("tts.title"))
                     .font(.subheadline)
                     .fontWeight(.medium)
 

@@ -8,6 +8,11 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Trix Bot Chat View
 
 struct TrixBotChatView: View {
@@ -39,7 +44,7 @@ struct TrixBotChatView: View {
 
     private static let cloudRoomStorageKey = "trixbot.cloud.room.id"
     private static let defaultCloudRoomFallbackId = "trixbot"
-    private let defaultImagePrompt = "请帮我分析这张图片，并给我可执行建议。"
+    private let defaultImagePrompt = L("chat.trixbot.default.prompt")
 
     // MARK: - Initialization
 
@@ -91,12 +96,12 @@ struct TrixBotChatView: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("关闭")
+                .accessibilityLabel(L("chat.trixbot.close"))
                 .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.closeButton)
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
-                Text(clawbotChannel.isPaired ? "设备模式" : "云端模式")
+                Text(clawbotChannel.isPaired ? L("chat.trixbot.mode.device") : L("chat.trixbot.mode.cloud"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -110,8 +115,8 @@ struct TrixBotChatView: View {
         .onChange(of: displayMessages.count) { _ in
             scrollToBottom = true
         }
-        .alert("发送失败", isPresented: localErrorPresented) {
-            Button("确定") {
+        .alert(L("chat.trixbot.send.failed"), isPresented: localErrorPresented) {
+            Button(L("chat.trixbot.ok")) {
                 localErrorMessage = nil
             }
         } message: {
@@ -126,7 +131,7 @@ struct TrixBotChatView: View {
             Image(systemName: clawbotChannel.isPaired ? "bolt.horizontal.circle.fill" : "icloud")
                 .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
 
-            Text(clawbotChannel.isPaired ? "已配对设备，消息将实时发送到 TRIX" : "未配对设备，当前使用 Trixbook 云端聊天")
+            Text(clawbotChannel.isPaired ? L("chat.trixbot.banner.paired") : L("chat.trixbot.banner.unpaired"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -180,7 +185,7 @@ struct TrixBotChatView: View {
                 .font(.system(size: 30))
                 .foregroundColor(.brandPurple.opacity(0.7))
 
-            Text("上传图片并输入提示词，TRIX 会给你处理建议")
+            Text(L("chat.trixbot.empty.hint"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -203,7 +208,7 @@ struct TrixBotChatView: View {
 
             HStack(alignment: .bottom, spacing: 10) {
                 HStack(spacing: 8) {
-                    TextField("输入提示词...", text: $messageText, axis: .vertical)
+                    TextField(L("chat.trixbot.input.placeholder"), text: $messageText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .lineLimit(1...6)
                         .focused($isInputFocused)
@@ -259,7 +264,7 @@ struct TrixBotChatView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
-                .accessibilityLabel("发送消息")
+                .accessibilityLabel(L("chat.trixbot.send"))
                 .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.sendButton)
             }
         }
@@ -317,10 +322,10 @@ struct TrixBotChatView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("已附加图片")
+                Text(L("chat.trixbot.image.attached"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                Text(attachedImageURL == nil ? "发送时上传" : "已上传，待发送")
+                Text(attachedImageURL == nil ? L("chat.trixbot.upload.on.send") : L("chat.trixbot.uploaded.pending"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -485,7 +490,7 @@ struct TrixBotChatView: View {
                 if success {
                     clearComposer()
                 } else {
-                    localErrorMessage = clawbotChannel.lastError ?? "消息发送失败，请稍后重试。"
+                    localErrorMessage = clawbotChannel.lastError ?? L("chat.trixbot.send.failed.message")
                 }
             } else {
                 await ensureCloudRoomReady()

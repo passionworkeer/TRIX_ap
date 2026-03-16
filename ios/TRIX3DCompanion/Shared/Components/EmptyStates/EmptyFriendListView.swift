@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// 空好友列表视图
 /// 当用户没有好友时显示
 struct EmptyFriendListView: View {
@@ -20,13 +25,13 @@ struct EmptyFriendListView: View {
             }
 
             // 标题
-            Text("还没有好友")
+            Text(L("empty.friends"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
 
             // 描述
-            Text("添加好友一起学习，互相监督，共同进步")
+            Text(L("empty.friend.description"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -38,7 +43,7 @@ struct EmptyFriendListView: View {
                     Button(action: onAddFriend) {
                         HStack(spacing: 8) {
                             Image(systemName: "person.badge.plus")
-                            Text("添加好友")
+                            Text(L("empty.friend.add"))
                         }
                         .font(.subheadline)
                         .fontWeight(.semibold)
@@ -60,7 +65,7 @@ struct EmptyFriendListView: View {
                     Button(action: onScanQR) {
                         HStack(spacing: 8) {
                             Image(systemName: "qrcode")
-                            Text("扫一扫")
+                            Text(L("empty.friend.scan"))
                         }
                         .font(.subheadline)
                         .fontWeight(.semibold)

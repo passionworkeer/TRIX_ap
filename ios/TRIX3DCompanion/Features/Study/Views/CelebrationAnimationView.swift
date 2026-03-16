@@ -8,6 +8,15 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 struct CelebrationAnimationView: View {
 
     // MARK: - State
@@ -50,12 +59,12 @@ struct CelebrationAnimationView: View {
 
                     // 标题
                     VStack(spacing: 8) {
-                        Text(studyDuration >= 25 ? "专注完成!" : "结束专注")
+                        Text(studyDuration >= 25 ? L("study.celebration.complete") : L("study.celebration.end"))
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
 
-                        Text(studyDuration >= 25 ? "太棒了! 你完成了全部专注时间 🎉" : "每一次专注都是进步 💪")
+                        Text(studyDuration >= 25 ? L("study.celebration.great") : L("study.celebration.progress"))
                             .font(.subheadline)
                             .foregroundColor(.pink)
                     }
@@ -75,7 +84,7 @@ struct CelebrationAnimationView: View {
 
                     // 关闭按钮
                     Button(action: onDismiss) {
-                        Text("返回自习室")
+                        Text(L("study.celebration.return"))
                             .font(.headline)
                             .foregroundColor(.brandPurple)
                             .frame(maxWidth: .infinity)
@@ -121,7 +130,7 @@ struct CelebrationAnimationView: View {
         VStack(spacing: 16) {
             // 专注时长
             VStack(spacing: 4) {
-                Text("本次专注时长")
+                Text(L("study.celebration.duration"))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.6))
 
@@ -130,14 +139,14 @@ struct CelebrationAnimationView: View {
                         .font(.system(size: 48, weight: .bold))
                         .foregroundColor(.white)
 
-                    Text("分钟")
+                    Text(L("study.celebration.minutes"))
                         .font(.title3)
                         .foregroundColor(.white.opacity(0.8))
                 }
             }
 
             if studyDuration < 25 {
-                Text("目标: 25 分钟 (\(Int(Double(studyDuration) / 25.0 * 100))%)")
+                Text(L("study.celebration.goal", studyDuration, Int(Double(studyDuration) / 25.0 * 100)))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.5))
             }
@@ -152,12 +161,7 @@ struct CelebrationAnimationView: View {
             Image(systemName: "person.fill")
                 .foregroundColor(.pink)
 
-            Text("和 ")
-                .foregroundColor(.white.opacity(0.8))
-            Text(name)
-                .fontWeight(.semibold)
-                .foregroundColor(.pink)
-            Text(" 共度了一段高效时光")
+            Text(L("study.celebration.together", name))
                 .foregroundColor(.white.opacity(0.8))
         }
         .font(.subheadline)
@@ -168,7 +172,7 @@ struct CelebrationAnimationView: View {
             Image(systemName: "bolt.fill")
                 .foregroundColor(.yellow)
 
-            Text("+\(earnedPoints) 积分")
+            Text(L("study.celebration.points", earnedPoints))
                 .font(.headline)
                 .foregroundColor(.yellow)
         }

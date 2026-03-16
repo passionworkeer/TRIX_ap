@@ -8,6 +8,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 enum ChatAccessibilityIdentifiers {
     static let screen = "chat.screen"
     static let searchField = "chat.search.field"
@@ -82,7 +87,7 @@ struct ChatListView: View {
                 .padding(.bottom, 20)
             }
         }
-        .navigationTitle("聊天")
+        .navigationTitle(L("chat.title"))
         .navigationBarTitleDisplayMode(.large)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.screen)
         .toolbar {
@@ -123,7 +128,7 @@ struct ChatListView: View {
         .onChange(of: appState.pendingCompanionRoute) { _ in
             consumePendingCompanionRouteIfNeeded()
         }
-        .alert("操作失败", isPresented: Binding(
+        .alert(L("error.operation.failed"), isPresented: Binding(
             get: { friendActionError != nil },
             set: { newValue in
                 if !newValue {
@@ -131,11 +136,11 @@ struct ChatListView: View {
                 }
             }
         )) {
-            Button("确定", role: .cancel) {
+            Button(L("action.confirm"), role: .cancel) {
                 friendActionError = nil
             }
         } message: {
-            Text(friendActionError ?? "未知错误")
+            Text(friendActionError ?? L("error.unknown"))
         }
     }
 
@@ -165,10 +170,10 @@ struct ChatListView: View {
                 .controlSize(.large)
                 .tint(Color.brandPurple)
 
-            Text("正在载入会话")
+            Text(L("chat.loading.sessions"))
                 .font(.headline)
 
-            Text("同步 TRIX Bot 与好友消息")
+            Text(L("chat.loading.sync"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -203,7 +208,7 @@ struct ChatListView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("搜索", text: $searchText)
+            TextField(L("chat.search.placeholder"), text: $searchText)
                 .textFieldStyle(.plain)
 
             if !searchText.isEmpty {
@@ -255,12 +260,12 @@ struct ChatListView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
-                        Text("TRIX Bot")
+                        Text(L("chat.trixbot.name"))
                             .font(.headline)
                             .fontWeight(.bold)
 
                         if clawbotChannel.isPaired {
-                            Text("在线")
+                            Text(L("pairing.online"))
                                 .font(.caption2)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.green)
@@ -271,11 +276,11 @@ struct ChatListView: View {
                         }
                     }
 
-                    Text(clawbotChannel.isPaired ? "点击开始对话" : "配对后即可对话")
+                    Text(clawbotChannel.isPaired ? L("chat.trixbot.action.ready") : L("chat.trixbot.action.pair.first"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Text(clawbotChannel.isPaired ? "对话已准备好，随时继续" : "先完成设备配对，再进入实时聊天")
+                    Text(clawbotChannel.isPaired ? L("chat.trixbot.status.ready") : L("chat.trixbot.instruction.pair.first"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -320,7 +325,7 @@ struct ChatListView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Section header
             HStack {
-                Text("推荐好友")
+                Text(L("chat.recommendations.title"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -330,7 +335,7 @@ struct ChatListView: View {
                 Button(action: {
                     withAnimation { showQuickAdd = false }
                 }) {
-                    Text("隐藏")
+                    Text(L("action.hide"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -366,7 +371,7 @@ struct ChatListView: View {
 
     private var conversationList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("最近会话")
+            Text(L("chat.recent.conversations"))
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
@@ -404,15 +409,15 @@ struct ChatListView: View {
                 .font(.system(size: 50))
                 .foregroundStyle(.secondary)
 
-            Text("暂无对话")
+            Text(L("chat.empty.title"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Text("开始一个新的对话")
+            Text(L("chat.empty.start"))
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
 
-            Button("创建对话") {
+            Button(L("chat.create.conversation")) {
                 showingCreateChat = true
             }
             .buttonStyle(.borderedProminent)
@@ -436,15 +441,15 @@ struct ChatListView: View {
                 .font(.system(size: 34))
                 .foregroundStyle(Color.brandPurple.opacity(0.78))
 
-            Text("暂无对话")
+            Text(L("chat.empty.title"))
                 .font(.title3)
                 .fontWeight(.bold)
 
-            Text("开始一个新的对话或配对 TRIX Bot")
+            Text(L("chat.empty.connect.trixbot"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Button(clawbotChannel.isPaired ? "开始对话" : "配对 TRIX Bot") {
+            Button(clawbotChannel.isPaired ? L("chat.trixbot.action.start") : L("chat.trixbot.action.pair")) {
                 if clawbotChannel.isPaired {
                     showingTrixBotChat = true
                 } else {
@@ -454,7 +459,7 @@ struct ChatListView: View {
             .buttonStyle(.borderedProminent)
 
             if friendLoadNote != nil {
-                Button("重试") {
+                Button(L("action.retry")) {
                     Task { await loadFriends() }
                 }
                 .buttonStyle(.bordered)
@@ -484,7 +489,7 @@ struct ChatListView: View {
                     id: friend.friendId,
                     name: friend.name,
                     avatarUrl: friend.avatarUrl,
-                    lastMessage: friend.bio ?? "暂无简介",
+                    lastMessage: friend.bio ?? L("profile.bio.empty"),
                     time: formatTimeAgo(from: friend.updatedAt),
                     unreadCount: 0,
                     avatarColor: .blue,
@@ -493,7 +498,7 @@ struct ChatListView: View {
             }
         } catch {
             conversations = []
-            friendLoadNote = "加载失败，请重试"
+            friendLoadNote = L("chat.friends.load.failed")
         }
 
         do {
@@ -533,28 +538,28 @@ struct ChatListView: View {
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
         } catch {
-            friendActionError = "添加失败"
+            friendActionError = L("chat.friend.add.failed")
         }
     }
 
     private var createChatSheet: some View {
         NavigationStack {
             Form {
-                Section("对话名称") {
-                    TextField("输入名称", text: $newChatName)
+                Section(L("chat.conversation.name")) {
+                    TextField(L("chat.conversation.name.placeholder"), text: $newChatName)
                 }
                 Section {
-                    Button("创建") {
+                    Button(L("action.create")) {
                         createNewChat()
                     }
                     .disabled(newChatName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreatingChat)
                 }
             }
-            .navigationTitle("新建对话")
+            .navigationTitle(L("chat.create.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(L("action.cancel")) {
                         newChatName = ""
                         showingCreateChat = false
                     }
@@ -580,8 +585,8 @@ struct ChatListView: View {
                     id: createdRoom.id,
                     name: createdRoom.name,
                     avatarUrl: nil,
-                    lastMessage: "新对话",
-                    time: "刚刚",
+                    lastMessage: L("chat.conversation.new"),
+                    time: L("chat.time.justnow"),
                     unreadCount: 0,
                     avatarColor: colors.randomElement() ?? .purple,
                     isOnline: false
@@ -628,7 +633,7 @@ struct QuickAddUserCard: View {
                 .frame(width: 72)
 
             Button(action: onAdd) {
-                Text("添加")
+                Text(L("action.add"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)

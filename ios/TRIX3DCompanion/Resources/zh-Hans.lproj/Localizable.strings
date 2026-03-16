@@ -174,6 +174,9 @@
 "error.permission" = "权限被拒绝";
 "error.login.failed" = "登录失败";
 "error.register.failed" = "注册失败";
+"auth.login.failed" = "登录失败";
+"auth.register.failed" = "注册失败";
+"auth.signin.apple.error" = "无法打开 Apple 登录";
 
 // MARK: - Empty States
 "empty.messages" = "暂无消息";
@@ -181,6 +184,23 @@
 "empty.study.sessions" = "暂无学习记录";
 "empty.notifications" = "暂无通知";
 "empty.points" = "暂无积分";
+
+// MARK: - Empty State Details
+"empty.internet.title" = "网络连接失败";
+"empty.internet.description" = "请检查您的网络连接，或尝试使用离线模式继续浏览已缓存的内容";
+"empty.internet.retrying" = "重试中...";
+"empty.internet.reload" = "重新加载";
+"empty.internet.offlineMode" = "离线模式";
+"empty.message.description" = "开始和好友聊天，分享学习心得和生活点滴";
+"empty.message.action" = "开始聊天";
+"empty.notification.description" = "当有新的活动、消息或提醒时，你会在这里看到通知";
+"empty.notification.action" = "返回首页";
+"empty.friend.description" = "添加好友一起学习，互相监督，共同进步";
+"empty.friend.add" = "添加好友";
+"empty.friend.scan" = "扫一扫";
+"empty.points.title" = "还没有积分记录";
+"empty.points.description" = "完成任务、参与活动可以获得积分，积分可以用来兑换各种奖励";
+"empty.points.action" = "去赚积分";
 
 // MARK: - Loading States
 "loading" = "加载中...";
@@ -212,6 +232,41 @@
 "pairing.success" = "配对成功！";
 "pairing.failed" = "配对失败";
 
+// MARK: - Pairing Additional
+"pairing.mode.relay" = "中继";
+"pairing.mode.direct" = "直连";
+"pairing.mode.pair" = "配对";
+"pairing.device.title" = "设备配对";
+"pairing.scan.qrcode.computer" = "扫描电脑端展示的配对二维码";
+"pairing.open.camera" = "开启摄像头";
+"common.or" = "或";
+"pairing.manual.input" = "手动输入配对码";
+"pairing.input.6.digit" = "输入 6 位配对码";
+"pairing.verify.code" = "验证配对码";
+"pairing.back.to.scan" = "返回扫码";
+"pairing.scan.relay.qr" = "扫描中继二维码";
+"pairing.scan.relay.qr.description" = "扫描 OpenClaw 设备显示的中继二维码";
+"pairing.or.manual.input" = "或手动输入";
+"pairing.connecting.local" = "正在连接本机...";
+"pairing.quick.connect.local" = "同机快速连接";
+"pairing.server.address" = "服务器地址";
+"pairing.gateway.id" = "Gateway ID";
+"pairing.access.code" = "访问码";
+"pairing.access.code.placeholder" = "访问码";
+"pairing.connecting" = "连接中...";
+"pairing.connect" = "连接";
+"pairing.waiting.confirm" = "等待设备确认";
+"pairing.confirm.on.computer" = "请在电脑端确认本次配对";
+"pairing.connected.to.trixbot" = "你的设备已连接到 TRIX Bot";
+"pairing.start.chatting" = "开始聊天";
+"pairing.failed.please.retry" = "配对失败，请重试";
+"pairing.qr.failed" = "二维码配对失败";
+"pairing.connection.failed.check.info" = "连接失败，请检查配对信息";
+"pairing.connection.failed.check.config" = "连接失败，请检查配置";
+"pairing.local.quick.connect.requires.credentials" = "请先输入 Gateway ID 和访问码，再使用同机快速连接";
+"pairing.local.quick.connect.failed" = "同机快速连接失败，请确认 OpenClaw/Relay 服务已在本机启动";
+"pairing.qr.connection.failed" = "二维码连接失败";
+
 // MARK: - Home
 "home.greeting" = "首页";
 "home.welcome" = "欢迎回来";
@@ -235,6 +290,23 @@
 "workbench.location" = "位置";
 "workbench.schedule" = "日程";
 "workbench.todo" = "待办";
+"workbench.snapshot.subtitle" = "拍照、选图、查看快拍";
+"workbench.location.subtitle" = "地图、地点与位置选择";
+"workbench.schedule.subtitle" = "学习节奏和时间安排";
+"workbench.todo.subtitle" = "快速记录待办事项";
+"workbench.instruction" = "常用动作集中到这里，点空白即可回到专注状态。";
+"workbench.dismissHint" = "轻点空白收起";
+
+// MARK: - Home
+"home.quickSnap" = "快拍";
+"home.takePhoto" = "拍照";
+"home.selectFromAlbum" = "从相册选择";
+"home.viewAlbum" = "查看快拍相册";
+
+// MARK: - Study Room
+"study.room.title" = "学习房间";
+"study.room.subtitle" = "与朋友一起学习";
+"study.room.start" = "开始学习";
 
 // MARK: - Mail
 "mail.title" = "邮件";
@@ -249,6 +321,7 @@
 "todo.add" = "添加待办";
 "todo.edit" = "编辑待办";
 "todo.empty" = "暂无待办";
+"todo.empty.hint" = "点击右上角按钮添加新待办";
 "todo.completed" = "已完成";
 "todo.pending" = "待处理";
 
@@ -261,6 +334,7 @@
 "schedule.delete.success" = "日程已删除";
 "schedule.load.error" = "加载日程失败：%@";
 "schedule.empty" = "暂无日程";
+"schedule.empty.hint" = "点击右上角按钮添加新日程";
 "schedule.today" = "今天";
 "schedule.tomorrow" = "明天";
 "schedule.upcoming" = "即将到来";
@@ -289,6 +363,8 @@
 "auth.register.loading.step.account" = "创建账号";
 "auth.register.loading.step.profile" = "初始化资料";
 "auth.register.loading.step.workspace" = "准备学习空间";
+"auth.register.loading.title" = "正在注册";
+"auth.register.loading.subtitle" = "正在创建账户并初始化你的 TRIX 空间";
 
 // MARK: - Chat Polish
 "chat.search.placeholder" = "搜索对话、好友或 TRIX Bot";
@@ -342,6 +418,12 @@
 // MARK: - Snapshot
 "snapshot.title" = "照片";
 "snapshot.empty" = "暂无照片";
+"snapshot.empty.hint" = "您拍摄的照片将显示在这里";
+"snapshot.loading.more" = "正在加载更多...";
+"snapshot.load.failed" = "加载失败";
+"snapshot.detail.caption" = "描述";
+"snapshot.detail.location" = "位置";
+"snapshot.detail.date" = "日期";
 "snapshot.take" = "拍照";
 "snapshot.delete" = "删除照片";
 
@@ -359,6 +441,30 @@
 "auth.register.creating" = "正在创建账号...";
 "auth.signin.apple" = "使用 Apple 登录";
 "auth.signin.wechat" = "使用微信登录";
+
+// MARK: - Profile Wardrobe
+"profile.wardrobe.title" = "我的装扮";
+"profile.wardrobe.manage" = "管理";
+"profile.achievements.empty" = "暂无成就";
+"wardrobe.item.star.hat" = "星光帽";
+"wardrobe.item.study.glasses" = "学霸眼镜";
+"wardrobe.item.streak.flame" = "连胜火焰";
+"wardrobe.item.nature.style" = "森系风格";
+"wardrobe.item.night.owl" = "夜猫徽章";
+"wardrobe.item.glory.crown" = "荣耀皇冠";
+
+// MARK: - Settings Status
+"settings.enabled" = "已开启";
+"settings.disabled" = "已关闭";
+"settings.syncing" = "同步中...";
+"settings.sync.now" = "立即同步";
+"settings.sync.success" = "已同步 %d 个项目";
+"settings.sync.failed" = "同步失败：%@";
+
+// MARK: - About App
+"about.app.name" = "TRIX 3D Companion";
+"about.app.version" = "版本 %@";
+"about.app.description" = "你的智能学习伙伴，协作学习的最佳选择";
 
 // MARK: - Settings Screen
 "settings.title" = "设置";
@@ -450,3 +556,170 @@
 "map.permission.action.dismiss" = "稍后";
 "map.error.title" = "地图暂时不可用";
 "map.error.action.retry" = "重新加载";
+
+// MARK: - Chat Detail
+"chat.detail.connection.disconnected" = "连接已断开";
+"chat.detail.input.placeholder" = "输入消息...";
+
+// MARK: - TRIX Bot Chat
+"chat.trixbot.default.prompt" = "请帮我分析这张图片，并给我可执行建议。";
+"chat.trixbot.close" = "关闭";
+"chat.trixbot.mode.device" = "设备模式";
+"chat.trixbot.mode.cloud" = "云端模式";
+"chat.trixbot.send.failed" = "发送失败";
+"chat.trixbot.ok" = "确定";
+"chat.trixbot.banner.paired" = "已配对设备，消息将实时发送到 TRIX";
+"chat.trixbot.banner.unpaired" = "未配对设备，当前使用 Trixbook 云端聊天";
+"chat.trixbot.empty.hint" = "上传图片并输入提示词，TRIX 会给你处理建议";
+"chat.trixbot.input.placeholder" = "输入提示词...";
+"chat.trixbot.send" = "发送消息";
+"chat.trixbot.image.attached" = "已附加图片";
+"chat.trixbot.upload.on.send" = "发送时上传";
+"chat.trixbot.uploaded.pending" = "已上传，待发送";
+"chat.trixbot.send.failed.message" = "消息发送失败，请稍后重试。";
+
+// MARK: - Chat List
+"error.operation.failed" = "操作失败";
+"chat.loading.sessions" = "正在载入会话";
+"chat.loading.sync" = "同步 TRIX Bot 与好友消息";
+"chat.trixbot.name" = "TRIX Bot";
+"chat.trixbot.action.ready" = "点击开始对话";
+"chat.trixbot.action.pair.first" = "配对后即可对话";
+"chat.trixbot.status.ready" = "对话已准备好，随时继续";
+"chat.trixbot.instruction.pair.first" = "先完成设备配对，再进入实时聊天";
+"chat.recommendations.title" = "推荐好友";
+"action.hide" = "隐藏";
+"chat.recent.conversations" = "最近会话";
+"chat.empty.start" = "开始一个新的对话";
+"chat.create.conversation" = "创建对话";
+"chat.empty.connect.trixbot" = "开始一个新的对话或配对 TRIX Bot";
+"chat.trixbot.action.start" = "开始对话";
+"chat.trixbot.action.pair" = "配对 TRIX Bot";
+"profile.bio.empty" = "暂无简介";
+"chat.friend.add.failed" = "添加失败";
+"chat.conversation.name" = "对话名称";
+"chat.conversation.name.placeholder" = "输入名称";
+"action.create" = "创建";
+"chat.create.title" = "新建对话";
+"chat.conversation.new" = "新对话";
+"chat.time.justnow" = "刚刚";
+"action.add" = "添加";
+
+// MARK: - Study Animation
+"study.focus.prepare" = "准备专注";
+"study.focus.duration.belong" = "接下来的 %d 分钟，只属于你";
+"study.focus.breathe" = "深呼吸...";
+"study.focus.start" = "开始专注！";
+"study.focus.encourage" = "加油，你可以的！";
+"study.celebration.complete" = "专注完成！";
+"study.celebration.end" = "结束专注";
+"study.celebration.great" = "太棒了！你完成了全部专注时间！";
+"study.celebration.progress" = "每一次专注都是进步！";
+"study.celebration.return" = "返回自习室";
+"study.celebration.duration" = "本次专注时长";
+"study.celebration.minutes" = "分钟";
+"study.celebration.goal" = "目标：25 分钟 (%d%%)";
+"study.celebration.together" = "和 %@ 共度了一段高效时光";
+"study.celebration.points" = "+%d 积分";
+
+// MARK: - Voice / TTS
+"tts.title" = "语音朗读";
+"tts.speaking" = "正在朗读...";
+"tts.tap.to.speak" = "点击下方按钮开始朗读";
+"tts.input.label" = "要朗读的文本";
+"tts.characters" = "字符";
+"tts.input.placeholder" = "在此输入要朗读的文本...";
+"tts.speaking.in.progress" = "朗读中...";
+"tts.start.speaking" = "开始朗读";
+"tts.quick.actions" = "快捷操作";
+"tts.settings" = "设置";
+"tts.settings.title" = "语音设置";
+"tts.close" = "关闭";
+"tts.language" = "语言";
+"tts.speed" = "语速";
+"tts.pitch" = "音调";
+"tts.reset.defaults" = "恢复默认设置";
+"tts.pomodoro.start" = "番茄钟开始";
+"tts.pomodoro.complete" = "番茄钟完成";
+"tts.rest.complete" = "休息结束";
+"tts.goal.reminder" = "目标提醒";
+
+"voice.feature.title" = "语音功能";
+"voice.compact.mode" = "紧凑模式";
+"voice.player.with.tts" = "语音播放器 + TTS";
+"voice.use.cases" = "使用场景示例";
+"voice.tab.player" = "播放器";
+"voice.tab.tts" = "TTS";
+"voice.tab.combined" = "组合";
+"voice.usecase.class.recording" = "课堂录音回放";
+"voice.usecase.class.recording.desc" = "播放课堂录音的同时，使用 TTS 朗读重要笔记";
+"voice.usecase.voice.message" = "语音消息转文字";
+"voice.usecase.voice.message.desc" = "收听语音消息，TTS 自动朗读内容";
+"voice.usecase.study.assistant" = "学习辅助";
+"voice.usecase.study.assistant.desc" = "播放音频教材，TTS 朗读配套文本";
+
+// MARK: - Snapshot Analysis
+"snapshot.analysis.title" = "快照分析";
+"snapshot.photo.captured" = "拍摄的照片";
+"snapshot.no.image" = "暂无图片";
+"snapshot.hint.generate" = "点击下方按钮会自动生成对应提示词";
+"snapshot.prompt.label" = "提示词";
+"snapshot.prompt.placeholder" = "点击上方按钮后，这里会出现对应提示词";
+"snapshot.retake" = "重拍";
+"snapshot.send.to.trix" = "发送给 TRIX Bot";
+"snapshot.sent.to.chat" = "已发送到聊天";
+"snapshot.uploading" = "正在上传...";
+"snapshot.action.identify.label" = "识别画面内容";
+"snapshot.action.extract.label" = "提取图片文字";
+"snapshot.action.study.label" = "生成学习要点";
+"snapshot.action.next.label" = "给出下一步建议";
+"snapshot.action.identify.prompt" = "请详细识别这张图片里的主体内容、关键物体和可能场景。";
+"snapshot.action.extract.prompt" = "请提取这张图片中的全部可读文字，并按结构整理。";
+"snapshot.action.study.prompt" = "请基于图片内容提炼学习要点，给出3-5条重点。";
+"snapshot.action.next.prompt" = "请结合图片内容，给出可执行的下一步行动建议。";
+
+// MARK: - Study Active Rooms
+"study.active.rooms.title" = "正在进行中的自习房";
+
+// MARK: - Notification Filter
+"notification.filter.all" = "全部";
+"notification.filter.unread" = "未读";
+"notification.filter.system" = "系统";
+"notification.mark.all.read" = "全部已读";
+"notification.load.failed" = "加载失败: %@";
+
+// MARK: - Voice Recording
+"voice.permission.denied" = "麦克风权限被拒绝。请在设置中允许访问麦克风。";
+"voice.permission.failed" = "请求麦克风权限失败: %@";
+"voice.need.permission" = "需要麦克风权限才能录音";
+"voice.recording.failed" = "录音失败，请重试";
+"voice.encode.error" = "录音编码错误: %@";
+"voice.instruction.release.send" = "松开发送，上滑取消";
+"voice.preparing" = "正在准备录音...";
+"voice.can.retry" = "可点击麦克风重试";
+"voice.release.cancel" = "松开取消";
+"voice.cancel" = "取消";
+"voice.settings" = "Open Settings";
+
+// MARK: - Store
+"store.tab.points" = "积分";
+"store.tab.subscription" = "高级版";
+"store.premium.title" = "开通高级版";
+"store.premium.description" = "解锁全部功能，移除广告";
+"store.premium.subscribed" = "已订阅";
+"store.premium.expiry" = "有效期至";
+"store.about.title" = "关于积分";
+"store.about.get.points" = "获取积分";
+"store.about.get.points.desc" = "完成学习任务获取积分";
+"store.about.get.reward" = "获取奖励";
+"store.about.get.reward.desc" = "每日登录和连续学习获得额外积分";
+"store.about.spend.points" = "消费积分";
+"store.about.spend.points.desc" = "使用积分解锁高级内容";
+"store.bonus" = "赠送";
+"store.bonus.with.points" = "赠送 +%d 积分";
+"store.points.amount" = "积分";
+"store.best.value" = "超值";
+"store.all.features" = "全部功能 • 无广告 • 优先支持";
+"store.per.year" = "/年";
+"store.per.month" = "/月";
+"store.popular" = "热门";

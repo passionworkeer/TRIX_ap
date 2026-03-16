@@ -30,8 +30,8 @@ struct StoreView: View {
     // MARK: - Tabs
 
     enum StoreTab: String, CaseIterable {
-        case points = "积分"
-        case subscription = "高级版"
+        case points
+        case subscription
 
         var icon: String {
             switch self {
@@ -39,6 +39,15 @@ struct StoreView: View {
                 return "star.fill"
             case .subscription:
                 return "crown.fill"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .points:
+                return L("store.tab.points")
+            case .subscription:
+                return L("store.tab.subscription")
             }
         }
     }
@@ -145,7 +154,7 @@ struct StoreView: View {
     private var tabPicker: some View {
         Picker("", selection: $selectedTab) {
             ForEach(StoreTab.allCases, id: \.self) { tab in
-                Text(tab.rawValue).tag(tab)
+                Text(tab.title).tag(tab)
             }
         }
         .pickerStyle(.segmented)
@@ -186,11 +195,11 @@ struct StoreView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.yellow)
 
-            Text("开通高级版")
+            Text(L("store.premium.title"))
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("解锁全部功能，移除广告")
+            Text(L("store.premium.description"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -200,13 +209,13 @@ struct StoreView: View {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
-                        Text("已订阅")
+                        Text(L("store.premium.subscribed"))
                             .font(.subheadline)
                             .foregroundStyle(.green)
                     }
 
                     if let expiryDate = viewModel.subscriptionExpiryDate {
-                        Text("有效期至 \(expiryDate, style: .date)")
+                        Text("\(L("store.premium.expiry")) \(expiryDate, style: .date)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -225,13 +234,13 @@ struct StoreView: View {
     /// Info section
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("关于积分")
+            Text(L("store.about.title"))
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
-                InfoRow(icon: "star.fill", title: "获取积分", description: "完成学习任务获取积分")
-                InfoRow(icon: "gift.fill", title: "获取奖励", description: "每日登录和连续学习获得额外积分")
-                InfoRow(icon: "cart.fill", title: "消费积分", description: "使用积分解锁高级内容")
+                InfoRow(icon: "star.fill", title: L("store.about.get.points"), description: L("store.about.get.points.desc"))
+                InfoRow(icon: "gift.fill", title: L("store.about.get.reward"), description: L("store.about.get.reward.desc"))
+                InfoRow(icon: "cart.fill", title: L("store.about.spend.points"), description: L("store.about.spend.points.desc"))
             }
         }
         .padding()
@@ -267,7 +276,7 @@ struct ProductCard: View {
 
                     // Bonus badge
                     if let bonus = bonusPoints {
-                        Text("赠送 +\(bonus) 积分")
+                        Text(String(format: L("store.bonus.with.points"), bonus))
                             .font(.caption)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
@@ -287,14 +296,14 @@ struct ProductCard: View {
 
                     // Points amount
                     if let points = product.points {
-                        Text("\(points) 积分")
+                        Text("\(points) " + L("store.points.amount"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
                     // Best value badge
                     if isBestValue {
-                        Text("超值")
+                        Text(L("store.best.value"))
                             .font(.caption)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
@@ -356,7 +365,7 @@ struct SubscriptionCard: View {
                     }
 
                     // Features
-                    Text("全部功能 • 无广告 • 优先支持")
+                    Text(L("store.all.features"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -372,14 +381,14 @@ struct SubscriptionCard: View {
 
                     // Per period
                     if let period = product.subscriptionPeriod {
-                        Text(period.unit == .year ? "/年" : "/月")
+                        Text(period.unit == .year ? L("store.per.year") : L("store.per.month"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     // Popular badge
                     if isPopular {
-                        Text("热门")
+                        Text(L("store.popular"))
                             .font(.caption)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)

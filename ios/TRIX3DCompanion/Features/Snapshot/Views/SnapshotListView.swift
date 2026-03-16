@@ -113,7 +113,7 @@ struct SnapshotListView: View {
         ContentUnavailableView {
             Label(L("snapshot.empty"), systemImage: "photo.on.rectangle.angled")
         } description: {
-            Text("您拍摄的照片将显示在这里")
+            Text(L("snapshot.empty.hint"))
         } actions: {
             Button(L("snapshot.take")) {
                 // Navigate to camera
@@ -157,7 +157,7 @@ struct SnapshotListView: View {
             ProgressView()
                 .tint(.purple)
 
-            Text("正在加载更多...")
+            Text(L("snapshot.loading.more"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -248,7 +248,7 @@ struct SnapshotCell: View {
                     .font(.title)
                     .foregroundColor(.secondary)
 
-                Text("加载失败")
+                Text(L("snapshot.load.failed"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -314,7 +314,7 @@ struct SnapshotDetailView: View {
                         // Caption
                         if let caption = snapshot.caption {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("描述")
+                                Text(L("snapshot.detail.caption"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 
@@ -326,7 +326,7 @@ struct SnapshotDetailView: View {
                         // Location
                         if let locationName = snapshot.locationName {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("位置")
+                                Text(L("snapshot.detail.location"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 
@@ -341,7 +341,7 @@ struct SnapshotDetailView: View {
 
                         // Date
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("日期")
+                            Text(L("snapshot.detail.date"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 

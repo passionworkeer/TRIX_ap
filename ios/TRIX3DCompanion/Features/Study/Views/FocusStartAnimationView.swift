@@ -8,6 +8,15 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+private func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), args)
+}
+
 struct FocusStartAnimationView: View {
 
     // MARK: - State
@@ -75,12 +84,12 @@ struct FocusStartAnimationView: View {
             Text("📚")
                 .font(.system(size: 60))
 
-            Text("准备专注")
+            Text(L("study.focus.prepare"))
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.white)
 
-            Text("接下来的 \(duration) 分钟，只属于你")
+            Text(L("study.focus.duration.belong", duration))
                 .font(.title3)
                 .foregroundColor(Color.purple.opacity(0.7))
         }
@@ -103,7 +112,7 @@ struct FocusStartAnimationView: View {
                     )
                 )
 
-            Text("深呼吸...")
+            Text(L("study.focus.breathe"))
                 .font(.title2)
                 .foregroundColor(.white)
         }
@@ -114,7 +123,7 @@ struct FocusStartAnimationView: View {
             Text("✨")
                 .font(.system(size: 60))
 
-            Text("开始专注！")
+            Text(L("study.focus.start"))
                 .font(.system(size: 48, weight: .bold))
                 .foregroundColor(.clear)
                 .overlay(
@@ -124,12 +133,12 @@ struct FocusStartAnimationView: View {
                         endPoint: .bottomTrailing
                     )
                     .mask(
-                        Text("开始专注！")
+                        Text(L("study.focus.start"))
                             .font(.system(size: 48, weight: .bold))
                     )
                 )
 
-            Text("加油，你可以的 💪")
+            Text(L("study.focus.encourage"))
                 .font(.title3)
                 .foregroundColor(Color.purple.opacity(0.7))
         }

@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Chat Detail View
 
 /// Main chat detail view displaying a conversation
@@ -62,10 +67,10 @@ struct ChatDetailView: View {
                 Task { _ = await chatService.sendMessage(roomId: conversation.id, content: imageURL, type: .image) }
             }
         }
-        .confirmationDialog("Attach Media", isPresented: $showingAttachmentOptions) {
-            Button("Photo Library") { showingImagePicker = true }
-            Button("Take Photo") { openCamera() }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L("chat.attach.media"), isPresented: $showingAttachmentOptions) {
+            Button(L("chat.photo.library")) { showingImagePicker = true }
+            Button(L("camera.take.photo")) { openCamera() }
+            Button(L("action.cancel"), role: .cancel) {}
         }
         .sheet(isPresented: $showingCamera) {
             CameraView { image, imageURL in
@@ -81,9 +86,9 @@ struct ChatDetailView: View {
     private var connectionStatusBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash").font(.caption)
-            Text("连接已断开").font(.caption)
+            Text(L("chat.detail.connection.disconnected"))
             Spacer()
-            Button("Retry") {
+            Button(L("action.retry")) {
                 Task {
                     if let userId = appState.currentUser?.id {
                         _ = await chatService.connectWebSocket(userId: userId)
@@ -151,7 +156,7 @@ struct ChatDetailView: View {
         Button(action: loadMoreMessages) {
             HStack(spacing: 8) {
                 if chatService.isLoadingMessages { ProgressView() } else { Image(systemName: "arrow.up") }
-                Text("Load Earlier Messages").font(.subheadline)
+                Text(L("chat.load.earlier")).font(.subheadline)
             }.foregroundColor(.secondary).padding()
         }.disabled(chatService.isLoadingMessages)
     }
@@ -168,7 +173,7 @@ struct ChatDetailView: View {
             .disabled(!chatService.isConnected)
 
             HStack(alignment: .bottom, spacing: 8) {
-                TextField("输入消息...", text: $messageText, axis: .vertical)
+                TextField(L("chat.placeholder"), text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.body)
                     .focused($isInputFocused)
@@ -260,17 +265,17 @@ struct ChatDetailViewImagePicker: View {
         NavigationStack {
             VStack(spacing: 20) {
                 Image(systemName: "photo.on.rectangle.angled").font(.system(size: 60)).foregroundColor(.purple)
-                Text("Select Photo").font(.title2).fontWeight(.semibold)
-                Text("Choose a photo from your library").font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding()
-                Button("Use Sample Image") {
+                Text(L("camera.select.photo")).font(.title2).fontWeight(.semibold)
+                Text(L("camera.select.photo")).font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding()
+                Button(L("camera.sample.image")) {
                     onImageSelected("https://picsum.photos/400/400?random=\(Int.random(in: 1...1000))")
                     dismiss()
                 }.buttonStyle(.borderedProminent)
             }.padding()
-            .navigationTitle("Select Photo")
+            .navigationTitle(L("camera.select.photo"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .navigationBarLeading) { Button(L("action.cancel")) { dismiss() } }
             }
         }
     }

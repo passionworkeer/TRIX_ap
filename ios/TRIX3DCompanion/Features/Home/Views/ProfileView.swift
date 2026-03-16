@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Profile View
 
 /// Main profile screen showing user information and settings
@@ -225,7 +230,7 @@ struct ProfileView: View {
                         Image(systemName: "trophy")
                             .font(.title)
                             .foregroundColor(.secondary)
-                        Text("暂无成就")
+                        Text(L("profile.achievements.empty"))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -270,11 +275,11 @@ struct ProfileView: View {
     private var wardrobeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("我的装扮")
+                Text(L("profile.wardrobe.title"))
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                Button("管理") {
+                Button(L("profile.wardrobe.manage")) {
                     showingWardrobeCenter = true
                 }
                 .font(.caption)
@@ -416,7 +421,7 @@ struct ProfileView: View {
                 SettingsRow(
                     icon: "bell.fill",
                     title: "settings.notifications".localized,
-                    description: appState.isPushNotificationEnabled ? "Enabled" : "Disabled",
+                    description: appState.isPushNotificationEnabled ? L("settings.enabled") : L("settings.disabled"),
                     color: .red,
                     trailing: AnyView(
                         Toggle("", isOn: notificationBinding)
@@ -676,13 +681,13 @@ struct EditProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(L("action.cancel")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(L("action.save")) {
                         saveProfile()
                     }
                     .fontWeight(.semibold)
@@ -690,8 +695,8 @@ struct EditProfileView: View {
                     .disabled(isSaving)
                 }
             }
-            .alert("Error", isPresented: $showError) {
-                Button("OK", role: .cancel) {}
+            .alert(L("settings.error"), isPresented: $showError) {
+                Button(L("action.confirm"), role: .cancel) {}
             } message: {
                 Text(errorMessage)
             }
@@ -766,7 +771,7 @@ struct EditProfileView: View {
     private func saveProfile() {
         let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedDisplayName.isEmpty else {
-            errorMessage = "Display name cannot be empty"
+            errorMessage = L("profile.name.empty")
             showError = true
             return
         }
@@ -856,12 +861,12 @@ struct WardrobeCenterView: View {
     @Binding var equippedOutfits: Set<String>
 
     private let items: [ProfileWardrobeItem] = [
-        ProfileWardrobeItem(id: "hat1", title: "星光帽", icon: "sparkles", gradient: [.brandPurple, .brandPink]),
-        ProfileWardrobeItem(id: "book1", title: "学霸眼镜", icon: "eyeglasses", gradient: [.blue, .cyan]),
-        ProfileWardrobeItem(id: "fire1", title: "连胜火焰", icon: "flame.fill", gradient: [.orange, .red]),
-        ProfileWardrobeItem(id: "leaf1", title: "森系风格", icon: "leaf.fill", gradient: [.green, .mint]),
-        ProfileWardrobeItem(id: "moon1", title: "夜猫徽章", icon: "moon.stars.fill", gradient: [.indigo, .purple]),
-        ProfileWardrobeItem(id: "crown1", title: "荣耀皇冠", icon: "crown.fill", gradient: [.yellow, .orange])
+        ProfileWardrobeItem(id: "hat1", title: L("wardrobe.item.star.hat"), icon: "sparkles", gradient: [.brandPurple, .brandPink]),
+        ProfileWardrobeItem(id: "book1", title: L("wardrobe.item.study.glasses"), icon: "eyeglasses", gradient: [.blue, .cyan]),
+        ProfileWardrobeItem(id: "fire1", title: L("wardrobe.item.streak.flame"), icon: "flame.fill", gradient: [.orange, .red]),
+        ProfileWardrobeItem(id: "leaf1", title: L("wardrobe.item.nature.style"), icon: "leaf.fill", gradient: [.green, .mint]),
+        ProfileWardrobeItem(id: "moon1", title: L("wardrobe.item.night.owl"), icon: "moon.stars.fill", gradient: [.indigo, .purple]),
+        ProfileWardrobeItem(id: "crown1", title: L("wardrobe.item.glory.crown"), icon: "crown.fill", gradient: [.yellow, .orange])
     ]
 
     private let columns = [
@@ -929,11 +934,11 @@ struct WardrobeCenterView: View {
                     endPoint: .bottomTrailing
                 )
             )
-            .navigationTitle("我的装扮")
+            .navigationTitle(L("profile.wardrobe.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") {
+                    Button(L("action.close")) {
                         dismiss()
                     }
                 }
@@ -964,9 +969,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Appearance") {
+                Section(L("settings.appearance")) {
                     Toggle(
-                        "Dark Mode",
+                        L("settings.theme.dark"),
                         isOn: Binding(
                             get: { appState.isDarkMode },
                             set: { appState.setDarkMode($0) }
@@ -974,9 +979,9 @@ struct SettingsView: View {
                     )
                 }
 
-                Section("Notifications") {
+                Section(L("settings.notifications")) {
                     Toggle(
-                        "Push Notifications",
+                        L("settings.push.notifications"),
                         isOn: Binding(
                             get: { appState.isPushNotificationEnabled },
                             set: { appState.setPushNotificationsEnabled($0) }
@@ -984,8 +989,8 @@ struct SettingsView: View {
                     )
                 }
 
-                Section("Language") {
-                    Picker("App Language", selection: Binding(
+                Section(L("settings.language")) {
+                    Picker(L("settings.language"), selection: Binding(
                         get: { appState.appLanguage },
                         set: { appState.setAppLanguage($0) }
                     )) {
@@ -996,7 +1001,7 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                 }
 
-                Section("Data Sync") {
+                Section(L("settings.data")) {
                     Button {
                         Task { await runSyncNow() }
                     } label: {
@@ -1004,7 +1009,7 @@ struct SettingsView: View {
                             if isSyncing {
                                 ProgressView()
                             }
-                            Text(isSyncing ? "Syncing..." : "Sync Now")
+                            Text(isSyncing ? L("settings.syncing") : L("settings.sync.now"))
                         }
                     }
                     .disabled(isSyncing)
@@ -1019,11 +1024,11 @@ struct SettingsView: View {
                 }
             }
             .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSheet)
-            .navigationTitle("Settings")
+            .navigationTitle(L("settings.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(L("action.done")) {
                         dismiss()
                     }
                     .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsDoneButton)
@@ -1039,9 +1044,9 @@ struct SettingsView: View {
 
         do {
             let result = try await DataSyncService.shared.syncAll(priority: .high)
-            syncMessage = "Synced \(result.syncedItems) item(s)."
+            syncMessage = L("settings.sync.success").replacingOccurrences(of: "%d", with: "\(result.syncedItems)")
         } catch {
-            syncMessage = "Sync failed: \(error.localizedDescription)"
+            syncMessage = L("settings.sync.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
         }
     }
 }
@@ -1067,17 +1072,17 @@ struct AboutView: View {
                     .frame(width: 80, height: 80)
 
                 // App name
-                Text("TRIX 3D Companion")
+                Text(L("about.app.name"))
                     .font(.title2)
                     .fontWeight(.bold)
 
                 // Version
-                Text("Version 1.0.0")
+                Text(String(format: L("about.app.version"), Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
                 // Description
-                Text("Your intelligent study companion for collaborative learning")
+                Text(L("about.app.description"))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -1087,11 +1092,11 @@ struct AboutView: View {
             }
             .padding()
             .accessibilityIdentifier(ProfileAccessibilityIdentifiers.aboutSheet)
-            .navigationTitle("About")
+            .navigationTitle(L("settings.about"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(L("action.done")) {
                         dismiss()
                     }
                     .accessibilityIdentifier(ProfileAccessibilityIdentifiers.aboutDoneButton)

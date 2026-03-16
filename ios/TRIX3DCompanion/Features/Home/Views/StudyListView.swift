@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Study List View
 
 /// Main study screen showing available study rooms and active sessions
@@ -197,7 +202,7 @@ struct StudyListView: View {
             // Stats header
             statsHeader
 
-            Text("正在进行中的自习房")
+            Text(L("study.active.rooms.title"))
                 .font(.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)

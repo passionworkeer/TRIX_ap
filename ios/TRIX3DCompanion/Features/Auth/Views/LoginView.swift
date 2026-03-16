@@ -9,6 +9,11 @@ import SwiftUI
 import AuthenticationServices
 import UIKit
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Login View
 
 /// Native iOS login screen with clean, familiar design patterns
@@ -70,8 +75,8 @@ struct LoginView: View {
                 nativeLoadingOverlay
             }
         }
-        .alert("登录失败", isPresented: $showingError) {
-            Button("确定", role: .cancel) {
+        .alert(L("auth.login.failed"), isPresented: $showingError) {
+            Button(L("action.confirm"), role: .cancel) {
                 authService.clearError()
             }
         } message: {
@@ -119,11 +124,11 @@ struct LoginView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("欢迎回来")
+                    Text(L("auth.login.title"))
                         .font(.title)
                         .fontWeight(.bold)
 
-                    Text("登录您的账户")
+                    Text(L("auth.login.subtitle"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -131,11 +136,11 @@ struct LoginView: View {
 
             // Feature pills (native style)
             HStack(spacing: 8) {
-                FeaturePill(icon: "arrow.triangle.2.circlepath", text: "数据同步")
-                FeaturePill(icon: "link.badge.plus", text: "设备配对")
+                FeaturePill(icon: "arrow.triangle.2.circlepath", text: L("auth.login.feature.sync"))
+                FeaturePill(icon: "link.badge.plus", text: L("auth.login.feature.pairing"))
             }
 
-            Text("登录后即可与 TRIX Bot 配对，开始智能学习之旅")
+            Text(L("auth.login.helper"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -152,7 +157,7 @@ struct LoginView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
 
-                TextField("邮箱", text: $email)
+                TextField(L("auth.email.placeholder"), text: $email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -177,7 +182,7 @@ struct LoginView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
 
-                SecureField("密码", text: $password)
+                SecureField(L("auth.password.placeholder"), text: $password)
                     .textContentType(.password)
                     .focused($focusedField, equals: .password)
                     .submitLabel(.go)
@@ -207,7 +212,7 @@ struct LoginView: View {
             Task { await handleLogin() }
         } label: {
             HStack {
-                Text("登录")
+                Text(L("action.login"))
                     .fontWeight(.semibold)
 
                 Image(systemName: "arrow.right")
@@ -230,7 +235,7 @@ struct LoginView: View {
                 .fill(Color(.separator))
                 .frame(height: 1)
 
-            Text("或")
+            Text(L("auth.or"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -252,7 +257,7 @@ struct LoginView: View {
                 } label: {
                     HStack {
                         Image(systemName: "applelogo")
-                        Text("使用 Apple 继续")
+                        Text(L("auth.signin.apple"))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -268,7 +273,7 @@ struct LoginView: View {
             } label: {
                 HStack {
                     Image(systemName: "message.fill")
-                    Text("使用微信登录")
+                    Text(L("auth.signin.wechat"))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -283,10 +288,10 @@ struct LoginView: View {
 
     private var switchToRegister: some View {
         HStack(spacing: 4) {
-            Text("还没有账户?")
+            Text(L("auth.no.account"))
                 .foregroundStyle(.secondary)
 
-            Button("立即注册") {
+            Button(L("action.signup")) {
                 onSwitchToRegister()
             }
             .fontWeight(.semibold)
@@ -299,12 +304,12 @@ struct LoginView: View {
 
     private var nativeLoadingOverlay: some View {
         AuthLoadingOverlay(
-            title: "正在登录",
-            subtitle: "正在安全连接你的 TRIX 空间",
+            title: L("auth.login.loading.title"),
+            subtitle: L("auth.login.loading.subtitle"),
             steps: [
-                "验证账户信息",
-                "同步会话状态",
-                "准备你的学习空间"
+                L("auth.login.loading.step.auth"),
+                L("auth.login.loading.step.session"),
+                L("auth.login.loading.step.workspace")
             ],
             accessibilityIdentifier: AuthAccessibilityIdentifiers.loginLoadingOverlay
         )
@@ -329,13 +334,13 @@ struct LoginView: View {
         let normalizedPassword = password.trimmingCharacters(in: .newlines)
 
         guard !normalizedEmail.isEmpty else {
-            errorMessage = "请输入邮箱地址"
+            errorMessage = L("auth.email.required")
             showingError = true
             return
         }
 
         guard !normalizedPassword.isEmpty else {
-            errorMessage = "请输入密码"
+            errorMessage = L("auth.password.required")
             showingError = true
             return
         }
@@ -366,7 +371,7 @@ struct LoginView: View {
     private func handleAppleSignIn() async {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            errorMessage = "无法打开 Apple 登录"
+            errorMessage = L("auth.signin.apple.error")
             showingError = true
             return
         }

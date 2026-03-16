@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 struct MailPanelView: View {
     @Binding var isPresented: Bool
 
@@ -84,7 +89,7 @@ struct MailPanelView: View {
             Button {
                 markAllAsRead()
             } label: {
-                Text("全部已读")
+                Text(L("notification.mark.all.read"))
                     .font(.caption)
                     .foregroundColor(.blue)
             }

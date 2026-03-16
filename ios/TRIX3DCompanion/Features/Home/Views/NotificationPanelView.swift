@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 struct NotificationPanelView: View {
     @Binding var isPresented: Bool
 
@@ -19,9 +24,9 @@ struct NotificationPanelView: View {
     private let apiClient = APIClient.shared
 
     enum NotificationFilter: String, CaseIterable {
-        case all = "全部"
-        case unread = "未读"
-        case system = "系统"
+        case all = "notification.filter.all"
+        case unread = "notification.filter.unread"
+        case system = "notification.filter.system"
     }
 
     var body: some View {
@@ -85,7 +90,7 @@ struct NotificationPanelView: View {
 
     private var headerSection: some View {
         HStack {
-            Text(NSLocalizedString("notification.title", comment: "通知"))
+            Text(L("notification.title"))
                 .font(.title3)
                 .fontWeight(.bold)
 
@@ -94,7 +99,7 @@ struct NotificationPanelView: View {
             Button {
                 markAllAsRead()
             } label: {
-                Text("全部已读")
+                Text(L("notification.mark.all.read"))
                     .font(.caption)
                     .foregroundColor(.blue)
             }
@@ -120,7 +125,7 @@ struct NotificationPanelView: View {
                     Button {
                         selectedFilter = filter
                     } label: {
-                        Text(filter.rawValue)
+                        Text(L(filter.rawValue))
                             .font(.subheadline)
                             .fontWeight(selectedFilter == filter ? .semibold : .regular)
                             .foregroundColor(selectedFilter == filter ? .white : .secondary)
@@ -184,7 +189,7 @@ struct NotificationPanelView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
 
-            Text(NSLocalizedString("notification.empty", comment: "暂无通知"))
+            Text(L("notification.empty"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -216,7 +221,7 @@ struct NotificationPanelView: View {
                 isLoading = false
             } catch {
                 isLoading = false
-                errorMessage = "加载失败: \(error.localizedDescription)"
+                errorMessage = L("notification.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
             }
         }
     }

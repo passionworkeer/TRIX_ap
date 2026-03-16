@@ -9,6 +9,11 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Recording State
 
 /// The current state of voice recording
@@ -120,10 +125,10 @@ class VoiceRecordingViewModel: NSObject, ObservableObject {
             hasPermission = granted
 
             if !granted {
-                errorMessage = "麦克风权限被拒绝。请在设置中允许访问麦克风。"
+                errorMessage = L("voice.permission.denied")
             }
         } catch {
-            errorMessage = "请求麦克风权限失败: \(error.localizedDescription)"
+            errorMessage = L("voice.permission.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
             hasPermission = false
         }
     }
@@ -138,7 +143,7 @@ class VoiceRecordingViewModel: NSObject, ObservableObject {
         guard hasPermission else {
             await requestMicrophonePermission()
             guard hasPermission else {
-                errorMessage = "需要麦克风权限才能录音"
+                errorMessage = L("voice.need.permission")
                 return
             }
             return
@@ -183,7 +188,7 @@ class VoiceRecordingViewModel: NSObject, ObservableObject {
             startTimer()
 
         } catch {
-            errorMessage = "开始录音失败: \(error.localizedDescription)"
+            errorMessage = L("voice.recording.failed")
             recordingState = .idle
             SecureLogger.shared.error("Recording error: \(error)")
         }
@@ -330,7 +335,7 @@ extension VoiceRecordingViewModel: AVAudioRecorderDelegate {
     ) {
         Task { @MainActor in
             if !flag {
-                errorMessage = "录音失败，请重试"
+                errorMessage = L("voice.recording.failed")
                 recordingState = .idle
             }
         }
@@ -342,7 +347,7 @@ extension VoiceRecordingViewModel: AVAudioRecorderDelegate {
     ) {
         Task { @MainActor in
             if let error = error {
-                errorMessage = "录音编码错误: \(error.localizedDescription)"
+                errorMessage = L("voice.encode.error").replacingOccurrences(of: "%@", with: error.localizedDescription)
             }
             recordingState = .idle
         }
@@ -539,30 +544,30 @@ struct VoiceRecordingButton: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             } else if viewModel.isRecording {
-                Text("松开发送，上滑取消")
+                Text(L("voice.instruction.release.send"))
                     .font(.subheadline)
                     .foregroundColor(.white)
             } else {
-                Text("正在准备录音...")
+                Text(L("voice.preparing"))
                     .font(.subheadline)
                     .foregroundColor(.white)
             }
 
             if !viewModel.isRecording {
-                Text("可点击麦克风重试")
+                Text(L("voice.can.retry"))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.8))
             }
 
             if viewModel.isRecording && dragOffset < -30 {
-                Text("松开取消")
+                Text(L("voice.release.cancel"))
                     .font(.subheadline)
                     .foregroundColor(.red)
                     .transition(.opacity)
             }
 
             if !viewModel.hasPermission {
-                Button("Open Settings") {
+                Button(L("voice.settings")) {
                     openAppSettings()
                 }
                 .buttonStyle(.borderedProminent)
@@ -575,7 +580,7 @@ struct VoiceRecordingButton: View {
     // MARK: - Cancel Indicator
 
     private var cancelIndicator: some View {
-        Text("X 取消")
+        Text(L("voice.cancel"))
             .font(.headline)
             .foregroundColor(.white)
             .padding(.horizontal, 24)

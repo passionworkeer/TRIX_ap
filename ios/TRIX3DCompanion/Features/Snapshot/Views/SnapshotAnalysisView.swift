@@ -12,6 +12,11 @@ import SwiftUI
 import UIKit
 #endif
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Snapshot Action
 
 /// 快照分析动作类型
@@ -23,23 +28,23 @@ enum SnapshotActionKey: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .identify: return "识别画面内容"
-        case .extractText: return "提取图片文字"
-        case .studyPoints: return "生成学习要点"
-        case .nextSteps: return "给出下一步建议"
+        case .identify: return L("snapshot.action.identify.label")
+        case .extractText: return L("snapshot.action.extract.label")
+        case .studyPoints: return L("snapshot.action.study.label")
+        case .nextSteps: return L("snapshot.action.next.label")
         }
     }
 
     var prompt: String {
         switch self {
         case .identify:
-            return "请详细识别这张图片里的主体内容、关键物体和可能场景。"
+            return L("snapshot.action.identify.prompt")
         case .extractText:
-            return "请提取这张图片中的全部可读文字，并按结构整理。"
+            return L("snapshot.action.extract.prompt")
         case .studyPoints:
-            return "请基于图片内容提炼学习要点，给出3-5条重点。"
+            return L("snapshot.action.study.prompt")
         case .nextSteps:
-            return "请结合图片内容，给出可执行的下一步行动建议。"
+            return L("snapshot.action.next.prompt")
         }
     }
 
@@ -135,9 +140,9 @@ struct SnapshotAnalysisView: View {
                             .font(.system(size: 18, weight: .semibold))
                     }
             }
-            .accessibilityLabel("返回")
+            .accessibilityLabel(L("action.back"))
 
-            Text("快照分析")
+            Text(L("snapshot.analysis.title"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
@@ -158,7 +163,7 @@ struct SnapshotAnalysisView: View {
 
     private var photoPreview: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("拍摄的照片")
+            Text(L("snapshot.photo.captured"))
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
@@ -179,7 +184,7 @@ struct SnapshotAnalysisView: View {
                                 Image(systemName: "photo")
                                     .font(.title)
                                     .foregroundColor(.textSecondary)
-                                Text("暂无图片")
+                                Text(L("snapshot.no.image"))
                                     .font(.caption)
                                     .foregroundColor(.textTertiary)
                             }
@@ -211,7 +216,7 @@ struct SnapshotAnalysisView: View {
                 .font(.caption)
                 .foregroundColor(.cyan)
 
-            Text("点击下方按钮会自动生成对应提示词")
+            Text(L("snapshot.hint.generate"))
                 .font(.caption)
                 .foregroundColor(.cyan)
         }
@@ -276,7 +281,7 @@ struct SnapshotAnalysisView: View {
 
     private var promptSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("提示词")
+            Text(L("snapshot.prompt.label"))
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
@@ -310,7 +315,7 @@ struct SnapshotAnalysisView: View {
 
     private var emptyPromptPlaceholder: some View {
         VStack(alignment: .leading) {
-            Text("点击上方按钮后，这里会出现对应提示词")
+            Text(L("snapshot.prompt.placeholder"))
                 .font(.caption)
                 .foregroundColor(.textTertiary)
                 .padding(.top, 12)
@@ -337,7 +342,7 @@ struct SnapshotAnalysisView: View {
             Button(action: onRetake) {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.counterclockwise")
-                    Text("重拍")
+                    Text(L("snapshot.retake"))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -361,7 +366,7 @@ struct SnapshotAnalysisView: View {
                     } else {
                         Image(systemName: "paperplane.fill")
                     }
-                    Text("发送给 TRIX Bot")
+                    Text(L("snapshot.send.to.trix"))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -391,7 +396,7 @@ struct SnapshotAnalysisView: View {
                     .foregroundColor(.green)
                     .font(.title3)
 
-                Text("已发送到聊天")
+                Text(L("snapshot.sent.to.chat"))
                     .font(.subheadline)
                     .foregroundColor(.white)
             }
@@ -420,7 +425,7 @@ struct SnapshotAnalysisView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
                     .scaleEffect(1.5)
 
-                Text("正在上传...")
+                Text(L("snapshot.uploading"))
                     .font(.subheadline)
                     .foregroundColor(.white)
             }

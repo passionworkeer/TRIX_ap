@@ -9,9 +9,9 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-// Helper function for localization
-private func loc(_ key: String) -> String {
-    key.localized
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
 }
 
 // MARK: - Home View
@@ -137,20 +137,20 @@ struct HomeView: View {
             }
 
         }
-        .confirmationDialog("快拍", isPresented: $showQuickSnapOptions, titleVisibility: .visible) {
-            Button("拍照") {
+        .confirmationDialog(L("home.quickSnap"), isPresented: $showQuickSnapOptions, titleVisibility: .visible) {
+            Button(L("home.takePhoto")) {
                 showCameraCapture = true
             }
 
-            Button("从相册选择") {
+            Button(L("home.selectFromAlbum")) {
                 showPhotoPicker = true
             }
 
-            Button("查看快拍相册") {
+            Button(L("home.viewAlbum")) {
                 showSnapshot = true
             }
 
-            Button("取消", role: .cancel) {}
+            Button(L("action.cancel"), role: .cancel) {}
         }
         .fullScreenCover(isPresented: $showCameraCapture, onDismiss: presentPendingSnapshotChatIfNeeded) {
             CameraView { image, uploadedImageURL in
@@ -323,32 +323,32 @@ struct WorkbenchOverlay: View {
         WorkbenchShortcut(
             id: "snapshot",
             icon: "camera.fill",
-            label: loc("workbench.snapshot"),
-            subtitle: "拍照、选图、查看快拍",
+            label: L("workbench.snapshot"),
+            subtitle: L("workbench.snapshot.subtitle"),
             color: .orange,
             accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchSnapshotCard
         ),
         WorkbenchShortcut(
             id: "location",
             icon: "location.fill",
-            label: loc("workbench.location"),
-            subtitle: "地图、地点与位置选择",
+            label: L("workbench.location"),
+            subtitle: L("workbench.location.subtitle"),
             color: .green,
             accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchLocationCard
         ),
         WorkbenchShortcut(
             id: "schedule",
             icon: "calendar",
-            label: loc("workbench.schedule"),
-            subtitle: "学习节奏和时间安排",
+            label: L("workbench.schedule"),
+            subtitle: L("workbench.schedule.subtitle"),
             color: .blue,
             accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchScheduleCard
         ),
         WorkbenchShortcut(
             id: "todo",
             icon: "checklist",
-            label: loc("workbench.todo"),
-            subtitle: "快速记录待办事项",
+            label: L("workbench.todo"),
+            subtitle: L("workbench.todo.subtitle"),
             color: .purple,
             accessibilityIdentifier: HomeAccessibilityIdentifiers.workbenchTodoCard
         )
@@ -371,11 +371,11 @@ struct WorkbenchOverlay: View {
 
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(loc("workbench.title"))
+                        Text(L("workbench.title"))
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
 
-                        Text("常用动作集中到这里，点空白即可回到专注状态。")
+                        Text(L("workbench.instruction"))
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.72))
                             .fixedSize(horizontal: false, vertical: true)
@@ -383,7 +383,7 @@ struct WorkbenchOverlay: View {
 
                     Spacer(minLength: 0)
 
-                    Text("轻点空白收起")
+                    Text(L("workbench.dismissHint"))
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.82))
                         .padding(.horizontal, 10)
@@ -592,14 +592,14 @@ struct StudyRoomOverlay: View {
                 }
 
             VStack(spacing: 20) {
-                Text("学习房间")
+                Text(L("study.room.title"))
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("与朋友一起学习")
+                Text(L("study.room.subtitle"))
                     .foregroundColor(.secondary)
 
-                Button("开始学习") {
+                Button(L("study.room.start")) {
                     isPresented = false
                 }
                 .buttonStyle(.borderedProminent)

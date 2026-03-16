@@ -8,6 +8,11 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Register View
 
 /// Native iOS registration screen with clean, familiar design patterns
@@ -69,17 +74,17 @@ struct RegisterView: View {
                 nativeLoadingOverlay
             }
         }
-        .alert("注册失败", isPresented: $showingError) {
-            Button("确定", role: .cancel) {
+        .alert(L("auth.register.failed"), isPresented: $showingError) {
+            Button(L("action.confirm"), role: .cancel) {
                 authService.clearError()
             }
         } message: {
             Text(errorMessage)
         }
-        .alert("注册成功", isPresented: $showingSuccess) {
-            Button("确定") {}
+        .alert(L("auth.register.success"), isPresented: $showingSuccess) {
+            Button(L("action.confirm")) {}
         } message: {
-            Text("您的账户已创建成功")
+            Text(L("auth.register.success.message"))
         }
         .onChange(of: authService.lastError) { newError in
             if let error = newError {
@@ -123,11 +128,11 @@ struct RegisterView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("创建账户")
+                    Text(L("auth.register.title"))
                         .font(.title)
                         .fontWeight(.bold)
 
-                    Text("注册一个新账户")
+                    Text(L("auth.register.subtitle"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -135,11 +140,11 @@ struct RegisterView: View {
 
             // Feature pills (native style)
             HStack(spacing: 8) {
-                FeaturePill(icon: "checkmark.seal.fill", text: "身份验证")
-                FeaturePill(icon: "person.2.fill", text: "好友配对")
+                FeaturePill(icon: "checkmark.seal.fill", text: L("auth.register.feature.identity"))
+                FeaturePill(icon: "person.2.fill", text: L("auth.register.feature.companion"))
             }
 
-            Text("注册后即可与 TRIX Bot 配对，开始智能学习之旅")
+            Text(L("auth.register.helper"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -153,7 +158,7 @@ struct RegisterView: View {
             // Username field - native iOS style
             formTextField(
                 icon: "person.fill",
-                placeholder: "用户名",
+                placeholder: L("auth.username.placeholder"),
                 text: $username,
                 textContentType: .username
             )
@@ -165,7 +170,7 @@ struct RegisterView: View {
             // Email field - native iOS style
             formTextField(
                 icon: "envelope.fill",
-                placeholder: "邮箱",
+                placeholder: L("auth.email.placeholder"),
                 text: $email,
                 keyboardType: .emailAddress,
                 textContentType: .emailAddress
@@ -178,7 +183,7 @@ struct RegisterView: View {
             // Password field - native iOS style
             formSecureField(
                 icon: "lock.fill",
-                placeholder: "密码",
+                placeholder: L("auth.password.placeholder"),
                 text: $password
             )
             .focused($focusedField, equals: .password)
@@ -189,7 +194,7 @@ struct RegisterView: View {
             // Confirm Password field - native iOS style
             formSecureField(
                 icon: "checkmark.shield.fill",
-                placeholder: "确认密码",
+                placeholder: L("auth.confirm.password"),
                 text: $confirmPassword
             )
             .focused($focusedField, equals: .confirmPassword)
@@ -233,10 +238,10 @@ struct RegisterView: View {
 
     private func getField(for placeholder: String) -> Field? {
         switch placeholder {
-        case "用户名": return .username
-        case "邮箱": return .email
-        case "密码": return .password
-        case "确认密码": return .confirmPassword
+        case L("auth.username.placeholder"): return .username
+        case L("auth.email.placeholder"): return .email
+        case L("auth.password.placeholder"): return .password
+        case L("auth.confirm.password"): return .confirmPassword
         default: return nil
         }
     }
@@ -271,7 +276,7 @@ struct RegisterView: View {
         } label: {
             HStack {
                 Image(systemName: "person.badge.plus.fill")
-                Text("注册")
+                Text(L("action.register"))
                     .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
@@ -288,10 +293,10 @@ struct RegisterView: View {
 
     private var switchToLogin: some View {
         HStack(spacing: 4) {
-            Text("已有账户?")
+            Text(L("auth.has.account"))
                 .foregroundStyle(.secondary)
 
-            Button("立即登录") {
+            Button(L("action.login")) {
                 onSwitchToLogin()
             }
             .fontWeight(.semibold)
@@ -304,12 +309,12 @@ struct RegisterView: View {
 
     private var nativeLoadingOverlay: some View {
         AuthLoadingOverlay(
-            title: "正在注册",
-            subtitle: "正在创建账户并初始化你的 TRIX 空间",
+            title: L("auth.register.loading.title"),
+            subtitle: L("auth.register.loading.subtitle"),
             steps: [
-                "创建账户信息",
-                "同步基础资料",
-                "准备首次体验"
+                L("auth.register.loading.step.account"),
+                L("auth.register.loading.step.profile"),
+                L("auth.register.loading.step.workspace")
             ],
             accessibilityIdentifier: AuthAccessibilityIdentifiers.registerLoadingOverlay
         )
@@ -337,43 +342,43 @@ struct RegisterView: View {
         let normalizedConfirmPassword = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !normalizedUsername.isEmpty else {
-            errorMessage = "请输入用户名"
+            errorMessage = L("auth.username.required")
             showingError = true
             return
         }
 
         guard normalizedUsername.count >= 3 else {
-            errorMessage = "用户名至少需要3个字符"
+            errorMessage = L("auth.username.min.length")
             showingError = true
             return
         }
 
         guard !normalizedEmail.isEmpty else {
-            errorMessage = "请输入邮箱地址"
+            errorMessage = L("auth.email.required")
             showingError = true
             return
         }
 
         guard !normalizedPassword.isEmpty else {
-            errorMessage = "请输入密码"
+            errorMessage = L("auth.password.required")
             showingError = true
             return
         }
 
         guard normalizedPassword.count >= 6 else {
-            errorMessage = "密码至少需要6个字符"
+            errorMessage = L("auth.password.min.length")
             showingError = true
             return
         }
 
         guard !normalizedConfirmPassword.isEmpty else {
-            errorMessage = "请确认密码"
+            errorMessage = L("auth.confirm.password.required")
             showingError = true
             return
         }
 
         guard normalizedPassword == normalizedConfirmPassword else {
-            errorMessage = "两次输入的密码不一致"
+            errorMessage = L("auth.password.mismatch")
             showingError = true
             return
         }

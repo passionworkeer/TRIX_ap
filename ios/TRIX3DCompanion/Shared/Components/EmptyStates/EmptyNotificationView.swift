@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// 空通知视图
 /// 当用户没有通知时显示
 struct EmptyNotificationView: View {
@@ -19,13 +24,13 @@ struct EmptyNotificationView: View {
             }
 
             // 标题
-            Text("没有新通知")
+            Text(L("empty.notifications"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
 
             // 描述
-            Text("当有新的活动、消息或提醒时，你会在这里看到通知")
+            Text(L("empty.notification.description"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -36,7 +41,7 @@ struct EmptyNotificationView: View {
                 Button(action: onGoHome) {
                     HStack(spacing: 8) {
                         Image(systemName: "house.fill")
-                        Text("返回首页")
+                        Text(L("empty.notification.action"))
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)

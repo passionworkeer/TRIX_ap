@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// 空积分历史视图
 /// 当用户没有积分交易记录时显示
 struct EmptyPointsHistoryView: View {
@@ -19,13 +24,13 @@ struct EmptyPointsHistoryView: View {
             }
 
             // 标题
-            Text("还没有积分记录")
+            Text(L("empty.points.title"))
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
 
             // 描述
-            Text("完成任务、参与活动可以获得积分，积分可以用来兑换各种奖励")
+            Text(L("empty.points.description"))
                 .font(.body)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -36,7 +41,7 @@ struct EmptyPointsHistoryView: View {
                 Button(action: onExplore) {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
-                        Text("去赚积分")
+                        Text(L("empty.points.action"))
                     }
                     .font(.subheadline)
                     .fontWeight(.semibold)

@@ -204,7 +204,7 @@ struct TodoListView: View {
         ContentUnavailableView {
             Label(L("todo.empty"), systemImage: "checklist")
         } description: {
-            Text("点击右上角按钮添加新待办")
+            Text(L("todo.empty.hint"))
         } actions: {
             Button(L("todo.add")) {
                 viewModel.showAddForm()
