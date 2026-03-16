@@ -4,8 +4,17 @@ import type { PluginAccountConfig, ResolvedPluginAccount } from '../types.js';
 const DEFAULT_ACCOUNT_ID = 'default';
 
 function readChannelConfig(cfg: Record<string, unknown>): Record<string, unknown> | undefined {
+  // OpenClaw may pass either:
+  // 1. Full config with channels.trix-native
+  // 2. Direct channel config (trix-native)
   const channels = cfg.channels as Record<string, unknown> | undefined;
-  return channels?.trixNative as Record<string, unknown> | undefined;
+  const fromChannels = channels?.['trix-native'] as Record<string, unknown> | undefined;
+  if (fromChannels) return fromChannels;
+
+  // Check if config is passed directly
+  if (cfg.accounts) return cfg as Record<string, unknown>;
+
+  return undefined;
 }
 
 function resolveAccountConfig(cfg: Record<string, unknown>, accountId = DEFAULT_ACCOUNT_ID): PluginAccountConfig | undefined {
@@ -56,7 +65,7 @@ export function applyAccountConfig(params: {
     ...params.cfg,
     channels: {
       ...channels,
-      trixNative: {
+      'trix-native': {
         ...channel,
         enabled: true,
         accounts: {
