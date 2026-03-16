@@ -7,6 +7,11 @@
 
 import Foundation
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// Network error types
 enum NetworkError: Error, LocalizedError, Hashable {
     /// No internet connection
@@ -124,36 +129,42 @@ enum NetworkError: Error, LocalizedError, Hashable {
     var errorDescription: String? {
         switch self {
         case .noConnection:
-            return "No internet connection. Please check your network settings."
+            return L("error.network.noConnection")
         case .timeout:
-            return "Request timed out. The server is taking too long to respond. Please try again later."
+            return L("error.network.timeout")
         case .serverError(let statusCode, let message):
-            return message ?? "Server error (Status: \(statusCode))"
+            if let msg = message {
+                return msg
+            }
+            return String(format: L("error.network.serverError"), statusCode)
         case .decodingError(let underlying):
             if let error = underlying {
-                return "Failed to decode response: \(error.localizedDescription)"
+                return String(format: L("error.network.decodingError"), error.localizedDescription)
             }
-            return "Failed to decode response"
+            return L("error.network.decodingFailed")
         case .invalidURL:
-            return "Invalid URL"
+            return L("error.network.invalidURL")
         case .invalidResponse:
-            return "Invalid response from server"
+            return L("error.network.invalidResponse")
         case .unauthorized:
-            return "Unauthorized. Please log in again."
+            return L("error.network.unauthorized")
         case .forbidden:
-            return "Access forbidden"
+            return L("error.network.forbidden")
         case .notFound:
-            return "Resource not found"
+            return L("error.network.notFound")
         case .badRequest:
-            return "Bad request. Please check your input."
+            return L("error.network.badRequest")
         case .conflict:
-            return "Conflict. The resource already exists."
+            return L("error.network.conflict")
         case .custom(let message):
             return message
         case .unknown(let error):
-            return error?.localizedDescription ?? "Unknown error occurred"
+            if let err = error {
+                return err.localizedDescription
+            }
+            return L("error.network.unknown")
         case .typeMismatch(let message):
-            return "Type mismatch: \(message)"
+            return String(format: L("error.network.typeMismatch"), message)
         }
     }
 

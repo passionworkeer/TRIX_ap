@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// A reusable error display component with retry functionality
 /// Shows error icon, title, description, and retry button
 struct ErrorView: View {
@@ -73,7 +78,7 @@ struct ErrorView: View {
                 Button(action: retryAction) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise")
-                        Text("Retry")
+                        Text(L("action.retry"))
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -107,14 +112,14 @@ extension ErrorView {
     /// Creates a network error view with retry action
     static func networkError(retryAction: @escaping () -> Void) -> ErrorView {
         ErrorView(
-            title: "Connection Error",
-            message: "Unable to connect to the server. Please check your internet connection and try again.",
+            title: L("error.connection"),
+            message: L("error.connection.description"),
             retryAction: retryAction
         )
     }
 
     /// Creates a generic error view without retry
-    static func generic(title: String = "Something Went Wrong", message: String) -> ErrorView {
+    static func generic(title: String = L("error.something.wrong"), message: String) -> ErrorView {
         ErrorView(title: title, message: message, retryAction: nil)
     }
 }
@@ -136,8 +141,8 @@ extension ErrorView {
 
 #Preview("Generic error without retry") {
     ErrorView.generic(
-        title: "File Not Found",
-        message: "The requested 3D model could not be found. It may have been moved or deleted."
+        title: L("error.file.not.found"),
+        message: L("error.file.not.found.description")
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(

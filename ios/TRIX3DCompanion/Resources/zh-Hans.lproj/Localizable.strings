@@ -1173,3 +1173,85 @@
 "store.points.info.secure" = "Apple Pay安全支付";
 "store.points.info.no.refund" = "积分购买不可退款";
 "store.bonus" = "赠送 %d";
+
+// MARK: - Validation Errors
+"validation.email.invalid" = "请输入有效的邮箱地址。";
+"validation.email.tooLong" = "邮箱地址过长。";
+"validation.email.malformed" = "邮箱地址格式无效。";
+"validation.password.tooShort" = "密码至少需要8个字符。";
+"validation.password.noUppercase" = "密码必须包含至少一个大写字母。";
+"validation.password.noLowercase" = "密码必须包含至少一个小写字母。";
+"validation.password.noNumber" = "密码必须包含至少一个数字。";
+"validation.password.noSpecialChar" = "密码必须包含至少一个特殊字符(!@#$%^&*).";
+"validation.password.common" = "此密码太常见，请选择一个更安全的密码。";
+"validation.username.tooShort" = "用户名至少需要3个字符。";
+"validation.username.tooLong" = "用户名必须少于30个字符。";
+"validation.username.invalidCharacters" = "用户名只能包含字母、数字和下划线。";
+"validation.username.reserved" = "此用户名已被保留，无法使用。";
+"validation.input.empty" = "此字段不能为空。";
+"validation.input.tooLong" = "此字段不能超过%d个字符。";
+"validation.format.invalid" = "格式无效。";
+
+// MARK: - Password Strength
+"password.strength.veryWeak" = "非常弱";
+"password.strength.weak" = "弱";
+"password.strength.fair" = "一般";
+"password.strength.good" = "良好";
+"password.strength.strong" = "强";
+
+// MARK: - Network Errors
+"error.network.noConnection" = "无网络连接。请检查您的网络设置。";
+"error.network.timeout" = "请求超时。服务器响应时间过长，请稍后重试。";
+"error.network.serverError" = "服务器错误（状态码：%d）";
+"error.network.decodingFailed" = "解析响应失败";
+"error.network.decodingError" = "解析响应失败：%@";
+"error.network.invalidURL" = "无效的URL";
+"error.network.invalidResponse" = "服务器响应无效";
+"error.network.unauthorized" = "未授权，请重新登录。";
+"error.network.forbidden" = "禁止访问";
+"error.network.notFound" = "未找到资源";
+"error.network.badRequest" = "请求错误，请检查输入。";
+"error.network.conflict" = "冲突，资源已存在。";
+"error.network.unknown" = "发生未知错误";
+"error.network.typeMismatch" = "类型不匹配：%@";
+
+// MARK: - Network Connection Type
+"network.connection.none" = "无连接";
+"network.connection.wifi" = "Wi-Fi";
+"network.connection.cellular" = "移动数据";
+"network.connection.ethernet" = "以太网";
+"network.connection.other" = "其他";
+
+// MARK: - Network Quality
+"network.quality.excellent" = "优秀";
+"network.quality.good" = "良好";
+"network.quality.fair" = "一般";
+"network.quality.poor" = "较差";
+"network.quality.unknown" = "未知";
+
+// MARK: - Error View
+"error.connection" = "连接错误";
+"error.connection.description" = "无法连接到服务器。请检查您的网络连接后重试。";
+"error.something.wrong" = "出错了";
+"error.file.not.found" = "文件未找到";
+"error.file.not.found.description" = "无法找到请求的3D模型。它可能被移动或删除了。";
+
+// MARK: - Dialog Actions
+"action.signout" = "退出登录";
+"action.signout.confirm" = "确定要退出登录吗？未保存的更改可能会丢失。";
+"action.delete.item" = "删除 %@?";
+"action.delete.item.description" = "此操作无法撤销。您确定要删除这个%@吗？";
+"action.upload" = "上传";
+"action.upload.model" = "上传模型";
+"action.upload.model.description" = "您想要将3D模型上传到云端吗？这可能需要几分钟时间。";
+
+// MARK: - Preview Strings
+"preview.dialog.delete" = "显示删除对话框";
+"preview.dialog.signout" = "显示退出登录对话框";
+"preview.dialog.custom" = "显示自定义对话框";
+"preview.dialog.model" = "模型";
+
+// MARK: - Auth Errors
+"auth.error.session.expired" = "您的登录已过期，请重新登录。";
+"auth.error.refresh.failed" = "刷新会话失败，请重新登录。";
+"error.network.description" = "网络错误：%@";

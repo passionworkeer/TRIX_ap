@@ -9,6 +9,11 @@ import Foundation
 import Combine
 import Network
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 // MARK: - Connection Type
 
 /// Network connection type
@@ -22,15 +27,15 @@ enum ConnectionType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .none:
-            return "No Connection"
+            return L("network.connection.none")
         case .wifi:
-            return "Wi-Fi"
+            return L("network.connection.wifi")
         case .cellular:
-            return "Cellular"
+            return L("network.connection.cellular")
         case .ethernet:
-            return "Ethernet"
+            return L("network.connection.ethernet")
         case .other:
-            return "Other"
+            return L("network.connection.other")
         }
     }
 
@@ -61,15 +66,15 @@ enum ConnectionQuality: String, CaseIterable {
     var displayName: String {
         switch self {
         case .excellent:
-            return "Excellent"
+            return L("network.quality.excellent")
         case .good:
-            return "Good"
+            return L("network.quality.good")
         case .fair:
-            return "Fair"
+            return L("network.quality.fair")
         case .poor:
-            return "Poor"
+            return L("network.quality.poor")
         case .unknown:
-            return "Unknown"
+            return L("network.quality.unknown")
         }
     }
 

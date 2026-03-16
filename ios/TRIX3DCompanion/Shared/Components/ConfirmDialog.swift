@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// A reusable confirmation dialog component with customizable buttons
 /// Supports both standard and destructive (danger) actions
 struct ConfirmDialog: View {
@@ -47,8 +52,8 @@ struct ConfirmDialog: View {
     // MARK: - Properties
     let title: String
     let message: String
-    var confirmText: String = "Confirm"
-    var cancelText: String = "Cancel"
+    var confirmText: String = ""
+    var cancelText: String = ""
     var isDestructive: Bool = false
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -92,7 +97,7 @@ struct ConfirmDialog: View {
                 // Buttons
                 VStack(spacing: 12) {
                     Button(action: onConfirm) {
-                        Text(confirmText)
+                        Text(confirmText.isEmpty ? L("action.confirm") : confirmText)
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -103,7 +108,7 @@ struct ConfirmDialog: View {
                     .buttonStyle(.plain)
 
                     Button(action: onCancel) {
-                        Text(cancelText)
+                        Text(cancelText.isEmpty ? L("action.cancel") : cancelText)
                             .font(.headline)
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity)
@@ -146,10 +151,10 @@ extension ConfirmDialog {
         onCancel: @escaping () -> Void = {}
     ) -> ConfirmDialog {
         ConfirmDialog(
-            title: "Delete \(item)?",
-            message: "This action cannot be undone. Are you sure you want to delete this \(item)?",
-            confirmText: "Delete",
-            cancelText: "Cancel",
+            title: String(format: L("action.delete.item"), item),
+            message: String(format: L("action.delete.item.description"), item),
+            confirmText: L("action.delete"),
+            cancelText: L("action.cancel"),
             isDestructive: true,
             onConfirm: onConfirm,
             onCancel: onCancel
@@ -162,10 +167,10 @@ extension ConfirmDialog {
         onCancel: @escaping () -> Void = {}
     ) -> ConfirmDialog {
         ConfirmDialog(
-            title: "Sign Out",
-            message: "Are you sure you want to sign out? Any unsaved changes may be lost.",
-            confirmText: "Sign Out",
-            cancelText: "Cancel",
+            title: L("action.signout"),
+            message: L("action.signout.confirm"),
+            confirmText: L("action.signout"),
+            cancelText: L("action.cancel"),
             isDestructive: false,
             onConfirm: onConfirm,
             onCancel: onCancel
@@ -176,15 +181,15 @@ extension ConfirmDialog {
     static func confirm(
         title: String,
         message: String,
-        confirmText: String = "Confirm",
+        confirmText: String = "",
         onConfirm: @escaping () -> Void,
         onCancel: @escaping () -> Void = {}
     ) -> ConfirmDialog {
         ConfirmDialog(
             title: title,
             message: message,
-            confirmText: confirmText,
-            cancelText: "Cancel",
+            confirmText: confirmText.isEmpty ? L("action.confirm") : confirmText,
+            cancelText: L("action.cancel"),
             isDestructive: false,
             onConfirm: onConfirm,
             onCancel: onCancel
@@ -215,19 +220,19 @@ struct ConfirmDialogPreviewWrapper: View {
 
             // Buttons to trigger dialogs
             VStack(spacing: 20) {
-                Button("Show Delete Dialog") {
+                Button(L("preview.dialog.delete")) {
                     showDialog = .delete
                     isShowing = true
                 }
                 .glassPanel()
 
-                Button("Show Sign Out Dialog") {
+                Button(L("preview.dialog.signout")) {
                     showDialog = .signOut
                     isShowing = true
                 }
                 .glassPanel()
 
-                Button("Show Custom Dialog") {
+                Button(L("preview.dialog.custom")) {
                     showDialog = .custom
                     isShowing = true
                 }
@@ -238,7 +243,7 @@ struct ConfirmDialogPreviewWrapper: View {
             if isShowing {
                 switch showDialog {
                 case .delete:
-                    ConfirmDialog.delete(item: "Model") {
+                    ConfirmDialog.delete(item: L("preview.dialog.model")) {
                         SecureLogger.shared.debug("Delete confirmed")
                         isShowing = false
                     } onCancel: {
@@ -255,9 +260,9 @@ struct ConfirmDialogPreviewWrapper: View {
                     }
                 case .custom:
                     ConfirmDialog.confirm(
-                        title: "Upload Model",
-                        message: "Would you like to upload your 3D model to the cloud? This may take a few minutes.",
-                        confirmText: "Upload"
+                        title: L("action.upload.model"),
+                        message: L("action.upload.model.description"),
+                        confirmText: L("action.upload")
                     ) {
                         SecureLogger.shared.debug("Upload confirmed")
                         isShowing = false

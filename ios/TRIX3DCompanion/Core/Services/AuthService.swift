@@ -49,13 +49,16 @@ enum AuthError: Error, LocalizedError, Equatable {
         case .emailAlreadyExists:
             return NSLocalizedString("auth.error.email.exists", comment: "Email already exists error")
         case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+            return String(format: NSLocalizedString("error.network.description", comment: "Network error with underlying"), error.localizedDescription)
         case .tokenExpired:
-            return "Your session has expired. Please log in again."
+            return NSLocalizedString("auth.error.session.expired", comment: "Session expired error")
         case .refreshFailed:
-            return "Failed to refresh session. Please log in again."
+            return NSLocalizedString("auth.error.refresh.failed", comment: "Refresh session failed error")
         case .unknown(let error):
-            return error?.localizedDescription ?? "An unknown error occurred"
+            if let err = error {
+                return err.localizedDescription
+            }
+            return NSLocalizedString("error.unknown", comment: "Unknown error")
         case .validationError(let message):
             return message
         }

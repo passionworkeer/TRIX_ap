@@ -9,6 +9,11 @@
 import Foundation
 import LocalAuthentication
 
+// MARK: - Localization Helper
+private func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 /// Validation error types
 enum ValidationError: Error, LocalizedError {
     case emailInvalid
@@ -31,37 +36,37 @@ enum ValidationError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emailInvalid:
-            return "Please enter a valid email address."
+            return L("validation.email.invalid")
         case .emailTooLong:
-            return "Email address is too long."
+            return L("validation.email.tooLong")
         case .emailMalformed:
-            return "Email address format is invalid."
+            return L("validation.email.malformed")
         case .passwordTooShort:
-            return "Password must be at least 8 characters."
+            return L("validation.password.tooShort")
         case .passwordNoUppercase:
-            return "Password must contain at least one uppercase letter."
+            return L("validation.password.noUppercase")
         case .passwordNoLowercase:
-            return "Password must contain at least one lowercase letter."
+            return L("validation.password.noLowercase")
         case .passwordNoNumber:
-            return "Password must contain at least one number."
+            return L("validation.password.noNumber")
         case .passwordNoSpecialChar:
-            return "Password must contain at least one special character (!@#$%^&*)."
+            return L("validation.password.noSpecialChar")
         case .passwordCommon:
-            return "This password is too common. Please choose a more secure password."
+            return L("validation.password.common")
         case .usernameTooShort:
-            return "Username must be at least 3 characters."
+            return L("validation.username.tooShort")
         case .usernameTooLong:
-            return "Username must be less than 30 characters."
+            return L("validation.username.tooLong")
         case .usernameInvalidCharacters:
-            return "Username can only contain letters, numbers, and underscores."
+            return L("validation.username.invalidCharacters")
         case .usernameReserved:
-            return "This username is reserved and cannot be used."
+            return L("validation.username.reserved")
         case .inputEmpty:
-            return "This field cannot be empty."
+            return L("validation.input.empty")
         case .inputTooLong(let maxLength):
-            return "This field cannot exceed \(maxLength) characters."
+            return String(format: L("validation.input.tooLong"), maxLength)
         case .invalidFormat:
-            return "Invalid format."
+            return L("validation.format.invalid")
         }
     }
 }
@@ -76,11 +81,11 @@ enum PasswordStrength: Int, Comparable {
 
     var description: String {
         switch self {
-        case .veryWeak: return "Very Weak"
-        case .weak: return "Weak"
-        case .fair: return "Fair"
-        case .good: return "Good"
-        case .strong: return "Strong"
+        case .veryWeak: return L("password.strength.veryWeak")
+        case .weak: return L("password.strength.weak")
+        case .fair: return L("password.strength.fair")
+        case .good: return L("password.strength.good")
+        case .strong: return L("password.strength.strong")
         }
     }
 
