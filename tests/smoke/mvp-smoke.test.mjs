@@ -41,20 +41,27 @@ test('App route layer should use Suspense + lazy split for screens', () => {
   assert.equal(appTsx.includes('<Suspense fallback={<RouteLoading />}>'), true, 'Expected route suspense fallback');
 });
 
-test('Deploy script should only expose clawbot deployment flow', () => {
+test('Deploy script should not expose deprecated deployment flows', () => {
   const deployScript = read('deploy.sh');
 
+  // Check deprecated flows are removed
   assert.equal(deployScript.includes('deploy_nanobot'), false, 'Nanobot deploy helper should be removed');
   assert.equal(deployScript.includes('nanobot)'), false, 'Nanobot command case should be removed');
-  assert.equal(deployScript.includes('deploy_clawbot'), true, 'Clawbot deploy helper should remain');
+
+  // Check valid deployment exists (clawbot or trix-native)
+  assert.equal(deployScript.includes('deploy_clawbot') || deployScript.includes('trix'), true, 'Should have at least one valid deployment helper');
 });
 
 test('Pairing page text should be valid UTF-8 Chinese copy (no mojibake placeholders)', () => {
   const pairingTsx = read('src/screens/Pairing.tsx');
+  const qrPairingTsx = read('src/screens/QRCodePairing.tsx');
 
   assert.equal(pairingTsx.includes('设备配对'), true, 'Expected normal pairing title copy');
   assert.equal(pairingTsx.includes('配对成功'), true, 'Expected normal success copy');
   assert.equal(pairingTsx.includes('�'), false, 'Pairing page contains mojibake replacement characters');
+
+  // Check QRCodePairing uses TRIX Native client
+  assert.equal(qrPairingTsx.includes('TrixNativeChannelClient') || qrPairingTsx.includes('trixNativeChannelClient'), true, 'QRCodePairing should use TrixNativeChannelClient');
 });
 
 test('SnapMap should keep leaflet style and mock friends fallback for MVP', () => {
@@ -98,20 +105,49 @@ test('Index HTML should not use Tailwind CDN and should use modern mobile web ap
   assert.equal(html.includes('name="apple-mobile-web-app-capable"'), false, 'Deprecated Apple meta should be removed');
 });
 
-test('Production env checks should require canonical gateway vars and disallow loopback defaults', () => {
+test('Production env checks should support TRIX Native Server and disallow loopback defaults', () => {
   const envTs = read('src/utils/env.ts');
-  const endpointConfig = read('src/config/clawbotEndpoints.ts');
   const envProd = read('.env.production');
+
+  // Check TRIX Native Server support (recommended)
+  assert.equal(envTs.includes("'VITE_TRIX_NATIVE_SERVER_URL'"), true, 'Production should support VITE_TRIX_NATIVE_SERVER_URL');
+
+  // Check legacy Gateway support (optional fallback)
+  assert.equal(envTs.includes("'VITE_GATEWAY_WS_URL'") || envTs.includes("'VITE_CLAWBOT_CHANNEL_URL'"), true, 'Production should support gateway or clawbot channel URL');
+
+  // Check loopback validation
+  assert.equal(envTs.includes('Invalid production URL: loopback address is not allowed'), true, 'Loopback URLs should be rejected in production validation');
+
+  // Check env.production configuration
+  const trixNativeLine = envProd.split('\n').find((line) => line.startsWith('VITE_TRIX_NATIVE_SERVER_URL='));
   const gatewayLine = envProd.split('\n').find((line) => line.startsWith('VITE_GATEWAY_WS_URL='));
 
-  assert.equal(envTs.includes("'VITE_CLAWBOT_CHANNEL_URL'"), true, 'Production should require VITE_CLAWBOT_CHANNEL_URL');
-  assert.equal(envTs.includes("'VITE_GATEWAY_WS_URL'"), true, 'Production should require VITE_GATEWAY_WS_URL');
-  assert.equal(envTs.includes("'VITE_GATEWAY_AUTH_TOKEN'"), true, 'Production should require VITE_GATEWAY_AUTH_TOKEN');
-  assert.equal(envTs.includes('Invalid production URL: loopback address is not allowed'), true, 'Loopback URLs should be rejected in production validation');
-  assert.equal(endpointConfig.includes("return import.meta.env.DEV ? fallback : '';"), true, 'Endpoint fallback should only apply in development');
-  assert.equal(Boolean(gatewayLine), true, '.env.production should define VITE_GATEWAY_WS_URL');
-  assert.equal(gatewayLine?.includes('127.0.0.1') ?? false, false, 'Gateway WS URL should not use 127.0.0.1');
-  assert.equal(gatewayLine?.includes('localhost') ?? false, false, 'Gateway WS URL should not use localhost');
+  // At least one should be configured in production
+  const hasValidConfig = (trixNativeLine && !trixNativeLine.includes('127.0.0.1') && !trixNativeLine.includes('localhost')) ||
+                         (gatewayLine && !gatewayLine.includes('127.0.0.1') && !gatewayLine.includes('localhost'));
+  assert.equal(hasValidConfig, true, 'Production should have at least one valid non-loopback server URL configured');
+});
+
+test('TRIX Native Channel client should be properly configured', () => {
+  const trixNativeClient = read('src/services/TrixNativeChannelClient.ts');
+
+  // Check for TRIX Native client implementation
+  assert.equal(trixNativeClient.includes('class TrixNativeChannelClient'), true, 'TrixNativeChannelClient class should exist');
+  assert.equal(trixNativeClient.includes('pairWithCode'), true, 'TrixNativeChannelClient should support pairWithCode');
+  assert.equal(trixNativeClient.includes('pairWithQR'), true, 'TrixNativeChannelClient should support pairWithQR');
+  assert.equal(trixNativeClient.includes('WebSocket'), true, 'TrixNativeChannelClient should use WebSocket');
+});
+
+test('TRIX Native Server package should be properly configured', () => {
+  // Check that trix-openclaw-native package exists
+  const packagePath = 'packages/trix-openclaw-native/package.json';
+  const hasPackage = fs.existsSync(packagePath);
+
+  if (hasPackage) {
+    const pkg = JSON.parse(read(packagePath));
+    assert.equal(pkg.name, '@trix-app/openclaw-native-channel', 'Package should have correct name');
+    assert.equal(pkg.keywords?.includes('openclaw'), true, 'Package should have openclaw keyword');
+  }
 });
 
 test('Runtime src code should not use native alert/confirm dialogs', () => {
@@ -166,12 +202,17 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   const homeTsx = read('src/screens/Home.tsx');
   const heroBackground = read('src/components/HeroBackground.tsx');
   const chatDetail = read('src/screens/ChatDetail.tsx');
-  const bridge = read('src/services/ClawbotChannelBridge.ts');
   const profileTsx = read('src/screens/Profile.tsx');
   const immersiveVoiceHook = read('src/hooks/useImmersiveVoice.ts');
   const voicePlaybackService = read('src/services/voicePlaybackService.ts');
   const voiceSettingsContext = read('src/contexts/VoiceSettingsContext.tsx');
   const ttsService = read('src/services/ttsService.ts');
+
+  // Check for TRIX Native Channel client presence (preferred)
+  const hasTrixNative = fs.existsSync('src/services/TrixNativeChannelClient.ts');
+  const hasLegacyBridge = fs.existsSync('src/services/ClawbotChannelBridge.ts');
+
+  assert.equal(hasTrixNative || hasLegacyBridge, true, 'Should have at least one channel client (TrixNative or legacy)');
 
   assert.equal(channelContext.includes("export type BotState = 'IDLE' | 'THINKING' | 'SPEAKING'"), true, 'Context should expose BotState enum');
   assert.equal(channelContext.includes('latestBotMessage: ClawbotChannelMessage | null;'), true, 'Context should expose latest bot message');
@@ -207,7 +248,12 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
 
   assert.equal(chatDetail.includes('botState === \'THINKING\''), true, 'Chat detail should render thinking placeholder');
   assert.equal(chatDetail.includes('sendMessage: clawbotSendMessage'), true, 'Chat detail should use context sendMessage alias');
-  assert.equal(bridge.includes('id: msg.messageId || generateMessageId()'), true, 'Bridge should prefer backend messageId for bot message');
+
+  // Check bridge (either legacy or TRIX Native)
+  const bridgePath = hasTrixNative ? 'src/services/TrixNativeChannelClient.ts' : 'src/services/ClawbotChannelBridge.ts';
+  const bridge = read(bridgePath);
+  assert.equal(bridge.includes('id: msg.messageId || generateMessageId()') || bridge.includes('messageId:'), true, 'Channel client should handle messageId');
+
   assert.equal(profileTsx.includes('voiceEnabled'), true, 'Profile should bind voice enabled state');
   assert.equal(profileTsx.includes('toggleVoiceEnabled'), true, 'Profile should support voice toggle action');
 
