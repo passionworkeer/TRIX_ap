@@ -1,6 +1,15 @@
 # 服务器操作指南
 
-本文档记录通用的服务器连接和操作方法。
+本文档记录 TRIX 3D Companion 项目的服务器连接和操作方法。
+
+## 生产服务器信息
+
+| 服务 | 地址 | 端口 | 说明 |
+|------|------|------|------|
+| 前端 (Nginx) | http://TRIX_SERVER_HOST | 80 | Web 应用 |
+| TRIX Native Server | http://TRIX_SERVER_HOST | 8788 | iOS-Web 消息同步 |
+| Clawbot Channel | ws://TRIX_SERVER_HOST | 8765 | WebSocket 消息 |
+| Gateway | ws://TRIX_SERVER_HOST | 18789 | 网关服务 |
 
 ## 连接服务器
 
@@ -10,8 +19,8 @@
 # 基本连接
 ssh -o StrictHostKeyChecking=no -i <私钥路径> <用户名>@<服务器IP>
 
-# 示例
-ssh -o StrictHostKeyChecking=no -i C:/Users/wang/.ssh/id_ed25519_server root@203.0.113.10
+# 示例 (当前生产服务器)
+ssh -o StrictHostKeyChecking=no -i C:/Users/wang/.ssh/id_ed25519_server root@TRIX_SERVER_HOST -p 22222
 ```
 
 ### 常用快捷命令
@@ -51,10 +60,10 @@ npm run build
 scp -i <私钥路径> -r <本地路径> <用户名>@<服务器IP>:<目标路径>/
 
 # 示例：上传编译后的文件
-scp -i C:/Users/wang/.ssh/id_ed25519_server -r ./dist/* root@203.0.113.10:/root/backend/dist/
+scp -i C:/Users/wang/.ssh/id_ed25519_server -r ./dist/* root@TRIX_SERVER_HOST:/var/www/html/
 
 # 上传环境变量文件
-scp -i C:/Users/wang/.ssh/id_ed25519_server .env root@203.0.113.10:/root/backend/.env
+scp -i C:/Users/wang/.ssh/id_ed25519_server .env root@TRIX_SERVER_HOST:/root/backend/.env
 ```
 
 ### 3. 重启服务

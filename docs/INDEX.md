@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-03-16
+> **最后更新**: 2026-03-17
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -11,6 +11,7 @@
 docs/
 ├── INDEX.md                          # 文档索引（本文档）
 ├── CHANGELOG.md                      # 开发迭代日志
+├── ENVIRONMENT.md                    # 环境变量参考
 │
 ├── 📦 需求规格 (requirements/)
 │   ├── PRD.md                        # 产品需求文档
@@ -52,8 +53,7 @@ docs/
 │
 ├── 📡 API 文档 (api/)
 │   ├── API_DOCUMENTATION.md         # API 完整文档
-│   ├── API_TYPES.md                 # API 类型定义
-│   └── new_clawbot_api.md           # Clawbot Channel API
+│   └── API_TYPES.md                 # API 类型定义
 │
 ├── 🍎 iOS 文档 (ios/)
 │   ├── IOS_ARCHITECTURE.md          # iOS 架构
@@ -64,12 +64,13 @@ docs/
 │   └── QUICK_START_GUIDE.md        # 快速开始指南
 │
 └── 📖 操作指南 (guides/)
+    ├── DEPLOYMENT.md                 # 生产部署指南
     ├── QUICK-START-FOCUS-MODE.md   # 专注模式
     ├── QR_PAIRING_USER_GUIDE.md    # 扫码配对
     ├── PAIRING_INPUT_GUIDE.md       # 配对输入
     ├── UNPAIR_FEATURE_GUIDE.md      # 解绑功能
     ├── SSH-SETUP.md                # SSH 配置
-    ├── SERVER_GUIDE.md             # 服务器部署
+    ├── SERVER_GUIDE.md             # 服务器运维
     ├── IOS_TEST_DEPLOY_GUIDE.md    # iOS 测试部署
     └── IOS_BACKEND_SERVER_DB_MANUAL_STEPS.md  # iOS 后端数据库手动步骤
 ```
@@ -87,6 +88,8 @@ docs/
 | [FEATURES.md](./requirements/FEATURES.md) | 功能文档 | 10 分钟 |
 | [ARCHITECTURE.md](./development/ARCHITECTURE.md) | 架构设计 | 15 分钟 |
 | [TRIX_NATIVE_IMPLEMENTATION_PLAN.md](./requirements/TRIX_NATIVE_IMPLEMENTATION_PLAN.md) | TRIX Native 实现计划 | 10 分钟 |
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | 环境变量参考 | 5 分钟 |
+| [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 | 15 分钟 |
 
 ### 📊 项目报告
 
@@ -112,6 +115,8 @@ docs/
 | [TESTING.md](./development/TESTING.md) | 测试框架和命令 |
 | [API_DOCUMENTATION.md](./api/API_DOCUMENTATION.md) | API 文档 |
 | [CHANGELOG.md](./CHANGELOG.md) | 开发日志和架构决策 |
+| [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
+| [SERVER_GUIDE.md](./guides/SERVER_GUIDE.md) | 服务器运维指南 |
 
 ---
 
@@ -120,7 +125,13 @@ docs/
 ### 新人入门 (20 分钟)
 
 ```
-README.md → PROJECT.md → FEATURES.md → ARCHITECTURE.md
+README.md → PROJECT.md → FEATURES.md → ARCHITECTURE.md → ENVIRONMENT.md
+```
+
+### 部署上线 (15 分钟)
+
+```
+ENVIRONMENT.md → DEPLOYMENT.md → SERVER_GUIDE.md
 ```
 
 ### 功能开发 (30 分钟)
@@ -147,6 +158,7 @@ PROJECT.md → 审查待办事项
 
 | 目录 | 文档数量 | 状态 |
 |------|----------|------|
+| 根目录 | 3 | ✅ 维护中 |
 | 需求规格 (requirements/) | 6 | ✅ 维护中 |
 | 项目报告 (project-reports/) | 2 | ✅ 维护中 |
 | 分析报告 (reports/) | 5 | ✅ 维护中 |
@@ -157,7 +169,7 @@ PROJECT.md → 审查待办事项
 | API 文档 (api/) | 3 | ✅ 维护中 |
 | iOS 文档 (ios/) | 2 | ✅ 维护中 |
 | 入门指南 (getting-started/) | 2 | ✅ 维护中 |
-| 操作指南 (guides/) | 8 | ✅ 维护中 |
+| 操作指南 (guides/) | 9 | ✅ 维护中 |
 
 ---
 
@@ -176,4 +188,4 @@ PROJECT.md → 审查待办事项
 
 ---
 
-**最后更新**: 2026-03-16
+**最后更新**: 2026-03-17

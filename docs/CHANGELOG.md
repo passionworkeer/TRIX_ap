@@ -4,6 +4,59 @@
 
 ---
 
+## 📅 2026-03-17 - 数据库架构整理
+
+### 背景
+项目数据库文档与实际 Supabase 生产状态不一致，需要整理和同步。
+
+### 完成内容
+1. **数据库表状态核实**
+   - 确认 Supabase 生产数据库实际有 21 个表
+   - 核实 4 个可选位置服务表（places, user_favorite_places, user_locations, user_location_settings）
+
+2. **文档整理**
+   - 更新 `database/schema-complete.sql` - 21 表版本
+   - 更新 `database/README.md` - 正确的表状态说明
+   - 删除过时的 SQL 迁移文件
+
+### 文档产出
+- `database/schema-complete.sql` - 完整 21 表初始化脚本
+- `database/README.md` - 简化的数据库文档
+
+---
+
+## 📅 2026-03-16 - TRIX Native Channel 修复
+
+### 背景
+TRIX Native Channel 配置后通道显示 "not configured, disabled"。
+
+### 完成内容
+
+#### 1. 配置 key 修复
+- 修改 `packages/trix-openclaw-native/src/plugin/accounts.ts`
+- 将 `channels?.trixNative` 改为 `channels?.['trix-native']`
+- 支持两种配置传递方式
+
+#### 2. 配对码有效期修复
+- 增加配对码有效期从 5 分钟到 30 分钟
+- 修复 claim API 返回 400 错误
+
+#### 3. 数据库修复
+- 删除损坏的 SQLite 数据库
+- 修复消息字段映射 (direction/from)
+
+### Git 提交记录
+- 54601b9: fix: TRIX Native channel config reading - use hyphenated key
+- 28c360b: chore: cleanup build artifacts and refine inbound reconnect
+- 8386989: test: update smoke tests for TRIX Native Channel
+
+### 验证结果
+```
+- TRIX Native default (TRIX Native): configured, enabled
+```
+
+---
+
 ## 📅 2026-03-14 - TRIX Native Channel 实现（OpenClaw 集成）
 
 ### 背景
@@ -403,4 +456,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-15
+**最后更新**: 2026-03-17

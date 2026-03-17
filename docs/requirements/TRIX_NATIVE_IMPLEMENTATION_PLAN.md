@@ -243,7 +243,7 @@ interface PairingsCreateResponse {
   success: true;
   code: string;              // 6位配对码,如 "X7K9P2"
   qrDataUrl: string;         // QR码data URL
-  expiresIn: number;         // 过期秒数,如300
+  expiresIn: number;         // 过期秒数,如1800
   createdAt: string;         // ISO时间戳
 }
 
@@ -980,7 +980,7 @@ const ErrorCodes = {
   },
   "pairing": {
     "codeLength": 6,
-    "expiresIn": 300,
+    "expiresIn": 1800,
     "chars": "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
   },
   "upload": {
@@ -997,4 +997,4 @@ const ErrorCodes = {
 
 ---
 
-*文档版本: 1.0 | 最后更新: 2024-03-14*
+*文档版本: 1.1 | 最后更新: 2026-03-17*

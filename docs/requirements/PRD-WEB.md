@@ -1,7 +1,7 @@
 # TRIX 3D Companion - Web 端产品需求文档
 
 > **文档版本**: 1.0
-> **最后更新**: 2026-03-06
+> **最后更新**: 2026-03-17
 > **产品**: TRIX 3D Companion Web
 > **平台**: Web 浏览器 (Chrome, Safari, Edge)
 

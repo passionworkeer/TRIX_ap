@@ -611,6 +611,6 @@ curl http://server:8788/api/messages/CONVERSATION_ID \
 
 ---
 
-**文档版本**: 1.0
-**最后更新**: 2026-03-16
+**文档版本**: 1.1
+**最后更新**: 2026-03-17
 **兼容版本**: @trix-app/openclaw-native-channel@0.1.0

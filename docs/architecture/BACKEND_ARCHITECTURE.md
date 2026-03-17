@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js + Express + Socket.io
-> **最后更新**: 2026-03-04
+> **最后更新**: 2026-03-17
 
 ---
 
@@ -648,7 +648,7 @@ curl http://TRIX_SERVER_HOST:8788/health
 | 消息去重 | 内存缓存 (10s TTL) |
 | SQL 参数化 | better-sqlite3 预处理 |
 | Token 验证 | WebSocket 认证 |
-| 配对码过期 | 5 分钟有效期 |
+| 配对码过期 | 30 分钟有效期 |
 
 ---
 
@@ -663,5 +663,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-04
-**版本**: 3.0
+**最后更新**: 2026-03-17
+**版本**: 3.1
