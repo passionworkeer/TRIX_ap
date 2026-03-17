@@ -148,6 +148,17 @@ export async function startInboundMonitor(
 ): Promise<void> {
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
 
+  // 验证配置
+  if (!account.serverUrl) {
+    log.error?.(`[trix] account ${account.accountId} has NO serverUrl configured!`);
+    throw new Error(`TRIX Native account ${account.accountId}: serverUrl is required`);
+  }
+  if (!account.adminToken) {
+    log.error?.(`[trix] account ${account.accountId} has NO adminToken configured!`);
+    throw new Error(`TRIX Native account ${account.accountId}: adminToken is required`);
+  }
+  log.info?.(`[trix] Starting inbound monitor for ${account.accountId} -> ${account.serverUrl}`);
+
   // 防止重复启动
   const key = account.accountId;
   if (activeMonitors.get(key)) {
@@ -161,6 +172,7 @@ export async function startInboundMonitor(
   const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
     account.adminToken ?? ''
   )}&accountId=${encodeURIComponent(account.accountId)}`;
+  log.info?.(`[trix] Connecting to WebSocket: ${wsUrl.substring(0, 80)}...`);
 
   // 清理函数
   const cleanup = () => {
@@ -262,5 +274,12 @@ export async function startInboundMonitor(
   }
 
   // 首次连接失败直接抛出，让 gateway 知道启动失败
-  await connect();
+  try {
+    await connect();
+    log.info?.(`[trix] Inbound monitor started successfully for ${account.accountId}`);
+  } catch (err) {
+    log.error?.(`[trix] Inbound monitor failed to start for ${account.accountId}: ${String(err)}`);
+    activeMonitors.delete(key);
+    throw err;
+  }
 }

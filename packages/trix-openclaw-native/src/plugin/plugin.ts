@@ -1,4 +1,5 @@
 import path from 'node:path';
+import type { ResolvedPluginAccount } from '../types.js';
 import { applyAccountConfig, defaultAccountId, listAccountIds, resolveAccount } from './accounts.js';
 import { createOutboundAdapter } from './outbound.js';
 import { startInboundMonitor } from './inbound.js';
@@ -145,9 +146,20 @@ export function createTrixNativePlugin() {
         return { connected: false, message: 'Timed out waiting for TRIX Native pairing.' };
       },
       startAccount: async (ctx: Record<string, unknown>) => {
-        const log = (ctx.log as { info?: (msg: string) => void } | undefined) ?? {};
+        const log = (ctx.log as { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void } | undefined) ?? {};
         log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
+
+        // 检查是否有预解析的 account 对象
+        const preResolvedAccount = ctx.account as ResolvedPluginAccount | undefined;
+        if (preResolvedAccount) {
+          log.info?.('[trix] using pre-resolved account from ctx: serverUrl=' + (preResolvedAccount.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (preResolvedAccount.adminToken ? '(set)' : '(EMPTY)'));
+          await startInboundMonitor(ctx, preResolvedAccount);
+          return;
+        }
+
+        // 否则从配置解析
         const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
+        log.info?.('[trix] resolved from cfg: configured=' + account.configured + ', serverUrl=' + (account.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (account.adminToken ? '(set)' : '(EMPTY)'));
         const effectiveAccount = {
           ...account,
           storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
