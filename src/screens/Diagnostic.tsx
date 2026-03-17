@@ -35,7 +35,7 @@ const Diagnostic: React.FC = () => {
     }
     try {
       const ws = new WebSocket(wsUrl);
-      ws.onopen = () => console.log('Connected');
+      ws.onopen = () => {};
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         const messageType = data.event || data.type;

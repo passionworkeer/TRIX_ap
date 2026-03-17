@@ -81,9 +81,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-        updateLastActive().catch(() => {});
+        updateLastActive().catch(err => console.error('心跳更新失败:', err));
         heartbeatInterval = setInterval(() => {
-          updateLastActive().catch(() => {});
+          updateLastActive().catch(err => console.error('心跳更新失败:', err));
         }, 60000);
       }
       setLoading(false);
@@ -100,9 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session?.user) {
         fetchProfile(session.user.id);
-        updateLastActive().catch(() => {});
+        updateLastActive().catch(err => console.error('心跳更新失败:', err));
         heartbeatInterval = setInterval(() => {
-          updateLastActive().catch(() => {});
+          updateLastActive().catch(err => console.error('心跳更新失败:', err));
         }, 60000);
       } else {
         setProfile(null);

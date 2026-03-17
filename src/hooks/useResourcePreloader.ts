@@ -35,8 +35,6 @@ function preloadCriticalResources() {
     link.href = src;
     document.head.appendChild(link);
   });
-
-  console.log('[Preloader] Critical resources preloaded');
 }
 
 /**

@@ -134,10 +134,6 @@ const recordMetric = (
   // 调试输出
   if (debug) {
     const score = getScore(name, value);
-    console.log(
-      `%c[WebVitals] ${name}: ${formatMetric(name, value)} (${score})`,
-      `color: ${getScoreColor(score)}; font-weight: bold;`
-    );
   }
 };
 
@@ -247,12 +243,6 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
   // 打印性能报告
   const report = useCallback(() => {
     const metrics = metricsRef.current;
-
-    console.group('[WebVitals] Performance Report');
-    console.log('URL:', window.location.href);
-    console.log('Date:', new Date().toISOString());
-    console.table(metrics);
-    console.groupEnd();
 
     // 发送报告到服务器
     if (reportToServer && endpoint) {

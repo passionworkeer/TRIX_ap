@@ -43,7 +43,6 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        console.log('[StudyBuddies] 未登录');
         setBuddies([]);
         return;
       }

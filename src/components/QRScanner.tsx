@@ -63,7 +63,6 @@ const QRScanner: React.FC<QRScannerProps> = ({
           },
           (decodedText) => {
             // 扫描成功
-            console.log('[QRScanner] 扫描成功:', decodedText);
             onScanSuccess(decodedText);
             stopScanner();
             onClose();

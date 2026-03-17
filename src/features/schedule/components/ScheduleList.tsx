@@ -251,7 +251,6 @@ const ScheduleList: React.FC<ScheduleListProps> = ({ onClose }) => {
     schedules,
     onNotificationClick: (schedule) => {
       // Navigate to or focus on the schedule
-      console.log('Notification clicked for schedule:', schedule.id);
     },
   });
 

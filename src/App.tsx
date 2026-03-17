@@ -108,10 +108,8 @@ function AppContent() {
   const isDev = import.meta.env.DEV;
   const location = useLocation();
   const { user } = useAuth();
-  const { showWarning: _showWarning } = useNotification();
+  const { showWarning } = useNotification();
   const {
-    isConnected: _isClawbotConnected,
-    isPaired: _isClawbotPaired,
     botState,
   } = useClawbotChannel();
   const [showDockOnHome, setShowDockOnHome] = useState(false);
@@ -205,7 +203,6 @@ function AppContent() {
               <Route path={AppRoutes.STUDY} element={<ProtectedRoute><Study key="study-home" /></ProtectedRoute>} />
               <Route path="/study/timer" element={<ProtectedRoute><Study key="study-timer" /></ProtectedRoute>} />
               <Route path={AppRoutes.CHAT} element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-              <Route path={AppRoutes.CHAT_DETAIL} element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
               <Route path="/chat/:friendId" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
               <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

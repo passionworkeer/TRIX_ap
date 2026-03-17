@@ -15,7 +15,6 @@ import { isDev } from '../utils/env';
  * 控制台日志包装器
  */
 const consoleLog = {
-  info: (message: string) => console.log(`[INFO] ${message}`),
   error: (...args: unknown[]) => console.error(`[ERROR]`, ...args),
 };
 
@@ -56,8 +55,6 @@ export function initGlobalErrorHandler(config?: GlobalErrorHandlerConfig): void 
 
   // 3. 处理 Vue/React 路由错误（如果使用）
   // window.addEventListener('error', handleRouteError);
-
-  consoleLog.info('Global error handler initialized');
 }
 
 /**
@@ -66,7 +63,6 @@ export function initGlobalErrorHandler(config?: GlobalErrorHandlerConfig): void 
 export function removeGlobalErrorHandler(): void {
   window.removeEventListener('unhandledrejection', handleUnhandledRejection);
   window.removeEventListener('error', handleGlobalError);
-  consoleLog.info('Global error handler removed');
 }
 
 /**

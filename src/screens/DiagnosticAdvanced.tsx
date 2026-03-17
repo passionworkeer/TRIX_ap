@@ -9,7 +9,6 @@ export default function DiagnosticAdvanced() {
   const log = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
-    console.log(message);
   };
 
   const testDirectConnection = () => {
