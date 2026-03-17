@@ -31,25 +31,30 @@ struct ContentView: View {
 
     @State private var isAnimating = false
     @State private var hasCompletedInitialLoad = false
-    @State private var showSplashScreen = true  // 控制启动画面显示
+
+    // TODO: 启动画面 - 需要时可启用
+    // @State private var showSplashScreen = true
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // 启动画面 (首次显示)
+            // 启动画面 (需要时启用)
+            /*
             if showSplashScreen {
                 AnimatedSplashView {
                     withAnimation(.easeOut(duration: 0.3)) {
-                        showSplashScreen = false
+                        self.showSplashScreen = false
                     }
                 }
                 .transition(.opacity)
                 .ignoresSafeArea()
-            } else {
-                // 原有内容
-                mainContent
+                .id("splash")
             }
+            */
+
+            // 原有内容
+            mainContent
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
         .onChange(of: authService.isLoggedIn) { isLoggedIn in
@@ -57,6 +62,14 @@ struct ContentView: View {
         }
         .onAppear {
             handleInitialSetup()
+            // 启用启动画面时使用:
+            // DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            //     if self.showSplashScreen {
+            //         withAnimation(.easeOut(duration: 0.3)) {
+            //             self.showSplashScreen = false
+            //         }
+            //     }
+            // }
         }
     }
 
