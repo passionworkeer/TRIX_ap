@@ -1,218 +1,128 @@
-# TRIX 3D Companion - 数据库迁移脚本
+# TRIX 3D Companion - 数据库文档
 
-**最后更新**: 2026-02-17
-
----
-
-## 📁 脚本文件说明
-
-### 核心初始化（src/database/）
-
-#### init.sql
-**状态**: ⚠️ 已弃用，请使用 `complete-init.sql`
-**用途**: 原始数据库初始化脚本
-**说明**: 包含基础的表结构，但结构较旧（使用TEXT类型的friend_id）
-
-#### complete-init.sql ⭐
-**状态**: ✅ 推荐使用
-**用途**: 完整的数据库初始化脚本
-**包含**:
-- 9个核心表（profiles, friends, chat_messages等）
-- 外键关系和索引
-- 视图和函数
-- 测试数据（6个测试用户）
-
-**使用方法**: 新项目初始化时执行
+**最后更新**: 2026-03-17
 
 ---
 
-### 增量迁移（database/）
+## 概述
 
-所有文件按创建时间排序，应按顺序执行：
-
-#### 1. add-is-studying-to-profiles.sql (2026-02-11)
-**用途**: 添加学习状态字段
-**添加字段**: `profiles.is_studying` (BOOLEAN)
-**索引**: `idx_profiles_is_studying` (部分索引)
-
-#### 2. add-companion-to-profiles.sql (2026-02-11)
-**用途**: 添加自习伙伴功能
-**添加字段**: `profiles.companion_id` (UUID，自引用外键)
-**索引**: `idx_profiles_companion_id`
-
-#### 3. add-study-time-to-profiles.sql (2026-02-11)
-**用途**: 添加累计学习时长
-**添加字段**: `profiles.total_study_time` (INTEGER，单位：分钟)
-**索引**: `idx_profiles_total_study_time` (部分索引)
-
-#### 4. add-media-support-to-chat-messages.sql (2026-02-12)
-**用途**: 为聊天消息添加多媒体支持
-**添加字段**:
-- `message_type` (TEXT)
-- `media_uri` (TEXT)
-- `media_type` (TEXT)
-- `media_size` (BIGINT)
-- `media_metadata` (JSONB)
-
-**索引**: 多个复合索引
-
-#### 5. ~~add-pairing-requests-table.sql~~ (已删除)
-> ⚠️ 此文件已废弃。TRIX Native 使用本地 JSON 存储配对信息。
-
-#### 6. add-points-system.sql (2026-02-16) ⭐
-**用途**: 创建积分系统
-**创建表**:
-- `user_points` (用户积分)
-- `point_transactions` (积分交易记录)
-
-**函数**:
-- `add_user_points()` - 添加积分
-- `calculate_user_level()` - 计算等级
-- `get_user_points_stats()` - 获取统计
-
-**视图**: `user_points_overview` (积分排行榜)
-
-#### 7. add-user-settings.sql (2026-02-17) ⭐
-**用途**: 创建用户隐私设置表
-**创建表**: `user_settings`
-**字段**:
-- `allow_stranger_search` (BOOLEAN)
-- `show_online_status` (BOOLEAN)
-- `allow_study_invites` (BOOLEAN)
-
-**RLS**: 完整的行级安全策略
-
-#### 8. add-chat-attachments-storage.sql
-**类型**: 📄 文档（非SQL脚本）
-**用途**: Supabase Storage 配置说明
-**内容**: 手动配置Storage桶的步骤
+本目录包含 TRIX 3D Companion 项目的数据库相关文件。基于当前 Supabase 生产数据库实际状态生成。
 
 ---
 
-## 🚀 使用指南
+## 文件结构
+
+```
+database/
+├── schema-complete.sql      # 完整数据库初始化脚本 (推荐)
+├── migrations/
+│   └── add-missing-tables.sql  # 缺失表迁移脚本
+├── docs/
+│   ├── README.md           # 数据库测试数据说明
+│   └── SCHEMA.md           # 表结构文档
+├── DATABASE_SCHEMA.md       # 数据库架构文档
+├── DATABASE_SETUP_COMPLETE.md  # 设置完成文档
+├── add-chat-attachments-storage.sql  # Storage 配置说明
+└── README.md               # 本文件
+```
+
+---
+
+## 快速开始
 
 ### 新项目初始化
 
-```bash
-# 1. 在Supabase SQL Editor中执行
-# 打开 src/database/complete-init.sql
-# 全选并执行
-
-# 2. 验证表创建
-SELECT table_name FROM information_schema.tables
-WHERE table_schema = 'public'
-ORDER BY table_name;
-```
-
-### 增量迁移（添加新功能）
-
-如果从旧版本升级，按顺序执行以下脚本：
-
-```bash
-# 必须按顺序执行！
-1. database/add-is-studying-to-profiles.sql
-2. database/add-companion-to-profiles.sql
-3. database/add-study-time-to-profiles.sql
-4. database/add-media-support-to-chat-messages.sql
-5. database/unified-init-v2.sql  # 推荐使用
-# 注意: pairing-requests 相关文件已废弃（TRIX Native 使用本地存储）
-6. database/add-points-system.sql ⭐
-7. database/add-user-settings.sql ⭐
-```
-
-### 已部署的项目
-
-如果数据库已经是最新状态（2026-02-17），无需执行任何脚本。
-
----
-
-## ✅ 验证检查
-
-执行任何脚本后，运行以下验证：
+在 Supabase SQL Editor 中执行 `schema-complete.sql`：
 
 ```sql
--- 1. 检查所有表
-SELECT COUNT(*) as table_count
-FROM information_schema.tables
-WHERE table_schema = 'public';
-
--- 预期结果: 13个表（不含views）
-
--- 2. 检查核心表
-SELECT table_name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-AND table_name IN ('profiles', 'user_settings', 'user_points', 'point_transactions')
-ORDER BY table_name;
-
--- 预期结果: 4个表都存在
-
--- 3. 检查外键关系
-SELECT COUNT(*) as foreign_key_count
-FROM information_schema.table_constraints
-WHERE table_schema = 'public'
-AND constraint_type = 'FOREIGN KEY';
-
--- 预期结果: 大于等于5个
+-- 打开 Supabase Dashboard → SQL Editor
+-- 复制粘贴 schema-complete.sql 内容
+-- 点击 Run
 ```
 
----
+### 现有项目升级
 
-## 🔧 故障排除
+如果已有数据库结构，运行 `migrations/add-missing-tables.sql` 添加缺失的表：
 
-### 错误: relation "profiles" does not exist
-
-**原因**: 未执行初始化脚本
-
-**解决**: 先执行 `src/database/complete-init.sql`
-
-### 错误: column "xxx" does not exist
-
-**原因**: 未执行对应的增量迁移脚本
-
-**解决**: 按顺序执行所有增量脚本
-
-### 错误: duplicate key value violates unique constraint
-
-**原因**: 重复执行了同一个脚本
-
-**解决**:
 ```sql
--- 检查是否已存在
-SELECT table_name FROM information_schema.tables
-WHERE table_name = 'user_settings';
-
--- 如果存在，跳过CREATE TABLE部分
+-- 打开 Supabase Dashboard → SQL Editor
+-- 复制粘贴 migrations/add-missing-tables.sql 内容
+-- 点击 Run
 ```
 
 ---
 
-## 📝 开发者注意事项
+## 数据库表 (25个)
 
-### 不要修改的文件
-- ❌ `src/database/init.sql` (已弃用)
-- ❌ `database/migration-2026-02-17-user-settings.sql` (已删除，重复)
+### 核心用户
 
-### 推荐使用的文件
-- ✅ `src/database/complete-init.sql` (新项目初始化)
-- ✅ `database/*.sql` (增量迁移，按需执行)
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| profiles | 用户资料 | ✅ 存在 |
+| friends | 好友关系 | ⚠️ 需迁移 |
+| friend_requests | 好友请求 | ⚠️ 需迁移 |
 
-### 添加新表
+### 消息通信
 
-1. 创建新的SQL文件：`database/add-your-feature.sql`
-2. 遵循命名规范：`add-{feature-name}.sql`
-3. 包含完整的CREATE TABLE语句
-4. 添加必要的索引和外键
-5. 在本README中添加说明
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| chat_messages | 聊天消息 | ✅ 存在 |
+| unread_counts | 未读计数 | ✅ 存在 |
+| notifications | 通知 | ✅ 存在 |
+| mails | 邮件 | ✅ 存在 |
+
+### 学习功能
+
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| study_sessions | 学习记录 | ⚠️ 需迁移 |
+| study_rooms | 学习室 | ✅ 存在 |
+| study_room_members | 学习室成员 | ✅ 存在 |
+
+### 积分商城
+
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| user_points | 用户积分 | ✅ 存在 |
+| point_transactions | 积分交易 | ⚠️ 需迁移 |
+| achievements | 成就 | ✅ 存在 |
+| user_achievements | 用户成就 | ⚠️ 需迁移 |
+| mall_items | 商城商品 | ✅ 存在 |
+| user_purchased_items | 已购商品 | ⚠️ 需迁移 |
+| outfits | 装扮 | ✅ 存在 |
+| user_outfits | 用户装扮 | ⚠️ 需迁移 |
+
+### 位置服务
+
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| places | 地点 | ⚠️ 需迁移 |
+| user_favorite_places | 收藏地点 | ⚠️ 需迁移 |
+| user_locations | 用户位置 | ⚠️ 需迁移 |
+| user_location_settings | 位置设置 | ⚠️ 需迁移 |
+
+### 日程待办
+
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| todos | 待办事项 | ⚠️ 需迁移 |
+| schedules | 日程 | ⚠️ 需迁移 |
+
+### 设置
+
+| 表名 | 说明 | 状态 |
+|------|------|------|
+| user_settings | 用户隐私设置 | ⚠️ 需迁移 |
 
 ---
 
-## 📞 帮助
+## 当前状态
 
-**问题**: 联系后端团队
-**文档更新**: 更新日期和版本号
+- **总表数**: 25
+- **已存在**: 12
+- **需迁移**: 13 (包含 1 个废弃的 pairing_requests)
 
 ---
 
-**文档版本**: v1.0
-**最后更新**: 2026-02-17
+**文档版本**: v3.0
+**最后更新**: 2026-03-17
