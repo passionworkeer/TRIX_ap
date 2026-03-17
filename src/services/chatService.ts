@@ -56,8 +56,18 @@ async function updateUnreadCount(
 // 聊天记录管理
 // ============================================
 
-/** 获取与某个好友的聊天记录 */
-export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
+/** 获取与某个好友的聊天记录（支持分页） */
+export async function getChatHistory(
+  friendId: string,
+  options?: {
+    /** 页码（从 0 开始） */
+    page?: number;
+    /** 每页数量，默认 50 */
+    limit?: number;
+    /** 最早消息的时间戳，用于加载更早的消息 */
+    beforeTimestamp?: string;
+  }
+): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
   try {
     const userId = await getCurrentUserId();
 
@@ -66,19 +76,41 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
       ? `${userId}_${friendId}`
       : `${friendId}_${userId}`;
 
-    const { data, error } = await supabase
+    const limit = options?.limit ?? 50;
+    const beforeTimestamp = options?.beforeTimestamp;
+
+    let query = supabase
       .from('chat_messages')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
-    if (error) {
-      handleGlobalError(error, '获取聊天记录失败');
-      return [];
+    // 如果有 beforeTimestamp，加载该时间之前的消息
+    if (beforeTimestamp) {
+      query = query.lt('created_at', beforeTimestamp);
     }
 
+    // 获取总数以判断是否还有更多
+    const { count } = await query;
+
+    // 再应用 limit 限制
+    const { data, error } = await query
+      .limit(limit);
+
+    if (error) {
+      handleGlobalError(error, '获取聊天记录失败');
+      return { messages: [], hasMore: false };
+    }
+
+    const dbMessages = data || [];
+    // 判断是否还有更多消息
+    const totalCount = count ?? dbMessages.length;
+    const hasMore = beforeTimestamp
+      ? dbMessages.length === limit
+      : (totalCount ?? 0) > limit;
+
     // 转换为旧数据格式以兼容现有代码
-    return (data || []).map(msg => {
+    const messages: ChatMessage[] = dbMessages.map((msg) => {
       const uiMessage: ChatMessage = {
         id: msg.id,
         friend_id: friendId,
@@ -110,9 +142,11 @@ export async function getChatHistory(friendId: string): Promise<ChatMessage[]> {
 
       return uiMessage;
     });
+
+    return { messages, hasMore };
   } catch (error) {
     handleGlobalError(error, '获取聊天记录失败');
-    return [];
+    return { messages: [], hasMore: false };
   }
 }
 

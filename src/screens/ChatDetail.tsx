@@ -271,9 +271,12 @@ const ChatDetail: React.FC = () => {
   const [selectedAIAction, setSelectedAIAction] = useState<AIActionId>('chat');
   const [loading, setLoading] = useState(true);
   const [uploadingFile, setUploadingFile] = useState(false);
+  // 分页加载状态
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // 文件输入引用
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const autoPromptPrefilledRef = useRef(false);
   const autoSendTriggeredRef = useRef(false);
 
@@ -367,9 +370,10 @@ const ChatDetail: React.FC = () => {
           setConversationId(convId);
         }
 
-        const history = await getChatHistory(friendId);
-        const uiMessages = history.map(convertDbMessageToUI);
+        const result = await getChatHistory(friendId);
+        const uiMessages = result.messages.map(convertDbMessageToUI);
         setMessages(uiMessages);
+        setHasMoreMessages(result.hasMore);
 
         // 标记消息为已读。
         await markMessagesAsRead(friendId);
@@ -383,6 +387,40 @@ const ChatDetail: React.FC = () => {
 
     loadChatHistory();
   }, [friendId, isBotConversation]);
+
+  // 加载更多历史消息
+  const loadMoreMessages = async () => {
+    if (isLoadingMore || !hasMoreMessages || messages.length === 0) {
+      return;
+    }
+
+    // 获取最早消息的时间戳
+    const earliestMessage = messages[0];
+    if (!earliestMessage?.timestamp) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    try {
+      const result = await getChatHistory(friendId, {
+        beforeTimestamp: earliestMessage.timestamp,
+        limit: 50,
+      });
+
+      if (result.messages.length > 0) {
+        const uiMessages = result.messages.map(convertDbMessageToUI);
+        // 将新消息添加到列表开头
+        setMessages((prev) => [...uiMessages, ...prev]);
+        setHasMoreMessages(result.hasMore);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      handleError(error, '加载更多消息失败');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // 监听 Clawbot Channel 消息。
   useEffect(() => {
@@ -1074,6 +1112,26 @@ const ChatDetail: React.FC = () => {
           </div>
         ) : (
           <>
+            {/* 加载更多按钮 */}
+            {hasMoreMessages && (
+              <div className="py-3 text-center">
+                <button
+                  onClick={loadMoreMessages}
+                  disabled={isLoadingMore}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-1.5 text-xs text-slate-500 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <div className="h-3 w-3 animate-spin rounded-full border border-slate-400 border-t-transparent" />
+                      加载中...
+                    </>
+                  ) : (
+                    '加载更多消息'
+                  )}
+                </button>
+              </div>
+            )}
+
             <div className="my-4 text-center text-xs text-slate-400 dark:text-slate-500">Today</div>
 
             {messages.map((msg) => {

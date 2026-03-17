@@ -1,11 +1,11 @@
 /**
  * useChatMessages - 聊天消息管理 Hook
  *
- * 功能�?
+ * 功能�?
  * - 加载聊天历史
- * - 发送消�?
- * - 实时订阅新消�?
- * - 消息状态管�?
+ * - 发送消�?
+ * - 实时订阅新消�?
+ * - 消息状态管�?
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -85,15 +85,15 @@ export const useChatMessages = ({
   useEffect(() => {
     const loadHistory = async () => {
       if (!friendId || friendId.startsWith('clawbot')) {
-        // Bot 聊天不从数据库加�?
+        // Bot 聊天不从数据库加�?
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        const history = await getChatHistory(friendId);
-        const uiMessages = history.map(convertDbMessageToUI);
+        const result = await getChatHistory(friendId);
+        const uiMessages = result.messages.map(convertDbMessageToUI);
         setMessages(uiMessages);
 
         // 标记已读
@@ -108,9 +108,9 @@ export const useChatMessages = ({
     loadHistory();
   }, [friendId, currentUserId]);
 
-  // 实时订阅新消�?
+  // 实时订阅新消�?
   useEffect(() => {
-    if (isBot) return; // Bot 聊天不使�?Supabase Realtime
+    if (isBot) return; // Bot 聊天不使�?Supabase Realtime
 
     // 防止重复订阅
     if (channelRef.current) {
@@ -152,7 +152,7 @@ export const useChatMessages = ({
     };
   }, [conversationId, isBot, friendId]);
 
-  // 发送消�?
+  // 发送消�?
   const sendMessage = async (text: string, mediaData?: { uri: string; type: string }) => {
     if (!text.trim() && !mediaData) return;
 
@@ -170,7 +170,7 @@ export const useChatMessages = ({
     try {
       setMessages((prev) => [...prev, tempMessage]);
 
-      // 发送到数据�?
+      // 发送到数据�?
       if (mediaData) {
         // 上传媒体文件
         const category = mediaData.type.startsWith('image/') ? 'image' : 'video';
@@ -193,11 +193,11 @@ export const useChatMessages = ({
         await dbSendMessage(friendId, 'user', text);
       }
 
-      // 移除临时消息，等待实时订阅更�?
+      // 移除临时消息，等待实时订阅更�?
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
     } catch (error) {
-      logger.chat.error('[useChatMessages] 发送消息失�?', error);
-      // 保留临时消息，但标记为发送失�?
+      logger.chat.error('[useChatMessages] 发送消息失�?', error);
+      // 保留临时消息，但标记为发送失�?
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempMessage.id
