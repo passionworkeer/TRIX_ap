@@ -133,6 +133,28 @@ function toWebSocketUrl(serverUrl: string): string {
   return `${normalized.replace(/^http/i, 'ws')}/ws`;
 }
 
+/**
+ * 检测 WebSocket URL 是否为内网 IP
+ * 内网 IP 范围: 10.x.x.x, 172.16.x.x - 172.31.x.x, 192.168.x.x
+ */
+function isPrivateWebSocketUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return /^ws:\/\/10\./.test(url) ||
+    /^ws:\/\/172\.(1[6-9]|2\d|3[1-9])\./.test(url) ||
+    /^ws:\/\/192\.168\./.test(url);
+}
+
+/**
+ * 解析 WebSocket URL，优先使用服务器返回的公网地址
+ * 如果服务器返回内网 IP，则使用 serverUrl 推导的公网地址
+ */
+function resolveWebSocketUrl(claimWsUrl: string | undefined, serverUrl: string): string {
+  if (claimWsUrl && !isPrivateWebSocketUrl(claimWsUrl)) {
+    return claimWsUrl;
+  }
+  return toWebSocketUrl(serverUrl);
+}
+
 function defaultDeviceName(): string {
   const platform = typeof navigator !== 'undefined' ? navigator.platform || 'Browser' : 'Browser';
   return `TRIX-${platform}`;
@@ -204,8 +226,6 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
   const timestamp = typeof rawMessage.createdAt === 'number'
     ? rawMessage.createdAt
     : new Date(rawMessage.createdAt).getTime();
-  // 处理 direction 字段，可能来自不同的服务器实现
-  const direction = rawMessage.direction || ((rawMessage as any).from === 'agent' ? 'outbound' : 'inbound');
   return {
     id: rawMessage.id,
     content: rawMessage.text,
@@ -216,7 +236,7 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     attachments,
     metadata: rawMessage.metadata,
     timestamp,
-    sender: direction === 'inbound' ? 'user' : 'bot',
+    sender: rawMessage.senderId?.startsWith('openclaw:') ? 'bot' : 'user',
   };
 }
 
@@ -459,7 +479,7 @@ class TrixNativeChannelClient {
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
       serverUrl: finalServerUrl,
-      websocketUrl: claim.websocketUrl || finalServerUrl.replace(/^http/, 'ws') + '/ws',
+      websocketUrl: resolveWebSocketUrl(claim.websocketUrl, finalServerUrl),
       conversationId: claim.conversationId,
       clientToken: claim.clientToken,
       clientId,
@@ -501,7 +521,7 @@ class TrixNativeChannelClient {
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
       serverUrl: finalServerUrl,
-      websocketUrl: claim.websocketUrl || finalServerUrl.replace(/^http/, 'ws') + '/ws',
+      websocketUrl: resolveWebSocketUrl(claim.websocketUrl, finalServerUrl),
       conversationId: claim.conversationId,
       clientToken: claim.clientToken,
       clientId,

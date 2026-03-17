@@ -41,17 +41,18 @@ final class MallService: ObservableObject, MallServiceProtocol {
 
     @Published private(set) var items: [MallItem] = []
     @Published private(set) var purchaseHistory: [PurchaseHistoryItem] = []
+    @Published private(set) var userPoints: Int = 0
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastError: MallServiceError?
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
+    private let supabaseService: SupabaseService
 
     // MARK: - Initialization
 
-    init(apiClient: APIClient = .shared) {
-        self.apiClient = apiClient
+    init(supabaseService: SupabaseService = .shared) {
+        self.supabaseService = supabaseService
     }
 
     // MARK: - Public Methods
@@ -62,13 +63,13 @@ final class MallService: ObservableObject, MallServiceProtocol {
         lastError = nil
 
         do {
-            var params: [String: Any]? = nil
-            if let category = category {
-                params = ["category": category.rawValue]
-            }
-
-            let response: [MallItem] = try await apiClient.get(.mallItems, parameters: params)
+            let response = try await supabaseService.fetchMallItems(category: category?.rawValue)
             self.items = response
+
+            // Also fetch user points balance
+            let balance = try await supabaseService.fetchUserPointsBalance()
+            self.userPoints = balance.balance
+
             isLoading = false
             return response
         } catch {
@@ -85,24 +86,24 @@ final class MallService: ObservableObject, MallServiceProtocol {
         lastError = nil
 
         do {
-            let request = PurchaseRequest(itemId: itemId, quantity: quantity)
-            let response: PurchaseResponse = try await apiClient.post(.mallPurchase, body: request)
+            let response = try await supabaseService.purchaseMallItem(itemId: itemId, quantity: quantity ?? 1)
 
             // Update local items list if purchase was successful
             if response.success {
                 if let index = self.items.firstIndex(where: { $0.id == itemId }) {
-                    var updatedItem = self.items[index]
-                    updatedItem = MallItem(
-                        id: updatedItem.id,
-                        name: updatedItem.name,
-                        description: updatedItem.description,
-                        image: updatedItem.image,
-                        price: updatedItem.price,
-                        category: updatedItem.category,
+                    let updatedItem = MallItem(
+                        id: self.items[index].id,
+                        name: self.items[index].name,
+                        description: self.items[index].description,
+                        image: self.items[index].image,
+                        price: self.items[index].price,
+                        category: self.items[index].category,
                         isOwned: true
                     )
                     self.items[index] = updatedItem
                 }
+                // Update user points
+                self.userPoints = response.remainingPoints
             }
 
             isLoading = false
@@ -125,7 +126,7 @@ final class MallService: ObservableObject, MallServiceProtocol {
         lastError = nil
 
         do {
-            let response: [PurchaseHistoryItem] = try await apiClient.get(.mallPurchaseHistory)
+            let response = try await supabaseService.fetchPurchaseHistory()
             self.purchaseHistory = response
             isLoading = false
             return response
@@ -133,6 +134,21 @@ final class MallService: ObservableObject, MallServiceProtocol {
             let serviceError = MallServiceError.fetchFailed(underlying: error)
             lastError = serviceError
             isLoading = false
+            throw serviceError
+        }
+    }
+
+    // MARK: - Points
+
+    /// Refresh user points balance
+    func refreshUserPoints() async throws -> Int {
+        do {
+            let balance = try await supabaseService.fetchUserPointsBalance()
+            self.userPoints = balance.balance
+            return balance.balance
+        } catch {
+            let serviceError = MallServiceError.fetchFailed(underlying: error)
+            lastError = serviceError
             throw serviceError
         }
     }

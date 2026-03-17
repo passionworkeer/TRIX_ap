@@ -13,6 +13,9 @@ protocol MallServiceProtocol {
     /// Current mall items
     var items: [MallItem] { get }
 
+    /// User's current points balance
+    var userPoints: Int { get }
+
     /// Whether an operation is in progress
     var isLoading: Bool { get }
 
@@ -24,4 +27,7 @@ protocol MallServiceProtocol {
 
     /// Fetch purchase history
     func fetchPurchaseHistory() async throws -> [PurchaseHistoryItem]
+
+    /// Refresh user points balance
+    func refreshUserPoints() async throws -> Int
 }

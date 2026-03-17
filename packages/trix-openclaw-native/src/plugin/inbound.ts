@@ -9,9 +9,6 @@ import type {
 } from '../types.js';
 import { resolveOpenClawCompat } from './sdk.js';
 
-// 防止重复启动的 Map
-const activeMonitors = new Map<string, boolean>();
-
 type LogSink = {
   info?: (message: string) => void;
   warn?: (message: string) => void;
@@ -142,151 +139,43 @@ async function dispatchInboundMessage(params: {
   });
 }
 
-export async function startInboundMonitor(
-  gatewayContext: Record<string, unknown>,
-  account: ResolvedPluginAccount
-): Promise<void> {
+export async function startInboundMonitor(gatewayContext: Record<string, unknown>, account: ResolvedPluginAccount): Promise<void> {
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
-
-  // 验证配置
-  if (!account.serverUrl) {
-    log.error?.(`[trix] account ${account.accountId} has NO serverUrl configured!`);
-    throw new Error(`TRIX Native account ${account.accountId}: serverUrl is required`);
-  }
-  if (!account.adminToken) {
-    log.error?.(`[trix] account ${account.accountId} has NO adminToken configured!`);
-    throw new Error(`TRIX Native account ${account.accountId}: adminToken is required`);
-  }
-  log.info?.(`[trix] Starting inbound monitor for ${account.accountId} -> ${account.serverUrl}`);
-
-  // 防止重复启动 - 但即使已在运行也清理后重新启动
-  const key = account.accountId;
-  if (activeMonitors.get(key)) {
-    log.warn?.(`[trix] stale monitor key found for ${key}, clearing and restarting`);
-    activeMonitors.delete(key);
-    // 继续往下走，重新建连
-  }
-  activeMonitors.set(key, true);
-
-  const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
   const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
-  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
-    account.adminToken ?? ''
-  )}&accountId=${encodeURIComponent(account.accountId)}`;
-  log.info?.(`[trix] Connecting to WebSocket: ${wsUrl.substring(0, 80)}...`);
-
-  // 清理函数
-  const cleanup = () => {
-    activeMonitors.delete(key);
-  };
+  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(account.adminToken ?? '')}&accountId=${encodeURIComponent(account.accountId)}`;
+  const socket = new WebSocket(wsUrl);
+  const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
 
   abortSignal?.addEventListener('abort', () => {
-    cleanup();
+    socket.close(1000, 'plugin stop');
   });
 
-  // stopped = true 时不再重连，也不处理任何消息
-  let stopped = false;
-  // 当前活跃的 socket，用于 abort 时主动关闭
-  let currentSocket: WebSocket | null = null;
-
-  // abort 信号：标记停止，关闭当前 socket
-  abortSignal?.addEventListener('abort', () => {
-    stopped = true;
-    currentSocket?.close(1000, 'plugin stop');
-    currentSocket = null;
-  });
-
-  async function connect(): Promise<void> {
-    if (stopped) return;
-
-    const socket = new WebSocket(wsUrl);
-    currentSocket = socket;
-
-    // 消息处理
-    socket.on('message', async (data) => {
-      if (stopped) return;
-      try {
-        const envelope = JSON.parse(data.toString()) as ClientEnvelope<{
-          message?: MessageRecord;
-        }>;
-        if (envelope.type !== 'message.created' || !envelope.payload.message) return;
-        if (envelope.payload.message.direction !== 'inbound') return;
-        await dispatchInboundMessage({
-          gatewayContext,
-          account,
-          message: envelope.payload.message,
-        });
-      } catch (error) {
-        log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
-      }
-    });
-
-    // 关闭处理：code 1000 是主动关闭，不重连
-    // 其他 code 是异常断开，5 秒后重连一次
-    socket.on('close', (code) => {
-      if (currentSocket === socket) currentSocket = null;
-      // 通知 Gateway 连接断开
-      (gatewayContext.setStatus as ((s: Record<string, unknown>) => void) | undefined)
-        ?.({ accountId: account.accountId, connected: false });
-      if (stopped || code === 1000) {
-        log.info?.(`TRIX Native websocket closed normally (${account.accountId})`);
+  socket.on('message', async (data) => {
+    try {
+      const envelope = JSON.parse(data.toString()) as ClientEnvelope<{ message?: MessageRecord }>;
+      if (envelope.type !== 'message.created' || !envelope.payload.message) {
         return;
       }
-      log.warn?.(
-        `TRIX Native websocket closed unexpectedly (code=${code}), ` +
-        `reconnecting in 5s... (${account.accountId})`
-      );
-      setTimeout(() => {
-        connect().catch((err) => {
-          log.error?.(`TRIX Native reconnect failed: ${String(err)}`);
-        });
-      }, 5000);
-    });
-
-    // 运行时错误只记录，不抛出（避免崩溃 gateway）
-    socket.on('error', (err) => {
-      log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(err)}`);
-    });
-
-    // 等待初始连接建立
-    // 用互相清理的方式避免 open/error 竞争条件
-    await new Promise<void>((resolve, reject) => {
-      function onOpen() {
-        socket.removeListener('error', onError);
-        log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
-        resolve();
+      if (envelope.payload.message.direction !== 'inbound') {
+        return;
       }
-      function onError(err: Error) {
-        socket.removeListener('open', onOpen);
-        currentSocket = null;
-        reject(err);
-      }
-      socket.once('open', () => {
-        onOpen();
-        // 通知 Gateway 连接成功
-        const setStatus = (gatewayContext.setStatus as ((s: Record<string, unknown>) => void) | undefined);
-        setStatus?.({ accountId: account.accountId, port: 8788, connected: true });
-        // 每 30 秒发一次心跳，防止服务器超时断开
-        const heartbeat = setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.ping();
-          } else {
-            clearInterval(heartbeat);
-          }
-        }, 30000);
-        socket.once('close', () => clearInterval(heartbeat));
+      await dispatchInboundMessage({
+        gatewayContext,
+        account,
+        message: envelope.payload.message,
       });
-      socket.once('error', onError);
-    });
-  }
+    } catch (error) {
+      log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
+    }
+  });
 
-  // 首次连接失败直接抛出，让 gateway 知道启动失败
-  try {
-    await connect();
-    log.info?.(`[trix] Inbound monitor started successfully for ${account.accountId}`);
-  } catch (err) {
-    log.error?.(`[trix] Inbound monitor failed to start for ${account.accountId}: ${String(err)}`);
-    activeMonitors.delete(key);
-    throw err;
-  }
+  await new Promise<void>((resolve, reject) => {
+    socket.once('open', () => {
+      log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
+      resolve();
+    });
+    socket.once('error', (error) => {
+      reject(error);
+    });
+  });
 }

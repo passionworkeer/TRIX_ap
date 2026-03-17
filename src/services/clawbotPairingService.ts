@@ -11,6 +11,11 @@ import {
 } from '../types/clawbot';
 
 /**
+ * 模块级变量：存储设备 Token（内存存储，不写入 localStorage）
+ */
+let deviceToken: string | null = null;
+
+/**
  * Generate cryptographically secure random string
  */
 function generateSecureRandomString(length: number): string {
@@ -127,9 +132,8 @@ class ClawbotPairingService {
       logger.pairing.debug('[Debug] Gateway URL:', gatewayUrl);
       logger.pairing.debug('[Debug] Auth Token:', authToken ? `${authToken.substring(0, 10)}...` : 'undefined');
 
-      // 保存到 localStorage
-      localStorage.setItem('clawbot_gateway_url', gatewayUrl);
-      localStorage.setItem('clawbot_device_token', authToken); // 使用 token 作为 device_token
+      // 保存到内存变量
+      deviceToken = authToken;
 
       logger.pairing.debug('[ClawbotPairingService] ✅ 直接连接配置已保存');
       return true;
@@ -277,11 +281,8 @@ class ClawbotPairingService {
                 deviceToken: data.deviceToken || data.device_token,
                 message: data.message || '配对成功',
               });
-              // 保存 token 和 gateway_url 到 localStorage
-              if (data.deviceToken || data.device_token) {
-                localStorage.setItem('clawbot_device_token', data.deviceToken || data.device_token);
-                localStorage.setItem('clawbot_gateway_url', this.gatewayUrl);
-              }
+              // 保存 token 到内存变量
+              deviceToken = data.deviceToken || data.device_token;
               resolve();
               break;
 
@@ -571,9 +572,9 @@ class ClawbotPairingService {
               this.stopPolling();
               logger.pairing.debug('[ClawbotPairingService] ✅ 配对成功！');
 
-              // 保存设备 token 和 gateway_url
+              // 保存设备 token 到内存变量
               if (data.device_token) {
-                localStorage.setItem('clawbot_device_token', data.device_token);
+                deviceToken = data.device_token;
                 localStorage.setItem('clawbot_node_id', data.node_id || '');
                 localStorage.setItem('clawbot_gateway_url', this.gatewayUrl);
               }
@@ -719,9 +720,9 @@ class ClawbotPairingService {
    */
   async checkPairingStatus(_nodeId?: string): Promise<PairingStatusResponse> {
     try {
-      const deviceToken = localStorage.getItem('clawbot_device_token');
+      const storedToken = deviceToken;
 
-      if (!deviceToken) {
+      if (!storedToken) {
         return { paired: false, connected: false };
       }
 
@@ -784,7 +785,7 @@ class ClawbotPairingService {
    * 获取存储的设备 Token
    */
   getStoredDeviceToken(): string | null {
-    return localStorage.getItem('clawbot_device_token');
+    return deviceToken;
   }
 
   /**
@@ -798,7 +799,7 @@ class ClawbotPairingService {
    * 清除存储的配对信息
    */
   clearStoredCredentials(): void {
-    localStorage.removeItem('clawbot_device_token');
+    deviceToken = null;
     localStorage.removeItem('clawbot_node_id');
     localStorage.removeItem('clawbot_gateway_url');
     localStorage.removeItem('clawbot_pairing_token');

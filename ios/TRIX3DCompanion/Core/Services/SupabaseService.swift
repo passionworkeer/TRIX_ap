@@ -332,6 +332,288 @@ actor SupabaseService {
         )
     }
 
+    // MARK: - Mall Types
+
+    /// Database row for mall_items table
+    private struct SupabaseMallItemRow: Decodable {
+        let id: String
+        let name: String
+        let description: String?
+        let imageUrl: String?
+        let price: Int
+        let category: String
+        let isActive: Bool
+        let createdAt: Date?
+
+        enum CodingKeys: String, CodingKey {
+            case id, name, description
+            case imageUrl = "image_url"
+            case price, category
+            case isActive = "is_active"
+            case createdAt = "created_at"
+        }
+    }
+
+    /// Database row for user_purchased_items table
+    private struct SupabasePurchasedItemRow: Decodable {
+        let id: String
+        let userId: String
+        let itemId: String
+        let quantity: Int
+        let pointsSpent: Int
+        let purchasedAt: Date
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case userId = "user_id"
+            case itemId = "item_id"
+            case quantity
+            case pointsSpent = "points_spent"
+            case purchasedAt = "purchased_at"
+        }
+    }
+
+    /// Insert type for purchasing items
+    private struct SupabasePurchaseInsert: Encodable {
+        let userId: String
+        let itemId: String
+        let quantity: Int
+        let pointsSpent: Int
+
+        enum CodingKeys: String, CodingKey {
+            case userId = "user_id"
+            case itemId = "item_id"
+            case quantity
+            case pointsSpent = "points_spent"
+        }
+    }
+
+    // MARK: - Mall
+
+    /// Fetch mall items with optional category filter
+    /// - Parameter category: Optional category filter
+    /// - Returns: Array of MallItem
+    func fetchMallItems(category: String? = nil) async throws -> [MallItem] {
+        let context = try await sessionContext()
+
+        var query = client.database
+            .from("mall_items")
+            .select("*")
+            .eq("is_active", value: true)
+            .order("created_at", ascending: false)
+
+        if let category = category {
+            query = query.eq("category", value: category)
+        }
+
+        let rows: [SupabaseMallItemRow] = try await query.execute().value
+
+        // Get user's owned items
+        let ownedRows: [SupabasePurchasedItemRow] = try await client.database
+            .from("user_purchased_items")
+            .select("item_id")
+            .eq("user_id", value: context.userId)
+            .execute()
+            .value
+
+        let ownedItemIds = Set(ownedRows.map { $0.itemId })
+
+        return rows.map { row in
+            MallItem(
+                id: row.id,
+                name: row.name,
+                description: row.description ?? "",
+                image: row.imageUrl ?? "",
+                price: row.price,
+                category: MallCategory(rawValue: row.category) ?? .clothing,
+                isOwned: ownedItemIds.contains(row.id)
+            )
+        }
+    }
+
+    /// Purchase a mall item
+    /// - Parameters:
+    ///   - itemId: Item ID to purchase
+    ///   - quantity: Quantity to purchase (default: 1)
+    /// - Returns: PurchaseResponse with success status
+    func purchaseMallItem(itemId: String, quantity: Int = 1) async throws -> PurchaseResponse {
+        let context = try await sessionContext()
+
+        // Get item info
+        let itemRows: [SupabaseMallItemRow] = try await client.database
+            .from("mall_items")
+            .select("*")
+            .eq("id", value: itemId)
+            .eq("is_active", value: true)
+            .limit(1)
+            .execute()
+            .value
+
+        guard let item = itemRows.first else {
+            throw MallServiceError.fetchFailed(underlying: NSError(domain: "Mall", code: 404, userInfo: [NSLocalizedDescriptionKey: "Item not found"]))
+        }
+
+        // Get user points
+        let profile = try await fetchProfileRow(userId: context.userId)
+        let pointsRow = try await fetchOrCreatePointsRow(userId: context.userId, fallbackPoints: profile.points ?? 0)
+        let currentBalance = pointsRow.totalPoints
+
+        let totalCost = item.price * quantity
+
+        // Check if user has enough points
+        guard currentBalance >= totalCost else {
+            return PurchaseResponse(
+                success: false,
+                message: "积分不足，需要 \(totalCost) 积分，当前 \(currentBalance) 积分",
+                remainingPoints: currentBalance,
+                item: nil
+            )
+        }
+
+        // Check if already owned (for non-stackable items)
+        let existingPurchases: [SupabasePurchasedItemRow] = try await client.database
+            .from("user_purchased_items")
+            .select("*")
+            .eq("user_id", value: context.userId)
+            .eq("item_id", value: itemId)
+            .execute()
+            .value
+
+        guard existingPurchases.isEmpty else {
+            return PurchaseResponse(
+                success: false,
+                message: "您已拥有此商品",
+                remainingPoints: currentBalance,
+                item: nil
+            )
+        }
+
+        // Deduct points
+        let newBalance = currentBalance - totalCost
+        let newSpent = pointsRow.totalSpent + totalCost
+
+        let pointsUpdate = SupabaseUserPointsMutation(
+            totalPoints: newBalance,
+            level: pointsRow.level,
+            totalEarned: pointsRow.totalEarned,
+            totalSpent: newSpent,
+            updatedAt: Self.iso8601String(from: Date())
+        )
+
+        _ = try await client.database
+            .from("user_points")
+            .update(pointsUpdate, returning: .representation)
+            .eq("user_id", value: context.userId)
+            .single()
+            .execute()
+            .value
+
+        // Record purchase
+        let purchaseInsert = SupabasePurchaseInsert(
+            userId: context.userId,
+            itemId: itemId,
+            quantity: quantity,
+            pointsSpent: totalCost
+        )
+
+        try await client.database
+            .from("user_purchased_items")
+            .insert(purchaseInsert, returning: .minimal)
+            .execute()
+
+        // Record points transaction
+        let transactionInsert = SupabasePointTransactionInsert(
+            userId: context.userId,
+            pointsChange: -totalCost,
+            transactionType: "spend",
+            description: "购买商品: \(item.name)",
+            metadata: ["item_id": itemId],
+            balanceAfter: newBalance
+        )
+
+        try await client.database
+            .from("point_transactions")
+            .insert(transactionInsert, returning: .minimal)
+            .execute()
+
+        return PurchaseResponse(
+            success: true,
+            message: "成功购买 \(item.name)！",
+            remainingPoints: newBalance,
+            item: MallItem(
+                id: item.id,
+                name: item.name,
+                description: item.description ?? "",
+                image: item.imageUrl ?? "",
+                price: item.price,
+                category: MallCategory(rawValue: item.category) ?? .clothing,
+                isOwned: true
+            )
+        )
+    }
+
+    /// Fetch user's purchase history
+    /// - Returns: Array of PurchaseHistoryItem
+    func fetchPurchaseHistory() async throws -> [PurchaseHistoryItem] {
+        let context = try await sessionContext()
+
+        let rows: [SupabasePurchasedItemRow] = try await client.database
+            .from("user_purchased_items")
+            .select("*")
+            .eq("user_id", value: context.userId)
+            .order("purchased_at", ascending: false)
+            .execute()
+            .value
+
+        var result: [PurchaseHistoryItem] = []
+
+        for row in rows {
+            // Get item details
+            let itemRows: [SupabaseMallItemRow] = try await client.database
+                .from("mall_items")
+                .select("*")
+                .eq("id", value: row.itemId)
+                .limit(1)
+                .execute()
+                .value
+
+            if let item = itemRows.first {
+                result.append(PurchaseHistoryItem(
+                    id: row.id,
+                    item: MallItem(
+                        id: item.id,
+                        name: item.name,
+                        description: item.description ?? "",
+                        image: item.imageUrl ?? "",
+                        price: item.price,
+                        category: MallCategory(rawValue: item.category) ?? .clothing,
+                        isOwned: true
+                    ),
+                    purchasedAt: row.purchasedAt,
+                    pointsSpent: row.pointsSpent
+                ))
+            }
+        }
+
+        return result
+    }
+
+    /// Get user's points balance for mall
+    /// - Returns: PointsBalance
+    func fetchUserPointsBalance() async throws -> PointsBalance {
+        let context = try await sessionContext()
+        let profile = try await fetchProfileRow(userId: context.userId)
+        let pointsRow = try await fetchOrCreatePointsRow(userId: context.userId, fallbackPoints: profile.points ?? 0)
+
+        return PointsBalance(
+            userId: context.userId,
+            balance: pointsRow.totalPoints,
+            totalEarned: pointsRow.totalEarned,
+            totalSpent: pointsRow.totalSpent,
+            updatedAt: pointsRow.updatedAt
+        )
+    }
+
     func fetchAchievements() async throws -> [Achievement] {
         let context = try await sessionContext()
         let unlockedRows: [SupabaseUnlockedAchievementRow] = try await client.database

@@ -64,7 +64,6 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
         setPairingStatus('approved');
         setDeviceToken(request.device_token);
         setIsPairing(false);
-        localStorage.setItem('clawbot_device_token', request.device_token);
         // 保存 gateway_url 以便自动重连
         if (savedGatewayUrl) {
           localStorage.setItem('clawbot_gateway_url', savedGatewayUrl);
@@ -90,9 +89,8 @@ export const QRCodePairingProvider: React.FC<{ children: React.ReactNode }> = ({
             setDeviceToken(response.deviceToken || null);
             setIsPairing(false);
 
-            // 保存 token 和 gateway_url 到 localStorage
+            // 保存 token 到内存（通过 setDeviceToken），保存 gateway_url 到 localStorage
             if (response.deviceToken) {
-              localStorage.setItem('clawbot_device_token', response.deviceToken);
               if (savedGatewayUrl) {
                 localStorage.setItem('clawbot_gateway_url', savedGatewayUrl);
               }
