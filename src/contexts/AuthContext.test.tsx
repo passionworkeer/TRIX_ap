@@ -31,13 +31,14 @@ const mockProfile = {
 };
 
 // Use vi.hoisted to create mocks before vi.mock is called
-const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom } = vi.hoisted(() => ({
+const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom, mockUpdateLastActive } = vi.hoisted(() => ({
   mockSignInWithPassword: vi.fn(),
   mockSignUp: vi.fn(),
   mockSignOut: vi.fn(),
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
+  mockUpdateLastActive: vi.fn().mockResolvedValue(true),
   mockFrom: vi.fn(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -73,7 +74,8 @@ vi.mock('../config/supabase', () => ({
     username: '',
     avatar_url: null,
     bio: null
-  }
+  },
+  updateLastActive: mockUpdateLastActive
 }));
 
 // Mock error handler to avoid toast errors in tests

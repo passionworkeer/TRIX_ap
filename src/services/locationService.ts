@@ -7,6 +7,7 @@ import type {
   LocationShareSettings,
   FriendLocation,
   LocationUpdateRequest,
+  FriendshipWithUser,
 } from '../types/location';
 
 /**
@@ -36,7 +37,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
   }
 
   // Get friends who are sharing their location
-  const friendIds = friendships.map((f: any) => f.friend_id);
+  const friendIds = friendships.map((f: FriendshipWithUser) => f.friend_id);
 
   const { data: locations, error: locationError } = await supabase
     .from('user_locations')
@@ -53,10 +54,13 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
   const friendLocations: FriendLocation[] = [];
 
   for (const loc of locations) {
-    const friendship = friendships.find((f: any) => f.friend_id === loc.user_id);
+    const friendship = friendships.find((f: FriendshipWithUser) => f.friend_id === loc.user_id);
     if (!friendship) continue;
 
-    const friendData = friendship.users as any;
+    const friendDataArray = friendship.users;
+    if (!friendDataArray || friendDataArray.length === 0) continue;
+
+    const friendData = friendDataArray[0];
     if (!friendData) continue;
 
     friendLocations.push({

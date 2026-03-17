@@ -5,6 +5,7 @@ import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
 import type {
   Outfit,
+  OutfitRow,
   OutfitCategory,
   UserOutfits,
   EquipResponse,
@@ -53,7 +54,7 @@ export async function getUserOutfits(): Promise<Outfit[]> {
   );
 
   // Map outfits with ownership status
-  const result: Outfit[] = (outfits ?? []).map((outfit: any) => ({
+  const result: Outfit[] = (outfits ?? []).map((outfit: OutfitRow) => ({
     id: outfit.id,
     name: outfit.name,
     category: outfit.category as OutfitCategory,
@@ -61,8 +62,8 @@ export async function getUserOutfits(): Promise<Outfit[]> {
     previewImage: outfit.preview_image_url || outfit.image_url,
     isOwned: ownedIds.has(outfit.id),
     isEquipped: equippedIds.has(outfit.id),
-    description: outfit.description,
-    price: outfit.price,
+    description: outfit.description || undefined,
+    price: outfit.price || undefined,
   }));
 
   return result;
@@ -140,7 +141,7 @@ export async function equipOutfit(outfitId: string): Promise<EquipResponse> {
     .eq('category', outfit.category);
 
   if (sameCategoryOutfits && sameCategoryOutfits.length > 0) {
-    const categoryOutfitIds = sameCategoryOutfits.map((o: any) => o.id);
+    const categoryOutfitIds = sameCategoryOutfits.map((o) => o.id);
 
     await supabase
       .from('user_outfits')

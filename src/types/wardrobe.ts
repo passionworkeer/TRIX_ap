@@ -5,7 +5,7 @@
 // Outfit categories
 export type OutfitCategory = 'hat' | 'cape' | 'wand' | 'background';
 
-// Single outfit item
+// Single outfit item (API response)
 export interface Outfit {
   id: string;
   name: string;
@@ -16,6 +16,19 @@ export interface Outfit {
   isEquipped: boolean;
   description?: string;
   price?: number; // If available for purchase
+}
+
+// Database row type for outfits table
+export interface OutfitRow {
+  id: string;
+  name: string;
+  category: OutfitCategory;
+  image_url: string;
+  preview_image_url: string | null;
+  description: string | null;
+  price: number | null;
+  is_active: boolean;
+  created_at: string;
 }
 
 // Request to equip an outfit

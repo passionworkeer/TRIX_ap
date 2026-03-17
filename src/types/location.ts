@@ -2,6 +2,18 @@
  * Location sharing types
  */
 
+// Friendship with friend data from join query
+// Note: Supabase returns users as an array when using join
+export interface FriendshipWithUser {
+  friend_id: string;
+  users: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    status: string;
+  }[] | null | undefined;
+}
+
 // User's geographic location
 export interface UserLocation {
   userId: string;

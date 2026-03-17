@@ -47,6 +47,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     },
     onError: (error) => {
       console.error('Speech error:', error);
+      showWarning('语音识别失败，请重试');
     },
   });
 

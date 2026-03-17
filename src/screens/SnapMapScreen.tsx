@@ -133,7 +133,24 @@ const LocationButton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   );
 };
 
-export type MapSelectedItem = (Place & { type: 'place' }) | (FriendLatestMessage & { type: 'friend'; lat?: number; lng?: number });
+export type MapSelectedItem = (Place & { type: 'place' }) | (FriendWithLocation & { type: 'friend' });
+
+// Friend with location data for map display - more flexible type
+type FriendWithLocation = {
+  friend_id: string;
+  name: string;
+  avatar_url: string | null;
+  status: 'online' | 'offline' | 'busy' | 'away';
+  lat: number;
+  lng: number;
+  user_id?: string;
+  bio?: string | null;
+  study_time?: number;
+  is_studying?: boolean;
+  unread_count?: number;
+  last_message?: string | null;
+  last_message_time?: string | null;
+};
 
 const SnapMapScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -181,7 +198,7 @@ const SnapMapScreen: React.FC = () => {
     });
   }, [normalizedQuery, places, selectedCategory]);
 
-  const visibleFriends = useMemo(() => {
+  const visibleFriends = useMemo((): FriendWithLocation[] => {
       // 获取基于 friends 的模拟位置列表
       const friendsWithMockLocs = friends.map((friend, index) => {
         const pos = getOffsetPosition(center[0], center[1], index);
@@ -217,7 +234,7 @@ const SnapMapScreen: React.FC = () => {
   }, [center, friendLocations, friends, normalizedQuery]);
 
   const friendMarkers = useMemo(() => {
-    return visibleFriends.map((friend: any) => (
+    return visibleFriends.map((friend) => (
       <Marker
         key={friend.friend_id}
         position={[friend.lat, friend.lng]}

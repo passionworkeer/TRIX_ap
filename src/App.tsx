@@ -108,7 +108,6 @@ function AppContent() {
   const isDev = import.meta.env.DEV;
   const location = useLocation();
   const { user } = useAuth();
-  const { showWarning } = useNotification();
   const {
     botState,
   } = useClawbotChannel();

@@ -103,6 +103,23 @@ export interface PurchaseHistoryItem {
   pointsSpent: number;
 }
 
+/** Database row type for purchase history with joined mall_items */
+export interface PurchaseHistoryRow {
+  id: string;
+  user_id?: string;
+  item_id: string;
+  points_spent: number;
+  purchased_at: string;
+  mall_items: {
+    id: string;
+    name: string;
+    description: string;
+    image_url: string;
+    price: number;
+    category: string;
+  }[] | null;
+}
+
 /**
  * 商城筛选选项
  */

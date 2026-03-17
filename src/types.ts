@@ -9,6 +9,7 @@ export enum AppRoutes {
   STUDY = '/study',
   STUDY_TIMER = '/study/timer',
   CHAT = '/chat',
+  CHAT_DETAIL = '/chat/:friendId',  // 动态路由：与特定好友聊天
   CHAT_WITH_FRIEND = '/chat/:friendId',  // 动态路由：与特定好友聊天
   PROFILE = '/profile',
   PROFILE_VIEW = '/profile/:userId',      // 动态路由：查看其他用户主页

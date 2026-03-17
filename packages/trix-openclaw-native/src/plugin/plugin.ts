@@ -3,6 +3,7 @@ import type { ResolvedPluginAccount } from '../types.js';
 import { applyAccountConfig, defaultAccountId, listAccountIds, resolveAccount } from './accounts.js';
 import { createOutboundAdapter } from './outbound.js';
 import { startInboundMonitor } from './inbound.js';
+import { buildRuntimeAccountStatusSnapshot, buildProbeChannelStatusSummary, createDefaultChannelRuntimeState } from 'openclaw/plugin-sdk';
 
 export function createTrixNativePlugin() {
   const pendingPairingCodeByAccount = new Map<string, string>();
@@ -147,43 +148,66 @@ export function createTrixNativePlugin() {
       },
       startAccount: async (ctx: Record<string, unknown>) => {
         const log = (ctx.log as { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void } | undefined) ?? {};
-        const setStatus = ctx.setStatus as ((status: { accountId: string; port?: number; running?: boolean }) => void) | undefined;
+        const setStatus = ctx.setStatus as ((status: { accountId: string; port?: number }) => void) | undefined;
         log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
+
+        // 只设置 port，不设置 running - Gateway 根据 port 是否为 null 来判断是否 running
+        setStatus?.({ accountId: ctx.accountId as string, port: 8788 });
+        log.info?.('[trix] setStatus called with port=8788');
 
         // 检查是否有预解析的 account 对象
         const preResolvedAccount = ctx.account as ResolvedPluginAccount | undefined;
+        const account = preResolvedAccount
+          ? preResolvedAccount
+          : (() => {
+              const resolved = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
+              return {
+                ...resolved,
+                storageDir: resolved.storageDir || path.resolve('.trix-native-channel/openclaw'),
+              };
+            })();
+
         if (preResolvedAccount) {
           log.info?.('[trix] using pre-resolved account from ctx: serverUrl=' + (preResolvedAccount.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (preResolvedAccount.adminToken ? '(set)' : '(EMPTY)'));
-          await startInboundMonitor(ctx, preResolvedAccount);
-          setStatus?.({ accountId: ctx.accountId as string, running: true });
-          return;
+        } else {
+          log.info?.('[trix] resolved from cfg: configured=' + account.configured + ', serverUrl=' + (account.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (account.adminToken ? '(set)' : '(EMPTY)'));
         }
 
-        // 否则从配置解析
-        const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
-        log.info?.('[trix] resolved from cfg: configured=' + account.configured + ', serverUrl=' + (account.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (account.adminToken ? '(set)' : '(EMPTY)'));
-        const effectiveAccount = {
-          ...account,
-          storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
+        log.info?.(`[trix] starting monitor for ${account.accountId}`);
+
+        // 启动 WebSocket 长连接
+        await startInboundMonitor(ctx, account);
+
+        // 返回 teardown 函数 —— 这是关键！
+        // abortSignal 已经在 startInboundMonitor 内部监听了，
+        // 此处返回一个函数让 Gateway 也能主动触发清理
+        return () => {
+          log.info?.(`[trix] teardown called for ${account.accountId}`);
+          // activeMonitors 的清理已在 abortSignal abort 事件里处理
         };
-        await startInboundMonitor(ctx, effectiveAccount);
-        setStatus?.({ accountId: ctx.accountId as string, running: true });
       },
     },
     outbound: createOutboundAdapter(),
     status: {
-      defaultRuntime: {
-        accountId: 'default',
-        configured: false,
-        running: false,
-        connected: false,
+      defaultRuntime: createDefaultChannelRuntimeState('default', { port: null }) as Record<string, unknown>,
+      buildChannelSummary: ({ snapshot }: { snapshot: Record<string, unknown> }) =>
+        buildProbeChannelStatusSummary(snapshot, {
+          port: snapshot.port ?? null,
+        }),
+      buildAccountSnapshot: ({ account, runtime, probe }: { account: Record<string, unknown>; runtime: Record<string, unknown> | undefined; probe: unknown }) => {
+        // 派生 running 状态：从 port 是否为 null 来判断
+        const port = runtime?.port ?? null;
+        return {
+          accountId: account.accountId,
+          enabled: account.enabled,
+          configured: account.configured,
+          name: account.name,
+          port,
+          ...buildRuntimeAccountStatusSnapshot({ runtime, probe }),
+          // running 必须在 spread 之后，以覆盖 buildRuntimeAccountStatusSnapshot 返回的 running
+          running: port !== null,
+        };
       },
-      buildChannelSummary: ({ snapshot }: { snapshot: Record<string, unknown> }) => ({
-        configured: snapshot.configured ?? false,
-        running: snapshot.running ?? false,
-        connected: snapshot.connected ?? false,
-        lastError: snapshot.lastError ?? null,
-      }),
     },
   };
 }

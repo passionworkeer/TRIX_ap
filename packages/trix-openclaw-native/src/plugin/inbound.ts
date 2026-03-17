@@ -159,11 +159,12 @@ export async function startInboundMonitor(
   }
   log.info?.(`[trix] Starting inbound monitor for ${account.accountId} -> ${account.serverUrl}`);
 
-  // 防止重复启动
+  // 防止重复启动 - 但即使已在运行也清理后重新启动
   const key = account.accountId;
   if (activeMonitors.get(key)) {
-    log.info?.(`Inbound monitor already running for ${key}, skipping`);
-    return;
+    log.warn?.(`[trix] stale monitor key found for ${key}, clearing and restarting`);
+    activeMonitors.delete(key);
+    // 继续往下走，重新建连
   }
   activeMonitors.set(key, true);
 

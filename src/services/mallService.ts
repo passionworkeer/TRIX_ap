@@ -14,6 +14,7 @@ import type {
   PointsBalance,
   PointsTransaction,
   PurchaseHistoryItem,
+  PurchaseHistoryRow,
   MallFilterOptions,
 } from '../types/mall';
 
@@ -338,7 +339,7 @@ export async function getPurchaseHistory(): Promise<PurchaseHistoryItem[]> {
       return [];
     }
 
-    return (data || []).map((record: any) => {
+    return (data || []).map((record: PurchaseHistoryRow) => {
       const mallItem = Array.isArray(record.mall_items) ? record.mall_items[0] : record.mall_items;
       return {
         id: record.id,
