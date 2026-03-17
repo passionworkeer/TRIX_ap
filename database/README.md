@@ -56,10 +56,8 @@
 
 **索引**: 多个复合索引
 
-#### 5. add-pairing-requests-table.sql (2026-02-13)
-**用途**: 创建Clawbot配对请求表
-**创建表**: `pairing_requests`
-**包含**: 触发器、函数（清理过期请求）
+#### 5. ~~add-pairing-requests-table.sql~~ (已删除)
+> ⚠️ 此文件已废弃。TRIX Native 使用本地 JSON 存储配对信息。
 
 #### 6. add-points-system.sql (2026-02-16) ⭐
 **用途**: 创建积分系统
@@ -116,7 +114,8 @@ ORDER BY table_name;
 2. database/add-companion-to-profiles.sql
 3. database/add-study-time-to-profiles.sql
 4. database/add-media-support-to-chat-messages.sql
-5. database/add-pairing-requests-table.sql
+5. database/unified-init-v2.sql  # 推荐使用
+# 注意: pairing-requests 相关文件已废弃（TRIX Native 使用本地存储）
 6. database/add-points-system.sql ⭐
 7. database/add-user-settings.sql ⭐
 ```

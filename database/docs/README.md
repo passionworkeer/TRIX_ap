@@ -90,7 +90,6 @@ SELECT * FROM friend_latest_messages;
 - **Carol** - 机器学习研究生（忙碌）
 - **David** - 健身达人（在线，学习中）
 - **Emma** - 文学爱好者（离线）
-- **Clawbot** - AI 智能助手（在线）
 
 ### 聊天记录
 - **Alice**: 11 条消息（关于设计、展览）
@@ -98,7 +97,6 @@ SELECT * FROM friend_latest_messages;
 - **Carol**: 8 条消息（关于项目协作）
 - **David**: 10 条消息（关于运动、自习）
 - **Emma**: 10 条消息（关于考试复习）
-- **Clawbot**: 1 条消息（欢迎消息）
 
 ### 未读消息
 - Alice: 2 条未读
@@ -106,7 +104,8 @@ SELECT * FROM friend_latest_messages;
 - Carol: 1 条未读
 - Emma: 1 条未读
 - David: 0 条未读
-- Clawbot: 0 条未读
+
+> **注意**: Clawbot AI 助手已移至 TRIX Native Channel，通过 OpenClaw Gateway 连接。
 
 ---
 
