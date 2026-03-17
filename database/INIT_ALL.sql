@@ -197,7 +197,7 @@ END $$;
 -- 第三部分：功能模块表
 -- ============================================
 
--- 3.1 配对请求表（Clawbot手机端）
+-- 3.1 配对请求表
 CREATE TABLE IF NOT EXISTS pairing_requests (
     id TEXT PRIMARY KEY,
     device_id TEXT NOT NULL,
