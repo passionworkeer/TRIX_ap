@@ -1,7 +1,7 @@
 -- ============================================
--- TRIX 3D Companion - 统一数据库初始化脚本
--- 版本: 3.0 (2026-03-17)
--- 描述: 基于当前 Supabase 数据库实际状态生成
+-- TRIX 3D Companion - 数据库初始化脚本
+-- 版本: 4.0 (2026-03-17)
+-- 描述: 基于 Supabase 实际存在的 21 个表
 -- ============================================
 
 -- ============================================
@@ -322,63 +322,10 @@ CREATE INDEX IF NOT EXISTS idx_user_outfits_user ON user_outfits(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_outfits_equipped ON user_outfits(is_equipped) WHERE is_equipped = true;
 
 -- ============================================
--- 第六部分：位置与地点
+-- 第六部分：日程与待办
 -- ============================================
 
--- 19. places (地点)
-CREATE TABLE IF NOT EXISTS places (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT,
-  latitude DECIMAL(10, 8),
-  longitude DECIMAL(11, 8),
-  category TEXT,
-  address TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_places_location ON places(latitude, longitude);
-
--- 20. user_favorite_places (用户收藏地点)
-CREATE TABLE IF NOT EXISTS user_favorite_places (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  place_id UUID NOT NULL REFERENCES places(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, place_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_favorite_places_user ON user_favorite_places(user_id);
-
--- 21. user_locations (用户位置)
-CREATE TABLE IF NOT EXISTS user_locations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  latitude DECIMAL(10, 8) NOT NULL,
-  longitude DECIMAL(11, 8) NOT NULL,
-  accuracy INTEGER,
-  timestamp TIMESTAMPTZ DEFAULT NOW(),
-  is_shared BOOLEAN DEFAULT false
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_locations_user ON user_locations(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_locations_timestamp ON user_locations(timestamp DESC);
-
--- 22. user_location_settings (位置分享设置)
-CREATE TABLE IF NOT EXISTS user_location_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  share_location BOOLEAN DEFAULT false,
-  share_with_friends BOOLEAN DEFAULT false,
-  auto_expire_minutes INTEGER DEFAULT 60,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ============================================
--- 第七部分：日程与待办
--- ============================================
-
--- 23. todos (待办)
+-- 19. todos (待办)
 CREATE TABLE IF NOT EXISTS todos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -396,7 +343,7 @@ CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
 CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date) WHERE due_date IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed) WHERE completed = false;
 
--- 24. schedules (日程)
+-- 20. schedules (日程)
 CREATE TABLE IF NOT EXISTS schedules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -417,10 +364,10 @@ CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_time ON schedules(start_time, end_time);
 
 -- ============================================
--- 第八部分：用户设置
+-- 第七部分：用户设置
 -- ============================================
 
--- 25. user_settings (用户隐私设置)
+-- 21. user_settings (用户隐私设置)
 CREATE TABLE IF NOT EXISTS user_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -455,4 +402,4 @@ INSERT INTO profiles (id, username, email, display_name, bio, points) VALUES
   ('22222222-2222-2222-2222-222222222222', 'testuser2', 'test2@trix.app', '测试用户2', '喜欢学习和探索', 50)
 ON CONFLICT (id) DO NOTHING;
 
-SELECT 'Database initialized successfully!' as result;
+SELECT 'Database initialized with 21 tables!' as result;

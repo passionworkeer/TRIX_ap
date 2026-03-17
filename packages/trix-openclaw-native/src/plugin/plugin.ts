@@ -147,6 +147,7 @@ export function createTrixNativePlugin() {
       },
       startAccount: async (ctx: Record<string, unknown>) => {
         const log = (ctx.log as { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void } | undefined) ?? {};
+        const setStatus = ctx.setStatus as ((status: { accountId: string; port?: number; running?: boolean }) => void) | undefined;
         log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
 
         // 检查是否有预解析的 account 对象
@@ -154,6 +155,7 @@ export function createTrixNativePlugin() {
         if (preResolvedAccount) {
           log.info?.('[trix] using pre-resolved account from ctx: serverUrl=' + (preResolvedAccount.serverUrl ? '(set)' : '(EMPTY)') + ', adminToken=' + (preResolvedAccount.adminToken ? '(set)' : '(EMPTY)'));
           await startInboundMonitor(ctx, preResolvedAccount);
+          setStatus?.({ accountId: ctx.accountId as string, running: true });
           return;
         }
 
@@ -165,6 +167,7 @@ export function createTrixNativePlugin() {
           storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
         };
         await startInboundMonitor(ctx, effectiveAccount);
+        setStatus?.({ accountId: ctx.accountId as string, running: true });
       },
     },
     outbound: createOutboundAdapter(),

@@ -22,7 +22,14 @@ const QRCodePairing: React.FC = () => {
     if (isPaired) {
       showSuccess('配对成功，即将跳转页面');
       const timer = setTimeout(() => {
-        navigate(AppRoutes.HOME);
+        navigate(AppRoutes.CHAT_DETAIL, {
+          replace: true,
+          state: {
+            friendId: 'clawbot',
+            name: 'TRIX Bot',
+            isBot: true,
+          },
+        });
       }, 1200);
       return () => clearTimeout(timer);
     }

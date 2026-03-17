@@ -91,7 +91,14 @@ const Pairing: React.FC = () => {
     toast.success('配对成功');
     setMode('success');
     setTimeout(() => {
-      navigate(AppRoutes.HOME);
+      navigate(AppRoutes.CHAT_DETAIL, {
+        replace: true,
+        state: {
+          friendId: 'clawbot',
+          name: 'TRIX Bot',
+          isBot: true,
+        },
+      });
     }, 1200);
   };
 
