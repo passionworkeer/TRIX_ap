@@ -249,7 +249,7 @@ const ScheduleList: React.FC<ScheduleListProps> = ({ onClose }) => {
   // Setup notification for schedules
   const { requestPermission, permissionStatus } = useScheduleNotification({
     schedules,
-    onNotificationClick: (schedule) => {
+    onNotificationClick: (_schedule) => {
       // Navigate to or focus on the schedule
     },
   });

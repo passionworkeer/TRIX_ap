@@ -225,6 +225,9 @@ export async function startInboundMonitor(
     // 其他 code 是异常断开，5 秒后重连一次
     socket.on('close', (code) => {
       if (currentSocket === socket) currentSocket = null;
+      // 通知 Gateway 连接断开
+      (gatewayContext.setStatus as ((s: Record<string, unknown>) => void) | undefined)
+        ?.({ accountId: account.accountId, connected: false });
       if (stopped || code === 1000) {
         log.info?.(`TRIX Native websocket closed normally (${account.accountId})`);
         return;
@@ -260,6 +263,9 @@ export async function startInboundMonitor(
       }
       socket.once('open', () => {
         onOpen();
+        // 通知 Gateway 连接成功
+        const setStatus = (gatewayContext.setStatus as ((s: Record<string, unknown>) => void) | undefined);
+        setStatus?.({ accountId: account.accountId, port: 8788, connected: true });
         // 每 30 秒发一次心跳，防止服务器超时断开
         const heartbeat = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) {

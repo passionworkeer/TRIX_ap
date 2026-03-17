@@ -32,16 +32,6 @@ interface WebVitalsMetrics {
 }
 
 /**
- * 格式化性能指标值
- */
-const formatMetric = (name: string, value: number): string => {
-  if (name === 'CLS') {
-    return `${value.toFixed(3)}`;
-  }
-  return `${value.toFixed(2)}ms`;
-};
-
-/**
  * 发送数据到服务器
  */
 const sendToServer = async (endpoint: string, data: Record<string, unknown>) => {
@@ -66,47 +56,12 @@ const sendToServer = async (endpoint: string, data: Record<string, unknown>) => 
 };
 
 /**
- * 计算 Web Vitals 分数
- */
-const getScore = (name: string, value: number): 'good' | 'needs-improvement' | 'poor' => {
-  const thresholds: Record<string, [number, number]> = {
-    // LCP: < 2.5s good, < 4s needs-improvement, >= 4s poor
-    LCP: [2500, 4000],
-    // FID: < 100ms good, < 300ms needs-improvement, >= 300ms poor
-    FID: [100, 300],
-    // CLS: < 0.1 good, < 0.25 needs-improvement, >= 0.25 poor
-    CLS: [0.1, 0.25],
-    // FCP: < 1.8s good, < 3s needs-improvement, >= 3s poor
-    FCP: [1800, 3000],
-    // TTFB: < 800ms good, < 1800ms needs-improvement, >= 1800ms poor
-    TTFB: [800, 1800],
-  };
-
-  const [good, needsImprovement] = thresholds[name] || [0, 0];
-  if (value <= good) return 'good';
-  if (value <= needsImprovement) return 'needs-improvement';
-  return 'poor';
-};
-
-/**
- * 格式化分数为颜色
- */
-const getScoreColor = (score: 'good' | 'needs-improvement' | 'poor'): string => {
-  switch (score) {
-    case 'good': return '#22c55e';
-    case 'needs-improvement': return '#eab308';
-    case 'poor': return '#ef4444';
-  }
-};
-
-/**
  * 记录性能指标
  */
 const recordMetric = (
   name: string,
   value: number,
-  metricsRef: React.MutableRefObject<WebVitalsMetrics>,
-  debug: boolean
+  metricsRef: React.MutableRefObject<WebVitalsMetrics>
 ) => {
   // 更新 ref
   switch (name) {
@@ -130,11 +85,6 @@ const recordMetric = (
   // 记录到 perfMonitor
   perfMonitor.startMeasure(`webvitals:${name}`, undefined, 'custom');
   perfMonitor.endMeasure(`webvitals:${name}`);
-
-  // 调试输出
-  if (debug) {
-    const score = getScore(name, value);
-  }
 };
 
 /**
@@ -165,7 +115,7 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
         const fcpEntry = entries.find((entry) => entry.name === 'first-contentful-paint');
         if (fcpEntry) {
           const fcp = fcpEntry.startTime;
-          recordMetric('FCP', fcp, metricsRef, debug);
+          recordMetric('FCP', fcp, metricsRef);
         }
       });
       fcpObserver.observe({ type: 'paint', buffered: true });
@@ -180,7 +130,7 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
         const lastEntry = entries[entries.length - 1] as PerformanceEntry & { renderTime?: number; loadTime?: number };
         if (lastEntry) {
           const lcp = lastEntry.renderTime || lastEntry.loadTime || 0;
-          recordMetric('LCP', lcp, metricsRef, debug);
+          recordMetric('LCP', lcp, metricsRef);
         }
       });
       lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
@@ -197,7 +147,7 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
             clsValue += (entry as any).value;
           }
         }
-        recordMetric('CLS', clsValue, metricsRef, debug);
+        recordMetric('CLS', clsValue, metricsRef);
       });
       clsObserver.observe({ type: 'layout-shift', buffered: true });
     } catch (e) {
@@ -210,7 +160,7 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
         const firstEntry = list.getEntries()[0] as PerformanceEntry & { processingStart?: number; startTime?: number };
         if (firstEntry) {
           const fid = (firstEntry.processingStart || 0) - (firstEntry.startTime || 0);
-          recordMetric('FID', fid, metricsRef, debug);
+          recordMetric('FID', fid, metricsRef);
         }
       });
       fidObserver.observe({ type: 'first-input', buffered: true });
@@ -223,7 +173,7 @@ export function useWebVitals(config: WebVitalsConfig = {}) {
       const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
       if (navigationEntry) {
         const ttfb = navigationEntry.responseStart;
-        recordMetric('TTFB', ttfb, metricsRef, debug);
+        recordMetric('TTFB', ttfb, metricsRef);
       }
     } catch (e) {
       // TTFB 监控失败，静默处理
