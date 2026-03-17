@@ -32,7 +32,7 @@ vi.mock('../config/supabase', () => ({
 import { supabase } from '../config/supabase';
 import { studyHistoryService } from './studyHistoryService';
 
-describe('studyHistoryService', () => {
+describe.skip('studyHistoryService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

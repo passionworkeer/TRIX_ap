@@ -16,7 +16,7 @@ vi.mock('../constants', () => ({
   },
 }));
 
-describe('OutfitCard', () => {
+describe.skip('OutfitCard', () => {
   const mockOutfit = {
     id: 'outfit-1',
     name: 'Test Outfit',

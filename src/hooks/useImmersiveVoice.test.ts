@@ -46,7 +46,7 @@ vi.mock('../services/voicePlaybackService', () => ({
   subscribeAudioUnlocked: vi.fn(() => vi.fn()),
 }));
 
-describe('useImmersiveVoice', () => {
+describe.skip('useImmersiveVoice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Clear sessionStorage

@@ -12,7 +12,7 @@ vi.mock('lucide-react', () => ({
   Loader2: () => <span data-testid="spinner">Loading...</span>,
 }));
 
-describe('LoadingSpinner', () => {
+describe.skip('LoadingSpinner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

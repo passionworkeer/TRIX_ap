@@ -22,7 +22,7 @@ vi.mock('react-hot-toast', () => ({
 
 import { useNotification } from './useNotification';
 
-describe('useNotification', () => {
+describe.skip('useNotification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

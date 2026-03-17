@@ -79,7 +79,7 @@ describe('useChatMessages', () => {
         },
       ];
 
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce(mockHistory);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: mockHistory, hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -125,7 +125,7 @@ describe('useChatMessages', () => {
     }, 10000);
 
     it('should handle empty chat history', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -170,7 +170,7 @@ describe('useChatMessages', () => {
 
   describe('Sending Messages', () => {
     it('should send text message successfully', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
       vi.mocked(databaseService.sendMessage).mockResolvedValueOnce('new-msg-id');
 
@@ -200,7 +200,7 @@ describe('useChatMessages', () => {
     }, 10000);
 
     it('should send message with media successfully', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const mockBlob = new Blob(['image-data'], { type: 'image/png' });
@@ -242,7 +242,7 @@ describe('useChatMessages', () => {
     }, 10000);
 
     it('should not send empty message', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -267,7 +267,7 @@ describe('useChatMessages', () => {
     }, 10000);
 
     it('should not send message with only whitespace', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -292,7 +292,7 @@ describe('useChatMessages', () => {
     }, 10000);
 
     it('should handle send message error', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
       vi.mocked(databaseService.sendMessage).mockRejectedValueOnce(
         new Error('Failed to send')
@@ -322,7 +322,7 @@ describe('useChatMessages', () => {
 
   describe('Mark as Read', () => {
     it('should mark messages as read', async () => {
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -386,7 +386,7 @@ describe('useChatMessages', () => {
         },
       ];
 
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce(mockHistory);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: mockHistory, hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       const { result } = renderHook(() =>
@@ -417,7 +417,7 @@ describe('useChatMessages', () => {
     it('should call onMessage callback when message is received', async () => {
       const onMessage = vi.fn();
 
-      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce([]);
+      vi.mocked(databaseService.getChatHistory).mockResolvedValueOnce({ messages: [], hasMore: false });
       vi.mocked(databaseService.markMessagesAsRead).mockResolvedValueOnce(undefined);
 
       renderHook(() =>

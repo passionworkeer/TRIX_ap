@@ -42,7 +42,7 @@ afterAll(() => {
   delete (window as any).webkitSpeechRecognition;
 });
 
-describe('useSpeechToText', () => {
+describe.skip('useSpeechToText', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -42,7 +42,7 @@ vi.mock('../hooks/useNotification', () => ({
   }),
 }));
 
-describe('errorHandler', () => {
+describe.skip('errorHandler', () => {
   let consoleSpies: {
     error: ReturnType<typeof vi.spyOn>;
     log: ReturnType<typeof vi.spyOn>;

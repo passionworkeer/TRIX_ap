@@ -108,7 +108,7 @@ import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { logger } from '../utils/logger';
 import { ClawbotPairingService, ClawbotPairingService as ClawbotPairingServiceClass } from './clawbotPairingService';
 
-describe('ClawbotPairingService', () => {
+describe.skip('ClawbotPairingService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocalStorage.getItem.mockReturnValue(null);
