@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Mic, X } from 'lucide-react';
+import { Sparkles, Send, Mic, X, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useNotification } from '../hooks/useNotification';
+import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
+import { audioContextUnlock } from '../services/voicePlaybackService';
 import { iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
 
 interface HomeBotBubbleProps {}
@@ -29,6 +31,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
   const { profile } = useAuth();
   const { t } = useTranslation();
   const { showError } = useNotification();
+  const { voiceEnabled, toggleVoiceEnabled } = useVoiceSettings();
   const {
     botState,
     latestBotMessage,
@@ -92,6 +95,13 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
 
     setIsSending(true);
     try {
+      // 发送消息前解锁音频，确保 TTS 能播放
+      try {
+        await audioContextUnlock();
+      } catch {
+        // 静默失败
+      }
+
       await sendMessage(text, 'text');
       setInputText('');
       setIsExpanded(false); // 发送后立即收起
@@ -125,11 +135,22 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
 
   // 切换展开状态
   const toggleExpanded = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation();
-      setIsExpanded((prev) => !prev);
+      const willExpand = !isExpanded;
+
+      // 用户展开对话框时，解锁音频上下文
+      if (willExpand) {
+        try {
+          await audioContextUnlock();
+        } catch {
+          // 静默失败，音频会在实际播放时再次尝试解锁
+        }
+      }
+
+      setIsExpanded(willExpand);
     },
-    []
+    [isExpanded]
   );
 
   useEffect(() => {
@@ -198,21 +219,42 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
             transition={iosQuickSpring}
             className="ios-glass-surface w-[280px] sm:w-[320px] rounded-2xl border border-white/20 shadow-lg overflow-hidden"
           >
-            {/* 头部：关闭按钮 */}
+            {/* 头部：关闭按钮 + 语音开关 */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-yellow-300 animate-glow-pulse" />
                 <span className="text-white text-sm font-medium">TRIX</span>
+                {/* 语音状态指示 */}
+                {botState === 'SPEAKING' && (
+                  <span className="text-xs text-amber-400 animate-pulse">🔊</span>
+                )}
               </div>
-              <motion.button
-                type="button"
-                onClick={toggleExpanded}
-                className="ios-pressable p-1.5 rounded-full text-white/60 hover:text-white"
-                {...iosPressableMotion}
-                aria-label="关闭对话"
-              >
-                <X size={16} />
-              </motion.button>
+              <div className="flex items-center gap-1">
+                {/* 语音开关按钮 */}
+                <motion.button
+                  type="button"
+                  onClick={toggleVoiceEnabled}
+                  className={`ios-pressable p-1.5 rounded-full ${
+                    voiceEnabled
+                      ? 'text-amber-400 hover:text-amber-300'
+                      : 'text-white/40 hover:text-white/60'
+                  }`}
+                  whileTap={{ scale: 0.95 }}
+                  aria-label={voiceEnabled ? '关闭语音播报' : '开启语音播报'}
+                  title={voiceEnabled ? '语音播报已开启' : '语音播报已关闭'}
+                >
+                  {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={toggleExpanded}
+                  className="ios-pressable p-1.5 rounded-full text-white/60 hover:text-white"
+                  {...iosPressableMotion}
+                  aria-label="关闭对话"
+                >
+                  <X size={16} />
+                </motion.button>
+              </div>
             </div>
 
             {/* 历史消息 */}
