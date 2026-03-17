@@ -36,6 +36,15 @@ vi.mock('../contexts/ClawbotChannelContext', () => ({
     latestBotMessage: null,
     idleEnteredAt: Date.now(),
     hasSessionConversationStarted: false,
+    messages: [],
+    sendMessage: vi.fn(),
+  }),
+}));
+
+vi.mock('../contexts/VoiceSettingsContext', () => ({
+  useVoiceSettings: () => ({
+    voiceEnabled: true,
+    toggleVoiceEnabled: vi.fn(),
   }),
 }));
 
@@ -56,20 +65,18 @@ describe('HomeBotBubble', () => {
   it('should render with greeting text', async () => {
     const HomeBotBubble = (await import('../components/HomeBotBubble')).default;
 
-    const handleClick = vi.fn();
-    const { container } = render(React.createElement(HomeBotBubble, { onClick: handleClick }));
+    const { container } = render(React.createElement(HomeBotBubble));
 
     // Component should render something
     expect(container.firstChild).not.toBeNull();
   });
 
-  it('should have onClick handler', async () => {
+  it('should render collapsed bubble by default', async () => {
     const HomeBotBubble = (await import('../components/HomeBotBubble')).default;
 
-    const handleClick = vi.fn();
-    render(React.createElement(HomeBotBubble, { onClick: handleClick }));
+    const { container } = render(React.createElement(HomeBotBubble));
 
-    // Handler should be provided
-    expect(handleClick).toBeDefined();
+    // Should have the bubble element
+    expect(container.querySelector('button')).not.toBeNull();
   });
 });
