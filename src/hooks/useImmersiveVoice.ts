@@ -40,9 +40,9 @@ function resolveMessageId(messageId: string | undefined, timestamp: number): str
 
 function buildWelcomeText(username?: string): string {
   if (username) {
-    return `Hello ${username}, I am TRIX. What would you like to learn today?`;
+    return `你好 ${username}，我是 TRIX。今天想学点什么？`;
   }
-  return 'Hello, I am TRIX. What would you like to learn today?';
+  return '你好，我是 TRIX。今天想学点什么？';
 }
 
 export function useImmersiveVoice(): void {
@@ -435,8 +435,8 @@ export function useImmersiveVoice(): void {
 
     if (previous !== isPaired) {
       const statusText = isPaired
-        ? 'TRIX Bot is connected.'
-        : 'TRIX Bot is disconnected.';
+        ? 'TRIX 已连接。'
+        : 'TRIX 已断开连接。';
       sceneQueueRef.current.push({
         scene: 'status',
         text: statusText,
