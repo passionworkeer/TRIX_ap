@@ -203,19 +203,29 @@ struct MessageCell: View {
         let calendar = Calendar.current
         let now = Date()
 
+        // Cached formatters for performance
+        struct CachedFormatters {
+            static let timeOnly: DateFormatter = {
+                let f = DateFormatter()
+                f.timeStyle = .short
+                return f
+            }()
+            static let dateOnly: DateFormatter = {
+                let f = DateFormatter()
+                f.dateStyle = .short
+                return f
+            }()
+        }
+
         if calendar.isDate(date, inSameDayAs: now) {
             // Today: show time
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+            return CachedFormatters.timeOnly.string(from: date)
         } else if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now)!) {
             // Yesterday
             return L("chat.yesterday")
         } else {
             // Older: show date
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
+            return CachedFormatters.dateOnly.string(from: date)
         }
     }
 }

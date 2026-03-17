@@ -89,6 +89,13 @@ enum AppNetworkStatus {
 enum UITestEventLogger {
     private static let logFileName = "trix-ui-events.log"
 
+    // Cached formatters for performance
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     static var isEnabled: Bool {
         let arguments = ProcessInfo.processInfo.arguments
         return arguments.contains("--skip-onboarding")
@@ -97,7 +104,7 @@ enum UITestEventLogger {
     static func log(_ message: String) {
         guard isEnabled else { return }
 
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = Self.iso8601Formatter.string(from: Date())
         let line = "\(timestamp) \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
 

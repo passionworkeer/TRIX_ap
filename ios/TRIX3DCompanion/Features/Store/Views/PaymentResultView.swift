@@ -204,12 +204,16 @@ struct PaymentResultView: View {
     /// Format date for display
     /// - Parameter date: Date to format
     /// - Returns: Formatted date string
+    private static let chineseDateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        f.locale = Locale(identifier: "zh_CN")
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: "zh_CN")
-        return formatter.string(from: date)
+        return Self.chineseDateTimeFormatter.string(from: date)
     }
 }
 

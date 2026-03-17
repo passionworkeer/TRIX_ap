@@ -256,19 +256,27 @@ struct SnapshotCell: View {
     }
 
     /// Format date for display
+    /// Cached formatters for performance
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
         let calendar = Calendar.current
 
         if calendar.isDateInToday(date) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+            return Self.timeFormatter.string(from: date)
         } else if calendar.isDateInYesterday(date) {
             return "昨天"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
+            return Self.dateFormatter.string(from: date)
         }
     }
 }

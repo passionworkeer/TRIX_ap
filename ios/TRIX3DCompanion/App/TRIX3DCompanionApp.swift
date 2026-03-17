@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 @main
 struct TRIX3DCompanionApp: App {
@@ -13,6 +14,21 @@ struct TRIX3DCompanionApp: App {
     init() {
         // Start tracking services initialization phase
         launchOptimizer.startPhase(.services)
+        configureKingfisher()
+    }
+
+    /// Configure Kingfisher cache for better performance
+    private func configureKingfisher() {
+        let cache = ImageCache.default
+        // Memory cache: 100MB
+        cache.memoryStorage.config.totalCostLimit = 100 * 1024 * 1024
+        // Disk cache: 500MB, 7 days expiration
+        cache.diskStorage.config.sizeLimit = 500 * 1024 * 1024
+        cache.diskStorage.config.expiration = .days(7)
+
+        // Downloader configuration
+        let downloader = ImageDownloader.default
+        downloader.downloadTimeout = 15
     }
 
     var body: some Scene {
@@ -39,8 +55,10 @@ struct TRIX3DCompanionApp: App {
                     await DeferredInitializationManager.shared.executeDeferredTasks()
                 }
                 .task(id: appState.currentUser?.id) {
-                    // Connect to Clawbot Channel when user logs in
+                    // Delay Clawbot connection for better startup performance
+                    // Connect after 2 seconds to prioritize UI responsiveness
                     if appState.currentUser != nil {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
                         await clawbotChannel.connect()
                     }
                 }

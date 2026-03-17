@@ -39,6 +39,13 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
     private let encoder: JSONEncoder
     private let authInterceptor: AuthInterceptor
 
+    // Cached formatters for performance
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
     // Security managers
     private let sslPinningManager: SSLPinningManager
     private let retryManager: RequestRetryManager
@@ -1036,7 +1043,7 @@ extension APIClient {
     }
 
     func getSchedulesByDateRange(start: Date, end: Date) async throws -> [Schedule] {
-        let params: Parameters = ["start": ISO8601DateFormatter().string(from: start), "end": ISO8601DateFormatter().string(from: end)]
+        let params: Parameters = ["start": Self.iso8601Formatter.string(from: start), "end": Self.iso8601Formatter.string(from: end)]
         return try await get(.scheduleByDateRange, parameters: params)
     }
 

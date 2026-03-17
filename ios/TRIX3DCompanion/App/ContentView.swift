@@ -31,10 +31,39 @@ struct ContentView: View {
 
     @State private var isAnimating = false
     @State private var hasCompletedInitialLoad = false
+    @State private var showSplashScreen = true  // 控制启动画面显示
 
     // MARK: - Body
 
     var body: some View {
+        ZStack {
+            // 启动画面 (首次显示)
+            if showSplashScreen {
+                AnimatedSplashView {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        showSplashScreen = false
+                    }
+                }
+                .transition(.opacity)
+                .ignoresSafeArea()
+            } else {
+                // 原有内容
+                mainContent
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
+        .onChange(of: authService.isLoggedIn) { isLoggedIn in
+            handleAuthStateChange(isLoggedIn: isLoggedIn)
+        }
+        .onAppear {
+            handleInitialSetup()
+        }
+    }
+
+    // MARK: - Main Content
+
+    @ViewBuilder
+    private var mainContent: some View {
         ZStack {
             // Background gradient - simplified for performance
             backgroundView
@@ -54,44 +83,24 @@ struct ContentView: View {
                     ))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
-        .onChange(of: authService.isLoggedIn) { isLoggedIn in
-            handleAuthStateChange(isLoggedIn: isLoggedIn)
-        }
-        .onAppear {
-            handleInitialSetup()
-        }
     }
 
     // MARK: - View Components
 
-    /// Background gradient view - optimized for performance
+    /// Background gradient view - optimized (single layer for performance)
+    /// Cached colors to avoid recreation on every render
+    private static let backgroundColors: [Color] = [
+        Color(hex: "09090F"),
+        Color(hex: "15152A"),
+        Color(hex: "1B1630")
+    ]
+
     private var backgroundView: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(hex: "09090F"),
-                    Color(hex: "15152A"),
-                    Color(hex: "1B1630")
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            RadialGradient(
-                colors: [Color.brandPurple.opacity(0.28), .clear],
-                center: .topLeading,
-                startRadius: 40,
-                endRadius: 420
-            )
-
-            RadialGradient(
-                colors: [Color.brandPink.opacity(0.18), .clear],
-                center: .bottomTrailing,
-                startRadius: 20,
-                endRadius: 360
-            )
-        }
+        LinearGradient(
+            colors: Self.backgroundColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
         .ignoresSafeArea()
     }
 

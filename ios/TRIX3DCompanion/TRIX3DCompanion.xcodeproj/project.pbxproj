@@ -251,6 +251,7 @@
 		DCCE71E66F745BCE850CB74B /* AppLaunchOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500E348CD6ABB694398D10A /* AppLaunchOptimizer.swift */; };
 		DEDFEE006916925B555E2B4B /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = 8487E72F1EA1F00D45807C2E /* FirebasePerformance */; };
 		DF4650EB5C9304755F4BBA2E /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 4DBBEF2CB8A893ECDE5EC232 /* Sentry */; };
+		E46CAB3214A75DDCAC2EF2B4 /* AnimatedSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9DC93874FC3CF4DC3358FD /* AnimatedSplashView.swift */; };
 		E5C09F2370311EFB88A3B531 /* 03_DESCRIPTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 13E38A95C451FCF33797A6B3 /* 03_DESCRIPTIONS.md */; };
 		E6F70C49A6661548BE26C74C /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35957E4CE6A88F70F4DA8B68 /* SubscriptionView.swift */; };
 		E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A9173255FA94111E92D982 /* BotState.swift */; };
@@ -417,6 +418,7 @@
 		7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
 		7CF52968576D0B437DF510AF /* VideoBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoBackgroundView.swift; sourceTree = "<group>"; };
 		7E0BFDD888624BC5EB5733BD /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
+		7E9DC93874FC3CF4DC3358FD /* AnimatedSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedSplashView.swift; sourceTree = "<group>"; };
 		7F18B56F3D84A7EC5966D8D2 /* SpeechRecognitionServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionServiceProtocol.swift; sourceTree = "<group>"; };
 		7FE7589890B1034BBBAD5202 /* 05_SUBMISSION_CHECKLIST.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = 05_SUBMISSION_CHECKLIST.md; sourceTree = "<group>"; };
 		8002630FACB8C1E427B6C64F /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
@@ -806,6 +808,7 @@
 		1CC2A90A580C29C7BE36B8F5 /* Loading */ = {
 			isa = PBXGroup;
 			children = (
+				7E9DC93874FC3CF4DC3358FD /* AnimatedSplashView.swift */,
 				D53431C14A9E66CBAF21DDC6 /* ProgressView.swift */,
 				7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */,
 			);
@@ -1585,6 +1588,7 @@
 				5AAFCCB014C1FC4F22091098 /* AnalyticsService.swift in Sources */,
 				2AE0F1E16C859DF02B7D6C9F /* AnimatedCard.swift in Sources */,
 				4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */,
+				E46CAB3214A75DDCAC2EF2B4 /* AnimatedSplashView.swift in Sources */,
 				9CA2115B04951A012EE03913 /* Animations.swift in Sources */,
 				DCCE71E66F745BCE850CB74B /* AppLaunchOptimizer.swift in Sources */,
 				41442B476CED397DC8A7A027 /* AppState.swift in Sources */,

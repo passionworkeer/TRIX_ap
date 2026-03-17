@@ -297,10 +297,15 @@ struct MessageBubbleView: View {
 
     // MARK: - Formatting
 
+    // Cached formatter for performance
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
     private func formatTimestamp(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return Self.timeFormatter.string(from: date)
     }
 
     private func formatDuration(_ seconds: Double) -> String {

@@ -75,6 +75,13 @@ final class AnalyticsService: ObservableObject, AnalyticsServiceProtocol {
     private let logger = Logger(subsystem: "com.trix3d.companion", category: "Analytics")
     private var isEnabled: Bool = true
 
+    // Cached formatters for performance
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     // MARK: - Initialization
 
     private init() {
@@ -94,7 +101,7 @@ final class AnalyticsService: ObservableObject, AnalyticsServiceProtocol {
 
         // Add common parameters
         var params = parameters ?? [:]
-        params["timestamp"] = ISO8601DateFormatter().string(from: Date())
+        params["timestamp"] = Self.iso8601Formatter.string(from: Date())
 
         // Log to Firebase
         Analytics.logEvent(event.rawValue, parameters: params)

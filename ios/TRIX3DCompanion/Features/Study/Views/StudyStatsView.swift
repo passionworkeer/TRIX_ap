@@ -526,10 +526,15 @@ struct StudyDailyData: Identifiable {
 
 extension StudyStatsView {
     /// Parse date string to Date
+    /// Cached formatter for performance
+    private static let dateOnlyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
     static func parseDate(_ dateString: String) -> Date {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        return dateFormatter.date(from: dateString) ?? Date()
+        return Self.dateOnlyFormatter.date(from: dateString) ?? Date()
     }
 }
 

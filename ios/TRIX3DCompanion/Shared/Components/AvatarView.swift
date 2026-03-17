@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 /// A reusable avatar component supporting remote images, local images, and initials
 /// Includes online status indicator and configurable sizes
@@ -91,23 +92,13 @@ struct AvatarView: View {
             // Avatar content
             Group {
                 if let imageURL = imageURL {
-                    // Remote image (using AsyncImage)
-                    AsyncImage(url: imageURL) { phase in
-                        switch phase {
-                        case .empty:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: size.dimension, height: size.dimension)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        case .failure:
-                            initialsView
-                        @unknown default:
+                    // Remote image (using Kingfisher for better caching)
+                    KFImage(imageURL)
+                        .placeholder {
                             initialsView
                         }
-                    }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
                 } else if let localImageName = localImageName {
                     // Local image
                     Image(localImageName)
