@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
@@ -41,28 +40,6 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
   const [showSchedule, setShowSchedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
 
-  const handleOpenTrixBot = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-
-    if (!isClawbotConnected || !isClawbotPaired) {
-      showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
-        ...PAIRING_REQUIRED_TOAST_OPTIONS,
-        id: PAIRING_REQUIRED_TOAST_ID,
-      });
-      navigate(AppRoutes.PAIRING);
-      return;
-    }
-
-    navigate(AppRoutes.CHAT_DETAIL, {
-      state: {
-        friendId: 'clawbot',
-        name: 'TRIX Bot',
-        avatar: IMAGES.WIZARD_BOY_LOGIN,
-        isBot: true,
-      },
-    });
-  };
-
   // Handle workbench card clicks
   const handleWorkbenchCardClick = (itemId: string) => {
     switch (itemId) {
@@ -97,7 +74,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
       className="relative h-screen w-full flex flex-col overflow-hidden"
       style={{ background: 'transparent' }}
     >
-      <HomeBotBubble onClick={handleOpenTrixBot} />
+      <HomeBotBubble />
 
       <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />
       <NotificationPanel isOpen={showNotificationPanel} onClose={() => setShowNotificationPanel(false)} />
