@@ -5,5 +5,9 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {}
+  },
+  "uiHints": {
+    "adminToken": { "label": "Admin Token", "sensitive": true },
+    "serverUrl": { "label": "Server URL", "placeholder": "http://your-server:8788" }
   }
 }

@@ -144,17 +144,41 @@ export function createTrixNativePlugin() {
         pendingPairingCodeByAccount.delete(accountKey);
         return { connected: false, message: 'Timed out waiting for TRIX Native pairing.' };
       },
+      // ⚠️ 核心：必须永远不返回，直到 abortSignal 触发
+      // 来源：官方 GitHub issue #27933
       startAccount: async (ctx: Record<string, unknown>) => {
-        const log = (ctx.log as { info?: (msg: string) => void } | undefined) ?? {};
-        log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
+        const log = (ctx.log as { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void } | undefined) ?? {};
         const setStatus = ctx.setStatus as ((status: Record<string, unknown>) => void) | undefined;
+        const abortSignal = ctx.abortSignal as AbortSignal | undefined;
+
+        // 先设置初始状态
         setStatus?.({ running: true, connected: true });
+
         const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
         const effectiveAccount = {
           ...account,
           storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
         };
-        await startInboundMonitor(ctx, effectiveAccount);
+
+        // 启动 inbound monitor，返回 cleanup 函数
+        const cleanup = await startInboundMonitor(ctx, effectiveAccount);
+
+        try {
+          // 挂起直到 Gateway 关闭（abortSignal 触发）
+          await new Promise<void>((resolve) => {
+            if (abortSignal?.aborted) { resolve(); return; }
+            abortSignal?.addEventListener('abort', () => resolve(), { once: true });
+          });
+        } finally {
+          // 清理资源
+          cleanup?.();
+          setStatus?.({
+            accountId: effectiveAccount.accountId,
+            running: false,
+            lastStopAt: Date.now(),
+          });
+          log.info?.(`[trix-native] Account ${effectiveAccount.accountId} stopped`);
+        }
       },
     },
     outbound: createOutboundAdapter(),

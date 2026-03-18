@@ -9,6 +9,9 @@ import type {
 } from '../types.js';
 import { resolveOpenClawCompat } from './sdk.js';
 
+// 追踪活跃的 inbound monitors
+const activeMonitors = new Map<string, boolean>();
+
 type LogSink = {
   info?: (message: string) => void;
   warn?: (message: string) => void;
@@ -142,9 +145,18 @@ async function dispatchInboundMessage(params: {
 export async function startInboundMonitor(
   gatewayContext: Record<string, unknown>,
   account: ResolvedPluginAccount
-): Promise<void> {
+): Promise<(() => void) | undefined> {
+  const key = account.accountId;
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
+
+  // 检查是否已经有活跃的 monitor
+  if (activeMonitors.get(key)) {
+    log.warn?.(`Inbound monitor already running for ${key}, skipping`);
+    return undefined;
+  }
+  activeMonitors.set(key, true);
+
   const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
   const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
     account.adminToken ?? ''
@@ -158,12 +170,14 @@ export async function startInboundMonitor(
   // 追踪最后处理的消息 ID，避免重复处理
   let lastProcessedMessageId: string | null = null;
 
-  // abort 信号：标记停止，关闭当前 socket
+  // abort 信号：标记停止，关闭当前 socket，并清理 Map
   abortSignal?.addEventListener('abort', () => {
     stopped = true;
+    activeMonitors.delete(key);
     currentSocket?.close(1000, 'plugin stop');
     currentSocket = null;
-  });
+    log.info?.(`[trix-native] Inbound monitor aborted for ${key}`);
+  }, { once: true });
 
   // 轮询服务器获取新消息（作为 WebSocket 的备份/补充）
   async function pollMessages(): Promise<void> {
@@ -317,7 +331,7 @@ export async function startInboundMonitor(
   // 启动消息轮询（作为 WebSocket 的备份）
   // 每 3 秒检查一次新消息
   const pollIntervalMs = 3000;
-  setInterval(() => {
+  const pollInterval = setInterval(() => {
     pollMessages().catch((err) => {
       log.error?.(`TRIX Native poll error: ${String(err)}`);
     });
@@ -328,11 +342,13 @@ export async function startInboundMonitor(
     log.error?.(`TRIX Native initial poll error: ${String(err)}`);
   });
 
-  // 必须加这个，否则 startAccount 返回后
-  // OpenClaw 把通道标记为 configured 而不是 running
-  // 使用一个永远 pending 的 Promise
-  await new Promise<void>((resolve) => {
-    // 不调用 resolve，Promise 永远 pending
-    // 通道会一直保持 "running" 状态
-  });
+  // 返回 cleanup 函数供 plugin.ts 调用
+  return () => {
+    stopped = true;
+    activeMonitors.delete(key);
+    clearInterval(pollInterval);
+    currentSocket?.close(1000, 'plugin stop');
+    currentSocket = null;
+    log.info?.(`[trix-native] Inbound monitor cleanup for ${key}`);
+  };
 }
