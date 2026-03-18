@@ -226,7 +226,7 @@ struct GlassDockView: View {
 
                     Text(L("nav.core"))
                         .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundStyle(.textPrimary.opacity(0.88))
+                        .foregroundColor(Color.textPrimary.opacity(0.88))
                 }
             }
         }

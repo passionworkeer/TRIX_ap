@@ -2,7 +2,7 @@
 //  PairingView.swift
 //  TRIX3DCompanion
 //
-//  Device pairing view - Single screen like Web version
+//  Device pairing view - 对齐 Web 端配对方式 (扫码/输入配对码)
 //
 
 import SwiftUI
@@ -17,36 +17,22 @@ private func L(_ key: String) -> String {
 enum PairingMode: String, CaseIterable {
     case scan = "scan"
     case input = "input"
-    case relayInput = "relayInput"
     case waiting = "waiting"
     case success = "success"
 }
 
 // MARK: - Pairing View
 
-/// Main view for device pairing - single screen like Web version
+/// Main view for device pairing - 对齐 Web 端配对方式
 struct PairingView: View {
-    private struct OpenClawSetupPayload {
-        let server: String
-        let gatewayId: String
-        let accessCode: String
-    }
 
     // MARK: - Properties
 
     /// Current pairing mode
     @State private var mode: PairingMode = .scan
 
-    /// Connection mode (Relay / Gateway / Socket.IO)
-    @State private var connectionMode: ConnectionMode = .relay
-
     /// Manual pairing code input
     @State private var codeInput = ""
-
-    // Relay inputs
-    @State private var relayServer = ""
-    @State private var relayGatewayId = ""
-    @State private var relayAccessCode = ""
 
     /// Loading state
     @State private var isLoading = false
@@ -59,20 +45,6 @@ struct PairingView: View {
 
     /// Error message
     @State private var errorMessage = ""
-
-    // Persist last successful Relay config for faster reconnect.
-    private let relayServerDefaultsKey = "pairing.relay.server"
-    private let relayGatewayDefaultsKey = "pairing.relay.gatewayId"
-    private let relayAccessCodeDefaultsKey = "pairing.relay.accessCode"
-
-    private let localRelayServerCandidates = [
-        "http://127.0.0.1:18789",
-        "http://localhost:18789",
-        "http://127.0.0.1:8765",
-        "http://localhost:8765",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000"
-    ]
 
     /// Clawbot Channel service
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
@@ -98,9 +70,6 @@ struct PairingView: View {
                 // Header
                 header
 
-                // Connection mode selector
-                connectionModeSelector
-
                 // Content
                 Spacer()
 
@@ -109,8 +78,6 @@ struct PairingView: View {
                     scanContent
                 case .input:
                     inputContent
-                case .relayInput:
-                    relayInputContent
                 case .waiting:
                     waitingContent
                 case .success:
@@ -120,7 +87,6 @@ struct PairingView: View {
                 Spacer()
             }
             .padding(.horizontal, 24)
-            .accessibilityIdentifier(PairingAccessibilityIdentifiers.screen)
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear
@@ -128,10 +94,6 @@ struct PairingView: View {
         }
         .onAppear {
             UITestEventLogger.log("PairingView onAppear")
-            restoreRelayDefaults()
-            connectionMode = .relay
-            mode = .relayInput
-            clawbotChannel.connectionMode = .relay
         }
         .sheet(isPresented: $showQRScanner) {
             QRScannerView(
@@ -143,55 +105,6 @@ struct PairingView: View {
             Button(L("action.confirm"), role: .cancel) {}
         } message: {
             Text(errorMessage)
-        }
-    }
-
-    // MARK: - Connection Mode Selector
-
-    private var connectionModeSelector: some View {
-        HStack(spacing: 12) {
-            ForEach([ConnectionMode.relay, .gateway, .socketIO], id: \.self) { mode in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        connectionMode = mode
-                        clawbotChannel.connectionMode = mode
-                        self.mode = mode == .relay ? .relayInput : .scan
-                    }
-                }) {
-                    Text(modeLabel(for: mode))
-                        .font(.subheadline)
-                        .fontWeight(connectionMode == mode ? .semibold : .regular)
-                        .foregroundColor(connectionMode == mode ? .white : .textSecondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            connectionMode == mode
-                            ? AnyView(LinearGradient(
-                                colors: [.brandPurple, .brandPink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ))
-                            : AnyView(Color.clear)
-                        )
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(
-                                    connectionMode == mode ? Color.clear : Color.textTertiary.opacity(0.5),
-                                    lineWidth: 1
-                                )
-                        )
-                }
-            }
-        }
-        .padding(.top, 16)
-    }
-
-    private func modeLabel(for mode: ConnectionMode) -> String {
-        switch mode {
-        case .relay: return L("pairing.mode.relay")
-        case .gateway: return L("pairing.mode.direct")
-        case .socketIO: return L("pairing.mode.pair")
         }
     }
 
@@ -352,7 +265,7 @@ struct PairingView: View {
                     )
                     .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
                     .onChange(of: codeInput) { newValue in
-                        codeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
+                        codeInput = String(newValue.uppercased().prefix(8).filter { $0.isLetter || $0.isNumber })
                     }
                     .accessibilityIdentifier(PairingAccessibilityIdentifiers.codeField)
 
@@ -375,7 +288,7 @@ struct PairingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        codeInput.count == 6 && !isLoading ?
+                        codeInput.count >= 6 && !isLoading ?
                         LinearGradient(
                             colors: [.brandPurple, .brandPink],
                             startPoint: .leading,
@@ -384,7 +297,7 @@ struct PairingView: View {
                     )
                     .cornerRadius(28)
                 }
-                .disabled(codeInput.count != 6 || isLoading)
+                .disabled(codeInput.count < 6 || isLoading)
                 .accessibilityIdentifier(PairingAccessibilityIdentifiers.verifyButton)
             }
             .padding(24)
@@ -395,7 +308,6 @@ struct PairingView: View {
             Button(action: {
                 withAnimation(.spring(response: 0.3)) {
                     mode = .scan
-                    showQRScanner = true
                 }
             }) {
                 HStack {
@@ -406,178 +318,6 @@ struct PairingView: View {
                 .foregroundColor(.textSecondary)
             }
         }
-    }
-
-    // MARK: - Relay Input Content
-
-    private var relayInputContent: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // QR Scanner for Relay
-                VStack(spacing: 16) {
-                    Image(systemName: "qrcode.viewfinder")
-                        .font(.system(size: 60))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.brandPurple, .brandPink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-
-                    Text(L("pairing.scan.relay.qr"))
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-
-                    Text(L("pairing.scan.relay.qr.description"))
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity)
-                .trixSurfaceCard(cornerRadius: 20, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)
-                .onTapGesture {
-                    showQRScanner = true
-                }
-
-                // Divider
-                HStack {
-                    Rectangle()
-                        .fill(Color.textTertiary)
-                        .frame(height: 1)
-
-                    Text(L("pairing.or.manual.input"))
-                        .font(.subheadline)
-                        .foregroundColor(.textSecondary)
-
-                    Rectangle()
-                        .fill(Color.textTertiary)
-                        .frame(height: 1)
-                }
-
-                // Manual input fields
-                VStack(spacing: 16) {
-                    Button(action: {
-                        Task {
-                            await quickConnectLocalRelay()
-                        }
-                    }) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "desktopcomputer")
-                            Text(isLoading ? L("pairing.connecting.local") : L("pairing.quick.connect.local"))
-                                .fontWeight(.bold)
-                            if isLoading {
-                                Spacer(minLength: 0)
-                                SwiftUI.ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            }
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .padding(.horizontal, 14)
-                        .background(
-                            LinearGradient(
-                                colors: isLoading
-                                    ? [Color.tertiaryBackground.opacity(0.9), Color.tertiaryBackground.opacity(0.75)]
-                                    : [Color.brandPurple, Color.brandPink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(14)
-                    }
-                    .disabled(isLoading)
-
-                    // Server URL
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L("pairing.server.address"))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
-
-                        TextField("https://your-server.com", text: $relayServer)
-                            .font(.body)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding(12)
-                            .background(Color.textTertiary.opacity(0.1))
-                            .cornerRadius(12)
-                    }
-
-                    // Gateway ID
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L("pairing.gateway.id"))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
-
-                        TextField("gateway-xxx", text: $relayGatewayId)
-                            .font(.body)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding(12)
-                            .background(Color.textTertiary.opacity(0.1))
-                            .cornerRadius(12)
-                    }
-
-                    // Access Code
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L("pairing.access.code"))
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
-
-                        SecureField(L("pairing.access.code.placeholder"), text: $relayAccessCode)
-                            .font(.body)
-                            .textInputAutocapitalization(.characters)
-                            .padding(12)
-                            .background(Color.textTertiary.opacity(0.1))
-                            .cornerRadius(12)
-                    }
-
-                    // Connect button
-                    Button(action: {
-                        Task {
-                            await connectRelay()
-                        }
-                    }) {
-                        HStack(spacing: 10) {
-                            if isLoading {
-                                SwiftUI.ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                Text(L("pairing.connecting"))
-                            } else {
-                                Image(systemName: "link")
-                                Text(L("pairing.connect"))
-                            }
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            isRelayInputValid && !isLoading
-                            ? LinearGradient(
-                                colors: [.brandPurple, .brandPink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            : LinearGradient(colors: [.gray], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(24)
-                    }
-                    .disabled(!isRelayInputValid || isLoading)
-                }
-                .padding(20)
-                .trixSurfaceCard(cornerRadius: 20, borderOpacity: 0.28, shadowOpacity: 0.08, shadowRadius: 12)
-            }
-            .padding(.horizontal, 8)
-        }
-    }
-
-    private var isRelayInputValid: Bool {
-        !relayServer.isEmpty && !relayGatewayId.isEmpty && !relayAccessCode.isEmpty
     }
 
     // MARK: - Waiting Content
@@ -668,32 +408,29 @@ struct PairingView: View {
 
     // MARK: - Actions
 
+    /// 使用配对码配对 - 对齐 Web 端
     private func pairWithCode() async {
-        guard codeInput.count == 6 else { return }
+        guard codeInput.count >= 6 else { return }
 
         isLoading = true
+        errorMessage = ""
 
-        // Ensure connected to Clawbot Channel
+        // 对齐 Web 端: 先连接到 Clawbot Channel
         if !clawbotChannel.isConnected {
             await clawbotChannel.connect()
         }
 
-        let success = await clawbotChannel.pairWithCode(codeInput.uppercased())
+        // 解析配对码
+        let normalizedCode = codeInput.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 调用配对
+        let success = await clawbotChannel.pairWithCode(normalizedCode)
 
         isLoading = false
 
-        if success {
+        if success || clawbotChannel.isPaired {
             withAnimation(.spring(response: 0.3)) {
-                mode = .waiting
-            }
-
-            // Check for pairing success after a delay
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-
-            if clawbotChannel.isPaired {
-                withAnimation(.spring(response: 0.3)) {
-                    mode = .success
-                }
+                mode = .success
             }
         } else {
             errorMessage = clawbotChannel.lastError ?? L("pairing.failed.please.retry")
@@ -702,377 +439,116 @@ struct PairingView: View {
         }
     }
 
+    /// 处理扫码结果 - 对齐 Web 端 parseQrOrClaimPayload
     private func handleQRScanned(_ code: String) {
         showQRScanner = false
+        isLoading = true
+        errorMessage = ""
 
-        // Check if it's a Relay QR code
-        if clawbotChannel.parseRelayQR(code) != nil {
-            // Relay QR format: {version, server, gatewayId, accessCode, displayName}
-            Task {
-                await connectRelayWithQR(code)
-            }
-            return
-        }
-
-        if let setup = parseOpenClawSetupPayload(from: code) {
-            Task {
-                await connectRelayWithSetupPayload(setup)
-            }
-            return
-        }
-
-        // Otherwise, process as normal pairing QR
         Task {
-            await processQRCode(code)
-        }
-    }
+            // 对齐 Web 端: 解析二维码格式
+            let parsed = parseQRCode(code)
 
-    private func processQRCode(_ code: String) async {
-        let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        var qrToken: String?
-
-        if let setup = parseOpenClawSetupPayload(from: normalized) {
-            await connectRelayWithSetupPayload(setup)
-            return
-        }
-
-        // Try to parse as JSON
-        if let data = normalized.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let token = json["token"] as? String, !token.isEmpty {
-                qrToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-            } else if let token = json["pairingToken"] as? String, !token.isEmpty {
-                qrToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-
-        isLoading = true
-
-        // Ensure connected to Clawbot Channel
-        if !clawbotChannel.isConnected {
-            await clawbotChannel.connect()
-        }
-
-        var success = false
-
-        if let token = qrToken {
-            // QR token from JSON
-            success = await clawbotChannel.pairWithToken(token)
-        } else if normalized.count == 6 && normalized.range(of: "^[A-Z0-9]+$", options: .regularExpression) != nil {
-            // 6-character pairing code
-            success = await clawbotChannel.pairWithCode(normalized.uppercased())
-        } else if normalized.count >= 10 {
-            // Try as direct token
-            success = await clawbotChannel.pairWithToken(normalized)
-        }
-
-        isLoading = false
-
-        if success {
-            withAnimation(.spring(response: 0.3)) {
-                mode = .waiting
+            // 确保已连接
+            if !clawbotChannel.isConnected {
+                await clawbotChannel.connect()
             }
 
-            // Check for pairing success after a delay
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            var success = false
 
-            if clawbotChannel.isPaired {
-                withAnimation(.spring(response: 0.3)) {
-                    mode = .success
-                }
-            }
-        } else {
-            errorMessage = L("pairing.qr.failed")
-            showError = true
-        }
-    }
-
-    private func parseOpenClawSetupPayload(from rawCode: String) -> OpenClawSetupPayload? {
-        let normalized = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return nil }
-
-        if let components = URLComponents(string: normalized),
-           let scheme = components.scheme?.lowercased(),
-           ["trix", "openclaw"].contains(scheme) {
-            var queryDict: [String: String] = [:]
-            for item in components.queryItems ?? [] {
-                guard let value = item.value?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !value.isEmpty else { continue }
-                queryDict[item.name] = value
-            }
-            if let payload = parseSetupPayload(from: queryDict) {
-                return payload
-            }
-        }
-
-        if let data = normalized.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let payload = parseSetupPayload(from: json) {
-            return payload
-        }
-
-        if normalized.contains("=") {
-            var kvPairs: [String: String] = [:]
-            let entries = normalized.components(separatedBy: CharacterSet(charactersIn: "&;,\n"))
-            for entry in entries {
-                let parts = entry.split(separator: "=", maxSplits: 1).map(String.init)
-                guard parts.count == 2 else { continue }
-                let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                let value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                if !key.isEmpty, !value.isEmpty {
-                    kvPairs[key] = value
-                }
-            }
-            if let payload = parseSetupPayload(from: kvPairs) {
-                return payload
-            }
-        }
-
-        return nil
-    }
-
-    private func parseSetupPayload(from json: [String: Any]) -> OpenClawSetupPayload? {
-        let explicitURL = firstString(
-            in: json,
-            keys: ["url", "gatewayUrl", "gateway_url", "gateway", "g"]
-        )
-        let serverFallback = firstString(in: json, keys: ["server"])
-        let hasRelayCredentials = firstString(in: json, keys: ["gatewayId", "gateway_id", "accessCode", "access_code"]) != nil
-        let rawServer = explicitURL ?? (hasRelayCredentials ? serverFallback : nil)
-
-        let rawAccessCode = firstString(
-            in: json,
-            keys: ["accessCode", "access_code", "token", "gatewayToken", "gateway_token", "pairingToken", "pairing_token", "t"]
-        )
-        let rawGatewayId = firstString(
-            in: json,
-            keys: ["gatewayId", "gateway_id", "sessionKey", "session_key", "agentId", "agent_id"]
-        ) ?? "agent:main:main"
-
-        guard let rawServer, let rawAccessCode else { return nil }
-        guard let normalizedServer = normalizeRelayServerURL(rawServer) else { return nil }
-
-        return OpenClawSetupPayload(
-            server: normalizedServer,
-            gatewayId: rawGatewayId,
-            accessCode: rawAccessCode
-        )
-    }
-
-    private func parseSetupPayload(from values: [String: String]) -> OpenClawSetupPayload? {
-        let rawServer = firstString(
-            in: values,
-            keys: ["url", "server", "gatewayUrl", "gateway_url", "gateway", "g"]
-        )
-        let rawAccessCode = firstString(
-            in: values,
-            keys: ["accessCode", "access_code", "token", "gatewayToken", "gateway_token", "pairingToken", "pairing_token", "t"]
-        )
-        let rawGatewayId = firstString(
-            in: values,
-            keys: ["gatewayId", "gateway_id", "sessionKey", "session_key", "agentId", "agent_id"]
-        ) ?? "agent:main:main"
-
-        guard let rawServer, let rawAccessCode else { return nil }
-        guard let normalizedServer = normalizeRelayServerURL(rawServer) else { return nil }
-
-        return OpenClawSetupPayload(
-            server: normalizedServer,
-            gatewayId: rawGatewayId,
-            accessCode: rawAccessCode
-        )
-    }
-
-    private func firstString(in values: [String: Any], keys: [String]) -> String? {
-        for key in keys {
-            if let value = values[key] as? String {
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    return trimmed
-                }
-            }
-        }
-        return nil
-    }
-
-    private func firstString(in values: [String: String], keys: [String]) -> String? {
-        for key in keys {
-            if let value = values[key] {
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    return trimmed
-                }
-            }
-        }
-        return nil
-    }
-
-    private func normalizeRelayServerURL(_ value: String) -> String? {
-        var raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else { return nil }
-
-        if raw.hasPrefix("ws://") {
-            raw = raw.replacingOccurrences(of: "ws://", with: "http://")
-        } else if raw.hasPrefix("wss://") {
-            raw = raw.replacingOccurrences(of: "wss://", with: "https://")
-        } else if !raw.contains("://") {
-            raw = "http://\(raw)"
-        }
-
-        guard var components = URLComponents(string: raw), components.host != nil else {
-            return nil
-        }
-
-        if components.path.lowercased() == "/relay" || components.path == "/" {
-            components.path = ""
-        }
-        components.query = nil
-        components.fragment = nil
-
-        guard let url = components.url else { return nil }
-        var normalized = url.absoluteString
-        while normalized.hasSuffix("/") {
-            normalized.removeLast()
-        }
-        return normalized
-    }
-
-    private func connectRelayWithSetupPayload(_ payload: OpenClawSetupPayload) async {
-        relayServer = payload.server
-        relayGatewayId = payload.gatewayId
-        relayAccessCode = payload.accessCode
-        connectionMode = .relay
-        clawbotChannel.connectionMode = .relay
-
-        isLoading = true
-        let success = await clawbotChannel.connectRelayManual(
-            server: payload.server,
-            gatewayId: payload.gatewayId,
-            accessCode: payload.accessCode
-        )
-        isLoading = false
-
-        if success {
-            persistRelayDefaults(
-                server: payload.server,
-                gatewayId: payload.gatewayId,
-                accessCode: payload.accessCode
-            )
-            withAnimation(.spring(response: 0.3)) {
-                mode = .success
-            }
-        } else {
-            errorMessage = clawbotChannel.lastError ?? L("pairing.connection.failed.check.info")
-            showError = true
-            withAnimation(.spring(response: 0.3)) {
-                mode = .relayInput
-            }
-        }
-    }
-
-    // MARK: - Relay Actions
-
-    private func connectRelay() async {
-        guard isRelayInputValid else { return }
-
-        isLoading = true
-
-        let server = relayServer.trimmingCharacters(in: .whitespacesAndNewlines)
-        let gatewayId = relayGatewayId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accessCode = relayAccessCode.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let success = await clawbotChannel.connectRelayManual(
-            server: server,
-            gatewayId: gatewayId,
-            accessCode: accessCode
-        )
-
-        isLoading = false
-
-        if success {
-            persistRelayDefaults(server: server, gatewayId: gatewayId, accessCode: accessCode)
-            withAnimation(.spring(response: 0.3)) {
-                mode = .success
-            }
-        } else {
-            errorMessage = clawbotChannel.lastError ?? L("pairing.connection.failed.check.config")
-            showError = true
-        }
-    }
-
-    private func quickConnectLocalRelay() async {
-        let gatewayId = relayGatewayId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let accessCode = relayAccessCode.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !gatewayId.isEmpty, !accessCode.isEmpty else {
-            errorMessage = L("pairing.local.quick.connect.requires.credentials")
-            showError = true
-            return
-        }
-
-        isLoading = true
-        for candidate in localRelayServerCandidates {
-            let success = await clawbotChannel.connectRelayManual(
-                server: candidate,
-                gatewayId: gatewayId,
-                accessCode: accessCode
-            )
-            if success {
-                relayServer = candidate
-                persistRelayDefaults(server: candidate, gatewayId: gatewayId, accessCode: accessCode)
+            // 根据解析结果调用不同的配对方法
+            if let token = parsed.token {
+                // 有 token，使用 token 配对
+                success = await clawbotChannel.pairWithToken(token)
+            } else if parsed.code.count >= 6 {
+                // 纯配对码
+                success = await clawbotChannel.pairWithCode(parsed.code)
+            } else {
+                // 无法解析
                 isLoading = false
-                withAnimation(.spring(response: 0.3)) {
-                    mode = .success
-                }
+                errorMessage = L("pairing.invalid.qr")
+                showError = true
                 return
             }
-        }
 
-        isLoading = false
-        errorMessage = clawbotChannel.lastError ?? L("pairing.local.quick.connect.failed")
-        showError = true
-    }
+            isLoading = false
 
-    private func restoreRelayDefaults() {
-        let defaults = UserDefaults.standard
-        relayServer = defaults.string(forKey: relayServerDefaultsKey) ?? relayServer
-        relayGatewayId = defaults.string(forKey: relayGatewayDefaultsKey) ?? relayGatewayId
-        relayAccessCode = defaults.string(forKey: relayAccessCodeDefaultsKey) ?? relayAccessCode
-        if relayServer.isEmpty {
-            relayServer = localRelayServerCandidates.first ?? ""
-        }
-    }
-
-    private func persistRelayDefaults(server: String, gatewayId: String, accessCode: String) {
-        let defaults = UserDefaults.standard
-        defaults.set(server, forKey: relayServerDefaultsKey)
-        defaults.set(gatewayId, forKey: relayGatewayDefaultsKey)
-        defaults.set(accessCode, forKey: relayAccessCodeDefaultsKey)
-    }
-
-    private func handleRelayQRScanned(_ code: String) {
-        showQRScanner = false
-
-        Task {
-            await connectRelayWithQR(code)
-        }
-    }
-
-    private func connectRelayWithQR(_ qrContent: String) async {
-        isLoading = true
-
-        let success = await clawbotChannel.connectRelayWithQR(qrContent)
-
-        isLoading = false
-
-        if success {
-            withAnimation(.spring(response: 0.3)) {
-                mode = .success
+            if success || clawbotChannel.isPaired {
+                withAnimation(.spring(response: 0.3)) {
+                    mode = .success
+                }
+            } else {
+                errorMessage = clawbotChannel.lastError ?? L("pairing.qr.failed")
+                showError = true
             }
-        } else {
-            errorMessage = clawbotChannel.lastError ?? L("pairing.qr.connection.failed")
-            showError = true
         }
+    }
+
+    /// 解析二维码 - 对齐 Web 端 parseQrOrClaimPayload
+    private func parseQRCode(_ raw: String) -> (code: String, token: String?) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1. 尝试 JSON 格式
+        if let data = trimmed.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            // 处理 claimUrl
+            if let claimUrl = json["claimUrl"] as? String {
+                return parseQRCode(claimUrl)
+            }
+            // 处理 url
+            if let url = json["url"] as? String {
+                return parseQRCode(url)
+            }
+            // 处理 code
+            if let code = json["code"] as? String {
+                let token = json["token"] as? String ?? json["pairingToken"] as? String
+                return (code.uppercased(), token)
+            }
+            // 处理 token
+            if let token = json["token"] as? String, !token.isEmpty {
+                return ("", token)
+            }
+            if let token = json["pairingToken"] as? String, !token.isEmpty {
+                return ("", token)
+            }
+        }
+
+        // 2. URL 格式: http://host/pair?code=XXX&secret=YYY
+        if let url = URL(string: trimmed), url.scheme?.hasPrefix("http") == true {
+            let code = URLComponents(string: trimmed)?.queryItems?.first(where: { $0.name == "code" })?.value ?? ""
+            let secret = URLComponents(string: trimmed)?.queryItems?.first(where: { $0.name == "secret" })?.value
+            if !code.isEmpty {
+                return (code.uppercased(), secret)
+            }
+        }
+
+        // 3. Compact 格式: CODE:SECRET
+        let compact = trimmed.replacingOccurrences(of: "[^a-zA-Z0-9:|_ -]", with: "", options: .regularExpression)
+        if compact.contains(":") {
+            let parts = compact.split(separator: ":", maxSplits: 1).map(String.init)
+            if let code = parts.first, !code.isEmpty {
+                return (code.uppercased(), parts.count > 1 ? parts[1] : nil)
+            }
+        }
+
+        // 4. trix:pair: 前缀
+        if trimmed.lowercased().hasPrefix("trix:pair:") {
+            let token = String(trimmed.dropFirst(9))
+            return ("", token)
+        }
+
+        // 5. 纯配对码 (6-8 位)
+        let normalized = trimmed.uppercased().filter { $0.isLetter || $0.isNumber }
+        if normalized.count >= 6 && normalized.count <= 8 {
+            return (normalized, nil)
+        }
+
+        // 6. 直接 Token (10+ 位)
+        if trimmed.count >= 10 {
+            return ("", trimmed)
+        }
+
+        return ("", nil)
     }
 }
 
@@ -1080,14 +556,6 @@ struct PairingView: View {
 
 struct PairingViewPreview: PreviewProvider {
     static var previews: some View {
-        // Note: ClawbotChannelViewModel has private init,
-        // so we use a simplified preview without the environment object
-        PairingViewPreviewContent()
-    }
-}
-
-struct PairingViewPreviewContent: View {
-    var body: some View {
         PairingView()
             .environmentObject(ClawbotChannelViewModel.shared)
     }

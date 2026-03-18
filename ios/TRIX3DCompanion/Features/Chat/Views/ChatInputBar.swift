@@ -124,7 +124,7 @@ struct ChatInputBar: View {
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(.tertiaryBackground.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.tertiaryBackground.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: "plus.circle.fill")
@@ -158,7 +158,7 @@ struct ChatInputBar: View {
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(.tertiaryBackground.opacity(0.2), lineWidth: 1)
+                            .stroke(Color.tertiaryBackground.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: "mic.fill")
@@ -239,7 +239,7 @@ struct ChatInputBar: View {
                 .fill(.regularMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(.tertiaryBackground.opacity(0.3), lineWidth: 0.5)
+                        .stroke(Color.tertiaryBackground.opacity(0.3), lineWidth: 0.5)
                 )
         )
     }
@@ -285,7 +285,7 @@ struct ChatInputBar: View {
     private var topBorder: some View {
         VStack {
             Rectangle()
-                .fill(.tertiaryBackground.opacity(0.3))
+                .fill(Color.tertiaryBackground.opacity(0.3))
                 .frame(height: 0.5)
             Spacer()
         }

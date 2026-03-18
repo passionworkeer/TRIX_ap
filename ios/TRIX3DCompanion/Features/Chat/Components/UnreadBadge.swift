@@ -227,7 +227,7 @@ struct TabItemWithBadge: View {
 
 #Preview("Icon with Badge") {
     HStack(spacing: 30) {
-        IconWithBadge(icon: "message.fill", badgeCount: 3, iconColor: .info)
+        IconWithBadge(icon: "message.fill", badgeCount: 3, iconColor: .blue)
         IconWithBadge(icon: "bell.fill", badgeCount: 12, iconColor: .red)
         IconWithBadge(icon: "heart.fill", badgeCount: 0, iconColor: .pink)
         IconWithBadge(icon: "mail.fill", badgeCount: 99, iconColor: .purple)
@@ -251,7 +251,7 @@ struct TabItemWithBadge: View {
         HStack(spacing: 12) {
             // Avatar
             Circle()
-                .fill(.info)
+                .fill(.blue)
                 .frame(width: 50, height: 50)
                 .overlay {
                     Text("M")

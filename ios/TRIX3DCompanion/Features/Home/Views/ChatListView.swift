@@ -179,17 +179,17 @@ struct ChatListView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.tertiaryBackground.opacity(0.2))
+                            .fill(Color.tertiaryBackground.opacity(0.2))
                             .frame(width: 120, height: 16)
                             .shimmer(cornerRadius: 6)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.tertiaryBackground.opacity(0.2))
+                            .fill(Color.tertiaryBackground.opacity(0.2))
                             .frame(width: 180, height: 14)
                             .shimmer(cornerRadius: 6)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.tertiaryBackground.opacity(0.2))
+                            .fill(Color.tertiaryBackground.opacity(0.2))
                             .frame(width: 140, height: 12)
                             .shimmer(cornerRadius: 6)
                     }
@@ -208,12 +208,12 @@ struct ChatListView: View {
 
                         VStack(alignment: .leading, spacing: 8) {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(.tertiaryBackground.opacity(0.2))
+                                .fill(Color.tertiaryBackground.opacity(0.2))
                                 .frame(width: 140, height: 14)
                                 .shimmer(cornerRadius: 6)
 
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(.tertiaryBackground.opacity(0.2))
+                                .fill(Color.tertiaryBackground.opacity(0.2))
                                 .frame(width: 200, height: 12)
                                 .shimmer(cornerRadius: 6)
                         }

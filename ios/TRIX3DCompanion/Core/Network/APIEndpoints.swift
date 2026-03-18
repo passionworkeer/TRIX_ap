@@ -77,6 +77,28 @@ enum WebSocketURL {
     }
 }
 
+/// TRIX Native Server URL for OpenClaw pairing
+enum TrixNativeServerURL {
+    // MARK: - Production
+    static let production = "https://api.trix3d.com"
+
+    // MARK: - Development
+    static let development: String = {
+        // For local development, use your local server
+        // Default: http://localhost:8788 or your ngrok/tailscale URL
+        return "http://TRIX_SERVER_HOST:8788"
+    }()
+
+    /// Current server URL based on build configuration
+    static var current: String {
+        #if DEBUG
+        return development
+        #else
+        return production
+        #endif
+    }
+}
+
 /// All API endpoints
 enum APIEndpoint {
     // MARK: - Auth
@@ -223,6 +245,9 @@ enum APIEndpoint {
     case clawbotSendMessage(conversationId: String)
     case clawbotDeleteConversation(conversationId: String)
     case clawbotHistory(roomId: String)
+
+    // MARK: - TRIX Native Channel (OpenClaw Pairing)
+    case trixNativePairingClaim(code: String)
 
     // MARK: - Study Goals
     case studyGoals
@@ -431,6 +456,9 @@ enum APIEndpoint {
         case .clawbotSendMessage(let conversationId): return "/clawbot/conversations/\(conversationId)/messages"
         case .clawbotDeleteConversation(let conversationId): return "/clawbot/conversations/\(conversationId)"
         case .clawbotHistory(let roomId): return "/clawbot/history?room_id=\(roomId)"
+
+        // TRIX Native Channel
+        case .trixNativePairingClaim(let code): return "/api/pairings/\(code)/claim"
 
         // Study Goals
         case .studyGoals: return "/study/goals"

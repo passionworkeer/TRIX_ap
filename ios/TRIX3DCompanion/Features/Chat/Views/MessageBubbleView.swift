@@ -157,7 +157,7 @@ struct MessageBubbleView: View {
             HStack(spacing: 2) {
                 ForEach(0..<20) { index in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(isFromCurrentUser ? .textPrimary.opacity(0.6) : .brandPurple.opacity(0.6))
+                        .fill(isFromCurrentUser ? Color.textPrimary.opacity(0.6) : Color.brandPurple.opacity(0.6))
                         .frame(width: 3, height: CGFloat.random(in: 8...20))
                 }
             }
@@ -349,7 +349,7 @@ struct VideoThumbnailView: View {
 
             // Play button overlay
             Circle()
-                .fill(.overlay.opacity(0.5))
+                .fill(Color.black.opacity(0.5))
                 .frame(width: 50, height: 50)
                 .overlay {
                     Image(systemName: "play.fill")
@@ -368,7 +368,7 @@ struct VideoThumbnailView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(.overlay.opacity(0.7))
+                            .background(Color.black.opacity(0.7))
                             .clipShape(Capsule())
                             .padding(8)
                     }
@@ -405,7 +405,7 @@ extension View {
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .overlay.opacity(0.05), radius: 4, y: 2)
+            .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
     }
 }
 
