@@ -144,6 +144,7 @@ export interface PluginAccountConfig {
   serverUrl: string;
   publicBaseUrl?: string;
   adminToken: string;
+  serviceToken?: string;
   storageDir?: string;
 }
 
@@ -155,6 +156,7 @@ export interface ResolvedPluginAccount {
   serverUrl: string;
   publicBaseUrl?: string;
   adminToken?: string;
+  serviceToken?: string;
   storageDir: string;
 }
 

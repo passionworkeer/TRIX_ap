@@ -11,11 +11,13 @@ function buildResult(channel: string, ok: boolean, messageId?: string, error?: u
 }
 
 async function postJson<T>(account: ResolvedPluginAccount, pathname: string, payload: unknown): Promise<T> {
+  const serviceToken = (account as unknown as Record<string, unknown>).serviceToken as string | undefined
+    ?? account.adminToken;
   const response = await fetch(`${account.serverUrl.replace(/\/$/, '')}${pathname}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-trix-admin-token': account.adminToken ?? '',
+      'authorization': `Bearer ${serviceToken}`,
     },
     body: JSON.stringify(payload),
   });
@@ -34,7 +36,7 @@ export function createOutboundAdapter() {
       try {
         const { resolveAccount } = await import('./accounts.js');
         const account = resolveAccount(ctx.cfg, ctx.accountId ?? undefined);
-        const response = await postJson<{ message: { id: string } }>(account, '/api/messages', {
+        const response = await postJson<{ message: { id: string } }>(account, '/api/messages/service/messages', {
           conversationId: ctx.to,
           direction: 'outbound',
           text: ctx.text,
@@ -77,7 +79,7 @@ export function createOutboundAdapter() {
             },
           ],
         };
-        const response = await postJson<{ message: { id: string } }>(account, '/api/messages', payload);
+        const response = await postJson<{ message: { id: string } }>(account, '/api/messages/service/messages', payload);
         return buildResult('trix-native', true, response.message.id);
       } catch (error) {
         return buildResult('trix-native', false, undefined, error);

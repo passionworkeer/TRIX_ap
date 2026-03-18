@@ -43,6 +43,7 @@ export function resolveAccount(cfg: Record<string, unknown>, accountId = DEFAULT
     serverUrl: configured?.serverUrl ?? '',
     publicBaseUrl: configured?.publicBaseUrl,
     adminToken: configured?.adminToken,
+    serviceToken: configured?.serviceToken,
     storageDir,
   };
 }
@@ -77,6 +78,7 @@ export function applyAccountConfig(params: {
             serverUrl: params.input.serverUrl,
             publicBaseUrl: params.input.publicBaseUrl,
             adminToken: params.input.adminToken,
+            serviceToken: params.input.serviceToken as string | undefined,
             storageDir: params.input.storageDir,
           },
         },

@@ -144,15 +144,8 @@ export function createTrixNativePlugin() {
         pendingPairingCodeByAccount.delete(accountKey);
         return { connected: false, message: 'Timed out waiting for TRIX Native pairing.' };
       },
-      // ⚠️ 核心：必须永远不返回，直到 abortSignal 触发
-      // 来源：官方 GitHub issue #27933
       startAccount: async (ctx: Record<string, unknown>) => {
         const log = (ctx.log as { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void } | undefined) ?? {};
-        const setStatus = ctx.setStatus as ((status: Record<string, unknown>) => void) | undefined;
-        const abortSignal = ctx.abortSignal as AbortSignal | undefined;
-
-        // 先设置初始状态
-        setStatus?.({ running: true, connected: true });
 
         const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
         const effectiveAccount = {
@@ -160,25 +153,11 @@ export function createTrixNativePlugin() {
           storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
         };
 
-        // 启动 inbound monitor，返回 cleanup 函数
-        const cleanup = await startInboundMonitor(ctx, effectiveAccount);
+        log.info?.(`[trix-native] starting trix-native[${effectiveAccount.accountId}]...`);
 
-        try {
-          // 挂起直到 Gateway 关闭（abortSignal 触发）
-          await new Promise<void>((resolve) => {
-            if (abortSignal?.aborted) { resolve(); return; }
-            abortSignal?.addEventListener('abort', () => resolve(), { once: true });
-          });
-        } finally {
-          // 清理资源
-          cleanup?.();
-          setStatus?.({
-            accountId: effectiveAccount.accountId,
-            running: false,
-            lastStopAt: Date.now(),
-          });
-          log.info?.(`[trix-native] Account ${effectiveAccount.accountId} stopped`);
-        }
+        // Return the monitor promise directly — the gateway framework tracks promise resolution
+        // to set running=true when pending, and running=false when settled.
+        return startInboundMonitor(ctx, effectiveAccount);
       },
     },
     outbound: createOutboundAdapter(),
@@ -194,6 +173,43 @@ export function createTrixNativePlugin() {
         running: snapshot.running ?? false,
         connected: snapshot.connected ?? false,
         lastError: snapshot.lastError ?? null,
+      }),
+      probeAccount: async ({ account }: { account: Record<string, unknown> }) => {
+        const serverUrl = account.serverUrl as string | undefined;
+        if (!serverUrl) return { ok: false, error: 'missing serverUrl' };
+        const serviceToken = account.serviceToken as string | undefined;
+        const adminToken = account.adminToken as string | undefined;
+        const token = serviceToken ?? adminToken;
+        if (!token) return { ok: false, error: 'missing token' };
+        try {
+          const response = await fetch(`${serverUrl.replace(/\/$/, '')}/api/pairings`, {
+            headers: { authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(5000),
+          });
+          return { ok: response.ok };
+        } catch (err) {
+          return { ok: false, error: String(err) };
+        }
+      },
+      buildAccountSnapshot: ({
+        account,
+        runtime,
+      }: {
+        account: Record<string, unknown>;
+        runtime?: Record<string, unknown>;
+        probe?: Record<string, unknown>;
+        audit?: Record<string, unknown>;
+      }) => ({
+        accountId: account.accountId as string,
+        enabled: account.enabled as boolean,
+        configured: account.configured as boolean,
+        name: account.name as string,
+        running: runtime?.running ?? false,
+        lastStartAt: (runtime?.lastStartAt as number | null) ?? null,
+        lastStopAt: (runtime?.lastStopAt as number | null) ?? null,
+        lastError: (runtime?.lastError as string | null) ?? null,
+        connected: runtime?.connected as boolean ?? false,
+        probe: (runtime as Record<string, unknown>)?.probe as Record<string, unknown> | undefined,
       }),
     },
   };

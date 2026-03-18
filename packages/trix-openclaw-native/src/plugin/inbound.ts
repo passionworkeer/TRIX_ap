@@ -34,6 +34,7 @@ function buildAttachmentSummary(attachments: AttachmentDescriptor[]): string {
 }
 
 async function postReply(account: ResolvedPluginAccount, conversationId: string, payload: OutboundReplyPayloadLike): Promise<void> {
+  console.log(`[trix-native] POST REPLY to conv=${conversationId} text="${payload.text?.slice(0,50)}"`);
   const store = new AttachmentStore(account.storageDir);
   await store.ensure();
 
@@ -51,11 +52,14 @@ async function postReply(account: ResolvedPluginAccount, conversationId: string,
     });
   }
 
-  await fetch(`${account.serverUrl.replace(/\/$/, '')}/api/messages`, {
+  const serviceToken = (account as unknown as Record<string, unknown>).serviceToken as string | undefined
+    ?? account.adminToken;
+
+  await fetch(`${account.serverUrl.replace(/\/$/, '')}/api/messages/service/messages`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-trix-admin-token': account.adminToken ?? '',
+      'authorization': `Bearer ${serviceToken}`,
     },
     body: JSON.stringify({
       conversationId,
@@ -99,8 +103,10 @@ async function dispatchInboundMessage(params: {
 
   if (!route) {
     log.warn?.(`Failed to resolve route for conversation ${message.conversationId}`);
+    console.log(`[trix-native] NO ROUTE for conv=${message.conversationId}`);
     return;
   }
+  console.log(`[trix-native] Route resolved: agent=${route.agentId} session=${route.sessionKey}`);
 
   const mediaPayload = buildAgentMediaPayload(normalizeMediaList(message.attachments));
   const attachmentSummary = buildAttachmentSummary(message.attachments);
@@ -145,7 +151,7 @@ async function dispatchInboundMessage(params: {
 export async function startInboundMonitor(
   gatewayContext: Record<string, unknown>,
   account: ResolvedPluginAccount
-): Promise<(() => void) | undefined> {
+): Promise<void> {
   const key = account.accountId;
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
@@ -153,14 +159,18 @@ export async function startInboundMonitor(
   // 检查是否已经有活跃的 monitor
   if (activeMonitors.get(key)) {
     log.warn?.(`Inbound monitor already running for ${key}, skipping`);
-    return undefined;
+    // 返回一个永不就结的 promise，让 gateway 等待 abort
+    return new Promise<void>(() => {});
   }
   activeMonitors.set(key, true);
 
+  const serviceToken = (account as unknown as Record<string, unknown>).serviceToken as string | undefined
+    ?? account.adminToken;
+
   const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
-  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
-    account.adminToken ?? ''
-  )}&accountId=${encodeURIComponent(account.accountId)}`;
+  const wsUrl = `${wsBase}/ws?role=agent`
+    + `&accountId=${encodeURIComponent(account.accountId)}`
+    + `&serviceToken=${encodeURIComponent(serviceToken ?? '')}`;
 
   // stopped = true 时不再重连，也不处理任何消息
   let stopped = false;
@@ -184,14 +194,9 @@ export async function startInboundMonitor(
     if (stopped) return;
 
     try {
-      // 从服务器获取已知的会话列表
-      // 远程服务器使用 /api/messages/:conversationId
-      // 这里简化为轮询单个已知会话，实际应该跟踪所有活跃会话
-      // 首先尝试获取配对信息来找到会话
-
       const pairingsResponse = await fetch(`${account.serverUrl.replace(/\/$/, '')}/api/pairings`, {
         headers: {
-          'x-trix-admin-token': account.adminToken ?? '',
+          'authorization': `Bearer ${serviceToken}`,
         },
       });
 
@@ -204,15 +209,13 @@ export async function startInboundMonitor(
       const pairedDevices = pairingsData.filter((p) => p.status === 'paired' && p.deviceId);
 
       for (const pairing of pairedDevices) {
-        // 尝试获取该设备的消息
-        // 远程服务器的 API: /api/messages/:conversationId
         const conversationId = pairing.conversationId || `device_${pairing.deviceId}`;
 
         const messagesResponse = await fetch(
           `${account.serverUrl.replace(/\/$/, '')}/api/messages/${encodeURIComponent(conversationId)}`,
           {
             headers: {
-              'x-trix-admin-token': account.adminToken ?? '',
+              'authorization': `Bearer ${serviceToken}`,
             },
           }
         );
@@ -222,19 +225,14 @@ export async function startInboundMonitor(
         const messagesData = await messagesResponse.json() as { messages?: MessageRecord[] };
         const messages = messagesData.messages ?? [];
 
-        // 处理新消息（direction = outbound 表示客户端发出的消息）
+        // Only accept inbound (phone -> agent) messages
         for (const message of messages) {
-          // 跳过已处理的
           if (message.id === lastProcessedMessageId) continue;
+          // inbound = phone sends to agent
+          if (message.direction !== 'inbound') continue;
 
-          // 接受 outbound（客户端发出）、inbound 或 phone
-          if (message.direction !== 'outbound' && message.direction !== 'inbound' && message.direction !== 'system') {
-            continue;
-          }
-
-          // 更新最后处理的 ID
           lastProcessedMessageId = message.id;
-
+          console.log(`[trix-native] POLL fetched msg ${message.id} dir=${message.direction} text="${message.text?.slice(0,50)}"`);
           await dispatchInboundMessage({
             gatewayContext,
             account,
@@ -264,15 +262,18 @@ export async function startInboundMonitor(
 
         const message = envelope.payload.message;
 
-        // 接受 direction = 'inbound' 或 'outbound'（兼容不同服务器版本）
-        // outbound = 客户端发出的消息（到达 Agent）
-        // inbound = Agent 发出的消息（到达客户端）
-        if (message.direction !== 'inbound' && message.direction !== 'outbound') return;
+        // Only accept inbound (phone -> agent) messages
+        // inbound = phone sends to agent (should be routed to AI)
+        // outbound = agent sends to phone (should NOT be dispatched to AI again)
+        if (message.direction !== 'inbound') return;
+
+        console.log(`[trix-native] WS received msg ${message.id} dir=${message.direction} text="${message.text?.slice(0,50)}" conv=${message.conversationId}`);
 
         // 避免重复处理
         if (message.id === lastProcessedMessageId) return;
         lastProcessedMessageId = message.id;
 
+        console.log(`[trix-native] WS dispatching msg ${message.id}`);
         await dispatchInboundMessage({
           gatewayContext,
           account,
@@ -342,13 +343,17 @@ export async function startInboundMonitor(
     log.error?.(`TRIX Native initial poll error: ${String(err)}`);
   });
 
-  // 返回 cleanup 函数供 plugin.ts 调用
-  return () => {
-    stopped = true;
-    activeMonitors.delete(key);
-    clearInterval(pollInterval);
-    currentSocket?.close(1000, 'plugin stop');
-    currentSocket = null;
-    log.info?.(`[trix-native] Inbound monitor cleanup for ${key}`);
-  };
+  // 返回 promise 直到 abortSignal 触发 → gateway framework 会跟踪此 promise
+  // resolved = running:true, rejected = running:false
+  return new Promise<void>((resolve, reject) => {
+    abortSignal?.addEventListener('abort', () => {
+      stopped = true;
+      activeMonitors.delete(key);
+      clearInterval(pollInterval);
+      currentSocket?.close(1000, 'plugin stop');
+      currentSocket = null;
+      log.info?.(`[trix-native] Inbound monitor aborted for ${key}`);
+      resolve();
+    }, { once: true });
+  });
 }
