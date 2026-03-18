@@ -118,6 +118,17 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle('openclaw:run-command', async (_event, cmd: string) => {
+    if (!isAllowedCommand(cmd)) {
+      return { success: false, stderr: 'Disallowed command' };
+    }
+    try {
+      return await runCommand(cmd);
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
   ipcMain.handle('openclaw:doctor', async () => {
     try {
       return await runCommand('doctor');

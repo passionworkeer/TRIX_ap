@@ -24,7 +24,7 @@ export default defineConfig(() => {
       renderer(),
       electron([
         {
-          // Main process
+          // Main process (must be CJS for Electron)
           entry: 'desktop/src/main/index.ts',
           onstart({ startup }) {
             startup();
@@ -32,14 +32,22 @@ export default defineConfig(() => {
           vite: {
             build: {
               outDir: 'desktop/dist-desktop/main',
+              lib: {
+                entry: 'desktop/src/main/index.ts',
+                formats: ['cjs'],
+                fileName: () => 'index.cjs',
+              },
               rollupOptions: {
-                external: ['electron', 'electron-log', 'electron-store'],
+                external: ['electron', 'electron-log', 'electron-log/main', 'electron-store'],
+                output: {
+                  entryFileNames: 'index.cjs',
+                },
               },
             },
           },
         },
         {
-          // Preload script
+          // Preload script (must be CJS for Electron)
           entry: 'desktop/src/preload/index.ts',
           onstart({ reload }) {
             reload();
@@ -49,6 +57,9 @@ export default defineConfig(() => {
               outDir: 'desktop/dist-desktop/preload',
               rollupOptions: {
                 external: ['electron'],
+                output: {
+                  entryFileNames: 'index.cjs',
+                },
               },
             },
           },

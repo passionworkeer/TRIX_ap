@@ -7,7 +7,7 @@ const isDev = !app.isPackaged;
 function getPreloadPath(): string {
   // app.getAppPath() = project root in dev, app root in prod
   // dist-desktop is at: desktop/dist-desktop/ (dev) or appRoot/dist-desktop/ (prod)
-  return `${app.getAppPath()}/dist-desktop/preload/index.js`;
+  return `${app.getAppPath()}/dist-desktop/preload/index.cjs`;
 }
 
 function getMainUrl(): string {

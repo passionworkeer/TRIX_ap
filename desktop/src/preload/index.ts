@@ -63,6 +63,10 @@ const electronAPI = {
   runOpenClawDoctor: (): Promise<OpenClawCommandResult> =>
     ipcRenderer.invoke('openclaw:doctor'),
 
+  // Generic command runner (allowlist enforced in main process IPC)
+  runOpenClawCommand: (cmd: string): Promise<OpenClawCommandResult> =>
+    ipcRenderer.invoke('openclaw:run-command', cmd),
+
   listAgents: (): Promise<OpenClawCommandResult> =>
     ipcRenderer.invoke('openclaw:agents-list'),
 

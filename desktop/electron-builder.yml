@@ -8,6 +8,8 @@ directories:
 
 files:
   - dist-desktop/**/*
+  # Exclude videos from asar — extraResources handles them at resourcesPath
+  - "!**/videos/**"
 
 extraResources:
   - from: ../public/videos

@@ -65,7 +65,7 @@ export async function startGateway(): Promise<void> {
     ? openclawBin
     : (process.platform === 'win32' ? 'openclaw' : 'openclaw');
 
-  const args = ['gateway', '--port', String(GATEWAY_PORT), '--host', '127.0.0.1'];
+  const args = ['gateway', '--port', String(GATEWAY_PORT)];
 
   // shell: true needed for .cmd/.bat files on Windows
   gatewayProcess = spawn(cmd, args, {

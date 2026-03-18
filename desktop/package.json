@@ -2,7 +2,7 @@
   "name": "trix-companion-desktop",
   "version": "1.0.0",
   "description": "TRIX Companion Windows Desktop App",
-  "main": "dist-desktop/main/index.js",
+  "main": "dist-desktop/main/index.cjs",
   "author": "TRIX Team",
   "license": "MIT",
   "private": true,
