@@ -147,14 +147,13 @@ export function createTrixNativePlugin() {
       startAccount: async (ctx: Record<string, unknown>) => {
         const log = (ctx.log as { info?: (msg: string) => void } | undefined) ?? {};
         log.info?.('[trix] ctx keys: ' + Object.keys(ctx).join(', '));
+        const setStatus = ctx.setStatus as ((status: Record<string, unknown>) => void) | undefined;
+        setStatus?.({ running: true, connected: true });
         const account = resolveAccount(ctx.cfg as Record<string, unknown>, ctx.accountId as string | undefined);
         const effectiveAccount = {
           ...account,
           storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
         };
-        // Signal that the channel is starting
-        const setStatus = ctx.setStatus as ((status: Record<string, unknown>) => void) | undefined;
-        setStatus?.({ accountId: ctx.accountId, running: true });
         await startInboundMonitor(ctx, effectiveAccount);
       },
     },

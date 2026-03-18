@@ -343,7 +343,7 @@ struct MapView: View {
             HStack(spacing: 12) {
                 statusMetric(
                     icon: "mappin.circle.fill",
-                    tint: .blue,
+                    tint: .info,
                     value: "\(viewModel.filteredLocations.count)",
                     label: "map.status.places".localized
                 )
@@ -641,7 +641,7 @@ private struct MapLoadingPanel: View {
                     .trim(from: 0.12, to: 0.82)
                     .stroke(
                         AngularGradient(
-                            colors: [.brandPurple, .brandPink, .blue, .brandPurple],
+                            colors: [.brandPurple, .brandPink, .info, .brandPurple],
                             center: .center
                         ),
                         style: StrokeStyle(lineWidth: 8, lineCap: .round)
@@ -785,7 +785,7 @@ struct SearchResultRow: View {
     private var categoryColor: Color {
         guard let category = location.category else { return .gray }
         switch category {
-        case .school: return .blue
+        case .school: return .info
         case .library: return .purple
         case .cafe: return .orange
         case .restaurant: return .red
@@ -961,7 +961,7 @@ private struct FriendDetailSheet: View {
     }
 
     private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colors: [Color] = [.info, .brandPurple, .brandPink, .warning, .success, .teal]
         let color = colors[abs(friend.name.hashValue) % colors.count]
         return LinearGradient(
             colors: [color, color.opacity(0.7)],
@@ -1047,7 +1047,7 @@ private struct CompactFriendMarker: View {
 
     /// Avatar gradient based on name
     private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colors: [Color] = [.info, .brandPurple, .brandPink, .warning, .success, .teal]
         let colorIndex = abs(friend.name.hashValue) % colors.count
         let color = colors[colorIndex]
 
@@ -1084,7 +1084,7 @@ private struct FriendAvatarAnnotation: View {
                 // Glow ring for studying friends
                 if friend.isStudying {
                     Circle()
-                        .fill(Color.green.opacity(0.4))
+                        .fill(Color.success.opacity(0.4))
                         .frame(width: 44, height: 44)
                         .blur(radius: 4)
                 }
@@ -1128,7 +1128,7 @@ private struct FriendAvatarAnnotation: View {
     }
 
     private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colors: [Color] = [.info, .brandPurple, .brandPink, .warning, .success, .teal]
         let colorIndex = abs(friend.name.hashValue) % colors.count
         let color = colors[colorIndex]
         return LinearGradient(
@@ -1254,7 +1254,7 @@ private struct FriendMarkerView: View {
     }
 
     private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal]
+        let colors: [Color] = [.info, .brandPurple, .brandPink, .warning, .success, .teal]
         let colorIndex = abs(friend.name.hashValue) % colors.count
         let color = colors[colorIndex]
 

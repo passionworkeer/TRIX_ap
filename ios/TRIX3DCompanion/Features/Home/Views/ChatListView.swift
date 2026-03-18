@@ -100,7 +100,7 @@ struct ChatListView: View {
                         .background(.regularMaterial, in: Circle())
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+                                .stroke(Color.textPrimary.opacity(0.7), lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -179,17 +179,17 @@ struct ChatListView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.gray.opacity(0.2))
+                            .fill(.tertiaryBackground.opacity(0.2))
                             .frame(width: 120, height: 16)
                             .shimmer(cornerRadius: 6)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.gray.opacity(0.2))
+                            .fill(.tertiaryBackground.opacity(0.2))
                             .frame(width: 180, height: 14)
                             .shimmer(cornerRadius: 6)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.gray.opacity(0.2))
+                            .fill(.tertiaryBackground.opacity(0.2))
                             .frame(width: 140, height: 12)
                             .shimmer(cornerRadius: 6)
                     }
@@ -208,12 +208,12 @@ struct ChatListView: View {
 
                         VStack(alignment: .leading, spacing: 8) {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(.gray.opacity(0.2))
+                                .fill(.tertiaryBackground.opacity(0.2))
                                 .frame(width: 140, height: 14)
                                 .shimmer(cornerRadius: 6)
 
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(.gray.opacity(0.2))
+                                .fill(.tertiaryBackground.opacity(0.2))
                                 .frame(width: 200, height: 12)
                                 .shimmer(cornerRadius: 6)
                         }
@@ -272,9 +272,9 @@ struct ChatListView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.7), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
+        .shadow(color: .overlay.opacity(0.04), radius: 10, x: 0, y: 6)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.searchField)
     }
 
@@ -298,11 +298,11 @@ struct ChatListView: View {
                         .clipShape(Circle())
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.7), lineWidth: 2)
+                                .stroke(Color.textPrimary.opacity(0.7), lineWidth: 2)
                         )
 
                     Circle()
-                        .fill(clawbotChannel.isPaired ? .green : .orange)
+                        .fill(clawbotChannel.isPaired ? .success : .warning)
                         .frame(width: 14, height: 14)
                         .overlay(Circle().stroke(.white, lineWidth: 2.5))
                 }
@@ -317,10 +317,10 @@ struct ChatListView: View {
                             Text(L("pairing.online"))
                                 .font(.caption2)
                                 .fontWeight(.medium)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.success)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(.green.opacity(0.15))
+                                .background(.success.opacity(0.15))
                                 .clipShape(Capsule())
                         }
                     }
@@ -360,9 +360,9 @@ struct ChatListView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                    .stroke(Color.textPrimary.opacity(0.8), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: 8)
+            .shadow(color: .overlay.opacity(0.05), radius: 12, x: 0, y: 8)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
@@ -406,9 +406,9 @@ struct ChatListView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.75), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
+        .shadow(color: .overlay.opacity(0.04), radius: 10, x: 0, y: 6)
     }
 
     // MARK: - Conversation List
@@ -430,9 +430,12 @@ struct ChatListView: View {
 
             ForEach(Array(filteredConversations.enumerated()), id: \.element.id) { index, conversation in
                 Button {
+                    // Debug: 打印点击的对话
+                    print("[ChatListView] 点击对话: \(conversation.name), onNavigateToChat 回调: \(onNavigateToChat != nil ? "已设置" : "未设置")")
                     onNavigateToChat?(conversation)
                 } label: {
                     ConversationRow(conversation: conversation)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -445,9 +448,9 @@ struct ChatListView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.75), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
+        .shadow(color: .overlay.opacity(0.04), radius: 12, x: 0, y: 8)
     }
 
     // MARK: - Conversation Empty State
@@ -477,9 +480,9 @@ struct ChatListView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.75), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
+        .shadow(color: .overlay.opacity(0.04), radius: 12, x: 0, y: 8)
     }
 
     // MARK: - Empty State
@@ -519,9 +522,9 @@ struct ChatListView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.75), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.75), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 8)
+        .shadow(color: .overlay.opacity(0.04), radius: 12, x: 0, y: 8)
         .padding(.horizontal, 20)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.emptyState)
     }
@@ -541,7 +544,7 @@ struct ChatListView: View {
                     lastMessage: friend.bio ?? L("profile.bio.empty"),
                     time: formatTimeAgo(from: friend.updatedAt),
                     unreadCount: 0,
-                    avatarColor: .blue,
+                    avatarColor: .info,
                     isOnline: friend.status == .online
                 )
             }
@@ -629,7 +632,7 @@ struct ChatListView: View {
                 let request = CreateChatRoomRequest(name: trimmedName, type: .privateChat)
                 let createdRoom: ChatRoom = try await APIClient.shared.post(.chatRoomCreate, body: request)
 
-                let colors: [Color] = [.blue, .purple, .green, .orange, .pink]
+                let colors: [Color] = [.info, .brandPurple, .success, .warning, .brandPink]
                 let newConversation = ChatConversation(
                     id: createdRoom.id,
                     name: createdRoom.name,
@@ -699,7 +702,7 @@ struct QuickAddUserCard: View {
         .background(Color(.systemBackground).opacity(0.92), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                .stroke(Color.textPrimary.opacity(0.8), lineWidth: 1)
         )
     }
 }

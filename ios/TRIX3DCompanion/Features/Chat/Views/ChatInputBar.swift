@@ -124,7 +124,7 @@ struct ChatInputBar: View {
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(.gray.opacity(0.2), lineWidth: 1)
+                            .stroke(.tertiaryBackground.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: "plus.circle.fill")
@@ -158,7 +158,7 @@ struct ChatInputBar: View {
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(.gray.opacity(0.2), lineWidth: 1)
+                            .stroke(.tertiaryBackground.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: "mic.fill")
@@ -176,16 +176,16 @@ struct ChatInputBar: View {
         Button(action: toggleSpeechRecognition) {
             ZStack {
                 Circle()
-                    .fill(isListening ? AnyShapeStyle(Color.red.opacity(0.2)) : AnyShapeStyle(.ultraThinMaterial))
+                    .fill(isListening ? AnyShapeStyle(Color.error.opacity(0.2)) : AnyShapeStyle(.ultraThinMaterial))
                     .frame(width: 44, height: 44)
                     .overlay(
                         Circle()
-                            .stroke(isListening ? Color.red.opacity(0.5) : Color.gray.opacity(0.2), lineWidth: 1)
+                            .stroke(isListening ? Color.error.opacity(0.5) : Color.tertiaryBackground.opacity(0.2), lineWidth: 1)
                     )
 
                 Image(systemName: isListening ? "waveform" : "text.bubble")
                     .font(.title2)
-                    .foregroundColor(isListening ? .red : .blue)
+                    .foregroundColor(isListening ? .error : .info)
             }
         }
         .accessibilityLabel("Speech to text")
@@ -239,7 +239,7 @@ struct ChatInputBar: View {
                 .fill(.regularMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(.gray.opacity(0.3), lineWidth: 0.5)
+                        .stroke(.tertiaryBackground.opacity(0.3), lineWidth: 0.5)
                 )
         )
     }
@@ -260,13 +260,13 @@ struct ChatInputBar: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.purple, .blue],
+                            colors: [.brandPurple, .info],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(width: 44, height: 44)
-                    .shadow(color: .purple.opacity(0.3), radius: 4, y: 2)
+                    .shadow(color: .brandPurple.opacity(0.3), radius: 4, y: 2)
 
                 Image(systemName: "arrow.up.fill")
                     .font(.body)
@@ -285,7 +285,7 @@ struct ChatInputBar: View {
     private var topBorder: some View {
         VStack {
             Rectangle()
-                .fill(.gray.opacity(0.3))
+                .fill(.tertiaryBackground.opacity(0.3))
                 .frame(height: 0.5)
             Spacer()
         }
@@ -529,7 +529,7 @@ extension ChatInputBar {
             }
         )
     }
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Chat Input Bar in Context") {
@@ -566,5 +566,5 @@ extension ChatInputBar {
             }
         )
     }
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }

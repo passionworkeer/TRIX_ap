@@ -247,21 +247,21 @@ struct StudyListView: View {
                 title: "study.active.rooms".localized,
                 value: "\(activeRooms.count)",
                 icon: "door.left.hand.open",
-                color: .purple
+                color: .brandPurple
             )
 
             StatBox(
                 title: "study.total.studying".localized,
                 value: "\(activeRooms.reduce(0) { $0 + $1.members.count })",
                 icon: "person.2.fill",
-                color: .blue
+                color: .info
             )
 
             StatBox(
                 title: "study.your.time".localized,
                 value: appState.formattedStudyTime,
                 icon: "clock.fill",
-                color: .green
+                color: .success
             )
         }
     }
@@ -271,7 +271,7 @@ struct StudyListView: View {
         VStack(spacing: 16) {
             Image(systemName: "calendar.badge.plus")
                 .font(.system(size: 50))
-                .foregroundColor(.purple.opacity(0.3))
+                .foregroundColor(.brandPurple.opacity(0.3))
 
             Text("study.no.upcoming".localized)
                 .font(.headline)
@@ -289,7 +289,7 @@ struct StudyListView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(.purple)
+                    .background(.brandPurple)
                     .clipShape(Capsule())
             }
         }
@@ -356,17 +356,17 @@ struct StudyRoomCard: View {
                 // Status badge
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(.green)
+                        .fill(.success)
                         .frame(width: 8, height: 8)
 
                     Text("study.room.active".localized)
                         .font(.caption2)
                         .fontWeight(.semibold)
                 }
-                .foregroundColor(.green)
+                .foregroundColor(.success)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(.green.opacity(0.1))
+                .background(.success.opacity(0.1))
                 .clipShape(Capsule())
             }
 
@@ -384,7 +384,7 @@ struct StudyRoomCard: View {
 
             // Progress bar
             ProgressView(value: Double(room.members.count), total: Double(room.maxMembers))
-                .tint(.purple)
+                .tint(.brandPurple)
 
             // Join button
             Button(action: onJoin) {
@@ -399,7 +399,7 @@ struct StudyRoomCard: View {
                 .padding(.vertical, 10)
                 .background(
                     LinearGradient(
-                        colors: [.purple, .pink],
+                        colors: [.brandPurple, .brandPink],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -414,7 +414,7 @@ struct StudyRoomCard: View {
                 colors: [
                     Color.brandPurple.opacity(0.12),
                     Color.brandPink.opacity(0.08),
-                    Color.white.opacity(0.08)
+                    Color.textPrimary.opacity(0.08)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -458,7 +458,7 @@ struct StudySessionCard: View {
                         .font(.caption2)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(.purple.opacity(0.1))
+                        .background(.brandPurple.opacity(0.1))
                         .clipShape(Capsule())
                 }
 
@@ -503,7 +503,7 @@ struct StatBox: View {
         .padding()
         .background(
             LinearGradient(
-                colors: [color.opacity(0.18), Color.white.opacity(0.12)],
+                colors: [color.opacity(0.18), Color.textPrimary.opacity(0.12)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -641,7 +641,7 @@ struct CreateStudyRoomView: View {
                     get: { Double(maxParticipants) },
                     set: { maxParticipants = Int($0) }
                 ), in: 2...50, step: 1)
-                .tint(.purple)
+                .tint(.brandPurple)
             }
 
             // Duration Picker
@@ -671,7 +671,7 @@ struct CreateStudyRoomView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .tint(.purple)
+            .tint(.brandPurple)
             .padding()
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -696,7 +696,7 @@ struct CreateStudyRoomView: View {
             .padding()
             .background(
                 LinearGradient(
-                    colors: [.purple, .pink],
+                    colors: [.brandPurple, .brandPink],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -783,5 +783,5 @@ struct DemoStudySession: Identifiable {
         ))
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }

@@ -66,7 +66,7 @@ struct GlassDockView: View {
                 .overlay(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.22),
+                            Color.textPrimary.opacity(0.22),
                             Color.brandPurple.opacity(0.05),
                             Color.clear
                         ],
@@ -80,7 +80,7 @@ struct GlassDockView: View {
             RoundedRectangle(cornerRadius: 35)
                 .stroke(
                     LinearGradient(
-                        colors: [.white.opacity(0.4), .white.opacity(0.1)],
+                        colors: [.textPrimary.opacity(0.4), .textPrimary.opacity(0.1)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
@@ -211,7 +211,7 @@ struct GlassDockView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [.white.opacity(0.4), .clear],
+                            colors: [.textPrimary.opacity(0.4), .clear],
                             startPoint: .topLeading,
                             endPoint: .center
                         )
@@ -226,7 +226,7 @@ struct GlassDockView: View {
 
                     Text(L("nav.core"))
                         .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.88))
+                        .foregroundStyle(.textPrimary.opacity(0.88))
                 }
             }
         }
@@ -251,7 +251,7 @@ struct GlassDockView: View {
 
 #Preview("GlassDock") {
     ZStack {
-        Color.gray.opacity(0.2)
+        Color.tertiaryBackground.opacity(0.2)
             .ignoresSafeArea()
 
         VStack {

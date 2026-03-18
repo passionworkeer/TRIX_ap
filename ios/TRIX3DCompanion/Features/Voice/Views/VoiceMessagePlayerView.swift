@@ -144,14 +144,14 @@ struct VoiceMessagePlayerView: View {
                     .fill(
                         LinearGradient(
                             colors: viewModel.isPlaying
-                                ? [Color.purple.opacity(0.8), Color.pink.opacity(0.6)]
+                                ? [Color.brandPurple.opacity(0.8), Color.brandPink.opacity(0.6)]
                                 : [Color.purple, Color.pink],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(width: 64, height: 64)
-                    .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .shadow(color: .brandPurple.opacity(0.3), radius: 8, x: 0, y: 4)
 
                 Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
@@ -206,7 +206,7 @@ struct VoiceMessagePlayerView: View {
         }) {
             Image(systemName: "stop.fill")
                 .font(.title3)
-                .foregroundColor(.red.opacity(0.8))
+                .foregroundColor(.error.opacity(0.8))
                 .frame(width: 44, height: 44)
                 .background(.ultraThinMaterial, in: Circle())
         }
@@ -220,7 +220,7 @@ struct VoiceMessagePlayerView: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.purple.opacity(0.2))
+                    .fill(Color.brandPurple.opacity(0.2))
                     .frame(height: 8)
 
                 // Progress fill
@@ -263,7 +263,7 @@ struct VoiceMessagePlayerView: View {
                 .foregroundColor(.purple)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(.purple.opacity(0.1), in: Capsule())
+                .background(.brandPurple.opacity(0.1), in: Capsule())
         }
         .buttonStyle(.plain)
         .confirmationDialog(
@@ -301,7 +301,7 @@ struct VoiceMessagePlayerView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .background(.warning.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -359,7 +359,7 @@ struct CompactVoicePlayerView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.purple.opacity(0.2))
+                            .fill(Color.brandPurple.opacity(0.2))
                             .frame(height: 4)
 
                         RoundedRectangle(cornerRadius: 2)
@@ -430,7 +430,7 @@ struct CompactVoicePlayerView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(
         LinearGradient(
-            colors: [.purple.opacity(0.2), .pink.opacity(0.2)],
+            colors: [.brandPurple.opacity(0.2), .brandPink.opacity(0.2)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

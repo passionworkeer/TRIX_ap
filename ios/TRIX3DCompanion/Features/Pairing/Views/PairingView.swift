@@ -481,7 +481,7 @@ struct PairingView: View {
                         .background(
                             LinearGradient(
                                 colors: isLoading
-                                    ? [Color.gray.opacity(0.9), Color.gray.opacity(0.75)]
+                                    ? [Color.tertiaryBackground.opacity(0.9), Color.tertiaryBackground.opacity(0.75)]
                                     : [Color.brandPurple, Color.brandPink],
                                 startPoint: .leading,
                                 endPoint: .trailing

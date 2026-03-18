@@ -63,7 +63,7 @@ struct TTSControlView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color.purple.opacity(0.2), Color.pink.opacity(0.2)],
+                                colors: [Color.brandPurple.opacity(0.2), Color.brandPink.opacity(0.2)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -162,7 +162,7 @@ struct TTSControlView: View {
                     .background(
                         viewModel.isSpeakingText
                             ? LinearGradient(
-                                colors: [Color.purple.opacity(0.6), Color.pink.opacity(0.6)],
+                                colors: [Color.brandPurple.opacity(0.6), Color.brandPink.opacity(0.6)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -190,7 +190,7 @@ struct TTSControlView: View {
                             .frame(width: 48, height: 48)
                             .background(
                                 LinearGradient(
-                                    colors: [.red.opacity(0.8), .orange.opacity(0.8)],
+                                    colors: [.error.opacity(0.8), .warning.opacity(0.8)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -237,7 +237,7 @@ struct TTSControlView: View {
                 TTSQuickActionButton(
                     icon: "timer",
                     title: L("tts.pomodoro.start"),
-                    color: .blue
+                    color: .info
                 ) {
                     Task {
                         await viewModel.speakPomodoroStart()
@@ -389,7 +389,7 @@ struct TTSControlView: View {
                     .foregroundColor(.purple)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
-                    .background(.purple.opacity(0.1))
+                    .background(.brandPurple.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
@@ -485,7 +485,7 @@ struct CompactTTSControlView: View {
                         .foregroundColor(.purple)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(.purple.opacity(0.1))
+                        .background(.brandPurple.opacity(0.1))
                         .clipShape(Capsule())
                 }
             }

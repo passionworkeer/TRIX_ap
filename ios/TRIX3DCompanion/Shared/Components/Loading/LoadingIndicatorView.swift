@@ -203,7 +203,7 @@ struct ChatLoadingBubble: View {
             HStack(spacing: 4) {
                 ForEach(0..<3) { index in
                     Circle()
-                        .fill(Color.gray.opacity(0.6))
+                        .fill(Color.tertiaryBackground.opacity(0.6))
                         .frame(width: 8, height: 8)
                         .scaleEffect(isAnimating ? 1.0 : 0.5)
                         .animation(

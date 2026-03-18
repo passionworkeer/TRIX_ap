@@ -113,7 +113,7 @@ struct MessageBubbleView: View {
             if !message.content.isEmpty {
                 Text(message.content)
                     .font(.caption)
-                    .foregroundColor(isFromCurrentUser ? .white.opacity(0.9) : .secondary)
+                    .foregroundColor(isFromCurrentUser ? .textPrimary.opacity(0.9) : .secondary)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
             }
@@ -136,7 +136,7 @@ struct MessageBubbleView: View {
             if !message.content.isEmpty {
                 Text(message.content)
                     .font(.caption)
-                    .foregroundColor(isFromCurrentUser ? .white.opacity(0.9) : .secondary)
+                    .foregroundColor(isFromCurrentUser ? .textPrimary.opacity(0.9) : .secondary)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
             }
@@ -151,13 +151,13 @@ struct MessageBubbleView: View {
         HStack(spacing: 12) {
             Image(systemName: "waveform")
                 .font(.title3)
-                .foregroundColor(isFromCurrentUser ? .white.opacity(0.8) : .purple)
+                .foregroundColor(isFromCurrentUser ? .textPrimary.opacity(0.8) : .brandPurple)
 
             // Waveform visualization
             HStack(spacing: 2) {
                 ForEach(0..<20) { index in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(isFromCurrentUser ? .white.opacity(0.6) : .purple.opacity(0.6))
+                        .fill(isFromCurrentUser ? .textPrimary.opacity(0.6) : .brandPurple.opacity(0.6))
                         .frame(width: 3, height: CGFloat.random(in: 8...20))
                 }
             }
@@ -193,7 +193,7 @@ struct MessageBubbleView: View {
                 if let fileSize = fileSize {
                     Text(formatFileSize(fileSize))
                         .font(.caption2)
-                        .foregroundColor(isFromCurrentUser ? .white.opacity(0.7) : .secondary)
+                        .foregroundColor(isFromCurrentUser ? .textPrimary.opacity(0.7) : .secondary)
                 }
             }
 
@@ -213,7 +213,7 @@ struct MessageBubbleView: View {
 
     private var avatarView: some View {
         Circle()
-            .fill(isFromCurrentUser ? Color.blue : Color.purple)
+            .fill(isFromCurrentUser ? Color.info : Color.brandPurple)
             .frame(width: 44, height: 44)
             .overlay {
                 Text(String(message.senderId.prefix(1)))
@@ -261,7 +261,7 @@ struct MessageBubbleView: View {
     private var fileIconView: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(isFromCurrentUser ? Color.white.opacity(0.2) : Color.purple.opacity(0.1))
+                .fill(isFromCurrentUser ? Color.textPrimary.opacity(0.2) : Color.brandPurple.opacity(0.1))
                 .frame(width: 44, height: 44)
 
             Image(systemName: "doc.fill")
@@ -274,7 +274,7 @@ struct MessageBubbleView: View {
 
     private var placeholderView: some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color.gray.opacity(0.3))
+            .fill(Color.tertiaryBackground.opacity(0.3))
             .frame(width: 200, height: 150)
             .overlay {
                 ActivityIndicatorView(
@@ -287,7 +287,7 @@ struct MessageBubbleView: View {
 
     private var failureView: some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(Color.gray.opacity(0.3))
+            .fill(Color.tertiaryBackground.opacity(0.3))
             .frame(width: 200, height: 150)
             .overlay {
                 VStack(spacing: 8) {
@@ -343,13 +343,13 @@ struct VideoThumbnailView: View {
                         .aspectRatio(contentMode: .fill)
                 default:
                     Rectangle()
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(Color.tertiaryBackground.opacity(0.3))
                 }
             }
 
             // Play button overlay
             Circle()
-                .fill(.black.opacity(0.5))
+                .fill(.overlay.opacity(0.5))
                 .frame(width: 50, height: 50)
                 .overlay {
                     Image(systemName: "play.fill")
@@ -368,7 +368,7 @@ struct VideoThumbnailView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(.black.opacity(0.7))
+                            .background(.overlay.opacity(0.7))
                             .clipShape(Capsule())
                             .padding(8)
                     }
@@ -395,7 +395,7 @@ extension View {
                 Group {
                     if isFromCurrentUser {
                         LinearGradient(
-                            colors: [Color.purple, Color.blue],
+                            colors: [Color.brandPurple, Color.info],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -405,7 +405,7 @@ extension View {
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            .shadow(color: .overlay.opacity(0.05), radius: 4, y: 2)
     }
 }
 
@@ -514,5 +514,5 @@ extension View {
         )
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }

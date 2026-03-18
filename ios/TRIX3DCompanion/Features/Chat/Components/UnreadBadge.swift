@@ -222,18 +222,18 @@ struct TabItemWithBadge: View {
         }
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Icon with Badge") {
     HStack(spacing: 30) {
-        IconWithBadge(icon: "message.fill", badgeCount: 3, iconColor: .blue)
+        IconWithBadge(icon: "message.fill", badgeCount: 3, iconColor: .info)
         IconWithBadge(icon: "bell.fill", badgeCount: 12, iconColor: .red)
         IconWithBadge(icon: "heart.fill", badgeCount: 0, iconColor: .pink)
         IconWithBadge(icon: "mail.fill", badgeCount: 99, iconColor: .purple)
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Tab Items with Badges") {
@@ -243,7 +243,7 @@ struct TabItemWithBadge: View {
         TabItemWithBadge(title: "我的", icon: "person.fill", badgeCount: 0)
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Chat List Row with Badge") {
@@ -251,7 +251,7 @@ struct TabItemWithBadge: View {
         HStack(spacing: 12) {
             // Avatar
             Circle()
-                .fill(.blue)
+                .fill(.info)
                 .frame(width: 50, height: 50)
                 .overlay {
                     Text("M")

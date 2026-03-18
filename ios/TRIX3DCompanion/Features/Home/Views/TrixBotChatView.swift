@@ -231,7 +231,7 @@ struct TrixBotChatView: View {
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.76), lineWidth: 1)
+                        .stroke(Color.textPrimary.opacity(0.76), lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 6)
 
@@ -588,11 +588,11 @@ private struct TrixDisplayMessageBubble: View {
     private func avatarView(isBot: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(isBot ? Color.brandPurple.opacity(0.2) : Color.blue.opacity(0.2))
+                .fill(isBot ? Color.brandPurple.opacity(0.2) : Color.info.opacity(0.2))
 
             Image(systemName: isBot ? "sparkles" : "person.fill")
                 .font(.system(size: 16))
-                .foregroundColor(isBot ? .brandPurple : .blue)
+                .foregroundColor(isBot ? .brandPurple : .info)
         }
         .frame(width: 36, height: 36)
     }
@@ -642,7 +642,7 @@ private struct TrixDisplayMessageBubble: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(message.isFromUser ? Color.white.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 0.5)
+                        .stroke(message.isFromUser ? Color.white.opacity(0.3) : Color.tertiaryBackground.opacity(0.2), lineWidth: 0.5)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .shadow(

@@ -139,43 +139,200 @@ async function dispatchInboundMessage(params: {
   });
 }
 
-export async function startInboundMonitor(gatewayContext: Record<string, unknown>, account: ResolvedPluginAccount): Promise<void> {
+export async function startInboundMonitor(
+  gatewayContext: Record<string, unknown>,
+  account: ResolvedPluginAccount
+): Promise<void> {
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
-  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
-  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(account.adminToken ?? '')}&accountId=${encodeURIComponent(account.accountId)}`;
-  const socket = new WebSocket(wsUrl);
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
+  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
+  const wsUrl = `${wsBase}/ws?role=agent&adminToken=${encodeURIComponent(
+    account.adminToken ?? ''
+  )}&accountId=${encodeURIComponent(account.accountId)}`;
 
+  // stopped = true 时不再重连，也不处理任何消息
+  let stopped = false;
+  // 当前活跃的 socket，用于 abort 时主动关闭
+  let currentSocket: WebSocket | null = null;
+
+  // 追踪最后处理的消息 ID，避免重复处理
+  let lastProcessedMessageId: string | null = null;
+
+  // abort 信号：标记停止，关闭当前 socket
   abortSignal?.addEventListener('abort', () => {
-    socket.close(1000, 'plugin stop');
+    stopped = true;
+    currentSocket?.close(1000, 'plugin stop');
+    currentSocket = null;
   });
 
-  socket.on('message', async (data) => {
+  // 轮询服务器获取新消息（作为 WebSocket 的备份/补充）
+  async function pollMessages(): Promise<void> {
+    if (stopped) return;
+
     try {
-      const envelope = JSON.parse(data.toString()) as ClientEnvelope<{ message?: MessageRecord }>;
-      if (envelope.type !== 'message.created' || !envelope.payload.message) {
-        return;
-      }
-      if (envelope.payload.message.direction !== 'inbound') {
-        return;
-      }
-      await dispatchInboundMessage({
-        gatewayContext,
-        account,
-        message: envelope.payload.message,
+      // 从服务器获取已知的会话列表
+      // 远程服务器使用 /api/messages/:conversationId
+      // 这里简化为轮询单个已知会话，实际应该跟踪所有活跃会话
+      // 首先尝试获取配对信息来找到会话
+
+      const pairingsResponse = await fetch(`${account.serverUrl.replace(/\/$/, '')}/api/pairings`, {
+        headers: {
+          'x-trix-admin-token': account.adminToken ?? '',
+        },
       });
+
+      if (!pairingsResponse.ok) {
+        log.warn?.(`Failed to fetch pairings: ${pairingsResponse.status}`);
+        return;
+      }
+
+      const pairingsData = await pairingsResponse.json() as Array<{ code: string; status: string; deviceId?: string; conversationId?: string }>;
+      const pairedDevices = pairingsData.filter((p) => p.status === 'paired' && p.deviceId);
+
+      for (const pairing of pairedDevices) {
+        // 尝试获取该设备的消息
+        // 远程服务器的 API: /api/messages/:conversationId
+        const conversationId = pairing.conversationId || `device_${pairing.deviceId}`;
+
+        const messagesResponse = await fetch(
+          `${account.serverUrl.replace(/\/$/, '')}/api/messages/${encodeURIComponent(conversationId)}`,
+          {
+            headers: {
+              'x-trix-admin-token': account.adminToken ?? '',
+            },
+          }
+        );
+
+        if (!messagesResponse.ok) continue;
+
+        const messagesData = await messagesResponse.json() as { messages?: MessageRecord[] };
+        const messages = messagesData.messages ?? [];
+
+        // 处理新消息（direction = outbound 表示客户端发出的消息）
+        for (const message of messages) {
+          // 跳过已处理的
+          if (message.id === lastProcessedMessageId) continue;
+
+          // 接受 outbound（客户端发出）、inbound 或 phone
+          if (message.direction !== 'outbound' && message.direction !== 'inbound' && message.direction !== 'system') {
+            continue;
+          }
+
+          // 更新最后处理的 ID
+          lastProcessedMessageId = message.id;
+
+          await dispatchInboundMessage({
+            gatewayContext,
+            account,
+            message,
+          });
+        }
+      }
     } catch (error) {
-      log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
+      log.error?.(`TRIX Native message polling failed: ${String(error)}`);
     }
+  }
+
+  async function connect(): Promise<void> {
+    if (stopped) return;
+
+    const socket = new WebSocket(wsUrl);
+    currentSocket = socket;
+
+    // 消息处理
+    socket.on('message', async (data) => {
+      if (stopped) return;
+      try {
+        const envelope = JSON.parse(data.toString()) as ClientEnvelope<{
+          message?: MessageRecord;
+        }>;
+        if (envelope.type !== 'message.created' || !envelope.payload.message) return;
+
+        const message = envelope.payload.message;
+
+        // 接受 direction = 'inbound' 或 'outbound'（兼容不同服务器版本）
+        // outbound = 客户端发出的消息（到达 Agent）
+        // inbound = Agent 发出的消息（到达客户端）
+        if (message.direction !== 'inbound' && message.direction !== 'outbound') return;
+
+        // 避免重复处理
+        if (message.id === lastProcessedMessageId) return;
+        lastProcessedMessageId = message.id;
+
+        await dispatchInboundMessage({
+          gatewayContext,
+          account,
+          message,
+        });
+      } catch (error) {
+        log.error?.(`TRIX Native inbound dispatch failed: ${String(error)}`);
+      }
+    });
+
+    // 关闭处理：code 1000 是主动关闭，不重连
+    // 其他 code 是异常断开，5 秒后重连一次
+    socket.on('close', (code) => {
+      if (currentSocket === socket) currentSocket = null;
+      if (stopped || code === 1000) {
+        log.info?.(`TRIX Native websocket closed normally (${account.accountId})`);
+        return;
+      }
+      log.warn?.(
+        `TRIX Native websocket closed unexpectedly (code=${code}), ` +
+        `reconnecting in 5s... (${account.accountId})`
+      );
+      setTimeout(() => {
+        connect().catch((err) => {
+          log.error?.(`TRIX Native reconnect failed: ${String(err)}`);
+        });
+      }, 5000);
+    });
+
+    // 运行时错误只记录，不抛出（避免崩溃 gateway）
+    socket.on('error', (err) => {
+      log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(err)}`);
+    });
+
+    // 等待初始连接建立
+    // 用互相清理的方式避免 open/error 竞争条件
+    await new Promise<void>((resolve, reject) => {
+      function onOpen() {
+        socket.removeListener('error', onError);
+        log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
+        resolve();
+      }
+      function onError(err: Error) {
+        socket.removeListener('open', onOpen);
+        currentSocket = null;
+        reject(err);
+      }
+      socket.once('open', onOpen);
+      socket.once('error', onError);
+    });
+  }
+
+  // 首次连接失败直接抛出，让 gateway 知道启动失败
+  await connect();
+
+  // 启动消息轮询（作为 WebSocket 的备份）
+  // 每 3 秒检查一次新消息
+  const pollIntervalMs = 3000;
+  setInterval(() => {
+    pollMessages().catch((err) => {
+      log.error?.(`TRIX Native poll error: ${String(err)}`);
+    });
+  }, pollIntervalMs);
+
+  // 立即执行一次轮询
+  pollMessages().catch((err) => {
+    log.error?.(`TRIX Native initial poll error: ${String(err)}`);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    socket.once('open', () => {
-      log.info?.(`TRIX Native agent websocket connected (${account.accountId})`);
-      resolve();
-    });
-    socket.once('error', (error) => {
-      reject(error);
-    });
+  // 必须加这个，否则 startAccount 返回后
+  // OpenClaw 把通道标记为 configured 而不是 running
+  // 使用一个永远 pending 的 Promise
+  await new Promise<void>((resolve) => {
+    // 不调用 resolve，Promise 永远 pending
+    // 通道会一直保持 "running" 状态
   });
 }

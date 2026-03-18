@@ -183,7 +183,7 @@ struct StudyStatsView: View {
                                 }
                             }
                             AxisGridLine()
-                                .foregroundStyle(Color.gray.opacity(0.3))
+                                .foregroundStyle(Color.tertiaryBackground.opacity(0.3))
                         }
                     }
                     .chartXAxis {
@@ -195,7 +195,7 @@ struct StudyStatsView: View {
                                 }
                             }
                             AxisGridLine()
-                                .foregroundStyle(Color.gray.opacity(0.3))
+                                .foregroundStyle(Color.tertiaryBackground.opacity(0.3))
                         }
                     }
 

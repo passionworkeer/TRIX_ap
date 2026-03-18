@@ -15,13 +15,13 @@ extension FriendStatus {
     var color: Color {
         switch self {
         case .online:
-            return .green
+            return .success
         case .offline:
             return .gray
         case .away:
-            return .orange
+            return .warning
         case .busy:
-            return .red
+            return .error
         }
     }
 
@@ -72,7 +72,7 @@ struct OnlineStatusIndicator: View {
             // Outer glow for online users
             if status == .online {
                 Circle()
-                    .fill(Color.green.opacity(0.3))
+                    .fill(Color.success.opacity(0.3))
                     .frame(width: size + 6, height: size + 6)
                     .blur(radius: 2)
             }
@@ -209,7 +209,7 @@ struct AvatarWithStatusView: View {
         HStack(spacing: 20) {
             AvatarWithStatusView(
                 avatarText: "JD",
-                avatarColor: .blue,
+                avatarColor: .info,
                 status: .online
             )
 
@@ -227,7 +227,7 @@ struct AvatarWithStatusView: View {
         }
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Avatar with Status") {
@@ -241,7 +241,7 @@ struct AvatarWithStatusView: View {
 
         AvatarWithStatusView(
             avatarText: "AL",
-            avatarColor: .blue,
+            avatarColor: .info,
             status: .busy,
             size: 50
         )
@@ -254,5 +254,5 @@ struct AvatarWithStatusView: View {
         )
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }

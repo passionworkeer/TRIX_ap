@@ -498,7 +498,7 @@ struct VoiceRecordingButton: View {
             ZStack {
                 if viewModel.isRecording {
                     Circle()
-                        .fill(Color.red.opacity(0.3))
+                        .fill(Color.error.opacity(0.3))
                         .frame(width: 100, height: 100)
                         .scaleEffect(1.5)
                         .animation(
@@ -516,7 +516,7 @@ struct VoiceRecordingButton: View {
                         .foregroundColor(.white)
                 } else {
                     Circle()
-                        .fill(Color.orange.opacity(0.25))
+                        .fill(Color.warning.opacity(0.25))
                         .frame(width: 80, height: 80)
 
                     ActivityIndicatorView(

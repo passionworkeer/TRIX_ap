@@ -53,15 +53,20 @@
 
 ## 🟡 P2 - 中优先级
 
-### UI 组件美化
+### (已修复) UI 组件美化
 
-**问题描述**
-部分 UI 组件的视觉表现需要优化。
-
-**需要优化**
-- 颜色对比度
-- 可访问性
-- 设计风格统一
+**修复说明 (2026-03-18)**
+- 将 21 个核心文件的硬编码颜色替换为主题色
+- 替换规则：
+  - `.gray` → `.textSecondary` / `.tertiaryBackground`
+  - `.purple` → `.brandPurple`
+  - `.green` → `.success`
+  - `.red` → `.error`
+  - `.orange` → `.warning`
+  - `.blue` → `.info`
+  - `.white.opacity` → `.textPrimary.opacity`
+  - `.black.opacity` → `.overlay.opacity`
+- 修改文件：ChatListView, MessageBubbleView, ChatInputBar, ProfileView 等 21 个文件
 
 ---
 
@@ -71,8 +76,8 @@
 |--------|--------|------|
 | P0 | 0 | ✅ 全部修复 |
 | P1 | 0 | ✅ 全部修复 |
-| P2 | 1 | ❌ 待处理 |
-| **总计** | **1** | |
+| P2 | 0 | ✅ 已修复 |
+| **总计** | **0** | ✅ 全部完成 |
 
 ---
 

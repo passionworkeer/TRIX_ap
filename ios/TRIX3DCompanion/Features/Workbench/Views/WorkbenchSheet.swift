@@ -190,7 +190,7 @@ struct WorkbenchSheet: View {
                     icon: "calendar",
                     title: L("workbench.schedule"),
                     subtitle: L("workbench.schedule.subtitle"),
-                    color: .blue
+                    color: .info
                 ) {
                     showScheduleList = true
                 }
@@ -227,7 +227,7 @@ struct WorkbenchSheet: View {
     private var backgroundGradient: some View {
         LinearGradient(
             colors: [
-                Color.purple.opacity(0.1),
+                Color.brandPurple.opacity(0.1),
                 Color.pink.opacity(0.05),
                 Color.clear
             ],
@@ -292,7 +292,7 @@ struct TabButton: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isSelected ? Color.purple : Color.gray.opacity(0.15))
+            .background(isSelected ? Color.brandPurple : Color.tertiaryBackground.opacity(0.15))
             .foregroundColor(isSelected ? .white : .primary)
             .clipShape(Capsule())
         }

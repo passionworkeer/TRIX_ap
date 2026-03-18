@@ -193,7 +193,7 @@ extension TypingIndicatorView {
 
         // Custom color
         TypingIndicatorView.colored(.purple, isAnimating: true)
-        TypingIndicatorView.colored(.blue, isAnimating: true)
+        TypingIndicatorView.colored(.info, isAnimating: true)
         TypingIndicatorView.colored(.green, isAnimating: true)
 
         // Typing bubble
@@ -208,7 +208,7 @@ extension TypingIndicatorView {
         }
     }
     .padding()
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
 
 #Preview("Typing in Chat Context") {
@@ -232,5 +232,5 @@ extension TypingIndicatorView {
         Spacer()
     }
     .padding()
-    .background(Color.purple.opacity(0.05))
+    .background(Color.brandPurple.opacity(0.05))
 }

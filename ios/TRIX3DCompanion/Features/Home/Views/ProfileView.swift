@@ -140,7 +140,7 @@ struct ProfileView: View {
             }
             .frame(width: 100, height: 100)
             .clipShape(Circle())
-            .shadow(color: .purple.opacity(0.3), radius: 20, x: 0, y: 10)
+            .shadow(color: .brandPurple.opacity(0.3), radius: 20, x: 0, y: 10)
 
             // User info
             VStack(spacing: 4) {
@@ -193,7 +193,7 @@ struct ProfileView: View {
                     title: "profile.study.time".localized,
                     value: appState.formattedStudyTime,
                     icon: "clock.fill",
-                    color: .blue
+                    color: .info
                 )
 
                 ProfileStatCard(
@@ -412,7 +412,7 @@ struct ProfileView: View {
                     icon: "globe",
                     title: "settings.language".localized,
                     description: appState.appLanguage.displayName,
-                    color: .blue,
+                    color: .info,
                     trailing: AnyView(languageMenu)
                 )
 
@@ -451,7 +451,7 @@ struct ProfileView: View {
                     icon: "info.circle.fill",
                     title: "settings.about".localized,
                     description: "settings.app.version".localized,
-                    color: .blue,
+                    color: .info,
                     accessibilityIdentifier: ProfileAccessibilityIdentifiers.aboutButton,
                     action: { showingAbout = true }
                 )
@@ -474,7 +474,7 @@ struct ProfileView: View {
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: [.red.opacity(0.85), .red.opacity(0.62)],
+                    colors: [.error.opacity(0.85), .error.opacity(0.62)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -556,7 +556,7 @@ struct ProfileAchievementBadge: View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(isUnlocked ? color.opacity(0.2) : Color.gray.opacity(0.1))
+                    .fill(isUnlocked ? color.opacity(0.2) : Color.tertiaryBackground.opacity(0.1))
                     .frame(width: 60, height: 60)
 
                 Image(systemName: icon)
@@ -1139,5 +1139,5 @@ private extension String {
             color: .red
         )
     }
-    .background(Color.gray.opacity(0.1))
+    .background(Color.tertiaryBackground.opacity(0.1))
 }
