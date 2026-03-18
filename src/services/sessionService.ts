@@ -93,13 +93,23 @@ export function clearLocalSessionId(): void {
 // ============================================
 
 /**
+ * 清理设备名称：去除控制字符，限制最大长度
+ * 防御 XSS 和恶意输入
+ */
+function sanitizeDeviceName(name: string): string {
+  return name
+    .replace(/[\x00-\x1F\x7F]/g, '') // 去除控制字符
+    .slice(0, 200);                   // 最大 200 字符
+}
+
+/**
  * 获取设备名称
  */
 function getDeviceName(): string {
   const ua = navigator.userAgent;
   const platform = navigator.platform ?? 'Unknown';
   const browser = getBrowserName(ua);
-  return `${browser} on ${platform}`;
+  return sanitizeDeviceName(`${browser} on ${platform}`);
 }
 
 /**
@@ -289,7 +299,9 @@ export async function checkSessionValidity(): Promise<SessionValidityResult> {
       return { isValid: false, reason: 'not_found' };
     }
 
-    if (profile.active_session_id !== localId) {
+    // active_session_id 为 null 表示初始状态（还没记录过），视为有效
+    // 只有明确记录了另一个 session ID 时才判定为 mismatch（被挤掉了）
+    if (profile.active_session_id !== null && profile.active_session_id !== localId) {
       logger.auth.warn(
         `Session mismatch: local=${localId}, db=${profile.active_session_id}`,
       );
