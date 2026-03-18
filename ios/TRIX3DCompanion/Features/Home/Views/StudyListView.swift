@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -683,8 +684,7 @@ struct CreateStudyRoomView: View {
         Button(action: createRoom) {
             HStack {
                 if isCreating {
-                    ProgressView()
-                        .tint(.white)
+                    ButtonLoadingView()
                 } else {
                     Image(systemName: "plus.circle.fill")
                     Text("study.create.button".localized)

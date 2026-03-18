@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -153,7 +154,7 @@ struct NotificationPanelView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 if isLoading {
-                    ProgressView()
+                    TrixLoadingIndicator.standard()
                         .padding(.top, 40)
                 } else if filteredNotifications.isEmpty {
                     emptyState

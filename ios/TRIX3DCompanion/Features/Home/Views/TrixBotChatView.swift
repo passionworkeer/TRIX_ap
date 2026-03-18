@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -252,9 +253,7 @@ struct TrixBotChatView: View {
                             .shadow(color: canSend ? Color.brandPurple.opacity(0.24) : .clear, radius: 12, x: 0, y: 6)
 
                         if isSendingMessage || isUploadingAttachment {
-                            ProgressView()
-                                .tint(.white)
-                                .scaleEffect(0.85)
+                            ButtonLoadingView()
                         } else {
                             Image(systemName: "arrow.up")
                                 .font(.headline)
@@ -303,7 +302,7 @@ struct TrixBotChatView: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView()
+                        ImageLoadingPlaceholder(size: 56)
                     case .success(let image):
                         image
                             .resizable()
@@ -333,7 +332,7 @@ struct TrixBotChatView: View {
             Spacer()
 
             if isUploadingAttachment {
-                ProgressView()
+                TrixLoadingIndicator.uploading()
             } else {
                 Button {
                     attachedImage = nil
@@ -605,10 +604,7 @@ private struct TrixDisplayMessageBubble: View {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    ProgressView()
-                        .frame(width: 180, height: 180)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    ImageLoadingPlaceholder(size: 180)
                 case .success(let image):
                     image
                         .resizable()

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -112,7 +113,7 @@ struct MailPanelView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 if isLoading {
-                    ProgressView()
+                    TrixLoadingIndicator.standard()
                         .padding(.top, 40)
                 } else if messages.isEmpty {
                     emptyState

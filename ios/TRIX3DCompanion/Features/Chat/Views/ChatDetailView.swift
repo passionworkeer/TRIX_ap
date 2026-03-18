@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -155,7 +156,9 @@ struct ChatDetailView: View {
     private var loadMoreButton: some View {
         Button(action: loadMoreMessages) {
             HStack(spacing: 8) {
-                if chatService.isLoadingMessages { ProgressView() } else { Image(systemName: "arrow.up") }
+                if chatService.isLoadingMessages {
+                    TrixLoadingIndicator.chat()
+                } else { Image(systemName: "arrow.up") }
                 Text(L("chat.load.earlier")).font(.subheadline)
             }.foregroundColor(.secondary).padding()
         }.disabled(chatService.isLoadingMessages)

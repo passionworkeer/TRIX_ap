@@ -45,14 +45,14 @@ struct TrixLoadingIndicator: View {
         case .chat:
             ActivityIndicatorView(
                 isVisible: $isAnimating,
-                type: .materialDesign(.init(size: 25))
+                type: .growingCircle
             )
             .tint(.brandPurple)
 
         case .button:
             ActivityIndicatorView(
                 isVisible: $isAnimating,
-                type: .circleStrokeSpin
+                type: .growingCircle
             )
             .tint(.white)
 
@@ -67,14 +67,14 @@ struct TrixLoadingIndicator: View {
         case .initialLoad:
             ActivityIndicatorView(
                 isVisible: $isAnimating,
-                type: .materialDesign(.init(size: 50))
+                type: .growingCircle
             )
             .tint(.brandPurple)
 
         case .uploading:
             ActivityIndicatorView(
                 isVisible: $isAnimating,
-                type: .circleStrokeSpin
+                type: .growingCircle
             )
             .tint(.white)
             .frame(width: 36, height: 36)
@@ -183,7 +183,7 @@ struct ButtonLoadingView: View {
     var body: some View {
         ActivityIndicatorView(
             isVisible: .constant(true),
-            type: .circleStrokeSpin
+            type: .growingCircle
         )
         .tint(tintColor)
         .frame(width: 20, height: 20)
@@ -239,7 +239,7 @@ struct ImageLoadingPlaceholder: View {
 
             ActivityIndicatorView(
                 isVisible: .constant(true),
-                type: .circleStrokeSpin
+                type: .growingCircle
             )
             .tint(.brandPurple)
             .frame(width: size * 0.3, height: size * 0.3)

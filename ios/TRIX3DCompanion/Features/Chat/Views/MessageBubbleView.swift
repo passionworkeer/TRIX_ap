@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localizable Helper
 
@@ -276,7 +277,11 @@ struct MessageBubbleView: View {
             .fill(Color.gray.opacity(0.3))
             .frame(width: 200, height: 150)
             .overlay {
-                ProgressView()
+                ActivityIndicatorView(
+                    isVisible: .constant(true),
+                    type: .growingCircle
+                )
+                .tint(.gray)
             }
     }
 

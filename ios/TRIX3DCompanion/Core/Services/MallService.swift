@@ -68,7 +68,7 @@ final class MallService: ObservableObject, MallServiceProtocol {
 
             // Also fetch user points balance
             let balance = try await supabaseService.fetchUserPointsBalance()
-            self.userPoints = balance.balance
+            self.userPoints = balance.availablePoints
 
             isLoading = false
             return response
@@ -144,8 +144,8 @@ final class MallService: ObservableObject, MallServiceProtocol {
     func refreshUserPoints() async throws -> Int {
         do {
             let balance = try await supabaseService.fetchUserPointsBalance()
-            self.userPoints = balance.balance
-            return balance.balance
+            self.userPoints = balance.availablePoints
+            return balance.availablePoints
         } catch {
             let serviceError = MallServiceError.fetchFailed(underlying: error)
             lastError = serviceError

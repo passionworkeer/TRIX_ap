@@ -309,13 +309,128 @@ struct NewProfileView: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Profile info card skeleton
+                VStack(spacing: 16) {
+                    HStack(spacing: 16) {
+                        SkeletonAvatar(size: 80)
 
-            Text(L("common.loading"))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 140, height: 18)
+                                .shimmer(cornerRadius: 6)
+
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 100, height: 14)
+                                .shimmer(cornerRadius: 6)
+
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 180, height: 12)
+                                .shimmer(cornerRadius: 6)
+                        }
+
+                        Spacer()
+                    }
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.gray.opacity(0.2))
+                        .frame(height: 40)
+                        .shimmer(cornerRadius: 6)
+                }
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+
+                // Points card skeleton
+                VStack(spacing: 16) {
+                    HStack {
+                        Circle()
+                            .fill(.gray.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                            .shimmer(cornerRadius: 16)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 80, height: 14)
+                                .shimmer(cornerRadius: 4)
+
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 50, height: 12)
+                                .shimmer(cornerRadius: 4)
+                        }
+
+                        Spacer()
+                    }
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.gray.opacity(0.2))
+                        .frame(width: 120, height: 36)
+                        .shimmer(cornerRadius: 6)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.gray.opacity(0.2))
+                        .frame(height: 8)
+                        .shimmer(cornerRadius: 4)
+                }
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+
+                // Stats section skeleton
+                HStack(spacing: 12) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        VStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.gray.opacity(0.2))
+                                .frame(height: 60)
+                                .shimmer(cornerRadius: 8)
+
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 50, height: 12)
+                                .shimmer(cornerRadius: 4)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal)
+
+                // Actions skeleton
+                VStack(spacing: 0) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 200, height: 16)
+                                .shimmer(cornerRadius: 6)
+
+                            Spacer()
+
+                            Circle()
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 12, height: 12)
+                                .shimmer(cornerRadius: 6)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 14)
+
+                        Divider()
+                    }
+                }
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 100)
         }
     }
 

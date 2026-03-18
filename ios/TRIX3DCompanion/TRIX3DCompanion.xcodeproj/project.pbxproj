@@ -82,6 +82,7 @@
 		49CB71D877A63A2EF2ED355B /* AchievementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938AAAA245411ABB1438B144 /* AchievementService.swift */; };
 		4C727EA35EA8F39C76526073 /* AppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E767A2EC6AD8FBAD07BD5A90 /* AppleSignInService.swift */; };
 		4CCB80085A99B2C992E844E0 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79DD671BD98BE0D1CAC286B0 /* ChatInputBar.swift */; };
+		4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */ = {isa = PBXBuildFile; productRef = 6A0B40B4920927A4CD7E9FDC /* PopupView */; };
 		4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28903960B942093BD2167D6C /* AnimatedQRDisplay.swift */; };
 		51876FABCCD903DB2AA4263B /* WeChatSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */; };
 		522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BE94364156620AE20C70CB37 /* INTEGRATION_GUIDE.md */; };
@@ -210,20 +211,24 @@
 		BF9A1D10031AE7756CF5D1EB /* ChatListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE48AF5BF3697283FD20E52 /* ChatListViewModel.swift */; };
 		BFED6CD8774197EADD03BF75 /* MemoryLeakDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158B4ABA5E47E529E69A574E /* MemoryLeakDetector.swift */; };
 		C0054DB0811796D25BA07CF0 /* TypingIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD7809C58C22A40A96DA39C /* TypingIndicatorView.swift */; };
+		C0D4A6070376434104BEB64A /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37EFE452458EF8322C05636 /* ToastManager.swift */; };
 		C140C3351CB5D9A29B96DE8A /* LocationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FAD6864E99FEABB0756D8E /* LocationDetailView.swift */; };
 		C208ACA5D39BBF595C1CCE72 /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E639A4A5DF1F60BDE050AD5 /* ChatDetailView.swift */; };
 		C2220EC56A6FC302E83B42FD /* speaking.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C1F9FAD399C6053DBECE0D71 /* speaking.mp4 */; };
 		C2369C0E044C2828E46C94E9 /* HeroBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2820AA99B2487E1EA3A367 /* HeroBackgroundView.swift */; };
 		C3D5DE0FFB7428257E2170BE /* LocationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AFB64B36451F9EB9BEFB05 /* LocationPickerView.swift */; };
 		C422CAC450FBAAB543FC91AD /* JailbreakDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614550AEB63FC96F579EC1F0 /* JailbreakDetector.swift */; };
+		C5DC213B3946C88D95A0BBAA /* ActivityIndicatorView in Frameworks */ = {isa = PBXBuildFile; productRef = B17E0B977D0AEFE24024F67D /* ActivityIndicatorView */; };
 		C60B9801D6DD4F7BE7BA0A99 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B91D1222FFF6B1B3844B3D /* NotificationManager.swift */; };
 		C69B0795F84EEAC01EEDF123 /* TTSControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2124A850F6E4E0DC4F2C9A9 /* TTSControlView.swift */; };
+		C7FC52F178F97EA492D8391D /* WhatsNewKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F48DEBEAFB66633419D8732 /* WhatsNewKit */; };
 		C80EB135E0987A6B6420AB13 /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038D1C693B37B3E7E588D940 /* TTSService.swift */; };
 		C93D745E0C346A42DA748164 /* ProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB449762903BCCAAAE9BF246 /* ProfileScreen.swift */; };
 		C99F4A8EC09FE32FBA138B59 /* TTSServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63DE9EDB9E59B7050D9BBF05 /* TTSServiceProtocol.swift */; };
 		C9EAB329FDD1F7AD7CF45378 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58BB627090B12D5E024C94BD /* Theme.swift */; };
 		C9F9788343C2C971B70D9773 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7BDFD5C71A9731BC74E02E3 /* SettingsScreen.swift */; };
 		CA11B6EFA981C55133AF9DF8 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 851CE702189CACA3A2AD2134 /* LocationService.swift */; };
+		CAA69A4B49A28D4009145C38 /* LoadingIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C2573CD1CA34EAA929CD733 /* LoadingIndicatorView.swift */; };
 		CB463EEF39AD3C679EFD541F /* WardrobeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51292AD923DEA82151D9D658 /* WardrobeService.swift */; };
 		CCCAE86D52F243ED91885DA8 /* OfflineCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5D03C75B635A96F3364CCA /* OfflineCacheService.swift */; };
 		CD1CF7EC3B3D8C3E49343664 /* ProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53431C14A9E66CBAF21DDC6 /* ProgressView.swift */; };
@@ -456,6 +461,7 @@
 		9AD7809C58C22A40A96DA39C /* TypingIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingIndicatorView.swift; sourceTree = "<group>"; };
 		9AE48AF5BF3697283FD20E52 /* ChatListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListViewModel.swift; sourceTree = "<group>"; };
 		9B8EAB8F78E35EF70A11755B /* TodoListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoListView.swift; sourceTree = "<group>"; };
+		9C2573CD1CA34EAA929CD733 /* LoadingIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingIndicatorView.swift; sourceTree = "<group>"; };
 		9C6F03578D8022E6E02E001C /* LocationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationServiceProtocol.swift; sourceTree = "<group>"; };
 		9E734D45EC4001AD14E1AABE /* PointsHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsHistoryViewModel.swift; sourceTree = "<group>"; };
 		9FF4C8DF81E6EAD0944B857A /* PrivacySettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsViewModel.swift; sourceTree = "<group>"; };
@@ -510,6 +516,7 @@
 		D0E38720AEF0FEE9CC30619C /* PointsHistoryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsHistoryScreen.swift; sourceTree = "<group>"; };
 		D1E12BB4EFE06E59546AEC89 /* ProfileInfoCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileInfoCard.swift; sourceTree = "<group>"; };
 		D2124A850F6E4E0DC4F2C9A9 /* TTSControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSControlView.swift; sourceTree = "<group>"; };
+		D37EFE452458EF8322C05636 /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
 		D418B2E93155FCC5631894FB /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		D4330490527811D0283EA7A4 /* TRIX3DCompanionTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TRIX3DCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D43EA3FDC4041ABAB2E7E857 /* WeChatSignInServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSignInServiceProtocol.swift; sourceTree = "<group>"; };
@@ -576,6 +583,9 @@
 				DEDFEE006916925B555E2B4B /* FirebasePerformance in Frameworks */,
 				DF4650EB5C9304755F4BBA2E /* Sentry in Frameworks */,
 				809EF962CE665E4F6E7871D9 /* SocketIO in Frameworks */,
+				4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */,
+				C7FC52F178F97EA492D8391D /* WhatsNewKit in Frameworks */,
+				C5DC213B3946C88D95A0BBAA /* ActivityIndicatorView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -731,6 +741,7 @@
 				888C007338B2525F8E3AC8A8 /* StudyHistoryService.swift */,
 				B68F37AB5F65F10E72B896D3 /* StudyService.swift */,
 				87FFD2EF7AAD7536F0BF7AA4 /* SupabaseService.swift */,
+				D37EFE452458EF8322C05636 /* ToastManager.swift */,
 				AC13208F984EF1A28FAD4421 /* TodoService.swift */,
 				038D1C693B37B3E7E588D940 /* TTSService.swift */,
 				63DE9EDB9E59B7050D9BBF05 /* TTSServiceProtocol.swift */,
@@ -808,6 +819,7 @@
 		1CC2A90A580C29C7BE36B8F5 /* Loading */ = {
 			isa = PBXGroup;
 			children = (
+				9C2573CD1CA34EAA929CD733 /* LoadingIndicatorView.swift */,
 				D53431C14A9E66CBAF21DDC6 /* ProgressView.swift */,
 				7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */,
 			);
@@ -1415,6 +1427,9 @@
 				8487E72F1EA1F00D45807C2E /* FirebasePerformance */,
 				4DBBEF2CB8A893ECDE5EC232 /* Sentry */,
 				348EA359D34CB805653FC737 /* SocketIO */,
+				6A0B40B4920927A4CD7E9FDC /* PopupView */,
+				6F48DEBEAFB66633419D8732 /* WhatsNewKit */,
+				B17E0B977D0AEFE24024F67D /* ActivityIndicatorView */,
 			);
 			productName = TRIX3DCompanion;
 			productReference = 05C4AE83FE1784559D5FA910 /* TRIX3DCompanion.app */;
@@ -1490,16 +1505,19 @@
 			mainGroup = 0DAD3BDAC47541E9CE0DB51E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				9B9A2E89C7AE92B8F81EC5F5 /* XCRemoteSwiftPackageReference "ActivityIndicatorView" */,
 				9ED5DD0FF38B90C31B035EE3 /* XCRemoteSwiftPackageReference "Alamofire" */,
 				023E403C08213443E34BCD98 /* XCRemoteSwiftPackageReference "CodeScanner" */,
 				46E2D63301D75FF6CF8EAE62 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				06568E533A29950736A53E75 /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				E22CFE473B81AC1C9953D659 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				A22B94E183E1A4B792482176 /* XCRemoteSwiftPackageReference "PopupView" */,
 				3E9A0CDD88F456F95113594F /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 				C5DF7DCAF29AF8A584F7A3C0 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 				F6F94761E862DDB48AAB165B /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
 				B2C76F390A0CBF65A78BE695 /* XCRemoteSwiftPackageReference "Starscream" */,
 				6A12B09D38279248DD55983B /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				8BDA9EDFA1079BBABB57408C /* XCRemoteSwiftPackageReference "WhatsNewKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -1661,6 +1679,7 @@
 				C422CAC450FBAAB543FC91AD /* JailbreakDetector.swift in Sources */,
 				F4F994BC08476A29A9E755D9 /* KeychainManager.swift in Sources */,
 				6047A76C447B18977A3CCDE1 /* KeychainSecurityValidator.swift in Sources */,
+				CAA69A4B49A28D4009145C38 /* LoadingIndicatorView.swift in Sources */,
 				428C9734FC2BC542287B404A /* LoadingView.swift in Sources */,
 				8BE4CD833460EBE9DF22B4E2 /* LocalNotificationService.swift in Sources */,
 				7A8435115582AE056A2719C3 /* LocalNotificationServiceProtocol.swift in Sources */,
@@ -1763,6 +1782,7 @@
 				5D9B7C22DAC971179963D69D /* TTSViewModel.swift in Sources */,
 				C9EAB329FDD1F7AD7CF45378 /* Theme.swift in Sources */,
 				6B8109DD978869BFC8B78133 /* ThemePreview.swift in Sources */,
+				C0D4A6070376434104BEB64A /* ToastManager.swift in Sources */,
 				1118AB672C89A8557CDC8071 /* Todo.swift in Sources */,
 				D648F9E5702DE0AB80F7C8B0 /* TodoFormView.swift in Sources */,
 				5345CDFA114FB3E3525A3D84 /* TodoListView.swift in Sources */,
@@ -2151,12 +2171,36 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		8BDA9EDFA1079BBABB57408C /* XCRemoteSwiftPackageReference "WhatsNewKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SvenTiigi/WhatsNewKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		9B9A2E89C7AE92B8F81EC5F5 /* XCRemoteSwiftPackageReference "ActivityIndicatorView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/exyte/ActivityIndicatorView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 		9ED5DD0FF38B90C31B035EE3 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 5.8.0;
+			};
+		};
+		A22B94E183E1A4B792482176 /* XCRemoteSwiftPackageReference "PopupView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/exyte/PopupView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.1.0;
 			};
 		};
 		B2C76F390A0CBF65A78BE695 /* XCRemoteSwiftPackageReference "Starscream" */ = {
@@ -2224,6 +2268,16 @@
 			package = C5DF7DCAF29AF8A584F7A3C0 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
+		6A0B40B4920927A4CD7E9FDC /* PopupView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A22B94E183E1A4B792482176 /* XCRemoteSwiftPackageReference "PopupView" */;
+			productName = PopupView;
+		};
+		6F48DEBEAFB66633419D8732 /* WhatsNewKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8BDA9EDFA1079BBABB57408C /* XCRemoteSwiftPackageReference "WhatsNewKit" */;
+			productName = WhatsNewKit;
+		};
 		8487E72F1EA1F00D45807C2E /* FirebasePerformance */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 46E2D63301D75FF6CF8EAE62 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -2238,6 +2292,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 023E403C08213443E34BCD98 /* XCRemoteSwiftPackageReference "CodeScanner" */;
 			productName = CodeScanner;
+		};
+		B17E0B977D0AEFE24024F67D /* ActivityIndicatorView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B9A2E89C7AE92B8F81EC5F5 /* XCRemoteSwiftPackageReference "ActivityIndicatorView" */;
+			productName = ActivityIndicatorView;
 		};
 		EAA2C654FC724BA8095FFD6A /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;

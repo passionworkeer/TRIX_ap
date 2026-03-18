@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Shimmer Effect Modifier
 
@@ -180,6 +181,8 @@ struct LoadingStateView: View {
     var message: String = "Loading..."
     var showSkeleton: Bool = true
 
+    @State private var isAnimating = true
+
     var body: some View {
         VStack(spacing: 24) {
             if showSkeleton {
@@ -188,9 +191,12 @@ struct LoadingStateView: View {
                     SkeletonCard(showHeader: false, contentLines: 2)
                 }
             } else {
-                ProgressView(value: 0)
-                    .tint(.purple)
-                    .scaleEffect(1.2)
+                ActivityIndicatorView(
+                    isVisible: $isAnimating,
+                    type: .flickeringDots(count: 4)
+                )
+                .tint(.brandPurple)
+                .frame(width: 40, height: 40)
 
                 Text(message)
                     .font(.subheadline)

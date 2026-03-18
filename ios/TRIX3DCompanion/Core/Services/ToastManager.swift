@@ -2,11 +2,10 @@
 //  ToastManager.swift
 //  TRIX3DCompanion
 //
-//  Global toast notification manager using PopupView
+//  Global toast notification manager
 //
 
 import SwiftUI
-import PopupView
 
 // MARK: - Toast Type
 
@@ -90,6 +89,14 @@ final class ToastManager: ObservableObject {
         let toastMessage = message ?? type.defaultMessage
         let toast = ToastItem(type: type, message: toastMessage, duration: duration)
         toasts.append(toast)
+
+        // Auto dismiss after duration
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            await MainActor.run {
+                self.removeToast(id: toast.id)
+            }
+        }
     }
 
     /// Remove a toast by id
@@ -143,7 +150,6 @@ struct ToastView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(item.type.color.opacity(0.3), lineWidth: 1)
         )
-        .padding(.horizontal, 16)
     }
 }
 
@@ -153,30 +159,17 @@ struct ToastContainerView: View {
     @ObservedObject var toastManager = ToastManager.shared
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             ForEach(toastManager.toasts) { item in
-                PopupView(
-                    item: item,
-                    type: .toast(
-                        verticalPadding: 0,
-                        horizontalPadding: 0,
-                        useSafeAreaInset: true
-                    ),
-                    position: .top,
-                    appearFrom: .topSlide,
-                    disappearTo: .topSlide,
-                    animation: .spring(response: 0.4, dampingFraction: 0.7),
-                    autohideIn: item.duration,
-                    dismissCallback: {
-                        toastManager.removeToast(id: item.id)
-                    }
-                ) {
-                    ToastView(item: item) {
-                        toastManager.removeToast(id: item.id)
-                    }
+                ToastView(item: item) {
+                    toastManager.removeToast(id: item.id)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: toastManager.toasts.count)
     }
 }
 

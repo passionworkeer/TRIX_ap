@@ -396,29 +396,25 @@ actor SupabaseService {
     func fetchMallItems(category: String? = nil) async throws -> [MallItem] {
         let context = try await sessionContext()
 
-        var query = client.database
+        let rows: [SupabaseMallItemRow] = try await client.database
             .from("mall_items")
-            .select("*")
-            .eq("is_active", value: true)
+            .select("*", head: false, count: .none)
+            .filter("is_active", operator: .eq, value: true)
             .order("created_at", ascending: false)
-
-        if let category = category {
-            query = query.eq("category", value: category)
-        }
-
-        let rows: [SupabaseMallItemRow] = try await query.execute().value
+            .execute()
+            .value
 
         // Get user's owned items
         let ownedRows: [SupabasePurchasedItemRow] = try await client.database
             .from("user_purchased_items")
-            .select("item_id")
-            .eq("user_id", value: context.userId)
+            .select("item_id", head: false, count: .none)
+            .filter("user_id", operator: .eq, value: context.userId)
             .execute()
             .value
 
         let ownedItemIds = Set(ownedRows.map { $0.itemId })
 
-        return rows.map { row in
+        var items = rows.map { row in
             MallItem(
                 id: row.id,
                 name: row.name,
@@ -429,6 +425,13 @@ actor SupabaseService {
                 isOwned: ownedItemIds.contains(row.id)
             )
         }
+
+        // Apply category filter if provided
+        if let category = category {
+            items = items.filter { $0.category.rawValue == category }
+        }
+
+        return items
     }
 
     /// Purchase a mall item
@@ -606,11 +609,14 @@ actor SupabaseService {
         let pointsRow = try await fetchOrCreatePointsRow(userId: context.userId, fallbackPoints: profile.points ?? 0)
 
         return PointsBalance(
-            userId: context.userId,
-            balance: pointsRow.totalPoints,
-            totalEarned: pointsRow.totalEarned,
-            totalSpent: pointsRow.totalSpent,
-            updatedAt: pointsRow.updatedAt
+            totalPoints: pointsRow.totalPoints,
+            availablePoints: pointsRow.totalPoints,
+            pendingPoints: 0,
+            level: pointsRow.level,
+            todayEarned: 0,
+            weekEarned: 0,
+            totalTransactions: 0,
+            updatedAt: pointsRow.updatedAt ?? Date()
         )
     }
 
@@ -618,8 +624,8 @@ actor SupabaseService {
         let context = try await sessionContext()
         let unlockedRows: [SupabaseUnlockedAchievementRow] = try await client.database
             .from("user_achievements")
-            .select("id,achievement_id,unlocked_at")
-            .eq("user_id", value: context.userId)
+            .select("id,achievement_id,unlocked_at", head: false, count: .none)
+            .filter("user_id", operator: .eq, value: context.userId)
             .execute()
             .value
 

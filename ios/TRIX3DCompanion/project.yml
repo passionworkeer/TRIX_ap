@@ -48,6 +48,9 @@ targets:
         product: FirebasePerformance
       - package: Sentry
       - package: SocketIO
+      - package: PopupView
+      - package: WhatsNewKit
+      - package: ActivityIndicatorView
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion
@@ -168,6 +171,15 @@ packages:
   SocketIO:
     url: https://github.com/socketio/socket.io-client-swift.git
     from: "16.0.0"
+  PopupView:
+    url: https://github.com/exyte/PopupView.git
+    from: "4.1.0"
+  WhatsNewKit:
+    url: https://github.com/SvenTiigi/WhatsNewKit.git
+    from: "1.0.0"
+  ActivityIndicatorView:
+    url: https://github.com/exyte/ActivityIndicatorView.git
+    from: "1.0.0"
 
 entitlements:
   path: TRIX3DCompanion.entitlements

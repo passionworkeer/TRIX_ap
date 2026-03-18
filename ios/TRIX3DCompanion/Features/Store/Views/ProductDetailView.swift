@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 
@@ -274,8 +275,7 @@ struct ProductDetailView: View {
         }) {
             HStack {
                 if viewModel.isPurchasing {
-                    ProgressView()
-                        .tint(.white)
+                    ButtonLoadingView()
                 } else {
                     Text(buttonTitle)
                         .font(.headline)
@@ -309,8 +309,7 @@ struct ProductDetailView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                ProgressView()
-                    .scaleEffect(1.5)
+                TrixLoadingIndicator(style: .initialLoad)
 
                 Text(L("store.processing"))
                     .font(.subheadline)

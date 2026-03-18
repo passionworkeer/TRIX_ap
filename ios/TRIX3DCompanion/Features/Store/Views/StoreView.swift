@@ -70,11 +70,15 @@ struct StoreView: View {
                             .padding(.horizontal)
 
                         // Products based on selected tab
-                        switch selectedTab {
-                        case .points:
-                            pointsProductsSection
-                        case .subscription:
-                            subscriptionProductsSection
+                        if viewModel.isLoadingProducts {
+                            loadingView
+                        } else {
+                            switch selectedTab {
+                            case .points:
+                                pointsProductsSection
+                            case .subscription:
+                                subscriptionProductsSection
+                            }
                         }
 
                         // Info Section
@@ -110,6 +114,135 @@ struct StoreView: View {
     }
 
     // MARK: - View Components
+
+    /// Loading skeleton view
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            // Points products skeleton
+            ForEach(0..<3, id: \.self) { _ in
+                skeletonProductCard
+            }
+
+            // Subscription section skeleton
+            VStack(spacing: 12) {
+                // Premium banner skeleton
+                VStack(spacing: 12) {
+                    Circle()
+                        .fill(.gray.opacity(0.2))
+                        .frame(width: 48, height: 48)
+                        .shimmer(cornerRadius: 24)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.gray.opacity(0.2))
+                        .frame(width: 160, height: 20)
+                        .shimmer(cornerRadius: 6)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.gray.opacity(0.2))
+                        .frame(width: 240, height: 14)
+                        .shimmer(cornerRadius: 6)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                // Subscription cards skeleton
+                ForEach(0..<2, id: \.self) { _ in
+                    skeletonSubscriptionCard
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    /// Skeleton for product card
+    private var skeletonProductCard: some View {
+        HStack(spacing: 16) {
+            Circle()
+                .fill(.gray.opacity(0.2))
+                .frame(width: 48, height: 48)
+                .shimmer(cornerRadius: 24)
+
+            VStack(alignment: .leading, spacing: 6) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 120, height: 16)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 180, height: 14)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 80, height: 12)
+                    .shimmer(cornerRadius: 6)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 50, height: 18)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 70, height: 14)
+                    .shimmer(cornerRadius: 6)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Skeleton for subscription card
+    private var skeletonSubscriptionCard: some View {
+        HStack(spacing: 16) {
+            Circle()
+                .fill(.gray.opacity(0.2))
+                .frame(width: 48, height: 48)
+                .shimmer(cornerRadius: 24)
+
+            VStack(alignment: .leading, spacing: 6) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 140, height: 16)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 100, height: 14)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 80, height: 12)
+                    .shimmer(cornerRadius: 6)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 50, height: 18)
+                    .shimmer(cornerRadius: 6)
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.gray.opacity(0.2))
+                    .frame(width: 40, height: 12)
+                    .shimmer(cornerRadius: 6)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
 
     /// Points balance card with native iOS style
     private var pointsBalanceCard: some View {

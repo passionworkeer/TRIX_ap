@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -216,7 +217,7 @@ struct ProfileView: View {
                 Spacer()
 
                 if isLoadingAchievements {
-                    ProgressView()
+                    TrixLoadingIndicator.standard()
                         .scaleEffect(0.8)
                 }
             }

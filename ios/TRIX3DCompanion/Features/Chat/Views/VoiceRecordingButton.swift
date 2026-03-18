@@ -8,6 +8,7 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
@@ -518,9 +519,11 @@ struct VoiceRecordingButton: View {
                         .fill(Color.orange.opacity(0.25))
                         .frame(width: 80, height: 80)
 
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
+                    ActivityIndicatorView(
+                        isVisible: .constant(true),
+                        type: .growingCircle
+                    )
+                    .tint(.white)
                 }
             }
 
