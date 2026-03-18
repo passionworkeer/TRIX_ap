@@ -264,7 +264,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
         lastError = nil
 
-        // Use ClawbotChannelService (Socket.IO) to create room - same as Web
+        // Use ClawbotChannelService (HTTP API) to create room - same as Web
         do {
             let roomState = try await clawbotChannelService.createStudyRoom(
                 displayName: user.displayName ?? user.username ?? "User",
@@ -272,11 +272,11 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 maxMembers: maxMembers
             )
 
-            // Convert ClawbotStudyRoomState to StudyRoom
-            let room = convertClawbotRoomStateToRoom(roomState)
+            // Convert StudyRoomState to StudyRoom
+            let room = convertRoomStateToRoom(roomState)
 
             await MainActor.run {
-                self.currentRoomState = convertClawbotRoomStateToStudyRoomState(roomState)
+                self.currentRoomState = roomState
                 self.currentRoomCode = roomState.roomCode
             }
 
@@ -316,7 +316,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             return .failure(error)
         }
 
-        // Use ClawbotChannelService (Socket.IO) to join room - same as Web
+        // Use ClawbotChannelService (HTTP API) to join room - same as Web
         do {
             let roomState = try await clawbotChannelService.joinStudyRoom(
                 roomCode: trimmedCode,
@@ -324,14 +324,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
                 avatarUrl: user.avatarUrl
             )
 
-            let convertedState = convertClawbotRoomStateToStudyRoomState(roomState)
-
             await MainActor.run {
-                self.currentRoomState = convertedState
+                self.currentRoomState = roomState
                 self.currentRoomCode = roomState.roomCode
             }
 
-            return .success(convertedState)
+            return .success(roomState)
         } catch {
             let studyError = mapClawbotError(error)
             await MainActor.run {

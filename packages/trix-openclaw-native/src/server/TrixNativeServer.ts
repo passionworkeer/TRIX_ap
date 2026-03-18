@@ -12,6 +12,9 @@ import type {
   MessageRecord,
   NativeChannelState,
   ServerConfig,
+  StudyRoom,
+  StudyRoomAckPayload,
+  StudyRoomStateEvent,
 } from '../types.js';
 import { randomId, randomToken } from '../utils/ids.js';
 import { buildPublicBaseUrl } from '../utils/network.js';
@@ -223,13 +226,86 @@ export class TrixNativeServer {
         return;
       }
 
-      // 兼容旧版前端：/api/messages/:conversationId
+      // GET /api/messages/:conversationId (legacy)
       const legacyMessagesMatch = url.pathname.match(/^\/api\/messages\/([^/]+)$/);
       if (request.method === 'GET' && legacyMessagesMatch) {
         await this.assertConversationAccess(request, legacyMessagesMatch[1]!);
         const state = await this.stateStore.read();
         const messages = state.messages.filter((entry) => entry.conversationId === legacyMessagesMatch[1]);
         sendJson(response, 200, { messages, agentOnline: this.isAgentOnline() });
+        return;
+      }
+
+      // ============================================================
+      // Study Room HTTP Endpoints
+      // ============================================================
+
+      // POST /api/study-rooms - Create a study room
+      if (request.method === 'POST' && url.pathname === '/api/study-rooms') {
+        const body = await readJsonBody<{ userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }>(request);
+        const room = await this.createStudyRoom(body);
+        sendJson(response, 201, { success: true, room } as StudyRoomAckPayload);
+        return;
+      }
+
+      // GET /api/study-rooms - List all study rooms
+      if (request.method === 'GET' && url.pathname === '/api/study-rooms') {
+        const state = await this.stateStore.read();
+        sendJson(response, 200, { success: true, rooms: state.studyRooms });
+        return;
+      }
+
+      // GET /api/study-rooms/:roomCode - Get a specific study room
+      const getRoomMatch = url.pathname.match(/^\/api\/study-rooms\/([^/]+)$/);
+      if (request.method === 'GET' && getRoomMatch) {
+        const room = await this.getStudyRoom(getRoomMatch[1]!);
+        if (!room) {
+          sendJson(response, 404, { success: false, error: 'Room not found' });
+          return;
+        }
+        sendJson(response, 200, { success: true, room } as StudyRoomAckPayload);
+        return;
+      }
+
+      // POST /api/study-rooms/:roomCode/join - Join a study room
+      if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/join$/)) {
+        const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/join$/)![1]!;
+        const body = await readJsonBody<{ userId: string; displayName: string; avatarUrl?: string }>(request);
+        const room = await this.joinStudyRoom(roomCode, body);
+        if (!room) {
+          sendJson(response, 404, { success: false, error: 'Room not found' });
+          return;
+        }
+        sendJson(response, 200, { success: true, room } as StudyRoomAckPayload);
+        return;
+      }
+
+      // POST /api/study-rooms/:roomCode/leave - Leave a study room
+      if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/leave$/)) {
+        const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/leave$/)![1]!;
+        const body = await readJsonBody<{ userId: string }>(request);
+        await this.leaveStudyRoom(roomCode, body.userId);
+        sendJson(response, 200, { success: true } as StudyRoomAckPayload);
+        return;
+      }
+
+      // POST /api/study-rooms/:roomCode/action - Host action (start_focus, pause, end)
+      if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)) {
+        const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)![1]!;
+        const body = await readJsonBody<{ userId: string; action: 'start_focus' | 'pause' | 'end' }>(request);
+        const room = await this.studyRoomHostAction(roomCode, body);
+        if (!room) {
+          sendJson(response, 404, { success: false, error: 'Room not found' });
+          return;
+        }
+        sendJson(response, 200, { success: true, room } as StudyRoomAckPayload);
+        return;
+      }
+
+      // DELETE /api/study-rooms/:roomCode - Delete a study room
+      if (request.method === 'DELETE' && getRoomMatch) {
+        await this.deleteStudyRoom(getRoomMatch[1]!);
+        sendJson(response, 200, { success: true } as StudyRoomAckPayload);
         return;
       }
 
@@ -423,6 +499,260 @@ export class TrixNativeServer {
   private findAttachmentById(state: NativeChannelState, attachmentId: string): AttachmentDescriptor | undefined {
     return state.uploads.find((entry) => entry.id === attachmentId)
       ?? state.messages.flatMap((entry) => entry.attachments).find((entry) => entry.id === attachmentId);
+  }
+
+  // ============================================================
+  // Study Room Methods
+  // ============================================================
+
+  private async createStudyRoom(input: { userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }): Promise<StudyRoom> {
+    const roomCode = randomId('room', 6).toUpperCase();
+    const now = Date.now();
+
+    const room: StudyRoom = {
+      roomCode,
+      hostUserId: input.userId,
+      sessionState: 'idle',
+      members: [{
+        userId: input.userId,
+        displayName: input.displayName,
+        avatarUrl: input.avatarUrl,
+        joinedAt: now,
+        lastActiveAt: now,
+        status: 'online',
+      }],
+      maxMembers: input.maxMembers ?? 10,
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+      timer: null,
+    };
+
+    await this.stateStore.update((state) => ({
+      ...state,
+      studyRooms: [...(state.studyRooms || []), room],
+    }));
+
+    // Broadcast room state event
+    await this.broadcastStudyRoomEvent({
+      roomCode,
+      reason: 'created',
+      room,
+      serverTs: now,
+    });
+
+    return room;
+  }
+
+  private async getStudyRoom(roomCode: string): Promise<StudyRoom | null> {
+    const state = await this.stateStore.read();
+    return state.studyRooms.find((r) => r.roomCode === roomCode) ?? null;
+  }
+
+  private async joinStudyRoom(roomCode: string, input: { userId: string; displayName: string; avatarUrl?: string }): Promise<StudyRoom | null> {
+    const state = await this.stateStore.read();
+    const roomIndex = state.studyRooms.findIndex((r) => r.roomCode === roomCode);
+
+    if (roomIndex === -1) {
+      return null;
+    }
+
+    const now = Date.now();
+    const room = state.studyRooms[roomIndex];
+
+    // Check if already a member
+    const existingMemberIndex = room.members.findIndex((m) => m.userId === input.userId);
+    if (existingMemberIndex >= 0) {
+      // Update existing member status
+      room.members[existingMemberIndex] = {
+        ...room.members[existingMemberIndex],
+        lastActiveAt: now,
+        status: 'online',
+      };
+    } else {
+      // Add new member
+      if (room.members.length >= room.maxMembers) {
+        throw new Error('Room is full');
+      }
+      room.members.push({
+        userId: input.userId,
+        displayName: input.displayName,
+        avatarUrl: input.avatarUrl,
+        joinedAt: now,
+        lastActiveAt: now,
+        status: 'online',
+      });
+    }
+
+    room.version++;
+    room.updatedAt = now;
+
+    await this.stateStore.update((s) => ({
+      ...s,
+      studyRooms: [
+        ...s.studyRooms.slice(0, roomIndex),
+        room,
+        ...s.studyRooms.slice(roomIndex + 1),
+      ],
+    }));
+
+    // Broadcast room state event
+    await this.broadcastStudyRoomEvent({
+      roomCode,
+      reason: 'member_joined',
+      room,
+      serverTs: now,
+    });
+
+    return room;
+  }
+
+  private async leaveStudyRoom(roomCode: string, userId: string): Promise<void> {
+    const state = await this.stateStore.read();
+    const roomIndex = state.studyRooms.findIndex((r) => r.roomCode === roomCode);
+
+    if (roomIndex === -1) {
+      return;
+    }
+
+    const now = Date.now();
+    const room = state.studyRooms[roomIndex];
+
+    room.members = room.members.filter((m) => m.userId !== userId);
+    room.version++;
+    room.updatedAt = now;
+
+    // If no members left or host left, delete the room
+    if (room.members.length === 0 || room.hostUserId === userId) {
+      await this.deleteStudyRoom(roomCode);
+      return;
+    }
+
+    await this.stateStore.update((s) => ({
+      ...s,
+      studyRooms: [
+        ...s.studyRooms.slice(0, roomIndex),
+        room,
+        ...s.studyRooms.slice(roomIndex + 1),
+      ],
+    }));
+
+    // Broadcast room state event
+    await this.broadcastStudyRoomEvent({
+      roomCode,
+      reason: 'member_left',
+      room,
+      serverTs: now,
+    });
+  }
+
+  private async studyRoomHostAction(roomCode: string, input: { userId: string; action: 'start_focus' | 'pause' | 'end' }): Promise<StudyRoom | null> {
+    const state = await this.stateStore.read();
+    const roomIndex = state.studyRooms.findIndex((r) => r.roomCode === roomCode);
+
+    if (roomIndex === -1) {
+      return null;
+    }
+
+    const room = state.studyRooms[roomIndex];
+
+    // Only host can perform actions
+    if (room.hostUserId !== input.userId) {
+      throw new Error('Only host can perform this action');
+    }
+
+    const now = Date.now();
+
+    switch (input.action) {
+      case 'start_focus':
+        room.sessionState = 'focusing';
+        room.timer = {
+          durationSeconds: 25 * 60, // 25 minutes (Pomodoro)
+          startedAt: now,
+          endsAt: now + (25 * 60 * 1000),
+          remainingSeconds: 25 * 60,
+        };
+        // Update all members to focusing status
+        room.members.forEach((m) => {
+          m.status = 'focusing';
+          m.lastActiveAt = now;
+        });
+        break;
+
+      case 'pause':
+        if (room.sessionState === 'focusing' && room.timer) {
+          room.sessionState = 'resting';
+          // Update all members to resting status
+          room.members.forEach((m) => {
+            m.status = 'resting';
+            m.lastActiveAt = now;
+          });
+        }
+        break;
+
+      case 'end':
+        room.sessionState = 'idle';
+        room.timer = null;
+        // Update all members to online status
+        room.members.forEach((m) => {
+          m.status = 'online';
+          m.lastActiveAt = now;
+        });
+        break;
+    }
+
+    room.version++;
+    room.updatedAt = now;
+
+    await this.stateStore.update((s) => ({
+      ...s,
+      studyRooms: [
+        ...s.studyRooms.slice(0, roomIndex),
+        room,
+        ...s.studyRooms.slice(roomIndex + 1),
+      ],
+    }));
+
+    // Broadcast room state event
+    await this.broadcastStudyRoomEvent({
+      roomCode,
+      reason: 'state_changed',
+      room,
+      serverTs: now,
+    });
+
+    return room;
+  }
+
+  private async deleteStudyRoom(roomCode: string): Promise<void> {
+    const state = await this.stateStore.read();
+    const roomIndex = state.studyRooms.findIndex((r) => r.roomCode === roomCode);
+
+    if (roomIndex === -1) {
+      return;
+    }
+
+    const room = state.studyRooms[roomIndex];
+
+    await this.stateStore.update((s) => ({
+      ...s,
+      studyRooms: s.studyRooms.filter((r) => r.roomCode !== roomCode),
+    }));
+
+    // Broadcast room deleted event
+    await this.broadcastStudyRoomEvent({
+      roomCode,
+      reason: 'deleted',
+      room: null,
+      serverTs: Date.now(),
+    });
+  }
+
+  private async broadcastStudyRoomEvent(event: StudyRoomStateEvent): Promise<void> {
+    await this.broadcast(
+      { type: 'study_room_state', payload: event },
+      { role: 'user' }
+    );
   }
 }
 

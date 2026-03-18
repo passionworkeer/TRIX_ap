@@ -8,6 +8,7 @@ const DEFAULT_STATE: NativeChannelState = {
   conversations: [],
   messages: [],
   uploads: [],
+  studyRooms: [],
 };
 
 export class JsonStateStore {
@@ -36,6 +37,7 @@ export class JsonStateStore {
       conversations: parsed.conversations ?? [],
       messages: parsed.messages ?? [],
       uploads: parsed.uploads ?? [],
+      studyRooms: parsed.studyRooms ?? [],
     };
   }
 

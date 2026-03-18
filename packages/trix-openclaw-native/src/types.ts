@@ -77,6 +77,7 @@ export interface NativeChannelState {
   conversations: ConversationRecord[];
   messages: MessageRecord[];
   uploads: AttachmentDescriptor[];
+  studyRooms: StudyRoom[];
 }
 
 export interface PairingCreateInput {
@@ -167,4 +168,84 @@ export interface OutboundReplyPayloadLike {
 export interface StoredAttachmentForOpenClaw {
   descriptor: AttachmentDescriptor;
   contentBase64: string;
+}
+
+// ============================================================
+// Study Room Types
+// ============================================================
+
+export type StudyRoomSessionState = 'idle' | 'focusing' | 'resting';
+export type StudyRoomMemberStatus = 'online' | 'focusing' | 'resting';
+export type StudyRoomHostAction = 'start_focus' | 'pause' | 'end';
+
+export interface StudyRoomMember {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  joinedAt: number;
+  lastActiveAt: number;
+  status: StudyRoomMemberStatus;
+}
+
+export interface StudyRoomTimerState {
+  durationSeconds: number;
+  startedAt: number;
+  endsAt: number;
+  remainingSeconds: number;
+}
+
+export interface StudyRoom {
+  roomCode: string;
+  hostUserId: string;
+  sessionState: StudyRoomSessionState;
+  members: StudyRoomMember[];
+  maxMembers: number;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  timer: StudyRoomTimerState | null;
+}
+
+export interface StudyRoomStateEvent {
+  roomCode: string;
+  reason: string;
+  room: StudyRoom | null;
+  serverTs: number;
+}
+
+export interface StudyRoomAckPayload {
+  success: boolean;
+  code?: string;
+  error?: string;
+  roomCode?: string;
+  room?: StudyRoom | null;
+}
+
+export interface CreateStudyRoomInput {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string;
+  maxMembers?: number;
+}
+
+export interface JoinStudyRoomInput {
+  userId: string;
+  roomCode: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
+export interface LeaveStudyRoomInput {
+  userId: string;
+  roomCode?: string;
+}
+
+export interface StudyRoomHostActionInput {
+  userId: string;
+  roomCode: string;
+  action: StudyRoomHostAction;
+}
+
+export interface StudyRoomState {
+  rooms: StudyRoom[];
 }
