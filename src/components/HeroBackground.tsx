@@ -7,12 +7,31 @@ interface HeroBackgroundProps {
   onActiveVideoSourceChange?: (source: string) => void;
 }
 
-const VIDEO_SOURCES = {
-  IDLE: '/videos/role1/idle.mp4',
-  THINKING: '/videos/role1/thinking.mp4',
-  SPEAKING: '/videos/role1/speaking.mp4',
-  BORING: '/videos/role1/boring.mp4',
-} as const;
+// Detect Electron environment (set by preload script)
+const isElectron = typeof window !== 'undefined' && !!(window as Window & { electronAPI?: { getVideoUrl?: (f: string) => string } }).electronAPI;
+
+type VideoKey = 'IDLE' | 'THINKING' | 'SPEAKING' | 'BORING';
+
+function getVideoSrc(key: VideoKey): string {
+  // In Electron production, videos are in extraResources (process.resourcesPath/videos/)
+  // electronAPI.getVideoUrl is provided by the preload script
+  const api = (window as Window & { electronAPI?: { getVideoUrl: (f: string) => string } }).electronAPI;
+  if (isElectron && api?.getVideoUrl) {
+    switch (key) {
+      case 'IDLE': return api.getVideoUrl('idle.mp4');
+      case 'THINKING': return api.getVideoUrl('thinking.mp4');
+      case 'SPEAKING': return api.getVideoUrl('speaking.mp4');
+      case 'BORING': return api.getVideoUrl('boring.mp4');
+    }
+  }
+  // Web/dev: relative /videos/ path (served from public/)
+  switch (key) {
+    case 'IDLE': return '/videos/role1/idle.mp4';
+    case 'THINKING': return '/videos/role1/thinking.mp4';
+    case 'SPEAKING': return '/videos/role1/speaking.mp4';
+    case 'BORING': return '/videos/role1/boring.mp4';
+  }
+}
 
 type LayerIndex = 0 | 1;
 
@@ -27,17 +46,17 @@ type BatteryCapableNavigator = Navigator & {
 
 function resolveVideoSource(botState: BotState, isLowBattery: boolean): string {
   if (isLowBattery && botState === 'IDLE') {
-    return VIDEO_SOURCES.BORING;
+    return getVideoSrc('BORING');
   }
 
   switch (botState) {
     case 'THINKING':
-      return VIDEO_SOURCES.THINKING;
+      return getVideoSrc('THINKING');
     case 'SPEAKING':
-      return VIDEO_SOURCES.SPEAKING;
+      return getVideoSrc('SPEAKING');
     case 'IDLE':
     default:
-      return VIDEO_SOURCES.IDLE;
+      return getVideoSrc('IDLE');
   }
 }
 
@@ -46,8 +65,8 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange }: 
   const [activeLayer, setActiveLayer] = useState<LayerIndex>(0);
   const [isLowBattery, setIsLowBattery] = useState(false);
   const [layerSources, setLayerSources] = useState<[string, string]>([
-    VIDEO_SOURCES.IDLE,
-    VIDEO_SOURCES.IDLE,
+    getVideoSrc('IDLE'),
+    getVideoSrc('IDLE'),
   ]);
 
   useEffect(() => {

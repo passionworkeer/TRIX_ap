@@ -1,0 +1,34 @@
+{
+  "name": "trix-companion-desktop",
+  "version": "1.0.0",
+  "description": "TRIX Companion Windows Desktop App",
+  "main": "dist-desktop/main/index.js",
+  "author": "TRIX Team",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:desktop": "vite build --config vite.config.desktop.ts && electron .",
+    "dev:desktop:watch": "vite build --config vite.config.desktop.ts && electron . --remote-debugging-port=9222",
+    "start": "electron .",
+    "build:desktop": "vite build --config vite.config.desktop.ts && electron-builder --win --x64",
+    "build:desktop:dir": "vite build --config vite.config.desktop.ts && electron-builder --win --x64 --dir",
+    "typecheck:desktop": "tsc --noEmit -p tsconfig.desktop.json"
+  },
+  "dependencies": {
+    "electron-log": "^5.2.4",
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "vite-plugin-electron": "^0.29.1",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "extends": "./electron-builder.yml"
+  }
+}

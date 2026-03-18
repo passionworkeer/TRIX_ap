@@ -95,7 +95,7 @@ const resolveErrorMessage = (error: unknown): string => {
       return maybe.message;
     }
   }
-  return 'Á¬½Ó´íÎó';
+  return 'ï¿½ï¿½ï¿½Ó´ï¿½ï¿½ï¿½';
 };
 
 export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ children }) => {
@@ -119,6 +119,16 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
+
+  // Push botState changes to Electron float window via IPC
+  useEffect(() => {
+    const api = (window as Window & { electronAPI?: { pushBotState: (state: BotState) => Promise<boolean> } }).electronAPI;
+    if (api?.pushBotState) {
+      api.pushBotState(botState).catch(() => {
+        // Ignore IPC errors in non-Electron env
+      });
+    }
+  }, [botState]);
 
   const toPersistedMessageId = useCallback((message: ClawbotChannelMessage): string => {
     const metadata = message.metadata as { clientMessageId?: string } | undefined;
@@ -258,14 +268,14 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     };
     const handleBotOnline = (payload: { message: string; timestamp: number }) => {
       setBotOnline(true);
-      toast.success(payload.message || 'OpenClaw ÒÑÁ¬½Ó', {
+      toast.success(payload.message || 'OpenClaw ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½', {
         duration: 3000,
         id: `bot_online_${payload.timestamp}`,
       });
     };
     const handleBotOffline = (payload: { message: string; timestamp: number }) => {
       setBotOnline(false);
-      toast.error(payload.message || 'OpenClaw µ±Ç°ÀëÏß', {
+      toast.error(payload.message || 'OpenClaw ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½', {
         duration: 5000,
         id: `bot_offline_${payload.timestamp}`,
       });

@@ -1,0 +1,45 @@
+appId: com.trixapp.companion
+productName: TRIX Companion
+copyright: Copyright © 2026 TRIX Team
+
+directories:
+  output: desktop/release
+  buildResources: desktop/build
+
+files:
+  - desktop/dist-desktop/**/*
+
+extraResources:
+  - from: public/videos
+    to: videos
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: msi
+      arch:
+        - x64
+  icon: desktop/build/icon.ico
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: TRIX Companion
+  include: desktop/build/installer.nsh
+
+msi:
+  oneClick: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+
+publish: null

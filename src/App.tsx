@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { HashRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
@@ -14,6 +14,9 @@ import { useImmersiveVoice } from './hooks/useImmersiveVoice';
 import { ResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
 import { useWebVitals, usePageLoadTiming } from './hooks/useWebVitals';
+
+// Detect Electron environment (set by preload script)
+const isElectron = typeof window !== 'undefined' && !!(window as Window & { electronAPI?: unknown }).electronAPI;
 
 const Home = lazy(() => import('./screens/Home'));
 const Snapshot = lazy(() => import('./screens/Snapshot'));
@@ -263,14 +266,22 @@ function AppContent() {
   );
 }
 
+const AppRouter: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  // Use BrowserRouter in Electron (no hash URLs), HashRouter in web
+  if (isElectron) {
+    return <BrowserRouter>{children}</BrowserRouter>;
+  }
+  return <HashRouter>{children}</HashRouter>;
+};
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ClawbotChannelProvider>
-          <HashRouter>
+          <AppRouter>
             <AppContent />
-          </HashRouter>
+          </AppRouter>
         </ClawbotChannelProvider>
       </AuthProvider>
     </ErrorBoundary>
