@@ -107,11 +107,14 @@ export function createTrixNativePlugin() {
         if (!response.ok) {
           throw new Error(`Failed to create pairing QR: ${response.status} ${response.statusText}`);
         }
-        const pairing = await response.json() as { code: string; claimUrl: string; qrDataUrl?: string };
+        const raw = await response.json() as Record<string, unknown>;
+        console.log('[trix-native] loginWithQrStart response:', JSON.stringify(raw));
+        const pairing = raw as unknown as { code: string; claimUrl?: string; qrDataUrl?: string };
         pendingPairingCodeByAccount.set(accountKey, pairing.code);
+        const claimUrl = pairing.claimUrl ?? `${account.serverUrl.replace(/\/$/, '')}/pair/${pairing.code}`;
         return {
           qrDataUrl: pairing.qrDataUrl,
-          message: `Use pairing code ${pairing.code} or scan the QR to join ${pairing.claimUrl}`,
+          message: `Use pairing code ${pairing.code} or visit ${claimUrl}`,
         };
       },
       loginWithQrWait: async (params: { cfg: Record<string, unknown>; accountId?: string; timeoutMs?: number }) => {
