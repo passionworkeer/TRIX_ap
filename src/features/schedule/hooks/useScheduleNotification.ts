@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import type { Schedule } from '../../../types/workbench';
+import { logger } from '../../../utils/logger';
 
 export interface UseScheduleNotificationOptions {
   schedules: Schedule[];
@@ -57,7 +58,7 @@ export function useScheduleNotification({
   // 请求通知权限
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!('Notification' in window)) {
-      console.warn('This browser does not support notifications');
+      logger.warn('ScheduleNotification', 'This browser does not support notifications');
       return false;
     }
 
@@ -72,7 +73,7 @@ export function useScheduleNotification({
         permissionRef.current = permission;
         return permission === 'granted';
       } catch (error) {
-        console.error('Failed to request notification permission:', error);
+        logger.error('ScheduleNotification', 'Failed to request notification permission:', error);
         return false;
       }
     }
@@ -129,7 +130,7 @@ export function useScheduleNotification({
             timersRef.current.delete(schedule.id);
           };
         } catch (error) {
-          console.error('Failed to show notification:', error);
+          logger.error('ScheduleNotification', 'Failed to show notification:', error);
         }
       }, delay);
 

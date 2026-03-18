@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BotState } from '../contexts/ClawbotChannelContext';
+import { logger } from '../utils/logger';
 
 interface HeroBackgroundProps {
   botState: BotState;
@@ -204,7 +205,7 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange }: 
               transition: 'opacity 300ms ease-in-out',
               zIndex: 1,
             }}
-            onError={() => console.error('[HeroBackground] 视频加载失败:', layerSources[layer])}
+            onError={() => logger.error('HeroBackground', '视频加载失败:', layerSources[layer])}
           />
         );
       })}

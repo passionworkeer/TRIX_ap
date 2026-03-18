@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, Profile, updateLastActive } from '../config/supabase';
 import { handleGlobalError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
 
 // 错误类型枚举
 export enum AuthErrorType {
@@ -81,9 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-        updateLastActive().catch(err => console.error('心跳更新失败:', err));
+        updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
         heartbeatInterval = setInterval(() => {
-          updateLastActive().catch(err => console.error('心跳更新失败:', err));
+          updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
         }, 60000);
       }
       setLoading(false);
@@ -100,9 +101,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session?.user) {
         fetchProfile(session.user.id);
-        updateLastActive().catch(err => console.error('心跳更新失败:', err));
+        updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
         heartbeatInterval = setInterval(() => {
-          updateLastActive().catch(err => console.error('心跳更新失败:', err));
+          updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
         }, 60000);
       } else {
         setProfile(null);

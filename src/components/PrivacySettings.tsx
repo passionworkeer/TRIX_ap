@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Eye, UserCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { logger } from '../utils/logger';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
@@ -101,7 +102,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
           });
         }
       } catch (error: unknown) {
-        console.error('加载设置失败:', error);
+        logger.error('PrivacySettings', '加载设置失败:', error);
         toast.error('加载设置失败，请重试');
       } finally {
         setLoading(false);
@@ -141,7 +142,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
         throw error;
       }
     } catch (error) {
-      console.error('创建默认设置失败:', error);
+      logger.error('PrivacySettings', '创建默认设置失败:', error);
     }
   };
 
@@ -174,7 +175,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({
       toast.success('设置已保存');
       onClose();
     } catch (error: unknown) {
-      console.error('保存设置失败:', error);
+      logger.error('PrivacySettings', '保存设置失败:', error);
       toast.error('保存失败，请重试');
     } finally {
       setSaving(false);

@@ -13,6 +13,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { perfMonitor } from '../utils/performance';
+import { logger } from '../utils/logger';
 
 interface WebVitalsConfig {
   /** 是否报告到控制台 */
@@ -51,7 +52,7 @@ const sendToServer = async (endpoint: string, data: Record<string, unknown>) => 
     });
   } catch (error) {
     // 静默失败，不影响用户体验
-    console.warn('[WebVitals] Failed to send to server:', error);
+    logger.warn('WebVitals', 'Failed to send to server:', error);
   }
 };
 

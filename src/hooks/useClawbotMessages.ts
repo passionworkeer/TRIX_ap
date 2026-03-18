@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
+import { logger } from '../utils/logger';
 
 interface UseClawbotMessagesOptions {
   /** 用户 ID（用于加载历史） */
@@ -134,7 +135,7 @@ export function useClawbotMessages(options: UseClawbotMessagesOptions = {}): Use
         });
       }
     } catch (error) {
-      console.error('❌ [useClawbotMessages] 加载历史失败:', error);
+      logger.error('useClawbotMessages', '加载历史失败:', error);
     }
   }, [userId, loadHistory, toPersistedMessageId]);
 
@@ -150,7 +151,7 @@ export function useClawbotMessages(options: UseClawbotMessagesOptions = {}): Use
         id: message.id || toPersistedMessageId(message)
       });
     } catch (error) {
-      console.error('❌ [useClawbotMessages] 保存消息失败:', error);
+      logger.error('useClawbotMessages', '保存消息失败:', error);
     }
   }, [userId, saveMessage, toPersistedMessageId]);
 

@@ -55,7 +55,8 @@ function isLoopbackUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return isLoopbackHost(parsed.hostname);
-  } catch {
+  } catch (error) {
+    logger.debug('Env', 'Failed to parse URL:', error);
     return /(^|:\/\/)(localhost|127\.0\.0\.1|\[::1\]|::1)(:|\/|$)/i.test(url);
   }
 }
@@ -221,7 +222,8 @@ function normalizeLegacyOssEndpoint(value: string): string {
       return '';
     }
     return host;
-  } catch {
+  } catch (error) {
+    logger.debug('Env', 'Failed to parse OSS endpoint URL:', error);
     return trimmed
       .replace(/^https?:\/\//i, '')
       .replace(/\/upload\/?$/i, '')

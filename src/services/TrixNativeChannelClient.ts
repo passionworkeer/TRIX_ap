@@ -258,8 +258,9 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
         secret: typeof parsed.secret === 'string' ? parsed.secret.trim() : undefined,
       };
     }
-  } catch {
+  } catch (error) {
     // Ignore JSON parse failure.
+    logger.debug('TrixNativeChannel', 'QR code parsing failed:', error);
   }
 
   if (/^https?:\/\//i.test(raw)) {
@@ -355,7 +356,8 @@ class TrixNativeChannelClient {
         deviceName: parsed.deviceName,
         pairingCode: parsed.pairingCode,
       };
-    } catch {
+    } catch (error) {
+      logger.debug('TrixNativeChannel', 'Session parsing failed:', error);
       return null;
     }
   }

@@ -18,6 +18,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { logger } from '../../../utils/logger';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from '../../../hooks/useNotification';
 import {
@@ -59,8 +60,9 @@ const ScheduleItem = React.memo<ScheduleItemProps>(({ schedule, onDelete, onEdit
   const handleDelete = useCallback(async () => {
     try {
       await onDelete(schedule.id);
-    } catch {
+    } catch (error) {
       // Error handled by store
+      logger.debug('ScheduleList', 'Delete error:', error);
     }
     setShowMenu(false);
   }, [onDelete, schedule.id]);

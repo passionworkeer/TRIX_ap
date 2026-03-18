@@ -1,4 +1,5 @@
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { logger } from '../utils/logger';
 
 export type TtsScene = 'welcome' | 'status' | 'bot_reply';
 
@@ -33,8 +34,9 @@ function resolveChannelHttpBaseUrl(): string {
         parsed.search = '';
         parsed.hash = '';
         return normalizeBaseUrl(parsed.toString());
-      } catch {
+      } catch (error) {
         // Invalid URL, continue to fallback
+        logger.debug('TTS', 'Invalid URL parsing, using fallback:', error);
       }
     }
   }
@@ -101,8 +103,9 @@ async function requestSynthesizeAtBaseUrl(
       if (typeof errorPayload?.error === 'string') {
         errorText = errorPayload.error;
       }
-    } catch {
+    } catch (error) {
       // ignored: fallback to status based message
+      logger.debug('TTS', 'Failed to parse error response:', error);
     }
     throw new TtsHttpError(response.status, errorText);
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, MicOff, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import AIActionSelector from '../AIActionSelector';
 import FileAttachmentCard from '../FileAttachmentCard';
 import { iosIconButtonMotion } from '../../utils/iosMotion';
@@ -71,6 +72,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   fileInputRef,
   isUploadingVoice = false,
 }) => {
+  const { t } = useTranslation();
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -121,7 +123,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                       type="button"
                       onClick={() => onRemoveAttachment(index)}
                       className="ios-pressable ios-icon-button-compact ios-surface-button absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center text-black dark:text-slate-100"
-                      aria-label="删除附件"
+                      aria-label={t('messageInput.removeAttachment')}
                     >
                       <X size={10} strokeWidth={2.5} />
                     </button>
@@ -168,7 +170,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               onClick={() => fileInputRef.current?.click()}
               {...iosIconButtonMotion}
               className="ios-pressable ios-icon-button-compact ios-surface-button flex h-8 w-8 shrink-0 items-center justify-center"
-              aria-label="添加附件"
+              aria-label={t('messageInput.addAttachment')}
             >
               <span className="text-xl text-slate-600 dark:text-slate-200" style={{ lineHeight: '1' }}>+</span>
             </motion.button>
@@ -181,7 +183,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 setTimeout(() => onInputBlur(), 200);
               }}
               onKeyDown={handleKeyDown}
-              placeholder={isListening ? 'Listening...' : '输入消息，或使用 AI 指令'}
+              placeholder={isListening ? t('homeBotBubble.listening') : t('messageInput.inputMessage')}
               rows={isInputFocused || input.trim().length > 0 ? 4 : 1}
               className="flex-1 resize-none rounded-xl border-0 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-500 transition-all dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               style={{
@@ -205,7 +207,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                     ? 'border border-slate-300 bg-slate-300 text-slate-700 dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100'
                     : 'ios-surface-button text-slate-600 dark:text-slate-200'
                 }`}
-                aria-label={isListening ? '停止语音输入' : '开始语音输入'}
+                aria-label={isListening ? t('messageInput.stopVoiceInput') : t('messageInput.startVoiceInput')}
               >
                 {isListening ? <MicOff size={14} /> : <Mic size={14} />}
               </motion.button>
@@ -223,7 +225,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                     ? 'cursor-not-allowed border border-slate-300 bg-slate-300 text-slate-400 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500'
                     : 'ios-surface-button text-slate-600 dark:text-slate-200'
                 }`}
-                aria-label="录制语音消息"
+                aria-label={t('messageInput.recordVoiceMessage')}
               >
                 {isUploadingVoice ? (
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400/30 border-t-slate-400" />
@@ -247,7 +249,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                   ? 'ios-primary-button text-white'
                   : 'border border-slate-300 bg-slate-300 text-slate-400 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500'
               }`}
-              aria-label="发送消息"
+              aria-label={t('messageInput.sendMessage')}
             >
               {uploadingFile ? (
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />

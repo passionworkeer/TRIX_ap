@@ -9,6 +9,7 @@ import { useNotification } from '../hooks/useNotification';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { audioContextUnlock } from '../services/voicePlaybackService';
 import { iosPressableMotion, iosQuickSpring } from '../utils/iosMotion';
+import { logger } from '../utils/logger';
 
 interface HomeBotBubbleProps {}
 
@@ -98,8 +99,9 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
       // 发送消息前解锁音频，确保 TTS 能播放
       try {
         await audioContextUnlock();
-      } catch {
+      } catch (error) {
         // 静默失败
+        logger.debug('HomeBotBubble', 'Audio context unlock failed:', error);
       }
 
       await sendMessage(text, 'text');
@@ -143,8 +145,9 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
       if (willExpand) {
         try {
           await audioContextUnlock();
-        } catch {
+        } catch (error) {
           // 静默失败，音频会在实际播放时再次尝试解锁
+          logger.debug('HomeBotBubble', 'Audio context unlock failed:', error);
         }
       }
 
@@ -240,8 +243,8 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
                       : 'text-white/40 hover:text-white/60'
                   }`}
                   whileTap={{ scale: 0.95 }}
-                  aria-label={voiceEnabled ? '关闭语音播报' : '开启语音播报'}
-                  title={voiceEnabled ? '语音播报已开启' : '语音播报已关闭'}
+                  aria-label={voiceEnabled ? t('homeBotBubble.voiceOff') : t('homeBotBubble.voiceOn')}
+                  title={voiceEnabled ? t('homeBotBubble.voiceBroadcastOn') : t('homeBotBubble.voiceBroadcastOff')}
                 >
                   {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </motion.button>
@@ -250,7 +253,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
                   onClick={toggleExpanded}
                   className="ios-pressable p-1.5 rounded-full text-white/60 hover:text-white"
                   {...iosPressableMotion}
-                  aria-label="关闭对话"
+                  aria-label={t('homeBotBubble.closeConversation')}
                 >
                   <X size={16} />
                 </motion.button>
@@ -261,7 +264,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
             <div className="max-h-[120px] overflow-y-auto px-3 py-2 space-y-2 bg-black/10">
               {recentMessages.length === 0 ? (
                 <p className="text-white/40 text-xs text-center py-2">
-                  开始和 TRIX 对话吧
+                  {t('homeBotBubble.startConversation')}
                 </p>
               ) : (
                 recentMessages.map((msg) => (
@@ -294,7 +297,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
                     value={isListening ? (interimTranscript || inputText) : inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={isListening ? '正在聆听...' : '发送消息...'}
+                    placeholder={isListening ? t('homeBotBubble.listening') : t('homeBotBubble.sendMessage')}
                     className="w-full px-3 py-2 bg-white/10 rounded-full text-white text-sm placeholder-white/40 border border-white/10 focus:outline-none focus:border-white/30"
                   />
                 </div>
@@ -310,7 +313,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
                         : 'bg-white/10 text-white/70 hover:text-white'
                     }`}
                     whileTap={{ scale: 0.95 }}
-                    aria-label={isListening ? '停止录音' : '语音输入'}
+                    aria-label={isListening ? t('homeBotBubble.stopRecording') : t('homeBotBubble.voiceInput')}
                   >
                     <Mic size={18} />
                   </motion.button>
@@ -327,7 +330,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
                       : 'bg-white/10 text-white/30'
                   }`}
                   whileTap={{ scale: 0.95 }}
-                  aria-label="发送消息"
+                  aria-label={t('homeBotBubble.sendMessageAria')}
                 >
                   <Send size={18} />
                 </motion.button>
@@ -341,7 +344,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
             type="button"
             className="cursor-pointer border-0 bg-transparent p-0 text-left"
             onClick={toggleExpanded}
-            aria-label="打开 TRIX Bot 对话"
+            aria-label={t('homeBotBubble.openTrixBot')}
             initial={{ opacity: 0, y: 12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: iosQuickSpring }}
             {...iosPressableMotion}

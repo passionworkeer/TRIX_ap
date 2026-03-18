@@ -1,8 +1,20 @@
-# iOS 端未解决问题清单
+# iOS 端问题清单
 
 > 最后更新: 2026-03-18
 
-本文档记录 TRIX3DCompanion iOS 端目前已知但尚未解决的技术问题。
+本文档记录 TRIX3DCompanion iOS 端目前已知的问题，包括已修复和未修复的问题。
+
+---
+
+## 📊 问题统计
+
+| 优先级 | 问题数 | 已修复 | 未修复 |
+|--------|--------|--------|--------|
+| P0 | 4 | 0 | 4 |
+| P1 | 3 | 0 | 3 |
+| P2 | 40+ | 0 | 40+ |
+| P3 | 20+ | 0 | 20+ |
+| **总计** | **70+** | **6** | **65+** |
 
 ---
 
@@ -19,73 +31,199 @@
 
 ---
 
-## 🔴 P0 - 致命问题
+## 🔴 P0 - 致命问题 (4项 - 未修复)
 
-### (已修复) 聊天界面点击无反应问题
+### 1. Force unwrap - AuthService
 
-**修复说明 (2026-03-18)**
-- **根因**: `NavigationStack` 与 `.safeAreaInset(edge: .bottom)` 的组合使用导致内部 ScrollView 点击区域计算错误
-- **修复方案**: 将 `GlassDockView` 从 `safeAreaInset` 移到 ZStack 中
-- **修改文件**: `Features/Home/Views/MainTabView.swift`
+**文件**: `Core/Services/AuthService.swift:160`
 
----
+```swift
+URL(string: SupabaseConfig.url)!  // ❌ Force unwrap，可能崩溃
+```
 
-## 🟠 P1 - 高优先级
+**风险**: 如果 SupabaseConfig.url 配置错误，应用会直接崩溃
 
-### (已修复) 主题切换功能
-
-**修复说明 (2026-03-18)**
-- ThemeManager 已实现完整主题管理
-- AppState.isDarkMode 现在返回 ThemeManager.isDarkMode
-- 支持浅色/深色/跟随系统三种模式
-- 主题偏好已持久化到 UserDefaults
+**修复建议**: 使用 guard 或 if let 安全解包
 
 ---
 
-### (已修复) 三语言国际化
+### 2. Force unwrap - WeChatSignInService
 
-**修复说明 (2026-03-18)**
-- 修复 MainTab 硬编码问题：改用 localized key (nav.home, nav.map 等)
-- 补充缺失的翻译 key (theme.*, common.*)
-- 修复 Preview 文件中的硬编码中文
+**文件**: `Core/Services/WeChatSignInService.swift:415, 480`
 
----
+```swift
+URL(string: tokenURL)!  // ❌ Force unwrap
+```
 
-## 🟡 P2 - 中优先级
+**风险**: tokenURL 可能为 nil，导致崩溃
 
-### (已修复) UI 组件美化
-
-**修复说明 (2026-03-18)**
-- 将 21 个核心文件的硬编码颜色替换为主题色
-- 替换规则：
-  - `.gray` → `.textSecondary` / `.tertiaryBackground`
-  - `.purple` → `.brandPurple`
-  - `.green` → `.success`
-  - `.red` → `.error`
-  - `.orange` → `.warning`
-  - `.blue` → `.info`
-  - `.white.opacity` → `.textPrimary.opacity`
-  - `.black.opacity` → `.overlay.opacity`
-- 修改文件：ChatListView, MessageBubbleView, ChatInputBar, ProfileView 等 21 个文件
+**修复建议**: 使用安全解包
 
 ---
 
-## 📊 iOS 问题统计
+### 3. Force unwrap - ChatDetailViewModel
 
-| 优先级 | 问题数 | 状态 |
-|--------|--------|------|
-| P0 | 0 | ✅ 全部修复 |
-| P1 | 0 | ✅ 全部修复 |
-| P2 | 0 | ✅ 已修复 |
-| **总计** | **0** | ✅ 全部完成 |
+**文件**: `Features/Chat/ViewModels/ChatDetailViewModel.swift:81-82`
+
+```swift
+pendingMedia!  // ❌ Force unwrap
+```
+
+**风险**: pendingMedia 可能为 nil，导致崩溃
+
+**修复建议**: 使用安全解包或可选链
 
 ---
 
-## 测试建议
+### 4. 敏感信息硬编码
+
+**文件**: `Core/Config/SupabaseConfig.swift:13, 16`
+
+```swift
+static let url = "https://xxx.supabase.co"  // ❌ 硬编码 URL
+static let anonKey = "xxx"  // ❌ 硬编码 API Key
+```
+
+**风险**: 敏感信息泄露到代码仓库
+
+**修复建议**: 使用环境变量或配置文件
+
+---
+
+## 🟠 P1 - 高优先级 (3项 - 未修复)
+
+### 5. 微信SDK未集成
+
+**文件**: `Core/Services/WeChatSignInService.swift:107, 164, 170`
+
+```swift
+// TODO: Replace with actual WeChat SDK call
+```
+
+**问题**: 微信登录功能未实现真正的 SDK 调用
+
+---
+
+### 6. 业务逻辑在 View - LoginView
+
+**文件**: `Features/Auth/Views/LoginView.swift:195-243`
+
+**问题**: login 函数直接在 View 中处理业务逻辑（验证、API 调用）
+
+**违反原则**: 业务逻辑应该在 ViewModel 或 Service 中
+
+---
+
+### 7. 业务逻辑在 View - RegisterView
+
+**文件**: `Features/Auth/Views/RegisterView.swift`
+
+**问题**: register 函数直接在 View 中处理业务逻辑
+
+---
+
+## 🟡 P2 - 中优先级 (40+ 项 - 未修复)
+
+### 1. 硬编码字符串 - 未使用本地化 (15+ 处)
+
+| 文件 | 行号 | 硬编码内容 |
+|------|------|-----------|
+| `VoiceMessageView.swift` | 90 | `"无法播放音频: \(error.localizedDescription)"` |
+| `VoiceMessageView.swift` | 227 | `"播放错误: \(error.localizedDescription)"` |
+| `SnapshotListViewModel.swift` | 121, 158, 196, 225 | `"Failed to..."` |
+| `CameraViewModel.swift` | 192, 248 | `"No image to upload/save"` |
+| `ClawbotChannelViewModel.swift` | 91, 119, 250 | 中/英文错误信息 |
+| `AppState.swift` | 359 | `"Refreshing session..."` |
+| `NotificationManager.swift` | 281-293 | 硬编码中文调试输出 |
+
+---
+
+### 2. print 调试输出 (20+ 处)
+
+| 文件 | 数量 | 示例 |
+|------|------|------|
+| `SupabaseService.swift` | 5 | `print("[Realtime]...")` |
+| `RelayClient.swift` | 8 | `print("[RelayClient]...")` |
+| `UIRenderingOptimizer.swift` | 1 | `print("[Render Time]...")` |
+| `ChatService.swift` | 2 | `print("[ChatService]...")` |
+| `ChatInputBar.swift` | 6 | `print("Send tapped")`, `print("Attach: ...")` |
+| `MainTabView.swift` | 2 | `print("[MainTabView] 收到导航请求...")` |
+| `ChatListView.swift` | 1 | `print("[ChatListView] 点击对话...")` |
+| `RobotHeroBackgroundView.swift` | 4 | `print("Active video source: ...")` |
+| `MapViewModel.swift` | 2 | `print("[MapViewModel] ...")` |
+| `WorkbenchCard.swift` | 2 | `print("Snapshot tapped")`, `print("Location tapped")` |
+| `AnimatedQRDisplay.swift` | 1 | `print("Scan tapped")` |
+| `LoginView.swift` | 1 | `print("Switch to login")` |
+| `RegisterView.swift` | 1 | `print("Switch to register")` |
+| `AIActionSelectorView.swift` | 2 | `print("Selected: ...")` |
+
+---
+
+### 3. 缺少错误处理 (5+ 处)
+
+| 文件 | 行号 | 问题 |
+|------|------|------|
+| `AuthService.swift` | 222 | `try saveSession(session)` 错误未处理 |
+| `AuthService.swift` | 477 | `try saveSession(session)` 错误未处理 |
+| `AppState.swift` | 113 | `data(using: .utf8)` 结果未检查 |
+
+---
+
+### 4. 架构违规 - @StateObject 在 View 中初始化
+
+**文件**: `Features/Chat/Views/ChatInputBar.swift:54`
+
+```swift
+@StateObject private var speechService  // ❌ View 中直接初始化
+```
+
+---
+
+### 5. 潜在内存问题
+
+**文件**: `Core/Services/ChatService.swift:541, 832`
+
+**问题**: messagesCache 数组不断增长，没有清理机制
+
+---
+
+## 🟢 P3 - 低优先级 (20+ 项)
+
+### 1. TODO/FIXME 待完成项
+
+| 文件 | 行号 | 问题 |
+|------|------|------|
+| `ContentView.swift` | 35 | `// TODO: 启动画面 - 需要时可启用` |
+| `SupabaseService.swift` | 133 | `// TODO: Use database aggregate function` |
+
+---
+
+## 📋 修复建议
+
+### P0 - 立即修复
+
+1. **Force unwrap 问题**: 替换为安全解包 (guard/if let)
+2. **敏感信息**: 迁移到环境变量或 Keychain
+
+### P1 - 高优先级
+
+1. **微信SDK**: 实现真正的微信登录流程
+2. **架构重构**: 提取业务逻辑到 ViewModel
+
+### P2 - 中优先级
+
+1. **硬编码字符串**: 提取到 Localizable.strings
+2. **print 输出**: 使用 OSLog 框架或移除
+3. **错误处理**: 添加 do-catch 或错误传播
+
+---
+
+## 🧪 测试建议
 
 1. **真机测试**：模拟器可能存在触摸事件问题，需要真机验证
 2. **API 测试**：使用后端 API 进行集成测试
 3. **配对流程**：需要两台设备测试配对功能
+4. **崩溃测试**：测试 Force unwrap 场景
 
 ---
 

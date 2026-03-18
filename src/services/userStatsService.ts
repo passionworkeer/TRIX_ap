@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { logger } from '../utils/logger';
 
 export interface UserStats {
   daysActive: number;
@@ -75,7 +76,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
       pointsToNextLevel
     };
   } catch (error: unknown) {
-    console.error('获取用户统计数据失败:', error);
+    logger.error('UserStats', '获取用户统计数据失败:', error);
     throw error;
   }
 }
@@ -124,7 +125,7 @@ export async function getWeeklyInteractions(userId: string): Promise<number> {
 
     return count || 0;
   } catch (error: unknown) {
-    console.error('获取本周互动次数失败:', error);
+    logger.error('UserStats', '获取本周互动次数失败:', error);
     return 0;
   }
 }

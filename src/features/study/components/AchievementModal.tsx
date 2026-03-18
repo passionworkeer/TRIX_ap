@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X, Trophy, Lock, Sparkles } from 'lucide-react';
 import { Achievement, ACHIEVEMENTS, getAchievementColor, getAchievementBgColor } from '../types/achievement';
 import { achievementService } from '../services/achievementService';
+import { logger } from '../../../utils/logger';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
@@ -37,7 +38,7 @@ export const AchievementModal: React.FC<AchievementModalProps> = ({ show, onClos
       const userAchievements = await achievementService.getUserAchievements(userId);
       setAchievements(userAchievements);
     } catch (error) {
-      console.error('Failed to load achievements:', error);
+      logger.error('Achievement', 'Failed to load achievements:', error);
     } finally {
       setIsLoading(false);
     }

@@ -12,14 +12,14 @@
 | 端 | P0 致命 | P1 高 | P2 中 | P3 低 | 总计 |
 |----|---------|-------|-------|-------|------|
 | **Web** | 1 | 0 | 0 | 0 | **1** |
-| **iOS** | 0 | 0 | 0 | 0 | **0** |
-| **总计** | 1 | 0 | 0 | 0 | **1** |
+| **iOS** | 4 | 3 | 40+ | 20+ | **70+** |
+| **总计** | 5 | 0 | 40+ | 20+ | **70+** |
 
 ---
 
 ## 🌐 Web 端问题
 
-### 🔴 P0 - 致命问题 (1项)
+### 🔴 P0 - 致命问题 (1项 - 未修复)
 
 | # | 问题 | 文件 | 状态 |
 |---|------|------|------|
@@ -41,14 +41,15 @@ const pairWithCode = useCallback(async (_code: string) => {
 
 ### 🟠 P1 - 高优先级 (已解决)
 
-| # | 问题 | 文件 | 状态 |
-|---|------|------|------|
-| W2 | localStorage 存储非敏感配置 | clawbotPairingService.ts | ✅ 已改进 |
+| # | 问题 | 状态 |
+|---|------|------|
+| W2 | 80+ 硬编码字符串 i18n 缺失 | ✅ 已修复 (Agent) |
 
-**改进说明**: device_token 已移除，改用内存存储。仅存储配置数据:
-- `clawbot_node_id` (节点ID)
-- `clawbot_gateway_url` (网关配置)
-- `clawbot_pairing_token` (配对令牌)
+**修复说明**: 使用 `useTranslation` 替换了以下文件的硬编码字符串:
+- Auth.tsx, Chat.tsx, Snapshot.tsx
+- HomeBotBubble.tsx, MessageInput.tsx
+- AddFriendModal.tsx, QRScanner.tsx
+- 等 10+ 文件
 
 ---
 
@@ -56,7 +57,12 @@ const pairWithCode = useCallback(async (_code: string) => {
 
 | # | 问题 | 状态 |
 |---|------|------|
-| W3 | 测试 mock 不完整 | ✅ 已修复 (0 failed, 679 passed) |
+| W3 | 40+ console.error 调试输出 | ✅ 已修复 (使用 logger 框架) |
+| W4 | 22+ 空 catch 块 | ✅ 已修复 (添加错误日志) |
+
+**修复说明**:
+- console.error 替换为 `logger.error()` 或 `logger.debug()`
+- 空 catch 块添加适当的错误日志记录
 
 ---
 
@@ -64,11 +70,12 @@ const pairWithCode = useCallback(async (_code: string) => {
 
 | # | 问题 | 状态 |
 |---|------|------|
-| W4 | 学习房间邀请功能 | ✅ 已确认满足需求 |
+| W5 | 10+ console.debug 调试日志 | ✅ 已修复 |
+| W6 | JSDoc 示例中的 console.log | ✅ 已移除 |
 
 ---
 
-### ✅ Web 端已修复 (2026-03-17)
+### ✅ Web 端已修复 (2026-03-18)
 
 | # | 问题 | 提交 | 状态 |
 |---|------|------|------|
@@ -79,41 +86,137 @@ const pairWithCode = useCallback(async (_code: string) => {
 | - | 测试兼容性修复 | 8a07822 | ✅ |
 | - | ChatDetail 大文件拆分 | - | ✅ (1439→905行) |
 | - | TypeScript any 类型 | - | ✅ (生产代码无 any) |
+| - | **80+ 硬编码字符串 i18n** | Agent | ✅ |
+| - | **40+ console.error 日志** | Agent | ✅ |
+| - | **22+ 空 catch 块** | Agent | ✅ |
+| - | **10+ console.debug 日志** | Agent | ✅ |
 
 ---
 
 ## 🍎 iOS 端问题
 
-### ✅ 所有问题已修复 (2026-03-18)
+### 🔴 P0 - 致命问题 (4项)
 
-| # | 问题 | 修复日期 | 状态 |
-|---|------|----------|------|
-| I1 | 聊天界面点击无反应 | 2026-03-18 | ✅ 已修复 |
-| I2 | 主题切换功能 | 2026-03-18 | ✅ 已实现 |
-| I3 | 三语言国际化 | 2026-03-18 | ✅ 已修复 |
-| I4 | UI 组件美化 | 2026-03-18 | ✅ 已修复 (21个文件主题色统一) |
+| # | 问题 | 文件 | 状态 |
+|---|------|------|------|
+| I1 | Force unwrap - URL string | `AuthService.swift:160` | ❌ 未修复 |
+| I2 | Force unwrap - WeChat tokenURL | `WeChatSignInService.swift:415,480` | ❌ 未修复 |
+| I3 | Force unwrap - pendingMedia | `ChatDetailViewModel.swift:81-82` | ❌ 未修复 |
+| I4 | 敏感信息硬编码 | `SupabaseConfig.swift:13,16` | ❌ 未修复 |
+
+**代码确认**:
+
+```swift
+// AuthService.swift:160
+URL(string: SupabaseConfig.url)!  // ❌ Force unwrap，可能崩溃
+
+// WeChatSignInService.swift:415,480
+URL(string: tokenURL)!  // ❌ Force unwrap
+
+// ChatDetailViewModel.swift:81-82
+pendingMedia!  // ❌ Force unwrap
+
+// SupabaseConfig.swift:13,16
+static let url = "https://xxx.supabase.co"  // ❌ 硬编码
+static let anonKey = "xxx"  // ❌ 硬编码
+```
 
 ---
 
-### ✅ iOS 端已修复
+### 🟠 P1 - 高优先级 (5项)
 
-| # | 问题 | 状态 |
-|---|------|------|
-| - | Socket.IO 支持 | ✅ 已实现 (ClawbotChannelService.swift) |
-| - | 后端 API 接入 | ✅ User/Friend/Chat 等 20+ 模块 |
-| - | 配对功能 | ⚠️ 基础实现完成 |
+| # | 问题 | 文件 | 状态 |
+|---|------|------|------|
+| I5 | 微信SDK未集成 | `WeChatSignInService.swift:107,164,170` | ❌ 未修复 |
+| I6 | 业务逻辑在View中 | `LoginView.swift:195-243` | ❌ 未修复 |
+| I7 | 业务逻辑在View中 | `RegisterView.swift` | ❌ 未修复 |
+
+**代码确认 - 业务逻辑在View**:
+
+```swift
+// LoginView.swift:195-243
+func login() async {
+    // ❌ 业务逻辑直接在 View 中处理
+    // 验证、API 调用、状态更新全在这里
+}
+```
+
+---
+
+### 🟡 P2 - 中优先级 (40+ 项)
+
+#### 1. 硬编码字符串 - 未使用本地化
+
+**问题数量**: 15+ 处
+
+| 文件 | 行号 | 硬编码内容 |
+|------|------|-----------|
+| `VoiceMessageView.swift` | 90, 227 | `"无法播放音频"`, `"播放错误"` |
+| `SnapshotListViewModel.swift` | 121, 158, 196, 225 | `"Failed to..."` |
+| `CameraViewModel.swift` | 192, 248 | `"No image to..."` |
+| `ClawbotChannelViewModel.swift` | 91, 119, 250 | 中/英文错误信息 |
+| `AppState.swift` | 359 | `"Refreshing session..."` |
+
+#### 2. print 调试输出
+
+**问题数量**: 20+ 处
+
+| 文件 | 数量 | 问题 |
+|------|------|------|
+| `SupabaseService.swift` | 5 | `print("[Realtime]...")` |
+| `RelayClient.swift` | 8 | `print("[RelayClient]...")` |
+| `ChatService.swift` | 2 | `print("[ChatService]...")` |
+| `ChatInputBar.swift` | 6 | `print("Send tapped")` |
+| `MainTabView.swift` | 2 | `print("[MainTabView]...")` |
+| 其他文件 | 10+ | 各种 print |
+
+#### 3. 缺少错误处理
+
+**问题数量**: 5+ 处
+
+| 文件 | 行号 | 问题 |
+|------|------|------|
+| `AuthService.swift` | 222, 477 | `try saveSession(session)` 未处理 |
+| `AppState.swift` | 113 | `data(using: .utf8)` 未检查 |
+
+---
+
+### 🟢 P3 - 低优先级 (20+ 项)
+
+#### 1. TODO/FIXME 待完成项
+
+| 文件 | 行号 | 问题 |
+|------|------|------|
+| `ContentView.swift` | 35 | `// TODO: 启动画面` |
+| `SupabaseService.swift` | 133 | `// TODO: Use database aggregate` |
+
+---
+
+## 📊 iOS 问题统计
+
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| P0 | 4 | ❌ 未修复 |
+| P1 | 3 | ❌ 未修复 |
+| P2 | 40+ | ❌ 未修复 |
+| P3 | 20+ | ❌ 未修复 |
+| **总计** | **70+** | - |
 
 ---
 
 ## 🎯 修复优先级
 
-### 唯一剩余问题
+### 立即修复 (P0)
 
-1. **Web**: 实现 GatewayContext 配对功能 (W1) - 🔴 P0 致命
+1. **Web**: GatewayContext 配对空实现 - 功能缺失
+2. **iOS**: 4 处 Force unwrap 问题 - 可能导致崩溃
+3. **iOS**: 敏感信息硬编码 - 安全风险
 
----
+### 待处理 (iOS)
 
-*所有其他问题已修复 ✅*
+1. **iOS**: P1 微信SDK未集成
+2. **iOS**: P1 业务逻辑在 View 中
+3. **iOS**: P2 40+ 问题
 
 ---
 

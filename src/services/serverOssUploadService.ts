@@ -1,4 +1,5 @@
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { logger } from '../utils/logger';
 
 interface UploadApiResponse {
   success?: boolean;
@@ -58,8 +59,9 @@ function resolveChannelHttpBaseUrl(): string {
         parsed.search = '';
         parsed.hash = '';
         return normalizeBaseUrl(parsed.toString());
-      } catch {
+      } catch (error) {
         // Invalid URL, continue to fallback
+        logger.debug('ServerOssUpload', 'Invalid URL parsing, using fallback:', error);
       }
     }
 
@@ -125,7 +127,8 @@ async function uploadAtUrl(
   let payload: UploadApiResponse | null = null;
   try {
     payload = (await response.json()) as UploadApiResponse;
-  } catch {
+  } catch (error) {
+    logger.debug('ServerOssUpload', 'Failed to parse upload response:', error);
     payload = null;
   }
 

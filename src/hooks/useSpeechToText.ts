@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { logger } from '../utils/logger';
 
 // Web Speech API 类型定义
 interface SpeechRecognition extends EventTarget {
@@ -229,7 +230,7 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
     try {
       recognitionRef.current.stop();
     } catch (err) {
-      console.error('停止语音识别失败:', err);
+      logger.error('SpeechToText', '停止语音识别失败:', err);
     }
   }, []);
 

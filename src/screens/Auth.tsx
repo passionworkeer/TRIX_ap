@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Lock, Smartphone, Loader2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import GlassPanel from '../components/GlassPanel';
 import { AppRoutes } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +9,7 @@ import { AUTH_VALIDATION, validateString, getValidationErrorMessage } from '../l
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,9 +74,9 @@ export const Login: React.FC = () => {
             </div>
 
             <h1 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-3">
-               欢迎回来
+               {t('auth.welcomeBack')}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-base font-medium tracking-wide">探索无限 3D 世界</p>
+            <p className="text-slate-500 dark:text-slate-400 text-base font-medium tracking-wide">{t('auth.exploreWorld')}</p>
          </div>
       </div>
 
@@ -91,11 +93,11 @@ export const Login: React.FC = () => {
          <div className="space-y-4">
             <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-purple-500/50 group !border-white/50 dark:!border-white/10">
                <User className="text-slate-400 group-focus-within:text-purple-600 dark:group-focus-within:text-purple-400 transition-colors" size={22} />
-               <label htmlFor="email-input" className="sr-only">邮箱</label>
+               <label htmlFor="email-input" className="sr-only">{t('auth.email')}</label>
                <input
                  id="email-input"
                  type="email"
-                 placeholder="邮箱地址"
+                 placeholder={t('auth.placeholder.email')}
                  value={email}
                  onChange={(e) => setEmail(e.target.value)}
                  maxLength={AUTH_VALIDATION.email.max}
@@ -104,11 +106,11 @@ export const Login: React.FC = () => {
             </GlassPanel>
             <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-purple-500/50 group !border-white/50 dark:!border-white/10">
                <Lock className="text-slate-400 group-focus-within:text-purple-600 dark:group-focus-within:text-purple-400 transition-colors" size={22} />
-               <label htmlFor="password-input" className="sr-only">密码</label>
+               <label htmlFor="password-input" className="sr-only">{t('auth.password')}</label>
                <input
                  id="password-input"
                  type="password"
-                 placeholder="密码"
+                 placeholder={t('auth.placeholder.password')}
                  value={password}
                  onChange={(e) => setPassword(e.target.value)}
                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -127,11 +129,11 @@ export const Login: React.FC = () => {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                登录中...
+                {t('auth.loggingIn')}
               </>
             ) : (
               <>
-                <span>登录</span>
+                <span>{t('auth.login')}</span>
                 <span className="group-hover:translate-x-1 transition-transform">→</span>
               </>
             )}
@@ -140,27 +142,27 @@ export const Login: React.FC = () => {
          <div className="flex flex-col items-center space-y-6 pt-2">
             <div className="flex items-center w-full gap-4 opacity-50">
                <div className="h-px bg-slate-300 dark:bg-slate-600 flex-1"></div>
-               <span className="text-xs font-bold text-slate-400">第三方登录</span>
+               <span className="text-xs font-bold text-slate-400">{t('auth.thirdPartyLogin')}</span>
                <div className="h-px bg-slate-300 dark:bg-slate-600 flex-1"></div>
             </div>
             <div className="flex gap-5">
                <button
                  type="button"
                  className="ios-pressable ios-surface-button flex h-12 w-12 items-center justify-center rounded-2xl text-green-600 shadow-md transition-all duration-300"
-                 aria-label="微信登录"
+                 aria-label={t('auth.wechatLogin')}
                >
                   <span className="font-bold text-xl">W</span>
                </button>
                <button
                  type="button"
                  className="ios-pressable ios-surface-button flex h-12 w-12 items-center justify-center rounded-2xl text-slate-800 shadow-md transition-all duration-300 dark:text-white"
-                 aria-label="Apple 登录"
+                 aria-label={t('auth.appleLogin')}
                >
                   <span className="font-bold text-xl">A</span>
                </button>
             </div>
             <div className="text-[13px] text-slate-500 dark:text-slate-400 font-medium">
-               还没有账号？ <button type="button" onClick={() => navigate(AppRoutes.REGISTER)} className="ios-pressable rounded-full px-2 py-1 text-purple-600 dark:text-purple-400 font-bold hover:text-purple-500 dark:hover:text-purple-300 transition-colors">立即注册</button>
+               {t('auth.noAccount')} <button type="button" onClick={() => navigate(AppRoutes.REGISTER)} className="ios-pressable rounded-full px-2 py-1 text-purple-600 dark:text-purple-400 font-bold hover:text-purple-500 dark:hover:text-purple-300 transition-colors">{t('auth.signUpNow')}</button>
             </div>
          </div>
       </div>
@@ -170,6 +172,7 @@ export const Login: React.FC = () => {
 
 export const Register: React.FC = () => {
    const navigate = useNavigate();
+   const { t } = useTranslation();
    const { signUp } = useAuth();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
@@ -241,8 +244,8 @@ export const Register: React.FC = () => {
                </div>
              </div>
 
-             <h1 className="text-3xl font-bold text-slate-800 dark:text-white">欢迎加入</h1>
-             <p className="text-slate-500 dark:text-slate-400 text-base font-medium">开启你的 3D 探索之旅</p>
+             <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t('auth.welcome')}</h1>
+             <p className="text-slate-500 dark:text-slate-400 text-base font-medium">{t('auth.startJourney')}</p>
           </div>
        </div>
 
@@ -259,7 +262,7 @@ export const Register: React.FC = () => {
             <div className="ios-glass-surface border border-green-200/70 bg-green-50/90 px-4 py-3 rounded-2xl text-sm text-green-600 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🎉</span>
-                注册成功！正在跳转...
+                {t('auth.registerSuccess')}
               </div>
             </div>
           )}
@@ -269,7 +272,7 @@ export const Register: React.FC = () => {
                 <User className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
                 <input
                   type="text"
-                  placeholder="用户名"
+                  placeholder={t('auth.placeholder.username')}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   maxLength={AUTH_VALIDATION.username.max}
@@ -280,7 +283,7 @@ export const Register: React.FC = () => {
                 <Smartphone className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
                 <input
                   type="email"
-                  placeholder="邮箱地址"
+                  placeholder={t('auth.placeholder.email')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   maxLength={AUTH_VALIDATION.email.max}
@@ -291,7 +294,7 @@ export const Register: React.FC = () => {
                 <Lock className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
                 <input
                   type="password"
-                  placeholder="设置密码 (至少 6 位)"
+                  placeholder={t('auth.placeholder.password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
@@ -310,23 +313,23 @@ export const Register: React.FC = () => {
              {loading ? (
                <>
                  <Loader2 className="w-5 h-5 animate-spin" />
-                 注册中...
+                 {t('auth.registering')}
                </>
              ) : success ? (
                <>
                  <span>✓</span>
-                 注册成功
+                 {t('auth.registerSuccess')}
                </>
              ) : (
                <>
-                 <span>立即注册</span>
+                 <span>{t('auth.joinNow')}</span>
                  <span className="group-hover:translate-x-1 transition-transform">→</span>
                </>
              )}
           </button>
 
           <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-             已有账号？<button type="button" onClick={() => navigate(AppRoutes.LOGIN)} className="ios-pressable rounded-full px-2 py-1 text-violet-600 dark:text-violet-400 font-bold hover:text-violet-500 dark:hover:text-violet-300 transition-colors">立即登录</button>
+             {t('auth.hasAccount')}<button type="button" onClick={() => navigate(AppRoutes.LOGIN)} className="ios-pressable rounded-full px-2 py-1 text-violet-600 dark:text-violet-400 font-bold hover:text-violet-500 dark:hover:text-violet-300 transition-colors">{t('auth.loginNow')}</button>
           </div>
        </div>
      </div>

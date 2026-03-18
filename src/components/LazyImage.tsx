@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 interface LazyImageProps {
   src: string;
@@ -105,7 +106,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
       setStatus('loaded');
       onLoad?.();
     } catch (error) {
-      console.error('[LazyImage] Load error:', error);
+      logger.error('LazyImage', 'Load error:', error);
       setStatus('error');
       setCurrentSrc(fallbackSrc || DEFAULT_FALLBACK);
       onError?.(error instanceof Error ? error : new Error(String(error)));

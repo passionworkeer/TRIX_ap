@@ -10,6 +10,8 @@ const SILENT_DATA_URI =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
 const IS_DEV = import.meta.env.DEV;
 
+import { logger } from '../utils/logger';
+
 class VoicePlaybackService {
   private audioElement: HTMLAudioElement;
   private audioContext: AudioContext | null = null;
@@ -26,23 +28,20 @@ class VoicePlaybackService {
     (this.audioElement as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
   }
 
-  private debugLog(message: string, payload?: Record<string, unknown>): void {
+  private debugLog(_message: string, _payload?: Record<string, unknown>): void {
+    // Debug logging removed in production
     if (!IS_DEV) {
       return;
     }
-    if (payload) {
-      console.debug(`[VoicePlayback] ${message}`, payload);
-      return;
-    }
-    console.debug(`[VoicePlayback] ${message}`);
   }
 
   private emitAudioUnlocked(): void {
     this.unlockListeners.forEach((listener) => {
       try {
         listener();
-      } catch {
+      } catch (error) {
         // Ignore observer errors.
+        logger.debug('VoicePlayback', 'Audio unlocked listener error:', error);
       }
     });
   }
@@ -71,7 +70,9 @@ class VoicePlaybackService {
     }
 
     if (this.audioContext) {
-      void this.audioContext.resume().catch(() => undefined);
+      void this.audioContext.resume().catch((error) => {
+        logger.debug('VoicePlayback', 'AudioContext resume error:', error);
+      });
 
       const buffer = this.audioContext.createBuffer(1, 1, 22050);
       const source = this.audioContext.createBufferSource();
@@ -201,7 +202,8 @@ class VoicePlaybackService {
       if (!started && this.playbackToken === playbackToken) {
         handleStarted('play-promise');
       }
-    } catch {
+    } catch (error) {
+      logger.debug('VoicePlayback', 'Playback rejected by play() promise:', error);
       if (this.playbackToken === playbackToken) {
         this.debugLog('Playback rejected by play() promise', {
           playbackToken,

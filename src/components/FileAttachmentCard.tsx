@@ -9,6 +9,7 @@ import {
   Paperclip,
 } from 'lucide-react';
 import { formatFileSize } from '../services/uploadService';
+import { logger } from '../utils/logger';
 
 interface FileAttachmentCardProps {
   uri: string;
@@ -24,7 +25,8 @@ function inferFileName(uri: string): string {
     const parsedUrl = new URL(uri);
     const lastSegment = parsedUrl.pathname.split('/').filter(Boolean).pop();
     return decodeURIComponent(lastSegment || '附件');
-  } catch {
+  } catch (error) {
+    logger.debug('FileAttachmentCard', 'Failed to parse file URL:', error);
     const sanitizedUri = uri.split('?')[0] || uri;
     const lastSegment = sanitizedUri.split('/').filter(Boolean).pop();
     return decodeURIComponent(lastSegment || '附件');

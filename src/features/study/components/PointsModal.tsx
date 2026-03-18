@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Trophy, TrendingUp, Clock, X, Loader2 } from 'lucide-react';
 import { getUserPointsStats, getPointsHistory, PointsTransaction, UserPointsStats } from '../../../services/pointsService';
+import { logger } from '../../../utils/logger';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
@@ -42,7 +43,7 @@ export const PointsModal: React.FC<PointsModalProps> = ({ show, onClose, userId 
       setStats(statsData);
       setHistory(historyData);
     } catch (error) {
-      console.error('加载积分数据失败:', error);
+      logger.error('Points', '加载积分数据失败:', error);
     } finally {
       setLoading(false);
     }

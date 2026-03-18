@@ -7,6 +7,7 @@ import { supabase } from '../config/supabase';
 import Avatar from './Avatar';
 import { IMAGES } from '../constants';
 import { useNotification } from '../hooks/useNotification';
+import { logger } from '../utils/logger';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
@@ -57,7 +58,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         .eq('status', 'accepted');
 
       if (friendsError) {
-        console.error('[StudyBuddies] 获取好友关系失败:', friendsError);
+        logger.error('StudyBuddies', '获取好友关系失败:', friendsError);
         return;
       }
 
@@ -74,7 +75,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         .eq('is_studying', true);
 
       if (profilesError) {
-        console.error('[StudyBuddies] 获取自习中好友失败:', profilesError);
+        logger.error('StudyBuddies', '获取自习中好友失败:', profilesError);
         return;
       }
 
@@ -87,7 +88,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
 
       setBuddies(studyingFriends);
     } catch (error) {
-      console.error('[StudyBuddies] 加载失败:', error);
+      logger.error('StudyBuddies', '加载失败:', error);
     } finally {
       setLoading(false);
     }
@@ -193,7 +194,7 @@ const StudyBuddiesList: React.FC<StudyBuddiesListProps> = ({ isOpen, onClose }) 
         },
       });
     } catch (error) {
-      console.error('[StudyBuddies] 加入失败:', error);
+      logger.error('StudyBuddies', '加入失败:', error);
       showError(`加入 ${buddyName} 的自习室失败，请稍后重试`);
     } finally {
       setJoiningBuddyId(null);

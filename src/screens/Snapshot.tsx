@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArrowLeft, FlipHorizontal2, Check, X, Sparkles, Send, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { IMAGES } from '../constants';
 import { AppRoutes } from '../types';
@@ -48,6 +49,7 @@ const Snapshot: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fallbackTriggeredRef = useRef(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isConnected, isPaired } = useClawbotChannel();
 
   const {
@@ -65,7 +67,7 @@ const Snapshot: React.FC = () => {
   } = useCamera({
     facingMode: 'environment',
     onError: (err) => {
-      console.error('Camera error:', err);
+      console.error(t('snapshot.cameraError'), err);
       if (!fallbackTriggeredRef.current) {
         fallbackTriggeredRef.current = true;
         setUseMockCamera(true);
@@ -92,7 +94,7 @@ const Snapshot: React.FC = () => {
     if (capturedPhoto) return;
 
     if (useMockCamera || !isReady) {
-      toast.error('当前无法获取真实相机画面，请检查权限后重试');
+      toast.error(t('snapshot.cannotGetCamera'));
       return;
     }
 
@@ -130,7 +132,7 @@ const Snapshot: React.FC = () => {
 
   const handleEnterResult = () => {
     if (!capturedPhoto?.blob) {
-      toast.error('请先拍摄一张真实照片');
+      toast.error(t('snapshot.takePhotoFirst'));
       return;
     }
     setIsResult(true);
@@ -162,12 +164,12 @@ const Snapshot: React.FC = () => {
       return;
     }
     if (!capturedPhoto?.blob) {
-      toast.error('没有可上传的照片，请重拍');
+      toast.error(t('snapshot.noPhotoToUpload'));
       return;
     }
 
     if (!promptText.trim()) {
-      toast.error('请先点击一个分析按钮，生成提示词');
+      toast.error(t('snapshot.selectActionFirst'));
       return;
     }
 
@@ -210,11 +212,11 @@ const Snapshot: React.FC = () => {
             type="button"
             onClick={handleRetake}
             className="ios-pressable ios-icon-button ios-secondary-button flex h-10 w-10 items-center justify-center text-white"
-            aria-label="返回相机"
+            aria-label={t('snapshot.backToCamera')}
           >
             <ArrowLeft size={22} />
           </button>
-          <h1 className="text-white font-semibold text-lg">快照分析</h1>
+          <h1 className="text-white font-semibold text-lg">{t('snapshot.snapshotAnalysis')}</h1>
           <div className="w-10" />
         </div>
 
@@ -229,14 +231,14 @@ const Snapshot: React.FC = () => {
                 />
               ) : (
                 <div className="w-full h-56 bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
-                  暂无图片
+                  {t('snapshot.noImage')}
                 </div>
               )}
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-cyan-300 text-sm">
               <Sparkles size={14} />
-              点击下面按钮会自动生成对应提示词
+              {t('snapshot.promptHint')}
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -257,11 +259,11 @@ const Snapshot: React.FC = () => {
             </div>
 
             <div className="mt-4">
-              <p className="text-xs text-slate-300 mb-2">提示词</p>
+              <p className="text-xs text-slate-300 mb-2">{t('snapshot.prompt')}</p>
               <textarea
                 value={promptText}
                 onChange={(event) => setPromptText(event.target.value)}
-                placeholder="点击上方按钮后，这里会出现对应提示词"
+                placeholder={t('snapshot.promptPlaceholder')}
                 className="w-full min-h-[120px] rounded-xl bg-black/30 border border-white/15 text-white text-sm px-3 py-2 outline-none focus:border-cyan-400"
               />
             </div>
@@ -272,7 +274,7 @@ const Snapshot: React.FC = () => {
                 onClick={handleRetake}
                 className="ios-pressable ios-secondary-button flex-1 rounded-xl border border-white/20 px-4 py-3 text-white"
               >
-                重拍
+                {t('snapshot.retake')}
               </button>
               <button
                 type="button"
@@ -285,7 +287,7 @@ const Snapshot: React.FC = () => {
                 ) : (
                   <Send size={16} />
                 )}
-                发送给 Clawbot
+                {t('snapshot.sendToClawbot')}
               </button>
             </div>
           </div>
@@ -324,16 +326,16 @@ const Snapshot: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <h1 className="text-white text-xl font-bold">快照</h1>
+            <h1 className="text-white text-xl font-bold">{t('snapshot.title')}</h1>
             {!useMockCamera && isReady && (
               <div className="flex items-center gap-1 bg-green-500/30 px-2 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs text-green-100">实时</span>
+                <span className="text-xs text-green-100">{t('snapshot.realTime')}</span>
               </div>
             )}
             {useMockCamera && (
               <div className="flex items-center gap-1 bg-yellow-500/30 px-2 py-1 rounded-full">
-                <span className="text-xs text-yellow-100">演示</span>
+                <span className="text-xs text-yellow-100">{t('snapshot.demo')}</span>
               </div>
             )}
           </div>
@@ -351,7 +353,7 @@ const Snapshot: React.FC = () => {
         {cameraError && (
           <div className="mx-4 mt-4 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl px-4 py-3">
             <p className="text-red-100 text-sm text-center">{cameraError}</p>
-            <p className="text-red-200 text-xs text-center mt-1">已切换到演示模式</p>
+            <p className="text-red-200 text-xs text-center mt-1">{t('snapshot.switchedToDemo')}</p>
           </div>
         )}
 
@@ -410,7 +412,7 @@ const Snapshot: React.FC = () => {
           >
             <div className={`w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] ${isScanning ? 'animate-ping' : ''}`} />
             <p className="text-white text-sm font-medium tracking-wider">
-              {isScanning ? '拍摄中...' : capturedPhoto ? '照片已就绪' : '点击拍摄以分析'}
+              {isScanning ? t('snapshot.capturing') : capturedPhoto ? t('snapshot.photoReady') : t('snapshot.takePhoto')}
             </p>
           </div>
         </div>
@@ -429,7 +431,7 @@ const Snapshot: React.FC = () => {
             onClick={triggerFileUpload}
             disabled={!!capturedPhoto}
             className="ios-pressable ios-secondary-button absolute left-8 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white disabled:cursor-not-allowed disabled:opacity-50"
-            title="上传图片"
+            title={t('snapshot.uploadImage')}
           >
             <ImageIcon size={22} />
           </button>

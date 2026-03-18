@@ -10,6 +10,7 @@ import { X, TrendingUp, TrendingDown, History } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import { supabase } from '../config/supabase';
 import toast from 'react-hot-toast';
+import { logger } from '../utils/logger';
 
 interface PointTransaction {
   id: string;
@@ -70,7 +71,7 @@ export const PointsHistory: React.FC<PointsHistoryProps> = ({
         setHasMore(data.length === 20);
       }
     } catch (error: unknown) {
-      console.error('加载积分历史失败:', error);
+      logger.error('PointsHistory', '加载积分历史失败:', error);
       toast.error('加载失败，请重试');
     } finally {
       setLoading(false);

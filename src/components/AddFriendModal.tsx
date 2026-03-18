@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import GlassPanel from './GlassPanel';
 import { getErrorMessage } from '../utils/errorHandler';
 import { FRIEND_VALIDATION, validateString, getValidationErrorMessage, sanitizeString } from '../lib/validation';
@@ -12,6 +13,7 @@ interface AddFriendModalProps {
 }
 
 const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend }) => {
+  const { t } = useTranslation();
   const [account, setAccount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +33,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
     setLoading(true);
     try {
       await onSend(sanitizeString(account, FRIEND_VALIDATION.account.max));
-      setSuccess('好友请求已发送！');
+      setSuccess(t('addFriend.requestSent'));
       setAccount('');
     } catch (e: unknown) {
       setError(getErrorMessage(e, '发送失败'));
@@ -61,23 +63,23 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
           type="button"
           className="ios-pressable ios-icon-button ios-surface-button absolute right-3 top-3 flex items-center justify-center text-gray-400 hover:text-gray-600"
           onClick={onClose}
-          aria-label="关闭对话框"
+          aria-label={t('addFriend.closeDialog')}
         >
           ×
         </button>
-        <h2 id="modal-title" className="text-lg font-bold mb-4">添加好友</h2>
+        <h2 id="modal-title" className="text-lg font-bold mb-4">{t('addFriend.title')}</h2>
         <label htmlFor="friend-account" className="sr-only">
-          对方账号
+          {t('addFriend.accountLabel')}
         </label>
         <input
           id="friend-account"
           className="w-full rounded-2xl border border-white/50 bg-white/75 px-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] focus:outline-none focus:ring-2 focus:ring-blue-400"
-          placeholder="输入对方账号（邮箱或用户名）"
+          placeholder={t('addFriend.accountPlaceholder')}
           value={account}
           onChange={e => setAccount(e.target.value)}
           disabled={loading}
           maxLength={FRIEND_VALIDATION.account.max}
-          aria-label="对方账号"
+          aria-label={t('addFriend.accountLabel')}
         />
         {error && (
           <div role="alert" aria-live="assertive" className="text-red-500 text-sm mb-2">
@@ -95,7 +97,7 @@ const AddFriendModal: React.FC<AddFriendModalProps> = ({ isOpen, onClose, onSend
           onClick={handleSend}
           disabled={loading}
         >
-          {loading ? '发送中...' : '发送请求'}
+          {loading ? t('addFriend.sending') : t('addFriend.sendRequest')}
         </button>
             </GlassPanel>
           </motion.div>

@@ -189,7 +189,7 @@ const Chat: React.FC = () => {
                 <Search size={18} className="text-white/60 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="搜索"
+                  placeholder={t('chat.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/50 ml-3 text-sm"
@@ -200,7 +200,7 @@ const Chat: React.FC = () => {
                     onClick={() => setSearchQuery('')}
                     {...iosIconButtonMotion}
                     className="ios-pressable ios-icon-button-compact flex-shrink-0 w-8 h-8 flex items-center justify-center text-white/60 hover:text-white"
-                    aria-label="清除搜索"
+                    aria-label={t('chat.clearSearch')}
                   >
                     <X size={16} />
                   </motion.button>
@@ -317,7 +317,7 @@ const Chat: React.FC = () => {
                              <div className="flex items-center gap-1.5">
                                 <MessageSquare size={14} className={isClawbotChannelConnected && isClawbotPaired ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
                                 <span className="text-sm text-gray-400 truncate">
-                                  {isClawbotChannelConnected && isClawbotPaired ? 'AI 助手已就绪' : '点击配对'}
+                                  {isClawbotChannelConnected && isClawbotPaired ? t('chat.aiAssistantReady') : t('chat.tapToPair')}
                                 </span>
                              </div>
                           </div>
@@ -424,7 +424,8 @@ const Chat: React.FC = () => {
                                           try {
                                             const parsed = JSON.parse(msg);
                                             return parsed.text || parsed.content || '[图片]';
-                                          } catch {
+                                          } catch (error) {
+                                            logger.debug('Chat', 'Failed to parse message as JSON:', error);
                                             return msg;
                                           }
                                         }
@@ -469,7 +470,7 @@ const Chat: React.FC = () => {
              {...iosIconButtonMotion}
              className="ios-pressable ios-glass-surface absolute top-11 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/20"
              onClick={() => setShowAddModal(true)}
-             aria-label="添加好友"
+             aria-label={t('chat.addFriend')}
           >
              <UserPlus size={18} className="text-white/80" />
           </motion.button>

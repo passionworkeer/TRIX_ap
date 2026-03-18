@@ -16,6 +16,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useNotification } from '../../../hooks/useNotification';
 import { getCurrentPosition } from '../../../services/locationService';
 import { usePerformanceTracking } from '../../../utils/performance';
+import { logger } from '../../../utils/logger';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -239,7 +240,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         notification.showWarning('未找到匹配的地点');
       }
     } catch (error) {
-      console.error('Search failed', error);
+      logger.error('LocationPicker', 'Search failed', error);
       notification.showWarning('搜索异常，请稍后再试');
     }
   }, [notification]);

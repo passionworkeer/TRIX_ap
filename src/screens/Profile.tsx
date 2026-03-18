@@ -16,6 +16,7 @@ import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { getUserStats } from '../services/userStatsService';
 import type { UserStats } from '../services/userStatsService';
 import { useConfirmModal } from '../hooks/useConfirmModal';
+import { logger } from '../utils/logger';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -127,7 +128,7 @@ const Profile: React.FC = () => {
         setUserStats(stats);
       }
     } catch (error) {
-      console.error('加载统计数据失败:', error);
+      logger.error('Profile', '加载统计数据失败:', error);
     } finally {
       setStatsLoading(false);
     }

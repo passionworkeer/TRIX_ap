@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useNotification } from '../../../hooks/useNotification';
 import { useFilteredTodos, useTodoStore } from '../store/todoStore';
 import { usePerformanceTracking } from '../../../utils/performance';
+import { logger } from '../../../utils/logger';
 import TodoForm from './TodoForm';
 import type { Todo, TodoPriority } from '../../../types/workbench';
 
@@ -45,16 +46,18 @@ const TodoItem = React.memo<TodoItemProps>(({ todo, onToggleComplete, onDelete, 
   const handleToggle = useCallback(async () => {
     try {
       await onToggleComplete(todo.id);
-    } catch {
+    } catch (error) {
       // Error handled by store
+      logger.debug('TodoList', 'Toggle complete error:', error);
     }
   }, [onToggleComplete, todo.id]);
 
   const handleDelete = useCallback(async () => {
     try {
       await onDelete(todo.id);
-    } catch {
+    } catch (error) {
       // Error handled by store
+      logger.debug('TodoList', 'Delete error:', error);
     }
     setShowMenu(false);
   }, [onDelete, todo.id]);

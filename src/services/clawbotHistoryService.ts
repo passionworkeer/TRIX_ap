@@ -6,6 +6,8 @@
  * normalization and validation.
  */
 
+import { logger } from '../utils/logger';
+
 /**
  * Storage key prefix for Clawbot history
  */
@@ -145,7 +147,7 @@ export async function loadClawbotMessageHistory(userId: string): Promise<Clawbot
       .filter((item): item is ClawbotHistoryMessage => item !== null)
       .sort((a, b) => a.timestamp - b.timestamp);
   } catch (error) {
-    console.error('加载 Clawbot 历史消息失败:', error);
+    logger.error('ClawbotHistory', '加载 Clawbot 历史消息失败:', error);
     return [];
   }
 }
@@ -179,7 +181,7 @@ export async function saveClawbotMessage(
 
     localStorage.setItem(storageKey, JSON.stringify(merged));
   } catch (error) {
-    console.error('保存 Clawbot 消息失败:', error);
+    logger.error('ClawbotHistory', '保存 Clawbot 消息失败:', error);
   }
 }
 
@@ -199,6 +201,6 @@ export async function deleteClawbotMessage(userId: string, messageId: string): P
     const nextMessages = existingMessages.filter((message) => message.id !== messageId);
     localStorage.setItem(storageKey, JSON.stringify(nextMessages));
   } catch (error) {
-    console.error('删除 Clawbot 消息失败:', error);
+    logger.error('ClawbotHistory', '删除 Clawbot 消息失败:', error);
   }
 }

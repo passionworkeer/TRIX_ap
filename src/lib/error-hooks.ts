@@ -6,6 +6,7 @@
 
 import { useCallback } from 'react';
 import { useNotification } from '../hooks/useNotification';
+import { logger } from '../utils/logger';
 import {
   parseError,
   AppError,
@@ -13,20 +14,6 @@ import {
   createErrorResponse,
   ApiResponse,
 } from './errors';
-
-// 开发环境标志（用于条件日志）
-const isDev = import.meta.env.DEV;
-
-// 简单的日志函数
-const logger = {
-  ui: {
-    error: (...args: unknown[]) => {
-      if (isDev) {
-        console.error(...args);
-      }
-    },
-  },
-};
 
 /**
  * useErrorHandler 返回类型
@@ -82,7 +69,7 @@ export function useErrorHandler(): UseErrorHandlerReturn {
 
       // 记录错误日志
       if (isDev) {
-        logger.ui.error('Error handled:', {
+        logger.error('UI', 'Error handled:', {
           code: appError.code,
           message: appError.message,
           details: appError.details,
@@ -110,7 +97,7 @@ export function useErrorHandler(): UseErrorHandlerReturn {
    */
   const logError = useCallback((error: unknown): void => {
     const appError = parseError(error);
-    logger.ui.error('Error logged:', {
+    logger.error('UI', 'Error logged:', {
       code: appError.code,
       message: appError.message,
       details: appError.details,

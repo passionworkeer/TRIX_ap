@@ -10,6 +10,7 @@ import {
   stopCurrent,
   subscribeAudioUnlocked,
 } from '../services/voicePlaybackService';
+import { logger } from '../utils/logger';
 
 const WELCOME_SESSION_KEY_PREFIX = 'trix_voice_welcome_session';
 const THINKING_TIMEOUT_MS = 25000;
@@ -125,8 +126,9 @@ export function useImmersiveVoice(): void {
           }
         },
       });
-    } catch {
+    } catch (error) {
       // Silent fail for welcome/status announcements.
+      logger.debug('ImmersiveVoice', 'Play welcome/status audio failed:', error);
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
@@ -234,7 +236,8 @@ export function useImmersiveVoice(): void {
           notifyVoicePlaybackError(task.messageId);
         },
       });
-    } catch {
+    } catch (error) {
+      logger.debug('ImmersiveVoice', 'Play message audio failed:', error);
       if (controller.signal.aborted || !isActiveTask()) {
         return;
       }
