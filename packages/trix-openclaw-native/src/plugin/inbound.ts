@@ -29,12 +29,11 @@ function buildAttachmentSummary(attachments: AttachmentDescriptor[]): string {
   if (attachments.length === 0) {
     return '';
   }
-
   return attachments.map((entry) => `[${entry.kind.toUpperCase()}: ${entry.fileName}]`).join('\n');
 }
 
 async function postReply(account: ResolvedPluginAccount, conversationId: string, payload: OutboundReplyPayloadLike): Promise<void> {
-  console.log(`[trix-native] POST REPLY to conv=${conversationId} text="${payload.text?.slice(0,50)}"`);
+  console.log(`[trix-native] POST REPLY to conv=${conversationId} text="${payload.text?.slice(0, 50)}"`);
   const store = new AttachmentStore(account.storageDir);
   await store.ensure();
 
@@ -176,7 +175,6 @@ export async function startInboundMonitor(
   let stopped = false;
   // 当前活跃的 socket，用于 abort 时主动关闭
   let currentSocket: WebSocket | null = null;
-
   // 追踪最后处理的消息 ID，避免重复处理
   let lastProcessedMessageId: string | null = null;
 
@@ -189,69 +187,12 @@ export async function startInboundMonitor(
     log.info?.(`[trix-native] Inbound monitor aborted for ${key}`);
   }, { once: true });
 
-  // 轮询服务器获取新消息（作为 WebSocket 的备份/补充）
-  async function pollMessages(): Promise<void> {
-    if (stopped) return;
-
-    try {
-      const pairingsResponse = await fetch(`${account.serverUrl.replace(/\/$/, '')}/api/pairings`, {
-        headers: {
-          'authorization': `Bearer ${serviceToken}`,
-        },
-      });
-
-      if (!pairingsResponse.ok) {
-        log.warn?.(`Failed to fetch pairings: ${pairingsResponse.status}`);
-        return;
-      }
-
-      const pairingsData = await pairingsResponse.json() as Array<{ code: string; status: string; deviceId?: string; conversationId?: string }>;
-      const pairedDevices = pairingsData.filter((p) => p.status === 'paired' && p.deviceId);
-
-      for (const pairing of pairedDevices) {
-        const conversationId = pairing.conversationId || `device_${pairing.deviceId}`;
-
-        const messagesResponse = await fetch(
-          `${account.serverUrl.replace(/\/$/, '')}/api/messages/${encodeURIComponent(conversationId)}`,
-          {
-            headers: {
-              'authorization': `Bearer ${serviceToken}`,
-            },
-          }
-        );
-
-        if (!messagesResponse.ok) continue;
-
-        const messagesData = await messagesResponse.json() as { messages?: MessageRecord[] };
-        const messages = messagesData.messages ?? [];
-
-        // Only accept inbound (phone -> agent) messages
-        for (const message of messages) {
-          if (message.id === lastProcessedMessageId) continue;
-          // inbound = phone sends to agent
-          if (message.direction !== 'inbound') continue;
-
-          lastProcessedMessageId = message.id;
-          console.log(`[trix-native] POLL fetched msg ${message.id} dir=${message.direction} text="${message.text?.slice(0,50)}"`);
-          await dispatchInboundMessage({
-            gatewayContext,
-            account,
-            message,
-          });
-        }
-      }
-    } catch (error) {
-      log.error?.(`TRIX Native message polling failed: ${String(error)}`);
-    }
-  }
-
   async function connect(): Promise<void> {
     if (stopped) return;
 
     const socket = new WebSocket(wsUrl);
     currentSocket = socket;
 
-    // 消息处理
     socket.on('message', async (data) => {
       if (stopped) return;
       try {
@@ -263,17 +204,13 @@ export async function startInboundMonitor(
         const message = envelope.payload.message;
 
         // Only accept inbound (phone -> agent) messages
-        // inbound = phone sends to agent (should be routed to AI)
-        // outbound = agent sends to phone (should NOT be dispatched to AI again)
         if (message.direction !== 'inbound') return;
-
-        console.log(`[trix-native] WS received msg ${message.id} dir=${message.direction} text="${message.text?.slice(0,50)}" conv=${message.conversationId}`);
 
         // 避免重复处理
         if (message.id === lastProcessedMessageId) return;
         lastProcessedMessageId = message.id;
 
-        console.log(`[trix-native] WS dispatching msg ${message.id}`);
+        console.log(`[trix-native] WS received msg ${message.id} dir=${message.direction} conv=${message.conversationId}`);
         await dispatchInboundMessage({
           gatewayContext,
           account,
@@ -284,8 +221,6 @@ export async function startInboundMonitor(
       }
     });
 
-    // 关闭处理：code 1000 是主动关闭，不重连
-    // 其他 code 是异常断开，5 秒后重连一次
     socket.on('close', (code) => {
       if (currentSocket === socket) currentSocket = null;
       if (stopped || code === 1000) {
@@ -303,13 +238,10 @@ export async function startInboundMonitor(
       }, 5000);
     });
 
-    // 运行时错误只记录，不抛出（避免崩溃 gateway）
     socket.on('error', (err) => {
       log.error?.(`TRIX Native websocket error (${account.accountId}): ${String(err)}`);
     });
 
-    // 等待初始连接建立
-    // 用互相清理的方式避免 open/error 竞争条件
     await new Promise<void>((resolve, reject) => {
       function onOpen() {
         socket.removeListener('error', onError);
@@ -329,27 +261,11 @@ export async function startInboundMonitor(
   // 首次连接失败直接抛出，让 gateway 知道启动失败
   await connect();
 
-  // 启动消息轮询（作为 WebSocket 的备份）
-  // 每 3 秒检查一次新消息
-  const pollIntervalMs = 3000;
-  const pollInterval = setInterval(() => {
-    pollMessages().catch((err) => {
-      log.error?.(`TRIX Native poll error: ${String(err)}`);
-    });
-  }, pollIntervalMs);
-
-  // 立即执行一次轮询
-  pollMessages().catch((err) => {
-    log.error?.(`TRIX Native initial poll error: ${String(err)}`);
-  });
-
   // 返回 promise 直到 abortSignal 触发 → gateway framework 会跟踪此 promise
-  // resolved = running:true, rejected = running:false
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<void>((resolve) => {
     abortSignal?.addEventListener('abort', () => {
       stopped = true;
       activeMonitors.delete(key);
-      clearInterval(pollInterval);
       currentSocket?.close(1000, 'plugin stop');
       currentSocket = null;
       log.info?.(`[trix-native] Inbound monitor aborted for ${key}`);
