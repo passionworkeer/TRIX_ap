@@ -1,6 +1,4 @@
-import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { AnimationMixer } from 'three';
 import { useThreeStore } from '../store/threeStore';
 import { useModelLoader } from '../models/useModelLoader';
 import { useAnimationState } from '../models/useAnimationState';
@@ -10,16 +8,19 @@ export function TrixCharacter() {
   const { gltf, actions } = useModelLoader();
   const mixerRef = useAnimationState(actions, botState);
 
-  // 跟随 mixer 更新时间
+  // Update mixer time each frame
   useFrame((_, delta) => {
     mixerRef.current?.update(delta);
   });
 
+  // rotation.y = Math.PI: in THREE.js the default camera is at +Z looking
+  // toward origin. If the GLTF model was authored facing -Z (common default),
+  // rotating Y by PI makes it face +Z and thus toward the camera.
   return (
     <primitive
       object={gltf.scene}
-      // y 旋转 180° 让角色面对镜头
-      position={[0, -0.8, 0]}
+      position={[0, -1.0, 0]}
+      scale={1.6}
       rotation={[0, Math.PI, 0]}
     />
   );

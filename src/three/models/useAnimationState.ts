@@ -1,13 +1,10 @@
 import { useEffect, useRef } from 'react';
-import type { AnimationAction, AnimationMixer } from 'three';
+import type { AnimationAction } from 'three';
 import type { CharacterBotState } from '../store/threeStore';
 
 type AnimationActions = Record<string, AnimationAction | null>;
 
-/**
- * 将 botState 映射到动画名称。
- * 如果骨骼名称不同，可在子类覆盖。
- */
+/** Maps bot state to the corresponding animation clip name in the GLTF. */
 function botStateToAnim(state: CharacterBotState): string {
   switch (state) {
     case 'THINKING': return 'Think';
@@ -19,15 +16,15 @@ function botStateToAnim(state: CharacterBotState): string {
 }
 
 /**
- * 管理动画交叉淡入淡出。
- * 当前一个动画播放完毕或切换状态时，淡入新动画。
+ * Manages smooth animation transitions driven by bot state.
+ * Uses a cross-fade (fadeOut + fadeIn) for seamless blending between clips.
  */
 export function useAnimationState(
   actions: AnimationActions,
   botState: CharacterBotState,
 ) {
-  const current = useRef<AnimationAction | null>(null);
-  const mixerRef = useRef<AnimationMixer | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mixerRef = useRef<any>(null);
 
   useEffect(() => {
     const targetName = botStateToAnim(botState);
@@ -35,24 +32,25 @@ export function useAnimationState(
 
     if (!next) return;
 
-    // 如果 mixer 还没初始化
     if (!mixerRef.current && next.getMixer()) {
-      mixerRef.current = next.getMixer() as AnimationMixer;
+      mixerRef.current = next.getMixer();
     }
 
-    if (!current.current) {
-      // 第一次：直接播放
-      current.current = next;
-      next.reset().fadeIn(0.3).play();
+    if (!mixerRef.current) return;
+
+    if (!mixerRef.current._action) {
+      // First clip: fade in from nothing
+      mixerRef.current._action = next;
+      next.reset().fadeIn(0.35).play();
       return;
     }
 
-    if (current.current === next) return;
+    if (mixerRef.current._action === next) return;
 
-    // 交叉淡入淡出
-    current.current.fadeOut(0.3);
-    next.reset().fadeIn(0.3).play();
-    current.current = next;
+    // Cross-fade between current and next clip
+    mixerRef.current._action.fadeOut(0.35);
+    next.reset().fadeIn(0.35).play();
+    mixerRef.current._action = next;
   }, [botState, actions]);
 
   return mixerRef;

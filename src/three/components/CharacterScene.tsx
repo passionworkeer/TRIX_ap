@@ -1,12 +1,10 @@
-import { Suspense, useEffect, useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { useProgress, Html, Environment } from '@react-three/drei';
+import { Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { Html, Environment } from '@react-three/drei';
 import { TrixCharacter } from './TrixCharacter';
-import { useThreeStore } from '../store/threeStore';
 
-/** 显示加载进度 */
+/** Displays GLTF loading progress. */
 function Loader() {
-  const { progress } = useProgress();
   return (
     <Html center>
       <div style={{
@@ -16,19 +14,19 @@ function Loader() {
         textAlign: 'center',
         textShadow: '0 1px 3px rgba(0,0,0,0.8)',
       }}>
-        <div style={{ marginBottom: '6px' }}>加载 3D 角色 {progress.toFixed(0)}%</div>
+        <div style={{ marginBottom: '6px' }}>Loading 3D Character…</div>
         <div style={{
           width: '200px',
           height: '4px',
           background: 'rgba(255,255,255,0.2)',
           borderRadius: '2px',
+          overflow: 'hidden',
         }}>
           <div style={{
-            width: `${progress}%`,
             height: '100%',
             background: 'linear-gradient(90deg, #818cf8, #c084fc)',
             borderRadius: '2px',
-            transition: 'width 0.3s',
+            width: '100%',
           }} />
         </div>
       </div>
@@ -36,57 +34,63 @@ function Loader() {
   );
 }
 
-/** WebGL 检测 */
-export function useWebGLCapable() {
-  const setWebglCapable = useThreeStore((s) => s.setWebglCapable);
-  useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-      setWebglCapable(!!gl);
-    } catch {
-      setWebglCapable(false);
-    }
-  }, [setWebglCapable]);
+/** Atmospheric three-point lighting with a studio environment. */
+function SceneLighting() {
+  return (
+    <>
+      {/* Soft ambient fill — keeps the scene readable without being flat */}
+      <ambientLight intensity={0.35} color="#e8e0ff" />
+
+      {/* Key light: warm, from upper-right-front */}
+      <directionalLight
+        position={[2.5, 4, 3]}
+        intensity={1.2}
+        color="#fff5e8"
+        castShadow
+      />
+
+      {/* Fill light: cool, soft from the left — lifts shadows */}
+      <directionalLight
+        position={[-2, 1, 2]}
+        intensity={0.45}
+        color="#c8d8ff"
+      />
+
+      {/* Rim / back light: warm purple, creates character silhouette */}
+      <spotLight
+        position={[0, 3.5, -3.5]}
+        intensity={1.4}
+        angle={0.55}
+        penumbra={0.6}
+        color="#a78bfa"
+      />
+
+      {/* Ground bounce: subtle warm fill from below */}
+      <pointLight
+        position={[0, -2, 1]}
+        intensity={0.25}
+        color="#fde8c8"
+      />
+
+      {/* Adds realistic specular reflections on shiny surfaces */}
+      <Environment preset="studio" />
+    </>
+  );
 }
 
-/** Three.js Canvas 场景 */
+/** Three.js Canvas scene hosting the TRIX character. */
 export function CharacterScene() {
-  useWebGLCapable();
-
   return (
     <Canvas
       camera={{ position: [0, 0.3, 3.5], fov: 50 }}
       gl={{ antialias: true, alpha: true }}
       style={{ width: '100%', height: '100%', background: 'transparent' }}
+      onCreated={({ gl }) => {
+        gl.setClearColor(0x000000, 0);
+      }}
     >
       <Suspense fallback={<Loader />}>
-        {/* 环境光 + 3点布光 */}
-        <ambientLight intensity={0.8} />
-        {/* 主光：从右前上方打过来 */}
-        <directionalLight
-          position={[2, 4, 3]}
-          intensity={1.5}
-          color="#fff8f0"
-        />
-        {/* 补光：从左下方补，减少阴影 */}
-        <directionalLight
-          position={[-2, 1, 2]}
-          intensity={0.5}
-          color="#c8d8ff"
-        />
-        {/* 轮廓光/背光：从后方打轮廓 */}
-        <spotLight
-          position={[0, 3, -3]}
-          intensity={1.0}
-          angle={0.5}
-          penumbra={0.5}
-          color="#a78bfa"
-        />
-        {/* 环境贴图提供真实反射 */}
-        <Environment preset="studio" />
-
-        {/* 角色 */}
+        <SceneLighting />
         <TrixCharacter />
       </Suspense>
     </Canvas>

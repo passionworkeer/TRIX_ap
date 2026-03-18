@@ -5,12 +5,11 @@ import { useThreeStore } from '../store/threeStore';
 
 const MODEL_URL = '/3d/trix_character_optimized.glb';
 
-// Preload model
 useGLTF.preload(MODEL_URL);
 
 /**
- * 加载角色 GLB 模型，带进度追踪。
- * 内部缓存：同一个 URL 只加载一次。
+ * Loads the TRIX character GLB model with progress tracking.
+ * Results are cached by URL — subsequent calls return the same cached result.
  */
 export function useModelLoader() {
   const setLoadProgress = useThreeStore((s) => s.setLoadProgress);
@@ -20,7 +19,6 @@ export function useModelLoader() {
   const { animations } = gltf;
   const { actions, names } = useAnimations(animations, gltf.scene);
 
-  // Scale: 模型约 2 单位高，缩放到合适大小
   useEffect(() => {
     gltf.scene.scale.setScalar(1);
     gltf.scene.traverse((child) => {
