@@ -165,21 +165,70 @@ struct ChatListView: View {
     // MARK: - Loading View
 
     private var loadingView: some View {
-        VStack(spacing: 12) {
-            SwiftUI.ProgressView()
-                .controlSize(.large)
-                .tint(Color.brandPurple)
+        VStack(spacing: 24) {
+            // Skeleton for search bar placeholder
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .frame(height: 48)
+                .shimmer(cornerRadius: 18)
 
-            Text(L("chat.loading.sessions"))
-                .font(.headline)
+            // Skeleton for TRIX Bot card
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    SkeletonAvatar(size: 56)
 
-            Text(L("chat.loading.sync"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.gray.opacity(0.2))
+                            .frame(width: 120, height: 16)
+                            .shimmer(cornerRadius: 6)
+
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.gray.opacity(0.2))
+                            .frame(width: 180, height: 14)
+                            .shimmer(cornerRadius: 6)
+
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.gray.opacity(0.2))
+                            .frame(width: 140, height: 12)
+                            .shimmer(cornerRadius: 6)
+                    }
+
+                    Spacer()
+                }
+                .padding(18)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            }
+
+            // Skeleton for conversation list
+            VStack(spacing: 0) {
+                ForEach(0..<5, id: \.self) { _ in
+                    HStack(spacing: 12) {
+                        SkeletonAvatar(size: 48)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 140, height: 14)
+                                .shimmer(cornerRadius: 6)
+
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.gray.opacity(0.2))
+                                .frame(width: 200, height: 12)
+                                .shimmer(cornerRadius: 6)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+
+                    Divider()
+                        .padding(.leading, 84)
+                }
+            }
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         }
-        .frame(maxWidth: .infinity, minHeight: 240)
-        .padding(.horizontal, 20)
-        .trixSurfaceCard(cornerRadius: 28, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 10)
         .padding(.horizontal, 20)
     }
 

@@ -35,7 +35,16 @@ let package = Package(
         .package(url: "https://github.com/twostraws/CodeScanner.git", from: "2.0.0"),
 
         // Socket.IO for real-time communication
-        .package(url: "https://github.com/socketio/socket.io-swift.git", from: "16.0.0"),
+        .package(url: "https://github.com/socketio/socket.io-client-swift.git", from: "16.0.0"),
+
+        // Popup/Toast notifications
+        .package(url: "https://github.com/exyte/PopupView.git", from: "4.1.0"),
+
+        // WhatsNewKit for new feature announcements
+        .package(url: "https://github.com/SvenTiigi/WhatsNewKit.git", from: "1.0.0"),
+
+        // Loading Animations
+        .package(url: "https://github.com/exyte/ActivityIndicatorView.git", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -48,7 +57,10 @@ let package = Package(
                 .product(name: "KeychainAccess", package: "KeychainAccess"),
                 .product(name: "SQLite", package: "SQLite.swift"),
                 .product(name: "CodeScanner", package: "CodeScanner"),
-                .product(name: "SocketIO", package: "socket.io-swift"),
+                .product(name: "SocketIO", package: "socket.io-client-swift"),
+                .product(name: "PopupView", package: "PopupView"),
+                .product(name: "WhatsNewKit", package: "WhatsNewKit"),
+                .product(name: "ActivityIndicatorView", package: "ActivityIndicatorView"),
             ]
         ),
         .testTarget(

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 主题系统演示视图
+/// Theme system preview
 #if DEBUG
 struct ThemePreviewView: View {
     @State private var themeManager = ThemeManager.preview
@@ -9,37 +9,37 @@ struct ThemePreviewView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // 主题选择器
+                    // Theme picker
                     themePickerSection
 
                     Divider()
 
-                    // 品牌颜色
+                    // Brand colors
                     brandColorsSection
 
                     Divider()
 
-                    // 文本颜色
+                    // Text colors
                     textColorsSection
 
                     Divider()
 
-                    // 状态颜色
+                    // Status colors
                     statusColorsSection
 
                     Divider()
 
-                    // 字体样式
+                    // Typography
                     typographySection
 
                     Divider()
 
-                    // 组件示例
+                    // Component examples
                     componentExamplesSection
                 }
                 .padding()
             }
-            .navigationTitle("主题系统")
+            .navigationTitle("theme.title".localized)
             .themed(with: themeManager)
         }
     }
@@ -48,11 +48,11 @@ struct ThemePreviewView: View {
 
     private var themePickerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("主题设置")
+            Text("theme.settings".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
-            Picker("主题", selection: Binding(
+            Picker("theme.picker".localized, selection: Binding(
                 get: { themeManager.currentTheme },
                 set: { themeManager.setTheme($0) }
             )) {
@@ -66,7 +66,7 @@ struct ThemePreviewView: View {
                 Image(systemName: themeManager.isDarkMode ? "moon.fill" : "sun.max.fill")
                     .foregroundStyle(themeManager.isDarkMode ? .brandPurple : .warning)
 
-                Text("当前模式: \(themeManager.isDarkMode ? "深色" : "浅色")")
+                Text(String(format: "theme.currentMode".localized, themeManager.isDarkMode ? "theme.dark".localized : "theme.light".localized))
                     .font(.subheadlineStyle)
                     .foregroundColor(Color.textSecondary)
             }
@@ -78,21 +78,21 @@ struct ThemePreviewView: View {
 
     private var brandColorsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("品牌颜色")
+            Text("theme.brandColors".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
             HStack(spacing: 16) {
-                colorCard(name: "品牌紫", color: .brandPurple)
-                colorCard(name: "品牌粉", color: .brandPink)
+                colorCard(name: "theme.brandPurple".localized, color: .brandPurple)
+                colorCard(name: "theme.brandPink".localized, color: .brandPink)
             }
 
-            // 渐变展示
+            // Gradient showcase
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.brandGradient)
                 .frame(height: 60)
                 .overlay(
-                    Text("品牌渐变")
+                    Text("theme.brandGradient".localized)
                         .font(.button)
                         .foregroundColor(Color.white)
                 )
@@ -103,15 +103,15 @@ struct ThemePreviewView: View {
 
     private var textColorsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("文本颜色")
+            Text("theme.textColors".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
             VStack(alignment: .leading, spacing: 8) {
-                textRow(label: "主要文本", color: .textPrimary)
-                textRow(label: "次要文本", color: .textSecondary)
-                textRow(label: "三级文本", color: .textTertiary)
-                textRow(label: "占位符", color: .textPlaceholder)
+                textRow(label: "theme.primaryText".localized, color: .textPrimary)
+                textRow(label: "theme.secondaryText".localized, color: .textSecondary)
+                textRow(label: "theme.tertiaryText".localized, color: .textTertiary)
+                textRow(label: "theme.placeholder".localized, color: .textPlaceholder)
             }
         }
     }
@@ -134,15 +134,15 @@ struct ThemePreviewView: View {
 
     private var statusColorsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("状态颜色")
+            Text("theme.statusColors".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                colorCard(name: "成功", color: .success, icon: "checkmark.circle.fill")
-                colorCard(name: "警告", color: .warning, icon: "exclamationmark.triangle.fill")
-                colorCard(name: "错误", color: .error, icon: "xmark.circle.fill")
-                colorCard(name: "信息", color: .info, icon: "info.circle.fill")
+                colorCard(name: "theme.success".localized, color: .success, icon: "checkmark.circle.fill")
+                colorCard(name: "theme.warning".localized, color: .warning, icon: "exclamationmark.triangle.fill")
+                colorCard(name: "theme.error".localized, color: .error, icon: "xmark.circle.fill")
+                colorCard(name: "theme.info".localized, color: .info, icon: "info.circle.fill")
             }
         }
     }
@@ -171,7 +171,7 @@ struct ThemePreviewView: View {
 
     private var typographySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("字体样式")
+            Text("theme.typography".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
@@ -206,13 +206,13 @@ struct ThemePreviewView: View {
 
     private var componentExamplesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("组件示例")
+            Text("theme.components".localized)
                 .font(.headlineStyle)
                 .foregroundColor(Color.textPrimary)
 
-            // 按钮
+            // Buttons
             VStack(spacing: 12) {
-                Button("主要按钮") {
+                Button("theme.primaryButton".localized) {
                     SecureLogger.shared.debug("Primary button tapped")
                 }
                 .font(.button)
@@ -222,7 +222,7 @@ struct ThemePreviewView: View {
                 .background(Color.brandGradient)
                 .cornerRadius(12)
 
-                Button("次要按钮") {
+                Button("theme.secondaryButton".localized) {
                     SecureLogger.shared.debug("Secondary button tapped")
                 }
                 .font(.button)
@@ -233,28 +233,28 @@ struct ThemePreviewView: View {
                 .cornerRadius(12)
             }
 
-            // 卡片
+            // Cards
             VStack(spacing: 12) {
                 cardView(
-                    title: "学习进度",
-                    subtitle: "今日已学习 2 小时",
+                    title: "theme.studyProgress".localized,
+                    subtitle: String(format: "theme.todayStudied".localized, 2),
                     icon: "book.fill"
                 )
 
                 cardView(
-                    title: "积分余额",
-                    subtitle: "1,250 积分",
+                    title: "theme.pointsBalance".localized,
+                    subtitle: String(format: "theme.points".localized, 1250),
                     icon: "star.fill"
                 )
             }
 
-            // 输入框示例
+            // TextField example
             VStack(alignment: .leading, spacing: 8) {
-                Text("输入框")
+                Text("theme.textField".localized)
                     .font(.subheadlineStyle)
                     .foregroundColor(Color.textSecondary)
 
-                TextField("请输入内容", text: .constant(""))
+                TextField("theme.enterContent".localized, text: .constant(""))
                     .textFieldStyle(.roundedBorder)
                     .font(.bodyStyle)
             }

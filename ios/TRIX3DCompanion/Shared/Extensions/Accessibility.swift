@@ -208,12 +208,12 @@ enum AccessibilityHelper {
     }
 
     /// Announce success
-    static func announceSuccess(_ message: String = "成功") {
+    static func announceSuccess(_ message: String = "common.success".localized) {
         announce(message)
     }
 
     /// Announce error
-    static func announceError(_ message: String = "错误") {
+    static func announceError(_ message: String = "common.error".localized) {
         announce(message)
     }
 }
@@ -236,20 +236,20 @@ extension View {
 
 #Preview("Accessibility") {
     VStack(spacing: 20) {
-        Text("标题")
+        Text("theme.primaryText".localized)
             .font(.largeTitle)
             .accessibleHeading(.level1)
 
-        Text("副标题")
+        Text("theme.secondaryText".localized)
             .font(.title2)
             .accessibleHeading(.level2)
 
         Button(action: {}) {
-            Label("发送消息", systemImage: "paperplane.fill")
+            Label("accessibility.send".localized, systemImage: "paperplane.fill")
         }
         .accessible(AccessibilityLabel.send, traits: .isButton)
 
-        Text("这是正文内容")
+        Text("theme.typography".localized)
             .font(.body)
             .scalable(.body)
     }

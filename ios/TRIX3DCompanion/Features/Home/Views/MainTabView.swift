@@ -24,25 +24,31 @@ struct MainTabView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            ZStack {
+        ZStack {
+            NavigationStack(path: $navigationPath) {
                 tabContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
+                    .navigationDestination(for: ChatConversation.self) { conversation in
+                        ChatDetailView(conversation: conversation)
+                    }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.spring(response: 0.32, dampingFraction: 0.84), value: appState.selectedTab)
-            .navigationDestination(for: ChatConversation.self) { conversation in
-                ChatDetailView(conversation: conversation)
-            }
-        }
-        .navigationBarHidden(true)
-        .allowsHitTesting(true)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if shouldShowTabBar {
-                GlassDockView(isWorkbenchPresented: $isWorkbenchPresented)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            .navigationBarHidden(true)
+            .allowsHitTesting(true)
+
+            // GlassDockView 放在 ZStack 中，避免 safeAreaInset 导致的点击问题
+            VStack {
+                Spacer()
+                if shouldShowTabBar {
+                    GlassDockView(isWorkbenchPresented: $isWorkbenchPresented)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         }
         .ignoresSafeArea(.keyboard)
+        .safeAreaInset(edge: .top) {
+            Color.clear.frame(height: 0)
+        }
         .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.mainTabView)
         .uiTestMarker(MainNavigationAccessibilityIdentifiers.selectedTab(for: appState.selectedTab))
         .onChange(of: appState.selectedTab) { newTab in

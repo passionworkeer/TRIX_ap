@@ -1396,3 +1396,40 @@
 "diagnostic.checkStorage" = "检查存储";
 "diagnostic.quickActions" = "快捷操作";
 "diagnostic.clearCache" = "清除缓存";
+
+// MARK: - Theme
+"theme.title" = "主题系统";
+"theme.settings" = "主题设置";
+"theme.currentMode" = "当前模式: %@";
+"theme.dark" = "深色";
+"theme.light" = "浅色";
+"theme.brandColors" = "品牌颜色";
+"theme.brandPurple" = "品牌紫";
+"theme.brandPink" = "品牌粉";
+"theme.brandGradient" = "品牌渐变";
+"theme.textColors" = "文本颜色";
+"theme.primaryText" = "主要文本";
+"theme.secondaryText" = "次要文本";
+"theme.tertiaryText" = "三级文本";
+"theme.placeholder" = "占位符";
+"theme.statusColors" = "状态颜色";
+"theme.success" = "成功";
+"theme.warning" = "警告";
+"theme.error" = "错误";
+"theme.info" = "信息";
+"theme.typography" = "字体样式";
+"theme.components" = "组件示例";
+"theme.primaryButton" = "主要按钮";
+"theme.secondaryButton" = "次要按钮";
+"theme.card" = "卡片";
+"theme.studyProgress" = "学习进度";
+"theme.todayStudied" = "今日已学习 %d 小时";
+"theme.pointsBalance" = "积分余额";
+"theme.points" = "%d 积分";
+"theme.textField" = "输入框";
+"theme.enterContent" = "请输入内容";
+"theme.picker" = "选择器";
+
+// MARK: - Common
+"common.success" = "成功";
+"common.error" = "错误";

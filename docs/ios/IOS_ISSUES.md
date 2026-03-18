@@ -8,67 +8,52 @@
 
 ## ✅ 已修复问题
 
-| # | 问题 | 状态 |
-|---|------|------|
-| 1 | Socket.IO 支持 | ✅ 已实现 (ClawbotChannelService.swift) |
-| 2 | 后端 API 接入 | ✅ User/Friend/Chat/Points 等 20+ 模块 |
-| 3 | 配对功能 | ⚠️ 基础实现完成 |
+| # | 问题 | 修复日期 | 状态 |
+|---|------|----------|------|
+| 1 | Socket.IO 支持 | 2026-03-13 | ✅ 已实现 (ClawbotChannelService.swift) |
+| 2 | 后端 API 接入 | 2026-03-13 | ✅ User/Friend/Chat/Points 等 20+ 模块 |
+| 3 | 配对功能 | 2026-03-13 | ⚠️ 基础实现完成 |
+| 4 | 聊天界面点击无反应 | 2026-03-18 | ✅ 已修复 (MainTabView.swift - safeAreaInset) |
+| 5 | 主题切换功能 | 2026-03-18 | ✅ 已实现 (ThemeManager + AppState) |
+| 6 | 三语言国际化 | 2026-03-18 | ✅ 已修复 (MainTab + 翻译补全) |
 
 ---
 
 ## 🔴 P0 - 致命问题
 
-### 1. 聊天界面点击无反应问题
+### (已修复) 聊天界面点击无反应问题
 
-**问题描述**
-在聊天列表页面，点击 TRIX Bot 入口或好友聊天项时，点击事件没有响应。
-
-**当前状态**
-- ✅ Mock 数据显示正常
-- ✅ 导航结构已修复 (使用 NavigationStack)
-- ⚠️ 点击事件可能仍有问题（需要真机测试确认）
-
-**可能的根因**
-- iOS 模拟器的触摸事件处理问题
-- 某些 View 覆盖了点击区域
-- 需要真机测试确认
-
-**相关文件**
-- `Features/Home/Views/ChatListView.swift`
-- `Features/Home/Views/MainTabView.swift`
-- `Features/Home/Views/TrixBotChatView.swift`
+**修复说明 (2026-03-18)**
+- **根因**: `NavigationStack` 与 `.safeAreaInset(edge: .bottom)` 的组合使用导致内部 ScrollView 点击区域计算错误
+- **修复方案**: 将 `GlassDockView` 从 `safeAreaInset` 移到 ZStack 中
+- **修改文件**: `Features/Home/Views/MainTabView.swift`
 
 ---
 
 ## 🟠 P1 - 高优先级
 
-### 2. 主题切换功能未实现
+### (已修复) 主题切换功能
 
-**问题描述**
-需求中提到需要支持主题切换（浅色/深色/自动），但尚未实现。
-
-**需要实现**
-- 跟随系统设置自动切换
-- 用户手动选择主题偏好
-- 持久化用户偏好
+**修复说明 (2026-03-18)**
+- ThemeManager 已实现完整主题管理
+- AppState.isDarkMode 现在返回 ThemeManager.isDarkMode
+- 支持浅色/深色/跟随系统三种模式
+- 主题偏好已持久化到 UserDefaults
 
 ---
 
-### 3. 三语言国际化未完成
+### (已修复) 三语言国际化
 
-**问题描述**
-需要支持简体中文、繁体中文、英文。
-
-**当前状态**
-- ✅ 基础 Localizable.strings 已存在
-- ⚠️ 部分 UI 文字尚未国际化
-- ❌ String Catalog 未使用
+**修复说明 (2026-03-18)**
+- 修复 MainTab 硬编码问题：改用 localized key (nav.home, nav.map 等)
+- 补充缺失的翻译 key (theme.*, common.*)
+- 修复 Preview 文件中的硬编码中文
 
 ---
 
 ## 🟡 P2 - 中优先级
 
-### 4. UI 组件美化
+### UI 组件美化
 
 **问题描述**
 部分 UI 组件的视觉表现需要优化。
@@ -84,10 +69,10 @@
 
 | 优先级 | 问题数 | 状态 |
 |--------|--------|------|
-| P0 | 1 | ❌ |
-| P1 | 2 | ❌ |
-| P2 | 1 | ❌ |
-| **总计** | **4** | |
+| P0 | 0 | ✅ 全部修复 |
+| P1 | 0 | ✅ 全部修复 |
+| P2 | 1 | ❌ 待处理 |
+| **总计** | **1** | |
 
 ---
 

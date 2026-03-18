@@ -14,12 +14,16 @@ import Combine
 
 /// Main application tabs
 enum MainTab: String, CaseIterable {
-    case home = "首页"
-    case map = "地图"
-    case study = "学习"
-    case core = "核心"
-    case chat = "聊天"
-    case profile = "我的"
+    case home = "nav.home"
+    case map = "nav.map"
+    case study = "nav.study"
+    case core = "nav.core"
+    case chat = "nav.chat"
+    case profile = "nav.profile"
+
+    var displayName: String {
+        rawValue.localized
+    }
 
     var systemImage: String {
         switch self {
@@ -149,8 +153,10 @@ final class AppState: ObservableObject {
     /// Pending cross-tab companion destination triggered from other surfaces.
     @Published var pendingCompanionRoute: PendingCompanionRoute?
 
-    /// Dark mode setting
-    @Published var isDarkMode: Bool = false
+    /// Dark mode setting (delegated to ThemeManager for consistency)
+    var isDarkMode: Bool {
+        ThemeManager.shared.isDarkMode
+    }
 
     /// Push notification setting
     @Published var isPushNotificationEnabled: Bool = true
@@ -208,10 +214,7 @@ final class AppState: ObservableObject {
         // Only load critical preferences synchronously
         let defaults = UserDefaults.standard
 
-        // Load dark mode preference
-        if #available(iOS 16.0, *) {
-            isDarkMode = defaults.bool(forKey: "isDarkMode")
-        }
+        // Dark mode is now managed by ThemeManager
         if let rawLanguage = defaults.string(forKey: "appLanguage"),
            let language = AppDisplayLanguage(rawValue: rawLanguage) {
             appLanguage = language
@@ -286,12 +289,7 @@ final class AppState: ObservableObject {
     private func loadUserPreferences() {
         let defaults = UserDefaults.standard
 
-        // Load dark mode preference
-        if #available(iOS 16.0, *) {
-            isDarkMode = defaults.bool(forKey: "isDarkMode")
-        } else {
-            isDarkMode = false
-        }
+        // Dark mode is now managed by ThemeManager
 
         // Load push notification preference
         isPushNotificationEnabled = defaults.bool(forKey: "isPushNotificationEnabled")
@@ -399,16 +397,14 @@ final class AppState: ObservableObject {
 
     // MARK: - Public Methods - User Preferences
 
-    /// Toggle dark mode
+    /// Toggle dark mode (delegated to ThemeManager)
     func toggleDarkMode() {
-        setDarkMode(!isDarkMode)
+        ThemeManager.shared.toggleDarkMode()
     }
 
-    /// Set dark mode
+    /// Set dark mode (delegated to ThemeManager)
     func setDarkMode(_ isEnabled: Bool) {
-        guard isDarkMode != isEnabled else { return }
-        isDarkMode = isEnabled
-        saveUserPreferences()
+        ThemeManager.shared.setTheme(isEnabled ? .dark : .light)
     }
 
     /// Toggle push notifications
@@ -446,7 +442,7 @@ final class AppState: ObservableObject {
     private func saveUserPreferences() {
         let defaults = UserDefaults.standard
 
-        defaults.set(isDarkMode, forKey: "isDarkMode")
+        // Dark mode is now managed by ThemeManager
         defaults.set(isPushNotificationEnabled, forKey: "isPushNotificationEnabled")
         defaults.set(appLanguage.rawValue, forKey: "appLanguage")
         defaults.set(selectedTab.rawValue, forKey: "selectedTab")

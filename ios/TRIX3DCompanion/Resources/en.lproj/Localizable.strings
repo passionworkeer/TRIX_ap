@@ -1367,3 +1367,40 @@
 "diagnostic.checkStorage" = "Check Storage";
 "diagnostic.quickActions" = "Quick Actions";
 "diagnostic.clearCache" = "Clear Cache";
+
+// MARK: - Theme
+"theme.title" = "Theme System";
+"theme.settings" = "Theme Settings";
+"theme.currentMode" = "Current Mode: %@";
+"theme.dark" = "Dark";
+"theme.light" = "Light";
+"theme.brandColors" = "Brand Colors";
+"theme.brandPurple" = "Brand Purple";
+"theme.brandPink" = "Brand Pink";
+"theme.brandGradient" = "Brand Gradient";
+"theme.textColors" = "Text Colors";
+"theme.primaryText" = "Primary Text";
+"theme.secondaryText" = "Secondary Text";
+"theme.tertiaryText" = "Tertiary Text";
+"theme.placeholder" = "Placeholder";
+"theme.statusColors" = "Status Colors";
+"theme.success" = "Success";
+"theme.warning" = "Warning";
+"theme.error" = "Error";
+"theme.info" = "Info";
+"theme.typography" = "Typography";
+"theme.components" = "Components";
+"theme.primaryButton" = "Primary Button";
+"theme.secondaryButton" = "Secondary Button";
+"theme.card" = "Card";
+"theme.studyProgress" = "Study Progress";
+"theme.todayStudied" = "Today: %d hours";
+"theme.pointsBalance" = "Points Balance";
+"theme.points" = "%d Points";
+"theme.textField" = "Text Field";
+"theme.enterContent" = "Enter content...";
+"theme.picker" = "Picker";
+
+// MARK: - Common
+"common.success" = "Success";
+"common.error" = "Error";
