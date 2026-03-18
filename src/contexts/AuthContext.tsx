@@ -1,6 +1,13 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, Profile, updateLastActive } from '../config/supabase';
+import {
+  upsertSession,
+  revokeSession,
+  checkSessionValidity,
+  touchSession,
+  clearLocalSessionId,
+} from '../services/sessionService';
 import { handleGlobalError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 
@@ -49,11 +56,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ============================================
+// 常量
+// ============================================
+
+/** 心跳间隔：60 秒 */
+const HEARTBEAT_INTERVAL_MS = 60000;
+/**
+ * 心跳有效性检查频率（每 N 次心跳检查一次，约 N 分钟）
+ * 生产：3（3 分钟）；演示：1（15 秒）
+ */
+const VALIDITY_CHECK_INTERVAL_HEARTBEATS = 3;
+
+// ============================================
+// 辅助函数
+// ============================================
+
+/** 强制登出，跳转到登录页 */
+function forceLogout(reason: string) {
+  logger.auth.warn(`[安全事件] 会话失效（${reason}），强制登出`);
+  clearLocalSessionId();
+  supabase.auth.signOut();
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /** 心跳计数器：每 VALIDITY_CHECK_INTERVAL_HEARTBEATS 次检查一次有效性 */
+  const heartbeatCheckCounterRef = useRef(0);
 
   // Fetch user profile from database
   const fetchProfile = async (userId: string) => {
@@ -77,15 +110,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let heartbeatInterval: ReturnType<typeof setInterval>;
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
         updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        heartbeatInterval = setInterval(() => {
+        // 创建会话记录
+        upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
+        // 启动带有效性检查的心跳
+        heartbeatInterval = setInterval(async () => {
           updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        }, 60000);
+          touchSession().catch(err => logger.error('Auth', 'touchSession 失败:', err));
+          heartbeatCheckCounterRef.current += 1;
+          if (heartbeatCheckCounterRef.current >= VALIDITY_CHECK_INTERVAL_HEARTBEATS) {
+            heartbeatCheckCounterRef.current = 0;
+            const validity = await checkSessionValidity();
+            if (!validity.isValid) {
+              if (validity.reason === 'network_error') return; // 断网不登出自己
+              forceLogout(validity.reason);
+            }
+          }
+        }, HEARTBEAT_INTERVAL_MS);
       }
       setLoading(false);
     });
@@ -93,20 +139,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (heartbeatInterval) clearInterval(heartbeatInterval);
-      
+
       if (session?.user) {
         fetchProfile(session.user.id);
         updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        heartbeatInterval = setInterval(() => {
+        upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
+        heartbeatCheckCounterRef.current = 0;
+        heartbeatInterval = setInterval(async () => {
           updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        }, 60000);
+          touchSession().catch(err => logger.error('Auth', 'touchSession 失败:', err));
+          heartbeatCheckCounterRef.current += 1;
+          if (heartbeatCheckCounterRef.current >= VALIDITY_CHECK_INTERVAL_HEARTBEATS) {
+            heartbeatCheckCounterRef.current = 0;
+            const validity = await checkSessionValidity();
+            if (!validity.isValid) {
+              if (validity.reason === 'network_error') return;
+              forceLogout(validity.reason);
+            }
+          }
+        }, HEARTBEAT_INTERVAL_MS);
       } else {
         setProfile(null);
+        clearLocalSessionId();
       }
       setLoading(false);
     });
@@ -119,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -134,9 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           errorType = AuthErrorType.NETWORK_ERROR;
         }
 
+        // 记录登录失败（安全审计）
+        logger.auth.warn(`[安全事件] 登录失败 — email: ${email}, error: ${error.message}`);
+
         return { error: new AuthError(errorType, error) };
       }
 
+      // 登录成功：创建会话记录（等待 auth 状态变更触发即可，onAuthStateChange 会处理）
       return { error: null };
     } catch (error) {
       // 捕获网络错误等异常
@@ -186,6 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    await revokeSession();
+    clearLocalSessionId();
     await supabase.auth.signOut();
     setProfile(null);
   };

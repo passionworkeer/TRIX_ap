@@ -82,6 +82,7 @@ async function dispatchInboundMessage(params: {
   const channelRuntime = gatewayContext.channelRuntime as Record<string, unknown> | undefined;
   if (!channelRuntime) {
     log.warn?.('channelRuntime unavailable, skipping inbound message dispatch');
+    console.log('[trix-native DEBUG] channelRuntime MISSING in dispatch, gatewayContext keys:', Object.keys(gatewayContext));
     return;
   }
 
@@ -154,6 +155,21 @@ export async function startInboundMonitor(
   const key = account.accountId;
   const log = (gatewayContext.log as LogSink | undefined) ?? {};
   const abortSignal = gatewayContext.abortSignal as AbortSignal | undefined;
+  const channelRuntime = gatewayContext.channelRuntime as Record<string, unknown> | undefined;
+
+  // 提前声明 wsUrl，避免 TDZ 问题
+  const serviceToken = (account as unknown as Record<string, unknown>).serviceToken as string | undefined
+    ?? account.adminToken;
+  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
+  const wsUrl = `${wsBase}/ws?role=agent`
+    + `&accountId=${encodeURIComponent(account.accountId)}`
+    + `&serviceToken=${encodeURIComponent(serviceToken ?? '')}`;
+
+  console.log('[trix-native DEBUG] startInboundMonitor called');
+  console.log('[trix-native DEBUG] channelRuntime=', channelRuntime ? 'present' : 'MISSING');
+  console.log('[trix-native DEBUG] abortSignal=', abortSignal ? 'present' : 'MISSING');
+  console.log('[trix-native DEBUG] routing keys=', channelRuntime ? Object.keys(channelRuntime).slice(0, 5) : 'N/A');
+  console.log('[trix-native DEBUG] wsUrl=', wsUrl.replace(/serviceToken=[^&]*/, 'serviceToken=***'));
 
   // 检查是否已经有活跃的 monitor
   if (activeMonitors.get(key)) {
@@ -162,14 +178,6 @@ export async function startInboundMonitor(
     return new Promise<void>(() => {});
   }
   activeMonitors.set(key, true);
-
-  const serviceToken = (account as unknown as Record<string, unknown>).serviceToken as string | undefined
-    ?? account.adminToken;
-
-  const wsBase = account.serverUrl.replace(/^http/i, 'ws').replace(/\/$/, '');
-  const wsUrl = `${wsBase}/ws?role=agent`
-    + `&accountId=${encodeURIComponent(account.accountId)}`
-    + `&serviceToken=${encodeURIComponent(serviceToken ?? '')}`;
 
   // stopped = true 时不再重连，也不处理任何消息
   let stopped = false;
@@ -196,9 +204,12 @@ export async function startInboundMonitor(
     socket.on('message', async (data) => {
       if (stopped) return;
       try {
-        const envelope = JSON.parse(data.toString()) as ClientEnvelope<{
+        const raw = data.toString();
+        console.log('[trix-native DEBUG] raw WS message received:', raw.substring(0, 300));
+        const envelope = JSON.parse(raw) as ClientEnvelope<{
           message?: MessageRecord;
         }>;
+        console.log('[trix-native DEBUG] envelope type:', envelope.type);
         if (envelope.type !== 'message.created' || !envelope.payload.message) return;
 
         const message = envelope.payload.message;

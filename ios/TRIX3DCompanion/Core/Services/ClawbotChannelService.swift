@@ -249,7 +249,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         let body: [String: Any] = [
             "conversationId": conversationId,
             "clientToken": clientToken,
-            "direction": "outbound",
+            "direction": "inbound",
             "senderId": senderId,
             "senderName": senderName,
             "text": text,

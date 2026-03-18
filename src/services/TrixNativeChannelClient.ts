@@ -673,7 +673,7 @@ class TrixNativeChannelClient {
       body: JSON.stringify({
         conversationId: session.conversationId,
         clientToken: session.clientToken,
-        direction: 'outbound',
+        direction: 'inbound',
         senderId: session.clientId,
         senderName: session.deviceName || defaultDeviceName(),
         text: params.text,

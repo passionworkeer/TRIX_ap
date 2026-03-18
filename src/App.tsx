@@ -169,6 +169,7 @@ function AppContent() {
         <HeroBackground
           botState={botState}
           onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
+          force3D={true}
         />
       )}
 

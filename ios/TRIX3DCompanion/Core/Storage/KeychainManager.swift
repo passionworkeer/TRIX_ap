@@ -14,6 +14,9 @@ protocol KeychainManagerProtocol {
     func getPairedDeviceName() -> String?
     func removePairedDevice() throws
     func migratePairingDataFromUserDefaults() -> Bool
+    func saveSessionId(_ sessionId: String) throws
+    func getSessionId() -> String?
+    func deleteSessionId() throws
 }
 
 /// Keychain 管理器 - 安全存储敏感数据
@@ -79,6 +82,9 @@ final class KeychainManager: KeychainManagerProtocol {
         // Sensitive cache keys (migrated from UserDefaults)
         static let cachedUser = "com.trix3d.cachedUser"
         static let cachedChatRooms = "com.trix3d.cachedChatRooms"
+
+        // Session management key (stores user_sessions UUID primary key)
+        static let sessionId = "com.trix3d.sessionId"
     }
 
     // MARK: - Initialization
@@ -442,6 +448,29 @@ final class KeychainManager: KeychainManagerProtocol {
         try deleteRefreshToken()
         try deleteSessionToken()
         try deleteUserId()
+        // 同时清除会话 ID（由 SessionService 管理，但这里统一清理）
+        try? deleteSessionId()
+    }
+
+    // MARK: - Session ID Management
+
+    /// 保存当前会话 ID（user_sessions 表主键 UUID）
+    /// - Parameter sessionId: 会话 UUID 字符串
+    func saveSessionId(_ sessionId: String) throws {
+        try safeSave(sessionId, key: Key.sessionId)
+    }
+
+    /// 获取当前会话 ID
+    /// - Returns: 会话 UUID 字符串，不存在返回 nil
+    func getSessionId() -> String? {
+        try? keychain.get(Key.sessionId)
+    }
+
+    /// 删除当前会话 ID
+    func deleteSessionId() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
+        try keychain.remove(Key.sessionId)
     }
 
     /// 检查是否已登录

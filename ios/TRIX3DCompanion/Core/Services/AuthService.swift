@@ -141,6 +141,24 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     /// Cancellables for Combine subscriptions
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Session Heartbeat Properties
+
+    /// Heartbeat timer interval (seconds)
+    private let heartbeatIntervalSeconds: TimeInterval = 60
+
+    /**
+     * How many heartbeats between validity checks.
+     * 3 = check every ~3 minutes (production).
+     * Set to 1 for demos (~15 seconds).
+     */
+    private let validityCheckIntervalHeartbeats = 3
+
+    /// Current heartbeat counter
+    private var heartbeatCount = 0
+
+    /// Heartbeat timer task
+    private var heartbeatTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     /// Initialize with dependencies
@@ -224,6 +242,11 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             // Set current user
             currentUser = response.user
             isLoggedIn = true
+
+            // Create session record and start heartbeat
+            Task {
+                await self.upsertAndStartHeartbeat(userId: response.user.id)
+            }
 
             isLoading = false
 
@@ -315,6 +338,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     func logout() async -> AuthResult<Void> {
         isLoading = true
 
+        // Stop heartbeat first
+        stopSessionHeartbeat()
+
+        // Revoke DB session (best effort)
+        await SessionService.shared.revokeSession()
+
         // Call logout API (best effort - don't fail if API is unavailable)
         do {
             try await apiClient.logout()
@@ -404,13 +433,25 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
                 // Token needs refresh - try to refresh asynchronously
                 Task {
                     _ = await refreshTokenIfNeeded()
+                    // After refresh, start heartbeat if still logged in
+                    await MainActor.run {
+                        if self.isLoggedIn {
+                            self.startSessionHeartbeat()
+                        }
+                    }
                 }
             } else {
                 isLoggedIn = true
 
-                // Fetch user profile in background
+                // Check DB session validity
                 Task {
-                    _ = await fetchCurrentUser()
+                    await self.checkAndHandleSessionValidity()
+                    // Start heartbeat if still valid
+                    await MainActor.run {
+                        if self.isLoggedIn {
+                            self.startSessionHeartbeat()
+                        }
+                    }
                 }
             }
         }
@@ -431,11 +472,96 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
     /// Clear all session data
     private func clearSession() {
+        stopSessionHeartbeat()
         try? keychainManager.clearSession()
         currentUser = nil
         isLoggedIn = false
         tokenExpirationDate = nil
         lastError = nil
+        heartbeatCount = 0
+    }
+
+    // MARK: - Session Heartbeat
+
+    /// Start the session heartbeat with validity checks.
+    /// Called after login or session restore.
+    private func startSessionHeartbeat() {
+        stopSessionHeartbeat()
+        heartbeatCount = 0
+
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(self?.heartbeatIntervalSeconds ?? 60) * 1_000_000_000)
+
+                guard !Task.isCancelled else { break }
+
+                await self?.performHeartbeat()
+            }
+        }
+    }
+
+    /// Stop the session heartbeat.
+    func stopSessionHeartbeat() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    /// Perform a single heartbeat: touch + periodic validity check.
+    private func performHeartbeat() async {
+        // Touch the DB session
+        await SessionService.shared.touchSession()
+
+        // Increment counter and check validity every N beats
+        heartbeatCount += 1
+        if heartbeatCount >= validityCheckIntervalHeartbeats {
+            heartbeatCount = 0
+            await checkAndHandleSessionValidity()
+        }
+    }
+
+    /// Create a DB session record and start heartbeat.
+    private func upsertAndStartHeartbeat(userId: String) async {
+        do {
+            _ = try await SessionService.shared.upsertSession(userId: userId)
+            await MainActor.run {
+                self.startSessionHeartbeat()
+            }
+        } catch {
+            SecureLogger.shared.error("[AuthService] upsertSession failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Check DB session validity; if invalid, force logout.
+    private func checkAndHandleSessionValidity() async {
+        let validity = await SessionService.shared.checkSessionValidity()
+
+        switch validity {
+        case .valid:
+            break
+        case .networkError:
+            // Network error — skip, don't kick self
+            break
+        case .mismatch, .expired, .revoked, .notFound:
+            SecureLogger.shared.warning("[安全事件] 会话失效（\(validity)），强制登出")
+            await MainActor.run {
+                self.handleForcedLogout()
+            }
+        }
+    }
+
+    /// Force logout without API call (called when session is invalidated).
+    @MainActor
+    private func handleForcedLogout() {
+        stopSessionHeartbeat()
+        let userId = keychainManager.getUserId()
+        SecureLogger.shared.warning("[安全事件] 强制登出 — userId: \(userId ?? "unknown")")
+        Task {
+            await SessionService.shared.clearLocalOnly()
+        }
+        try? keychainManager.clearSession()
+        currentUser = nil
+        isLoggedIn = false
+        lastError = .tokenExpired
     }
 
     // MARK: - Token Management
