@@ -3,14 +3,14 @@ productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
 
 directories:
-  output: desktop/release
-  buildResources: desktop/build
+  output: release
+  buildResources: build
 
 files:
-  - desktop/dist-desktop/**/*
+  - dist-desktop/**/*
 
 extraResources:
-  - from: public/videos
+  - from: ../public/videos
     to: videos
     filter:
       - "**/*"
@@ -23,7 +23,7 @@ win:
     - target: msi
       arch:
         - x64
-  icon: desktop/build/icon.ico
+  icon: build/icon.ico
   artifactName: "${productName}-Setup-${version}.${ext}"
 
 nsis:
@@ -32,12 +32,26 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: TRIX Companion
-  include: desktop/build/installer.nsh
+  include: build/installer.nsh
+  # 简体中文安装向导
+  language: 2052
+  # 侧边栏图片（左侧紫色品牌图）
+  installerSidebar: build/sidebar.bmp
+  uninstallerSidebar: build/sidebar.bmp
+  # 安装向导图标
+  installerHeaderIcon: build/icon.ico
+  # 用户协议（安装时必须同意）
+  license: build/eula.txt
+  # 卸载时也显示协议确认
+  uninstallerIcon: build/icon.ico
+  # 安装后自动运行
+  runAfterFinish: true
 
 msi:
   oneClick: false
-  allowElevation: true
-  allowToChangeInstallationDirectory: true
+
+electronDist: ../node_modules/electron/dist
+electronVersion: "33.4.0"
 
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
