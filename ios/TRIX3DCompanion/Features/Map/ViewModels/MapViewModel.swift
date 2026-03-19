@@ -11,33 +11,6 @@ import CoreLocation
 import Combine
 import SwiftUI
 
-// MARK: - Friend Map Location Model
-
-/// Friend location on map for displaying user avatars
-struct FriendMapLocation: Identifiable {
-    let id: String
-    let name: String
-    let avatarUrl: String?
-    let latitude: Double
-    let longitude: Double
-    let isStudying: Bool
-    let status: String  // "online", "away", "offline"
-
-    var coordinate: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
-}
-
-// MARK: - Heat Zone Model
-
-/// Heat zone for displaying activity intensity on map
-struct HeatZone: Identifiable {
-    let id = UUID()
-    let coordinate: CLLocationCoordinate2D
-    let color: Color
-    let size: CGFloat
-}
-
 // MARK: - Map ViewModel
 
 /// Map view model managing map state, locations, and search
