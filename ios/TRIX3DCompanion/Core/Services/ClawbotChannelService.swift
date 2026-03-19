@@ -10,6 +10,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import UIKit
 
 // MARK: - Native WebSocket Client Adapter
 
@@ -166,15 +167,25 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 
     // MARK: - Pairing
 
-    /// 配对请求 - POST /api/pair
-    func pairWithCode(code: String, userId: String, clientId: String, completion: @escaping (Result<PairingClaimResponse, Error>) -> Void) {
-        let body: [String: Any] = [
-            "code": code.uppercased(),
-            "userId": userId,
-            "clientId": clientId
+    /// 配对请求 - POST /api/pairings/:code/claim
+    /// 服务器期望的请求体: { clientId, deviceName, secret? }
+    func claimPairing(
+        code: String,
+        clientId: String,
+        deviceName: String,
+        secret: String? = nil,
+        completion: @escaping (Result<PairingClaimResponse, Error>) -> Void
+    ) {
+        var body: [String: Any] = [
+            "clientId": clientId,
+            "deviceName": deviceName
         ]
+        if let secret = secret, !secret.isEmpty {
+            body["secret"] = secret
+        }
 
-        post("/api/pair", body: body) { result in
+        // RESTful 风格的配对端点
+        post("/api/pairings/\(code.uppercased())/claim", body: body) { result in
             switch result {
             case .success(let data):
                 do {
@@ -189,49 +200,20 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
     }
 
-    /// Token 配对 - POST /api/pair
-    func pairWithToken(token: String, userId: String, clientId: String, completion: @escaping (Result<PairingClaimResponse, Error>) -> Void) {
-        let body: [String: Any] = [
-            "token": token,
-            "userId": userId,
-            "clientId": clientId
-        ]
-
-        post("/api/pair", body: body) { result in
+    /// 取消配对 - DELETE /api/pairings/:clientId
+    func unpair(
+        clientId: String,
+        clientToken: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        delete("/api/pairings/\(clientId)", headers: ["Authorization": "Bearer \(clientToken)"]) { result in
             switch result {
-            case .success(let data):
-                do {
-                    let response = try JSONDecoder().decode(PairingClaimResponse.self, from: data)
-                    completion(.success(response))
-                } catch {
-                    completion(.failure(error))
-                }
+            case .success:
+                completion(.success(()))
             case .failure(let error):
                 completion(.failure(error))
             }
         }
-    }
-
-    /// 检查配对状态 - GET /api/pairing/status
-    func checkPairingStatus(clientId: String, completion: @escaping (Result<ChannelPairingStatusResponse, Error>) -> Void) {
-        get("/api/pairing/status?clientId=\(clientId)") { result in
-            switch result {
-            case .success(let data):
-                do {
-                    let response = try JSONDecoder().decode(ChannelPairingStatusResponse.self, from: data)
-                    completion(.success(response))
-                } catch {
-                    completion(.failure(error))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
-    }
-
-    /// 解除配对 - DELETE /api/pairing
-    func unpair(clientId: String, clientToken: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        delete("/api/pairing?clientId=\(clientId)&clientToken=\(clientToken)", completion: completion)
     }
 
     // MARK: - Messages
@@ -385,7 +367,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
     }
 
-    private func delete(_ path: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    private func delete(_ path: String, headers: [String: String] = [:], completion: @escaping (Result<Void, Error>) -> Void) {
         guard let url = URL(string: baseURL + path) else {
             completion(.failure(ClawbotError.invalidResponse))
             return
@@ -393,6 +375,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
 
         queue.async { [weak self] in
             self?.session.dataTask(with: request) { _, _, error in
@@ -549,17 +534,6 @@ struct PairingRecord: Codable {
     let deviceName: String?
 }
 
-/// 配对状态响应 (Channel 专用)
-struct ChannelPairingStatusResponse: Codable {
-    let paired: Bool
-    let deviceId: String?
-    let deviceName: String?
-    let botOnline: Bool?
-    let pairedAt: String?
-    let conversationId: String?
-    let clientToken: String?
-}
-
 /// 消息响应
 struct MessageResponse: Codable {
     let messageId: String?
@@ -678,7 +652,6 @@ protocol ClawbotChannelServiceProtocol {
     // Pairing
     func checkPairingStatus() async throws -> ClawbotPairingStatus
     func pairWithCode(_ code: String) async throws -> Bool
-    func pairWithToken(_ token: String) async throws -> Bool
     func pairWithQR(_ qrData: String) async throws -> Bool
     func unpair()
 
@@ -869,29 +842,37 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // MARK: - Pairing
 
+    /// 检查配对状态 - 从本地存储判断
+    /// 服务器没有状态查询端点，配对状态通过 WebSocket 连接状态和本地存储判断
     func checkPairingStatus() async throws -> ClawbotPairingStatus {
-        guard let deviceId = deviceId else {
-            return ClawbotPairingStatus(paired: false, deviceId: nil, deviceName: nil, botOnline: nil, pairedAt: nil)
+        // 从本地 Keychain 获取配对信息
+        if let storedDeviceId = try? KeychainManager.shared.getPairedDeviceId(),
+           let storedDeviceName = try? KeychainManager.shared.getPairedDeviceName() {
+            return ClawbotPairingStatus(
+                paired: isPaired,
+                deviceId: storedDeviceId,
+                deviceName: storedDeviceName,
+                botOnline: isBotOnline,
+                pairedAt: nil  // 配对时间未存储，可扩展
+            )
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            httpClient.checkPairingStatus(clientId: deviceId) { result in
-                switch result {
-                case .success(let response):
-                    continuation.resume(returning: ClawbotPairingStatus(
-                        paired: response.paired,
-                        deviceId: response.deviceId,
-                        deviceName: response.deviceName,
-                        botOnline: response.botOnline,
-                        pairedAt: response.pairedAt
-                    ))
-                case .failure(let error):
-                    continuation.resume(returning: ClawbotPairingStatus(
-                        paired: false, deviceId: nil, deviceName: nil, botOnline: nil, pairedAt: nil
-                    ))
-                }
-            }
-        }
+        return ClawbotPairingStatus(
+            paired: isPaired,
+            deviceId: deviceId,
+            deviceName: nil,
+            botOnline: isBotOnline,
+            pairedAt: nil
+        )
+    }
+
+    /// 获取设备名称
+    private var deviceName: String {
+        #if os(iOS)
+        return UIDevice.current.name
+        #else
+        return "TRIX Device"
+        #endif
     }
 
     func pairWithCode(_ code: String) async throws -> Bool {
@@ -909,8 +890,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.invalidResponse
         }
 
+        let clientIdValue = deviceId ?? "ios_\(resolvedUserId.prefix(8))_\(Date().timeIntervalSince1970)"
+
         return try await withCheckedThrowingContinuation { continuation in
-            httpClient.pairWithCode(code: normalizedCode, userId: resolvedUserId, clientId: deviceId ?? "") { [weak self] result in
+            httpClient.claimPairing(
+                code: normalizedCode,
+                clientId: clientIdValue,
+                deviceName: deviceName,
+                secret: nil
+            ) { [weak self] result in
                 switch result {
                 case .success(let response):
                     self?.handlePairingSuccess(response)
@@ -922,7 +910,71 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
     }
 
-    func pairWithToken(_ token: String) async throws -> Bool {
+    /// 解析二维码/链接数据
+    /// 支持格式:
+    /// 1. URL: https://server:8788/pair?code=ABC123&secret=xxx
+    /// 2. JSON: { "code": "ABC123", "secret": "xxx", "serverUrl": "http://..." }
+    /// 3. 纯配对码: ABC123
+    /// 4. code:secret 格式: ABC123:xxx
+    private func parseQRData(_ raw: String) -> (code: String, secret: String?, serverUrl: String?)? {
+        let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        // 1. 尝试解析为 URL
+        if normalized.hasPrefix("http://") || normalized.hasPrefix("https://") {
+            guard let url = URL(string: normalized),
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+                return nil
+            }
+
+            let code = (components.queryItems?.first(where: { $0.name == "code" })?.value ?? "").uppercased()
+            let secret = components.queryItems?.first(where: { $0.name == "secret" })?.value
+            let serverUrl = "\(url.scheme ?? "http")://\(url.host ?? "")\(url.port.map { ":\($0)" } ?? "")"
+
+            if !code.isEmpty {
+                return (code, secret, serverUrl)
+            }
+        }
+
+        // 2. 尝试解析为 JSON
+        if let data = normalized.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let code = (json["code"] as? String ?? json["requestId"] as? String ?? "").uppercased()
+            let secret = json["secret"] as? String ?? json["pairingToken"] as? String
+            let serverUrl = json["serverUrl"] as? String ?? json["gatewayUrl"] as? String
+
+            if !code.isEmpty {
+                return (code, secret, serverUrl)
+            }
+        }
+
+        // 3. 尝试 code:secret 格式
+        if normalized.contains(":") {
+            let parts = normalized.split(separator: ":", maxSplits: 1)
+            if parts.count == 2 {
+                let code = String(parts[0]).uppercased()
+                let secret = String(parts[1])
+                if !code.isEmpty && code.count >= 6 {
+                    return (code, secret, nil)
+                }
+            }
+        }
+
+        // 4. 纯配对码 (6-8位字母数字)
+        let pureCode = normalized.uppercased()
+        if pureCode.count >= 6 && pureCode.count <= 8 && pureCode.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return (pureCode, nil, nil)
+        }
+
+        return nil
+    }
+
+    func pairWithQR(_ qrData: String) async throws -> Bool {
+        // 解析二维码内容
+        guard let parsed = parseQRData(qrData) else {
+            throw ClawbotError.invalidResponse
+        }
+
         let resolvedUserId: String
         if let existing = userId {
             resolvedUserId = existing
@@ -932,31 +984,24 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.userNotLoggedIn
         }
 
-        // 解析 token
-        let normalizedData = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        var qrToken: String?
+        let clientIdValue = deviceId ?? "ios_\(resolvedUserId.prefix(8))_\(Int(Date().timeIntervalSince1970))"
 
-        // 尝试 JSON 格式
-        if let data = normalizedData.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            qrToken = json["token"] as? String ?? json["pairingToken"] as? String
-        }
-
-        // 检查前缀
-        if qrToken == nil {
-            if normalizedData.hasPrefix("trix:pair:") {
-                qrToken = String(normalizedData.dropFirst(9))
-            } else if normalizedData.count >= 10 {
-                qrToken = normalizedData
+        // 如果二维码包含服务器地址，更新 baseURL
+        if let serverUrl = parsed.serverUrl {
+            await MainActor.run {
+                self.serverUrl = serverUrl.hasPrefix("ws") || serverUrl.hasPrefix("wss")
+                    ? serverUrl.replacingOccurrences(of: "ws", with: "http").replacingOccurrences(of: "wss", with: "https")
+                    : serverUrl
             }
         }
 
-        guard let finalToken = qrToken, finalToken.count >= 10 else {
-            throw ClawbotError.invalidResponse
-        }
-
         return try await withCheckedThrowingContinuation { continuation in
-            httpClient.pairWithToken(token: finalToken, userId: resolvedUserId, clientId: deviceId ?? "") { [weak self] result in
+            httpClient.claimPairing(
+                code: parsed.code,
+                clientId: clientIdValue,
+                deviceName: deviceName,
+                secret: parsed.secret
+            ) { [weak self] result in
                 switch result {
                 case .success(let response):
                     self?.handlePairingSuccess(response)
@@ -966,10 +1011,6 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 }
             }
         }
-    }
-
-    func pairWithQR(_ qrData: String) async throws -> Bool {
-        return try await pairWithToken(qrData)
     }
 
     func unpair() {

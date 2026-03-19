@@ -8,6 +8,7 @@
 
 import Foundation
 import PostgREST
+import UIKit
 
 // MARK: - Types
 
@@ -167,7 +168,7 @@ actor SessionService {
             throw SessionServiceError.notAuthenticated
         }
         // Set auth on the client
-        postgrest.setAuth(token)
+        await postgrest.setAuth(token)
         return try await block(postgrest)
     }
 
@@ -202,6 +203,7 @@ actor SessionService {
             platform: Self.platform,
             deviceId: deviceId,
             deviceName: deviceName,
+            isActive: true,
             expiresAt: expiresAt
         )
         let newSession: UserSessionRow = try await authenticatedRequest { client in
@@ -286,10 +288,12 @@ actor SessionService {
         do {
             // 1. Check if the session row still exists and is active
             let sessions: [UserSessionRow] = try await authenticatedRequest { req in
-                req.from("user_sessions")
-                    .select()
+                try await req.from("user_sessions")
+                    .select("*")
                     .eq("id", value: localId.uuidString)
                     .limit(1)
+                    .execute()
+                    .value
             }
 
             guard let session = sessions.first else {
@@ -352,8 +356,9 @@ actor SessionService {
         let device = UIDevice.current
         let raw = "\(device.model) (\(device.systemName) \(device.systemVersion))"
         // 去除控制字符，限制最大 200 字符（防御 XSS 和恶意输入）
+        let controlCharacters = CharacterSet.controlCharacters
         let sanitized = raw.unicodeScalars
-            .filter { !$0.isControl }
+            .filter { !controlCharacters.contains($0) }
             .map { String($0) }
             .joined()
         return String(sanitized.prefix(200))

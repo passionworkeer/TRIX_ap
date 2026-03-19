@@ -2148,7 +2148,7 @@ final class RealtimeMessageSubscription: ObservableObject {
         await unsubscribe()
 
         guard let supabase = supabase, let userId = currentUserId else {
-            print("[Realtime] Cannot subscribe: supabase or userId is nil")
+            SecureLogger.shared.warning("Realtime: Cannot subscribe - supabase or userId is nil")
             return
         }
 
@@ -2180,17 +2180,21 @@ final class RealtimeMessageSubscription: ObservableObject {
                let senderId = newRecord["sender_id"] as? String,
                // Only process messages from others
                senderId != userId,
-               let message = self.parseRecord(newRecord, currentUserId: userId, conversationId: conversationId) {
-                print("[Realtime] Received new message: \(message.id)")
+               let chatMessage = self.parseRecord(newRecord, currentUserId: userId, conversationId: conversationId) {
+                Task {
+                    await SecureLogger.shared.debug("Realtime: Received new message \(chatMessage.id)")
+                }
                 DispatchQueue.main.async {
-                    self.callback?(message)
+                    self.callback?(chatMessage)
                 }
             }
         }
 
         // Subscribe to the channel
         channel.subscribe { [weak self] state, _ in
-            print("[Realtime] Subscribe state: \(state)")
+            Task {
+                await SecureLogger.shared.debug("Realtime: Subscribe state changed to \(String(describing: state))")
+            }
             DispatchQueue.main.async {
                 self?.isSubscribed = (state == .subscribed)
                 self?.connectionStatus = state == .subscribed ? "connected" : "connecting"
@@ -2198,7 +2202,7 @@ final class RealtimeMessageSubscription: ObservableObject {
         }
 
         self.currentChannel = channel
-        print("[Realtime] Connected to conversation: \(conversationId)")
+        await SecureLogger.shared.info("Realtime: Connected to conversation: \(conversationId)")
     }
 
     /// Parse database record to ChatMessage
@@ -2252,7 +2256,7 @@ final class RealtimeMessageSubscription: ObservableObject {
     func unsubscribe() async {
         if let channel = currentChannel {
             channel.unsubscribe()
-            print("[Realtime] Unsubscribed from channel")
+            await SecureLogger.shared.info("Realtime: Unsubscribed from channel")
         }
 
         currentChannel = nil
