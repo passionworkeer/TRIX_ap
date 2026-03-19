@@ -12,11 +12,15 @@ function getPreloadPath(): string {
 
 function getMainUrl(): string {
   // Built HTML is at: desktop/dist-desktop/renderer/desktop/src/renderer/main.html
-  return `file://${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/main.html`;
+  // In dev: app.getAppPath() = desktop dir
+  // In prod (asar): app.getAppPath() = path/to/app.asar — use app.getPath('exe') to get unpacked dir
+  const htmlPath = `${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/main.html`;
+  return htmlPath;
 }
 
 function getFloatUrl(): string {
-  return `file://${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/float.html`;
+  const htmlPath = `${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/float.html`;
+  return htmlPath;
 }
 
 export { getPreloadPath, getMainUrl, getFloatUrl };

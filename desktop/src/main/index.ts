@@ -8,7 +8,7 @@ import { createFloatWindow } from './float-window';
 import { getPreloadPath, getMainUrl, getFloatUrl, setMainWindow, showMainWindow } from './window-state';
 import { destroyTray } from './tray';
 
-// Configure logging
+// Configure logging — initialize first so file transport is ready
 log.initialize();
 log.transports.file.level = 'info';
 log.transports.console.level = 'debug';
@@ -38,7 +38,24 @@ export function createMainWindow(): void {
     show: false,
   });
 
-  mainWindow.loadURL(getMainUrl());
+  mainWindow.loadFile(getMainUrl());
+  log.info('Main window URL:', getMainUrl());
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    log.info('Main window did-finish-load');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    log.error('Main window did-fail-load:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    log.error('Main window render-process-gone:', details.reason, details.exitCode);
+  });
+
+  mainWindow.webContents.on('crashed', () => {
+    log.error('Main window crashed');
+  });
 
   mainWindow.once('ready-to-show', () => {
     log.info('Main window ready to show');

@@ -24,7 +24,7 @@ export function createFloatWindow(): BrowserWindow {
     show: false,
   });
 
-  floatWindow.loadURL(getFloatUrl());
+  floatWindow.loadFile(getFloatUrl());
 
   floatWindow.once('ready-to-show', () => {
     log.info('Float window ready to show');
