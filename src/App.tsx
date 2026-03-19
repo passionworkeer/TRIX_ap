@@ -100,6 +100,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 };
 
 function AppContent() {
+  console.log('[AppContent] rendering');
   // 资源预加载 - 提升首屏体验
   ResourcePreloader();
 
@@ -164,7 +165,7 @@ function AppContent() {
       onClickCapture={handleFirstGestureUnlock}
       onTouchStartCapture={handleFirstGestureUnlock}
     >
-      {isHomePage && (
+      {isHomePage && !isElectron && (
         <HeroBackground
           botState={botState}
           onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
@@ -257,18 +258,18 @@ function AppContent() {
   );
 }
 
-// AppRouter: wraps in a Router only for web (desktop's main.tsx already provides BrowserRouter)
+// AppRouter: provides routing context for both web and desktop
 const AppRouter: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  // For Electron desktop, the BrowserRouter is provided by main.tsx/DesktopApp.
-  // Wrapping again here would cause "cannot render Router inside Router" error.
-  if (isElectron) {
-    return <>{children}</>;
-  }
-  // Use HashRouter for web (no server-side routing)
+  // Desktop (Electron): use HashRouter because BrowserRouter from main.tsx uses
+  // window.location.pathname which is the file path (e.g. /E:/.../main.html)
+  // instead of the app route (/). HashRouter uses window.location.hash which works
+  // correctly with file:// URLs.
+  // Web: use HashRouter (no server-side routing)
   return <HashRouter>{children}</HashRouter>;
 };
 
 const App: React.FC = () => {
+  console.log('[App] rendering');
   return (
     <ErrorBoundary>
       <AuthProvider>

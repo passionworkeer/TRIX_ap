@@ -7,11 +7,6 @@ import { VoiceSettingsProvider } from '@/contexts/VoiceSettingsContext';
 import '@/i18n';
 import { DesktopTitleBar } from './components/DesktopTitleBar';
 
-// DesktopSettings page - imported lazily to avoid web build including it
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AppRoutes } from '@/types';
-
 // Global error handlers to diagnose white screen - MUST be first
 window.onerror = (msg, src, line, col, err) => {
   const errorDiv = document.createElement('div');
@@ -35,37 +30,22 @@ window.onunhandledrejection = (e) => {
   console.error('[RENDERER UNHANDLED]', e.reason);
 };
 
-const DesktopSettings = lazy(() => import('./pages/DesktopSettings'));
-
-const SettingsLoading = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', color: '#94a3b8', fontFamily: 'system-ui, sans-serif' }}>
-    加载中...
-  </div>
-);
-
 // Desktop-specific router wrapper
+// Note: AppRouter (in App.tsx) provides HashRouter for routing.
+// HashRouter works correctly with file:// URLs in Electron.
 function DesktopApp() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Desktop settings page */}
-        <Route path="/desktop/settings" element={
-          <Suspense fallback={<SettingsLoading />}>
-            <DesktopSettings />
-          </Suspense>
-        } />
-        {/* All other routes → existing App */}
-        <Route path="*" element={<App />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  console.log('[DesktopApp] rendering');
+  // The App component (AppRouter) provides HashRouter for routing.
+  return <App />;
 }
 
 // Mount
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('No root element');
+console.log('[Mount] root element found, creating React root');
 
 const root = ReactDOM.createRoot(rootElement);
+console.log('[Mount] rendering App');
 
 root.render(
   <React.StrictMode>
@@ -78,3 +58,5 @@ root.render(
     </ThemeProvider>
   </React.StrictMode>
 );
+
+console.log('[Mount] render called');

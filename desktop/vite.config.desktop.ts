@@ -20,11 +20,9 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
-      // renderer must come before electron so preload is ready
       renderer(),
       electron([
         {
-          // Main process (must be CJS for Electron)
           entry: 'desktop/src/main/index.ts',
           onstart({ startup }) {
             startup();
@@ -47,10 +45,6 @@ export default defineConfig(() => {
           },
         },
         {
-          // Preload script — uses require('electron') to access contextBridge/ipcRenderer/app
-          // electron is NOT marked as external in rollupOptions, but Rollup preserves
-          // require('electron') as-is (cannot resolve to a file path). In Electron's
-          // preload context, require('electron') works correctly and returns the full API.
           entry: 'desktop/src/preload/index.js',
           onstart({ reload }) {
             reload();

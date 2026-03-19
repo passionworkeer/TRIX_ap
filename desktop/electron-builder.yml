@@ -3,7 +3,7 @@ productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
 
 directories:
-  output: release
+  output: "C:/Users/wang/Desktop/TRIX Companion 3"
   buildResources: build
 
 files:

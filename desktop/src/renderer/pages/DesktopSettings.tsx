@@ -205,12 +205,12 @@ export default function DesktopSettings() {
               <div style={styles.card}>
                 <h3 style={styles.cardTitle}>应用程序</h3>
                 <div style={styles.grid}>
-                  <InfoRow label="版本" value={appInfo.version} />
-                  <InfoRow label="Electron" value={appInfo.electron} />
-                  <InfoRow label="Node.js" value={appInfo.node} />
-                  <InfoRow label="Chrome" value={appInfo.chrome} />
-                  <InfoRow label="打包状态" value={appInfo.isPackaged ? '生产环境' : '开发模式'} />
-                  <InfoRow label="数据目录" value={appInfo.userData} />
+                  <InfoRow label="版本" value={appInfo?.version ?? '未知'} />
+                  <InfoRow label="Electron" value={appInfo?.electron ?? '未知'} />
+                  <InfoRow label="Node.js" value={appInfo?.node ?? '未知'} />
+                  <InfoRow label="Chrome" value={appInfo?.chrome ?? '未知'} />
+                  <InfoRow label="打包状态" value={appInfo?.isPackaged ? '生产环境' : '开发模式'} />
+                  <InfoRow label="数据目录" value={appInfo?.userData ?? '未知'} />
                 </div>
               </div>
             )}
