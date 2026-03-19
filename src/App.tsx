@@ -257,11 +257,14 @@ function AppContent() {
   );
 }
 
+// AppRouter: wraps in a Router only for web (desktop's main.tsx already provides BrowserRouter)
 const AppRouter: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  // Use BrowserRouter in Electron (no hash URLs), HashRouter in web
+  // For Electron desktop, the BrowserRouter is provided by main.tsx/DesktopApp.
+  // Wrapping again here would cause "cannot render Router inside Router" error.
   if (isElectron) {
-    return <BrowserRouter>{children}</BrowserRouter>;
+    return <>{children}</>;
   }
+  // Use HashRouter for web (no server-side routing)
   return <HashRouter>{children}</HashRouter>;
 };
 

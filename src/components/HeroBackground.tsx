@@ -1,9 +1,11 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState, lazy } from 'react';
 import type { BotState } from '../contexts/ClawbotChannelContext';
 import { logger } from '../utils/logger';
-import { CharacterScene } from '../three/components';
 import { useThreeStore } from '../three/store';
 import type { CharacterBotState } from '../three/store';
+
+// Lazy load 3D scene — avoids loading Three.js / GLTFLoader in Electron (uses video fallback)
+const CharacterScene = lazy(() => import('../three/components/CharacterScene'));
 
 interface HeroBackgroundProps {
   botState: BotState;
@@ -239,7 +241,9 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
           }} />
           {/* 3D Canvas */}
           <div style={{ position: 'absolute', inset: 0, zIndex: 2 }}>
-            <CharacterScene />
+            <React.Suspense fallback={null}>
+              <CharacterScene />
+            </React.Suspense>
           </div>
           <button
             onClick={toggle3D}

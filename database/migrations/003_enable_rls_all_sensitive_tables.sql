@@ -168,7 +168,6 @@ CREATE POLICY "study_room_members_delete_own" ON study_room_members
 
 -- Enable RLS
 ALTER TABLE user_points ENABLE ROW LEVEL SECURITY;
-ALTER TABLE point_transactions ENABLE ROW LEVEL SECURITY;
 
 -- User Points: Only the owner can access
 CREATE POLICY "user_points_select_own" ON user_points
@@ -185,6 +184,9 @@ CREATE POLICY "user_points_delete_own" ON user_points
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Point Transactions: Only the owner can access
+-- NOTE: Two tables exist - point_transactions (main) and points_transactions (mall)
+ALTER TABLE point_transactions ENABLE ROW LEVEL SECURITY;
+
 CREATE POLICY "point_transactions_select_own" ON point_transactions
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -195,6 +197,21 @@ CREATE POLICY "point_transactions_update_own" ON point_transactions
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "point_transactions_delete_own" ON point_transactions
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Mall Points Transactions: Only the owner can access
+ALTER TABLE points_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "points_transactions_select_own" ON points_transactions
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "points_transactions_insert_own" ON points_transactions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "points_transactions_update_own" ON points_transactions
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "points_transactions_delete_own" ON points_transactions
   FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
