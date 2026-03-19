@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TRIX Service</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3efe7;
+        --panel: rgba(255, 255, 255, 0.88);
+        --text: #1c1c1a;
+        --muted: #6a665f;
+        --accent: #0b6e4f;
+        --border: rgba(17, 24, 39, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "PingFang SC", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(11, 110, 79, 0.16), transparent 36%),
+          linear-gradient(160deg, #f7f2ea 0%, #efe8dd 100%);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(720px, 100%);
+        padding: 32px;
+        border-radius: 28px;
+        background: var(--panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--border);
+        box-shadow: 0 24px 80px rgba(31, 41, 55, 0.12);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        line-height: 0.94;
+      }
+      p {
+        margin: 0 0 16px;
+        font-size: 1rem;
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(11, 110, 79, 0.08);
+        color: var(--accent);
+        font-weight: 700;
+      }
+      code {
+        display: block;
+        margin-top: 24px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(17, 24, 39, 0.06);
+        color: var(--text);
+        overflow-wrap: anywhere;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="pill">TRIX Service Online</div>
+      <h1>trix.love</h1>
+      <p>这个域名现在作为 Trix Service 的正式 HTTPS 入口使用。OpenClaw 原生插件、Web 和 iOS 都应该连这里，不再直接暴露裸 `8788` 端口。</p>
+      <p>如果你是从 OpenClaw 配对二维码进入，请打开 <a href="/pairing">/pairing</a> 页面继续 claim。</p>
+      <code>Health: <a href="/health">/health</a></code>
+    </main>
+  </body>
+</html>

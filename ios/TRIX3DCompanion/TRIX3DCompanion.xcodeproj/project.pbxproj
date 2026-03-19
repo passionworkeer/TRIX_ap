@@ -125,6 +125,7 @@
 		728D0F763AF1316A1237B3A0 /* FriendErrorPresentationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */; };
 		72B30C8BE3472F87C3BDFA64 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */; };
 		72F22938E6AF3C776C0497CD /* StudyRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22A215D4A20ECDA130B3FD1 /* StudyRoomView.swift */; };
+		E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */; };
 		730F7E9779547FC0FB22FD36 /* WorkbenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61A49390552276502379FF1 /* WorkbenchView.swift */; };
 		733C56FE824422DED341124D /* PlaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC194C2516330CAFD9E29ED /* PlaceService.swift */; };
 		73AA6D02A2A73BC1F9B4E8EC /* UnreadBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8A04BBC47C886B8D18003E /* UnreadBadge.swift */; };
@@ -509,6 +510,7 @@
 		C1F9FAD399C6053DBECE0D71 /* speaking.mp4 */ = {isa = PBXFileReference; path = speaking.mp4; sourceTree = "<group>"; };
 		C21EF53920BB8D545F1146DD /* TRIX3DCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TRIX3DCompanionApp.swift; sourceTree = "<group>"; };
 		C22A215D4A20ECDA130B3FD1 /* StudyRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomView.swift; sourceTree = "<group>"; };
+		E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomViewModel.swift; sourceTree = "<group>"; };
 		C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
 		C40AA82CE9008B7D7CA82E73 /* ClawbotChannelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClawbotChannelViewModel.swift; sourceTree = "<group>"; };
 		C9D4AF830AE129E0833DCC4E /* PushNotificationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationServiceProtocol.swift; sourceTree = "<group>"; };
@@ -1286,9 +1288,18 @@
 		CAFD09ADBC2E5773A2AA9A7A /* Study */ = {
 			isa = PBXGroup;
 			children = (
+				E129A4D3415B4E4086A89C13 /* ViewModels */,
 				EC309571451FD4EEF1D9CEEA /* Views */,
 			);
 			path = Study;
+			sourceTree = "<group>";
+		};
+		E129A4D3415B4E4086A89C13 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		CD2F292306A48C8B04F33A8E /* Performance */ = {
@@ -1809,6 +1820,7 @@
 				1112EC9A3564FB186E0666EB /* StudyListView.swift in Sources */,
 				12479FA5539F8D8F1B782FC7 /* StudyRoom.swift in Sources */,
 				72F22938E6AF3C776C0497CD /* StudyRoomView.swift in Sources */,
+				E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */,
 				EBFD3960C794CF822E229BCB /* StudyService.swift in Sources */,
 				CD4148BE376CDBA80BD81BB7 /* StudyStatsView.swift in Sources */,
 				D2D67DD2F48D04D811A6F2D5 /* StudyTimerView.swift in Sources */,

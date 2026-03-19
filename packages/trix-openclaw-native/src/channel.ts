@@ -48,18 +48,30 @@ async function waitForServicePairing(accountId?: string | null, timeoutMs?: numb
   const startedAt = Date.now();
   const effectiveTimeoutMs = timeoutMs ?? 60_000;
   while (Date.now() - startedAt < effectiveTimeoutMs) {
-    const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
-      headers: {
-        authorization: `Bearer ${account.serviceToken ?? ''}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to poll pairing status: ${response.status} ${response.statusText}`);
-    }
-    const pairing = await response.json() as { status?: string };
-    if (pairing.status === 'paired') {
-      pendingPairingCodeByAccount.delete(account.accountId);
-      return { connected: true, message: 'TRIX device paired.' };
+    try {
+      const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
+        headers: {
+          authorization: `Bearer ${account.serviceToken ?? ''}`,
+        },
+      });
+      if (!response.ok) {
+        if (response.status >= 500 && response.status < 600) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
+        throw new Error(`Failed to poll pairing status: ${response.status} ${response.statusText}`);
+      }
+      const pairing = await response.json() as { status?: string };
+      if (pairing.status === 'paired') {
+        pendingPairingCodeByAccount.delete(account.accountId);
+        return { connected: true, message: 'TRIX device paired.' };
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Failed to poll pairing status:')) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      continue;
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }

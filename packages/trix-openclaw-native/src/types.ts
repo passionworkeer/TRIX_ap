@@ -121,6 +121,20 @@ export interface ServerConfig {
   attachmentSigningSecret?: string;
   enableLegacyAgentWs?: boolean;
   uploadBaseUrl?: string;
+  serviceAllowlist?: string[];
+  rateLimits?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>;
+}
+
+export type ServerRateLimitName =
+  | 'claim'
+  | 'userMessages'
+  | 'userUploads'
+  | 'serviceMessages'
+  | 'serviceUploads';
+
+export interface ServerRateLimitRule {
+  max: number;
+  windowMs: number;
 }
 
 export interface ClientEnvelope<TPayload = unknown> {

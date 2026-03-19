@@ -2,14 +2,16 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { TrixNativeServer } from '../src/server/TrixNativeServer.js';
+import type { ServerConfig } from '../src/types.js';
 
 const servers: TrixNativeServer[] = [];
 
-function createTestServer(port: number): TrixNativeServer {
+function createTestServer(port: number, config: ServerConfig = {}): TrixNativeServer {
   return new TrixNativeServer({
     port,
     publicBaseUrl: `http://127.0.0.1:${port}`,
     storageDir: path.join(process.cwd(), '.tmp', 'trix-native-tests', `${port}-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    ...config,
   });
 }
 
@@ -550,5 +552,93 @@ describe('TrixNativeServer', () => {
 
     expect(closeEvent.code).toBe(1008);
     expect(closeEvent.reason).toContain('Legacy agent websocket disabled');
+  });
+
+  it('rate limits pairing claims per source IP', async () => {
+    const server = createTestServer(8806, {
+      rateLimits: {
+        claim: { max: 1, windowMs: 60_000 },
+      },
+    });
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const headers = {
+      'content-type': 'application/json',
+      authorization: `Bearer ${state.serviceTokens.default}`,
+    };
+
+    const pairingOne = await fetch('http://127.0.0.1:8806/api/pairings', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ accountId: 'default', label: 'First Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const pairingTwo = await fetch('http://127.0.0.1:8806/api/pairings', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ accountId: 'default', label: 'Second Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const firstClaim = await fetch(`http://127.0.0.1:8806/api/pairings/${pairingOne.code}/claim`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.20',
+      },
+      body: JSON.stringify({
+        clientId: 'browser-rate-1',
+        deviceName: 'Browser One',
+      }),
+    });
+    expect(firstClaim.status).toBe(200);
+
+    const secondClaim = await fetch(`http://127.0.0.1:8806/api/pairings/${pairingTwo.code}/claim`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.20',
+      },
+      body: JSON.stringify({
+        clientId: 'browser-rate-2',
+        deviceName: 'Browser Two',
+      }),
+    });
+    expect(secondClaim.status).toBe(429);
+  });
+
+  it('supports service endpoint IP allowlists when configured', async () => {
+    const server = createTestServer(8807, {
+      serviceAllowlist: ['198.51.100.10', '203.0.113.0/24'],
+    });
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+
+    const rejected = await fetch('http://127.0.0.1:8807/api/service/probe', {
+      headers: {
+        authorization: `Bearer ${state.serviceTokens.default}`,
+        'x-forwarded-for': '192.0.2.88',
+      },
+    });
+    expect(rejected.status).toBe(403);
+
+    const allowedExact = await fetch('http://127.0.0.1:8807/api/service/probe', {
+      headers: {
+        authorization: `Bearer ${state.serviceTokens.default}`,
+        'x-forwarded-for': '198.51.100.10',
+      },
+    });
+    expect(allowedExact.status).toBe(200);
+
+    const allowedCidr = await fetch('http://127.0.0.1:8807/api/service/probe', {
+      headers: {
+        authorization: `Bearer ${state.serviceTokens.default}`,
+        'x-forwarded-for': '203.0.113.45',
+      },
+    });
+    expect(allowedCidr.status).toBe(200);
   });
 });

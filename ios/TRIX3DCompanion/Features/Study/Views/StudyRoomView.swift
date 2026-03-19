@@ -28,11 +28,17 @@ struct StudyRoomView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    private let initialRoomState: StudyRoomState?
+
     // MARK: - State
 
     @StateObject private var viewModel = StudyRoomViewModel()
     @State private var isShowingSettings = false
     @State private var isShowingTimer = false
+
+    init(roomState: StudyRoomState? = nil) {
+        self.initialRoomState = roomState
+    }
 
     // MARK: - Body
 
@@ -100,7 +106,7 @@ struct StudyRoomView: View {
                     Text(error)
                 }
             }
-            .onAppear { viewModel.onAppear() }
+            .onAppear { viewModel.onAppear(initialRoomState: initialRoomState) }
             .onDisappear { viewModel.onDisappear() }
         }
     }
@@ -789,6 +795,78 @@ struct FriendRoomRow: View {
         .padding(12)
         .background(Color.white.opacity(0.03))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct ParticipantAvatar: View {
+    let member: StudyRoomMember
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 54, height: 54)
+
+                Text(String(member.displayName.prefix(1)).uppercased())
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+
+            Text(member.displayName)
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.8))
+                .lineLimit(1)
+        }
+    }
+}
+
+private struct StudyRoomSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let roomState: StudyRoomState
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section("房间信息") {
+                    LabeledContent("房间号", value: roomState.roomCode)
+                    LabeledContent("成员数", value: "\(roomState.members.count)/\(roomState.maxMembers)")
+                    LabeledContent("状态", value: roomState.sessionState.rawValue)
+                }
+
+                Section("成员") {
+                    ForEach(roomState.members) { member in
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.brandPurple.opacity(0.2))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Text(String(member.displayName.prefix(1)).uppercased())
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(Color.brandPurple)
+                                )
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(member.displayName)
+                                Text(member.status.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("房间设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
