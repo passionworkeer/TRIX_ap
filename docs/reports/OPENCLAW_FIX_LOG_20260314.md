@@ -1,7 +1,9 @@
-# TRIX × OpenClaw 项目修改指令
+# TRIX × OpenClaw 项目修复日志 (历史文档)
 
-> 给 Cursor 的执行文档。按顺序执行，每步完成后验证再继续。
-> 当前项目：trix-3d-companion | 插件包：packages/trix-openclaw-native
+> **状态**: 🗂️ 历史文档 - 本次修复已于 2026-03-16 完成
+> **执行时间**: 2026-03-14 至 2026-03-16
+> **当前项目**: TRIX_ap | 插件包: `packages/trix-openclaw-native`
+> **本文档已归档**: 如需最新规范，请参考 [openclaw_reference.md](../openclaw_reference.md)
 >
 > 📌 **说明**: 本文档记录 2026-03-14 至 2026-03-16 的修复过程。当前代码已修复完成，
 > 参考 [openclaw_reference.md](./openclaw_reference.md) 了解最新规范。

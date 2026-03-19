@@ -10,19 +10,18 @@
 ```
 docs/
 ├── INDEX.md                          # 文档索引（本文档）
-├── CHANGELOG.md                      # 开发迭代日志
-├── ENVIRONMENT.md                     # 环境变量参考
-├── TRIX_NATIVE_CHANNEL.md             # TRIX Native Channel 完整文档
+├── CHANGELOG.md                     # 开发迭代日志
+├── ENVIRONMENT.md                    # 环境变量参考
+├── TRIX_NATIVE_CHANNEL.md           # TRIX Native Channel 完整文档
 ├── TRIX_NATIVE_PAIRING_ARCHITECTURE.md  # TRIX Native 配对架构
-├── openclaw_reference.md              # OpenClaw 插件官方规范参考
-├── OPENCLAW_PAIRING_IMPLEMENTATION.md    # 配对实现详解
-├── fix.md                            # 通道修复执行指南
+├── openclaw_reference.md            # OpenClaw 插件官方规范参考
+├── OPENCLAW_PAIRING_IMPLEMENTATION.md   # 配对实现详解
 │
 ├── 📦 需求规格 (requirements/)
 │   ├── PRD.md                        # 产品需求文档
 │   ├── PRD-WEB.md                    # Web 端 PRD
 │   ├── PRD-IOS.md                    # iOS 端 PRD
-│   ├── FEATURES.md                   # 功能文档
+│   ├── FEATURES.md                  # 功能文档
 │   └── TRIX_NATIVE_IMPLEMENTATION_PLAN.md  # TRIX Native 实现计划（参考）
 │
 ├── 📊 项目报告 (project-reports/)
@@ -31,15 +30,16 @@ docs/
 │
 ├── 📑 分析报告 (reports/)
 │   ├── AUDIT-REPORT.md              # 安全审计报告
-│   ├── CODE_REVIEW_REPORT.md         # 代码审查报告
-│   ├── PROJECT_ANALYSIS.md           # 项目分析
+│   ├── CODE_REVIEW_REPORT.md        # 代码审查报告
+│   ├── PROJECT_ANALYSIS.md          # 项目分析
 │   ├── PROJECT_DOCUMENTATION.md      # 项目文档
-│   └── FIXES_20260313.md             # 修复记录
+│   ├── FIXES_20260313.md            # 修复记录
+│   └── OPENCLAW_FIX_LOG_20260314.md # OpenClaw 修复日志（历史）
 │
 ├── 🔧 开发文档 (development/)
 │   ├── ARCHITECTURE.md              # 架构文档
 │   ├── TESTING.md                   # 测试指南
-│   ├── DOCUMENTATION_GUIDELINES.md  # 文档规范
+│   ├── DOCUMENTATION_GUIDELINES.md   # 文档规范
 │   ├── STATE-TEMPLATE.md            # 状态模板
 │   └── TDD-EXAMPLES.md              # TDD 示例
 │
@@ -67,12 +67,24 @@ docs/
 │   ├── SETUP.md                    # 环境配置指南
 │   └── QUICK_START_GUIDE.md        # 快速开始指南
 │
+├── 💻 桌面应用文档 (desktop/)
+│   └── (desktop/src/main/*.ts)      # Electron 桌面端源码
+│       src/main/index.ts            # 主进程入口
+│       src/main/ipc.ts              # IPC 处理器
+│       src/main/gateway.ts          # Gateway 子进程管理
+│       src/main/float-window.ts     # Float 悬浮窗
+│       src/main/tray.ts             # 系统托盘
+│       src/renderer/float.tsx       # Float 窗口 UI (含 QR 配对)
+│       src/preload/index.ts         # Preload 脚本
+│       src/types/electron.d.ts      # 共享类型定义
+│       vite.config.desktop.ts       # Vite 构建配置
+│       electron-builder.yml          # electron-builder 打包配置
+│
 └── 📖 操作指南 (guides/)
-    ├── DEPLOYMENT.md                 # 生产部署指南
-    ├── QUICK-START-FOCUS-MODE.md   # 专注模式
-    ├── QR_PAIRING_USER_GUIDE.md    # 扫码配对
-    ├── PAIRING_INPUT_GUIDE.md       # 配对输入
-    ├── UNPAIR_FEATURE_GUIDE.md      # 解绑功能
+    ├── DEPLOYMENT.md                # 生产部署指南
+    ├── QR_PAIRING_USER_GUIDE.md     # 扫码配对完整指南（Web/iOS/桌面）
+    ├── PAIRING_INPUT_GUIDE.md       # 配对码输入指南
+    ├── UNPAIR_FEATURE_GUIDE.md      # 解绑功能指南
     ├── SSH-SETUP.md                # SSH 配置
     ├── SERVER_GUIDE.md             # 服务器运维
     ├── IOS_TEST_DEPLOY_GUIDE.md    # iOS 测试部署
@@ -91,9 +103,19 @@ docs/
 | [PROJECT.md](./project-reports/PROJECT.md) | 项目总览 | 🌟 |
 | [TRIX_NATIVE_CHANNEL.md](./TRIX_NATIVE_CHANNEL.md) | TRIX Native Channel 完整文档 | 🌟 |
 | [openclaw_reference.md](./openclaw_reference.md) | OpenClaw 插件官方规范参考 | 🌟 |
-| [TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./TRIX_NATIVE_PAIRING_ARCHITECTURE.md) | TRIX Native 配对架构 | 开发者 |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | 环境变量参考 | 🌟 |
-| [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 | 部署 |
+| [QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 三端扫码配对指南 | 🌟 |
+
+### 💻 桌面应用
+
+| 文档 | 描述 |
+|------|------|
+| `desktop/vite.config.desktop.ts` | Vite + Electron 构建配置 |
+| `desktop/electron-builder.yml` | electron-builder 打包配置 |
+| `desktop/src/main/index.ts` | Electron 主进程入口 |
+| `desktop/src/renderer/float.tsx` | Float 悬浮窗 UI（含 QR 配对） |
+| `desktop/src/main/ipc.ts` | IPC 处理器（含配对 QR 生成） |
+| `desktop/src/types/electron.d.ts` | 共享 TypeScript 类型 |
 
 ### 📊 项目报告
 
@@ -106,9 +128,8 @@ docs/
 
 | 文档 | 描述 |
 |------|------|
-| [QUICK-START-FOCUS-MODE.md](./guides/QUICK-START-FOCUS-MODE.md) | 专注模式快速开始 |
-| [QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 扫码配对完整指南 |
-| [PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 配对输入功能 |
+| [QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 扫码配对完整指南（Web/iOS/桌面） |
+| [PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 配对码输入功能 |
 | [UNPAIR_FEATURE_GUIDE.md](./guides/UNPAIR_FEATURE_GUIDE.md) | 解绑设备操作 |
 | [SSH_SETUP.md](./guides/SSH-SETUP.md) | SSH 免密登录配置 |
 
@@ -129,7 +150,7 @@ docs/
 ### 新人入门 (20 分钟)
 
 ```
-README.md → PROJECT.md → TRIX_NATIVE_CHANNEL.md → ENVIRONMENT.md
+README.md → PROJECT.md → QR_PAIRING_USER_GUIDE.md → ENVIRONMENT.md
 ```
 
 ### 开发者设置 (30 分钟)
@@ -138,10 +159,16 @@ README.md → PROJECT.md → TRIX_NATIVE_CHANNEL.md → ENVIRONMENT.md
 ENVIRONMENT.md → openclaw_reference.md → TRIX_NATIVE_CHANNEL.md → TESTING.md
 ```
 
-### 功能开发 (30 分钟)
+### 配对功能开发 (30 分钟)
 
 ```
-FEATURES.md → API 文档 → TESTING.md
+TRIX_NATIVE_CHANNEL.md → QR_PAIRING_USER_GUIDE.md → OPENCLAW_PAIRING_IMPLEMENTATION.md
+```
+
+### 桌面端开发 (30 分钟)
+
+```
+desktop/vite.config.desktop.ts → desktop/src/main/index.ts → desktop/src/main/ipc.ts → desktop/src/renderer/float.tsx
 ```
 
 ### 部署上线 (15 分钟)
@@ -156,10 +183,10 @@ ENVIRONMENT.md → DEPLOYMENT.md → SERVER_GUIDE.md
 
 | 目录 | 文档数量 | 状态 |
 |------|----------|------|
-| 根目录 | 7 | ✅ 维护中 |
+| 根目录 | 8 | ✅ 维护中 |
 | 需求规格 (requirements/) | 6 | ✅ 维护中 |
 | 项目报告 (project-reports/) | 2 | ✅ 维护中 |
-| 分析报告 (reports/) | 5 | ✅ 维护中 |
+| 分析报告 (reports/) | 7 | ✅ 维护中 |
 | 开发文档 (development/) | 5 | ✅ 维护中 |
 | UI 文档 (ui/) | 2 | ✅ 维护中 |
 | 架构文档 (architecture/) | 2 | ✅ 维护中 |
@@ -167,7 +194,7 @@ ENVIRONMENT.md → DEPLOYMENT.md → SERVER_GUIDE.md
 | API 文档 (api/) | 2 | ✅ 维护中 |
 | iOS 文档 (ios/) | 2 | ✅ 维护中 |
 | 入门指南 (getting-started/) | 2 | ✅ 维护中 |
-| 操作指南 (guides/) | 9 | ✅ 维护中 |
+| 操作指南 (guides/) | 8 | ✅ 维护中 |
 
 ---
 
@@ -178,11 +205,12 @@ ENVIRONMENT.md → DEPLOYMENT.md → SERVER_GUIDE.md
 按顺序阅读：
 1. [TRIX_NATIVE_CHANNEL.md](./TRIX_NATIVE_CHANNEL.md) - 10 分钟
 2. [openclaw_reference.md](./openclaw_reference.md) - 开发者必读
-3. [TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./TRIX_NATIVE_PAIRING_ARCHITECTURE.md) - 配对流程详解
+3. [QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) - 三端配对指南
 
 ### Q: 历史文档在哪里？
 
-历史文档已清理，不再保留过时的文档。
+历史文档已清理，不再保留过时的文档。当前历史修复记录见：
+- [OPENCLAW_FIX_LOG_20260314.md](./reports/OPENCLAW_FIX_LOG_20260314.md) — 2026-03-14 OpenClaw 修复日志
 
 ---
 

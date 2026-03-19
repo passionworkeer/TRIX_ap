@@ -4,6 +4,60 @@
 
 ---
 
+## 📅 2026-03-19 - 三端配对系统对齐
+
+### 背景
+
+Web、iOS、Windows 桌面三端的配对实现原本使用不同协议，导致行为不一致。本次对齐以 `trix-openclaw-native` 为单一事实来源，统一使用 **QR URL 格式**配对。
+
+### 完成内容
+
+#### 1. Web 端：清理废弃代码
+
+- 删除 `src/services/clawbotPairingService.ts`（旧 Supabase 轮询协议）
+- 删除 `src/services/clawbotPairingService.test.ts`
+- 将 `src/contexts/QRCodePairingContext.tsx` 替换为空壳（避免破坏已有 import）
+- 从 `src/clawbot/index.ts` 移除废弃导出
+- 从 `src/App.tsx` 移除 `QRCodePairingProvider` 包装
+
+#### 2. iOS 端：配对流程修复
+
+- 修复 `QRScannerView.handleScanResult()`：原只接受 JSON 格式 QR，增加对 URL 格式的支持（`http://host/pair?code=XXX&secret=YYY`）
+- 修复 `ClawbotChannelViewModel.pairWithToken()`：调用的 `service.pairWithToken()` 方法不存在，改为调用正确的 `service.pairWithQR()`（该方法已能正确解析 URL 格式）
+- 确认 `ClawbotChannelService.parseQRData()` 已支持 URL 格式解析（case 1）
+
+#### 3. Windows 桌面端：Float 窗口 QR 配对
+
+- 添加 `pairing:createQr` IPC handler（读取 admin token → 调用 `POST /api/pairings`）
+- 添加 `pairing:pollStatus` IPC handler（读取 admin token → 调用 `GET /api/pairings/:code`）
+- 重写 `src/renderer/float.tsx`：完整 QR 配对 UI（底部面板、轮询状态、自动关闭）
+- 创建 `src/types/electron.d.ts`：共享 TypeScript 类型定义
+
+#### 4. Desktop 打包问题修复
+
+- **P0**: `process.resourcesPath!` → `app.getPath('resourcesPath')`（修复 TS 类型错误）
+- **P0**: IPC pairing 读取 state.json 从 `process.cwd()` 改为 `app.getPath('userData')`（Gateway 也使用相同目录）
+- **P0**: OpenClaw 安装增加 pnpm 检查，不存在则回退 npm
+- **P1**: Float 窗口 `-webkit-app-region: drag` 覆盖按钮，改为 CSS 覆盖 `no-drag`
+- **P1**: 移除 `tray.ts` 中的死代码 `getTrayIconPath()`
+
+### 配对 QR 格式（统一）
+
+```
+http://host/pair?code=ABCDEF12&secret=random-secret-token
+```
+
+三端均支持此格式：Web (TrixNativeChannelClient)、iOS (ClawbotChannelService)、Desktop (float.tsx IPC)
+
+### Git 提交记录
+
+- `web: delete clawbotPairingService, stub QRCodePairingContext`
+- `ios: fix QRScanner URL-format QR support + pairWithToken method`
+- `desktop: add pairing IPC handlers + rewrite float.tsx`
+- `desktop: fix resourcesPath TS types + IPC state.json path + pnpm check + drag region`
+
+---
+
 ## 📅 2026-03-18 - TRIX Native Channel `running` 状态修复
 
 ### 背景

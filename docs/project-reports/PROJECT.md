@@ -82,7 +82,8 @@ trix-3d-companion/
 │   ├── services/                 # 业务服务层 (12个)
 │   │   ├── databaseService.ts    # 数据库操作
 │   │   ├── ClawbotChannelBridge.ts    # Bot 通信桥
-│   │   ├── clawbotPairingService.ts   # 配对服务
+│   │   ├── clawbotPairingService.ts ~~# 配对服务~~ ⚠️ 已删除，使用 TrixNativeChannelClient
+│   │   ├── TrixNativeChannelClient.ts # TRIX Native Channel 配对客户端
 │   │   ├── ttsService.ts         # TTS 服务
 │   │   ├── voicePlaybackService.ts    # 语音播放
 │   │   ├── pointsService.ts      # 积分服务

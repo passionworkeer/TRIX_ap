@@ -150,8 +150,8 @@ src/
 │   └── wardrobe/                  # 衣柜模块
 │
 ├── services/                       # 业务服务层
-│   ├── ClawbotChannelBridge.ts   # WebSocket 通信
-│   ├── clawbotPairingService.ts  # 设备配对
+│   ├── TrixNativeChannelClient.ts # TRIX Native Channel 配对客户端
+│   ├── ClawbotChannelBridge.ts   # WebSocket 通信（遗留）
 │   ├── chatService.ts            # 聊天服务
 │   ├── friendService.ts           # 好友服务
 │   ├── notificationService.ts    # 通知服务

@@ -1,395 +1,339 @@
-# 📱 TRIX 3D - Clawbot 扫码配对完整指南
+# TRIX Native Channel 扫码配对完整指南
 
-## ✅ 已完成的功能
+> **适用**: Web、iOS、Windows 桌面端
+> **最后更新**: 2026-03-19
+> **配对协议**: `trix-openclaw-native` v0.1.0
 
-### 1. **相机扫码组件** (`src/components/QRScanner.tsx`)
-- ✅ 使用 `html5-qrcode` 库实现
-- ✅ 支持自动对焦和连续扫描
-- ✅ 精美的扫描界面和动画效果
-- ✅ 相机权限检测和错误提示
-- ✅ 扫描成功后自动关闭
-
-### 2. **配对页面增强** (`src/screens/QRCodePairing.tsx`)
-- ✅ 集成相机扫描功能
-- ✅ 支持两种配对方式：
-  - 📷 扫描二维码（推荐）
-  - ⌨️ 手动输入配对码
-- ✅ 实时显示配对状态
-- ✅ 配对成功自动保存 token
-
-### 3. **聊天界面集成** (`src/screens/Chat.tsx`)
-- ✅ Clawbot 机器人显示在列表最顶部
-- ✅ 实时显示连接状态：
-  - 🟢 **已连接** - 绿色圆点 + "AI 助手已就绪"
-  - 🔴 **未连接** - 灰色圆点 + "点击扫码配对"
-- ✅ 点击行为：
-  - 未连接 → 跳转到扫码配对页面
-  - 已连接 → 进入聊天界面
+本文档说明如何使用 QR 码在三个平台上完成 TRIX Native Channel 配对。
 
 ---
 
-## 🎯 使用流程
+## 一、概述
 
-### 第一步：电脑端启动 Clawbot Gateway
+TRIX Native Channel 配对采用统一的 **QR URL 格式**，由桌面端生成 QR，移动端扫码完成配对。
+
+### 配对 QR 格式
+
+```
+http://127.0.0.1:8788/pair?code=ABCDEF12&secret=random-token
+```
+
+- `code`: 8 位大写字母数字配对码
+- `secret`: 随机密钥（18位）
+- 默认有效期：**1 小时**
+
+### 三端角色
+
+| 端 | 角色 | 说明 |
+|----|------|------|
+| Windows 桌面 | QR 生成方 | 生成并显示配对 QR |
+| iOS | 扫码方 | 扫描 QR，完成配对 |
+| Web | 扫码方 | 扫描 QR，完成配对 |
+
+---
+
+## 二、Windows 桌面端生成 QR
+
+### 方式 1：Float 悬浮窗（推荐）
+
+**文件**: `desktop/src/renderer/float.tsx`
+
+Float 悬浮窗是桌面端的小型始终置顶窗口，显示机器人状态。
+
+1. 启动桌面应用（`npm run dev:desktop`）
+2. Float 窗口右下角显示 `🤖 待机`
+3. 点击 **📱 显示配对 QR** 按钮
+4. 底部面板弹出 QR 码
+5. 手机扫描 QR 码完成配对
+6. 配对成功后，QR 面板 3 秒后自动关闭
+
+**UI 布局**：
+
+```
+┌─────────────────────┐
+│                     │
+│    [机器人动画]     │  ← FloatHeroBackground
+│                     │
+│   ┌─────────────┐   │
+│   │ 🤖 待机    │   │  ← 状态指示器
+│   │ 📱 显示配对 QR │ ← 按钮
+│   └─────────────┘   │
+└─────────────────────┘
+         ↓ 点击后
+┌─────────────────────┐
+│                     │
+│    [机器人动画]     │
+│                     │
+│   ┌─────────────┐   │
+│   │ 🤖 待机    │   │
+│   │ 关闭按钮 ✕   │   │
+│   │ 用手机扫码配对 │   │
+│   │ ┌─────────┐ │   │
+│   │ │ [QR码]  │ │   │  ← base64 PNG
+│   │ └─────────┘ │   │
+│   │  ABCDEF12    │   │  ← 配对码
+│   │ ⏳ 等待配对   │   │  ← 轮询状态
+│   └─────────────┘   │
+└─────────────────────┘
+```
+
+### 方式 2：Gateway CLI
 
 ```bash
-# 1. 安装 OpenClaw (macOS)
-brew install openclaw
+# 在运行 Gateway 的机器上执行
+openclaw trix setup
+```
 
-# 2. 创建配置文件 ~/.openclaw/openclaw.json
-{
-  "gateway": {
-    "mode": "local",
-    "port": 18789,
-    "bind": "0.0.0.0",
-    "auth": {
-      "mode": "token",
-      "token": "REDACTED_CLAWBOT_GATEWAY_TOKEN"
-    }
-  },
-  "channels": {
-    "webchat": {
-      "enabled": true,
-      "pairing": {
-        "enabled": true,
-        "approvalMode": "manual",
-        "qrCodeEnabled": true,
-        "supabaseUrl": "https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co",
-        "supabaseKey": "你的 Supabase Anon Key"
-      }
-    }
-  }
+### 方式 3：HTTP API
+
+```bash
+curl -X POST http://127.0.0.1:18789/api/pairings \
+  -H "Content-Type: application/json" \
+  -H "x-trix-admin-token: <adminToken>" \
+  -d '{"label": "Desktop Float Window"}'
+```
+
+### 技术实现
+
+**文件**: `desktop/src/main/ipc.ts`
+
+```
+float.tsx                    ipc.ts                    Gateway
+   │                           │                         │
+   │ createPairingQr()         │                         │
+   │ ─────────────────────────►│                         │
+   │                           │ GET adminToken           │
+   │                           │ from state.json          │
+   │                           │ POST /api/pairings       │
+   │                           │ ───────────────────────►│
+   │                           │  { qrDataUrl, code }    │
+   │                           │ ◄───────────────────────│
+   │  { qrDataUrl, code }      │                         │
+   │ ◄─────────────────────────│                         │
+   │                           │                         │
+   │ pollPairingStatus(code)   │                         │
+   │ ─────────────────────────►│ GET /api/pairings/:code│
+   │                           │ ───────────────────────►│
+   │  { status: "pending" }     │                         │
+   │ ◄─────────────────────────│                         │
+   │    (每 2 秒重复一次)       │                         │
+```
+
+**状态存储路径**（统一）：
+```
+{userData}/state.json
+```
+Gateway 和 IPC handler 使用同一目录，确保 adminToken 可访问。
+
+---
+
+## 三、iOS 端扫码配对
+
+### 操作步骤
+
+1. 打开 TRIX iOS App
+2. 进入 **Clawbot** 聊天
+3. 点击右上角扫码图标
+4. 对准桌面端 QR 码
+5. 扫描成功 → 自动配对
+6. 配对成功后显示确认
+
+### 支持的 QR 格式
+
+| 格式 | 示例 | 支持 |
+|------|------|------|
+| URL 格式 | `http://host/pair?code=XXX&secret=YYY` | ✅ |
+| JSON 格式 | `{"code":"XXX","secret":"YYY"}` | ✅ |
+| 纯配对码 | `ABCDEF12` | ✅ |
+| 复合码 | `ABCDEF12:SECRET` | ✅ |
+
+### 核心文件
+
+**QR 扫描**: `ios/TRIX3DCompanion/Features/Pairing/Views/QRScannerView.swift`
+
+**配对 ViewModel**: `ios/TRIX3DCompanion/App/ClawbotChannelViewModel.swift`
+
+```swift
+// 扫码后配对
+try await viewModel.pairWithQR(qrContent)
+
+// 或手动输入配对码
+try await viewModel.pairWithCode("ABCDEF12")
+```
+
+### 解析逻辑（`parseQRData()`）
+
+```swift
+// 1. URL 格式 (http://host/pair?code=XXX&secret=YYY)
+if normalized.hasPrefix("http://") || normalized.hasPrefix("https://") {
+    let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    let code = components.queryItems?.first(where: { $0.name == "code" })?.value
+    let secret = components.queryItems?.first(where: { $0.name == "secret" })?.value
+    let serverUrl = "\(url.scheme ?? "http")://\(url.host ?? "")"
 }
 
-# 3. 启动 Gateway
-openclaw gateway
+// 2. JSON 格式
+if let data = raw.data(using: .utf8),
+   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+    // { "code": "...", "secret": "...", "serverUrl": "..." }
+}
 
-# 4. 进入配对模式（Gateway 会生成二维码）
-# 在 Gateway 界面点击 "Pairing Mode" 或使用命令
-openclaw pair
-```
-
----
-
-### 第二步：手机端扫码配对
-
-#### 方式 A：从聊天界面配对（推荐）
-
-1. **打开 TRIX App**
-2. **进入"Chat"标签页**
-3. **找到顶部的 Clawbot 机器人**
-   - 显示状态："未连接"（橙色标签）
-   - 右侧图标：扫描图标
-4. **点击 Clawbot**
-   - 自动跳转到配对页面
-5. **点击"扫描二维码配对"按钮**
-   - 允许相机权限
-   - 将手机对准电脑屏幕上的二维码
-6. **扫描成功！**
-   - 自动开始配对流程
-   - 等待电脑端审批（最多 6 分钟）
-7. **电脑端点击"允许"**
-8. **配对完成！**
-   - 手机显示"配对成功"
-   - 自动跳转到首页
-   - 返回 Chat 页面，Clawbot 显示"已连接"
-
-#### 方式 B：手动输入配对码
-
-如果相机不可用或扫描失败：
-
-1. 在配对页面点击"手动输入配对码"
-2. 从电脑端复制 JSON 格式的配对码
-3. 粘贴到输入框
-4. 点击"使用配对码连接"
-
----
-
-## 🎨 界面截图说明
-
-### Chat 页面 - Clawbot 未连接
-
-```
-┌────────────────────────────────┐
-│         Chat                   │
-│  ┌──────────────────────────┐  │
-│  │ 🔍 搜索                  │  │
-│  └──────────────────────────┘  │
-│                                │
-│  ┌──────────────────────────┐  │
-│  │ 🧙 Clawbot [未连接]     📷│  │  ← 点击跳转到配对
-│  │    🔴 点击扫码配对        │  │
-│  └──────────────────────────┘  │
-│  ────────── Friends ──────────  │
-│  │ 👤 Alice                 💬│  │
-│  │ 👤 Bob                   📸│  │
-└────────────────────────────────┘
-```
-
-### Chat 页面 - Clawbot 已连接
-
-```
-┌────────────────────────────────┐
-│         Chat                   │
-│  ┌──────────────────────────┐  │
-│  │ 🔍 搜索                  │  │
-│  └──────────────────────────┘  │
-│                                │
-│  ┌──────────────────────────┐  │
-│  │ 🧙 Clawbot              📷│  │  ← 点击进入聊天
-│  │    🟢 AI 助手已就绪      │  │
-│  └──────────────────────────┘  │
-│  ────────── Friends ──────────  │
-│  │ 👤 Alice                 💬│  │
-│  │ 👤 Bob                   📸│  │
-└────────────────────────────────┘
-```
-
-### 扫码配对页面
-
-```
-┌────────────────────────────────┐
-│  ← Clawbot 配对               │
-├────────────────────────────────┤
-│                                │
-│        📡                      │
-│    连接到 Clawbot              │
-│  扫描二维码或手动输入配对码    │
-│                                │
-│  ┌──────────────────────────┐  │
-│  │ 设备名称（可选）          │  │
-│  │ [TRIX-Windows]            │  │
-│  └──────────────────────────┘  │
-│                                │
-│  ┌──────────────────────────┐  │
-│  │  📷 扫描二维码配对       │  │ ← 点击打开相机
-│  └──────────────────────────┘  │
-│                                │
-│      手动输入配对码 ▼          │
-│                                │
-└────────────────────────────────┘
-```
-
-### 相机扫描界面
-
-```
-┌────────────────────────────────┐
-│  📷 扫描二维码            ✕   │
-├────────────────────────────────┤
-│                                │
-│   ┌────────────────────┐      │
-│   │                    │      │
-│   │   [相机画面]       │      │
-│   │                    │      │
-│   │   ┌──────────┐     │      │
-│   │   │          │     │      │
-│   │   │   扫描框 │     │      │
-│   │   │          │     │      │
-│   │   └──────────┘     │      │
-│   │                    │      │
-│   └────────────────────┘      │
-│                                │
-│  将二维码对准扫描框            │
-│  保持距离适中，确保二维码清晰  │
-│                                │
-└────────────────────────────────┘
-```
-
----
-
-## 📝 技术实现细节
-
-### 扫描器配置
-
-```typescript
-// QRScanner.tsx
-const scanner = new Html5Qrcode('qr-reader');
-
-await scanner.start(
-  { facingMode: 'environment' }, // 后置摄像头
-  {
-    fps: 10, // 每秒扫描 10 帧
-    qrbox: { width: 250, height: 250 }, // 扫描框大小
-  },
-  onScanSuccess, // 扫描成功回调
-  onScanError    // 扫描失败回调（可忽略）
-);
-```
-
-### 连接状态管理
-
-```typescript
-// Chat.tsx
-const [isClawbotConnected, setIsClawbotConnected] = useState(false);
-
-useEffect(() => {
-  const token = localStorage.getItem('clawbot_device_token');
-  setIsClawbotConnected(!!token);
-}, []);
-```
-
-### 扫描成功处理
-
-```typescript
-// QRCodePairing.tsx
-const handleScanSuccess = async (decodedText: string) => {
-  // 1. 解析二维码内容
-  const qrData = JSON.parse(decodedText);
-  
-  // 2. 保存配对信息
-  localStorage.setItem('clawbot_gateway_url', qrData.gatewayUrl);
-  localStorage.setItem('clawbot_pairing_token', qrData.pairingToken);
-  
-  // 3. 开始配对流程
-  await startPairing(deviceName);
-};
-```
-
----
-
-## 🔧 电脑端 Gateway 需要返回的二维码格式
-
-```json
-{
-  "gatewayUrl": "ws://192.168.1.100:18789",
-  "pairingToken": "REDACTED_CLAWBOT_GATEWAY_TOKEN",
-  "requestId": "trix-1676543210-abc123",
-  "expiresAt": "2026-02-12T12:00:00Z"
+// 3. 纯配对码
+if code.count == 8, code.allSatisfy({ $0.isLetter || $0.isNumber }) {
+    // 纯配对码
 }
 ```
 
 ---
 
-## 🐛 常见问题
+## 四、Web 端扫码配对
 
-### 1. **相机无法启动**
+### 操作步骤
 
-**问题:** 点击"扫描二维码配对"后显示"相机权限被拒绝"
+1. 打开 TRIX Web 应用
+2. 进入配对页面（`/pairing`）
+3. 点击扫码按钮
+4. 对准桌面端 QR 码
+5. 扫描成功 → 自动完成配对
 
-**解决:**
-1. 点击浏览器地址栏的锁图标
-2. 找到"相机"权限
-3. 选择"允许"
-4. 刷新页面重试
+### 核心文件
 
-**Chrome:**
-```
-chrome://settings/content/camera
-```
+**客户端**: `src/services/TrixNativeChannelClient.ts`
 
-**Safari (iOS):**
-```
-设置 → Safari → 相机 → 允许
-```
+```typescript
+// 扫码后配对
+await client.pairWithQR('http://host/pair?code=XXX&secret=YYY');
 
-### 2. **扫描不出二维码**
-
-**问题:** 相机正常打开，但扫描不出二维码
-
-**解决:**
-1. 确保电脑屏幕亮度足够
-2. 保持距离适中（15-30cm）
-3. 避免反光和抖动
-4. 尝试调整角度
-5. 如果还是不行，使用"手动输入配对码"
-
-### 3. **配对超时**
-
-**问题:** 显示"等待电脑端审批..."超过 6 分钟
-
-**解决:**
-1. 检查电脑端 Gateway 是否正常运行
-2. 检查 Supabase 数据库连接
-3. 查看电脑端是否弹出审批界面
-4. 重新扫码配对
-
-### 4. **Clawbot 显示未连接，但之前配对过**
-
-**问题:** token 丢失或过期
-
-**解决:**
-```javascript
-// 清除旧 token，重新配对
-localStorage.removeItem('clawbot_device_token');
-localStorage.removeItem('clawbot_gateway_url');
-localStorage.removeItem('clawbot_pairing_token');
-
-// 重新扫码配对
+// 手动输入配对码
+await client.pairWithCode('ABCDEF12');
 ```
 
 ---
 
-## 📊 配对流程时序图
+## 五、配对流程时序图
 
 ```
-手机端                   Supabase               电脑端 Gateway
-  │                         │                         │
-  │  1. 点击"扫码配对"     │                         │
-  │─────────────────────────>│                         │
-  │                         │                         │
-  │  2. 扫描二维码          │                         │
-  │  (获取 gatewayUrl 等)  │                         │
-  │                         │                         │
-  │  3. 插入配对请求        │                         │
-  │─────────────────────────>│                         │
-  │     INSERT pairing_     │                         │
-  │     requests (pending)  │                         │
-  │                         │                         │
-  │                         │  4. 轮询检测新请求      │
-  │                         │<────────────────────────│
-  │                         │    SELECT * WHERE       │
-  │                         │    status='pending'     │
-  │                         │                         │
-  │                         │  5. 显示审批界面        │
-  │                         │    [允许] [拒绝]        │
-  │                         │                         │
-  │                         │  6. 用户点击[允许]      │
-  │                         │                         │
-  │                         │  7. 更新状态+生成token  │
-  │                         │<────────────────────────│
-  │                         │    UPDATE pairing_      │
-  │                         │    SET status='approved'│
-  │                         │    device_token='xxx'   │
-  │                         │                         │
-  │  8. 轮询检测到审批      │                         │
-  │<─────────────────────────│                         │
-  │    SELECT * WHERE       │                         │
-  │    status='approved'    │                         │
-  │                         │                         │
-  │  9. 保存 token          │                         │
-  │  localStorage.setItem() │                         │
-  │                         │                         │
-  │  10. 显示"配对成功"     │                         │
-  │  跳转到首页             │                         │
-  │                         │                         │
-  │  11. 建立 WebSocket 连接│                         │
-  │─────────────────────────┼────────────────────────>│
-  │    ws://...?token=xxx   │                         │
-  │                         │                         │
-  │  ✅ 配对完成！          │                         │
-  └─────────────────────────┴─────────────────────────┘
+桌面端                      手机端                      Gateway
+  │                           │                           │
+  │  1. 点击"显示配对 QR"     │                           │
+  │  generatePairingCode()    │                           │
+  │──────────────────────────►│                           │
+  │                           │  POST /api/pairings        │
+  │                           │──────────────────────────►│
+  │                           │  { code, qrDataUrl }       │
+  │                           │◄──────────────────────────│
+  │  2. 显示 QR 码            │                           │
+  │  ◄─────────────────────────│                           │
+  │                           │                           │
+  │  3. 扫描 QR 码            │                           │
+  │───────────────────────────►│                           │
+  │                           │  POST /api/pairings/:code/claim
+  │                           │──────────────────────────►│
+  │                           │  { clientToken, conversationId }
+  │                           │◄──────────────────────────│
+  │                           │  4. 保存 session          │
+  │                           │───────────────────────────│
+  │                           │  WebSocket.connect()       │
+  │                           │──────────────────────────►│
+  │                           │                           │
+  │  5. 轮询状态 (每2s)        │                           │
+  │──────────────────────────►│                           │
+  │  GET /api/pairings/:code  │                           │
+  │──────────────────────────►│──────────────────────────►│
+  │  { status: "pending" }    │                           │
+  │◄──────────────────────────│◄──────────────────────────│
+  │     (重复直到 paired)      │                           │
+  │                           │                           │
+  │  6. status = "paired"     │                           │
+  │  7. 配对成功，关闭面板     │                           │
 ```
 
 ---
 
-## 🎉 下一步
+## 六、解绑（取消配对）
 
-现在你可以：
+### iOS 端
 
-1. **配置电脑端 Gateway**
-   - 安装 OpenClaw
-   - 创建配置文件
-   - 启动 Gateway
+```swift
+// 断开连接
+viewModel.disconnectRelay()
 
-2. **配置 Supabase**
-   - 执行 `database/add-pairing-requests-table.sql`
+// 完全解除配对
+viewModel.unpair()
+```
 
-3. **测试配对**
-   - 打开 TRIX App
-   - 进入 Chat 页面
-   - 点击 Clawbot
-   - 扫码配对！
+### Web 端
+
+```typescript
+// 断开 WebSocket
+client.disconnect()
+
+// 清除本地存储
+localStorage.removeItem('trix_native_channel_session')
+```
+
+详细说明见 [UNPAIR_FEATURE_GUIDE.md](./UNPAIR_FEATURE_GUIDE.md)。
 
 ---
 
-**完成！享受 AI 助手吧！** 🎊
+## 七、常见问题
+
+### 1. QR 码无法扫描
+
+**原因**：
+- 屏幕亮度不够
+- 距离太远或太近
+- QR 码部分被遮挡
+
+**解决**：
+- 提高屏幕亮度
+- 保持 15-30cm 距离
+- 尝试手动输入配对码
+
+### 2. 配对超时
+
+**原因**：配对码过期（默认 1 小时）
+
+**解决**：在桌面端重新生成 QR
+
+### 3. 配对后无法发消息
+
+**原因**：
+- WebSocket 未连接
+- clientToken 失效
+
+**解决**：
+- 重启 App/Web
+- 确认 Gateway 正在运行
+- 取消配对后重新扫码
+
+### 4. Float 窗口按钮无法点击
+
+**原因**：CSS `-webkit-app-region: drag` 阻止了按钮点击
+
+**解决**（已修复）：
+- 按钮已添加 `-webkit-app-region: no-drag` CSS
+- 如遇此问题，请确认使用最新版本
+
+### 5. 桌面端无法生成 QR
+
+**原因**：
+- Gateway 未运行
+- adminToken 不可读
+
+**解决**：
+- 检查 `curl http://127.0.0.1:18789/health`
+- 重启桌面应用
+
+---
+
+## 八、相关文档
+
+- [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md) — Native Channel 完整协议
+- [openclaw_reference.md](../openclaw_reference.md) — OpenClaw 插件规范
+- [UNPAIR_FEATURE_GUIDE.md](./UNPAIR_FEATURE_GUIDE.md) — 解绑功能
+- [PAIRING_INPUT_GUIDE.md](./PAIRING_INPUT_GUIDE.md) — 配对码输入
+
+---
+
+**最后更新**: 2026-03-19

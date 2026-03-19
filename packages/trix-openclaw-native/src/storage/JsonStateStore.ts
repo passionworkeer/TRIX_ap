@@ -4,6 +4,7 @@ import type { NativeChannelState } from '../types.js';
 
 const DEFAULT_STATE: NativeChannelState = {
   adminToken: '',
+  serviceTokens: {},
   pairings: [],
   conversations: [],
   messages: [],
@@ -33,6 +34,7 @@ export class JsonStateStore {
     const parsed = JSON.parse(raw) as Partial<NativeChannelState>;
     return {
       adminToken: parsed.adminToken ?? '',
+      serviceTokens: parsed.serviceTokens ?? {},
       pairings: parsed.pairings ?? [],
       conversations: parsed.conversations ?? [],
       messages: parsed.messages ?? [],

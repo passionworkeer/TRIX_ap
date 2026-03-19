@@ -30,6 +30,7 @@ export interface AttachmentInput {
 export interface PairingRecord {
   code: string;
   secret: string;
+  accountId: string;
   label?: string;
   createdAt: number;
   expiresAt: number;
@@ -40,27 +41,35 @@ export interface PairingRecord {
   pairedAt?: number;
   pairedClientId?: string;
   pairedDeviceName?: string;
+  peerId?: string;
   clientToken?: string;
+}
+
+export interface ConversationParticipant {
+  clientId: string;
+  peerId: string;
+  deviceName?: string;
+  role: 'user' | 'service';
+  clientToken?: string;
+  connectedAt?: number;
+  lastSeenAt?: number;
 }
 
 export interface ConversationRecord {
   id: string;
+  accountId: string;
+  peerId: string;
+  peerDisplayName?: string;
   createdAt: number;
   updatedAt: number;
   pairingCode: string;
   openClawSessionKey?: string;
-  participants: Array<{
-    clientId: string;
-    deviceName?: string;
-    role: 'user' | 'agent';
-    clientToken?: string;
-    connectedAt?: number;
-    lastSeenAt?: number;
-  }>;
+  participants: ConversationParticipant[];
 }
 
 export interface MessageRecord {
   id: string;
+  accountId: string;
   conversationId: string;
   direction: 'inbound' | 'outbound' | 'system';
   text: string;
@@ -68,11 +77,13 @@ export interface MessageRecord {
   senderId: string;
   senderName?: string;
   createdAt: number;
+  replyToMessageId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
 export interface NativeChannelState {
   adminToken: string;
+  serviceTokens: Record<string, string>;
   pairings: PairingRecord[];
   conversations: ConversationRecord[];
   messages: MessageRecord[];
@@ -81,6 +92,7 @@ export interface NativeChannelState {
 }
 
 export interface PairingCreateInput {
+  accountId?: string;
   label?: string;
   ttlMs?: number;
   publicBaseUrl: string;
@@ -115,19 +127,49 @@ export interface PairingCreatedResponse extends PairingRecord {
 export interface PairingClaimResponse {
   conversationId: string;
   clientToken: string;
+  peerId: string;
   websocketUrl: string;
+  wsUrl: string;
+  uploadUrl: string;
+  messagesUrl: string;
   serverUrl?: string;
   pairing: PairingRecord;
   agentOnline?: boolean;
 }
 
+export interface UserCreateMessageInput {
+  conversationId: string;
+  clientToken: string;
+  text?: string;
+  localId?: string;
+  replyToMessageId?: string | null;
+  attachments?: AttachmentInput[];
+  uploadedAttachmentIds?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface ServiceMessagePayload {
+  idempotencyKey?: string;
+  text?: string;
+  replyToMessageId?: string | null;
+  attachments?: AttachmentInput[];
+}
+
+export interface ServiceCreateMessageInput {
+  accountId?: string;
+  conversationId: string;
+  message: ServiceMessagePayload;
+}
+
 export interface CreateMessageInput {
+  accountId?: string;
   conversationId: string;
   clientToken?: string;
   text?: string;
   senderId: string;
   senderName?: string;
   direction: 'inbound' | 'outbound' | 'system';
+  replyToMessageId?: string | null;
   attachments?: AttachmentInput[];
   uploadedAttachmentIds?: string[];
   metadata?: Record<string, unknown>;
@@ -141,10 +183,12 @@ export interface PluginAccountConfig {
   accountId: string;
   enabled: boolean;
   name: string;
-  serverUrl: string;
+  serviceUrl?: string;
+  serverUrl?: string;
   publicBaseUrl?: string;
-  adminToken: string;
+  adminToken?: string;
   serviceToken?: string;
+  transport?: 'ws' | 'http';
   storageDir?: string;
 }
 
@@ -153,10 +197,11 @@ export interface ResolvedPluginAccount {
   enabled: boolean;
   configured: boolean;
   name: string;
-  serverUrl: string;
+  serviceUrl: string;
   publicBaseUrl?: string;
   adminToken?: string;
   serviceToken?: string;
+  transport: 'ws' | 'http';
   storageDir: string;
 }
 
