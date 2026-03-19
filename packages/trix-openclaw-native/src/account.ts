@@ -87,6 +87,23 @@ export function resolveTrixAccount(params: { cfg: TrixConfigInput; accountId?: s
   };
 }
 
+export function inspectTrixAccount(params: { cfg: TrixConfigInput; accountId?: string | null }) {
+  const account = resolveTrixAccount(params);
+  const tokenPresent = Boolean(account.serviceToken?.trim());
+
+  return {
+    accountId: account.accountId,
+    enabled: account.enabled,
+    configured: account.configured,
+    name: account.name,
+    serviceUrl: account.serviceUrl || null,
+    publicBaseUrl: account.publicBaseUrl ?? null,
+    transport: account.transport,
+    serviceTokenStatus: tokenPresent ? 'available' : 'missing',
+    serviceTokenSource: tokenPresent ? 'config' : 'unset',
+  };
+}
+
 export function resolveRegisteredTrixAccount(accountId?: string | null): ResolvedPluginAccount {
   return resolveTrixAccount({ cfg: getRegisteredTrixConfig(), accountId });
 }

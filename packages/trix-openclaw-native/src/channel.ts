@@ -1,5 +1,5 @@
 import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
-import { applyTrixAccountConfig, listTrixAccountIds, resolveDefaultTrixAccountId, resolveRegisteredTrixAccount, resolveTrixAccount } from './account.js';
+import { applyTrixAccountConfig, inspectTrixAccount, listTrixAccountIds, resolveDefaultTrixAccountId, resolveRegisteredTrixAccount, resolveTrixAccount } from './account.js';
 import { looksLikeTrixTarget, normalizeTrixTarget } from './bindings.js';
 import { monitorTrixProvider } from './monitor.js';
 import { trixOutbound } from './outbound.js';
@@ -132,6 +132,7 @@ export const trixPlugin: ChannelPlugin = {
   config: {
     listAccountIds: (cfg) => listTrixAccountIds(cfg),
     resolveAccount: (cfg, accountId) => resolveTrixAccount({ cfg, accountId }),
+    inspectAccount: (cfg, accountId) => inspectTrixAccount({ cfg, accountId }),
     defaultAccountId: (cfg) => resolveDefaultTrixAccountId(cfg),
     isEnabled: (account) => account.enabled,
     isConfigured: (account) => account.configured,

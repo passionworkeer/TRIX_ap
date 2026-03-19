@@ -99,6 +99,7 @@ export async function monitorTrixProvider(opts: {
         running: true,
         transport: account.transport,
         lastConnectedAt: Date.now(),
+        lastError: null,
       });
     });
 
@@ -205,6 +206,7 @@ export async function monitorTrixProvider(opts: {
           running: true,
           lastInboundAt: Date.now(),
           lastEventAt: Date.now(),
+          lastError: null,
         });
       } catch {
         opts.statusSink?.({
@@ -249,4 +251,3 @@ export async function monitorTrixProvider(opts: {
 
   await connect();
 }
-

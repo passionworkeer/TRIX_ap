@@ -1,5 +1,5 @@
 {
-  "name": "@trix-app/openclaw-native-channel",
+  "name": "@trix-app/trix-native",
   "version": "0.1.0",
   "description": "TRIX Service-backed OpenClaw native channel plugin with pairing, QR onboarding, and persistent conversations",
   "type": "module",
@@ -59,7 +59,7 @@
       "aliases": ["trix"]
     },
     "install": {
-      "npmSpec": "@trix-app/openclaw-native-channel",
+      "npmSpec": "@trix-app/trix-native",
       "localPath": "extensions/trix-native",
       "defaultChoice": "npm"
     }

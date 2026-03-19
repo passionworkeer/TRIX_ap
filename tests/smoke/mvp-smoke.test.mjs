@@ -145,7 +145,7 @@ test('TRIX Native Server package should be properly configured', () => {
 
   if (hasPackage) {
     const pkg = JSON.parse(read(packagePath));
-    assert.equal(pkg.name, '@trix-app/openclaw-native-channel', 'Package should have correct name');
+    assert.equal(pkg.name, '@trix-app/trix-native', 'Package should have correct name');
     assert.equal(pkg.keywords?.includes('openclaw'), true, 'Package should have openclaw keyword');
   }
 });
