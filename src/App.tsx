@@ -8,7 +8,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AppRoutes } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
-import { QRCodePairingProvider } from './contexts/QRCodePairingContext';
 import { useNotification } from './hooks/useNotification';
 import { useImmersiveVoice } from './hooks/useImmersiveVoice';
 import { ResourcePreloader } from './hooks/useResourcePreloader';
@@ -210,16 +209,7 @@ function AppContent() {
               <Route path={AppRoutes.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path={AppRoutes.PAIRING} element={<ProtectedRoute><Pairing /></ProtectedRoute>} />
-              <Route
-                path={AppRoutes.QR_PAIRING}
-                element={
-                  <ProtectedRoute>
-                    <QRCodePairingProvider>
-                      <QRCodePairing />
-                    </QRCodePairingProvider>
-                  </ProtectedRoute>
-                }
-              />
+              <Route path={AppRoutes.QR_PAIRING} element={<ProtectedRoute><QRCodePairing /></ProtectedRoute>} />
               <Route path={AppRoutes.MAP} element={<ProtectedRoute><SnapMapScreen /></ProtectedRoute>} />
               <Route path="/snapmap" element={<Navigate to={AppRoutes.MAP} replace />} />
               <Route path={AppRoutes.DIAGNOSTIC} element={<ProtectedRoute><Diagnostic /></ProtectedRoute>} />

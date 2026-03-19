@@ -20,9 +20,25 @@ interface FileAttachmentCardProps {
   className?: string;
 }
 
+const ALLOWED_ATTACHMENT_PROTOCOLS = new Set(['http:', 'https:', 'blob:']);
+
+export function isSafeAttachmentUri(uri: string): boolean {
+  if (typeof uri !== 'string' || uri.trim().length === 0) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(uri, window.location.origin);
+    return ALLOWED_ATTACHMENT_PROTOCOLS.has(parsedUrl.protocol);
+  } catch (error) {
+    logger.debug('FileAttachmentCard', 'Failed to validate attachment URL:', error);
+    return false;
+  }
+}
+
 function inferFileName(uri: string): string {
   try {
-    const parsedUrl = new URL(uri);
+    const parsedUrl = new URL(uri, window.location.origin);
     const lastSegment = parsedUrl.pathname.split('/').filter(Boolean).pop();
     return decodeURIComponent(lastSegment || '附件');
   } catch (error) {
@@ -90,15 +106,11 @@ const FileAttachmentCard: React.FC<FileAttachmentCardProps> = ({
   const resolvedFileName = fileName || inferFileName(uri);
   const Icon = getAttachmentIcon(mimeType);
   const metaLine = buildMetaLine(mimeType, size);
+  const isSafeUri = isSafeAttachmentUri(uri);
+  const cardClassName = `group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/90 dark:hover:border-slate-600 dark:hover:bg-slate-800 ${className}`;
 
-  return (
-    <a
-      href={uri}
-      target="_blank"
-      rel="noreferrer"
-      download={resolvedFileName}
-      className={`group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/90 dark:hover:border-slate-600 dark:hover:bg-slate-800 ${className}`}
-    >
+  const content = (
+    <>
       <div className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200 ${compact ? 'h-10 w-10' : 'h-12 w-12'}`}>
         <Icon size={compact ? 18 : 20} />
       </div>
@@ -115,6 +127,32 @@ const FileAttachmentCard: React.FC<FileAttachmentCardProps> = ({
       <div className="shrink-0 text-slate-400 transition group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300">
         <Download size={compact ? 16 : 18} />
       </div>
+    </>
+  );
+
+  if (!isSafeUri) {
+    logger.warn('FileAttachmentCard', 'Blocked unsafe attachment URL', { uri });
+
+    return (
+      <div
+        role="group"
+        aria-disabled="true"
+        className={`${cardClassName} cursor-not-allowed opacity-70`}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={uri}
+      target="_blank"
+      rel="noreferrer"
+      download={resolvedFileName}
+      className={cardClassName}
+    >
+      {content}
     </a>
   );
 };

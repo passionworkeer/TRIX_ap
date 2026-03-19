@@ -73,6 +73,10 @@ export class PairingService {
     let claimedPairing: PairingRecord | undefined;
     const clientToken = randomToken(20);
 
+    if (!input.secret?.trim()) {
+      throw new Error('Pairing secret required');
+    }
+
     await this.store.update((state) => {
       const pairings = state.pairings.map((entry) => {
         if (entry.code !== normalized) {
@@ -82,7 +86,7 @@ export class PairingService {
         if (entry.expiresAt <= Date.now()) {
           throw new Error('Pairing code expired');
         }
-        if (input.secret && entry.secret !== input.secret) {
+        if (entry.secret !== input.secret) {
           throw new Error('Invalid pairing secret');
         }
 

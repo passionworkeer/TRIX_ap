@@ -471,44 +471,72 @@ CREATE POLICY "Schedules can be updated by owner" ON schedules FOR UPDATE USING 
 CREATE POLICY "Schedules can be deleted by owner" ON schedules FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
--- 14. 创建 RLS 策略（允许所有操作，后续可以根据需求细化）
+-- 14. 创建 RLS 策略（按用户身份限制访问）
 -- ============================================
 
 -- Users 表策略
-CREATE POLICY "Users are viewable by everyone" ON users FOR SELECT USING (true);
-CREATE POLICY "Users can update own data" ON users FOR UPDATE USING (true);
+CREATE POLICY "Users can view own data" ON users FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own data" ON users
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Friends 表策略
-CREATE POLICY "Friends are viewable by everyone" ON friends FOR SELECT USING (true);
-CREATE POLICY "Friends can be managed by owner" ON friends FOR ALL USING (true);
+CREATE POLICY "Friends can view own friends" ON friends
+  FOR SELECT USING (auth.uid() = user_id OR auth.uid() = friend_id);
+CREATE POLICY "Friends can insert own" ON friends
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Friends can update own" ON friends
+  FOR UPDATE USING (auth.uid() = user_id OR auth.uid() = friend_id);
+CREATE POLICY "Friends can delete own" ON friends
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- Chat messages 表策略
-CREATE POLICY "Chat messages are viewable by everyone" ON chat_messages FOR SELECT USING (true);
-CREATE POLICY "Chat messages can be created by anyone" ON chat_messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Chat messages can view by participants" ON chat_messages
+  FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Chat messages can insert by sender" ON chat_messages
+  FOR INSERT WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Chat messages can update by participants" ON chat_messages
+  FOR UPDATE USING (auth.uid() = sender_id OR auth.uid() = receiver_id)
+  WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Chat messages can delete by sender" ON chat_messages
+  FOR DELETE USING (auth.uid() = sender_id);
 
 -- Unread counts 表策略
-CREATE POLICY "Unread counts are viewable by everyone" ON unread_counts FOR SELECT USING (true);
-CREATE POLICY "Unread counts can be managed by anyone" ON unread_counts FOR ALL USING (true);
+CREATE POLICY "Unread counts can view by owner" ON unread_counts
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Unread counts can manage by owner" ON unread_counts
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Notifications 表策略
-CREATE POLICY "Notifications are viewable by owner" ON notifications FOR SELECT USING (true);
-CREATE POLICY "Notifications can be managed by anyone" ON notifications FOR ALL USING (true);
+CREATE POLICY "Notifications can view by owner" ON notifications
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Notifications can manage by owner" ON notifications
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Mails 表策略
-CREATE POLICY "Mails are viewable by owner" ON mails FOR SELECT USING (true);
-CREATE POLICY "Mails can be managed by anyone" ON mails FOR ALL USING (true);
+CREATE POLICY "Mails can view by owner" ON mails
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Mails can manage by owner" ON mails
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Study sessions 表策略
-CREATE POLICY "Study sessions are viewable by everyone" ON study_sessions FOR SELECT USING (true);
-CREATE POLICY "Study sessions can be managed by anyone" ON study_sessions FOR ALL USING (true);
+CREATE POLICY "Study sessions can view by owner" ON study_sessions
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Study sessions can manage by owner" ON study_sessions
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Study rooms 表策略
-CREATE POLICY "Public study rooms are viewable by everyone" ON study_rooms FOR SELECT USING (is_public = true);
-CREATE POLICY "Study rooms can be managed by creator" ON study_rooms FOR ALL USING (true);
+CREATE POLICY "Study rooms can view public or own" ON study_rooms
+  FOR SELECT USING (is_public = true OR created_by = auth.uid());
+CREATE POLICY "Study rooms can insert by authenticated" ON study_rooms
+  FOR INSERT WITH CHECK (created_by = auth.uid());
+CREATE POLICY "Study rooms can manage by creator" ON study_rooms
+  FOR ALL USING (created_by = auth.uid());
 
 -- Study room members 表策略
-CREATE POLICY "Study room members are viewable by everyone" ON study_room_members FOR SELECT USING (true);
-CREATE POLICY "Study room members can be managed by anyone" ON study_room_members FOR ALL USING (true);
+CREATE POLICY "Study room members can view by participant" ON study_room_members
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Study room members can manage by owner" ON study_room_members
+  FOR ALL USING (auth.uid() = user_id);
 
 -- ============================================
 -- ✅ 初始化完成！

@@ -77,36 +77,107 @@ const heatZones = [
 ];
 
 const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.DivIcon => {
-  const iconUrl = HERO_3D_IMAGE;
+  const root = document.createElement('div');
+  root.style.position = 'relative';
+  root.style.width = '64px';
+  root.style.height = '80px';
+  root.style.display = 'flex';
+  root.style.flexDirection = 'column';
+  root.style.alignItems = 'center';
+  root.style.justifyContent = 'flex-end';
+
+  const shadow = document.createElement('div');
+  shadow.style.position = 'absolute';
+  shadow.style.bottom = '16px';
+  shadow.style.width = '36px';
+  shadow.style.height = '12px';
+  shadow.style.background = 'rgba(59, 130, 246, 0.5)';
+  shadow.style.borderRadius = '50%';
+  shadow.style.filter = 'blur(4px)';
+
+  const img = document.createElement('img');
+  img.src = HERO_3D_IMAGE;
+  img.alt = friend.name || 'Friend';
+  img.style.width = '64px';
+  img.style.height = '64px';
+  img.style.objectFit = 'contain';
+  img.style.position = 'relative';
+  img.style.zIndex = '2';
+
+  const label = document.createElement('div');
+  label.style.position = 'absolute';
+  label.style.bottom = '0';
+  label.style.background = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
+  label.style.backdropFilter = 'blur(4px)';
+  label.style.color = isDark ? 'white' : 'black';
+  label.style.fontSize = '11px';
+  label.style.padding = '2px 10px';
+  label.style.borderRadius = '12px';
+  label.style.whiteSpace = 'nowrap';
+  label.style.fontWeight = '600';
+  label.style.border = isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)';
+  label.style.zIndex = '3';
+  label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+  label.textContent = friend.name || 'Friend';
+
+  root.append(shadow, img, label);
+
   return L.divIcon({
     className: 'custom-snap-marker',
-    html: `
-      <div style="position: relative; width: 64px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
-        <div style="position: absolute; bottom: 16px; width: 36px; height: 12px; background: rgba(59, 130, 246, 0.5); border-radius: 50%; filter: blur(4px);"></div>
-        <img src="${iconUrl}" style="width: 64px; height: 64px; object-fit: contain; position: relative; z-index: 2;" />
-        <div style="position: absolute; bottom: 0; background: ${isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)'}; backdrop-filter: blur(4px); color: ${isDark ? 'white' : 'black'}; font-size: 11px; padding: 2px 10px; border-radius: 12px; white-space: nowrap; font-weight: 600; border: ${isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'}; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          ${friend.name || 'Friend'}
-        </div>
-      </div>
-    `,
+    html: root,
     iconSize: [64, 80],
     iconAnchor: [32, 70],
   });
 };
 
 const createSnapPlaceIcon = (place: Place, isDark: boolean): L.DivIcon => {
+  const root = document.createElement('div');
+  root.style.position = 'relative';
+  root.style.width = '50px';
+  root.style.height = '70px';
+  root.style.display = 'flex';
+  root.style.flexDirection = 'column';
+  root.style.alignItems = 'center';
+  root.style.justifyContent = 'flex-end';
+
+  const emojiDiv = document.createElement('div');
+  emojiDiv.style.position = 'relative';
+  emojiDiv.style.width = '44px';
+  emojiDiv.style.height = '44px';
+  emojiDiv.style.borderRadius = '50%';
+  emojiDiv.style.border = `2px solid ${isDark ? '#ef4444' : '#f87171'}`;
+  emojiDiv.style.background = isDark ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.95)';
+  emojiDiv.style.backdropFilter = 'blur(4px)';
+  emojiDiv.style.boxShadow = '0 0 15px rgba(239,68,68,0.4), inset 0 0 10px rgba(239,68,68,0.2)';
+  emojiDiv.style.display = 'flex';
+  emojiDiv.style.alignItems = 'center';
+  emojiDiv.style.justifyContent = 'center';
+  emojiDiv.style.fontSize = '20px';
+  emojiDiv.style.marginBottom = '2px';
+  emojiDiv.style.zIndex = '2';
+  emojiDiv.textContent = place.emoji || '📍';
+
+  const label = document.createElement('div');
+  label.style.position = 'absolute';
+  label.style.bottom = '0';
+  label.style.background = isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)';
+  label.style.backdropFilter = 'blur(4px)';
+  label.style.color = isDark ? '#f87171' : '#dc2626';
+  label.style.fontSize = '10px';
+  label.style.padding = '2px 8px';
+  label.style.borderRadius = '10px';
+  label.style.whiteSpace = 'nowrap';
+  label.style.fontWeight = '600';
+  label.style.border = isDark ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(239,68,68,0.2)';
+  label.style.zIndex = '3';
+  label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+  label.textContent = place.name;
+
+  root.append(emojiDiv, label);
+
   return L.divIcon({
     className: 'custom-snap-marker',
-    html: `
-      <div style="position: relative; width: 50px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
-        <div style="position: relative; width: 44px; height: 44px; border-radius: 50%; border: 2px solid ${isDark ? '#ef4444' : '#f87171'}; background: ${isDark ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.95)'}; backdrop-filter: blur(4px); box-shadow: 0 0 15px rgba(239,68,68,0.4), inset 0 0 10px rgba(239,68,68,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 2px; z-index: 2;">
-          ${place.emoji || '📍'}
-        </div>
-        <div style="position: absolute; bottom: 0; background: ${isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)'}; backdrop-filter: blur(4px); color: ${isDark ? '#f87171' : '#dc2626'}; font-size: 10px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600; border: ${isDark ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(239,68,68,0.2)'}; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          ${place.name}
-        </div>
-      </div>
-    `,
+    html: root,
     iconSize: [50, 70],
     iconAnchor: [25, 60],
   });

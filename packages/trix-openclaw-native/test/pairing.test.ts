@@ -42,19 +42,16 @@ describe('PairingService', () => {
     expect(reread?.pairedClientId).toBe('phone-1');
   });
 
-  it('supports code-only claim for manual pairing', async () => {
+  it('rejects code-only claim without the pairing secret', async () => {
     const dir = await createTempDir();
     const store = new JsonStateStore(dir);
     const service = new PairingService(store);
 
     const created = await service.create({ publicBaseUrl: 'http://127.0.0.1:8788', label: 'Phone' });
-    const claimed = await service.claim({
+    await expect(service.claim({
       code: created.code,
       clientId: 'phone-2',
       deviceName: 'Manual Device',
-    }, 'ws://127.0.0.1:8788/ws');
-
-    expect(claimed.conversationId).toBe(created.conversationId);
-    expect(claimed.pairing.pairedClientId).toBe('phone-2');
+    }, 'ws://127.0.0.1:8788/ws')).rejects.toThrow('Pairing secret required');
   });
 });
