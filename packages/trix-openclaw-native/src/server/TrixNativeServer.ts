@@ -533,6 +533,15 @@ export class TrixNativeServer {
         return;
       }
 
+      // POST /api/study-rooms/lookup-by-users - Look up active rooms for a list of user IDs
+      if (request.method === 'POST' && url.pathname === '/api/study-rooms/lookup-by-users') {
+        await this.assertStudyRoomAccess(request);
+        const body = await readJsonBody<{ userIds: string[] }>(request);
+        const result = await this.lookupStudyRoomsByUsers(body.userIds ?? []);
+        sendJson(response, 200, { success: true, ...result });
+        return;
+      }
+
       sendJson(response, 404, { error: 'Not found' });
     } catch (error) {
       const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -1481,6 +1490,37 @@ export class TrixNativeServer {
       room: null,
       serverTs: Date.now(),
     });
+  }
+
+  private async lookupStudyRoomsByUsers(userIds: string[]): Promise<{ users: Array<{
+    userId: string;
+    inRoom: boolean;
+    roomCode?: string;
+    sessionState?: string;
+    memberCount?: number;
+  }> }> {
+    const state = await this.stateStore.read();
+    const rooms = state.studyRooms ?? [];
+
+    const results = userIds.map((userId) => {
+      const room = rooms.find((r) =>
+        r.members.some((m) => m.userId === userId),
+      );
+
+      if (!room) {
+        return { userId, inRoom: false };
+      }
+
+      return {
+        userId,
+        inRoom: true,
+        roomCode: room.roomCode,
+        sessionState: room.sessionState,
+        memberCount: room.members.length,
+      };
+    });
+
+    return { users: results };
   }
 
   private async broadcastStudyRoomEvent(event: StudyRoomStateEvent): Promise<void> {
