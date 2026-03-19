@@ -8,20 +8,24 @@ import { JsonStateStore } from '../storage/JsonStateStore.js';
 import type {
   AttachmentDescriptor,
   ClientEnvelope,
+  ConversationRecord,
   CreateMessageInput,
   MessageRecord,
   NativeChannelState,
+  ServiceCreateMessageInput,
   ServerConfig,
   StudyRoom,
   StudyRoomAckPayload,
   StudyRoomStateEvent,
+  UserCreateMessageInput,
 } from '../types.js';
 import { randomId, randomToken } from '../utils/ids.js';
 import { buildPublicBaseUrl } from '../utils/network.js';
 import { parseUrl, readBinaryBody, readJsonBody, sendJson, sendNoContent } from '../utils/http.js';
 
 type SocketMeta = {
-  role: 'user' | 'agent';
+  role: 'user' | 'service' | 'agent';
+  accountId?: string;
   conversationId?: string;
   clientId?: string;
 };
@@ -51,13 +55,13 @@ export class TrixNativeServer {
 
     this.server.on('upgrade', (request, socket, head) => {
       const url = parseUrl(request);
-      if (url.pathname !== '/ws') {
+      if (url.pathname !== '/ws' && url.pathname !== '/api/service/ws') {
         socket.destroy();
         return;
       }
 
       this.wss.handleUpgrade(request, socket, head, (ws) => {
-        this.handleSocket(ws, url.searchParams).catch((error: unknown) => {
+        this.handleSocket(ws, request, url.pathname, url.searchParams).catch((error: unknown) => {
           ws.close(1011, String(error));
         });
       });
@@ -72,6 +76,10 @@ export class TrixNativeServer {
     await this.stateStore.update((state) => ({
       ...state,
       adminToken: state.adminToken || process.env.TRIX_NATIVE_ADMIN_TOKEN || randomToken(24),
+      serviceTokens: {
+        default: state.serviceTokens.default || process.env.TRIX_NATIVE_SERVICE_TOKEN || randomToken(32),
+        ...state.serviceTokens,
+      },
     }));
 
     await new Promise<void>((resolve, reject) => {
@@ -93,11 +101,37 @@ export class TrixNativeServer {
     return this.publicBaseUrl;
   }
 
-  async createPairing(input: { label?: string; ttlMs?: number; openClawSessionKey?: string } = {}): Promise<unknown> {
+  async createPairing(input: { accountId?: string; label?: string; ttlMs?: number; openClawSessionKey?: string } = {}): Promise<unknown> {
     return this.pairingService.create({
       ...input,
+      accountId: input.accountId ?? 'default',
       publicBaseUrl: this.publicBaseUrl,
     });
+  }
+
+  private getUserWebSocketUrl(): string {
+    return `${this.publicBaseUrl.replace(/^http/i, 'ws').replace(/\/$/, '')}/ws`;
+  }
+
+  private resolveAccountId(searchParams: URLSearchParams | null | undefined, fallback = 'default'): string {
+    return searchParams?.get('accountId')?.trim() || fallback;
+  }
+
+  private readHeader(request: http.IncomingMessage, name: string): string | undefined {
+    const value = request.headers[name.toLowerCase()];
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return value;
+  }
+
+  private readBearerToken(request: http.IncomingMessage): string | undefined {
+    const authorization = this.readHeader(request, 'authorization');
+    if (!authorization) {
+      return undefined;
+    }
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    return match?.[1]?.trim();
   }
 
   private async handleRequest(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
@@ -755,5 +789,3 @@ export class TrixNativeServer {
     );
   }
 }
-
-
