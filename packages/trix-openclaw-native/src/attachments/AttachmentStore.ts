@@ -59,6 +59,8 @@ export class AttachmentStore {
 
     return {
       id,
+      accountId: input.accountId,
+      conversationId: input.conversationId,
       kind,
       mimeType,
       fileName,
@@ -78,11 +80,15 @@ export class AttachmentStore {
     fileName: string;
     mimeType: string;
     kind?: AttachmentKind;
+    accountId?: string;
+    conversationId?: string;
   }): Promise<AttachmentDescriptor> {
     return this.saveFromInput({
       fileName: params.fileName,
       mimeType: params.mimeType,
       kind: params.kind,
+      accountId: params.accountId,
+      conversationId: params.conversationId,
       contentBase64: params.buffer.toString('base64'),
     });
   }
@@ -127,6 +133,8 @@ export class AttachmentStore {
     fileName: string;
     mimeType: string;
     kind?: AttachmentKind;
+    accountId?: string;
+    conversationId?: string;
   }): Promise<UploadResponse> {
     const attachment = await this.saveBuffer(params);
     return { attachment };

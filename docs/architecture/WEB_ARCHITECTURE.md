@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion Web 端技术架构
 > 🎯 基于 React 19 + TypeScript + Vite
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-19
 
 ---
 
@@ -33,9 +33,10 @@
 │  ┌─────────────────────────────────────────────────────────────────┐  │
 │  │                    External Services                             │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │  │
-│  │  │   Clawbot   │  │    OpenClaw  │  │    Aliyun   │            │  │
-│  │  │  Channel    │  │   Gateway   │  │     OSS     │            │  │
-│  │  │  (Socket)   │  │    (WS)     │  │   (Upload)  │            │  │
+│  │  │   Gateway   │  │    OpenClaw  │  │    Aliyun   │            │  │
+│  │  │  (WS/HTTP)  │  │   Plugin    │  │     OSS     │            │  │
+│  │  │ GatewayClient│  │    (:18789)  │  │   (Upload)  │            │  │
+│  │  │ RelayClient │  │             │  │             │            │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘            │  │
 │  └─────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -151,17 +152,23 @@ src/
 │
 ├── services/                       # 业务服务层
 │   ├── TrixNativeChannelClient.ts # TRIX Native Channel 配对客户端
-│   ├── ClawbotChannelBridge.ts   # WebSocket 通信（遗留）
-│   ├── chatService.ts            # 聊天服务
-│   ├── friendService.ts           # 好友服务
+│   ├── GatewayClient.ts          # OpenClaw Gateway RPC/HTTP 客户端
+│   ├── GatewayRPC.ts             # Gateway RPC 方法封装
+│   ├── RelayClient.ts           # Relay 中继客户端
+│   ├── ClawbotChannelBridge.ts  # WebSocket 通信（遗留）
+│   ├── chatService.ts           # 聊天服务
+│   ├── friendService.ts          # 好友服务
 │   ├── notificationService.ts    # 通知服务
 │   ├── studySessionService.ts    # 学习会话
-│   ├── pointsService.ts          # 积分服务
-│   ├── mallService.ts            # 商城服务
-│   ├── placeService.ts           # 地点服务
-│   ├── locationService.ts        # 位置服务
+│   ├── studyHistoryService.ts   # 学习历史
+│   ├── sessionService.ts        # 会话管理
+│   ├── pointsService.ts         # 积分服务
+│   ├── mallService.ts           # 商城服务
+│   ├── placeService.ts          # 地点服务
+│   ├── locationService.ts       # 位置服务
 │   ├── wardrobeService.ts        # 换装服务
-│   ├── uploadService.ts          # 文件上传
+│   ├── uploadService.ts         # 文件上传
+│   ├── serverOssUploadService.ts # 服务端 OSS 上传
 │   ├── OSSService.ts            # 阿里云 OSS
 │   ├── ttsService.ts            # 语音合成
 │   ├── voicePlaybackService.ts   # 语音播放
@@ -169,6 +176,8 @@ src/
 │   ├── scheduleService.ts       # 日程服务
 │   ├── userStatsService.ts      # 用户统计
 │   ├── achievementService.ts    # 成就服务
+│   ├── projectService.ts        # 项目服务
+│   ├── clawbotHistoryService.ts  # Bot 历史服务
 │   ├── StorageService.ts        # 本地存储
 │   └── databaseService.ts       # 数据库操作
 │
@@ -176,6 +185,7 @@ src/
 │   ├── AuthContext.tsx          # 认证状态
 │   ├── ThemeContext.tsx          # 主题状态
 │   ├── VoiceSettingsContext.tsx  # TTS 设置
+│   ├── GatewayContext.tsx       # Gateway 连接状态
 │   ├── ClawbotChannelContext.tsx # WebSocket 连接
 │   └── QRCodePairingContext.tsx  # QR 配对状态
 │
@@ -185,7 +195,7 @@ src/
 │
 ├── config/                        # 配置文件
 │   ├── supabase.ts              # Supabase 配置
-│   └── clawbotEndpoints.ts       # 端点配置
+│   └── clawbotEndpoints.ts       # 端点配置（部分已废弃）
 │
 ├── types/                         # 类型定义
 │   └── ...

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import trixNativeChannelClient from '../services/TrixNativeChannelClient';
 import { getErrorMessage } from '../utils/errorHandler';
 
 export default function DiagnosticAdvanced() {
@@ -11,104 +12,106 @@ export default function DiagnosticAdvanced() {
     setLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
   };
 
-  const testDirectConnection = () => {
+  const testNativeConnection = async () => {
     setLogs([]);
     setTestResult('testing');
-    log(' 开始直接 WebSocket 测试...');
 
     const endpoints = getClawbotEndpoints();
-    const wsUrl = endpoints.gatewayUrl;
-    const authToken = endpoints.gatewayToken;
+    const serviceUrl = (endpoints.nativePublicUrl || endpoints.nativeServerUrl || '').replace(/\/$/, '');
 
-    if (!wsUrl || !authToken) {
-      log(' 缺少 Gateway URL 或 Token，请检查环境变量');
+    if (!serviceUrl) {
+      log(' 缺少 Trix Service URL，请检查环境变量');
       setTestResult('failed');
       return;
     }
 
-    log(` 目标: ${wsUrl}`);
-    log('');
+    log(` 服务地址: ${serviceUrl}`);
 
     try {
-      const ws = new WebSocket(wsUrl);
-      const timeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          log(' 连接超时 (10s)');
-          ws.close();
-          setTestResult('failed');
-        }
-      }, 10000);
-
-      ws.onopen = () => {
-        clearTimeout(timeout);
-        log(' WebSocket 连接已打开!');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const messageType = data.event || data.type;
-          log(` 收到: ${messageType}`);
-          if (messageType === 'connect.challenge') {
-            const response = {
-              type: 'req',
-              id: data?.payload?.nonce || 'diag-connect',
-              method: 'connect',
-              params: {
-                minProtocol: 3,
-                maxProtocol: 3,
-                role: 'operator',
-                client: {
-                  id: 'clawdbot-ios',
-                  mode: 'webchat',
-                  platform: 'web',
-                  displayName: 'TRIX Diagnostic',
-                  version: '1.0.0',
-                  instanceId: Math.random().toString(36).substring(2, 15),
-                },
-                caps: [],
-                auth: { token: authToken },
-              },
-            };
-            ws.send(JSON.stringify(response));
-          }
-          if (data.payload?.type === 'hello-ok') {
-            log(' 认证成功!');
-            setTestResult('success');
-            setTimeout(() => ws.close(), 1000);
-          }
-        } catch (error: unknown) {
-          log(` 消息解析失败: ${getErrorMessage(error, "Error")}`);
-        }
-      };
-
-      ws.onerror = () => {
-        clearTimeout(timeout);
-        log(' WebSocket 错误!');
+      const healthResponse = await fetch(`${serviceUrl}/health`);
+      const healthPayload = await healthResponse.json().catch(() => ({})) as { ok?: boolean; agentOnline?: boolean };
+      if (!healthResponse.ok || healthPayload.ok !== true) {
+        log(` 服务探测失败: HTTP ${healthResponse.status}`);
         setTestResult('failed');
-      };
+        return;
+      }
+
+      log(` 服务探测成功，OpenClaw 插件状态: ${healthPayload.agentOnline ? 'online' : 'offline'}`);
+
+      const session = trixNativeChannelClient.getSession();
+      if (!session) {
+        log(' 未发现本地配对会话，跳过用户 WebSocket 检查');
+        setTestResult('success');
+        return;
+      }
+
+      log(` 会话房间: ${session.conversationId}`);
+      log(` 用户 WS: ${session.websocketUrl}`);
+
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(
+          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
+        );
+
+        const timeout = window.setTimeout(() => {
+          ws.close();
+          reject(new Error('用户 WebSocket 连接超时'));
+        }, 10000);
+
+        const finish = (callback: () => void) => {
+          window.clearTimeout(timeout);
+          callback();
+        };
+
+        ws.onopen = () => {
+          log(' 用户 WebSocket 已建立');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const envelope = JSON.parse(event.data) as { type?: string };
+            log(` 收到事件: ${envelope.type || 'unknown'}`);
+          } catch {
+            log(' 收到非 JSON 消息');
+          }
+          finish(() => {
+            ws.close();
+            resolve();
+          });
+        };
+
+        ws.onerror = () => {
+          finish(() => reject(new Error('用户 WebSocket 建立失败')));
+        };
+
+        ws.onclose = () => {
+          log(' 用户 WebSocket 已关闭');
+        };
+      });
+
+      setTestResult('success');
     } catch (error: unknown) {
-      log(` 创建 WebSocket 失败: ${getErrorMessage(error, "Error")}`);
+      log(` 诊断失败: ${getErrorMessage(error, 'Error')}`);
       setTestResult('failed');
     }
   };
 
   return (
     <div style={{ padding: '20px', fontFamily: 'monospace', background: '#1e1e1e', color: '#d4d4d4', minHeight: '100vh' }}>
-      <h2 style={{ color: '#007acc' }}> 高级 WebSocket 诊断</h2>
+      <h2 style={{ color: '#00bcd4' }}> 高级 Native 通道诊断</h2>
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={testDirectConnection} style={{ padding: '10px 20px', margin: '5px', background: '#007acc', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>测试直接连接</button>
+        <button onClick={() => void testNativeConnection()} style={{ padding: '10px 20px', margin: '5px', background: '#0891b2', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>测试 Trix Service</button>
         <button onClick={() => setLogs([])} style={{ padding: '10px 20px', margin: '5px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>清空日志</button>
       </div>
       {testResult !== 'idle' && (
-        <div style={{ padding: '10px', marginBottom: '20px', background: testResult === 'success' ? '#28a745' : testResult === 'failed' ? '#dc3545' : '#ffc107', color: 'white', borderRadius: '3px' }}>
+        <div style={{ padding: '10px', marginBottom: '20px', background: testResult === 'success' ? '#16a34a' : testResult === 'failed' ? '#dc2626' : '#d97706', color: 'white', borderRadius: '3px' }}>
           {testResult === 'testing' && ' 测试中...'}
           {testResult === 'success' && ' 测试成功!'}
           {testResult === 'failed' && ' 测试失败'}
         </div>
       )}
       <div style={{ background: '#2d2d2d', padding: '15px', borderRadius: '5px', maxHeight: '600px', overflowY: 'auto' }}>
-        <h3 style={{ marginTop: 0, color: '#007acc' }}> 日志</h3>
+        <h3 style={{ marginTop: 0, color: '#00bcd4' }}> 日志</h3>
         {logs.length === 0 ? <div style={{ color: '#888' }}>点击按钮开始测试...</div> : logs.map((item, index) => <div key={index} style={{ marginBottom: '5px', fontSize: '12px' }}>{item}</div>)}
       </div>
     </div>

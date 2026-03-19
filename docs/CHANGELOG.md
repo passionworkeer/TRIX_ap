@@ -92,6 +92,43 @@ docs/ 目录有 55 个文档，大量重复内容。进行精简合并。
 
 从 55 个文档 → 33 个活跃文档（减少 40%）
 
+
+## 📅 2026-03-19 (晚间) - 文档全面核对修复
+
+### 背景
+
+根据实际代码核对所有文档，发现多个文档与代码不同步。
+
+### 完成内容
+
+1. **WEB_ARCHITECTURE.md**：补全 8 个未列出的服务文件（GatewayClient、RelayClient、GatewayRPC、sessionService、studyHistoryService、serverOssUploadService、projectService、clawbotHistoryService），添加 GatewayContext，更新外部服务架构图（Clawbot Channel → Gateway），更新最后日期
+
+2. **BACKEND_ARCHITECTURE.md**：修正目录结构（删除不存在的 server/routes/、server/websocket/，添加 utils/、probe.ts 等），修正 WebSocket 端点格式，更新 API 端点表格（标注 Supabase vs 独立服务器），修正 .js → .ts 扩展名，更新最后日期
+
+3. **TESTING.md**：重写测试结构树（实际有 ~50+ 测试文件，远超文档列出的 5 个），补全所有服务/组件/hooks/lib 测试文件，添加 Playwright E2E 测试，更新测试覆盖范围表格，更新最后日期
+
+4. **IOS_ARCHITECTURE.md**：重写 Services 层（实际 ~60+ 服务，文档列出不足 30），补全 Network 层缺失文件（JSONDateDecoding、NetworkLogger、NetworkRequestCache、GatewayProtocol、SecurityHeadersValidator），修正 Storage 层，移除不存在的 AnalyticsService，补全 Protocol 模式说明，更新最后日期
+
+5. **PRD-WEB.md / PRD-IOS.md**：更新最后日期至 2026-03-19
+
+6. **INDEX.md**：添加 PRD-DESKTOP.md 和 DESKTOP_ARCHITECTURE.md，总计 35 个活跃文档
+
+---
+
+## 📅 2026-03-19 (深夜) - 新增 CLAUDE.md / 重写 README.md / 修复 PROJECT.md
+
+### 背景
+
+项目文档自查，发现根目录缺少 Claude Code 项目指令文件，README.md 存在大量废弃链接和过时内容，PROJECT.md 结构与实际代码严重不同步。
+
+### 完成内容
+
+1. **新增 `CLAUDE.md`**（根目录）：Claude Code 项目级指令文件，包含提交规范、代码审查要求（CRITICAL/HIGH/MEDIUM/LOW）、架构约束（Electron 路径处理、OpenClaw Plugin 规则、TRIX Native Channel 规范）、测试命令与覆盖率目标、文档维护规范、Git 工作流。
+
+2. **重写 `README.md`**（根目录）：移除所有已删除文档的链接，更新项目结构为实际目录，更新技术栈为最新版本（React 19.2.4、TypeScript 5.8.2、Vite 6.2.0），更新三端架构图，更新测试命令，补全核心功能列表。
+
+3. **修复 `PROJECT.md`**（docs/project-reports/）：补全 6 个过时章节（Contexts、Services 12→30+、Hooks 6→11+、Packages、Database、Tests 添加 e2e/、Docs 添加 .archive/）。
+
 ---
 
 ## 📅 2026-03-18 - TRIX Native Channel `running` 状态修复

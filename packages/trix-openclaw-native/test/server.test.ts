@@ -1,8 +1,17 @@
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { TrixNativeServer } from '../src/server/TrixNativeServer.js';
 
 const servers: TrixNativeServer[] = [];
+
+function createTestServer(port: number): TrixNativeServer {
+  return new TrixNativeServer({
+    port,
+    publicBaseUrl: `http://127.0.0.1:${port}`,
+    storageDir: path.join(process.cwd(), '.tmp', 'trix-native-tests', `${port}-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+  });
+}
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map(async (server) => server.stop().catch(() => undefined)));
@@ -10,7 +19,7 @@ afterEach(async () => {
 
 describe('TrixNativeServer', () => {
   it('creates pairing and accepts inbound message flow', async () => {
-    const server = new TrixNativeServer({ port: 8799, publicBaseUrl: 'http://127.0.0.1:8799' });
+    const server = createTestServer(8799);
     servers.push(server);
     await server.start();
 
@@ -59,7 +68,7 @@ describe('TrixNativeServer', () => {
   });
 
   it('accepts uploaded attachments and serves them back via message records', async () => {
-    const server = new TrixNativeServer({ port: 8800, publicBaseUrl: 'http://127.0.0.1:8800' });
+    const server = createTestServer(8800);
     servers.push(server);
     await server.start();
 
@@ -113,10 +122,13 @@ describe('TrixNativeServer', () => {
     const attachmentResponse = await fetch(uploadPayload.attachment.publicUrl);
     expect(attachmentResponse.status).toBe(200);
     expect(await attachmentResponse.text()).toBe('pdf-binary');
+
+    const unsignedAttachmentResponse = await fetch(`http://127.0.0.1:8800/api/attachments/${encodeURIComponent(uploadPayload.attachment.id)}`);
+    expect(unsignedAttachmentResponse.status).toBe(401);
   });
 
   it('removes a claimed device session when the client unpairs', async () => {
-    const server = new TrixNativeServer({ port: 8802, publicBaseUrl: 'http://127.0.0.1:8802' });
+    const server = createTestServer(8802);
     servers.push(server);
     await server.start();
 
@@ -153,7 +165,7 @@ describe('TrixNativeServer', () => {
   });
 
   it('delivers user messages to the service plane and accepts OpenClaw replies', async () => {
-    const server = new TrixNativeServer({ port: 8801, publicBaseUrl: 'http://127.0.0.1:8801' });
+    const server = createTestServer(8801);
     servers.push(server);
     await server.start();
 
@@ -244,5 +256,61 @@ describe('TrixNativeServer', () => {
     }).then((response) => response.json()) as { messages: Array<{ text: string }> };
 
     expect(history.messages.map((message) => message.text)).toEqual(['hello from user', 'hello from bot']);
+  });
+
+  it('filters pairing inspection by account and strips sensitive claim state', async () => {
+    const server = createTestServer(8803);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    await fetch('http://127.0.0.1:8803/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Default Device' }),
+    });
+
+    await fetch('http://127.0.0.1:8803/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-trix-admin-token': state.adminToken,
+      },
+      body: JSON.stringify({ accountId: 'secondary', label: 'Secondary Device' }),
+    });
+
+    const listResponse = await fetch('http://127.0.0.1:8803/api/pairings?accountId=default', {
+      headers: {
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+    });
+    expect(listResponse.status).toBe(200);
+
+    const pairings = await listResponse.json() as Array<Record<string, unknown>>;
+    expect(pairings).toHaveLength(1);
+    expect(pairings[0]?.accountId).toBe('default');
+    expect(pairings[0]).not.toHaveProperty('secret');
+    expect(pairings[0]).not.toHaveProperty('clientToken');
+    expect(pairings[0]).not.toHaveProperty('claimUrl');
+    expect(pairings[0]).not.toHaveProperty('qrDataUrl');
+  });
+
+  it('rejects the legacy agent websocket by default', async () => {
+    const server = createTestServer(8804);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const closeEvent = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      const socket = new WebSocket(`ws://127.0.0.1:8804/ws?role=agent&accountId=default&serviceToken=${encodeURIComponent(state.serviceTokens.default)}`);
+      socket.once('close', (code, reason) => resolve({ code, reason: String(reason) }));
+      socket.once('error', reject);
+    });
+
+    expect(closeEvent.code).toBe(1008);
+    expect(closeEvent.reason).toContain('Legacy agent websocket disabled');
   });
 });

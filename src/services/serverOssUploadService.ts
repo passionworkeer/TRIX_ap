@@ -1,5 +1,6 @@
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { logger } from '../utils/logger';
+import trixNativeChannelClient from './TrixNativeChannelClient';
 
 interface UploadApiResponse {
   success?: boolean;
@@ -21,7 +22,7 @@ export interface ServerOssUploadResult {
   objectKey?: string;
 }
 
-const DEV_UPLOAD_FALLBACK_URL = 'http://localhost:8765/upload';
+const DEV_UPLOAD_FALLBACK_URL = 'http://localhost:8788/api/uploads';
 
 class ServerOssUploadHttpError extends Error {
   status: number;
@@ -37,12 +38,25 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/$/, '');
 }
 
-function resolveChannelHttpBaseUrl(): string {
-  // 首先尝试从环境变量获取
-  const { channelUrl } = getClawbotEndpoints();
-  if (channelUrl && channelUrl !== 'ws://localhost:8765') {
-    const parsed = new URL(channelUrl);
-    parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+function inferAttachmentKind(mimeType: string, fileName: string): 'image' | 'audio' | 'video' | 'file' {
+  const mime = mimeType.toLowerCase();
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(String(extension))) return 'image';
+  if (['mp3', 'wav', 'ogg', 'm4a', 'opus', 'aac', 'webm'].includes(String(extension))) return 'audio';
+  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(String(extension))) return 'video';
+  return 'file';
+}
+
+function resolveNativeHttpBaseUrl(): string {
+  const { nativePublicUrl, nativeServerUrl } = getClawbotEndpoints();
+  const configuredBaseUrl = nativePublicUrl || nativeServerUrl;
+
+  if (configuredBaseUrl) {
+    const parsed = new URL(configuredBaseUrl);
+    parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : parsed.protocol;
     parsed.pathname = '';
     parsed.search = '';
     parsed.hash = '';
@@ -72,8 +86,11 @@ function resolveChannelHttpBaseUrl(): string {
     }
   }
 
-  // 最终 fallback: 硬编码的生产服务器地址
-  return 'http://TRIX_SERVER_HOST:8765';
+  if (import.meta.env.DEV) {
+    return normalizeBaseUrl(DEV_UPLOAD_FALLBACK_URL.replace(/\/api\/uploads$/, ''));
+  }
+
+  throw new Error('TRIX Native upload base URL is not configured');
 }
 
 function resolveUploadUrls(): string[] {
@@ -85,7 +102,7 @@ function resolveUploadUrls(): string[] {
   }
 
   try {
-    uploadUrls.push(`${resolveChannelHttpBaseUrl()}/upload`);
+    uploadUrls.push(`${resolveNativeHttpBaseUrl()}/api/uploads`);
   } catch (error) {
     if (uploadUrls.length === 0) {
       throw error;
@@ -115,16 +132,39 @@ async function uploadAtUrl(
   file: File,
   signal?: AbortSignal
 ): Promise<ServerOssUploadResult> {
-  const formData = new FormData();
-  formData.append('file', file, file.name);
-
-  const response = await fetch(uploadUrl, {
-    method: 'POST',
-    body: formData,
-    signal,
-  });
-
+  const isNativeUploadEndpoint = uploadUrl.endsWith('/api/uploads');
+  let response: Response;
   let payload: UploadApiResponse | null = null;
+
+  if (isNativeUploadEndpoint) {
+    const session = trixNativeChannelClient.getSession();
+    if (!session) {
+      throw new Error('TRIX Native session is required before uploading attachments');
+    }
+
+    response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'x-file-name': encodeURIComponent(file.name),
+        'x-mime-type': file.type || 'application/octet-stream',
+        'x-attachment-kind': inferAttachmentKind(file.type || 'application/octet-stream', file.name),
+        'x-trix-conversation-id': session.conversationId,
+        'x-trix-client-token': session.clientToken,
+      },
+      body: file,
+      signal,
+    });
+  } else {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+      signal,
+    });
+  }
+
   try {
     payload = (await response.json()) as UploadApiResponse;
   } catch (error) {
@@ -137,20 +177,30 @@ async function uploadAtUrl(
     throw new ServerOssUploadHttpError(response.status, errorMessage);
   }
 
-  const mediaUrl = payload?.url;
+  const nativePayload = payload as UploadApiResponse & {
+    attachment?: {
+      publicUrl?: string;
+      fileName?: string;
+      sizeBytes?: number;
+      mimeType?: string;
+      id?: string;
+    };
+  };
+
+  const mediaUrl = nativePayload.attachment?.publicUrl || payload?.url;
   if (!mediaUrl || typeof mediaUrl !== 'string') {
     throw new Error('Upload succeeded but response did not include a valid URL');
   }
 
-  const mimeType = payload?.mimeType || payload?.contentType || file.type || 'application/octet-stream';
-  const responseSize = Number(payload?.size);
+  const mimeType = nativePayload.attachment?.mimeType || payload?.mimeType || payload?.contentType || file.type || 'application/octet-stream';
+  const responseSize = Number(nativePayload.attachment?.sizeBytes ?? payload?.size);
 
   return {
     url: mediaUrl,
-    filename: payload?.filename || file.name,
+    filename: nativePayload.attachment?.fileName || payload?.filename || file.name,
     size: Number.isFinite(responseSize) ? responseSize : file.size,
     mimeType,
-    objectKey: payload?.objectKey,
+    objectKey: payload?.objectKey || nativePayload.attachment?.id,
   };
 }
 

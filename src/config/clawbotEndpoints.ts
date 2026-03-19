@@ -1,5 +1,3 @@
-const DEV_DEFAULT_CHANNEL_URL = 'ws://localhost:8765';
-const DEV_DEFAULT_GATEWAY_URL = 'ws://localhost:18789';
 const DEV_DEFAULT_NATIVE_SERVER_URL = 'http://localhost:8788';
 
 export interface ClawbotEndpoints {
@@ -46,18 +44,12 @@ export function maskSecret(secret: string | undefined | null): string {
 }
 
 export function getClawbotEndpoints(): ClawbotEndpoints {
-  const channelUrl = withDevFallback(
-    pickValue(import.meta.env.VITE_CLAWBOT_CHANNEL_URL),
-    DEV_DEFAULT_CHANNEL_URL,
-  );
+  const channelUrl = pickValue(import.meta.env.VITE_CLAWBOT_CHANNEL_URL);
 
-  const gatewayUrl = withDevFallback(
-    pickValue(
-      import.meta.env.VITE_GATEWAY_WS_URL,
-      import.meta.env.VITE_CLAWBOT_GATEWAY_URL,
-      import.meta.env.VITE_PC_WEBSOCKET_URL,
-    ),
-    DEV_DEFAULT_GATEWAY_URL,
+  const gatewayUrl = pickValue(
+    import.meta.env.VITE_GATEWAY_WS_URL,
+    import.meta.env.VITE_CLAWBOT_GATEWAY_URL,
+    import.meta.env.VITE_PC_WEBSOCKET_URL,
   );
 
   const gatewayToken = pickValue(

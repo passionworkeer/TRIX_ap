@@ -56,30 +56,78 @@ Core/Network/
 ```
 
 #### 服务层 (`Core/Services/`)
+
+> iOS 采用 **协议导向设计**：每个服务同时有实现文件（`XxxService.swift`）和协议文件（`XxxServiceProtocol.swift`），便于依赖注入和测试。
+
 ```
 Core/Services/
-├── AppleSignInService.swift        # Apple 登录
-├── AudioSessionManager.swift       # 音频会话
-├── AuthService.swift               # 认证服务
-├── CameraService.swift             # 相机服务
-├── ChatService.swift              # 聊天服务
-├── DataExportService.swift         # 数据导出
-├── DataSyncService.swift           # 数据同步
-├── ImageUploadService.swift        # 图片上传
-├── LocalNotificationService.swift   # 本地通知
-├── LocationService.swift           # 位置服务
-├── NetworkMonitor.swift            # 网络监控
-├── NotificationManager.swift       # 通知管理
-├── OAuthManager.swift              # OAuth 管理
-├── OfflineCacheService.swift       # 离线缓存
-├── PairingService.swift            # 配对服务
-├── PaymentService.swift           # 支付服务
-├── PointsService.swift            # 积分服务
-├── PushNotificationService.swift  # 推送通知
-├── StoreKitService.swift          # StoreKit
-├── StudyService.swift             # 学习服务
-├── TTSService.swift               # 语音合成
-└── VoicePlaybackService.swift      # 语音播放
+├── AchievementService.swift(+Protocol)    # 成就服务
+├── AppleSignInService.swift(+Protocol)    # Apple 登录
+├── AudioPlayerService.swift              # 音频播放
+├── AudioSessionManager.swift             # 音频会话管理
+├── AuthService.swift(+Protocol)          # 认证服务
+├── CameraService.swift(+Protocol)        # 相机服务
+├── ChatService.swift(+Protocol)         # 聊天服务
+├── ClawbotChannelService.swift           # TRIX Native Channel（WebSocket）
+├── ClawbotHistoryService.swift(+Protocol)  # Bot 历史
+├── ClawbotPairingService.swift(+Protocol) # 配对服务（QR/码）
+├── DataExportService.swift              # 数据导出
+├── DataSyncService.swift                # 数据同步
+├── FriendService.swift(+Protocol)        # 好友服务
+├── ImageUploadService.swift              # 图片上传
+├── LocalNotificationService.swift(+Protocol)  # 本地通知
+├── LocationService.swift(+Protocol)      # 位置服务
+├── MallService.swift(+Protocol)         # 商城服务
+├── NetworkMonitor.swift                 # 网络监控
+├── NotificationManager.swift(+Protocol)  # 通知管理
+├── OAuthManager.swift(+Protocol)        # OAuth 管理
+├── OfflineCacheService.swift            # 离线缓存
+├── PlaceService.swift                   # 地点服务
+├── PointsService.swift(+Protocol)       # 积分服务
+├── PushNotificationService.swift(+Protocol)  # 推送通知
+├── RelayClient.swift                    # Relay 中继客户端
+├── ScheduleService.swift                # 日程服务
+├── SessionService.swift                 # 会话服务
+├── SpeechRecognitionService.swift(+Protocol)  # 语音识别
+├── StoreKitService.swift(+Protocol)     # StoreKit 内购
+├── StudyHistoryService.swift            # 学习历史
+├── StudyService.swift                  # 学习服务
+├── SupabaseService.swift               # Supabase 客户端
+├── TTSService.swift(+Protocol)         # 语音合成
+├── ToastManager.swift                  # Toast 提示
+├── TodoService.swift                   # 待办服务
+├── UserService.swift(+Protocol)        # 用户服务
+├── UserStatsService.swift(+Protocol)   # 用户统计
+├── VoicePlaybackService.swift(+Protocol) # 语音播放
+├── WardrobeService.swift(+Protocol)    # 衣柜服务
+└── WeChatSignInService.swift(+Protocol) # 微信登录
+```
+
+#### 网络层 (`Core/Network/`)
+```
+Core/Network/
+├── APIClient.swift                   # 统一 API 客户端
+├── APIEndpoints.swift                # API 端点定义
+├── AuthInterceptor.swift             # 认证拦截器
+├── JSONDateDecoding.swift           # JSON 日期解码
+├── NetworkError.swift               # 网络错误类型
+├── NetworkLogger.swift              # 网络日志
+├── NetworkRequestCache.swift         # 请求缓存
+├── RequestDeduplicator.swift        # 请求去重
+├── RequestRetryManager.swift        # 请求重试
+├── SSLPinningManager.swift          # SSL 证书锁定
+├── SecurityHeadersValidator.swift    # 安全头验证
+└── GatewayProtocol.swift            # Gateway 协议
+```
+
+#### 存储层 (`Core/Storage/`)
+```
+Core/Storage/
+├── DatabaseManager.swift             # 数据库管理器（SQLite）
+├── JailbreakDetector.swift           # 越狱检测
+├── KeychainManager.swift            # 钥匙串管理
+├── KeychainSecurityValidator.swift  # 钥匙串安全验证
+└── UserDefaultsManager.swift        # UserDefaults
 ```
 
 #### 存储层 (`Core/Storage/`)
@@ -94,18 +142,16 @@ Core/Storage/
 #### 分析层 (`Core/Analytics/`)
 ```
 Core/Analytics/
-├── AnalyticsService.swift          # 分析服务
 ├── AppLaunchOptimizer.swift        # 启动优化
-├── ErrorTrackingService.swift      # 错误追踪
-├── MemoryLeakDetector.swift       # 内存泄漏检测
-└── PerformanceMonitoringService.swift # 性能监控
+├── ErrorTrackingService.swift       # 错误追踪
+├── MemoryLeakDetector.swift        # 内存泄漏检测
+└── PerformanceMonitoringService.swift  # 性能监控
 ```
 
 #### 性能层 (`Core/Performance/`)
 ```
 Core/Performance/
-├── BatteryConsumptionOptimizer.swift # 电池优化
-└── UIRenderingOptimizer.swift      # UI 渲染优化
+└── BatteryConsumptionOptimizer.swift  # 电池优化
 ```
 
 ---
@@ -390,5 +436,5 @@ struct AppTheme {
 
 ---
 
-**最后更新**: 2026-03-17
+**最后更新**: 2026-03-19
 **版本**: 2.0

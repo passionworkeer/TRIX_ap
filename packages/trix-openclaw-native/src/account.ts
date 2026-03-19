@@ -54,7 +54,7 @@ export function listTrixAccountIds(cfg: TrixConfigInput): string[] {
     return [];
   }
   const ids = new Set<string>(Object.keys((channel.accounts as Record<string, unknown> | undefined) ?? {}));
-  if (channel.serviceUrl || channel.serverUrl || channel.serviceToken || channel.adminToken || ids.size === 0) {
+  if (channel.serviceUrl || channel.serverUrl || channel.serviceToken || ids.size === 0) {
     ids.add(DEFAULT_ACCOUNT_ID);
   }
   return [...ids];
@@ -117,7 +117,6 @@ export function applyTrixAccountConfig(params: {
             serviceUrl: params.input.serviceUrl ?? params.input.serverUrl,
             publicBaseUrl: params.input.publicBaseUrl,
             serviceToken: params.input.serviceToken,
-            adminToken: params.input.adminToken,
             transport: params.input.transport ?? 'ws',
             storageDir: params.input.storageDir,
           },
@@ -126,4 +125,3 @@ export function applyTrixAccountConfig(params: {
     },
   };
 }
-

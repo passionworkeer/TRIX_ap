@@ -2,6 +2,8 @@ export type AttachmentKind = 'image' | 'audio' | 'video' | 'file';
 
 export interface AttachmentDescriptor {
   id: string;
+  accountId?: string;
+  conversationId?: string;
   kind: AttachmentKind;
   mimeType: string;
   fileName: string;
@@ -17,6 +19,8 @@ export interface AttachmentDescriptor {
 
 export interface AttachmentInput {
   kind?: AttachmentKind;
+  accountId?: string;
+  conversationId?: string;
   mimeType?: string;
   fileName?: string;
   contentBase64?: string;
@@ -84,6 +88,7 @@ export interface MessageRecord {
 export interface NativeChannelState {
   adminToken: string;
   serviceTokens: Record<string, string>;
+  attachmentSigningSecret: string;
   pairings: PairingRecord[];
   conversations: ConversationRecord[];
   messages: MessageRecord[];
@@ -112,6 +117,9 @@ export interface ServerConfig {
   storageDir?: string;
   publicBaseUrl?: string;
   adminToken?: string;
+  serviceToken?: string;
+  attachmentSigningSecret?: string;
+  enableLegacyAgentWs?: boolean;
   uploadBaseUrl?: string;
 }
 

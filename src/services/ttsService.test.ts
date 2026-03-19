@@ -8,11 +8,13 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 // Mock clawbotEndpoints
-vi.mock('../../src/config/clawbotEndpoints', () => ({
+vi.mock('../config/clawbotEndpoints', () => ({
   getClawbotEndpoints: vi.fn(() => ({
-    channelUrl: 'http://test-channel:8765',
-    gatewayUrl: 'ws://test-gateway:18789',
-    gatewayToken: 'test-token',
+    channelUrl: '',
+    gatewayUrl: '',
+    gatewayToken: '',
+    nativeServerUrl: 'http://test-native:8788',
+    nativePublicUrl: 'https://chat.example.com',
   })),
 }));
 
@@ -28,10 +30,12 @@ vi.stubGlobal('import.meta', {
 describe('ttsService', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    (window as Window & { __PROD_UPLOAD_URL__?: string }).__PROD_UPLOAD_URL__ = '';
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    delete (window as Window & { __PROD_UPLOAD_URL__?: string }).__PROD_UPLOAD_URL__;
   });
 
   describe('synthesizeSpeech', () => {
@@ -49,7 +53,7 @@ describe('ttsService', () => {
 
       expect(mockFetch).toHaveBeenCalled();
       const [url, options] = mockFetch.mock.calls[0];
-      expect(url).toContain('/api/tts/synthesize');
+      expect(String(url)).toContain('/api/tts/synthesize');
       expect(options.method).toBe('POST');
       expect(options.headers['Content-Type']).toBe('application/json');
 

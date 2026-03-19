@@ -5,10 +5,24 @@ vi.stubGlobal('fetch', mockFetch);
 
 vi.mock('../config/clawbotEndpoints', () => ({
   getClawbotEndpoints: vi.fn(() => ({
-    channelUrl: 'ws://test-channel:8765',
-    gatewayUrl: 'ws://test-gateway:18789',
-    gatewayToken: 'test-token',
+    channelUrl: '',
+    gatewayUrl: '',
+    gatewayToken: '',
+    nativeServerUrl: 'http://test-native:8788',
+    nativePublicUrl: 'https://chat.example.com',
   })),
+}));
+
+vi.mock('./TrixNativeChannelClient', () => ({
+  default: {
+    getSession: vi.fn(() => ({
+      serverUrl: 'https://chat.example.com',
+      websocketUrl: 'wss://chat.example.com/ws',
+      conversationId: 'conv_123',
+      clientToken: 'ct_123',
+      clientId: 'web_device_123',
+    })),
+  },
 }));
 
 describe('serverOssUploadService', () => {
@@ -23,17 +37,19 @@ describe('serverOssUploadService', () => {
     vi.unstubAllEnvs();
   });
 
-  it('uploads file to channel server /upload and maps result', async () => {
+  it('uploads file to Trix Service /api/uploads and maps result', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () =>
         Promise.resolve({
-          success: true,
-          url: 'https://oss.example.com/trix/a.jpg',
-          objectKey: 'trix/a.jpg',
-          filename: 'a.jpg',
-          size: 321,
-          mimeType: 'image/jpeg',
+          attachment: {
+            id: 'att_123',
+            publicUrl: 'https://oss.example.com/trix/a.jpg',
+            fileName: 'a.jpg',
+            sizeBytes: 321,
+            mimeType: 'image/jpeg',
+            kind: 'image',
+          },
         }),
     });
 
@@ -44,12 +60,17 @@ describe('serverOssUploadService', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe('http://test-channel:8765/upload');
+    expect(url).toBe('https://chat.example.com/api/uploads');
     expect(options.method).toBe('POST');
-    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body).toBe(file);
+    expect(options.headers['x-file-name']).toBe(encodeURIComponent('local-name.jpg'));
+    expect(options.headers['x-mime-type']).toBe('image/jpeg');
+    expect(options.headers['x-attachment-kind']).toBe('image');
+    expect(options.headers['x-trix-conversation-id']).toBe('conv_123');
+    expect(options.headers['x-trix-client-token']).toBe('ct_123');
     expect(result).toEqual({
       url: 'https://oss.example.com/trix/a.jpg',
-      objectKey: 'trix/a.jpg',
+      objectKey: 'att_123',
       filename: 'a.jpg',
       size: 321,
       mimeType: 'image/jpeg',

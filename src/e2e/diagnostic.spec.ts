@@ -3,8 +3,8 @@
  *
  * Test Coverage:
  * - T4.1.1: 页面加载和渲染
- * - T4.1.2: 诊断信息显示（Gateway URL、Auth Token）
- * - T4.1.3: 网络状态检查按钮
+ * - T4.1.2: 诊断信息显示（Trix Service URL、本地配对状态）
+ * - T4.1.3: 服务探测按钮
  * - T4.1.4: 高级诊断入口
  * - T4.1.5: 刷新功能
  * - T4.1.6: 连接测试结果显示
@@ -50,16 +50,16 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for diagnostic data to load
     await page.waitForTimeout(1000);
 
-    // Check Gateway URL section
-    const gatewayUrlLabel = page.locator('text=Gateway URL');
-    await expect(gatewayUrlLabel).toBeVisible();
+    // Check Trix Service URL section
+    const serviceUrlLabel = page.locator('text=Trix Service URL');
+    await expect(serviceUrlLabel).toBeVisible();
 
-    // Check Auth Token section
-    const authTokenLabel = page.locator('text=Auth Token');
-    await expect(authTokenLabel).toBeVisible();
+    // Check pairing session section
+    const pairingSessionLabel = page.locator('text=Local Pairing Session');
+    await expect(pairingSessionLabel).toBeVisible();
   });
 
-  test('T4.1.3: should have Run Connection Test button', async ({ page }) => {
+  test('T4.1.3: should have Run Service Test button', async ({ page }) => {
     // Skip if redirected to login
     if (page.url().includes('/login')) {
       test.skip();
@@ -69,8 +69,8 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Check Run Connection Test button is visible - use class-based selector
-    const testButton = page.locator('button.w-full.bg-blue-600');
+    // Check Run Service Test button is visible
+    const testButton = page.locator('button:has-text("Run Service Test")');
     await expect(testButton).toBeVisible();
   });
 
@@ -117,8 +117,8 @@ test.describe('Diagnostic Page E2E Tests', () => {
     }
 
     // Check values are still displayed after reload
-    const gatewayUrlLabel = page.locator('text=Gateway URL');
-    await expect(gatewayUrlLabel).toBeVisible();
+    const serviceUrlLabel = page.locator('text=Trix Service URL');
+    await expect(serviceUrlLabel).toBeVisible();
   });
 
   test('T4.1.6: should show test result after running connection test', async ({ page }) => {
@@ -131,13 +131,13 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Click Run Connection Test button - use class-based selector for stability
-    const testButton = page.locator('button.w-full.bg-blue-600');
+    // Click Run Service Test button
+    const testButton = page.locator('button:has-text("Run Service Test")');
     await expect(testButton).toBeVisible();
     await testButton.click();
 
     // Wait for test to complete (button should show Testing state)
-    const testingButton = page.locator('button:has-text("Testing...")');
+    const testingButton = page.locator('button:has-text("Testing Service...")');
 
     // Check if button changes to testing state
     const isTesting = await testingButton.isVisible().catch(() => false);
@@ -166,12 +166,12 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Check that the page shows values for Gateway URL and Auth Token
+    // Check that the page shows values for Trix Service URL and local pairing session
     const content = await page.content();
 
     // Page should handle missing config gracefully
-    expect(content).toContain('Gateway URL');
-    expect(content).toContain('Auth Token');
+    expect(content).toContain('Trix Service URL');
+    expect(content).toContain('Local Pairing Session');
   });
 
   test('T4.1.8: should disable button during testing', async ({ page }) => {
@@ -184,8 +184,8 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Get the test button - use class-based selector for stability
-    const testButton = page.locator('button.w-full.bg-blue-600');
+    // Get the test button
+    const testButton = page.locator('button:has-text("Run Service Test")');
     await expect(testButton).toBeVisible();
 
     // Click the button to start test
@@ -211,8 +211,8 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Run connection test - use class-based selector
-    const testButton = page.locator('button.w-full.bg-blue-600');
+    // Run connection test
+    const testButton = page.locator('button:has-text("Run Service Test")');
     await testButton.click();
 
     // Wait for potential result (may take time due to network)
@@ -231,17 +231,11 @@ test.describe('Diagnostic Page E2E Tests', () => {
     // Wait for page to load
     await page.waitForTimeout(500);
 
-    // Check that diagnostic card has proper styling
-    const diagnosticCard = page.locator('.max-w-xl.mx-auto.bg-slate-800');
-    await expect(diagnosticCard).toBeVisible();
-
-    // Check that sections have proper borders and padding
-    const sections = page.locator('.bg-slate-900\\/50.p-4.rounded-2xl');
-    const sectionCount = await sections.count();
-    expect(sectionCount).toBeGreaterThan(0);
+    await expect(page.locator('text=Trix Service URL')).toBeVisible();
+    await expect(page.locator('text=Local Pairing Session')).toBeVisible();
 
     // Check main button styling
-    const mainButton = page.locator('.w-full.bg-blue-600');
+    const mainButton = page.locator('button:has-text("Run Service Test")');
     await expect(mainButton).toBeVisible();
   });
 });

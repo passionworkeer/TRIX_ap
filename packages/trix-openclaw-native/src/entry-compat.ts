@@ -21,10 +21,10 @@ function withConfigProvider(
   plugin: ChannelPlugin,
   options: { registerChannel?: boolean } = { registerChannel: true },
 ) {
-  return async (api: OpenClawPluginApi) => {
+  return (api: OpenClawPluginApi) => {
     setTrixPluginConfigProvider(() => api.config);
     if (register) {
-      await register(api);
+      void register(api);
       return;
     }
     if (options.registerChannel !== false) {

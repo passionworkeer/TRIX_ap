@@ -23,7 +23,7 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/$/, '');
 }
 
-function resolveChannelHttpBaseUrl(): string {
+function resolveNativeHttpBaseUrl(): string {
   // 生产环境优先使用 __PROD_UPLOAD_URL__
   if (typeof window !== 'undefined') {
     const prodUploadUrl = (window as any).__PROD_UPLOAD_URL__;
@@ -41,13 +41,14 @@ function resolveChannelHttpBaseUrl(): string {
     }
   }
 
-  const { channelUrl } = getClawbotEndpoints();
-  if (!channelUrl) {
-    throw new Error('Clawbot channel URL is not configured');
+  const { nativePublicUrl, nativeServerUrl } = getClawbotEndpoints();
+  const configuredBaseUrl = nativePublicUrl || nativeServerUrl;
+  if (!configuredBaseUrl) {
+    throw new Error('TRIX Native server URL is not configured');
   }
 
-  const parsed = new URL(channelUrl);
-  parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+  const parsed = new URL(configuredBaseUrl);
+  parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : parsed.protocol;
   parsed.pathname = '';
   parsed.search = '';
   parsed.hash = '';
@@ -57,13 +58,13 @@ function resolveChannelHttpBaseUrl(): string {
 function resolveTtsBaseUrls(): string[] {
   const candidates: string[] = [];
   const explicitTtsProxyUrl = import.meta.env.VITE_TTS_PROXY_URL?.trim();
-  const channelHttpBaseUrl = resolveChannelHttpBaseUrl();
-  const localDevFallbackUrl = 'http://localhost:8765';
+  const nativeHttpBaseUrl = resolveNativeHttpBaseUrl();
+  const localDevFallbackUrl = 'http://localhost:8788';
 
   if (explicitTtsProxyUrl) {
     candidates.push(normalizeBaseUrl(explicitTtsProxyUrl));
   }
-  candidates.push(channelHttpBaseUrl);
+  candidates.push(nativeHttpBaseUrl);
 
   if (import.meta.env.DEV) {
     candidates.push(localDevFallbackUrl);

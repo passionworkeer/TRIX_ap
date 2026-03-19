@@ -1,7 +1,7 @@
 {
   "name": "@trix-app/openclaw-native-channel",
   "version": "0.1.0",
-  "description": "TRIX native OpenClaw multimodal channel with pairing, QR onboarding, LAN relay, and persistent conversations",
+  "description": "TRIX Service-backed OpenClaw native channel plugin with pairing, QR onboarding, and persistent conversations",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

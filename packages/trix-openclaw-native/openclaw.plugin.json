@@ -8,7 +8,6 @@
   },
   "uiHints": {
     "serviceToken": { "label": "Service Token", "sensitive": true },
-    "serviceUrl": { "label": "Service URL", "placeholder": "http://127.0.0.1:8788" },
-    "adminToken": { "label": "Admin Token", "sensitive": true }
+    "serviceUrl": { "label": "Service URL", "placeholder": "http://127.0.0.1:8788" }
   }
 }

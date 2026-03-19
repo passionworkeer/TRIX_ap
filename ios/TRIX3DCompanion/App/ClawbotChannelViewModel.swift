@@ -25,7 +25,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     @Published private(set) var botState: BotState = .idle
 
     // Connection mode
-    @Published var connectionMode: ConnectionMode = .relay
+    @Published var connectionMode: ConnectionMode = .nativeService
 
     // Relay specific
     @Published private(set) var relayConnected: Bool = false
@@ -56,6 +56,12 @@ final class ClawbotChannelViewModel: ObservableObject {
         setupRelayBindings()
     }
 
+    private func activateNativeConnectionMode() {
+        connectionMode = .nativeService
+        relayConnected = false
+        relayDeviceName = nil
+    }
+
     // MARK: - Relay Connection Methods
 
     /// Connect via Relay server (QR code or manual input)
@@ -64,6 +70,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         isSending = true
 
         do {
+            service.disconnect()
             try await relayClient.connect(server: server, gatewayId: gatewayId, accessCode: accessCode)
             connectionMode = .relay
             relayConnected = true
@@ -75,6 +82,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         } catch {
             lastError = error.localizedDescription
             relayConnected = false
+            activateNativeConnectionMode()
             isSending = false
             return false
         }
@@ -111,6 +119,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         relayDeviceName = nil
         relayStreamBuffers.removeAll()
         isPaired = false
+        activateNativeConnectionMode()
     }
 
     /// Send message via Relay
@@ -168,7 +177,9 @@ final class ClawbotChannelViewModel: ObservableObject {
     /// Connect to Clawbot Channel
     func connect() async {
         do {
+            relayClient.disconnect()
             try await service.connect()
+            activateNativeConnectionMode()
         } catch {
             lastError = error.localizedDescription
         }
@@ -177,6 +188,8 @@ final class ClawbotChannelViewModel: ObservableObject {
     /// Disconnect from Clawbot Channel
     func disconnect() {
         service.disconnect()
+        relayClient.disconnect()
+        activateNativeConnectionMode()
     }
 
     /// Check current pairing status
@@ -198,6 +211,8 @@ final class ClawbotChannelViewModel: ObservableObject {
             let success = try await service.pairWithCode(code)
             if success {
                 isPaired = true
+                relayClient.disconnect()
+                activateNativeConnectionMode()
             }
             isSending = false
             return success
@@ -217,6 +232,8 @@ final class ClawbotChannelViewModel: ObservableObject {
             let success = try await service.pairWithQR(token)
             if success {
                 isPaired = true
+                relayClient.disconnect()
+                activateNativeConnectionMode()
             }
             isSending = false
             return success
@@ -235,7 +252,9 @@ final class ClawbotChannelViewModel: ObservableObject {
     /// Unpair from current device
     func unpair() {
         service.unpair()
+        relayClient.disconnect()
         isPaired = false
+        activateNativeConnectionMode()
         messages.removeAll()
     }
 
@@ -254,7 +273,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         isSending = true
         lastError = nil
 
-        if relayConnected || connectionMode == .relay {
+        if connectionMode == .relay && relayConnected {
             let relaySuccess = await sendMessageRelay(content)
             isSending = false
             return relaySuccess

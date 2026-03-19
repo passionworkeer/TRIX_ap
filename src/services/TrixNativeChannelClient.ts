@@ -7,6 +7,13 @@ import type {
   ClawbotChannelMessage,
   ErrorPayload,
 } from './ClawbotChannelBridge';
+import type {
+  FriendRoomLookupResult,
+  StudyRoomAckPayload,
+  StudyRoomHostAction,
+  StudyRoomState,
+  StudyRoomStateEvent,
+} from '../types/studyRoom';
 
 export interface NativeUploadAttachment {
   attachmentId: string;
@@ -42,6 +49,7 @@ type NativeSocketEvents = {
   bot_online: { deviceId: string; message: string; timestamp: number };
   bot_offline: { deviceId: string; message: string; timestamp: number };
   message: ClawbotChannelMessage;
+  study_room_state: StudyRoomStateEvent;
   error: ErrorPayload;
   history: ClawbotChannelMessage[];
 };
@@ -114,6 +122,12 @@ type UploadResponse = {
   };
 };
 
+type StudyRoomsListResponse = {
+  success?: boolean;
+  rooms?: StudyRoomState[];
+  error?: string;
+};
+
 const STORAGE_KEYS = {
   session: 'trix_native_channel_session',
   clientId: 'trix_native_channel_client_id',
@@ -162,6 +176,11 @@ function resolveWebSocketUrl(claimWsUrl: string | undefined, serverUrl: string):
 function defaultDeviceName(): string {
   const platform = typeof navigator !== 'undefined' ? navigator.platform || 'Browser' : 'Browser';
   return `TRIX-${platform}`;
+}
+
+function resolveConfiguredNativeBaseUrl(): string {
+  const endpoints = getClawbotEndpoints();
+  return normalizeServerUrl(endpoints.nativePublicUrl || endpoints.nativeServerUrl || '');
 }
 
 function inferAttachmentKind(mimeType: string | undefined, fileName: string | undefined): NativeUploadAttachment['kind'] {
@@ -456,9 +475,8 @@ class TrixNativeChannelClient {
   }
 
   async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string): Promise<{ success: boolean }> {
-    const endpoints = getClawbotEndpoints();
     const session = this.getSession();
-    const serverUrl = normalizeServerUrl(session?.serverUrl || endpoints.nativeServerUrl);
+    const serverUrl = normalizeServerUrl(session?.serverUrl || resolveConfiguredNativeBaseUrl());
     if (!serverUrl) {
       throw new Error('未配置 TRIX Native Server 地址，请先设置 VITE_TRIX_NATIVE_SERVER_URL');
     }
@@ -500,7 +518,7 @@ class TrixNativeChannelClient {
 
   async pairWithQR(rawPayload: string, deviceName: string = defaultDeviceName()): Promise<{ success: boolean }> {
     const parsed = parseQrOrClaimPayload(rawPayload);
-    const serverUrl = normalizeServerUrl(parsed.serverUrl || getClawbotEndpoints().nativeServerUrl || this.getSession()?.serverUrl || '');
+    const serverUrl = normalizeServerUrl(parsed.serverUrl || this.getSession()?.serverUrl || resolveConfiguredNativeBaseUrl());
     if (!serverUrl) {
       throw new Error('二维码没有包含服务器地址，且当前环境未配置 VITE_TRIX_NATIVE_SERVER_URL');
     }
@@ -551,7 +569,7 @@ class TrixNativeChannelClient {
 
   async fetchHistory(): Promise<ClawbotChannelMessage[]> {
     const session = this.requireSession();
-    const response = await fetch(`${session.serverUrl}/api/messages/${encodeURIComponent(session.conversationId)}`, {
+    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
       headers: {
         'x-trix-client-token': session.clientToken,
       },
@@ -562,6 +580,144 @@ class TrixNativeChannelClient {
     const payload = await response.json() as ConversationMessagesResponse;
     this.agentOnline = Boolean(payload.agentOnline);
     return payload.messages.map((message) => mapServerMessage(message));
+  }
+
+  async createStudyRoom(params: {
+    userId: string;
+    displayName: string;
+    avatarUrl?: string;
+    maxMembers?: number;
+  }): Promise<StudyRoomState> {
+    const payload = await this.requestJson<StudyRoomAckPayload>('/api/study-rooms', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    }, '创建房间失败');
+
+    if (!payload.success || !payload.room) {
+      throw new Error(payload.error || '创建房间失败');
+    }
+    return payload.room;
+  }
+
+  async joinStudyRoom(
+    roomCode: string,
+    params: {
+      userId: string;
+      displayName: string;
+      avatarUrl?: string;
+    },
+  ): Promise<StudyRoomState> {
+    const payload = await this.requestJson<StudyRoomAckPayload>(
+      `/api/study-rooms/${encodeURIComponent(roomCode)}/join`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      },
+      '加入房间失败',
+    );
+
+    if (!payload.success || !payload.room) {
+      throw new Error(payload.error || '加入房间失败');
+    }
+    return payload.room;
+  }
+
+  async leaveStudyRoom(roomCode: string, userId: string): Promise<void> {
+    const payload = await this.requestJson<StudyRoomAckPayload>(
+      `/api/study-rooms/${encodeURIComponent(roomCode)}/leave`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      },
+      '离开房间失败',
+    );
+
+    if (!payload.success) {
+      throw new Error(payload.error || '离开房间失败');
+    }
+  }
+
+  async hostActionStudyRoom(
+    roomCode: string,
+    params: {
+      userId: string;
+      action: StudyRoomHostAction;
+      durationMinutes?: number;
+    },
+  ): Promise<StudyRoomState> {
+    const payload = await this.requestJson<StudyRoomAckPayload>(
+      `/api/study-rooms/${encodeURIComponent(roomCode)}/action`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      },
+      '房间控制失败',
+    );
+
+    if (!payload.success || !payload.room) {
+      throw new Error(payload.error || '房间控制失败');
+    }
+    return payload.room;
+  }
+
+  async getStudyRoomState(params: { userId: string; roomCode?: string }): Promise<StudyRoomState> {
+    if (params.roomCode?.trim()) {
+      const payload = await this.requestJson<StudyRoomAckPayload>(
+        `/api/study-rooms/${encodeURIComponent(params.roomCode.trim())}`,
+        undefined,
+        '获取房间状态失败',
+      );
+      if (!payload.success || !payload.room) {
+        throw new Error(payload.error || '获取房间状态失败');
+      }
+      return payload.room;
+    }
+
+    const payload = await this.requestJson<StudyRoomsListResponse>('/api/study-rooms', undefined, '获取房间状态失败');
+    const room = (payload.rooms ?? []).find((entry) =>
+      entry.members.some((member) => member.userId === params.userId),
+    );
+    if (!room) {
+      throw new Error('NOT_IN_ROOM');
+    }
+    return room;
+  }
+
+  async lookupStudyRoomsByUsers(userIds: string[]): Promise<{ users: FriendRoomLookupResult[] }> {
+    if (userIds.length === 0) {
+      return { users: [] };
+    }
+
+    const payload = await this.requestJson<StudyRoomsListResponse>('/api/study-rooms', undefined, '查询好友房间失败');
+    const users = userIds.map<FriendRoomLookupResult>((userId) => {
+      const room = (payload.rooms ?? []).find((entry) =>
+        entry.members.some((member) => member.userId === userId),
+      );
+      if (!room) {
+        return { userId, inRoom: false };
+      }
+      return {
+        userId,
+        inRoom: true,
+        roomCode: room.roomCode,
+        sessionState: room.sessionState,
+        memberCount: room.members.length,
+      };
+    });
+
+    return { users };
   }
 
   async uploadAttachment(file: File | Blob, options: { fileName?: string; kind?: NativeUploadAttachment['kind'] } = {}): Promise<NativeUploadAttachment> {
@@ -697,7 +853,18 @@ class TrixNativeChannelClient {
   }
 
   unpair(): void {
+    const session = this.getSession();
     this.disconnect();
+    if (session) {
+      void fetch(`${session.serverUrl}/api/pairings/${encodeURIComponent(session.clientId)}`, {
+        method: 'DELETE',
+        headers: {
+          authorization: `Bearer ${session.clientToken}`,
+        },
+      }).catch((error: unknown) => {
+        logger.warn('TrixNativeChannel', 'Server-side unpair failed:', error);
+      });
+    }
     this.clearSession();
     this.agentOnline = false;
     this.emit('unpaired', undefined);
@@ -709,6 +876,23 @@ class TrixNativeChannelClient {
       throw new Error('当前设备尚未配对');
     }
     return session;
+  }
+
+  private async requestJson<T>(path: string, init?: RequestInit, fallbackMessage = '请求失败'): Promise<T> {
+    const session = this.requireSession();
+    const headers = new Headers(init?.headers);
+    headers.set('x-trix-client-token', session.clientToken);
+    headers.set('x-trix-conversation-id', session.conversationId);
+
+    const response = await fetch(`${session.serverUrl}${path}`, {
+      ...init,
+      headers,
+    });
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      throw new Error(typeof payload?.error === 'string' ? payload.error : fallbackMessage);
+    }
+    return (payload ?? {}) as T;
   }
 
   private handleSocketMessage(rawData: string): void {
@@ -758,6 +942,15 @@ class TrixNativeChannelClient {
           return;
         }
         this.emit('message', mapServerMessage(payload.message));
+        return;
+      }
+
+      if (envelope.type === 'study_room_state') {
+        const payload = envelope.payload as StudyRoomStateEvent | undefined;
+        if (!payload?.roomCode) {
+          return;
+        }
+        this.emit('study_room_state', payload);
       }
     } catch (error) {
       this.emit('error', {

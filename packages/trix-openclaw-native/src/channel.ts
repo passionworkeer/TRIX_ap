@@ -58,13 +58,22 @@ export const trixPlugin: ChannelPlugin = {
               serviceUrl: { type: 'string', format: 'uri' },
               publicBaseUrl: { type: 'string', format: 'uri' },
               serviceToken: { type: 'string' },
-              adminToken: { type: 'string' },
               transport: { type: 'string', enum: ['ws', 'http'] },
               storageDir: { type: 'string' },
             },
             required: ['serviceUrl', 'serviceToken'],
           },
         },
+      },
+    },
+    uiHints: {
+      'accounts.default.serviceUrl': {
+        label: 'Service URL',
+        placeholder: 'http://127.0.0.1:8788',
+      },
+      'accounts.default.serviceToken': {
+        label: 'Service Token',
+        sensitive: true,
       },
     },
   },

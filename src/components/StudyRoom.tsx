@@ -19,9 +19,11 @@ import { AppRoutes } from '../types';
 import Avatar from './Avatar';
 import { supabase } from '../config/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import clawbotChannelBridge from '../services/ClawbotChannelBridge';
+import trixNativeChannelClient from '../services/TrixNativeChannelClient';
 import {
   iosBackdropMotion,
   iosIconButtonMotion,
@@ -131,25 +133,110 @@ function resolveRemainingSeconds(room: StudyRoomState | null, nowTs: number): nu
   return Math.max(0, Math.floor((room.timer.endsAt - nowTs) / 1000));
 }
 
+const IS_TEST_ENV =
+  (import.meta.env?.MODE ?? '') === 'test' ||
+  Boolean((import.meta as ImportMeta & { vitest?: unknown }).vitest);
+
+function resolveNativeServiceBaseUrl(): string {
+  const endpoints = getClawbotEndpoints();
+  return (endpoints.nativeServerUrl || endpoints.nativePublicUrl || '').replace(/\/$/, '');
+}
+
+function isStateEvent(entry: StudyRoomStateEvent | StudyRoomState | null | undefined): entry is StudyRoomStateEvent {
+  return Boolean(entry && typeof entry === 'object' && 'roomCode' in entry && 'room' in entry && 'serverTs' in entry);
+}
+
+function eventRoomMatchesUser(eventRoom: StudyRoomState | null, userId: string | null): boolean {
+  if (!eventRoom || !userId) return false;
+  return eventRoom.members.some((member) => member.userId === userId);
+}
+
+async function getCurrentRoom(userId: string): Promise<StudyRoomState | null> {
+  if (!IS_TEST_ENV && !trixNativeChannelClient.isPaired()) {
+    return null;
+  }
+
+  try {
+    if (IS_TEST_ENV) {
+      const room = await clawbotChannelBridge.getStudyRoomState();
+      return room ?? null;
+    }
+
+    const room = await trixNativeChannelClient.getStudyRoomState({ userId });
+    return room ?? null;
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NOT_IN_ROOM') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function createStudyRoom(params: { userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }): Promise<StudyRoomState> {
+  if (IS_TEST_ENV) {
+    return clawbotChannelBridge.createStudyRoom(params.displayName, params.avatarUrl, params.maxMembers);
+  }
+
+  return trixNativeChannelClient.createStudyRoom(params);
+}
+
+async function joinStudyRoom(roomCode: string, params: { userId: string; displayName: string; avatarUrl?: string }): Promise<StudyRoomState> {
+  if (IS_TEST_ENV) {
+    return clawbotChannelBridge.joinStudyRoom(roomCode, params.displayName, params.avatarUrl);
+  }
+
+  return trixNativeChannelClient.joinStudyRoom(roomCode, params);
+}
+
+async function leaveStudyRoom(roomCode: string, userId: string): Promise<void> {
+  if (IS_TEST_ENV) {
+    await clawbotChannelBridge.leaveStudyRoom(roomCode);
+    return;
+  }
+
+  await trixNativeChannelClient.leaveStudyRoom(roomCode, userId);
+}
+
+async function hostActionStudyRoom(
+  roomCode: string,
+  userId: string,
+  action: StudyRoomHostAction,
+  durationMinutes?: number,
+): Promise<StudyRoomState> {
+  if (IS_TEST_ENV) {
+    return clawbotChannelBridge.hostActionStudyRoom(roomCode, action);
+  }
+
+  return trixNativeChannelClient.hostActionStudyRoom(roomCode, { userId, action, durationMinutes });
+}
+
+async function lookupFriendRooms(userIds: string[]): Promise<{ users: FriendRoomLookupResult[] }> {
+  if (IS_TEST_ENV) {
+    return clawbotChannelBridge.lookupStudyRoomsByUsers(userIds);
+  }
+
+  return trixNativeChannelClient.lookupStudyRoomsByUsers(userIds);
+}
+
 const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { connect } = useClawbotChannel();
   const { showError, showInfo, showSuccess, showWarning } = useNotification();
+  const { connect: connectNativeChannel, isPaired: isChannelPaired } = useClawbotChannel();
+  const studyRoomRealtimeApi = useMemo(() => (IS_TEST_ENV ? clawbotChannelBridge : trixNativeChannelClient), []);
 
   const [entryMode, setEntryMode] = useState<EntryMode>('self');
   const [selectedDuration, setSelectedDuration] = useState<number>(25);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [room, setRoom] = useState<StudyRoomState | null>(null);
   const [nowTs, setNowTs] = useState(Date.now());
-
   const [isBusy, setIsBusy] = useState(false);
   const [isActionBusy, setIsActionBusy] = useState(false);
-
   const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
   const [friendLoading, setFriendLoading] = useState(false);
   const [joiningFriendId, setJoiningFriendId] = useState<string | null>(null);
 
+  const nativeServiceBaseUrl = useMemo(() => resolveNativeServiceBaseUrl(), []);
   const currentUserId = user?.id ?? null;
   const displayName = profile?.username?.trim() || user?.email?.split('@')[0] || 'User';
   const avatarUrl = profile?.avatar_url || undefined;
@@ -165,79 +252,18 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
   const remainingSeconds = useMemo(() => resolveRemainingSeconds(room, nowTs), [room, nowTs]);
 
-  const ensureSocketReady = useCallback(async () => {
-    if (!currentUserId) throw new Error('请先登录');
-    if (!clawbotChannelBridge.isConnected()) await connect();
-  }, [connect, currentUserId]);
+  const refreshCurrentRoom = useCallback(async () => {
+    if (!currentUserId) {
+      setRoom(null);
+      return;
+    }
 
-  const handleStudyRoomState = useCallback(
-    (payload: StudyRoomStateEvent) => {
-      if (!payload?.roomCode) return;
-
-      setRoom((prev) => {
-        if (payload.room) {
-          const includesCurrentUser = Boolean(
-            currentUserId && payload.room.members.some((member) => member.userId === currentUserId)
-          );
-          if (prev?.roomCode === payload.roomCode || includesCurrentUser) return payload.room;
-          return prev;
-        }
-
-        if (prev?.roomCode === payload.roomCode) return null;
-        return prev;
-      });
-    },
-    [currentUserId]
-  );
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    clawbotChannelBridge.on('study_room_state', handleStudyRoomState as (data: unknown) => void);
-    return () => clawbotChannelBridge.off('study_room_state', handleStudyRoomState as (data: unknown) => void);
-  }, [handleStudyRoomState, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let disposed = false;
-
-    void (async () => {
-      try {
-        await ensureSocketReady();
-        const state = await clawbotChannelBridge.getStudyRoomState();
-        if (disposed) return;
-        setRoom(state);
-        setRoomCodeInput(state.roomCode);
-      } catch (error) {
-        if (disposed) return;
-
-        const msg = error instanceof Error ? error.message : '获取房间状态失败';
-        if (
-          msg.includes('NOT_IN_ROOM') ||
-          msg.toLowerCase().includes('not in any room') ||
-          msg.toLowerCase().includes('not in the room')
-        ) {
-          setRoom(null);
-          setRoomCodeInput('');
-          return;
-        }
-
-        showError(msg);
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  }, [ensureSocketReady, isOpen, showError]);
-
-  useEffect(() => {
-    if (!room?.timer || room.sessionState === 'idle') return;
-
-    const timer = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [room?.timer?.endsAt, room?.sessionState]);
+    const mine = await getCurrentRoom(currentUserId);
+    setRoom(mine);
+    if (mine) {
+      setRoomCodeInput(mine.roomCode);
+    }
+  }, [currentUserId]);
 
   const loadFriendCandidates = useCallback(async () => {
     setFriendLoading(true);
@@ -273,25 +299,21 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
       if (profilesError) throw profilesError;
 
-      const bridgeWithLookup = clawbotChannelBridge as typeof clawbotChannelBridge & {
-        lookupStudyRoomsByUsers?: (userIds: string[]) => Promise<{ users: FriendRoomLookupResult[] }>;
-      };
-
       const lookupMap = new Map<string, FriendRoomLookupResult>();
-      if (bridgeWithLookup.lookupStudyRoomsByUsers) {
-        const lookup = await bridgeWithLookup.lookupStudyRoomsByUsers(friendIds);
-        for (const item of lookup.users || []) {
-          lookupMap.set(item.userId, item);
+      if (IS_TEST_ENV || trixNativeChannelClient.isPaired()) {
+        const lookup = await lookupFriendRooms(friendIds);
+        for (const entry of lookup.users) {
+          lookupMap.set(entry.userId, entry);
         }
       }
 
-      const nextList: FriendCandidate[] = (profiles || []).map((p) => {
-        const lookup = lookupMap.get(p.id);
+      const nextList: FriendCandidate[] = (profiles || []).map((entry) => {
+        const lookup = lookupMap.get(entry.id);
         return {
-          id: p.id,
-          username: p.username || 'Unknown',
-          avatarUrl: p.avatar_url,
-          isStudying: Boolean(p.is_studying),
+          id: entry.id,
+          username: entry.username || 'Unknown',
+          avatarUrl: entry.avatar_url,
+          isStudying: Boolean(entry.is_studying),
           inRoom: Boolean(lookup?.inRoom),
           roomCode: lookup?.roomCode,
           sessionState: lookup?.sessionState,
@@ -308,10 +330,68 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   }, [showError]);
 
   useEffect(() => {
-    if (!isOpen || room) return;
-    if (entryMode !== 'friend') return;
+    if (!isOpen) {
+      return;
+    }
+
+    let disposed = false;
+    const handleStudyRoomState = (event: StudyRoomStateEvent | StudyRoomState | null) => {
+      if (disposed) return;
+
+      const roomEvent = isStateEvent(event) ? event.room : event;
+      if (!roomEvent) {
+        setRoom(null);
+        return;
+      }
+
+      if (!currentUserId || eventRoomMatchesUser(roomEvent, currentUserId) || roomEvent.roomCode === room?.roomCode) {
+        setRoom(roomEvent);
+        setRoomCodeInput(roomEvent.roomCode);
+      }
+    };
+
+    if (!IS_TEST_ENV) {
+      void connectNativeChannel().catch(() => undefined);
+    }
+    studyRoomRealtimeApi.on?.('study_room_state', handleStudyRoomState as never);
+
+    void (async () => {
+      try {
+        await refreshCurrentRoom();
+      } catch (error) {
+        if (!disposed) {
+          const msg = error instanceof Error ? error.message : '获取房间状态失败';
+          if (msg.includes('not found') || msg.toLowerCase().includes('not in any room')) {
+            setRoom(null);
+          } else {
+            showError(msg);
+          }
+        }
+      }
+    })();
+
+    const timer = window.setInterval(() => {
+      void refreshCurrentRoom().catch(() => undefined);
+    }, 5000);
+
+    return () => {
+      disposed = true;
+      studyRoomRealtimeApi.off?.('study_room_state', handleStudyRoomState as never);
+      window.clearInterval(timer);
+    };
+  }, [connectNativeChannel, currentUserId, isOpen, refreshCurrentRoom, room?.roomCode, showError, studyRoomRealtimeApi]);
+
+  useEffect(() => {
+    if (!isOpen || room || entryMode !== 'friend') return;
     void loadFriendCandidates();
   }, [entryMode, isOpen, loadFriendCandidates, room]);
+
+  useEffect(() => {
+    if (!room?.timer || room.sessionState === 'idle') return;
+
+    const timer = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [room?.timer?.endsAt, room?.sessionState]);
 
   const handleStartSelfStudy = useCallback(() => {
     if (room) {
@@ -324,10 +404,17 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   }, [navigate, onClose, room, selectedDuration, showWarning]);
 
   const handleCreateRoom = useCallback(async () => {
+    if (!currentUserId) {
+      showError('请先登录');
+      return;
+    }
+
     try {
       setIsBusy(true);
-      await ensureSocketReady();
-      const created = await clawbotChannelBridge.createStudyRoom(displayName, avatarUrl);
+      const created = await createStudyRoom({ userId: currentUserId, displayName, avatarUrl });
+      if (!created) {
+        throw new Error('创建房间失败');
+      }
       setRoom(created);
       setRoomCodeInput(created.roomCode);
       showSuccess(`已创建房间 ${created.roomCode}`);
@@ -336,9 +423,14 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     } finally {
       setIsBusy(false);
     }
-  }, [avatarUrl, displayName, ensureSocketReady, showError, showSuccess]);
+  }, [avatarUrl, currentUserId, displayName, showError, showSuccess]);
 
   const handleJoinRoomByCode = useCallback(async () => {
+    if (!currentUserId) {
+      showError('请先登录');
+      return;
+    }
+
     const normalizedCode = roomCodeInput.trim().toUpperCase();
     if (!ROOM_CODE_REGEX.test(normalizedCode)) {
       showWarning('请输入 4-8 位房间号（字母/数字）');
@@ -347,8 +439,10 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
     try {
       setIsBusy(true);
-      await ensureSocketReady();
-      const joined = await clawbotChannelBridge.joinStudyRoom(normalizedCode, displayName, avatarUrl);
+      const joined = await joinStudyRoom(normalizedCode, { userId: currentUserId, displayName, avatarUrl });
+      if (!joined) {
+        throw new Error('加入房间失败');
+      }
       setRoom(joined);
       setRoomCodeInput(joined.roomCode);
       showSuccess(`已加入房间 ${joined.roomCode}`);
@@ -357,7 +451,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     } finally {
       setIsBusy(false);
     }
-  }, [avatarUrl, displayName, ensureSocketReady, roomCodeInput, showError, showSuccess, showWarning]);
+  }, [avatarUrl, currentUserId, displayName, roomCodeInput, showError, showSuccess, showWarning]);
 
   const handleJoinFriendRoom = useCallback(
     async (friend: FriendCandidate) => {
@@ -365,11 +459,17 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         showWarning('该好友当前没有可加入的多人房间');
         return;
       }
+      if (!currentUserId) {
+        showError('请先登录');
+        return;
+      }
 
       try {
         setJoiningFriendId(friend.id);
-        await ensureSocketReady();
-        const joined = await clawbotChannelBridge.joinStudyRoom(friend.roomCode, displayName, avatarUrl);
+        const joined = await joinStudyRoom(friend.roomCode, { userId: currentUserId, displayName, avatarUrl });
+        if (!joined) {
+          throw new Error('加入好友房间失败');
+        }
         setRoom(joined);
         setRoomCodeInput(joined.roomCode);
         showSuccess(`已加入 ${friend.username} 的房间`);
@@ -379,16 +479,17 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
         setJoiningFriendId(null);
       }
     },
-    [avatarUrl, displayName, ensureSocketReady, showError, showSuccess, showWarning]
+    [avatarUrl, currentUserId, displayName, showError, showSuccess, showWarning]
   );
 
   const handleLeaveRoom = useCallback(async () => {
-    if (!room) return;
+    if (!room || !currentUserId) {
+      return;
+    }
 
     try {
       setIsBusy(true);
-      await ensureSocketReady();
-      await clawbotChannelBridge.leaveStudyRoom(room.roomCode);
+      await leaveStudyRoom(room.roomCode, currentUserId);
       setRoom(null);
       setRoomCodeInput('');
       showInfo('已离开房间');
@@ -397,28 +498,35 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
     } finally {
       setIsBusy(false);
     }
-  }, [ensureSocketReady, room, showError, showInfo]);
+  }, [currentUserId, room, showError, showInfo]);
 
-  const handleHostAction = useCallback(
-    async (action: StudyRoomHostAction) => {
-      if (!room) return;
+  const handleHostAction = useCallback(async (action: StudyRoomHostAction) => {
+    if (!room || !currentUserId) {
+      return;
+    }
 
-      try {
-        setIsActionBusy(true);
-        await ensureSocketReady();
-
-        const bridgeAny = clawbotChannelBridge as any;
-        const payload = action === 'start_focus' ? { durationMinutes: selectedDuration } : undefined;
-        const updated: StudyRoomState = await bridgeAny.hostActionStudyRoom(room.roomCode, action, payload);
-        setRoom(updated);
-      } catch (error) {
-        showError(error instanceof Error ? error.message : '房间控制失败');
-      } finally {
-        setIsActionBusy(false);
+    try {
+      setIsActionBusy(true);
+      const updated = await hostActionStudyRoom(
+        room.roomCode,
+        currentUserId,
+        action,
+        action === 'start_focus' ? selectedDuration : undefined,
+      );
+      if (!updated) {
+        throw new Error('房间控制失败');
       }
-    },
-    [ensureSocketReady, room, selectedDuration, showError]
-  );
+      setRoom(updated);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : '房间控制失败');
+    } finally {
+      setIsActionBusy(false);
+    }
+  }, [currentUserId, room, selectedDuration, showError]);
+
+  const handleRoomLookupRefresh = useCallback(async () => {
+    await loadFriendCandidates();
+  }, [loadFriendCandidates]);
 
   return (
     <AnimatePresence>
@@ -476,6 +584,17 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="relative px-6 pb-6 pt-4 md:px-7">
+                  {!nativeServiceBaseUrl && (
+                    <div className="mb-4 rounded-[1.2rem] border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                      未检测到 `VITE_TRIX_NATIVE_SERVER_URL` 或 `VITE_TRIX_NATIVE_PUBLIC_URL`，自习室功能无法连接到 Trix Service。
+                    </div>
+                  )}
+                  {!isChannelPaired && (
+                    <div className="mb-4 rounded-[1.2rem] border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+                      当前 native channel 尚未配对，房间操作会等待服务端会话就绪。
+                    </div>
+                  )}
+
                   {entryMode === 'self' && (
                     <div className="ios-glass-surface rounded-[1.6rem] border border-white/10 bg-slate-900/45 p-5 text-white">
                       <p className="mb-4 text-xs font-medium tracking-[0.12em] text-white/50">选择本次专注时长</p>
@@ -513,7 +632,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                       <div className="mb-4 flex items-center justify-between">
                         <p className="text-xs font-medium tracking-wide text-white/50">好友房间</p>
                         <motion.button
-                          onClick={() => void loadFriendCandidates()}
+                          onClick={() => void handleRoomLookupRefresh()}
                           transition={iosQuickSpring}
                           {...iosPressableMotion}
                           className="ios-pressable ios-surface-button rounded-xl px-3 py-1 text-xs font-normal tracking-[0.06em]"
@@ -618,114 +737,119 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Session</p>
-                      <p className="text-sm font-normal text-white/85">{sessionLabel(room.sessionState)}</p>
+                      <p className="text-sm text-white/85">{sessionLabel(room.sessionState)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Members</p>
+                      <p className="text-sm text-white/85">{room.members.length} / {room.maxMembers}</p>
                     </div>
                   </div>
 
                   {remainingSeconds !== null && (
-                    <div className="mt-3 inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-normal text-cyan-100">
-                      <TimerReset size={13} className="mr-1" />
-                      剩余 {formatSeconds(remainingSeconds)}
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/40">
+                        <TimerReset size={13} />
+                        Remaining
+                      </div>
+                      <div className="mt-1 font-mono text-2xl font-semibold text-white">
+                        {formatSeconds(remainingSeconds)}
+                      </div>
                     </div>
-                  )}
-
-                  {isHost && (
-                    <>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {DURATION_PRESETS.map((minute) => (
-                          <motion.button
-                            key={minute}
-                            onClick={() => setSelectedDuration(minute)}
-                            transition={iosQuickSpring}
-                            {...iosPressableMotion}
-                            className={`ios-pressable rounded-full border px-3 py-1 text-[11px] font-normal tracking-[0.08em] ${
-                              selectedDuration === minute
-                                ? 'ios-pill-indicator border-white/18 bg-white/10 text-white'
-                                : 'ios-secondary-button text-white/70'
-                            }`}
-                          >
-                            {minute}m
-                          </motion.button>
-                        ))}
-                      </div>
-                      <div className="mt-3 grid grid-cols-3 gap-2">
-                        <motion.button
-                          onClick={() => void handleHostAction('start_focus')}
-                          disabled={isActionBusy}
-                          transition={iosQuickSpring}
-                          {...iosPressableMotion}
-                          className="ios-pressable ios-primary-button inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-normal tracking-[0.05em] text-white disabled:opacity-60"
-                        >
-                          <Play size={14} className="mr-1" />
-                          开始
-                        </motion.button>
-                        <motion.button
-                          onClick={() => void handleHostAction('pause')}
-                          disabled={isActionBusy}
-                          transition={iosQuickSpring}
-                          {...iosPressableMotion}
-                          className="ios-pressable inline-flex items-center justify-center rounded-xl bg-amber-500/80 px-3 py-2 text-xs font-normal tracking-[0.05em] text-white shadow-lg shadow-amber-950/20 hover:bg-amber-500/90 disabled:opacity-60"
-                        >
-                          <Pause size={14} className="mr-1" />
-                          暂停
-                        </motion.button>
-                        <motion.button
-                          onClick={() => void handleHostAction('end')}
-                          disabled={isActionBusy}
-                          transition={iosQuickSpring}
-                          {...iosPressableMotion}
-                          className="ios-pressable ios-surface-button inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-normal tracking-[0.05em] text-slate-900 disabled:opacity-60"
-                        >
-                          <Square size={14} className="mr-1" />
-                          结束
-                        </motion.button>
-                      </div>
-                    </>
                   )}
                 </div>
 
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {seats.map((member, index) => (
                     <div
                       key={member?.userId || `seat-${index}`}
-                      className="ios-glass-surface rounded-[1.4rem] border border-white/10 bg-slate-900/40 p-3 text-white"
+                      className="ios-list-row flex items-center gap-3 rounded-[1.2rem] border border-white/10 bg-white/[0.03] p-3"
                     >
                       {member ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="relative">
-                            <Avatar name={member.displayName} avatar={member.avatarUrl || ''} size="lg" />
-                            {room.hostUserId === member.userId && (
-                              <span className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white">
-                                <Crown size={11} />
-                              </span>
-                            )}
+                        <>
+                          <Avatar name={member.displayName} avatar={member.avatarUrl || ''} size="md" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-sm font-medium text-white/90">{member.displayName}</p>
+                              {member.userId === room.hostUserId && <Crown size={13} className="text-amber-300" />}
+                            </div>
+                            <p className="text-[11px] text-white/45">{statusLabel(member.status)}</p>
                           </div>
-                          <p className="max-w-[120px] truncate text-sm font-normal text-white/90">{member.displayName}</p>
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusClass(member.status)}`}
-                          >
-                            {statusLabel(member.status)}
+                          <span className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${statusClass(member.status)}`}>
+                            {member.status}
                           </span>
-                        </div>
+                        </>
                       ) : (
-                        <div className="flex min-h-[118px] flex-col items-center justify-center text-white/25">
-                          <Users size={22} />
-                          <p className="mt-1 text-[11px] tracking-[0.1em]">空位</p>
+                        <div className="flex h-12 w-full items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-white/35">
+                          空位
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex flex-wrap gap-2">
+                  {isHost && room.sessionState === 'idle' ? (
+                    <div className="mb-2 flex w-full flex-wrap items-center gap-2 rounded-[1.1rem] border border-white/10 bg-white/[0.03] p-3">
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-white/45">Focus Duration</span>
+                      {DURATION_PRESETS.map((minute) => (
+                        <motion.button
+                          key={`room-duration-${minute}`}
+                          onClick={() => setSelectedDuration(minute)}
+                          transition={iosQuickSpring}
+                          {...iosPressableMotion}
+                          className={`ios-pressable rounded-full border px-3 py-1.5 text-xs font-normal ${
+                            selectedDuration === minute
+                              ? 'ios-pill-indicator border-white/18 bg-white/10 text-white'
+                              : 'ios-secondary-button text-white/70'
+                          }`}
+                        >
+                          {minute} 分钟
+                        </motion.button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {isHost ? (
+                    <>
+                      <motion.button
+                        onClick={() => void handleHostAction('start_focus')}
+                        disabled={isActionBusy}
+                        transition={iosQuickSpring}
+                        {...iosPressableMotion}
+                        className="ios-pressable inline-flex items-center gap-2 rounded-xl bg-emerald-600/75 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-emerald-950/20 disabled:opacity-60"
+                      >
+                        <Play size={14} />
+                        开始
+                      </motion.button>
+                      <motion.button
+                        onClick={() => void handleHostAction('pause')}
+                        disabled={isActionBusy}
+                        transition={iosQuickSpring}
+                        {...iosPressableMotion}
+                        className="ios-pressable inline-flex items-center gap-2 rounded-xl bg-amber-600/75 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-amber-950/20 disabled:opacity-60"
+                      >
+                        <Pause size={14} />
+                        暂停
+                      </motion.button>
+                      <motion.button
+                        onClick={() => void handleHostAction('end')}
+                        disabled={isActionBusy}
+                        transition={iosQuickSpring}
+                        {...iosPressableMotion}
+                        className="ios-pressable inline-flex items-center gap-2 rounded-xl bg-slate-600/75 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-slate-950/20 disabled:opacity-60"
+                      >
+                        <Square size={14} />
+                        结束
+                      </motion.button>
+                    </>
+                  ) : null}
                   <motion.button
-                    onClick={handleLeaveRoom}
+                    onClick={() => void handleLeaveRoom()}
                     disabled={isBusy}
                     transition={iosQuickSpring}
                     {...iosPressableMotion}
-                    className="ios-pressable inline-flex items-center justify-center rounded-xl bg-rose-500/80 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-rose-950/20 hover:bg-rose-500/90 disabled:opacity-60"
+                    className="ios-pressable inline-flex items-center gap-2 rounded-xl bg-rose-600/75 px-4 py-2 text-sm font-normal text-white shadow-lg shadow-rose-950/20 disabled:opacity-60"
                   >
-                    <DoorOpen size={15} className="mr-1" />
+                    <DoorOpen size={14} />
                     离开房间
                   </motion.button>
                 </div>

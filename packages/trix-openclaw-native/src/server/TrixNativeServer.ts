@@ -1,6 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { AttachmentStore } from '../attachments/AttachmentStore.js';
 import { PairingService } from '../pairing/PairingService.js';
@@ -12,6 +13,8 @@ import type {
   CreateMessageInput,
   MessageRecord,
   NativeChannelState,
+  PairingCreatedResponse,
+  PairingRecord,
   ServiceCreateMessageInput,
   ServerConfig,
   StudyRoom,
@@ -30,12 +33,28 @@ type SocketMeta = {
   clientId?: string;
 };
 
+const ATTACHMENT_URL_TTL_MS = 24 * 60 * 60 * 1000;
+const LEGACY_AGENT_WS_ENV = 'TRIX_NATIVE_ENABLE_LEGACY_AGENT_WS';
+
+class HttpError extends Error {
+  readonly statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
 export class TrixNativeServer {
   readonly stateStore: JsonStateStore;
   private readonly host: string;
   private readonly port: number;
   private readonly storageDir: string;
   private readonly publicBaseUrl: string;
+  private readonly adminTokenOverride?: string;
+  private readonly serviceTokenOverride?: string;
+  private readonly attachmentSigningSecretOverride?: string;
+  private readonly enableLegacyAgentWs: boolean;
   private readonly pairingService: PairingService;
   private readonly attachmentStore: AttachmentStore;
   private readonly server: http.Server;
@@ -47,6 +66,10 @@ export class TrixNativeServer {
     this.port = config.port ?? 8788;
     this.storageDir = path.resolve(config.storageDir ?? path.join(process.cwd(), '.trix-native-channel'));
     this.publicBaseUrl = buildPublicBaseUrl(this.host, this.port, config.publicBaseUrl ?? process.env.TRIX_NATIVE_PUBLIC_BASE_URL);
+    this.adminTokenOverride = config.adminToken;
+    this.serviceTokenOverride = config.serviceToken;
+    this.attachmentSigningSecretOverride = config.attachmentSigningSecret;
+    this.enableLegacyAgentWs = config.enableLegacyAgentWs ?? process.env[LEGACY_AGENT_WS_ENV] === '1';
     this.stateStore = new JsonStateStore(this.storageDir);
     this.pairingService = new PairingService(this.stateStore);
     this.attachmentStore = new AttachmentStore(this.storageDir, this.publicBaseUrl);
@@ -62,7 +85,9 @@ export class TrixNativeServer {
 
       this.wss.handleUpgrade(request, socket, head, (ws) => {
         this.handleSocket(ws, request, url.pathname, url.searchParams).catch((error: unknown) => {
-          ws.close(1011, String(error));
+          const code = error instanceof HttpError ? 1008 : 1011;
+          const reason = error instanceof Error ? error.message : String(error);
+          ws.close(code, reason.slice(0, 120));
         });
       });
     });
@@ -75,11 +100,12 @@ export class TrixNativeServer {
 
     await this.stateStore.update((state) => ({
       ...state,
-      adminToken: state.adminToken || process.env.TRIX_NATIVE_ADMIN_TOKEN || randomToken(24),
+      adminToken: state.adminToken || this.adminTokenOverride || process.env.TRIX_NATIVE_ADMIN_TOKEN || randomToken(24),
       serviceTokens: {
-        default: state.serviceTokens.default || process.env.TRIX_NATIVE_SERVICE_TOKEN || randomToken(32),
+        default: state.serviceTokens.default || this.serviceTokenOverride || process.env.TRIX_NATIVE_SERVICE_TOKEN || randomToken(32),
         ...state.serviceTokens,
       },
+      attachmentSigningSecret: state.attachmentSigningSecret || this.attachmentSigningSecretOverride || randomToken(32),
     }));
 
     await new Promise<void>((resolve, reject) => {
@@ -101,7 +127,7 @@ export class TrixNativeServer {
     return this.publicBaseUrl;
   }
 
-  async createPairing(input: { accountId?: string; label?: string; ttlMs?: number; openClawSessionKey?: string } = {}): Promise<unknown> {
+  async createPairing(input: { accountId?: string; label?: string; ttlMs?: number; openClawSessionKey?: string } = {}): Promise<PairingCreatedResponse> {
     return this.pairingService.create({
       ...input,
       accountId: input.accountId ?? 'default',
@@ -111,6 +137,44 @@ export class TrixNativeServer {
 
   private getUserWebSocketUrl(): string {
     return `${this.publicBaseUrl.replace(/^http/i, 'ws').replace(/\/$/, '')}/ws`;
+  }
+
+  private serializePairingForCreate(pairing: PairingCreatedResponse) {
+    return {
+      code: pairing.code,
+      accountId: pairing.accountId,
+      label: pairing.label,
+      createdAt: pairing.createdAt,
+      expiresAt: pairing.expiresAt,
+      status: pairing.status,
+      conversationId: pairing.conversationId,
+      claimUrl: pairing.claimUrl,
+      qrDataUrl: pairing.qrDataUrl,
+      pairedAt: pairing.pairedAt,
+      pairedClientId: pairing.pairedClientId,
+      pairedDeviceName: pairing.pairedDeviceName,
+      peerId: pairing.peerId,
+      websocketUrl: pairing.websocketUrl,
+    };
+  }
+
+  private serializePairingForInspection(pairing: PairingRecord | undefined) {
+    if (!pairing) {
+      return pairing;
+    }
+    return {
+      code: pairing.code,
+      accountId: pairing.accountId,
+      label: pairing.label,
+      createdAt: pairing.createdAt,
+      expiresAt: pairing.expiresAt,
+      status: pairing.status,
+      conversationId: pairing.conversationId,
+      pairedAt: pairing.pairedAt,
+      pairedClientId: pairing.pairedClientId,
+      pairedDeviceName: pairing.pairedDeviceName,
+      peerId: pairing.peerId,
+    };
   }
 
   private resolveAccountId(searchParams: URLSearchParams | null | undefined, fallback = 'default'): string {
@@ -164,8 +228,11 @@ export class TrixNativeServer {
       }
 
       if (request.method === 'GET' && url.pathname === '/api/pairings') {
-        await this.assertPairingAccess(request, this.resolveAccountId(url.searchParams));
-        const pairings = await this.pairingService.list();
+        const accountId = this.resolveAccountId(url.searchParams);
+        await this.assertPairingAccess(request, accountId);
+        const pairings = (await this.pairingService.list())
+          .filter((entry) => entry.accountId === accountId)
+          .map((entry) => this.serializePairingForInspection(entry));
         sendJson(response, 200, pairings);
         return;
       }
@@ -175,7 +242,7 @@ export class TrixNativeServer {
         const accountId = body.accountId ?? this.resolveAccountId(url.searchParams);
         await this.assertPairingAccess(request, accountId);
         const pairing = await this.createPairing(body);
-        sendJson(response, 201, pairing);
+        sendJson(response, 201, this.serializePairingForCreate(pairing));
         return;
       }
 
@@ -187,7 +254,7 @@ export class TrixNativeServer {
           return;
         }
         await this.assertPairingAccess(request, pairing.accountId);
-        sendJson(response, 200, pairing);
+        sendJson(response, 200, this.serializePairingForInspection(pairing));
         return;
       }
 
@@ -227,6 +294,8 @@ export class TrixNativeServer {
 
       if (request.method === 'POST' && url.pathname === '/api/uploads') {
         await this.assertAttachmentUploadAccess(request);
+        const conversationId = this.readHeader(request, 'x-trix-conversation-id');
+        const conversation = conversationId ? await this.getConversation(conversationId) : undefined;
         const kind = (request.headers['x-attachment-kind'] as string | undefined) ?? undefined;
         const encodedFileName = (request.headers['x-file-name'] as string | undefined) ?? 'upload.bin';
         const fileName = decodeURIComponent(encodedFileName);
@@ -237,12 +306,19 @@ export class TrixNativeServer {
           fileName,
           mimeType,
           kind: kind as AttachmentDescriptor['kind'] | undefined,
+          conversationId,
+          accountId: conversation?.accountId,
         });
-        await this.stateStore.update((state) => ({
+        const nextState = await this.stateStore.update((state) => ({
           ...state,
           uploads: [upload.attachment, ...state.uploads.filter((entry) => entry.id !== upload.attachment.id)],
         }));
-        sendJson(response, 201, upload);
+        sendJson(response, 201, {
+          attachment: this.serializeAttachmentForUser(nextState, {
+            accountId: conversation?.accountId ?? upload.attachment.accountId ?? 'default',
+            conversationId: conversationId ?? upload.attachment.conversationId,
+          }, upload.attachment),
+        });
         return;
       }
 
@@ -259,12 +335,18 @@ export class TrixNativeServer {
           fileName,
           mimeType,
           kind,
+          accountId,
         });
-        await this.stateStore.update((state) => ({
+        const nextState = await this.stateStore.update((state) => ({
           ...state,
           uploads: [upload.attachment, ...state.uploads.filter((entry) => entry.id !== upload.attachment.id)],
         }));
-        sendJson(response, 201, upload);
+        sendJson(response, 201, {
+          attachment: this.serializeAttachmentForService(nextState, {
+            accountId,
+            conversationId: upload.attachment.conversationId,
+          }, upload.attachment),
+        });
         return;
       }
 
@@ -276,6 +358,7 @@ export class TrixNativeServer {
           sendJson(response, 404, { error: 'Attachment not found' });
           return;
         }
+        await this.assertAttachmentReadAccess(request, state, attachment, url.pathname.startsWith('/api/service/'));
         const buffer = await fs.readFile(attachment.storagePath);
         response.writeHead(200, {
           'content-type': attachment.mimeType,
@@ -293,7 +376,7 @@ export class TrixNativeServer {
         return;
       }
 
-      if (request.method === 'POST' && (url.pathname === '/api/service/messages' || url.pathname === '/api/messages/service/messages')) {
+      if (request.method === 'POST' && url.pathname === '/api/service/messages') {
         const body = await readJsonBody<ServiceCreateMessageInput>(request);
         const accountId = body.accountId ?? this.resolveAccountId(url.searchParams);
         await this.assertServiceToken(request, accountId);
@@ -314,7 +397,9 @@ export class TrixNativeServer {
           return;
         }
         await this.assertServiceToken(request, conversation.accountId);
-        const messages = state.messages.filter((entry) => entry.conversationId === conversation.id);
+        const messages = state.messages
+          .filter((entry) => entry.conversationId === conversation.id)
+          .map((entry) => this.serializeMessageForService(state, conversation, entry));
         sendJson(response, 200, { conversation, messages });
         return;
       }
@@ -339,7 +424,14 @@ export class TrixNativeServer {
       if (request.method === 'GET' && conversationMessagesMatch) {
         await this.assertConversationAccess(request, conversationMessagesMatch[1]!);
         const state = await this.stateStore.read();
-        const messages = state.messages.filter((entry) => entry.conversationId === conversationMessagesMatch[1]);
+        const conversation = state.conversations.find((entry) => entry.id === conversationMessagesMatch[1]);
+        if (!conversation) {
+          sendJson(response, 404, { error: 'Conversation not found' });
+          return;
+        }
+        const messages = state.messages
+          .filter((entry) => entry.conversationId === conversationMessagesMatch[1])
+          .map((entry) => this.serializeMessageForUser(state, conversation, entry));
         sendJson(response, 200, { messages, agentOnline: this.isServiceOnline() });
         return;
       }
@@ -349,7 +441,14 @@ export class TrixNativeServer {
       if (request.method === 'GET' && legacyMessagesMatch) {
         await this.assertConversationAccess(request, legacyMessagesMatch[1]!);
         const state = await this.stateStore.read();
-        const messages = state.messages.filter((entry) => entry.conversationId === legacyMessagesMatch[1]);
+        const conversation = state.conversations.find((entry) => entry.id === legacyMessagesMatch[1]);
+        if (!conversation) {
+          sendJson(response, 404, { error: 'Conversation not found' });
+          return;
+        }
+        const messages = state.messages
+          .filter((entry) => entry.conversationId === legacyMessagesMatch[1])
+          .map((entry) => this.serializeMessageForUser(state, conversation, entry));
         sendJson(response, 200, { messages, agentOnline: this.isServiceOnline() });
         return;
       }
@@ -410,7 +509,7 @@ export class TrixNativeServer {
       // POST /api/study-rooms/:roomCode/action - Host action (start_focus, pause, end)
       if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)) {
         const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)![1]!;
-        const body = await readJsonBody<{ userId: string; action: 'start_focus' | 'pause' | 'end' }>(request);
+        const body = await readJsonBody<{ userId: string; action: 'start_focus' | 'pause' | 'end'; durationMinutes?: number }>(request);
         const room = await this.studyRoomHostAction(roomCode, body);
         if (!room) {
           sendJson(response, 404, { success: false, error: 'Room not found' });
@@ -429,40 +528,53 @@ export class TrixNativeServer {
 
       sendJson(response, 404, { error: 'Not found' });
     } catch (error) {
-      sendJson(response, 500, {
+      const statusCode = error instanceof HttpError ? error.statusCode : 500;
+      sendJson(response, statusCode, {
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   private async createMessage(input: CreateMessageInput): Promise<MessageRecord> {
+    const conversation = await this.getConversation(input.conversationId);
+    if (!conversation) {
+      throw new HttpError(404, `Conversation not found: ${input.conversationId}`);
+    }
+
     const inlineAttachments = input.attachments ?? [];
     const persistedInlineAttachments = [] as AttachmentDescriptor[];
-
     for (const attachment of inlineAttachments) {
-      persistedInlineAttachments.push(await this.attachmentStore.saveFromInput(attachment));
+      persistedInlineAttachments.push(await this.attachmentStore.saveFromInput({
+        ...attachment,
+        accountId: input.accountId ?? conversation.accountId,
+        conversationId: input.conversationId,
+      }));
     }
 
     let createdMessage: MessageRecord | undefined;
     const now = Date.now();
 
     await this.stateStore.update((state) => {
-      const conversation = state.conversations.find((entry) => entry.id === input.conversationId);
-      if (!conversation) {
-        throw new Error(`Conversation not found: ${input.conversationId}`);
+      const currentConversation = state.conversations.find((entry) => entry.id === input.conversationId);
+      if (!currentConversation) {
+        throw new HttpError(404, `Conversation not found: ${input.conversationId}`);
       }
 
       const uploadedAttachments = (input.uploadedAttachmentIds ?? []).map((attachmentId) => {
         const attachment = state.uploads.find((entry) => entry.id === attachmentId);
         if (!attachment) {
-          throw new Error(`Uploaded attachment not found: ${attachmentId}`);
+          throw new HttpError(404, `Uploaded attachment not found: ${attachmentId}`);
         }
-        return attachment;
+        return {
+          ...attachment,
+          accountId: attachment.accountId ?? currentConversation.accountId,
+          conversationId: attachment.conversationId ?? input.conversationId,
+        };
       });
 
       createdMessage = {
         id: randomId('msg', 8),
-        accountId: input.accountId ?? conversation.accountId,
+        accountId: input.accountId ?? currentConversation.accountId,
         conversationId: input.conversationId,
         direction: input.direction,
         text: input.text ?? '',
@@ -520,18 +632,19 @@ export class TrixNativeServer {
         peerId: conversation.peerId,
       },
     });
-    await this.broadcast({ type: 'message.created', payload: { message } }, { role: 'user', conversationId: message.conversationId });
-    await this.broadcast(this.buildServiceMessageEnvelope(conversation, message), { role: 'service', accountId: conversation.accountId });
+    const state = await this.stateStore.read();
+    await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
+    await this.broadcast(this.buildServiceMessageEnvelope(state, conversation, message), { role: 'service', accountId: conversation.accountId });
     return message;
   }
 
   private async createServiceMessage(input: ServiceCreateMessageInput & { accountId: string }): Promise<MessageRecord> {
     const conversation = await this.getConversation(input.conversationId);
     if (!conversation) {
-      throw new Error(`Conversation not found: ${input.conversationId}`);
+      throw new HttpError(404, `Conversation not found: ${input.conversationId}`);
     }
     if (conversation.accountId !== input.accountId) {
-      throw new Error(`Conversation ${input.conversationId} does not belong to account ${input.accountId}`);
+      throw new HttpError(403, `Conversation ${input.conversationId} does not belong to account ${input.accountId}`);
     }
 
     const idempotencyKey = input.message.idempotencyKey?.trim();
@@ -557,7 +670,8 @@ export class TrixNativeServer {
       attachments: input.message.attachments,
       metadata: idempotencyKey ? { idempotencyKey } : undefined,
     });
-    await this.broadcast({ type: 'message.created', payload: { message } }, { role: 'user', conversationId: message.conversationId });
+    const state = await this.stateStore.read();
+    await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
     return message;
   }
 
@@ -565,7 +679,7 @@ export class TrixNativeServer {
     const state = await this.stateStore.read();
     const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
     if (!state.adminToken || token !== state.adminToken) {
-      throw new Error('Invalid admin token');
+      throw new HttpError(401, 'Invalid admin token');
     }
   }
 
@@ -573,8 +687,11 @@ export class TrixNativeServer {
     const state = await this.stateStore.read();
     const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
     const expected = state.serviceTokens[accountId];
+    if (!token) {
+      throw new HttpError(401, `Service token required for account ${accountId}`);
+    }
     if (!expected || token !== expected) {
-      throw new Error(`Invalid service token for account ${accountId}`);
+      throw new HttpError(401, `Invalid service token for account ${accountId}`);
     }
   }
 
@@ -598,11 +715,11 @@ export class TrixNativeServer {
     const state = await this.stateStore.read();
     const conversation = state.conversations.find((entry) => entry.id === conversationId);
     if (!conversation) {
-      throw new Error('Conversation not found');
+      throw new HttpError(404, 'Conversation not found');
     }
     const participant = conversation.participants.find((entry) => entry.clientToken && entry.clientToken === token);
     if (!participant) {
-      throw new Error('Invalid client token');
+      throw new HttpError(401, 'Invalid client token');
     }
     return { conversation, participant };
   }
@@ -618,12 +735,6 @@ export class TrixNativeServer {
       return;
     }
 
-    const conversation = await this.getConversation(conversationId);
-    if (this.readBearerToken(request)) {
-      await this.assertServiceToken(request, conversation?.accountId ?? 'default');
-      return;
-    }
-
     const token = this.readHeader(request, 'x-trix-client-token');
     await this.assertClientToken(conversationId, token);
   }
@@ -635,14 +746,9 @@ export class TrixNativeServer {
       return;
     }
 
-    if (this.readBearerToken(request)) {
-      await this.assertServiceToken(request);
-      return;
-    }
-
     const conversationId = this.readHeader(request, 'x-trix-conversation-id');
     if (!conversationId) {
-      throw new Error('Conversation id required for attachment upload');
+      throw new HttpError(400, 'Conversation id required for attachment upload');
     }
 
     const token = this.readHeader(request, 'x-trix-client-token');
@@ -651,7 +757,7 @@ export class TrixNativeServer {
 
   private async unpairClient(clientId: string, token: string | undefined): Promise<void> {
     if (!token) {
-      throw new Error('Client token required');
+      throw new HttpError(401, 'Client token required');
     }
 
     let closedConversationId: string | undefined;
@@ -679,7 +785,7 @@ export class TrixNativeServer {
       });
 
       if (!matched) {
-        throw new Error('Invalid client token');
+        throw new HttpError(401, 'Invalid client token');
       }
 
       return {
@@ -714,7 +820,236 @@ export class TrixNativeServer {
     );
   }
 
-  private buildServiceMessageEnvelope(conversation: ConversationRecord, message: MessageRecord): ClientEnvelope {
+  private safeCompare(left: string, right: string): boolean {
+    const leftBuffer = Buffer.from(left);
+    const rightBuffer = Buffer.from(right);
+    return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+  }
+
+  private buildAttachmentSignature(
+    state: NativeChannelState,
+    params: {
+      attachment: AttachmentDescriptor;
+      audience: 'user' | 'service';
+      expiresAt: number;
+    },
+  ): string {
+    const payload = [
+      params.audience,
+      params.attachment.id,
+      params.attachment.accountId ?? '',
+      params.attachment.conversationId ?? '',
+      String(params.expiresAt),
+    ].join(':');
+    return crypto.createHmac('sha256', state.attachmentSigningSecret).update(payload).digest('hex');
+  }
+
+  private buildSignedAttachmentUrl(
+    state: NativeChannelState,
+    params: {
+      attachment: AttachmentDescriptor;
+      audience: 'user' | 'service';
+    },
+  ): string {
+    const expiresAt = Date.now() + ATTACHMENT_URL_TTL_MS;
+    const signature = this.buildAttachmentSignature(state, {
+      attachment: params.attachment,
+      audience: params.audience,
+      expiresAt,
+    });
+    const basePath = params.audience === 'service'
+      ? `/api/service/attachments/${params.attachment.id}`
+      : `/api/attachments/${params.attachment.id}`;
+    const url = new URL(basePath, `${this.publicBaseUrl.replace(/\/$/, '')}/`);
+    url.searchParams.set('exp', String(expiresAt));
+    url.searchParams.set('sig', signature);
+    return url.toString();
+  }
+
+  private hasValidAttachmentSignature(
+    request: http.IncomingMessage,
+    state: NativeChannelState,
+    params: {
+      attachment: AttachmentDescriptor;
+      audience: 'user' | 'service';
+    },
+  ): boolean {
+    const url = parseUrl(request);
+    const expiresAt = Number(url.searchParams.get('exp') ?? '');
+    const signature = url.searchParams.get('sig') ?? '';
+    if (!Number.isFinite(expiresAt) || !signature || expiresAt < Date.now()) {
+      return false;
+    }
+
+    const expected = this.buildAttachmentSignature(state, {
+      attachment: params.attachment,
+      audience: params.audience,
+      expiresAt,
+    });
+    return this.safeCompare(expected, signature);
+  }
+
+  private materializeAttachment(
+    attachment: AttachmentDescriptor,
+    context: { accountId: string; conversationId?: string },
+  ): AttachmentDescriptor {
+    return {
+      ...attachment,
+      accountId: attachment.accountId ?? context.accountId,
+      conversationId: attachment.conversationId ?? context.conversationId,
+    };
+  }
+
+  private serializeAttachmentForUser(
+    state: NativeChannelState,
+    context: { accountId: string; conversationId?: string },
+    attachment: AttachmentDescriptor,
+  ) {
+    const scoped = this.materializeAttachment(attachment, context);
+    return {
+      id: scoped.id,
+      kind: scoped.kind,
+      mimeType: scoped.mimeType,
+      fileName: scoped.fileName,
+      sizeBytes: scoped.sizeBytes,
+      publicUrl: this.buildSignedAttachmentUrl(state, {
+        attachment: scoped,
+        audience: 'user',
+      }),
+      width: scoped.width,
+      height: scoped.height,
+      durationMs: scoped.durationMs,
+    };
+  }
+
+  private serializeAttachmentForService(
+    state: NativeChannelState,
+    context: { accountId: string; conversationId?: string },
+    attachment: AttachmentDescriptor,
+  ) {
+    const scoped = this.materializeAttachment(attachment, context);
+    const signedUrl = this.buildSignedAttachmentUrl(state, {
+      attachment: scoped,
+      audience: 'service',
+    });
+    return {
+      id: scoped.id,
+      kind: scoped.kind,
+      mimeType: scoped.mimeType,
+      fileName: scoped.fileName,
+      sizeBytes: scoped.sizeBytes,
+      publicUrl: signedUrl,
+      url: signedUrl,
+      width: scoped.width,
+      height: scoped.height,
+      durationMs: scoped.durationMs,
+    };
+  }
+
+  private serializeMessageForUser(
+    state: NativeChannelState,
+    conversation: ConversationRecord,
+    message: MessageRecord,
+  ) {
+    return {
+      id: message.id,
+      conversationId: message.conversationId,
+      direction: message.direction,
+      text: message.text,
+      attachments: message.attachments.map((attachment) =>
+        this.serializeAttachmentForUser(state, {
+          accountId: conversation.accountId,
+          conversationId: conversation.id,
+        }, attachment)),
+      senderId: message.senderId,
+      senderName: message.senderName,
+      createdAt: message.createdAt,
+      replyToMessageId: message.replyToMessageId ?? null,
+      metadata: message.metadata,
+    };
+  }
+
+  private serializeMessageForService(
+    state: NativeChannelState,
+    conversation: ConversationRecord,
+    message: MessageRecord,
+  ) {
+    return {
+      id: message.id,
+      accountId: message.accountId,
+      conversationId: message.conversationId,
+      direction: message.direction,
+      text: message.text,
+      attachments: message.attachments.map((attachment) =>
+        this.serializeAttachmentForService(state, {
+          accountId: conversation.accountId,
+          conversationId: conversation.id,
+        }, attachment)),
+      senderId: message.senderId,
+      senderName: message.senderName,
+      createdAt: message.createdAt,
+      replyToMessageId: message.replyToMessageId ?? null,
+      metadata: message.metadata,
+    };
+  }
+
+  private async assertAttachmentReadAccess(
+    request: http.IncomingMessage,
+    state: NativeChannelState,
+    attachment: AttachmentDescriptor,
+    isServicePath: boolean,
+  ): Promise<void> {
+    const audience = isServicePath ? 'service' : 'user';
+    if (this.hasValidAttachmentSignature(request, state, { attachment, audience })) {
+      return;
+    }
+
+    const adminToken = this.readHeader(request, 'x-trix-admin-token');
+    if (adminToken) {
+      await this.assertAdminToken(adminToken);
+      return;
+    }
+
+    const bearerToken = this.readBearerToken(request);
+    if (bearerToken && isServicePath) {
+      await this.assertServiceTokenValue(bearerToken, attachment.accountId ?? 'default');
+      return;
+    }
+
+    const clientToken = this.readHeader(request, 'x-trix-client-token');
+    if (clientToken && attachment.conversationId) {
+      await this.assertClientToken(attachment.conversationId, clientToken);
+      return;
+    }
+
+    throw new HttpError(401, 'Signed attachment URL or valid token required');
+  }
+
+  private buildUserMessageEnvelope(
+    state: NativeChannelState,
+    conversation: ConversationRecord,
+    message: MessageRecord,
+  ): ClientEnvelope {
+    return {
+      type: 'message.created',
+      payload: {
+        conversationId: conversation.id,
+        message: this.serializeMessageForUser(state, conversation, message),
+        agentOnline: this.isServiceOnline(conversation.accountId),
+      },
+    };
+  }
+
+  private buildServiceMessageEnvelope(
+    state: NativeChannelState,
+    conversation: ConversationRecord,
+    message: MessageRecord,
+  ): ClientEnvelope {
+    const serializedAttachments = message.attachments.map((attachment) =>
+      this.serializeAttachmentForService(state, {
+        accountId: conversation.accountId,
+        conversationId: conversation.id,
+      }, attachment));
     return {
       type: 'message.created',
       payload: {
@@ -729,13 +1064,13 @@ export class TrixNativeServer {
           id: message.id,
           text: message.text,
           replyToMessageId: message.replyToMessageId ?? null,
-          attachments: message.attachments.map((attachment) => ({
+          attachments: serializedAttachments.map((attachment) => ({
             id: attachment.id,
             kind: attachment.kind,
             mimeType: attachment.mimeType,
             fileName: attachment.fileName,
             sizeBytes: attachment.sizeBytes,
-            url: attachment.publicUrl ?? `${this.publicBaseUrl}/api/service/attachments/${attachment.id}`,
+            url: attachment.url,
           })),
           timestamp: message.createdAt,
         },
@@ -755,6 +1090,9 @@ export class TrixNativeServer {
       role = 'service';
       await this.assertServiceToken(request, accountId);
     } else if (role === 'agent') {
+      if (!this.enableLegacyAgentWs) {
+        throw new HttpError(403, 'Legacy agent websocket disabled; use /api/service/ws');
+      }
       if (searchParams.get('serviceToken')) {
         await this.assertServiceTokenValue(searchParams.get('serviceToken') ?? undefined, accountId);
       } else {
@@ -767,7 +1105,7 @@ export class TrixNativeServer {
     const clientId = searchParams.get('clientId') ?? undefined;
     if (role === 'user') {
       if (!conversationId) {
-        throw new Error('conversationId required');
+        throw new HttpError(400, 'conversationId required');
       }
       await this.assertClientToken(conversationId, searchParams.get('clientToken') ?? undefined);
     }
@@ -911,8 +1249,12 @@ export class TrixNativeServer {
     const existingMemberIndex = room.members.findIndex((m) => m.userId === input.userId);
     if (existingMemberIndex >= 0) {
       // Update existing member status
+      const currentMember = room.members[existingMemberIndex];
+      if (!currentMember) {
+        throw new Error('Study room member missing');
+      }
       room.members[existingMemberIndex] = {
-        ...room.members[existingMemberIndex],
+        ...currentMember,
         lastActiveAt: now,
         status: 'online',
       };
@@ -1000,7 +1342,10 @@ export class TrixNativeServer {
     });
   }
 
-  private async studyRoomHostAction(roomCode: string, input: { userId: string; action: 'start_focus' | 'pause' | 'end' }): Promise<StudyRoom | null> {
+  private async studyRoomHostAction(
+    roomCode: string,
+    input: { userId: string; action: 'start_focus' | 'pause' | 'end'; durationMinutes?: number },
+  ): Promise<StudyRoom | null> {
     const state = await this.stateStore.read();
     const roomIndex = state.studyRooms.findIndex((r) => r.roomCode === roomCode);
 
@@ -1027,12 +1372,14 @@ export class TrixNativeServer {
 
     switch (input.action) {
       case 'start_focus':
+        const durationMinutes = Math.max(1, Math.min(180, Math.floor(input.durationMinutes ?? 25)));
+        const durationSeconds = durationMinutes * 60;
         room.sessionState = 'focusing';
         room.timer = {
-          durationSeconds: 25 * 60, // 25 minutes (Pomodoro)
+          durationSeconds,
           startedAt: now,
-          endsAt: now + (25 * 60 * 1000),
-          remainingSeconds: 25 * 60,
+          endsAt: now + (durationSeconds * 1000),
+          remainingSeconds: durationSeconds,
         };
         // Update all members to focusing status
         room.members.forEach((m) => {

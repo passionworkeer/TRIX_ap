@@ -6,12 +6,6 @@ const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_ANON_KEY',
 ] as const;
 
-const LEGACY_PRODUCTION_REQUIRED_ENV_VARS = [
-  'VITE_CLAWBOT_CHANNEL_URL',
-  'VITE_GATEWAY_WS_URL',
-  'VITE_GATEWAY_AUTH_TOKEN',
-] as const;
-
 const OPTIONAL_ENV_VARS = [
   'VITE_CLAWBOT_CHANNEL_URL',
   'VITE_GATEWAY_WS_URL',
@@ -105,15 +99,11 @@ function validateEnvVars(): ValidationError[] {
   if (!import.meta.env.DEV) {
     const endpoints = getClawbotEndpoints();
     const hasNativeServerConfig = Boolean(import.meta.env.VITE_TRIX_NATIVE_SERVER_URL?.trim());
-    const hasLegacyGatewayConfig = LEGACY_PRODUCTION_REQUIRED_ENV_VARS.every((envVar) => {
-      const value = import.meta.env[envVar];
-      return Boolean(value && value.trim() !== '');
-    });
 
-    if (!hasNativeServerConfig && !hasLegacyGatewayConfig) {
+    if (!hasNativeServerConfig) {
       errors.push({
         variable: 'VITE_TRIX_NATIVE_SERVER_URL',
-        message: 'Production requirement: set VITE_TRIX_NATIVE_SERVER_URL for the native channel, or provide the full legacy gateway trio',
+        message: 'Production requirement: set VITE_TRIX_NATIVE_SERVER_URL for the native Trix Service',
       });
     }
 
@@ -131,14 +121,14 @@ function validateEnvVars(): ValidationError[] {
       });
     }
 
-    if (hasLegacyGatewayConfig && endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
+    if (endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
       errors.push({
         variable: 'VITE_CLAWBOT_CHANNEL_URL',
         message: `Invalid production URL: loopback address is not allowed (${endpoints.channelUrl})`,
       });
     }
 
-    if (hasLegacyGatewayConfig && endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
+    if (endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
       errors.push({
         variable: 'VITE_GATEWAY_WS_URL',
         message: `Invalid production URL: loopback address is not allowed (${endpoints.gatewayUrl})`,
@@ -201,6 +191,12 @@ function displayOptionalInfo(): void {
   logger.ui.debug(`  - Clawbot Channel URL: ${endpoints.channelUrl || 'DISABLED'}`);
   logger.ui.debug(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl || 'DISABLED'}`);
   logger.ui.debug(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
+
+  if (endpoints.channelUrl || endpoints.gatewayUrl || endpoints.gatewayToken) {
+    logger.ui.warn(
+      'Environment Variables: legacy Gateway/Channel env vars are still set; Web chat should use only VITE_TRIX_NATIVE_SERVER_URL.'
+    );
+  }
 
   if (import.meta.env.VITE_OSS_ENDPOINT?.trim()) {
     logger.ui.warn(

@@ -84,6 +84,7 @@
 		4CCB80085A99B2C992E844E0 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79DD671BD98BE0D1CAC286B0 /* ChatInputBar.swift */; };
 		4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */ = {isa = PBXBuildFile; productRef = 6A0B40B4920927A4CD7E9FDC /* PopupView */; };
 		4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28903960B942093BD2167D6C /* AnimatedQRDisplay.swift */; };
+		4FB92E07D859E259CF6402FD /* BaiduMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */; };
 		51876FABCCD903DB2AA4263B /* WeChatSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */; };
 		522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BE94364156620AE20C70CB37 /* INTEGRATION_GUIDE.md */; };
 		52653C3A84CF4A2DECF3AFD6 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02375D156ED150BFE3E267CC /* SettingsViewModel.swift */; };
@@ -91,6 +92,7 @@
 		5345CDFA114FB3E3525A3D84 /* TodoListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8EAB8F78E35EF70A11755B /* TodoListView.swift */; };
 		539CD1EFB750682B30FD1206 /* MainAppFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6774C1F0DD88E4044F548C41 /* MainAppFlowTests.swift */; };
 		5454CDA95C6BE271718CE49A /* AVAudioPlayer+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7F79C30FABA09D75E11759 /* AVAudioPlayer+Extensions.swift */; };
+		5475AC1411DEF67D8055033B /* BaiduMapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57186B181EBF343902D801A /* BaiduMapService.swift */; };
 		55235E42B80C90BFDF6C6731 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE235710AA3353A19C8BEEBA /* ContentView.swift */; };
 		56621C4825CE2EBDEAB4BE99 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 211C98B42146688288CA5027 /* SQLite */; };
 		56F44B909527D6D078539374 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F58F9B58F31B01BA8A41D5 /* ChatService.swift */; };
@@ -440,6 +442,7 @@
 		84B43FC51891CC05C3728F15 /* ChatDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailViewModel.swift; sourceTree = "<group>"; };
 		851CE702189CACA3A2AD2134 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		8636DE591832F45D43A94DC8 /* VoiceMessagePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMessagePlayerView.swift; sourceTree = "<group>"; };
+		86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaiduMapView.swift; sourceTree = "<group>"; };
 		86F21F7491DF0599008C3BDA /* NoInternetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoInternetView.swift; sourceTree = "<group>"; };
 		87FFD2EF7AAD7536F0BF7AA4 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
 		888C007338B2525F8E3AC8A8 /* StudyHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyHistoryService.swift; sourceTree = "<group>"; };
@@ -563,6 +566,7 @@
 		F44668DA06D800D2B86FB6FB /* ScheduleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleViewModel.swift; sourceTree = "<group>"; };
 		F48C046F678AC6DF2BFF570E /* FriendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendService.swift; sourceTree = "<group>"; };
 		F51723EBCF04AA0CDF55380F /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
+		F57186B181EBF343902D801A /* BaiduMapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaiduMapService.swift; sourceTree = "<group>"; };
 		F7BDFD5C71A9731BC74E02E3 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		F7E0280792FD7F643768BA92 /* WardrobeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WardrobeView.swift; sourceTree = "<group>"; };
 		F98D289C9B063B34311FEDA6 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
@@ -706,6 +710,7 @@
 				C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */,
 				A348A00932168BC00F607092 /* AudioSessionManager.swift */,
 				014D83AD04520216CC061357 /* AuthService.swift */,
+				F57186B181EBF343902D801A /* BaiduMapService.swift */,
 				55C6A9C8F131BC003A8DF935 /* CameraService.swift */,
 				1488C07D5067EFF953B4D529 /* CameraServiceProtocol.swift */,
 				57F58F9B58F31B01BA8A41D5 /* ChatService.swift */,
@@ -810,6 +815,7 @@
 		15B35CE2010494A02E0B5983 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */,
 				39FAD6864E99FEABB0756D8E /* LocationDetailView.swift */,
 				56AFB64B36451F9EB9BEFB05 /* LocationPickerView.swift */,
 				F05EC4C6BC567C87852C7580 /* MapView.swift */,
@@ -1648,6 +1654,8 @@
 				6FBA42208D5025A6C393BEFD /* AuthService.swift in Sources */,
 				9A76A50947466D55F99BEF4D /* AuthViewModel.swift in Sources */,
 				D0D8D63111E9C49C50B9A6D3 /* AvatarView.swift in Sources */,
+				5475AC1411DEF67D8055033B /* BaiduMapService.swift in Sources */,
+				4FB92E07D859E259CF6402FD /* BaiduMapView.swift in Sources */,
 				0315F843ED9841D589E63971 /* BatteryConsumptionOptimizer.swift in Sources */,
 				E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */,
 				DAB62424CF3545BB4F951116 /* CameraService.swift in Sources */,
@@ -1920,6 +1928,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -2023,6 +2032,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;

@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-19
 > **测试框架**: Vitest + Node.js Test Runner
 
 ---
@@ -10,25 +10,88 @@
 ```
 trix-3d-companion/
 ├── src/
-│   ├── utils/
-│   │   ├── dateFormat.test.ts      # 日期格式化工具测试
-│   │   └── env.test.ts             # 环境变量工具测试
-│   ├── services/
-│   │   ├── ttsService.test.ts      # TTS 服务测试
-│   │   ├── voicePlaybackService.test.ts  # 语音播放服务测试
-│   │   └── ClawbotChannelBridge.test.ts  # Bot 连接桥测试
-│   ├── components/
-│   │   └── HomeBotBubble.test.tsx  # 组件测试
-│   └── features/chat/utils/
-│       └── aiPrompt.test.ts        # AI 提示词工具测试
+│   ├── utils/                          # 工具函数测试
+│   │   ├── dateFormat.test.ts
+│   │   ├── env.test.ts
+│   │   ├── logger.test.ts
+│   │   ├── errorHandler.test.ts
+│   │   ├── escapeHtml.test.ts
+│   │   ├── pairingToast.test.ts
+│   │   └── performance.test.ts
+│   ├── services/                       # 服务层测试（30+ 测试文件）
+│   │   ├── chatService.test.ts
+│   │   ├── databaseService.test.ts
+│   │   ├── StorageService.test.ts
+│   │   ├── achievementService.test.ts
+│   │   ├── connectionManager.test.ts
+│   │   ├── friendService.test.ts
+│   │   ├── clawbotChannelBridge.test.ts
+│   │   ├── clawbotHistoryService.test.ts
+│   │   ├── locationService.test.ts
+│   │   ├── mallService.test.ts
+│   │   ├── notificationService.test.ts
+│   │   ├── OSSService.test.ts
+│   │   ├── placeService.test.ts
+│   │   ├── pointsService.test.ts
+│   │   ├── projectService.test.ts
+│   │   ├── scheduleService.test.ts
+│   │   ├── serverOssUploadService.test.ts
+│   │   ├── sessionService.test.ts
+│   │   ├── studyHistoryService.test.ts
+│   │   ├── studySessionService.test.ts
+│   │   ├── todoService.test.ts
+│   │   ├── ttsService.test.ts
+│   │   ├── uploadService.test.ts
+│   │   ├── userStatsService.test.ts
+│   │   └── voicePlaybackService.test.ts
+│   ├── components/                      # 组件测试
+│   │   ├── AIActionModal.test.tsx
+│   │   ├── AddFriendModal.test.tsx
+│   │   ├── Avatar.test.tsx
+│   │   ├── DynamicBackground.test.tsx
+│   │   ├── FileAttachmentCard.test.tsx
+│   │   ├── GlassDock.test.tsx
+│   │   ├── GlassPanel.test.tsx
+│   │   ├── HeroBackground.test.tsx
+│   │   ├── HomeBotBubble.test.tsx
+│   │   ├── LoadingSpinner.test.tsx
+│   │   ├── MailPanel.test.tsx
+│   │   ├── NotificationPanel.test.tsx
+│   │   ├── OutfitCard.test.tsx
+│   │   ├── OutfitPreview.test.tsx
+│   │   ├── StudyRoom.test.tsx
+│   │   └── UserSwitcher.test.tsx
+│   ├── contexts/                        # Context 测试
+│   │   ├── AuthContext.test.tsx
+│   │   └── ClawbotChannelContext.test.tsx
+│   ├── hooks/                          # Hook 测试
+│   │   ├── useAudioPlayer.test.ts
+│   │   ├── useBotStateMachine.test.ts
+│   │   ├── useCamera.test.ts
+│   │   ├── useClawbotMessages.test.ts
+│   │   ├── useImmersiveVoice.test.ts
+│   │   ├── useNotification.test.ts
+│   │   ├── useResourcePreloader.test.ts
+│   │   ├── useSpeechRecognition.test.ts
+│   │   ├── useSpeechToText.test.ts
+│   │   ├── useTouchGestures.test.ts
+│   │   └── ...
+│   ├── lib/                            # 库测试
+│   │   └── validation.test.ts
+│   └── features/chat/hooks/
+│       └── useChatMessages.test.ts
 │
 ├── tests/
-│   └── smoke/
-│       └── mvp-smoke.test.mjs      # MVP 冒烟测试
+│   ├── smoke/
+│   │   └── mvp-smoke.test.mjs         # MVP 冒烟测试
+│   └── e2e/                            # Playwright E2E 测试
+│       ├── app.test.ts
+│       └── all-changes.test.ts
 │
 └── packages/trix-openclaw-native/test/
-    ├── pairing.test.ts              # 配对服务测试
-    └── server.test.ts               # 服务器测试
+    ├── pairing.test.ts                  # 配对服务测试
+    ├── server.test.ts                   # 服务器测试
+    └── attachments.test.ts              # 附件测试
 ```
 
 ---
@@ -82,15 +145,17 @@ npm run test:e2e:ui
 
 ## 测试覆盖范围
 
-### 前端单元测试
+### 前端单元测试（Vitest）
 
-| 模块 | 文件 | 覆盖内容 |
-|------|------|---------|
-| **工具函数** | `dateFormat.test.ts` | 时间格式化、相对时间，智能日期显示 |
-| | `env.test.ts` | 环境变量验证，回环地址检测 |
-| **服务** | `ttsService.test.ts` | TTS API 调用、故障转移、错误处理 |
-| | `voicePlaybackService.test.ts` | 音频播放、解锁、回调处理 |
-| **组件** | `HomeBotBubble.test.tsx` | 渲染、交互、状态管理 |
+| 模块 | 文件数 | 覆盖内容 |
+|------|--------|---------|
+| **工具函数** `src/utils/` | ~7 | dateFormat, env, logger, errorHandler, escapeHtml, pairingToast, performance |
+| **服务层** `src/services/` | ~30 | chatService, databaseService, StorageService, connectionManager, friendService, clawbotChannelBridge, locationService, mallService, notificationService, pointsService, scheduleService, studySessionService, studyHistoryService, ttsService, voicePlaybackService, uploadService, userStatsService, wardrobeService 等 |
+| **组件** `src/components/` | ~18 | AIActionModal, AddFriendModal, Avatar, DynamicBackground, FileAttachmentCard, GlassDock, GlassPanel, HeroBackground, HomeBotBubble, LoadingSpinner, MailPanel, NotificationPanel, OutfitCard, OutfitPreview, StudyRoom, UserSwitcher 等 |
+| **Contexts** `src/contexts/` | ~2 | AuthContext, ClawbotChannelContext |
+| **Hooks** `src/hooks/` | ~11 | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useImmersiveVoice, useNotification, useResourcePreloader, useSpeechRecognition, useSpeechToText, useTouchGestures 等 |
+| **Features** `src/features/` | ~1 | chat/useChatMessages |
+| **Library** `src/lib/` | ~1 | validation |
 
 ### TRIX Native Server 测试
 
@@ -98,6 +163,15 @@ npm run test:e2e:ui
 |------|------|---------|
 | **配对服务** | `pairing.test.ts` | 配对码生成、认领、状态管理 |
 | **服务器** | `server.test.ts` | API 端点、健康检查 |
+| **附件** | `attachments.test.ts` | 附件存储和检索 |
+
+### E2E 测试（Playwright）
+
+| 文件 | 覆盖内容 |
+|------|---------|
+| `tests/e2e/app.test.ts` | 应用核心流程 |
+| `tests/e2e/all-changes.test.ts` | 完整变更测试 |
+| `tests/smoke/mvp-smoke.test.mjs` | MVP 冒烟测试 |
 
 ---
 

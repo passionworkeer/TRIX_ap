@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js + Express + Socket.io
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-19
 
 ---
 
@@ -107,10 +107,11 @@ TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息�
 
 ### WebSocket 端点
 
-| 路径 | 描述 |
-|------|------|
-| /ws/phone?code=XXX | iOS 连接，实时接收消息 |
-| /ws/plugin?token=XXX | OpenClaw Plugin 连接 |
+连接 URL：
+```
+ws://host/ws?role=user&conversationId=xxx&clientId=xxx&clientToken=xxx  # 客户端
+ws://host/ws?role=agent&accountId=xxx&serviceToken=xxx               # Agent（OpenClaw Plugin）
+```
 
 ---
 
@@ -135,31 +136,46 @@ TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息�
 packages/trix-openclaw-native/          # TRIX Native Channel 插件
 ├── src/
 │   ├── plugin/                         # OpenClaw 插件接口
-│   │   ├── plugin.ts                   # 插件主入口
+│   │   ├── plugin.ts                   # 插件主入口（含 startAccount）
 │   │   ├── accounts.ts                 # 账号管理
-│   │   ├── inbound.ts                  # 消息入站
-│   │   └── outbound.ts                 # 消息出站
+│   │   ├── inbound.ts                 # 消息入站（startInboundMonitor）
+│   │   └── outbound.ts                # 消息出站（postReply）
 │   ├── server/                        # TRIX Native Server
-│   │   ├── TrixNativeServer.ts        # 服务器主入口
-│   │   ├── routes/                    # API 路由
-│   │   └── websocket/                 # WebSocket 处理
+│   │   └── TrixNativeServer.ts        # HTTP/WebSocket 服务器主入口
 │   ├── pairing/                       # 配对服务
-│   │   └── PairingService.ts
+│   │   └── PairingService.ts         # 配对码生成、认领、状态管理
 │   ├── storage/                       # 存储服务
-│   │   └── JsonStateStore.ts          # JSON 状态存储
-│   └── types.ts                       # 类型定义
-├── cli.ts                             # CLI 入口
-├── package.json                       # 依赖配置
-└── README.md
+│   │   └── JsonStateStore.ts          # JSON 状态持久化
+│   ├── utils/                         # 工具函数
+│   │   ├── ids.ts                    # ID 生成
+│   │   ├── network.ts                 # 网络工具
+│   │   └── http.ts                    # HTTP 客户端
+│   ├── account.ts                    # 账号抽象
+│   ├── bindings.ts                    # 绑定管理
+│   ├── channel.ts                     # Channel 抽象
+│   ├── monitor.ts                     # Monitor 抽象
+│   ├── normalize.ts                   # 消息标准化
+│   ├── probe.ts                       # 健康检查
+│   ├── setup.ts                      # 配置初始化
+│   ├── types.ts                       # 类型定义
+│   ├── cli.ts                         # CLI 入口
+│   ├── index.ts                       # npm 包主入口
+│   └── entry-compat.ts               # 兼容入口
+├── test/
+│   ├── pairing.test.ts               # 配对服务测试
+│   ├── server.test.ts                # 服务器测试
+│   └── attachments.test.ts           # 附件测试
+├── openclaw.plugin.json              # OpenClaw 插件声明
+└── package.json                       # 依赖配置（含 openclaw peerDependency）
 ```
 
-> **注意**: 旧版 `server/clawbot-channel/` 已废弃，相关功能已迁移到 `packages/trix-openclaw-native/`
+> **注意**: 旧版 `server/clawbot-channel/` 已废弃，相关功能已迁移到本包。消息/OSS/TTS 等功能通过 Supabase 或前端服务实现，非独立后端服务。
 
 ---
 
 ## 4. 核心服务
 
-### 4.1 配对服务 (pairingService.js)
+### 4.1 配对服务 (PairingService.ts)
 
 **功能**: 管理 iOS 设备与 Web 端的配对关系。
 
@@ -200,94 +216,25 @@ CREATE TABLE pairings (
 
 ---
 
-### 4.2 消息服务 (messageService.js)
+### 4.2 消息服务
 
-**功能**: 处理用户消息的存储和转发。
-
-```javascript
-class MessageService {
-  // 发送消息
-  sendMessage(from, to, content, type)
-
-  // 获取消息历史
-  getMessageHistory(userId, friendId, limit, offset)
-
-  // 标记已读
-  markAsRead(userId, friendId)
-
-  // 删除消息
-  deleteMessage(messageId)
-
-  // 获取未读数
-  getUnreadCount(userId, friendId)
-}
-```
-
-**数据库表**:
-```sql
-CREATE TABLE messages (
-  id TEXT PRIMARY KEY,
-  conversation_id TEXT NOT NULL,
-  sender_id TEXT NOT NULL,
-  receiver_id TEXT NOT NULL,
-  content TEXT NOT NULL,
-  message_type TEXT DEFAULT 'text',
-  is_read INTEGER DEFAULT 0,
-  created_at INTEGER NOT NULL
-);
-
-CREATE INDEX idx_messages_conversation ON messages(conversation_id);
-CREATE INDEX idx_messages_created ON messages(created_at);
-```
+消息收发逻辑集成在 `TrixNativeServer.ts` 中，由 `startInboundMonitor` 和 `postReply` 实现。消息通过 Supabase 持久化，通过 WebSocket 实时推送。详见 [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)。
 
 ---
 
-### 4.3 TTS 服务 (ttsService.js)
+### 4.3 TTS / OSS 服务
 
-**功能**: 调用豆包 TTS API 生成语音。
-
-```javascript
-class TTSService {
-  // 合成语音
-  async synthesize(text, voice, speed)
-
-  // 获取可用语音列表
-  async getVoices()
-}
-```
-
-**支持的语音**:
-- `alex`: 青年女声
-- `jenny`: 温柔女声
-- `guy`: 成熟男声
-- `lucas`: 活力男声
+TTS 和 OSS 功能通过前端服务实现：
+- **TTS**: `src/services/ttsService.ts` → 调用豆包 TTS API
+- **OSS**: `src/services/OSSService.ts` / `serverOssUploadService.ts` → 阿里云 OSS
 
 ---
 
-### 4.4 OSS 服务 (ossService.js)
+### 4.4 学习室服务 (Supabase)
 
-**功能**: 阿里云 OSS 文件上传和管理。
+**功能**: 管理学习室和成员（Supabase `study_rooms` / `study_room_members` 表）。
 
-```javascript
-class OSSService {
-  // 上传文件
-  async uploadFile(file, options)
-
-  // 获取签名 URL
-  async getSignedUrl(filePath, expires)
-
-  // 删除文件
-  async deleteFile(filePath)
-}
-```
-
----
-
-### 4.5 学习室服务 (studyRoomService.js)
-
-**功能**: 管理学习室和成员。
-
-```javascript
+```typescript
 class StudyRoomService {
   // 创建学习室
   createRoom(hostId, name)
@@ -310,83 +257,30 @@ class StudyRoomService {
 
 ## 5. API 端点
 
-### 5.1 HTTP API
+> **说明**: 大部分功能（消息、认证、商城、位置等）通过 **Supabase**（`@supabase/supabase-js`）实现。独立 TRIX Native Server（端口 8788）仅提供配对相关 API。
 
-#### 认证
+### 5.1 TRIX Native Server HTTP API（端口 8788）
+
 | 方法 | 路径 | 描述 |
-|-----|------|------|
-| POST | /api/auth/register | 注册 |
-| POST | /api/auth/login | 登录 |
-| POST | /api/auth/logout | 登出 |
-| GET | /api/auth/me | 当前用户 |
+|------|------|------|
+| GET | /health | 健康检查 |
+| POST | /api/pairings | 创建配对码 |
+| GET | /api/pairings | 列出所有配对（需 Admin Token） |
+| GET | /api/pairings/:code | 查询配对状态 |
+| POST | /api/pairings/:code/claim | 认领配对 |
 
-#### 配对
-| 方法 | 路径 | 描述 |
-|-----|------|------|
-| POST | /api/pairing/generate | 生成配对码 |
-| POST | /api/pairing/validate | 验证配对码 |
-| POST | /api/pairing/establish | 建立配对 |
-| POST | /api/pairing/unpair | 解除配对 |
-| GET | /api/pairing/status | 配对状态 |
+### 5.2 WebSocket 协议
 
-#### 消息
-| 方法 | 路径 | 描述 |
-|-----|------|------|
-| GET | /api/messages/:friendId | 获取消息历史 |
-| POST | /api/messages/send | 发送消息 |
-| PUT | /api/messages/:id/read | 标记已读 |
-| DELETE | /api/messages/:id | 删除消息 |
-| GET | /api/messages/sync | 同步消息 |
+> 完整协议见 [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)。
 
-#### 文件
-| 方法 | 路径 | 描述 |
-|-----|------|------|
-| POST | /api/oss/upload | 上传文件 |
-| GET | /api/oss/signed-url | 获取签名 URL |
-| DELETE | /api/oss/:key | 删除文件 |
+| 事件 | 方向 | 描述 |
+|------|------|------|
+| `message` | <-> | 发送/接收消息 |
+| `typing` | <-> | 正在输入 |
+| `connected` | <- | 连接成功 |
+| `pairing_update` | <- | 配对状态更新 |
+| `bot_response` | <- | AI 响应 |
 
-#### TTS
-| 方法 | 路径 | 描述 |
-|-----|------|------|
-| POST | /api/tts/synthesize | 语音合成 |
-| GET | /api/tts/voices | 可用语音列表 |
-
-#### 学习室
-| 方法 | 路径 | 描述 |
-|-----|------|------|
-| GET | /api/study-rooms | 房间列表 |
-| POST | /api/study-rooms | 创建房间 |
-| POST | /api/study-rooms/:id/join | 加入房间 |
-| POST | /api/study-rooms/:id/leave | 离开房间 |
-
----
-
-### 5.2 WebSocket 事件
-
-#### 客户端 → 服务器
-| 事件 | 描述 |
-|------|------|
-| `connect` | 连接 |
-| `disconnect` | 断开 |
-| `message` | 发送消息 |
-| `typing` | 正在输入 |
-| `pairing_request` | 配对请求 |
-| `pairing_confirm` | 配对确认 |
-| `study_room_join` | 加入学习室 |
-| `study_room_leave` | 离开学习室 |
-
-#### 服务器 → 客户端
-| 事件 | 描述 |
-|------|------|
-| `connected` | 连接成功 |
-| `message` | 新消息 |
-| `typing` | 对方正在输入 |
-| `pairing_update` | 配对状态更新 |
-| `study_room_update` | 学习室更新 |
-| `bot_response` | 机器人响应 |
-| `error` | 错误通知 |
-
----
 
 ## 6. 网络安全
 

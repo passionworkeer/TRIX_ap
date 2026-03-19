@@ -13,6 +13,7 @@ import CryptoKit
 // MARK: - Connection Mode
 
 enum ConnectionMode: String, Codable {
+    case nativeService // Trix Service 原生通道
     case relay      // 中继模式 (扫码/输入配对码)
     case gateway    // 直连 Gateway
     case socketIO   // Socket.IO 配对 (已废弃)

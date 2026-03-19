@@ -41,20 +41,21 @@ node packages/trix-openclaw-native/dist/cli.js pairing create --server http://12
 ## OpenClaw 插件使用方式
 
 1. 把这个包编译后通过 `openclaw plugins install` 安装到 OpenClaw。
-2. 在 OpenClaw 配置中增加 `channels.trixNative` 账号配置：
+2. 在 OpenClaw 配置中增加 `channels.trix-native` 账号配置：
 
 ```json
 {
   "channels": {
-    "trixNative": {
+    "trix-native": {
       "enabled": true,
       "defaultAccount": "default",
+      "dmPolicy": "open",
       "accounts": {
         "default": {
           "name": "TRIX Native",
-          "serverUrl": "http://192.168.1.20:8788",
+          "serviceUrl": "http://192.168.1.20:8788",
           "publicBaseUrl": "http://192.168.1.20:8788",
-          "adminToken": "<server-admin-token>",
+          "serviceToken": "<trix-service-token>",
           "storageDir": ".trix-native-channel/openclaw"
         }
       }
@@ -63,7 +64,7 @@ node packages/trix-openclaw-native/dist/cli.js pairing create --server http://12
 }
 ```
 
-3. 在 OpenClaw channel setup 中选择 `trix-native`，调用 `loginWithQrStart` 生成 QR，再让手机端使用 `claim` 接口绑定。
+3. 在 OpenClaw channel setup 中选择 `trix-native`，调用 `loginWithQrStart` 生成 QR，再让手机端使用 `claim` 接口绑定。正式通道只需要 `serviceUrl + serviceToken`；`adminToken` 只保留给服务器运维和 break-glass 场景。
 
 ## 当前实现边界
 

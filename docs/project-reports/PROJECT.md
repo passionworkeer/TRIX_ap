@@ -1,6 +1,7 @@
 # TRIX 3D Companion - 项目总览
 
 > **最后更新**: 2026-03-19
+> **版本**: v1.0.0
 > **版本**: v1.0
 > **技术栈**: React 19 + TypeScript + Vite 6 + Supabase + SwiftUI
 
@@ -75,28 +76,54 @@ trix-3d-companion/
 │   ├── contexts/                 # React Context (6个)
 │   │   ├── AuthContext.tsx       # 认证状态
 │   │   ├── ThemeContext.tsx      # 主题状态
-│   │   ├── ClawbotChannelContext.tsx  # Bot 连接管理
-│   │   ├── QRCodePairingContext.tsx   # 配对管理
-│   │   └── VoiceSettingsContext.tsx   # 语音设置
+│   │   ├── VoiceSettingsContext.tsx   # TTS 设置
+│   │   ├── GatewayContext.tsx    # Gateway 连接状态
+│   │   ├── ClawbotChannelContext.tsx  # WebSocket 连接
+│   │   └── QRCodePairingContext.tsx   # QR 配对状态
 │   │
-│   ├── services/                 # 业务服务层 (12个)
-│   │   ├── databaseService.ts    # 数据库操作
-│   │   ├── ClawbotChannelBridge.ts    # Bot 通信桥
-│   │   ├── clawbotPairingService.ts ~~# 配对服务~~ ⚠️ 已删除，使用 TrixNativeChannelClient
-│   │   ├── TrixNativeChannelClient.ts # TRIX Native Channel 配对客户端
-│   │   ├── ttsService.ts         # TTS 服务
+│   ├── services/                 # 业务服务层 (30+个)
+│   │   ├── TrixNativeChannelClient.ts  # TRIX Native Channel 配对客户端
+│   │   ├── GatewayClient.ts            # Gateway RPC/HTTP 客户端
+│   │   ├── GatewayRPC.ts               # Gateway RPC 方法封装
+│   │   ├── RelayClient.ts              # Relay 中继客户端
+│   │   ├── ClawbotChannelBridge.ts    # WebSocket 通信（遗留）
+│   │   ├── chatService.ts             # 聊天服务
+│   │   ├── friendService.ts            # 好友服务
+│   │   ├── notificationService.ts       # 通知服务
+│   │   ├── studySessionService.ts      # 学习会话
+│   │   ├── studyHistoryService.ts      # 学习历史
+│   │   ├── sessionService.ts           # 会话管理
+│   │   ├── pointsService.ts           # 积分服务
+│   │   ├── mallService.ts             # 商城服务
+│   │   ├── placeService.ts            # 地点服务
+│   │   ├── locationService.ts         # 位置服务
+│   │   ├── wardrobeService.ts          # 换装服务
+│   │   ├── uploadService.ts           # 文件上传
+│   │   ├── serverOssUploadService.ts  # 服务端 OSS 上传
+│   │   ├── OSSService.ts             # 阿里云 OSS
+│   │   ├── ttsService.ts             # 语音合成
 │   │   ├── voicePlaybackService.ts    # 语音播放
-│   │   ├── pointsService.ts      # 积分服务
-│   │   ├── userStatsService.ts   # 用户统计
-│   │   ├── OSSService.ts         # OSS 上传
-│   │   └── uploadService.ts      # 文件上传
+│   │   ├── todoService.ts            # 待办服务
+│   │   ├── scheduleService.ts         # 日程服务
+│   │   ├── userStatsService.ts       # 用户统计
+│   │   ├── achievementService.ts      # 成就服务
+│   │   ├── projectService.ts         # 项目服务
+│   │   ├── clawbotHistoryService.ts   # Bot 历史服务
+│   │   ├── databaseService.ts        # 数据库操作
+│   │   └── StorageService.ts         # 本地存储
 │   │
-│   ├── hooks/                    # 自定义 Hooks (6个)
-│   │   ├── useImmersiveVoice.ts  # 沉浸式语音
-│   │   ├── useSpeechToText.ts    # 语音识别
-│   │   ├── useCamera.ts          # 相机
-│   │   ├── useNotification.ts    # 通知
-│   │   └── useConfirmModal.tsx   # 确认弹窗
+│   ├── hooks/                    # 自定义 Hooks (11+个)
+│   │   ├── useTouchGestures.ts       # 手势
+│   │   ├── useImmersiveVoice.ts      # 沉浸式语音
+│   │   ├── useSpeechToText.ts        # 语音识别
+│   │   ├── useSpeechRecognition.ts   # 语音识别
+│   │   ├── useCamera.ts              # 相机
+│   │   ├── useNotification.ts        # 通知
+│   │   ├── useAudioPlayer.ts         # 音频播放
+│   │   ├── useBotStateMachine.ts     # Bot 状态机
+│   │   ├── useClawbotMessages.ts     # Bot 消息
+│   │   ├── useResourcePreloader.ts    # 资源预加载
+│   │   └── ...                       # 更多 Hooks
 │   │
 │   ├── config/                   # 配置文件
 │   │   ├── supabase.ts           # Supabase 客户端
@@ -118,38 +145,59 @@ trix-3d-companion/
 │   └── App.tsx                   # 主应用组件
 │
 ├── packages/                       # npm 包
-│   ├── trix-openclaw-native/     # TRIX Native OpenClaw 通道
+│   ├── trix-openclaw-native/     # TRIX Native Channel + OpenClaw 插件
 │   │   ├── src/
-│   │   │   ├── plugin/           # OpenClaw 插件
+│   │   │   ├── plugin/           # OpenClaw 插件（startAccount）
 │   │   │   │   ├── plugin.ts
 │   │   │   │   ├── accounts.ts
 │   │   │   │   ├── inbound.ts
 │   │   │   │   └── outbound.ts
-│   │   │   └── cli.ts            # CLI 入口
-│   │   └── package.json
-│   │
-│   └── trix-relay-client/        # WebSocket 中继客户端
-│       └── package.json
+│   │   │   ├── server/           # TRIX Native Server (:8788)
+│   │   │   │   └── TrixNativeServer.ts
+│   │   │   ├── pairing/          # 配对服务
+│   │   │   │   └── PairingService.ts
+│   │   │   ├── storage/          # JSON 持久化
+│   │   │   │   └── JsonStateStore.ts
+│   │   │   ├── utils/            # 工具函数
+│   │   │   ├── types.ts
+│   │   │   ├── cli.ts
+│   │   │   └── ...
+│   │   └── test/                  # 测试文件
+│   └── trix-relay-client/        # Relay 中继客户端
+│       └── test/client.test.ts
 │
 ├── database/                     # 数据库脚本 (Supabase)
-│   ├── INIT_ALL.sql              # 统一初始化脚本
-│   ├── docs/                     # 数据库文档
-│   │   ├── README.md
-│   │   └── SCHEMA.md
-│   └── *.sql                     # 迁移脚本
+│   ├── schema-complete.sql        # 完整 21 表初始化脚本
+│   ├── add-chat-attachments-storage.sql
+│   └── migrations/               # 迁移脚本
+│       ├── 001_add_user_sessions.sql
+│       ├── 002_security_profiles_rls.sql
+│       └── 003_enable_rls_all_sensitive_tables.sql
 │
-├── docs/                         # 项目文档
+├── docs/                         # 项目文档 (36个)
 │   ├── INDEX.md                  # 文档索引
-│   ├── development/              # 开发文档
-│   ├── project-reports/          # 项目报告
-│   ├── guides/                   # 用户指南
-│   ├── api/                      # API 文档
-│   ├── development/              # 开发文档
-│   └── getting-started/          # 快速开始
+│   ├── CHANGELOG.md             # 开发日志
+│   ├── ENVIRONMENT.md           # 环境变量参考
+│   ├── TRIX_NATIVE_CHANNEL.md   # Native Channel 协议
+│   ├── requirements/            # 需求规格 (PRD)
+│   ├── project-reports/         # 项目报告
+│   ├── development/             # 开发文档
+│   ├── ui/                     # UI 文档
+│   ├── architecture/            # 架构文档
+│   ├── database/                # 数据库文档
+│   ├── api/                    # API 文档
+│   ├── ios/                    # iOS 文档
+│   ├── desktop/                # 桌面端文档
+│   ├── guides/                 # 操作指南
+│   ├── getting-started/         # 入门指南
+│   └── .archive/               # 归档历史
 │
 ├── tests/                        # 测试文件
-│   └── smoke/                    # Smoke 测试
-│       └── mvp-smoke.test.mjs
+│   ├── smoke/                   # 冒烟测试
+│   │   └── mvp-smoke.test.mjs
+│   └── e2e/                    # Playwright E2E
+│       ├── app.test.ts
+│       └── all-changes.test.ts
 
 ├── scripts/                      # 工具脚本
 │   └── database/                 # 数据库脚本
