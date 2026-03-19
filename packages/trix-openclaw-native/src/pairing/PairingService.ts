@@ -16,6 +16,7 @@ export class PairingService {
   constructor(private readonly store: JsonStateStore) {}
 
   async create(input: PairingCreateInput): Promise<PairingCreatedResponse> {
+    const accountId = input.accountId ?? 'default';
     const code = randomPairingCode();
     const secret = randomToken(18);
     const createdAt = Date.now();
@@ -27,6 +28,7 @@ export class PairingService {
     const pairing: PairingRecord = {
       code,
       secret,
+      accountId,
       label: input.label,
       createdAt,
       expiresAt,
@@ -38,6 +40,8 @@ export class PairingService {
 
     const conversation: ConversationRecord = {
       id: conversationId,
+      accountId,
+      peerId: randomId('user', 10),
       createdAt,
       updatedAt: createdAt,
       pairingCode: code,
@@ -68,14 +72,18 @@ export class PairingService {
     return state.pairings;
   }
 
-  async claim(input: PairingClaimInput, websocketUrl: string): Promise<PairingClaimResponse> {
+  async claim(
+    input: PairingClaimInput,
+    urls: {
+      websocketUrl: string;
+      uploadUrl: string;
+      messagesUrl: string;
+    },
+  ): Promise<PairingClaimResponse> {
     const normalized = normalizePairingCode(input.code);
     let claimedPairing: PairingRecord | undefined;
+    let claimedConversation: ConversationRecord | undefined;
     const clientToken = randomToken(20);
-
-    if (!input.secret?.trim()) {
-      throw new Error('Pairing secret required');
-    }
 
     await this.store.update((state) => {
       const pairings = state.pairings.map((entry) => {
@@ -86,7 +94,7 @@ export class PairingService {
         if (entry.expiresAt <= Date.now()) {
           throw new Error('Pairing code expired');
         }
-        if (entry.secret !== input.secret) {
+        if (input.secret?.trim() && entry.secret !== input.secret.trim()) {
           throw new Error('Invalid pairing secret');
         }
 
@@ -110,13 +118,15 @@ export class PairingService {
           return conversation;
         }
 
-        return {
+        claimedConversation = {
           ...conversation,
           updatedAt: Date.now(),
+          peerDisplayName: input.deviceName ?? conversation.peerDisplayName,
           participants: [
             ...conversation.participants.filter((entry) => entry.clientId !== input.clientId),
             {
               clientId: input.clientId,
+              peerId: conversation.peerId,
               deviceName: input.deviceName,
               role: 'user' as const,
               clientToken,
@@ -125,6 +135,7 @@ export class PairingService {
             },
           ],
         };
+        return claimedConversation;
       });
 
       return {
@@ -137,7 +148,11 @@ export class PairingService {
     return {
       conversationId: claimedPairing!.conversationId,
       clientToken,
-      websocketUrl,
+      peerId: claimedConversation?.peerId ?? claimedPairing?.peerId ?? randomId('user', 10),
+      websocketUrl: urls.websocketUrl,
+      wsUrl: urls.websocketUrl,
+      uploadUrl: urls.uploadUrl,
+      messagesUrl: urls.messagesUrl,
       pairing: claimedPairing!,
     };
   }
