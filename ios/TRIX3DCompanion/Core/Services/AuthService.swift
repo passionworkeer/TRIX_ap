@@ -174,8 +174,11 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         self.keychainManager = km
 
         // Initialize Supabase client for realtime features
+        guard let supabaseURL = URL(string: SupabaseConfig.url) else {
+            fatalError("Invalid Supabase URL configuration: \(SupabaseConfig.url)")
+        }
         self.supabase = SupabaseClient(
-            supabaseURL: URL(string: SupabaseConfig.url)!,
+            supabaseURL: supabaseURL,
             supabaseKey: SupabaseConfig.anonKey
         )
 

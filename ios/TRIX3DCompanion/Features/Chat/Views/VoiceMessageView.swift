@@ -87,7 +87,7 @@ class VoiceMessageViewModel: NSObject, ObservableObject {
                 await generateWaveform()
 
             } catch {
-                errorMessage = "无法播放音频: \(error.localizedDescription)"
+                errorMessage = String(format: NSLocalizedString("error.voice.playback.failed", comment: ""), error.localizedDescription)
                 return
             }
         }
@@ -224,7 +224,7 @@ extension VoiceMessageViewModel: AVAudioPlayerDelegate {
             isPaused = false
             stopProgressTimer()
             if let error = error {
-                errorMessage = "播放错误: \(error.localizedDescription)"
+                errorMessage = String(format: NSLocalizedString("error.voice.decode.failed", comment: ""), error.localizedDescription)
             }
         }
     }

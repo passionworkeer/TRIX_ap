@@ -502,7 +502,7 @@ extension ChatInputBar {
             text: .constant(""),
             isConnected: true,
             onSend: {
-                print("Send tapped")
+                // Preview send action
             }
         )
 
@@ -512,10 +512,10 @@ extension ChatInputBar {
             text: .constant("Hello, this is a message"),
             isConnected: true,
             onSend: {
-                print("Send tapped")
+                // Preview send action
             },
-            onAttach: { type in
-                print("Attach: \(type)")
+            onAttach: { _ in
+                // Preview attach action
             }
         )
 
@@ -525,7 +525,7 @@ extension ChatInputBar {
             text: .constant(""),
             isConnected: false,
             onSend: {
-                print("Send tapped")
+                // Preview send action
             }
         )
     }
@@ -559,10 +559,10 @@ extension ChatInputBar {
             text: .constant(""),
             isConnected: true,
             onSend: {
-                print("Send")
+                // Preview send action
             },
-            onAttach: { type in
-                print("Attach: \(type)")
+            onAttach: { _ in
+                // Preview attach action
             }
         )
     }

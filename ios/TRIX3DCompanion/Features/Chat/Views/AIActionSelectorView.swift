@@ -96,8 +96,8 @@ extension AIActionType {
 
         AIActionSelectorView(
             selectedAction: .constant(.chat),
-            onSelect: { action in
-                print("Selected: \(action.label)")
+            onSelect: { _ in
+                // Preview action
             }
         )
 
@@ -105,8 +105,8 @@ extension AIActionType {
 
         AIActionSelectorView(
             selectedAction: .constant(.image),
-            onSelect: { action in
-                print("Selected: \(action.label)")
+            onSelect: { _ in
+                // Preview action
             }
         )
     }

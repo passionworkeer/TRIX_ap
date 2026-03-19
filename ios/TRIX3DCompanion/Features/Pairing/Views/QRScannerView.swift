@@ -465,7 +465,14 @@ struct QRScannerView: View {
             if code.count == 6 && code.range(of: "^[A-Z0-9]+$", options: .regularExpression, range: nil, locale: nil) != nil {
                 isValid = true
             }
-            // 4. Direct token (10+ characters)
+            // 4. Native channel URL format: http://host/pair?code=XXX&secret=YYY
+            if (code.hasPrefix("http://") || code.hasPrefix("https://")),
+               let url = URL(string: code),
+               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               components.queryItems?.contains(where: { $0.name == "code" }) == true {
+                isValid = true
+            }
+            // 5. Direct token (10+ characters)
             if code.count >= 10 {
                 isValid = true
             }

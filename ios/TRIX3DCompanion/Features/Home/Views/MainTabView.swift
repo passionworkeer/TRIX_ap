@@ -82,9 +82,9 @@ struct MainTabView: View {
                 .id("tab.study")
         case .chat:
             ChatListView(onNavigateToChat: { conversation in
-                print("[MainTabView] 收到导航请求: \(conversation.name), 当前 path 长度: \(navigationPath.count)")
+                SecureLogger.shared.debug("MainTabView: Navigation request for \(conversation.name)")
                 navigationPath.append(conversation)
-                print("[MainTabView] 导航后 path 长度: \(navigationPath.count)")
+                SecureLogger.shared.debug("MainTabView: Navigation path length after: \(self.navigationPath.count)")
             })
             .id("tab.chat")
         case .profile:

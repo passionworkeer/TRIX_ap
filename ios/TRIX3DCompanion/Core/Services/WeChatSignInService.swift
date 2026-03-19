@@ -412,7 +412,10 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
             ]
 
             // Create request
-            var request = URLRequest(url: URL(string: tokenURL)!)
+            guard let tokenURL = URL(string: tokenURL) else {
+                return .failure(.invalidResponse)
+            }
+            var request = URLRequest(url: tokenURL)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -477,7 +480,10 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
             "refresh_token": refreshToken
         ]
 
-        var request = URLRequest(url: URL(string: tokenURL)!)
+        guard let refreshURL = URL(string: tokenURL) else {
+            throw WeChatSignInError.invalidResponse
+        }
+        var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: parameters)

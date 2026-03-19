@@ -118,7 +118,7 @@ final class SnapshotListViewModel: ObservableObject {
             errorMessage = nil
 
         } catch {
-            errorMessage = "Failed to load snapshots: \(error.localizedDescription)"
+            errorMessage = String(format: NSLocalizedString("error.snapshot.load.failed", comment: ""), error.localizedDescription)
             snapshots = []
         }
 
@@ -155,7 +155,7 @@ final class SnapshotListViewModel: ObservableObject {
             errorMessage = nil
 
         } catch {
-            errorMessage = "Failed to refresh: \(error.localizedDescription)"
+            errorMessage = String(format: NSLocalizedString("error.snapshot.refresh.failed", comment: ""), error.localizedDescription)
         }
 
         isRefreshing = false
@@ -193,7 +193,7 @@ final class SnapshotListViewModel: ObservableObject {
         } catch {
             // Revert page on error
             currentPage -= 1
-            errorMessage = "Failed to load more: \(error.localizedDescription)"
+            errorMessage = String(format: NSLocalizedString("error.snapshot.loadmore.failed", comment: ""), error.localizedDescription)
         }
 
         isLoading = false
@@ -222,7 +222,7 @@ final class SnapshotListViewModel: ObservableObject {
         } catch {
             // Revert on error
             snapshots.insert(removedSnapshot, at: index)
-            errorMessage = "Failed to delete: \(error.localizedDescription)"
+            errorMessage = String(format: NSLocalizedString("error.snapshot.delete.failed", comment: ""), error.localizedDescription)
         }
     }
 

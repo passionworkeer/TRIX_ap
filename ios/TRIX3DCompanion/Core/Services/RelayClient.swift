@@ -123,7 +123,7 @@ final class RelayClient: NSObject, ObservableObject {
             let payload = try JSONDecoder().decode(RelayQRPayload.self, from: data)
             return payload
         } catch {
-            print("[RelayClient] Failed to parse QR content: \(error)")
+            SecureLogger.shared.warning("RelayClient: Failed to parse QR content: \(error.localizedDescription)")
             return nil
         }
     }
@@ -134,7 +134,7 @@ final class RelayClient: NSObject, ObservableObject {
     func connect(server: String, gatewayId: String, accessCode: String) async throws {
         let relayUrl = buildWebSocketURL(server: server)
         directGatewayMode = isDirectGatewayURL(server)
-        print("[RelayClient] Connecting to: \(relayUrl)")
+        SecureLogger.shared.info("RelayClient: Connecting to \(relayUrl)")
 
         self.serverUrl = server
         self.currentGatewayId = gatewayId
@@ -455,7 +455,7 @@ final class RelayClient: NSObject, ObservableObject {
                 self?.receiveMessage() // 继续接收
 
             case .failure(let error):
-                print("[RelayClient] Receive error: \(error)")
+                SecureLogger.shared.error("RelayClient: Receive error: \(error.localizedDescription)")
                 self?.handleDisconnection()
             }
         }
@@ -482,7 +482,7 @@ final class RelayClient: NSObject, ObservableObject {
 
             handleFrame(json)
         } catch {
-            print("[RelayClient] Parse error: \(error)")
+            SecureLogger.shared.warning("RelayClient: Parse error: \(error.localizedDescription)")
         }
     }
 
@@ -495,7 +495,7 @@ final class RelayClient: NSObject, ObservableObject {
         case "event":
             handleEvent(frame)
         default:
-            print("[RelayClient] Unknown frame type: \(type)")
+            SecureLogger.shared.debug("RelayClient: Unknown frame type: \(type)")
         }
     }
 
@@ -593,7 +593,7 @@ final class RelayClient: NSObject, ObservableObject {
         reconnectAttempts += 1
         let delay = reconnectDelay * pow(2, Double(reconnectAttempts - 1))
 
-        print("[RelayClient] Reconnecting in \(delay)ms (attempt \(reconnectAttempts))")
+        SecureLogger.shared.info("RelayClient: Reconnecting in \(Int(delay))ms (attempt \(reconnectAttempts))")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self = self,
@@ -604,9 +604,9 @@ final class RelayClient: NSObject, ObservableObject {
             Task {
                 do {
                     try await self.connect(server: server, gatewayId: gatewayId, accessCode: accessCode)
-                    print("[RelayClient] Reconnected successfully")
+                    SecureLogger.shared.info("RelayClient: Reconnected successfully")
                 } catch {
-                    print("[RelayClient] Reconnection failed: \(error)")
+                    SecureLogger.shared.error("RelayClient: Reconnection failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -640,7 +640,7 @@ final class RelayClient: NSObject, ObservableObject {
 
 extension RelayClient: URLSessionWebSocketDelegate {
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        print("[RelayClient] Connected")
+        SecureLogger.shared.info("RelayClient: Connected")
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {

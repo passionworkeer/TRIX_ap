@@ -521,7 +521,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
         // Get user ID
         guard let userId = authService.currentUser?.id else {
-            print("[ChatService] Cannot subscribe: userId is nil")
+            SecureLogger.shared.warning("ChatService: Cannot subscribe - userId is nil")
             return
         }
 
@@ -547,7 +547,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
                         self.updateCurrentMessages()
                     }
 
-                    print("[ChatService] Received realtime message: \(newMessage.id)")
+                    SecureLogger.shared.debug("ChatService: Received realtime message \(newMessage.id)")
                 }
             }
         }

@@ -138,7 +138,7 @@ struct WorkbenchCardItem: Identifiable {
             subtitle: L("workbench.snapshot.subtitle"),
             color: .purple
         ) {
-            print("Snapshot tapped")
+            // Preview action
         }
 
         WorkbenchCard(
@@ -147,7 +147,7 @@ struct WorkbenchCardItem: Identifiable {
             subtitle: L("workbench.location.subtitle"),
             color: .green
         ) {
-            print("Location tapped")
+            // Preview action
         }
     }
     .padding()

@@ -78,8 +78,12 @@ struct ChatUIState {
         switch (hasText, hasMedia) {
         case (false, false): return .empty
         case (true, false): return .hasText(inputText)
-        case (false, true): return .hasMedia(pendingMedia!)
-        case (true, true): return .both(text: inputText, media: pendingMedia!)
+        case (false, true):
+            guard let media = pendingMedia else { return .empty }
+            return .hasMedia(media)
+        case (true, true):
+            guard let media = pendingMedia else { return .hasText(inputText) }
+            return .both(text: inputText, media: media)
         }
     }
 }

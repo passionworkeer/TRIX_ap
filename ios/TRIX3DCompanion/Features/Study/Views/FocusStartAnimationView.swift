@@ -199,6 +199,6 @@ enum AnimationPhase {
 
 #Preview("Focus Start Animation") {
     FocusStartAnimationView(duration: 25) {
-        print("Animation complete")
+        // Preview action - animation complete
     }
 }

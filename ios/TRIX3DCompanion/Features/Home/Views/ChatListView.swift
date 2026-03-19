@@ -430,8 +430,7 @@ struct ChatListView: View {
 
             ForEach(Array(filteredConversations.enumerated()), id: \.element.id) { index, conversation in
                 Button {
-                    // Debug: 打印点击的对话
-                    print("[ChatListView] 点击对话: \(conversation.name), onNavigateToChat 回调: \(onNavigateToChat != nil ? "已设置" : "未设置")")
+                    SecureLogger.shared.debug("ChatListView: Tapped conversation \(conversation.name)")
                     onNavigateToChat?(conversation)
                 } label: {
                     ConversationRow(conversation: conversation)

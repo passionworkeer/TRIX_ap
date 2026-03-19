@@ -201,8 +201,8 @@ import Combine
 #Preview("Robot Hero Background - Idle") {
     RobotHeroBackgroundView(
         botState: .idle,
-        onActiveVideoSourceChange: { source in
-            print("Active video source: \(source)")
+        onActiveVideoSourceChange: { _ in
+            // Preview callback
         }
     )
 }
@@ -210,8 +210,8 @@ import Combine
 #Preview("Robot Hero Background - Thinking") {
     RobotHeroBackgroundView(
         botState: .thinking,
-        onActiveVideoSourceChange: { source in
-            print("Active video source: \(source)")
+        onActiveVideoSourceChange: { _ in
+            // Preview callback
         }
     )
 }
@@ -219,8 +219,8 @@ import Combine
 #Preview("Robot Hero Background - Speaking") {
     RobotHeroBackgroundView(
         botState: .speaking,
-        onActiveVideoSourceChange: { source in
-            print("Active video source: \(source)")
+        onActiveVideoSourceChange: { _ in
+            // Preview callback
         }
     )
 }
@@ -228,8 +228,8 @@ import Combine
 #Preview("Robot Hero Background - Boring") {
     RobotHeroBackgroundView(
         botState: .boring,
-        onActiveVideoSourceChange: { source in
-            print("Active video source: \(source)")
+        onActiveVideoSourceChange: { _ in
+            // Preview callback
         }
     )
 }

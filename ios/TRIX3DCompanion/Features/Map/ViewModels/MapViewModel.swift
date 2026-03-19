@@ -162,7 +162,7 @@ final class MapViewModel: ObservableObject {
             }
         } catch {
             // API failed - fallback to mock data for demo
-            print("[MapViewModel] loadLocationsFromAPI failed: \(error.localizedDescription), using mock data")
+            SecureLogger.shared.warning("MapViewModel: loadLocationsFromAPI failed: \(error.localizedDescription), using mock data")
             loadMockData()
         }
 
@@ -516,7 +516,7 @@ final class MapViewModel: ObservableObject {
 
         case .failure(let error):
             // API failed, fallback to mock data for demo
-            print("[MapViewModel] API failed: \(error.errorDescription), using mock data")
+            SecureLogger.shared.warning("MapViewModel: API failed: \(error.localizedDescription), using mock data")
             loadMockData()
         }
 

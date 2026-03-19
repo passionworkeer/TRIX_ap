@@ -189,7 +189,7 @@ final class CameraViewModel: ObservableObject {
     @discardableResult
     func uploadCapturedImage(quality: CGFloat = 0.8) async -> String? {
         guard let image = capturedImage else {
-            errorMessage = "No image to upload"
+            errorMessage = NSLocalizedString("error.camera.no.image.upload", comment: "")
             return nil
         }
 
@@ -245,7 +245,7 @@ final class CameraViewModel: ObservableObject {
     /// - Returns: Whether save was successful
     func saveToPhotoLibrary() async -> Bool {
         guard let image = capturedImage else {
-            errorMessage = "No image to save"
+            errorMessage = NSLocalizedString("error.camera.no.image.save", comment: "")
             return false
         }
 
