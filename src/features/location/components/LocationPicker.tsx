@@ -3,6 +3,7 @@
  *
  * Full-screen modal with map for selecting and sharing locations.
  * Uses Leaflet map (react-leaflet) with location selection and sharing capabilities.
+ * Falls back to Baidu Maps Geocoder when available.
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -17,6 +18,11 @@ import { useNotification } from '../../../hooks/useNotification';
 import { getCurrentPosition } from '../../../services/locationService';
 import { usePerformanceTracking } from '../../../utils/performance';
 import { logger } from '../../../utils/logger';
+import { WGS84ToGCJ02 } from '../../../utils/coordinateUtils';
+import {
+  loadBaiduMapSDK,
+  geocode,
+} from '../../../services/baiduMapService';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -109,6 +115,26 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   const [isSharing, setIsSharing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
+
+  // Baidu Maps state
+  const [isBaiduAvailable, setIsBaiduAvailable] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Check Baidu Maps availability
+  useEffect(() => {
+    async function checkBaidu() {
+      try {
+        const available = await loadBaiduMapSDK();
+        setIsBaiduAvailable(available);
+      } catch (error) {
+        logger.error('LocationPicker', 'Baidu SDK check failed', error);
+        setIsBaiduAvailable(false);
+      }
+    }
+    if (isOpen) {
+      checkBaidu();
+    }
+  }, [isOpen]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -216,16 +242,36 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     }
   }, [selectedLocation, locationName, notification, onLocationSelected]);
 
-  // Handle search (simple implementation - just shows placeholder)
+  // Handle search using Baidu Geocoder (with Nominatim fallback)
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
     if (!query) return;
-    
+
+    setIsSearching(true);
+
     try {
-      // Use Nominatim for geocoding
+      // Try Baidu Geocoder first
+      if (isBaiduAvailable) {
+        const result = await geocode(query, '上海');
+        if (result) {
+          const gcj = WGS84ToGCJ02(result.latitude, result.longitude);
+          setSelectedLocation({
+            latitude: gcj.lat,
+            longitude: gcj.lon,
+            name: result.address,
+          });
+          setLocationName(result.address);
+          setMapCenter([gcj.lat, gcj.lon]);
+          notification.showSuccess('已找到位置');
+          setIsSearching(false);
+          return;
+        }
+      }
+
+      // Fallback to Nominatim
       const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
       const results = await response.json();
-      
+
       if (results && results.length > 0) {
         const firstResult = results[0];
         const newLocation: SelectedLocation = {
@@ -235,15 +281,35 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         };
         setSelectedLocation(newLocation);
         setLocationName(firstResult.display_name);
-        // We do not auto-share since they might just be searching, they can click "Share" explicitly
+        setMapCenter([newLocation.latitude, newLocation.longitude]);
       } else {
         notification.showWarning('未找到匹配的地点');
       }
     } catch (error) {
       logger.error('LocationPicker', 'Search failed', error);
-      notification.showWarning('搜索异常，请稍后再试');
+      // Try Nominatim as fallback on error
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const results = await response.json();
+        if (results && results.length > 0) {
+          const firstResult = results[0];
+          setSelectedLocation({
+            latitude: parseFloat(firstResult.lat),
+            longitude: parseFloat(firstResult.lon),
+            name: firstResult.display_name.split(',')[0],
+          });
+          setLocationName(firstResult.display_name);
+          setMapCenter([parseFloat(firstResult.lat), parseFloat(firstResult.lon)]);
+        } else {
+          notification.showWarning('未找到匹配的地点');
+        }
+      } catch {
+        notification.showWarning('搜索异常，请稍后再试');
+      }
+    } finally {
+      setIsSearching(false);
     }
-  }, [notification]);
+  }, [isBaiduAvailable, notification]);
 
   // Handle backdrop click
   const handleBackdropClick = useCallback(
@@ -334,12 +400,18 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
           <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search location..."
+            placeholder={isBaiduAvailable ? "搜索地点（百度地图）..." : "搜索地点..."}
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            className="w-full pl-10 pr-10 py-3 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           />
+          {isSearching && (
+            <Loader2 size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 animate-spin" />
+          )}
         </div>
+        {isBaiduAvailable && (
+          <p className="text-xs text-blue-500 mt-1">使用百度地图搜索</p>
+        )}
       </div>
 
       {/* Map container */}

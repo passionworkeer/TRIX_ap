@@ -167,18 +167,45 @@ struct MapView: View {
     @ViewBuilder
     private var mapContent: some View {
         ZStack {
-            // Base map with location markers and friend markers
-            Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: viewModel.filteredLocations) { location in
-                MapAnnotation(coordinate: location.coordinate) {
-                    LocationMarker(
-                        location: location,
-                        color: viewModel.markerColor(for: location),
-                        iconName: viewModel.iconName(for: location)
-                    ) {
+            // Base map with location markers and friend markers using Baidu Map
+            BaiduMapView(
+                centerCoordinate: Binding(
+                    get: { viewModel.region.center },
+                    set: { newCenter in
+                        var newRegion = viewModel.region
+                        newRegion.center = newCenter
+                        viewModel.region = newRegion
+                    }
+                ),
+                zoomLevel: Binding(
+                    get: { Double(viewModel.region.span.latitudeDelta) },
+                    set: { newDelta in
+                        var newRegion = viewModel.region
+                        newRegion.span = MKCoordinateSpan(latitudeDelta: newDelta, longitudeDelta: newDelta)
+                        viewModel.region = newRegion
+                    }
+                ),
+                annotations: viewModel.filteredLocations.map { location in
+                    MapAnnotationItem(
+                        id: location.id,
+                        name: location.name,
+                        subtitle: location.description,
+                        coordinate: location.coordinate,
+                        category: location.category ?? .other
+                    )
+                },
+                onAnnotationTapped: { annotation in
+                    if let location = viewModel.filteredLocations.first(where: { $0.id == annotation.id }) {
                         viewModel.selectLocation(location)
                     }
-                }
-            }
+                },
+                onRegionChanged: { coordinate in
+                    // Optional: handle region change if needed
+                },
+                showsUserLocation: true,
+                routeCoordinates: nil,
+                routeColor: .brandPurple
+            )
             .ignoresSafeArea()
 
             // Heat zone overlays - with hit testing disabled

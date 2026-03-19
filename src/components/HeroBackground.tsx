@@ -1,11 +1,11 @@
-﻿import { useEffect, useMemo, useRef, useState, lazy } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState, lazy } from 'react';
 import type { BotState } from '../contexts/ClawbotChannelContext';
 import { logger } from '../utils/logger';
 import { useThreeStore } from '../three/store';
 import type { CharacterBotState } from '../three/store';
 
 // Lazy load 3D scene — avoids loading Three.js / GLTFLoader in Electron (uses video fallback)
-const CharacterScene = lazy(() => import('../three/components/CharacterScene'));
+const CharacterScene = lazy(() => import('../three/components/CharacterScene').then(m => ({ default: m.CharacterScene })));
 
 interface HeroBackgroundProps {
   botState: BotState;

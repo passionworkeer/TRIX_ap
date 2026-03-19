@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
@@ -18,6 +18,18 @@ import { IMAGES } from '../constants';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { iosIconButtonMotion, iosPressableMotion, iosQuickSpring, iosSheetMotion } from '../utils/iosMotion';
+import { WGS84ToGCJ02 } from '../utils/coordinateUtils';
+import {
+  loadBaiduMapSDK,
+  initMap,
+  searchPOI,
+  addMarkerToMap,
+  createMarker,
+  addNavigationControl,
+  type POI,
+  type BMapGL,
+} from '../services/baiduMapService';
+import { logger } from '../utils/logger';
 
 // Fix Default Leaflet Icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -70,7 +82,7 @@ const mockPlaces: Place[] = [
   { id: 'place-park-2', name: '滨江现代艺术展览中心', category: 'park', emoji: '🎨', description: '依水而建的现代艺术展览馆，近期正在举办《未来科技与艺术》特展。', openHours: '10:00 - 18:00', latitude: 31.2304 + 0.0042, longitude: 121.4737 - 0.0028 },
 ];
 
-const heatZones = [
+const heatZones: Array<{ position: [number, number]; color: string; size: number }> = [
   { position: [31.2295, 121.4745], color: 'rgba(234, 179, 8, 0.4)', size: 400 },
   { position: [31.2295, 121.4745], color: 'rgba(34, 197, 94, 0.3)', size: 600 },
   { position: [31.2315, 121.4715], color: 'rgba(59, 130, 246, 0.25)', size: 450 },
@@ -234,6 +246,131 @@ const SnapMapScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MapSelectedItem | null>(null);
 
+  // Baidu Maps state
+  const [isBaiduAvailable, setIsBaiduAvailable] = useState(false);
+  const [isUsingBaidu, setIsUsingBaidu] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<POI[]>([]);
+  const baiduMapRef = useRef<BMapGL | null>(null);
+
+  // Initialize Baidu Maps availability check
+  useEffect(() => {
+    async function checkBaiduAvailability() {
+      try {
+        const available = await loadBaiduMapSDK();
+        setIsBaiduAvailable(available);
+        logger.info('SnapMapScreen', `Baidu Maps SDK available: ${available}`);
+      } catch (error) {
+        logger.error('SnapMapScreen', 'Failed to check Baidu Maps availability', error);
+        setIsBaiduAvailable(false);
+      }
+    }
+    checkBaiduAvailability();
+  }, []);
+
+  // Initialize Baidu Map when toggled
+  useEffect(() => {
+    async function initBaiduMap() {
+      if (!isUsingBaidu || !isBaiduAvailable) return;
+
+      try {
+        const map = await initMap('baidu-map-container', {
+          center: { lat: 31.2304, lon: 121.4737 },
+          zoom: 15,
+          enableScrollZoom: true,
+          enableDragging: true,
+        });
+
+        if (map) {
+          baiduMapRef.current = map;
+          addNavigationControl(map);
+
+          // Add heat zone overlays (simplified - just center points)
+          for (const zone of heatZones) {
+            const gcj = WGS84ToGCJ02(zone.position[0], zone.position[1]);
+            const marker = createMarker(gcj.lat, gcj.lon, { title: 'Heat Zone' });
+            if (marker) {
+              addMarkerToMap(map, marker);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('SnapMapScreen', 'Failed to initialize Baidu Map', error);
+        setIsUsingBaidu(false);
+      }
+    }
+
+    initBaiduMap();
+
+    return () => {
+      if (baiduMapRef.current) {
+        baiduMapRef.current.destroy();
+        baiduMapRef.current = null;
+      }
+    };
+  }, [isUsingBaidu, isBaiduAvailable]);
+
+  // Handle search with Baidu when using Baidu mode
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    if (isUsingBaidu && isBaiduAvailable) {
+      setSearchLoading(true);
+      try {
+        const results = await searchPOI(query, '上海');
+        setSearchResults(results);
+      } catch (error) {
+        logger.error('SnapMapScreen', 'Baidu POI search failed', error);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    } else {
+      setSearchResults([]);
+    }
+  }, [isUsingBaidu, isBaiduAvailable]);
+
+  // Toggle between Baidu and Leaflet maps
+  const toggleMapProvider = useCallback(async () => {
+    if (!isBaiduAvailable) {
+      logger.warn('SnapMapScreen', 'Baidu Maps not available');
+      return;
+    }
+
+    if (isUsingBaidu) {
+      // Switch back to Leaflet
+      if (baiduMapRef.current) {
+        baiduMapRef.current.destroy();
+        baiduMapRef.current = null;
+      }
+      setIsUsingBaidu(false);
+    } else {
+      // Switch to Baidu
+      setIsUsingBaidu(true);
+    }
+  }, [isBaiduAvailable, isUsingBaidu]);
+
+  // Handle Baidu marker click
+  const handleBaiduMarkerClick = useCallback((poi: POI) => {
+    const gcj = WGS84ToGCJ02(poi.latitude, poi.longitude);
+    const item: MapSelectedItem = {
+      id: poi.uid || `baidu-${Date.now()}`,
+      name: poi.title,
+      category: 'dining' as PlaceCategory,
+      latitude: gcj.lat,
+      longitude: gcj.lon,
+      description: poi.address,
+      emoji: '📍',
+      type: 'place' as const,
+    };
+    setSelectedItem(item);
+  }, []);
+
   useEffect(() => {
     Promise.all([
       getFriends().catch(() => []),
@@ -365,14 +502,38 @@ const SnapMapScreen: React.FC = () => {
 
       {/* Search & Filters */}
       <div style={{ position: 'absolute', top: '110px', left: '16px', right: '16px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '12px', pointerEvents: 'none' }}>
-        <input
-          type="text"
-          placeholder="搜索地点或好友..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="ios-glass-surface"
-          style={{ width: '100%', padding: '14px 20px', borderRadius: '20px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', background: isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)', color: isDark ? 'white' : 'black', boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)', fontSize: '14px', outline: 'none', pointerEvents: 'auto' }}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            placeholder={isUsingBaidu ? "搜索地点..." : "搜索地点或好友..."}
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="ios-glass-surface"
+            style={{ width: '100%', padding: '14px 20px', paddingRight: searchLoading ? '44px' : '20px', borderRadius: '20px', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', background: isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)', color: isDark ? 'white' : 'black', boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)', fontSize: '14px', outline: 'none', pointerEvents: 'auto' }}
+          />
+          {searchLoading && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+
+        {/* Baidu Search Results */}
+        {isUsingBaidu && searchResults.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+            {searchResults.map((poi, index) => (
+              <button
+                key={poi.uid || index}
+                onClick={() => handleBaiduMarkerClick(poi)}
+                className="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+              >
+                <div className="font-medium text-gray-900 dark:text-white text-sm">{poi.title}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{poi.address}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', pointerEvents: 'auto' }}>
           {['all', 'dining', 'entertainment', 'study'].map((cat) => (
             <motion.button
@@ -386,21 +547,46 @@ const SnapMapScreen: React.FC = () => {
               {cat === 'all' ? '全部' : PLACE_CATEGORY_LABELS[cat as PlaceCategory]}
             </motion.button>
           ))}
+
+          {/* Toggle Map Provider Button */}
+          {isBaiduAvailable && (
+            <motion.button
+              key="toggle-map"
+              onClick={toggleMapProvider}
+              transition={iosQuickSpring}
+              {...iosPressableMotion}
+              className="ios-pressable"
+              style={{ padding: '8px 16px', borderRadius: '20px', border: isUsingBaidu ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)', background: isUsingBaidu ? '#3b82f6' : (isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)'), backdropFilter: 'blur(8px)', color: isUsingBaidu ? 'white' : (isDark ? '#fff' : '#000'), fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}
+            >
+              {isUsingBaidu ? '百度地图' : '切换百度'}
+            </motion.button>
+          )}
         </div>
       </div>
 
-      <MapContainer center={center} zoom={15} minZoom={3} maxZoom={18} zoomControl={false} style={{ width: '100%', height: '100%', background: isDark ? '#0f1011' : '#f8f9fa' }}>
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url={isDark 
-            ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"}
+      {/* Baidu Map Container */}
+      {isUsingBaidu && (
+        <div
+          id="baidu-map-container"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
         />
-        {heatMarkers}
-        {placeMarkers}
-        {!loading && friendMarkers}
-        <LocationButton isDark={isDark} />
-      </MapContainer>
+      )}
+
+      {/* Leaflet Map Container (fallback) */}
+      {!isUsingBaidu && (
+        <MapContainer center={center} zoom={15} minZoom={3} maxZoom={18} zoomControl={false} style={{ width: '100%', height: '100%', background: isDark ? '#0f1011' : '#f8f9fa' }}>
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url={isDark
+              ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"}
+          />
+          {heatMarkers}
+          {placeMarkers}
+          {!loading && friendMarkers}
+          <LocationButton isDark={isDark} />
+        </MapContainer>
+      )}
 
       {/* Bottom Sheet Overlay */}
       <AnimatePresence>

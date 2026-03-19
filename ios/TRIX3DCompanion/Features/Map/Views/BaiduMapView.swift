@@ -2,77 +2,71 @@
 //  BaiduMapView.swift
 //  TRIX3DCompanion
 //
-//  百度地图 SwiftUI 视图组件
-//  使用 UIViewRepresentable 包装 BMKMapView
+//  Baidu Map SwiftUI view using real BMKMapView
 //
 
 import SwiftUI
-import MapKit
 import CoreLocation
 
 // MARK: - Baidu Map View
 
-/// 百度地图 SwiftUI 视图
-/// 使用系统 MapKit 模拟百度地图，待接入真实 BaiduMapKit 后替换
+/// Baidu Map SwiftUI view using BMKMapView
 struct BaiduMapView: View {
 
     // MARK: - Properties
 
-    /// 中心坐标
+    /// Center coordinate
     @Binding var centerCoordinate: CLLocationCoordinate2D
 
-    /// 缩放级别
+    /// Zoom level
     @Binding var zoomLevel: Double
 
-    /// 标记点
+    /// Annotations
     let annotations: [MapAnnotationItem]
 
-    /// 点击标记回调
+    /// Annotation tap callback
     var onAnnotationTapped: ((MapAnnotationItem) -> Void)?
 
-    /// 地图滑动回调
+    /// Map pan callback
     var onRegionChanged: ((CLLocationCoordinate2D) -> Void)?
 
-    /// 是否显示用户位置
+    /// Whether to show user location
     let showsUserLocation: Bool
 
-    /// 是否显示导航路线
+    /// Route coordinates for polyline overlay
     let routeCoordinates: [CLLocationCoordinate2D]?
 
-    /// 路线颜色
+    /// Route color
     let routeColor: Color
 
     // MARK: - State
 
-    @State private var mapRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737),
-        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-    )
+    @State private var bmkZoomLevel: Float = 14
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // 使用 MapKit 模拟百度地图
-            Map(coordinateRegion: $mapRegion, showsUserLocation: showsUserLocation, annotationItems: annotations) { annotation in
-                MapAnnotation(coordinate: annotation.coordinate) {
-                    AnnotationView(annotation: annotation) { item in
-                        onAnnotationTapped?(item)
+            // Baidu Map via UIViewRepresentable
+            BMKMapViewRepresentable(
+                centerCoordinate: $centerCoordinate,
+                zoomLevel: $bmkZoomLevel,
+                annotations: annotations,
+                routeCoordinates: routeCoordinates,
+                showsUserLocation: showsUserLocation,
+                userTrackingMode: .follow,
+                onAnnotationTapped: { id, name in
+                    if let annotation = annotations.first(where: { $0.id == id }) {
+                        onAnnotationTapped?(annotation)
                     }
+                },
+                onRegionChanged: { coordinate in
+                    onRegionChanged?(coordinate)
                 }
-            }
+            )
             .ignoresSafeArea()
-            .onChange(of: mapRegion.center.latitude) { _ in
-                centerCoordinate = mapRegion.center
-                onRegionChanged?(mapRegion.center)
-            }
 
-            // 路线覆盖层
-            if let coordinates = routeCoordinates, coordinates.count > 1 {
-                RouteOverlayView(coordinates: coordinates, color: routeColor)
-            }
-
-            // 缩放控制
+            // Zoom controls overlay
             VStack {
                 Spacer()
                 HStack {
@@ -84,6 +78,12 @@ struct BaiduMapView: View {
                 }
             }
         }
+        .onAppear {
+            bmkZoomLevel = Float(zoomLevel)
+        }
+        .onChange(of: zoomLevel) { newValue in
+            bmkZoomLevel = Float(newValue)
+        }
     }
 
     // MARK: - Methods
@@ -92,18 +92,16 @@ struct BaiduMapView: View {
         withAnimation {
             switch action {
             case .zoomIn:
-                mapRegion.span = MKCoordinateSpan(
-                    latitudeDelta: max(0.001, mapRegion.span.latitudeDelta / 2),
-                    longitudeDelta: max(0.001, mapRegion.span.longitudeDelta / 2)
-                )
+                bmkZoomLevel = min(21, bmkZoomLevel + 1)
+                zoomLevel = Double(bmkZoomLevel)
             case .zoomOut:
-                mapRegion.span = MKCoordinateSpan(
-                    latitudeDelta: min(1.0, mapRegion.span.latitudeDelta * 2),
-                    longitudeDelta: min(1.0, mapRegion.span.longitudeDelta * 2)
-                )
+                bmkZoomLevel = max(3, bmkZoomLevel - 1)
+                zoomLevel = Double(bmkZoomLevel)
             case .centerUser:
                 if let location = LocationManager.shared.currentLocation {
-                    mapRegion.center = location.coordinate
+                    // Convert to GCJ-02 for Baidu Map
+                    let gcj02Coord = CoordinateConverter.wgs84ToGCJ02(location.coordinate)
+                    centerCoordinate = gcj02Coord
                 }
             }
         }
@@ -112,7 +110,7 @@ struct BaiduMapView: View {
 
 // MARK: - Zoom Control Action
 
-/// 缩放控制动作
+/// Zoom control action
 enum ZoomControlAction {
     case zoomIn
     case zoomOut
@@ -121,7 +119,7 @@ enum ZoomControlAction {
 
 // MARK: - Map Annotation Item
 
-/// 地图标记项
+/// Map annotation item - compatible with both MapKit and Baidu
 struct MapAnnotationItem: Identifiable {
     let id: String
     let name: String
@@ -155,7 +153,7 @@ struct MapAnnotationItem: Identifiable {
 
 // MARK: - Annotation View
 
-/// 标记视图
+/// Annotation view for displaying map markers
 struct AnnotationView: View {
     let annotation: MapAnnotationItem
     var onTapped: ((MapAnnotationItem) -> Void)?
@@ -175,7 +173,7 @@ struct AnnotationView: View {
                     .foregroundColor(.white)
             }
 
-            // 尾巴
+            // Tail
             PointerShape()
                 .fill(annotationColor)
                 .frame(width: 12, height: 8)
@@ -210,7 +208,7 @@ struct AnnotationView: View {
 
 // MARK: - Pointer Shape
 
-/// 指针形状
+/// Pointer shape for annotation tail
 struct PointerShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -224,7 +222,7 @@ struct PointerShape: Shape {
 
 // MARK: - Zoom Controls View
 
-/// 缩放控制视图
+/// Zoom controls view
 struct ZoomControlsView: View {
     @Binding var zoomLevel: Double
     var onAction: ((ZoomControlAction) -> Void)?
@@ -266,7 +264,7 @@ struct ZoomControlsView: View {
 
 // MARK: - Route Overlay View
 
-/// 路线覆盖层视图
+/// Route overlay view for displaying paths
 struct RouteOverlayView: View {
     let coordinates: [CLLocationCoordinate2D]
     let color: Color
@@ -306,7 +304,7 @@ struct RouteOverlayView: View {
 
 // MARK: - Location Manager
 
-/// 简易位置管理器
+/// Simple location manager
 final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = LocationManager()
 
@@ -349,7 +347,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
 // MARK: - POI Search Bar
 
-/// POI 搜索栏
+/// POI search bar
 struct POISearchBar: View {
     @Binding var searchText: String
     var onSearch: ((String) -> Void)?
@@ -405,7 +403,7 @@ struct POISearchBar: View {
 
 // MARK: - POI List Item
 
-/// POI 列表项
+/// POI list item view
 struct POIListItem: View {
     let poi: BaiduPOI
     var onTap: (() -> Void)?
@@ -453,7 +451,7 @@ struct POIListItem: View {
 
 // MARK: - Navigation Card
 
-/// 导航卡片
+/// Navigation card view
 struct NavigationCard: View {
     let route: BaiduRoute
     let destination: String
@@ -462,7 +460,7 @@ struct NavigationCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 头部
+            // Header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("规划路线")
@@ -490,7 +488,7 @@ struct NavigationCard: View {
 
             Divider()
 
-            // 路线信息
+            // Route info
             HStack(spacing: 24) {
                 VStack(spacing: 4) {
                     Text(route.formattedDistance)
@@ -514,7 +512,7 @@ struct NavigationCard: View {
             }
             .padding()
 
-            // 开始导航按钮
+            // Start navigation button
             Button(action: { onStartNavigation?() }) {
                 HStack {
                     Image(systemName: "arrow.triangle.turn.up.right.circle.fill")

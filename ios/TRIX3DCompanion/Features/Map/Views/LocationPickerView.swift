@@ -2,11 +2,11 @@
 //  LocationPickerView.swift
 //  TRIX3DCompanion
 //
-//  Location picker view for selecting locations
+//  Location picker view for selecting locations using Baidu Map
 //
 
 import SwiftUI
-import MapKit
+import CoreLocation
 
 // MARK: - Localization Helper
 
@@ -24,7 +24,7 @@ struct LocationAnnotation: Identifiable {
 
 // MARK: - Location Picker View
 
-/// A view for picking a location using MapKit
+/// A view for picking a location using Baidu Map
 struct LocationPickerView: View {
 
     // MARK: - Environment
@@ -33,14 +33,19 @@ struct LocationPickerView: View {
 
     // MARK: - State
 
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-    )
+    /// Current region center (stored as CLLocationCoordinate2D for Baidu)
+    @State private var centerCoordinate = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
 
+    /// Zoom level for Baidu Map
+    @State private var zoomLevel: Float = 14
+
+    /// Selected location coordinate
     @State private var selectedLocation: CLLocationCoordinate2D?
 
     @State private var searchText = ""
+
+    /// Annotation for selected location
+    @State private var selectedAnnotation: MapAnnotationItem?
 
     // MARK: - Properties
 
@@ -60,8 +65,8 @@ struct LocationPickerView: View {
                 // Search bar
                 searchBar
 
-                // Map view
-                mapView
+                // Map view using Baidu
+                baiduMapView
 
                 // Selected location info
                 if let location = selectedLocation {
@@ -108,13 +113,62 @@ struct LocationPickerView: View {
         .padding()
     }
 
-    // MARK: - Map View
+    // MARK: - Baidu Map View
 
-    private var mapView: some View {
-        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: selectedLocations) { location in
-            MapMarker(coordinate: location.coordinate, tint: .purple)
+    private var baiduMapView: some View {
+        ZStack {
+            BMKMapViewRepresentable(
+                centerCoordinate: $centerCoordinate,
+                zoomLevel: $zoomLevel,
+                annotations: selectedAnnotation.map { [$0] } ?? [],
+                routeCoordinates: nil,
+                showsUserLocation: true,
+                userTrackingMode: .follow,
+                onAnnotationTapped: { id, name in
+                    // Handle annotation tap if needed
+                },
+                onRegionChanged: { coordinate in
+                    // Update center coordinate on pan
+                },
+                onMapClicked: { coordinate in
+                    // When map is clicked, set selected location
+                    handleMapClick(at: coordinate)
+                }
+            )
+            .ignoresSafeArea(edges: .bottom)
+
+            // Center crosshair for location picking
+            if selectedLocation == nil {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Image(systemName: "plus")
+                            .font(.system(size: 30, weight: .thin))
+                            .foregroundColor(.brandPurple.opacity(0.5))
+                        Spacer()
+                    }
+                    Spacer()
+                }
+            }
         }
-        .ignoresSafeArea(edges: .bottom)
+    }
+
+    // MARK: - Methods
+
+    /// Handle map click to select location
+    private func handleMapClick(at coordinate: CLLocationCoordinate2D) {
+        // Convert to WGS-84 if needed (Baidu uses GCJ-02 internally)
+        let wgs84Coord = CoordinateConverter.gcj02ToWGS84(coordinate)
+
+        selectedLocation = wgs84Coord
+        selectedAnnotation = MapAnnotationItem(
+            id: "selected",
+            name: "选中的位置",
+            subtitle: nil,
+            coordinate: coordinate, // Use original coordinate for display on Baidu map
+            category: .other
+        )
     }
 
     // MARK: - Computed Properties

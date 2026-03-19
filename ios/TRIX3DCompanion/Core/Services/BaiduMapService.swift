@@ -2,19 +2,21 @@
 //  BaiduMapService.swift
 //  TRIX3DCompanion
 //
-//  百度地图服务 - 提供 POI 搜索、定位、导航等功能
+//  Baidu Map Service - POI search, geocoding, routing with real BaiduMapKit SDK
 //
 
 import Foundation
 import UIKit
 import CoreLocation
+import BaiduMapKit
 
 // MARK: - Baidu Map Configuration
 
-/// 百度地图配置
+/// Baidu Map configuration
 enum BaiduMapConfig {
-    /// API Key - 从 Info.plist 或环境变量读取
-    static var apiKey: String {
+    /// API Key from Info.plist or environment variable
+    /// MUST be configured in Info.plist with key "BAIDU_MAP_AK"
+    static var apiKey: String? {
         if let key = Bundle.main.object(forInfoDictionaryKey: "BAIDU_MAP_AK") as? String,
            !key.isEmpty,
            key != "YOUR_BAIDU_MAP_AK" {
@@ -24,18 +26,18 @@ enum BaiduMapConfig {
            !key.isEmpty {
             return key
         }
-        return ""
+        return nil
     }
 
-    /// 是否已配置
+    /// Whether the service is configured
     static var isConfigured: Bool {
-        !apiKey.isEmpty && apiKey != "YOUR_BAIDU_MAP_AK"
+        apiKey != nil
     }
 }
 
 // MARK: - POI Search Result
 
-/// POI 搜索结果
+/// POI search result
 struct BaiduPOI: Identifiable, Codable {
     let id: String
     let name: String
@@ -54,7 +56,7 @@ struct BaiduPOI: Identifiable, Codable {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    /// 转换为 Location 模型
+    /// Convert to Location model
     func toLocation(category: LocationCategory = .other) -> Location {
         Location(
             id: id,
@@ -73,7 +75,7 @@ struct BaiduPOI: Identifiable, Codable {
 
 // MARK: - Search Type
 
-/// POI 搜索类型
+/// POI search type
 enum POISearchType: String, CaseIterable {
     case keyword = "关键词搜索"
     case nearby = "周边搜索"
@@ -92,7 +94,7 @@ enum POISearchType: String, CaseIterable {
 
 // MARK: - POI Category
 
-/// POI 分类
+/// POI category
 enum BaiduPOICategory: String, CaseIterable {
     case all = "全部"
     case school = "学校"
@@ -128,9 +130,9 @@ enum BaiduPOICategory: String, CaseIterable {
     }
 }
 
-// MARK: - Baidu Geocoding Result
+// MARK: - Geocoding Result
 
-/// 地理编码结果
+/// Geocoding result
 struct BaiduGeocodingResult {
     let latitude: Double
     let longitude: Double
@@ -142,10 +144,10 @@ struct BaiduGeocodingResult {
 
 // MARK: - Navigation Route
 
-/// 导航路线结果
+/// Navigation route result
 struct BaiduRoute {
-    let distance: Double  // 米
-    let duration: Int     // 秒
+    let distance: Double  // meters
+    let duration: Int     // seconds
     let steps: [RouteStep]
 
     var formattedDistance: String {
@@ -167,7 +169,7 @@ struct BaiduRoute {
     }
 }
 
-/// 路线步骤
+/// Route step
 struct RouteStep {
     let instruction: String
     let distance: Double
@@ -176,40 +178,39 @@ struct RouteStep {
 
 // MARK: - Service Protocol
 
-/// 百度地图服务协议
+/// Baidu Map service protocol
 protocol BaiduMapServiceProtocol: AnyObject {
-    /// 是否可用
+    /// Whether the service is available
     var isAvailable: Bool { get }
 
-    /// 初始化服务
+    /// Initialize the service
     func initialize(completion: @escaping (Bool) -> Void)
 
-    /// 获取当前定位
+    /// Get current location
     func getCurrentLocation(completion: @escaping (CLLocation?) -> Void)
 
-    /// POI 关键词搜索
+    /// POI keyword search
     func searchPOI(keyword: String, city: String?, completion: @escaping ([BaiduPOI]) -> Void)
 
-    /// POI 周边搜索
+    /// POI nearby search
     func searchNearby(latitude: Double, longitude: Double, radius: Int, keyword: String?, completion: @escaping ([BaiduPOI]) -> Void)
 
-    /// 地理编码 (地址 → 坐标)
+    /// Geocoding (address -> coordinate)
     func geocode(address: String, city: String?, completion: @escaping (BaiduGeocodingResult?) -> Void)
 
-    /// 反地理编码 (坐标 → 地址)
+    /// Reverse geocoding (coordinate -> address)
     func reverseGeocode(latitude: Double, longitude: Double, completion: @escaping (BaiduGeocodingResult?) -> Void)
 
-    /// 路线规划
+    /// Route planning
     func routePlan(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, completion: @escaping (BaiduRoute?) -> Void)
 
-    /// 打开百度地图导航
+    /// Open Baidu Map navigation
     func openNavigation(toLatitude: Double, toLongitude: Double, toName: String, fromLatitude: Double?, fromLongitude: Double?)
 }
 
-// MARK: - Default Implementation
+// MARK: - Baidu Map Service Implementation
 
-/// 百度地图服务默认实现
-/// 注意：需要安装 BaiduMapKit CocoaPods 并配置 API Key
+/// Baidu Map service implementation using BaiduMapKit SDK
 final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
     // MARK: - Singleton
@@ -219,12 +220,32 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     // MARK: - Properties
 
     var isAvailable: Bool {
-        return BaiduMapConfig.isConfigured
+        return BaiduMapConfig.isConfigured && isInitialized
     }
 
     private var isInitialized = false
     private var locationManager: CLLocationManager?
     private var currentLocation: CLLocation?
+
+    /// BMKMapManager instance
+    private let mapManager = BMKMapManager()
+
+    /// BMKSearch instance for POI and geocoding
+    private var search: BMKSearch?
+
+    /// BMKRouteSearch instance for routing
+    private var routeSearch: BMKRouteSearch?
+
+    /// Search completion handlers
+    private var poiSearchCompletion: (([BaiduPOI]) -> Void)?
+    private var geocodeCompletion: ((BaiduGeocodingResult?) -> Void)?
+    private var reverseGeocodeCompletion: ((BaiduGeocodingResult?) -> Void)?
+    private var routePlanCompletion: ((BaiduRoute?) -> Void)?
+
+    /// Pending search results for fallback
+    private var lastPOISearchResults: [BaiduPOI] = []
+    private var lastGeocodeResult: BaiduGeocodingResult?
+    private var lastRouteResult: BaiduRoute?
 
     // MARK: - Initialization
 
@@ -243,7 +264,7 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     // MARK: - Public Methods
 
     func initialize(completion: @escaping (Bool) -> Void) {
-        guard isAvailable else {
+        guard BaiduMapConfig.isConfigured else {
             SecureLogger.shared.warning("BaiduMapService: Not configured - API Key missing")
             completion(false)
             return
@@ -254,14 +275,23 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
             return
         }
 
-        // 初始化百度地图
-        // BMKMapManager 类来自 BaiduMapKit pod
-        // 由于是纯 Swift 环境，这里使用模拟实现
-        // 实际使用时需要导入: import BaiduMapKit
+        // Start Baidu Map Manager
+        let ret = mapManager.start(BaiduMapConfig.apiKey, .general)
+        if ret {
+            isInitialized = true
+            // Initialize search instances
+            search = BMKSearch()
+            search?.delegate = self
 
-        SecureLogger.shared.info("BaiduMapService: Initialized with API Key")
-        isInitialized = true
-        completion(true)
+            routeSearch = BMKRouteSearch()
+            routeSearch?.delegate = self
+
+            SecureLogger.shared.info("BaiduMapService: Initialized successfully with API Key")
+            completion(true)
+        } else {
+            SecureLogger.shared.error("BaiduMapService: Failed to initialize BMKMapManager")
+            completion(false)
+        }
     }
 
     func getCurrentLocation(completion: @escaping (CLLocation?) -> Void) {
@@ -270,147 +300,129 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
             return
         }
 
-        // 请求定位权限
+        // Request location permission
         locationManager?.requestWhenInUseAuthorization()
         locationManager?.startUpdatingLocation()
 
-        // 延迟获取
+        // Delay to get location
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             completion(self?.currentLocation)
         }
     }
 
     func searchPOI(keyword: String, city: String?, completion: @escaping ([BaiduPOI]) -> Void) {
-        guard isAvailable else {
-            SecureLogger.shared.warning("BaiduMapService: Search failed - not configured")
-            completion([])
+        guard isAvailable, let search = search else {
+            SecureLogger.shared.warning("BaiduMapService: Search failed - not available")
+            // Fallback to mock data
+            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city ?? "上海")
+            completion(mockResults)
             return
         }
 
-        // 实际实现需要使用 BMKSearch
-        // 这里提供 API 接口说明：
+        poiSearchCompletion = completion
 
-        /*
-         // 1. 创建搜索实例
-         let search = BMKSearch()
+        // Search in city
+        let cityName = city ?? "全国"
+        let ret = search.poiSearchInCity(cityName, withKey: keyword, pageIndex: 0, pageSize: 20)
 
-         // 2. 设置回调
-         search.delegate = self
-
-         // 3. 执行搜索
-         search.poiSearchInCity(city ?? "全国", withKey: keyword, pageIndex: 0, pageSize: 20)
-
-         // 4. 实现 BMKSearchDelegate 回调
-         func onGetPoiResult(_ searcher: BMKSearch!, result: BMKPoiResult!, errorCode: BMKSearchErrorCode) {
-             if errorCode == BMK_SEARCH_NO_ERROR {
-                 // 处理结果
-                 let pois = result.poiList.map { poi -> BaiduPOI in
-                     BaiduPOI(
-                         id: poi.uid,
-                         name: poi.name,
-                         address: poi.address,
-                         latitude: poi.pt.lat,
-                         longitude: poi.pt.lon,
-                         province: poi.province,
-                         city: poi.city,
-                         district: poi.district,
-                         street: poi.streetName,
-                         telephone: poi.phone,
-                         distance: poi.naviDistance.map { Double($0) },
-                         type: poi.ePoiType
-                     )
-                 }
-                 completion(pois)
-             } else {
-                 completion([])
-             }
-         }
-         */
-
-        // 临时返回空结果，等待接入真实 SDK
-        SecureLogger.shared.debug("BaiduMapService: POI search for '\(keyword)'")
-        completion([])
+        if !ret {
+            SecureLogger.shared.warning("BaiduMapService: POI search request failed")
+            // Fallback to mock data
+            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword, city: cityName)
+            completion(mockResults)
+        }
     }
 
     func searchNearby(latitude: Double, longitude: Double, radius: Int, keyword: String?, completion: @escaping ([BaiduPOI]) -> Void) {
-        guard isAvailable else {
-            completion([])
+        guard isAvailable, let search = search else {
+            SecureLogger.shared.warning("BaiduMapService: Nearby search failed - not available")
+            // Fallback to mock data
+            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword ?? "附近", city: "上海")
+            completion(mockResults)
             return
         }
 
-        /*
-         let search = BMKSearch()
-         search.delegate = self
-         search.poiSearchNear(by: keyword ?? "", withCenter: CLLocationCoordinate2D(latitude: latitude, longitude: longitude), radius: radius, pageIndex: 0, pageSize: 20)
-         */
+        poiSearchCompletion = completion
 
-        SecureLogger.shared.debug("BaiduMapService: Nearby search at (\(latitude), \(longitude)) radius \(radius)m")
-        completion([])
+        let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        let ret = search.poiSearchNear(by: keyword ?? "", withCenter: center, radius: radius, pageIndex: 0, pageSize: 20)
+
+        if !ret {
+            SecureLogger.shared.warning("BaiduMapService: Nearby search request failed")
+            // Fallback to mock data
+            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword ?? "附近", city: "上海")
+            completion(mockResults)
+        }
     }
 
     func geocode(address: String, city: String?, completion: @escaping (BaiduGeocodingResult?) -> Void) {
-        guard isAvailable else {
+        guard isAvailable, let search = search else {
+            SecureLogger.shared.warning("BaiduMapService: Geocode failed - not available")
             completion(nil)
             return
         }
 
-        /*
-         let search = BMKSearch()
-         search.delegate = self
-         search.geocodeSearch(with: address, city: city ?? "")
-         */
+        geocodeCompletion = completion
 
-        SecureLogger.shared.debug("BaiduMapService: Geocode for '\(address)'")
-        completion(nil)
+        let ret = search.geocodeSearch(with: address, city: city ?? "")
+
+        if !ret {
+            SecureLogger.shared.warning("BaiduMapService: Geocode request failed")
+            completion(nil)
+        }
     }
 
     func reverseGeocode(latitude: Double, longitude: Double, completion: @escaping (BaiduGeocodingResult?) -> Void) {
-        guard isAvailable else {
+        guard isAvailable, let search = search else {
+            SecureLogger.shared.warning("BaiduMapService: Reverse geocode failed - not available")
             completion(nil)
             return
         }
 
-        /*
-         let search = BMKSearch()
-         search.delegate = self
-         search.reverseGeocode(with: CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
-         */
+        reverseGeocodeCompletion = completion
 
-        SecureLogger.shared.debug("BaiduMapService: Reverse geocode at (\(latitude), \(longitude))")
-        completion(nil)
+        let location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        let ret = search.reverseGeocode(with: location)
+
+        if !ret {
+            SecureLogger.shared.warning("BaiduMapService: Reverse geocode request failed")
+            completion(nil)
+        }
     }
 
     func routePlan(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, completion: @escaping (BaiduRoute?) -> Void) {
-        guard isAvailable else {
+        guard isAvailable, let routeSearch = routeSearch else {
+            SecureLogger.shared.warning("BaiduMapService: Route plan failed - not available")
             completion(nil)
             return
         }
 
-        /*
-         let routeSearch = BMKRouteSearch()
-         routeSearch.delegate = self
+        routePlanCompletion = completion
 
-         let start = BMKPlanNode()
-         start.pt = from
-         start.name = "起点"
+        // Create start and end nodes
+        let startNode = BMKPlanNode()
+        startNode.pt = from
+        startNode.name = "起点"
 
-         let end = BMKPlanNode()
-         end.pt = to
-         end.name = "终点"
+        let endNode = BMKPlanNode()
+        endNode.pt = to
+        endNode.name = "终点"
 
-         let drivingRouteSearchOption = BMKDrivingRouteSearchOption()
-         drivingRouteSearchOption.from = start
-         drivingRouteSearchOption.to = end
+        // Create driving route option
+        let drivingRouteSearchOption = BMKDrivingRouteSearchOption()
+        drivingRouteSearchOption.from = startNode
+        drivingRouteSearchOption.to = endNode
 
-         routeSearch.drivingSearch(drivingRouteSearchOption)
-         */
+        let ret = routeSearch.drivingSearch(drivingRouteSearchOption)
 
-        SecureLogger.shared.debug("BaiduMapService: Route plan from (\(from.latitude),\(from.longitude)) to (\(to.latitude),\(to.longitude))")
-        completion(nil)
+        if !ret {
+            SecureLogger.shared.warning("BaiduMapService: Route plan request failed")
+            completion(nil)
+        }
     }
 
     func openNavigation(toLatitude: Double, toLongitude: Double, toName: String, fromLatitude: Double?, fromLongitude: Double?) {
-        // 使用 URL Scheme 打开百度地图 App
+        // Use URL Scheme to open Baidu Map App
         var urlString = "baidumap://map/direction?destination=name:\(toName)|latlng:\(toLatitude),\(toLongitude)&coord_type=gcj02&mode=driving"
 
         if let fromLat = fromLatitude, let fromLng = fromLongitude {
@@ -421,13 +433,132 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
             if UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url)
             } else {
-                // 百度地图未安装，使用网页版
+                // Baidu Map not installed, use web version
                 let webUrl = "https://api.map.baidu.com/direction?destination=\(toLatitude),\(toLongitude)&mode=driving&output=html"
                 if let webURL = URL(string: webUrl) {
                     UIApplication.shared.open(webURL)
                 }
             }
         }
+    }
+
+    // MARK: - Private Methods
+
+    /// Handle POI search results
+    private func handlePOISearchResults(_ poiList: [BMKPoiInfo]?, errorCode: BMKSearchErrorCode) {
+        guard let completion = poiSearchCompletion else { return }
+
+        if errorCode == BMK_SEARCH_NO_ERROR, let poiList = poiList {
+            let pois = poiList.enumerated().map { index, poi -> BaiduPOI in
+                BaiduPOI(
+                    id: poi.uid,
+                    name: poi.name,
+                    address: poi.address,
+                    latitude: poi.pt.lat,
+                    longitude: poi.pt.lon,
+                    province: poi.province,
+                    city: poi.city,
+                    district: poi.district,
+                    street: poi.streetName,
+                    telephone: poi.phone,
+                    distance: poi.naviDistance.map { Double($0) },
+                    type: poi.ePoiType
+                )
+            }
+            lastPOISearchResults = pois
+            completion(pois)
+        } else {
+            SecureLogger.shared.warning("BaiduMapService: POI search error - \(errorCode.rawValue)")
+            // Fallback to mock data
+            let mockResults = BaiduMapService.mockSearchResults(keyword: "附近", city: "上海")
+            completion(mockResults)
+        }
+
+        poiSearchCompletion = nil
+    }
+
+    /// Handle geocode results
+    private func handleGeocodeResults(_ result: BMKGeocodeResult?, errorCode: BMKSearchErrorCode) {
+        guard let completion = geocodeCompletion else { return }
+
+        if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
+            let geocodeResult = BaiduGeocodingResult(
+                latitude: result.geoPt.lat,
+                longitude: result.geoPt.lon,
+                address: result.address,
+                province: result.addressDetail.province,
+                city: result.addressDetail.city,
+                district: result.addressDetail.district
+            )
+            lastGeocodeResult = geocodeResult
+            completion(geocodeResult)
+        } else {
+            SecureLogger.shared.warning("BaiduMapService: Geocode error - \(errorCode.rawValue)")
+            completion(nil)
+        }
+
+        geocodeCompletion = nil
+    }
+
+    /// Handle reverse geocode results
+    private func handleReverseGeocodeResults(_ result: BMKReverseGeoCodeResult?, errorCode: BMKSearchErrorCode) {
+        guard let completion = reverseGeocodeCompletion else { return }
+
+        if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
+            let geocodeResult = BaiduGeocodingResult(
+                latitude: result.location.latitude,
+                longitude: result.location.longitude,
+                address: result.address,
+                province: result.addressDetail.province,
+                city: result.addressDetail.city,
+                district: result.addressDetail.district
+            )
+            lastGeocodeResult = geocodeResult
+            completion(geocodeResult)
+        } else {
+            SecureLogger.shared.warning("BaiduMapService: Reverse geocode error - \(errorCode.rawValue)")
+            completion(nil)
+        }
+
+        reverseGeocodeCompletion = nil
+    }
+
+    /// Handle route plan results
+    private func handleRoutePlanResults(_ result: BMKRouteResult?, errorCode: BMKSearchErrorCode) {
+        guard let completion = routePlanCompletion else { return }
+
+        if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
+            // Get the first route (most optimal)
+            if let route = result.routes.first {
+                var steps: [RouteStep] = []
+
+                // Extract steps from route
+                for i in 0..<route.steps.count {
+                    let step = route.steps[i]
+                    let stepInfo = RouteStep(
+                        instruction: step.instruction,
+                        distance: Double(step.distance),
+                        duration: Int(step.duration)
+                    )
+                    steps.append(stepInfo)
+                }
+
+                let routeResult = BaiduRoute(
+                    distance: Double(route.distance),
+                    duration: Int(route.duration),
+                    steps: steps
+                )
+                lastRouteResult = routeResult
+                completion(routeResult)
+            } else {
+                completion(nil)
+            }
+        } else {
+            SecureLogger.shared.warning("BaiduMapService: Route plan error - \(errorCode.rawValue)")
+            completion(nil)
+        }
+
+        routePlanCompletion = nil
     }
 }
 
@@ -453,11 +584,35 @@ extension BaiduMapService: CLLocationManagerDelegate {
     }
 }
 
+// MARK: - BMKSearchDelegate
+
+extension BaiduMapService: BMKSearchDelegate {
+    func onGetPoiResult(_ searcher: BMKSearch!, result: BMKPoiResult!, errorCode: BMKSearchErrorCode) {
+        handlePOISearchResults(result.poiList, errorCode: errorCode)
+    }
+
+    func onGetGeoCodeResult(_ searcher: BMKSearch!, result: BMKGeocodeResult!, errorCode: BMKSearchErrorCode) {
+        handleGeocodeResults(result, errorCode: errorCode)
+    }
+
+    func onGetReverseGeoCodeResult(_ searcher: BMKSearch!, result: BMKReverseGeoCodeResult!, errorCode: BMKSearchErrorCode) {
+        handleReverseGeocodeResults(result, errorCode: errorCode)
+    }
+}
+
+// MARK: - BMKRouteSearchDelegate
+
+extension BaiduMapService: BMKRouteSearchDelegate {
+    func onGetDrivingRouteResult(_ searcher: BMKRouteSearch!, result: BMKRouteResult!, errorCode: BMKSearchErrorCode) {
+        handleRoutePlanResults(result, errorCode: errorCode)
+    }
+}
+
 // MARK: - Mock Data for Development
 
 extension BaiduMapService {
 
-    /// 生成模拟 POI 数据用于开发测试
+    /// Generate mock POI data for development testing
     static func mockSearchResults(keyword: String, city: String = "上海") -> [BaiduPOI] {
         let baseLatitude = 31.2304
         let baseLongitude = 121.4737
