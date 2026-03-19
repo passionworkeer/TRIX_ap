@@ -70,7 +70,28 @@ final class MapViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let locationService: any LocationServiceProtocol
+    private let baiduMapService: BaiduMapService
     private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Baidu Search State
+
+    /// POI 搜索结果 (百度)
+    @Published var searchResults: [BaiduPOI] = []
+
+    /// 是否显示搜索结果
+    @Published var showSearchResults: Bool = false
+
+    /// 导航路线
+    @Published var currentRoute: BaiduRoute?
+
+    /// 是否正在搜索
+    @Published var isSearching: Bool = false
+
+    /// 导航目的地
+    @Published var navigationDestination: BaiduPOI?
+
+    /// 是否显示导航卡片
+    @Published var showNavigationCard: Bool = false
 
     // MARK: - Constants
 
@@ -90,14 +111,24 @@ final class MapViewModel: ObservableObject {
 
     /// Initialize MapViewModel
     /// - Parameter locationService: Location service dependency
-    init(locationService: (any LocationServiceProtocol)? = nil) {
+    init(locationService: (any LocationServiceProtocol)? = nil, baiduMapService: BaiduMapService? = nil) {
         self.locationService = locationService ?? LocationService.shared
+        self.baiduMapService = baiduMapService ?? BaiduMapService.shared
 
         // Initialize region with default location (Shanghai Lujiazui)
         self.region = MKCoordinateRegion(
             center: defaultCoordinate,
             span: defaultSpan
         )
+
+        // Initialize Baidu Map Service
+        self.baiduMapService.initialize { success in
+            if success {
+                SecureLogger.shared.info("MapViewModel: Baidu Map Service initialized")
+            } else {
+                SecureLogger.shared.warning("MapViewModel: Baidu Map Service not available, using mock data")
+            }
+        }
 
         // Setup bindings
         setupBindings()
@@ -421,11 +452,13 @@ final class MapViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Filter locations when search query changes
+        // Baidu POI search when search query changes
         $searchQuery
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] query in
+                // 同时进行本地过滤和百度搜索
                 self?.filterLocations(query: query)
+                self?.searchPOI(keyword: query)
             }
             .store(in: &cancellables)
 
@@ -572,6 +605,143 @@ final class MapViewModel: ObservableObject {
     /// - Parameter category: Category to filter by, or nil for all
     func setCategoryFilter(_ category: LocationCategory?) {
         selectedCategory = category
+    }
+
+    // MARK: - Baidu POI Search
+
+    /// 使用百度地图搜索 POI
+    /// - Parameters:
+    ///   - keyword: 搜索关键词
+    ///   - city: 搜索城市，默认上海
+    func searchPOI(keyword: String, city: String = "上海") {
+        guard !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            searchResults = []
+            showSearchResults = false
+            return
+        }
+
+        isSearching = true
+        showSearchResults = true
+
+        // 优先使用百度地图搜索
+        if baiduMapService.isAvailable {
+            baiduMapService.searchPOI(keyword: keyword, city: city) { [weak self] results in
+                DispatchQueue.main.async {
+                    self?.isSearching = false
+                    self?.searchResults = results
+
+                    // 如果百度没有结果，使用 mock 数据
+                    if results.isEmpty {
+                        self?.searchResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city)
+                    }
+                }
+            }
+        } else {
+            // 使用 mock 数据
+            isSearching = false
+            searchResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city)
+        }
+    }
+
+    /// 搜索周边地点
+    /// - Parameters:
+    ///   - keyword: 搜索关键词
+    ///   - radius: 搜索半径(米)
+    func searchNearbyPOI(keyword: String, radius: Int = 3000) {
+        guard let location = locationService.currentLocation else {
+            errorMessage = "无法获取当前位置"
+            return
+        }
+
+        isSearching = true
+        showSearchResults = true
+
+        baiduMapService.searchNearby(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            radius: radius,
+            keyword: keyword
+        ) { [weak self] results in
+            DispatchQueue.main.async {
+                self?.isSearching = false
+                self?.searchResults = results
+
+                if results.isEmpty {
+                    self?.searchResults = BaiduMapService.mockSearchResults(keyword: keyword)
+                }
+            }
+        }
+    }
+
+    /// 选择搜索结果
+    /// - Parameter poi: 选中的 POI
+    func selectSearchResult(_ poi: BaiduPOI) {
+        showSearchResults = false
+        navigationDestination = poi
+
+        // 移动地图到该位置
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            region = MKCoordinateRegion(
+                center: poi.coordinate,
+                span: defaultSpan
+            )
+        }
+
+        // 规划路线
+        planRoute(to: poi.coordinate)
+    }
+
+    /// 规划导航路线
+    /// - Parameter destination: 目的地坐标
+    func planRoute(to destination: CLLocationCoordinate2D) {
+        let start: CLLocationCoordinate2D
+
+        if let current = locationService.currentLocation?.coordinate {
+            start = current
+        } else {
+            start = region.center
+        }
+
+        baiduMapService.routePlan(from: start, to: destination) { [weak self] route in
+            DispatchQueue.main.async {
+                self?.currentRoute = route
+                self?.showNavigationCard = route != nil
+            }
+        }
+
+        // 如果没有返回路线，显示导航卡片（待实现）
+        if currentRoute == nil {
+            showNavigationCard = true
+        }
+    }
+
+    /// 开始导航
+    /// - Parameter poi: 目的地
+    func startNavigation(to poi: BaiduPOI) {
+        let fromCoordinate = locationService.currentLocation?.coordinate
+
+        baiduMapService.openNavigation(
+            toLatitude: poi.latitude,
+            toLongitude: poi.longitude,
+            toName: poi.name,
+            fromLatitude: fromCoordinate?.latitude,
+            fromLongitude: fromCoordinate?.longitude
+        )
+    }
+
+    /// 清除搜索结果
+    func clearAllSearch() {
+        searchQuery = ""
+        searchResults = []
+        showSearchResults = false
+        navigationDestination = nil
+        currentRoute = nil
+        showNavigationCard = false
+    }
+
+    /// 关闭导航卡片
+    func closeNavigationCard() {
+        showNavigationCard = false
     }
 
     // MARK: - Private Methods

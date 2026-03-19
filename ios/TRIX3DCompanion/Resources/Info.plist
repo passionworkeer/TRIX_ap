@@ -115,6 +115,8 @@
 	<string>https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>__SUPABASE_ANON_KEY_REDACTED__</string>
+	<key>BAIDU_MAP_AK</key>
+	<string>YOUR_BAIDU_MAP_AK</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:api.trix3d.com</string>
