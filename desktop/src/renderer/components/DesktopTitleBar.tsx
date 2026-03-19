@@ -4,6 +4,11 @@ interface TitleBarProps {
   children: React.ReactNode;
 }
 
+// Non-standard CSS property - use Record to avoid TS complaints
+type ElectronStyle = React.CSSProperties & {
+  WebkitAppRegion?: 'drag' | 'no-drag';
+};
+
 export function DesktopTitleBar({ children }: TitleBarProps) {
   const handleMinimize = useCallback(() => {
     window.electronAPI?.minimizeToTray();
@@ -12,6 +17,22 @@ export function DesktopTitleBar({ children }: TitleBarProps) {
   const handleClose = useCallback(() => {
     window.electronAPI?.minimizeToTray();
   }, []);
+
+  const titleBarStyle: ElectronStyle = {
+    height: '36px',
+    backgroundColor: 'var(--bg-secondary)',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    display: 'flex',
+    alignItems: 'center',
+    WebkitAppRegion: 'drag',
+    userSelect: 'none',
+    flexShrink: 0,
+  };
+
+  const windowControlsStyle: ElectronStyle = {
+    display: 'flex',
+    WebkitAppRegion: 'no-drag',
+  };
 
   return (
     <div
@@ -23,18 +44,7 @@ export function DesktopTitleBar({ children }: TitleBarProps) {
       }}
     >
       {/* Title Bar */}
-      <div
-        style={{
-          height: '36px',
-          backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-          display: 'flex',
-          alignItems: 'center',
-          WebkitAppRegion: 'drag',
-          userSelect: 'none',
-          flexShrink: 0,
-        }}
-      >
+      <div style={titleBarStyle}>
         {/* App Icon + Title */}
         <div
           style={{
@@ -59,12 +69,7 @@ export function DesktopTitleBar({ children }: TitleBarProps) {
         </div>
 
         {/* Window Controls */}
-        <div
-          style={{
-            display: 'flex',
-            WebkitAppRegion: 'no-drag',
-          }}
-        >
+        <div style={windowControlsStyle}>
           {/* Minimize */}
           <button
             onClick={handleMinimize}

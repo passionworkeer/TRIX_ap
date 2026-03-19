@@ -53,6 +53,7 @@ export async function checkOpenClaw(): Promise<{
   installed: boolean;
   version?: string;
   path?: string;
+  error?: string;
 }> {
   try {
     const found = await findOpenClaw();
@@ -155,33 +156,49 @@ export async function runCommand(cmd: string): Promise<{
   const subArgs = parts.slice(1);
 
   try {
-    // Use spawn with argv array — no shell interpolation
     const { spawn } = await import('child_process');
+    // Use a short timeout since the trix-native plugin hangs when the remote
+    // server (TRIX_SERVER_HOST:8788) is unreachable. 10s is enough for local
+    // commands and avoids blocking the renderer for a full minute.
+    const COMMAND_TIMEOUT = 10_000;
+
     const proc = spawn(openclawBin, [subcommand, ...subArgs], {
-      timeout: 60000,
-      shell: false,
+      shell: process.platform === 'win32',
     });
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
 
     proc.stdout?.on('data', (data) => { stdout += data.toString(); });
     proc.stderr?.on('data', (data) => { stderr += data.toString(); });
 
     const exitCode = await new Promise<number>((resolve) => {
-      proc.on('close', (code) => resolve(code ?? 0));
-      proc.on('error', () => resolve(1));
-      // Timeout
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        timedOut = true;
         proc.kill();
         resolve(124);
-      }, 60000);
+      }, COMMAND_TIMEOUT);
+
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        resolve(timedOut ? 124 : (code ?? 0));
+      });
+      proc.on('error', () => {
+        clearTimeout(timer);
+        resolve(1);
+      });
     });
 
-    if (exitCode === 0) {
-      return { success: true, stdout: stdout.trim(), stderr: stderr.trim() };
+    if (timedOut) {
+      return {
+        success: false,
+        stdout: stdout.trim(),
+        stderr: `命令超时 (${COMMAND_TIMEOUT / 1000}s) — trix-native 插件可能无法连接到远程服务器`,
+      };
     }
-    return { success: false, stdout: stdout.trim(), stderr: stderr.trim() };
+
+    return { success: exitCode === 0, stdout: stdout.trim(), stderr: stderr.trim() };
   } catch (err: unknown) {
     return {
       success: false,

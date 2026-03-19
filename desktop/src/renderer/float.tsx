@@ -98,7 +98,7 @@ function FloatApp() {
 
   const handleShowQr = useCallback(async () => {
     const api = window.electronAPI;
-    if (!api?.createPairingQr) return;
+    if (!api?.createQrCode) return;
 
     setIsCreatingQr(true);
     setPairingError(null);
@@ -106,7 +106,7 @@ function FloatApp() {
     setPairingCode(null);
     setPairingStatus(null);
 
-    const result = await api.createPairingQr('Desktop Float Window');
+    const result = await api.createQrCode('Desktop Float Window');
 
     if (!result.success || !result.qrDataUrl) {
       setPairingError(result.error ?? '创建配对码失败');

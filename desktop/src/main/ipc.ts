@@ -4,6 +4,7 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import {
   showMainWindow,
   hideMainWindow,
@@ -203,18 +204,31 @@ export function setupIpcHandlers(): void {
   // === Native Channel Pairing (HTTP API) ===
 
   /**
-   * Get the native channel state file path and read the admin token.
-   * The server stores state at {TRIX_NATIVE_STORAGE_DIR}/state.json
-   * (defaults to {userData}/state.json — same as gateway).
+   * Read TRIX Native Channel credentials from the OpenClaw config file.
+   * The config is at ~/.openclaw/openclaw.json and contains:
+   * { channels: { "trix-native": { accounts: { default: { serverUrl, adminToken } } } } }
    */
-  async function getNativeChannelState(): Promise<{ adminToken: string } | null> {
-    const stateFile = path.join(app.getPath('userData'), 'state.json');
+  function getNativeChannelConfig(): { serverUrl: string; adminToken: string } | null {
     try {
-      const content = await fs.promises.readFile(stateFile, 'utf-8');
-      const state = JSON.parse(content);
-      if (!state.adminToken) return null;
-      return { adminToken: state.adminToken };
-    } catch {
+      const openclawConfigPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+      if (!fs.existsSync(openclawConfigPath)) {
+        log.warn('OpenClaw config not found:', openclawConfigPath);
+        return null;
+      }
+      const config = JSON.parse(fs.readFileSync(openclawConfigPath, 'utf-8'));
+      const trixChannel = config?.channels?.['trix-native'];
+      if (!trixChannel) {
+        log.warn('trix-native channel not configured in OpenClaw config');
+        return null;
+      }
+      const account = trixChannel.accounts?.default;
+      if (!account?.serverUrl || !account?.adminToken) {
+        log.warn('trix-native channel missing serverUrl or adminToken');
+        return null;
+      }
+      return { serverUrl: account.serverUrl, adminToken: account.adminToken };
+    } catch (err) {
+      log.error('Failed to read OpenClaw config:', err);
       return null;
     }
   }
@@ -251,18 +265,17 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle('pairing:createQr', async (_event, label?: string) => {
     try {
-      const state = await getNativeChannelState();
-      if (!state) {
-        return { success: false, error: 'Native channel not initialized (no admin token)' };
+      const config = getNativeChannelConfig();
+      if (!config) {
+        return { success: false, error: 'Native channel not configured (run: openclaw config)' };
       }
 
-      const gatewayUrl = `http://127.0.0.1:18789`;
       const res = await httpRequest({
         method: 'POST',
-        url: `${gatewayUrl}/api/pairings`,
+        url: `${config.serverUrl}/api/pairings`,
         headers: {
           'Content-Type': 'application/json',
-          'x-trix-admin-token': state.adminToken,
+          'x-trix-admin-token': config.adminToken,
         },
         body: JSON.stringify({ label: label ?? 'Desktop Float Window' }),
       });
@@ -287,17 +300,16 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle('pairing:pollStatus', async (_event, code: string) => {
     try {
-      const state = await getNativeChannelState();
-      if (!state) {
-        return { success: false, error: 'Native channel not initialized' };
+      const config = getNativeChannelConfig();
+      if (!config) {
+        return { success: false, error: 'Native channel not configured' };
       }
 
-      const gatewayUrl = `http://127.0.0.1:18789`;
       const res = await httpRequest({
         method: 'GET',
-        url: `${gatewayUrl}/api/pairings/${encodeURIComponent(code)}`,
+        url: `${config.serverUrl}/api/pairings/${encodeURIComponent(code)}`,
         headers: {
-          'x-trix-admin-token': state.adminToken,
+          'x-trix-admin-token': config.adminToken,
         },
       });
 
@@ -347,6 +359,7 @@ export function setupIpcHandlers(): void {
       node: process.versions.node,
       chrome: process.versions.chrome,
       platform: process.platform,
+      userData: app.getPath('userData'),
       isPackaged: app.isPackaged,
     };
   });

@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "strict": true,
+    "types": ["vite/client"],
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -13,14 +14,12 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "desktop/dist-desktop",
-    "baseUrl": ".",
+    "baseUrl": "..",
     "paths": {
       "@/*": ["src/*"]
     }
   },
   "include": [
-    "desktop/src/**/*.ts",
-    "desktop/src/**/*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx"
   ],

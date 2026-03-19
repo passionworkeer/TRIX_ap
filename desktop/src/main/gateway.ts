@@ -26,7 +26,7 @@ function isPortInUse(port: number): Promise<boolean> {
   });
 }
 
-async function waitForGateway(maxWaitMs = 30000): Promise<void> {
+async function waitForGateway(maxWaitMs = 15000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     try {

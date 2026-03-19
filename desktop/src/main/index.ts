@@ -79,12 +79,10 @@ app.whenReady().then(async () => {
   createTray();
 
   if (openclawStatus.installed) {
-    try {
-      await startGateway();
-      log.info('Gateway started');
-    } catch (err) {
-      log.error('Failed to start gateway:', err);
-    }
+    // Start gateway in background — don't block app startup
+    startGateway()
+      .then(() => log.info('Gateway started'))
+      .catch((err) => log.error('Gateway failed to start:', err));
   } else {
     log.info('OpenClaw not installed, skipping gateway');
   }

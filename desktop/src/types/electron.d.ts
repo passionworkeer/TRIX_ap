@@ -55,6 +55,20 @@ export interface PairingStatusResult {
 }
 
 export interface ElectronAPI {
+  // Platform
+  platform: string;
+  isDesktop: boolean;
+  getVideoBaseUrl: () => string;
+  getVideoUrl: (filename: string) => string;
+
+  // Window Management
+  showMainWindow: () => Promise<boolean>;
+  hideMainWindow: () => Promise<boolean>;
+  minimizeToTray: () => Promise<boolean>;
+
+  // Bot State
+  pushBotState: (state: BotState) => Promise<boolean>;
+
   // OpenClaw
   checkOpenClaw: () => Promise<OpenClawStatus>;
   installOpenClaw: () => Promise<{ success: boolean; error?: string }>;
@@ -69,20 +83,13 @@ export interface ElectronAPI {
   createPairingCode: () => Promise<OpenClawCommandResult>;
 
   // Native Channel Pairing
-  createPairingQr: (label?: string) => Promise<PairingQrResult>;
+  createQrCode: (label?: string) => Promise<PairingQrResult>;
+  createPairingQr: (label?: string) => Promise<PairingQrResult>; // alias for createQrCode
   pollPairingStatus: (code: string) => Promise<PairingStatusResult>;
 
   // Gateway
   getGatewayStatus: () => Promise<GatewayStatus>;
   restartGateway: () => Promise<{ success: boolean; error?: string }>;
-
-  // Window Management
-  showMainWindow: () => Promise<boolean>;
-  hideMainWindow: () => Promise<boolean>;
-  minimizeToTray: () => Promise<boolean>;
-
-  // BotState
-  pushBotState: (state: BotState) => Promise<boolean>;
 
   // App Info
   getAppInfo: () => Promise<AppInfo>;
@@ -90,15 +97,6 @@ export interface ElectronAPI {
   // Event Listeners
   onBotStateChange: (callback: (state: BotState) => void) => () => void;
   onInstallProgress: (callback: (msg: string) => void) => () => void;
-  onGatewayStatusChange: (callback: (status: GatewayStatus) => void) => () => void;
-
-  // Platform Info
-  platform: string;
-  isDesktop: boolean;
-
-  // Video
-  getVideoBaseUrl: () => string;
-  getVideoUrl: (filename: string) => string;
 }
 
 declare global {
