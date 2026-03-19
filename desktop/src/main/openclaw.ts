@@ -73,6 +73,24 @@ export async function installOpenClaw(
   const installPath = LOCAL_OPENCLAW_PATH();
   log.info('Installing OpenClaw to:', installPath);
 
+  onProgress('正在检查环境...');
+
+  // Check which package manager is available
+  let packageManager = 'pnpm';
+  try {
+    await execAsync('pnpm --version', { timeout: 5000 });
+    packageManager = 'pnpm';
+    onProgress('使用 pnpm 安装...');
+  } catch {
+    try {
+      await execAsync('npm --version', { timeout: 5000 });
+      packageManager = 'npm';
+      onProgress('pnpm 未找到，改用 npm 安装...');
+    } catch {
+      throw new Error('未找到 pnpm 或 npm，请先安装 Node.js (https://nodejs.org)');
+    }
+  }
+
   onProgress('正在准备安装目录...');
 
   // Ensure install directory exists
@@ -80,15 +98,14 @@ export async function installOpenClaw(
     fs.mkdirSync(installPath, { recursive: true });
   }
 
-  onProgress('正在安装 OpenClaw (pnpm)...');
+  const args = packageManager === 'pnpm'
+    ? ['add', '-g', 'openclaw']
+    : ['install', '-g', 'openclaw'];
 
-  // Use pnpm to install globally to local path (no admin needed)
-  const npmCmd = process.platform === 'win32'
-    ? 'pnpm'
-    : 'pnpm';
+  onProgress(`正在安装 OpenClaw (${packageManager})...`);
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(npmCmd, ['add', '-g', 'openclaw', '--prefix', installPath], {
+    const proc = spawn(packageManager, args, {
       shell: true,
       env: { ...process.env },
     });
@@ -109,7 +126,7 @@ export async function installOpenClaw(
         log.info('OpenClaw installed to', installPath);
         resolve();
       } else {
-        const err = `Install failed with code ${code}: ${stderr}`;
+        const err = `安装失败，退出码 ${code}: ${stderr}`;
         log.error(err);
         reject(new Error(err));
       }

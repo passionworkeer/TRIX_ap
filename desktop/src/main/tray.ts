@@ -1,5 +1,4 @@
 import { Tray, Menu, nativeImage, app, BrowserWindow } from 'electron';
-import path from 'path';
 import log from 'electron-log/main';
 import { getGatewayStatus } from './gateway';
 import { runOpenClawCommand } from './openclaw';
@@ -20,14 +19,6 @@ function hideMainWindow(): void {
   const wins = BrowserWindow.getAllWindows();
   const main = wins.find(w => !w.isDestroyed());
   main?.hide();
-}
-
-function getTrayIconPath(): string {
-  const isDev = !app.isPackaged;
-  if (isDev) {
-    return path.join(__dirname, '../../../build/icon.ico');
-  }
-  return path.join(process.resourcesPath!, 'icon.ico');
 }
 
 export function createTray(): Tray {

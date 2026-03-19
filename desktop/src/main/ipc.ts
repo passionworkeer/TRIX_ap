@@ -1,5 +1,9 @@
 import { ipcMain, app } from 'electron';
 import log from 'electron-log/main';
+import https from 'https';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import {
   showMainWindow,
   hideMainWindow,
@@ -192,6 +196,124 @@ export function setupIpcHandlers(): void {
     try {
       return await runCommand('pairing create');
     } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // === Native Channel Pairing (HTTP API) ===
+
+  /**
+   * Get the native channel state file path and read the admin token.
+   * The server stores state at {TRIX_NATIVE_STORAGE_DIR}/state.json
+   * (defaults to {userData}/state.json — same as gateway).
+   */
+  async function getNativeChannelState(): Promise<{ adminToken: string } | null> {
+    const stateFile = path.join(app.getPath('userData'), 'state.json');
+    try {
+      const content = await fs.promises.readFile(stateFile, 'utf-8');
+      const state = JSON.parse(content);
+      if (!state.adminToken) return null;
+      return { adminToken: state.adminToken };
+    } catch {
+      return null;
+    }
+  }
+
+  function httpRequest(options: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }): Promise<{ statusCode: number; body: string }> {
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(options.url);
+      const isHttps = urlObj.protocol === 'https:';
+      const httpMod = isHttps ? https : http;
+      const reqOptions: http.RequestOptions = {
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method: options.method,
+        headers: options.headers,
+        timeout: 10000,
+      };
+      const req = httpMod.request(reqOptions, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => resolve({ statusCode: res.statusCode ?? 0, body: data }));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+      if (options.body) req.write(options.body);
+      req.end();
+    });
+  }
+
+  ipcMain.handle('pairing:createQr', async (_event, label?: string) => {
+    try {
+      const state = await getNativeChannelState();
+      if (!state) {
+        return { success: false, error: 'Native channel not initialized (no admin token)' };
+      }
+
+      const gatewayUrl = `http://127.0.0.1:18789`;
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${gatewayUrl}/api/pairings`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': state.adminToken,
+        },
+        body: JSON.stringify({ label: label ?? 'Desktop Float Window' }),
+      });
+
+      if (res.statusCode !== 201) {
+        return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+      }
+
+      const pairing = JSON.parse(res.body);
+      return {
+        success: true,
+        qrDataUrl: pairing.qrDataUrl,
+        code: pairing.code,
+        status: pairing.status,
+        expiresAt: pairing.expiresAt,
+      };
+    } catch (err) {
+      log.error('pairing:createQr error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('pairing:pollStatus', async (_event, code: string) => {
+    try {
+      const state = await getNativeChannelState();
+      if (!state) {
+        return { success: false, error: 'Native channel not initialized' };
+      }
+
+      const gatewayUrl = `http://127.0.0.1:18789`;
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${gatewayUrl}/api/pairings/${encodeURIComponent(code)}`,
+        headers: {
+          'x-trix-admin-token': state.adminToken,
+        },
+      });
+
+      if (res.statusCode !== 200) {
+        return { success: false, error: `Server returned ${res.statusCode}` };
+      }
+
+      const pairing = JSON.parse(res.body);
+      return {
+        success: true,
+        status: pairing.status,
+        pairedClientId: pairing.pairedClientId,
+        pairedDeviceName: pairing.pairedDeviceName,
+      };
+    } catch (err) {
+      log.error('pairing:pollStatus error:', err);
       return { success: false, error: String(err) };
     }
   });

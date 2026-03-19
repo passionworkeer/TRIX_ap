@@ -61,6 +61,8 @@ export async function startGateway(): Promise<void> {
   const openclawBin = getOpenClawPath();
   const localBinExists = fs.existsSync(openclawBin);
 
+  const userDataDir = app.getPath('userData');
+
   const cmd = localBinExists
     ? openclawBin
     : (process.platform === 'win32' ? 'openclaw' : 'openclaw');
@@ -75,6 +77,8 @@ export async function startGateway(): Promise<void> {
     env: {
       ...process.env,
       TRIX_GATEWAY_PORT: String(GATEWAY_PORT),
+      // Use userData dir for state — works in both dev and prod regardless of cwd
+      TRIX_NATIVE_STORAGE_DIR: userDataDir,
     },
   });
 

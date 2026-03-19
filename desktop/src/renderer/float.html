@@ -18,6 +18,14 @@
         height: 100vh;
         background: transparent;
       }
+      /* Buttons and all interactive elements must NOT be draggable */
+      button, a, input, select, textarea, [role="button"] {
+        -webkit-app-region: no-drag;
+      }
+      /* QR panel has onClick but is not a form element */
+      .qr-panel {
+        -webkit-app-region: no-drag;
+      }
     </style>
   </head>
   <body>
