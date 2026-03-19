@@ -216,6 +216,120 @@ describe('TrixNativeServer', () => {
     expect(listPayload.rooms[0]?.hostUserId).toBe('supabase-user-1');
   });
 
+  it('lookupStudyRoomsByUsers returns correct room info for each user', async () => {
+    const server = createTestServer(8810);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+
+    // Create pairing and claim
+    const pairing = await fetch('http://127.0.0.1:8810/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((r) => r.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8810/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ clientId: 'browser-study-lookup', deviceName: 'Browser' }),
+    }).then((r) => r.json()) as { conversationId: string; clientToken: string };
+
+    const headers = {
+      'content-type': 'application/json',
+      'x-trix-conversation-id': claim.conversationId,
+      'x-trix-client-token': claim.clientToken,
+    };
+
+    // Create room as Alice
+    const createResponse = await fetch('http://127.0.0.1:8810/api/study-rooms', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId: 'alice', displayName: 'Alice' }),
+    });
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json() as { room: { roomCode: string } };
+    const roomCode = created.room.roomCode;
+
+    // Join room as Bob
+    await fetch(`http://127.0.0.1:8810/api/study-rooms/${roomCode}/join`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId: 'bob', displayName: 'Bob' }),
+    });
+
+    // Lookup all three users: Alice (in room), Bob (in same room), Charlie (not in any room)
+    const lookupResponse = await fetch('http://127.0.0.1:8810/api/study-rooms/lookup-by-users', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userIds: ['alice', 'bob', 'charlie'] }),
+    });
+
+    expect(lookupResponse.status).toBe(200);
+    const lookup = await lookupResponse.json() as {
+      success: boolean;
+      users: Array<{ userId: string; inRoom: boolean; roomCode?: string; memberCount?: number }>;
+    };
+
+    expect(lookup.success).toBe(true);
+    expect(lookup.users).toHaveLength(3);
+
+    const alice = lookup.users.find((u) => u.userId === 'alice');
+    expect(alice?.inRoom).toBe(true);
+    expect(alice?.roomCode).toBe(roomCode);
+    expect(alice?.memberCount).toBe(2);
+
+    const bob = lookup.users.find((u) => u.userId === 'bob');
+    expect(bob?.inRoom).toBe(true);
+    expect(bob?.roomCode).toBe(roomCode);
+
+    const charlie = lookup.users.find((u) => u.userId === 'charlie');
+    expect(charlie?.inRoom).toBe(false);
+  });
+
+  it('lookupStudyRoomsByUsers returns empty array for empty userIds', async () => {
+    const server = createTestServer(8811);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+
+    const pairing = await fetch('http://127.0.0.1:8811/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((r) => r.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8811/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ clientId: 'browser-lookup-empty', deviceName: 'Browser' }),
+    }).then((r) => r.json()) as { conversationId: string; clientToken: string };
+
+    const headers = {
+      'content-type': 'application/json',
+      'x-trix-conversation-id': claim.conversationId,
+      'x-trix-client-token': claim.clientToken,
+    };
+
+    const lookupResponse = await fetch('http://127.0.0.1:8811/api/study-rooms/lookup-by-users', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userIds: [] }),
+    });
+
+    expect(lookupResponse.status).toBe(200);
+    const lookup = await lookupResponse.json() as { users: unknown[] };
+    expect(lookup.users).toHaveLength(0);
+  });
+
   it('delivers user messages to the service plane and accepts OpenClaw replies', async () => {
     const server = createTestServer(8801);
     servers.push(server);
@@ -348,6 +462,78 @@ describe('TrixNativeServer', () => {
     expect(pairings[0]).not.toHaveProperty('clientToken');
     expect(pairings[0]).not.toHaveProperty('claimUrl');
     expect(pairings[0]).not.toHaveProperty('qrDataUrl');
+  });
+
+  it('rejects cross-plane token reuse and expired attachment signatures', async () => {
+    const server = createTestServer(8805);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8805/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8805/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-auth-1',
+        deviceName: 'Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const crossPlaneServiceResponse = await fetch('http://127.0.0.1:8805/api/service/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${claim.clientToken}`,
+      },
+      body: JSON.stringify({
+        accountId: 'default',
+        conversationId: claim.conversationId,
+        message: {
+          idempotencyKey: 'bad-cross-plane',
+          text: 'should fail',
+        },
+      }),
+    });
+    expect(crossPlaneServiceResponse.status).toBe(401);
+
+    const crossPlaneUserResponse = await fetch('http://127.0.0.1:8805/api/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: state.serviceTokens.default,
+        text: 'should fail',
+      }),
+    });
+    expect(crossPlaneUserResponse.status).toBe(401);
+
+    const uploadResponse = await fetch('http://127.0.0.1:8805/api/uploads', {
+      method: 'POST',
+      headers: {
+        'x-file-name': 'expiring.png',
+        'x-mime-type': 'image/png',
+        'x-attachment-kind': 'image',
+        'x-trix-conversation-id': claim.conversationId,
+        'x-trix-client-token': claim.clientToken,
+      },
+      body: Buffer.from('png-binary', 'utf8'),
+    });
+    expect(uploadResponse.status).toBe(201);
+    const uploadPayload = await uploadResponse.json() as { attachment: { publicUrl: string } };
+
+    const expiredUrl = new URL(uploadPayload.attachment.publicUrl);
+    expiredUrl.searchParams.set('exp', String(Date.now() - 1_000));
+    const expiredAttachmentResponse = await fetch(expiredUrl);
+    expect(expiredAttachmentResponse.status).toBe(401);
   });
 
   it('rejects the legacy agent websocket by default', async () => {
