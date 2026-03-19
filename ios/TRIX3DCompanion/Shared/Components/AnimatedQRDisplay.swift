@@ -275,7 +275,7 @@ struct ScanQRButton: View {
 
             // Scan Button
             ScanQRButton {
-                print("Scan tapped")
+                // Preview action - scan tapped
             }
         }
         .padding()

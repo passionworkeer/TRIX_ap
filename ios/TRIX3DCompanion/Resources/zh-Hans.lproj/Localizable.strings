@@ -1433,3 +1433,18 @@
 // MARK: - Common
 "common.success" = "成功";
 "common.error" = "错误";
+
+// MARK: - Error Messages
+"error.voice.playback.failed" = "无法播放音频: %@";
+"error.voice.decode.failed" = "播放错误: %@";
+"error.snapshot.load.failed" = "加载快照失败: %@";
+"error.snapshot.refresh.failed" = "刷新失败: %@";
+"error.snapshot.loadmore.failed" = "加载更多失败: %@";
+"error.snapshot.delete.failed" = "删除失败: %@";
+"error.camera.no.image.upload" = "没有可上传的图片";
+"error.camera.no.image.save" = "没有可保存的图片";
+"error.clawbot.qr.invalid" = "无效的 QR 码内容";
+"error.clawbot.relay.not.connected" = "未连接到 Relay";
+"error.clawbot.not.paired" = "未配对任何设备";
+"error.session.refreshing" = "正在刷新会话...";
+"error.session.logging.out" = "正在退出登录...";

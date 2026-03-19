@@ -111,6 +111,10 @@
 	<string>YOUR_WECHAT_APP_ID</string>
 	<key>WECHAT_UNIVERSAL_LINK</key>
 	<string>https://api.trix3d.com/wechat/</string>
+	<key>SUPABASE_URL</key>
+	<string>https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>__SUPABASE_ANON_KEY_REDACTED__</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:api.trix3d.com</string>

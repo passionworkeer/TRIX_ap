@@ -356,7 +356,7 @@ final class AppState: ObservableObject {
         guard isLoggedIn else { return }
 
         isLoading = true
-        loadingMessage = "Refreshing session..."
+        loadingMessage = NSLocalizedString("error.session.refreshing", comment: "")
 
         let result = await authService.fetchCurrentUser()
 
@@ -380,7 +380,7 @@ final class AppState: ObservableObject {
     /// Logout current user
     func logout() async {
         isLoading = true
-        loadingMessage = "Logging out..."
+        loadingMessage = NSLocalizedString("error.session.logging.out", comment: "")
 
         let _ = await authService.logout()
 

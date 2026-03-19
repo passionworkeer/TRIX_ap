@@ -1404,3 +1404,18 @@
 // MARK: - Common
 "common.success" = "Success";
 "common.error" = "Error";
+
+// MARK: - Error Messages
+"error.voice.playback.failed" = "Failed to play audio: %@";
+"error.voice.decode.failed" = "Playback error: %@";
+"error.snapshot.load.failed" = "Failed to load snapshots: %@";
+"error.snapshot.refresh.failed" = "Failed to refresh: %@";
+"error.snapshot.loadmore.failed" = "Failed to load more: %@";
+"error.snapshot.delete.failed" = "Failed to delete: %@";
+"error.camera.no.image.upload" = "No image to upload";
+"error.camera.no.image.save" = "No image to save";
+"error.clawbot.qr.invalid" = "Invalid QR code content";
+"error.clawbot.relay.not.connected" = "Not connected to Relay";
+"error.clawbot.not.paired" = "Not paired with any device";
+"error.session.refreshing" = "Refreshing session...";
+"error.session.logging.out" = "Logging out...";

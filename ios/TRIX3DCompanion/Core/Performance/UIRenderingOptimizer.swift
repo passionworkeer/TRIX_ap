@@ -154,7 +154,7 @@ extension View {
         let startTime = CFAbsoluteTimeGetCurrent()
         return self.onAppear {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
-            print("[Render Time] \(label): \(String(format: "%.2f", duration * 1000))ms")
+            SecureLogger.shared.debug("UI Render: \(label): \(String(format: "%.2f", duration * 1000))ms")
         }
         #else
         return self

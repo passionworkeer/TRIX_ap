@@ -19,15 +19,17 @@ private func L(_ key: String) -> String {
 /// Native iOS login screen with clean, familiar design patterns
 struct LoginView: View {
 
-    // MARK: - State
+    // MARK: - Dependencies
 
-    @StateObject private var authService = AuthService.shared
+    @State private var viewModel = AuthViewModel()
+
+    // MARK: - State
 
     @State private var email = ""
     @State private var password = ""
+
     @State private var showingError = false
     @State private var errorMessage = ""
-    @State private var isOAuthLoading = false
 
     @FocusState private var focusedField: Field?
 
@@ -71,22 +73,28 @@ struct LoginView: View {
             }
 
             // Loading overlay
-            if authService.isLoading || showsDebugLoadingPreview {
+            if viewModel.isLoginLoading || viewModel.isOAuthLoading || showsDebugLoadingPreview {
                 nativeLoadingOverlay
             }
         }
         .alert(L("auth.login.failed"), isPresented: $showingError) {
-            Button(L("action.confirm"), role: .cancel) {
-                authService.clearError()
+            Button(L("action.confirm")) {
+                viewModel.clearErrors()
             }
         } message: {
             Text(errorMessage)
         }
-        .onChange(of: authService.lastError) { newError in
+        .onChange(of: viewModel.loginValidationError) { newError in
             if let error = newError {
-                errorMessage = error.localizedDescription
+                errorMessage = error
+                showingError = true
             }
-            showingError = newError != nil
+        }
+        .onChange(of: viewModel.loginApiError) { newError in
+            if let error = newError {
+                errorMessage = error
+                showingError = true
+            }
         }
     }
 
@@ -320,7 +328,7 @@ struct LoginView: View {
     private var isSubmitDisabled: Bool {
         email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
         password.isEmpty ||
-        authService.isLoading ||
+        viewModel.isLoginLoading ||
         showsDebugLoadingPreview
     }
 
@@ -330,71 +338,32 @@ struct LoginView: View {
         focusedField = nil
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
-        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedPassword = password.trimmingCharacters(in: .newlines)
+        // Sync state to viewModel
+        viewModel.loginEmail = email
+        viewModel.loginPassword = password
 
-        guard !normalizedEmail.isEmpty else {
-            errorMessage = L("auth.email.required")
-            showingError = true
-            return
-        }
-
-        guard !normalizedPassword.isEmpty else {
-            errorMessage = L("auth.password.required")
-            showingError = true
-            return
-        }
-
-        let result = await authService.login(email: normalizedEmail, password: normalizedPassword)
+        let result = await viewModel.login()
 
         switch result {
         case .success:
             break
-        case .failure(let error):
-            let trimmedPassword = normalizedPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-            if error == .invalidCredentials, trimmedPassword != normalizedPassword {
-                let retryResult = await authService.login(email: normalizedEmail, password: trimmedPassword)
-                switch retryResult {
-                case .success:
-                    break
-                case .failure(let retryError):
-                    errorMessage = retryError.localizedDescription
-                    showingError = true
-                }
-            } else {
-                errorMessage = error.localizedDescription
-                showingError = true
-            }
+        case .failure:
+            // Error is handled via onChange
+            break
         }
     }
 
     private func handleAppleSignIn() async {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            errorMessage = L("auth.signin.apple.error")
-            showingError = true
             return
         }
 
-        isOAuthLoading = true
-        let result = await OAuthManager.shared.signIn(with: .apple, presentationAnchor: window)
-        isOAuthLoading = false
-
-        if case .failure(let error) = result {
-            errorMessage = error.localizedDescription
-            showingError = true
-        }
+        _ = await viewModel.signInWithApple(presentationAnchor: window)
     }
 
     private func handleWeChatSignIn() async {
-        isOAuthLoading = true
-        let result = await OAuthManager.shared.signIn(with: .wechat, presentationAnchor: nil)
-        isOAuthLoading = false
-
-        if case .failure(let error) = result {
-            errorMessage = error.localizedDescription
-            showingError = true
-        }
+        _ = await viewModel.signInWithWeChat()
     }
 }
 
@@ -425,7 +394,6 @@ struct FeaturePill: View {
 
 #Preview {
     LoginView {
-        print("Switch to register")
+        // Preview action - switch to register
     }
-    .environmentObject(AuthService.shared)
 }

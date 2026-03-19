@@ -18,9 +18,11 @@ private func L(_ key: String) -> String {
 /// Native iOS registration screen with clean, familiar design patterns
 struct RegisterView: View {
 
-    // MARK: - State
+    // MARK: - Dependencies
 
-    @StateObject private var authService = AuthService.shared
+    @State private var viewModel = AuthViewModel()
+
+    // MARK: - State
 
     @State private var username = ""
     @State private var email = ""
@@ -70,13 +72,13 @@ struct RegisterView: View {
             }
 
             // Loading overlay
-            if authService.isLoading {
+            if viewModel.isRegisterLoading {
                 nativeLoadingOverlay
             }
         }
         .alert(L("auth.register.failed"), isPresented: $showingError) {
-            Button(L("action.confirm"), role: .cancel) {
-                authService.clearError()
+            Button(L("action.confirm")) {
+                viewModel.clearErrors()
             }
         } message: {
             Text(errorMessage)
@@ -86,10 +88,21 @@ struct RegisterView: View {
         } message: {
             Text(L("auth.register.success.message"))
         }
-        .onChange(of: authService.lastError) { newError in
+        .onChange(of: viewModel.registerValidationError) { newError in
             if let error = newError {
-                errorMessage = error.localizedDescription
+                errorMessage = error
                 showingError = true
+            }
+        }
+        .onChange(of: viewModel.registerApiError) { newError in
+            if let error = newError {
+                errorMessage = error
+                showingError = true
+            }
+        }
+        .onChange(of: viewModel.isRegisterSuccess) { success in
+            if success {
+                showingSuccess = true
             }
         }
     }
@@ -327,7 +340,7 @@ struct RegisterView: View {
         email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty ||
-        authService.isLoading
+        viewModel.isRegisterLoading
     }
 
     // MARK: - Actions
@@ -336,65 +349,21 @@ struct RegisterView: View {
         focusedField = nil
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
-        let normalizedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedConfirmPassword = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Sync state to viewModel
+        viewModel.registerUsername = username
+        viewModel.registerEmail = email
+        viewModel.registerPassword = password
+        viewModel.registerConfirmPassword = confirmPassword
 
-        guard !normalizedUsername.isEmpty else {
-            errorMessage = L("auth.username.required")
-            showingError = true
-            return
-        }
-
-        guard normalizedUsername.count >= 3 else {
-            errorMessage = L("auth.username.min.length")
-            showingError = true
-            return
-        }
-
-        guard !normalizedEmail.isEmpty else {
-            errorMessage = L("auth.email.required")
-            showingError = true
-            return
-        }
-
-        guard !normalizedPassword.isEmpty else {
-            errorMessage = L("auth.password.required")
-            showingError = true
-            return
-        }
-
-        guard normalizedPassword.count >= 6 else {
-            errorMessage = L("auth.password.min.length")
-            showingError = true
-            return
-        }
-
-        guard !normalizedConfirmPassword.isEmpty else {
-            errorMessage = L("auth.confirm.password.required")
-            showingError = true
-            return
-        }
-
-        guard normalizedPassword == normalizedConfirmPassword else {
-            errorMessage = L("auth.password.mismatch")
-            showingError = true
-            return
-        }
-
-        let result = await authService.register(
-            username: normalizedUsername,
-            email: normalizedEmail,
-            password: normalizedPassword
-        )
+        let result = await viewModel.register()
 
         switch result {
         case .success:
-            showingSuccess = true
-        case .failure(let error):
-            errorMessage = error.localizedDescription
-            showingError = true
+            // Success is handled via onChange
+            break
+        case .failure:
+            // Error is handled via onChange
+            break
         }
     }
 }
@@ -403,6 +372,6 @@ struct RegisterView: View {
 
 #Preview {
     RegisterView {
-        print("Switch to login")
+        // Preview action - switch to login
     }
 }

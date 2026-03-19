@@ -1253,3 +1253,18 @@
 // MARK: - Common
 "common.success" = "成功";
 "common.error" = "錯誤";
+
+// MARK: - Error Messages
+"error.voice.playback.failed" = "無法播放音訊: %@";
+"error.voice.decode.failed" = "播放錯誤: %@";
+"error.snapshot.load.failed" = "載入快照失敗: %@";
+"error.snapshot.refresh.failed" = "重新整理失敗: %@";
+"error.snapshot.loadmore.failed" = "載入更多失敗: %@";
+"error.snapshot.delete.failed" = "刪除失敗: %@";
+"error.camera.no.image.upload" = "沒有可上傳的圖片";
+"error.camera.no.image.save" = "沒有可儲存的圖片";
+"error.clawbot.qr.invalid" = "無效的 QR 碼內容";
+"error.clawbot.relay.not.connected" = "未連線至 Relay";
+"error.clawbot.not.paired" = "未配對任何裝置";
+"error.session.refreshing" = "正在重新整理連線...";
+"error.session.logging.out" = "正在登出...";

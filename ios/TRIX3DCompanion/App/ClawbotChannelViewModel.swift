@@ -88,7 +88,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     /// Connect via Relay QR code
     func connectRelayWithQR(_ qrContent: String) async -> Bool {
         guard let payload = parseRelayQR(qrContent) else {
-            lastError = "无效的 QR 码内容"
+            lastError = NSLocalizedString("error.clawbot.qr.invalid", comment: "")
             return false
         }
 
@@ -116,7 +116,7 @@ final class ClawbotChannelViewModel: ObservableObject {
     /// Send message via Relay
     func sendMessageRelay(_ content: String) async -> Bool {
         guard relayConnected else {
-            lastError = "未连接到 Relay"
+            lastError = NSLocalizedString("error.clawbot.relay.not.connected", comment: "")
             return false
         }
 
@@ -214,7 +214,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         lastError = nil
 
         do {
-            let success = try await service.pairWithToken(token)
+            let success = try await service.pairWithQR(token)
             if success {
                 isPaired = true
             }
@@ -247,7 +247,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         mediaMimeType: String? = nil
     ) async -> Bool {
         guard isPaired else {
-            lastError = "Not paired with any device"
+            lastError = NSLocalizedString("error.clawbot.not.paired", comment: "")
             return false
         }
 
