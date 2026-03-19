@@ -16,6 +16,58 @@ type RuntimeSnapshot = {
   lastOutboundAt?: number | null;
 };
 
+async function createServicePairing(accountId?: string | null, timeoutMs?: number) {
+  const account = resolveRegisteredTrixAccount(accountId);
+  const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${account.serviceToken ?? ''}`,
+    },
+    body: JSON.stringify({
+      accountId: account.accountId,
+      label: account.name,
+      ttlMs: timeoutMs,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create pairing QR: ${response.status} ${response.statusText}`);
+  }
+  const payload = await response.json() as { code: string; claimUrl?: string; qrDataUrl?: string };
+  pendingPairingCodeByAccount.set(account.accountId, payload.code);
+  return { account, payload };
+}
+
+async function waitForServicePairing(accountId?: string | null, timeoutMs?: number) {
+  const account = resolveRegisteredTrixAccount(accountId);
+  const pairingCode = pendingPairingCodeByAccount.get(account.accountId);
+  if (!pairingCode) {
+    return { connected: false, message: 'No pending TRIX pairing request.' };
+  }
+
+  const startedAt = Date.now();
+  const effectiveTimeoutMs = timeoutMs ?? 60_000;
+  while (Date.now() - startedAt < effectiveTimeoutMs) {
+    const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
+      headers: {
+        authorization: `Bearer ${account.serviceToken ?? ''}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to poll pairing status: ${response.status} ${response.statusText}`);
+    }
+    const pairing = await response.json() as { status?: string };
+    if (pairing.status === 'paired') {
+      pendingPairingCodeByAccount.delete(account.accountId);
+      return { connected: true, message: 'TRIX device paired.' };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  pendingPairingCodeByAccount.delete(account.accountId);
+  return { connected: false, message: 'Timed out waiting for TRIX pairing.' };
+}
+
 export const trixPlugin: ChannelPlugin = {
   id: 'trix-native',
   meta: {
@@ -109,6 +161,25 @@ export const trixPlugin: ChannelPlugin = {
       approveHint: 'TRIX service claim controls user access',
     }),
   },
+  auth: {
+    login: async ({ accountId, runtime, verbose }) => {
+      const { payload } = await createServicePairing(accountId, 120_000);
+      const logger = runtime as { log?: (message: string) => void };
+      logger.log?.(`TRIX pairing code: ${payload.code}`);
+      if (payload.claimUrl) {
+        logger.log?.(`TRIX claim URL: ${payload.claimUrl}`);
+      }
+      if (payload.qrDataUrl && verbose) {
+        logger.log?.(`TRIX QR data URL: ${payload.qrDataUrl}`);
+      }
+
+      const result = await waitForServicePairing(accountId, 120_000);
+      logger.log?.(result.message);
+      if (!result.connected) {
+        throw new Error(result.message);
+      }
+    },
+  },
   messaging: {
     normalizeTarget: (raw) => normalizeTrixTarget(raw) ?? undefined,
     targetResolver: {
@@ -164,58 +235,13 @@ export const trixPlugin: ChannelPlugin = {
       });
     },
     loginWithQrStart: async ({ accountId, timeoutMs }) => {
-      const account = resolveRegisteredTrixAccount(accountId);
-      const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${account.serviceToken ?? ''}`,
-        },
-        body: JSON.stringify({
-          accountId: account.accountId,
-          label: account.name,
-          ttlMs: timeoutMs,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to create pairing QR: ${response.status} ${response.statusText}`);
-      }
-      const payload = await response.json() as { code: string; claimUrl?: string; qrDataUrl?: string };
-      pendingPairingCodeByAccount.set(account.accountId, payload.code);
+      const { payload } = await createServicePairing(accountId, timeoutMs);
       return {
         qrDataUrl: payload.qrDataUrl,
         message: `Use pairing code ${payload.code}${payload.claimUrl ? ` or visit ${payload.claimUrl}` : ''}`,
       };
     },
-    loginWithQrWait: async ({ accountId, timeoutMs }) => {
-      const account = resolveRegisteredTrixAccount(accountId);
-      const pairingCode = pendingPairingCodeByAccount.get(account.accountId);
-      if (!pairingCode) {
-        return { connected: false, message: 'No pending TRIX pairing request.' };
-      }
-
-      const startedAt = Date.now();
-      const effectiveTimeoutMs = timeoutMs ?? 60_000;
-      while (Date.now() - startedAt < effectiveTimeoutMs) {
-        const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
-          headers: {
-            authorization: `Bearer ${account.serviceToken ?? ''}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to poll pairing status: ${response.status} ${response.statusText}`);
-        }
-        const pairing = await response.json() as { status?: string };
-        if (pairing.status === 'paired') {
-          pendingPairingCodeByAccount.delete(account.accountId);
-          return { connected: true, message: 'TRIX device paired.' };
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-
-      pendingPairingCodeByAccount.delete(account.accountId);
-      return { connected: false, message: 'Timed out waiting for TRIX pairing.' };
-    },
+    loginWithQrWait: async ({ accountId, timeoutMs }) => await waitForServicePairing(accountId, timeoutMs),
   },
 };
 

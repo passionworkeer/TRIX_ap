@@ -11,12 +11,23 @@ import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import type {
+  ClawbotChannelAttachment,
+  ClawbotChannelMessage,
+  ErrorPayload,
+} from '../types/clawbotChannel';
+import type {
   StudyRoomAckPayload,
   StudyRoomHostAction,
   StudyRoomState,
   StudyRoomStateEvent,
   FriendRoomLookupResult
 } from '../types/studyRoom';
+
+export type {
+  ClawbotChannelAttachment,
+  ClawbotChannelMessage,
+  ErrorPayload,
+} from '../types/clawbotChannel';
 
 /**
  * Generate cryptographically secure random string
@@ -32,38 +43,6 @@ function generateMessageId(): string {
   return `${Date.now()}-${generateSecureRandomString(9)}`;
 }
 
-export interface ClawbotChannelAttachment {
-  id?: string;
-  kind: 'image' | 'audio' | 'video' | 'file';
-  url: string;
-  mimeType?: string;
-  fileName?: string;
-  size?: number;
-  width?: number;
-  height?: number;
-  duration?: number;
-}
-
-export interface ClawbotChannelMessage {
-  id?: string;
-  content: string;
-  contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
-  mediaUrl?: string;
-  mediaMimeType?: string;
-  mediaMetadata?: {
-    width?: number;
-    height?: number;
-    duration?: number;
-    thumbnail?: string;
-    originalName?: string;
-    size?: number;
-    [key: string]: unknown;
-  };
-  attachments?: ClawbotChannelAttachment[];
-  metadata?: Record<string, unknown>;
-  timestamp: number;
-  sender: 'user' | 'bot';
-}
 export interface PairingData {
   pairingCode: string;
   qrImage: string;
@@ -119,11 +98,6 @@ export type SocketEventPayload<T extends SocketEventName> = SocketEvents[T];
 /**
  * �����غ�����
  */
-export interface ErrorPayload {
-  code?: string;
-  message: string;
-}
-
 /**
  * Socket.IO ��Ӧ����
  */
@@ -1092,7 +1066,6 @@ class ClawbotChannelBridge {
 // Export singleton instance
 export const clawbotChannelBridge = new ClawbotChannelBridge();
 export default clawbotChannelBridge;
-
 
 
 

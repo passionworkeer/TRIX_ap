@@ -164,6 +164,58 @@ describe('TrixNativeServer', () => {
     expect(conversation?.participants.find((participant) => participant.clientId === 'ios-device-1')).toBeUndefined();
   });
 
+  it('requires a paired native session for study room endpoints', async () => {
+    const server = createTestServer(8803);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8803/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8803/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-study-1',
+        deviceName: 'Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const unauthorizedListResponse = await fetch('http://127.0.0.1:8803/api/study-rooms');
+    expect(unauthorizedListResponse.status).toBe(400);
+
+    const createRoomResponse = await fetch('http://127.0.0.1:8803/api/study-rooms', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-trix-conversation-id': claim.conversationId,
+        'x-trix-client-token': claim.clientToken,
+      },
+      body: JSON.stringify({
+        userId: 'supabase-user-1',
+        displayName: 'Browser',
+      }),
+    });
+    expect(createRoomResponse.status).toBe(201);
+
+    const listResponse = await fetch('http://127.0.0.1:8803/api/study-rooms', {
+      headers: {
+        'x-trix-conversation-id': claim.conversationId,
+        'x-trix-client-token': claim.clientToken,
+      },
+    });
+    expect(listResponse.status).toBe(200);
+    const listPayload = await listResponse.json() as { rooms: Array<{ hostUserId: string }> };
+    expect(listPayload.rooms[0]?.hostUserId).toBe('supabase-user-1');
+  });
+
   it('delivers user messages to the service plane and accepts OpenClaw replies', async () => {
     const server = createTestServer(8801);
     servers.push(server);

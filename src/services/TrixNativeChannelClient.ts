@@ -6,7 +6,7 @@ import type {
   ClawbotChannelAttachment,
   ClawbotChannelMessage,
   ErrorPayload,
-} from './ClawbotChannelBridge';
+} from '../types/clawbotChannel';
 import type {
   FriendRoomLookupResult,
   StudyRoomAckPayload,

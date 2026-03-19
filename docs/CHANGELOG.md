@@ -129,6 +129,8 @@ docs/ 目录有 55 个文档，大量重复内容。进行精简合并。
 
 3. **修复 `PROJECT.md`**（docs/project-reports/）：补全 6 个过时章节（Contexts、Services 12→30+、Hooks 6→11+、Packages、Database、Tests 添加 e2e/、Docs 添加 .archive/）。
 
+4. **删除 `docs/development/ARCHITECTURE.md`**：该文件与 `architecture/WEB_ARCHITECTURE.md` 内容重复，且包含过时信息（旧 Clawbot Channel Server 8765、旧配对协议、Tailwind CDN 模式等，最后更新 2026-02-21）。同步更新 INDEX.md 和 CHANGELOG。
+
 ---
 
 ## 📅 2026-03-18 - TRIX Native Channel `running` 状态修复

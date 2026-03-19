@@ -26,7 +26,6 @@ docs/
 │   └── NEXT_FEATURES_PLAN.md        # 下一步功能计划
 │
 ├── 🔧 开发文档 (development/)
-│   ├── ARCHITECTURE.md              # 架构文档
 │   ├── TESTING.md                  # 测试指南
 │   ├── DOCUMENTATION_GUIDELINES.md   # 文档规范
 │   ├── STATE-TEMPLATE.md           # 状态模板
@@ -156,7 +155,7 @@ requirements/PRD-DESKTOP.md → desktop/DESKTOP_ARCHITECTURE.md
 | 根目录 | 4 |
 | 需求规格 (requirements/) | 5 |
 | 项目报告 (project-reports/) | 2 |
-| 🔧 开发文档 (development/) | 5 |
+| 🔧 开发文档 (development/) | 4 |
 | 🎨 UI 文档 (ui/) | 2 |
 | 🌐 架构文档 (architecture/) | 2 |
 | 🗄️ 数据库 (database/) | 2 |
@@ -167,7 +166,7 @@ requirements/PRD-DESKTOP.md → desktop/DESKTOP_ARCHITECTURE.md
 | 📖 操作指南 (guides/) | 6 |
 | 🗂️ 归档 (.archive/) | 1 | 数据库迁移执行记录 |
 
-**总计**: 35 个活跃文档（归档 1 个）
+**总计**: 34 个活跃文档（归档 1 个）
 
 ---
 

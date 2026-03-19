@@ -11,7 +11,7 @@ import React, {
 import toast from 'react-hot-toast';
 import type {
   ClawbotChannelMessage,
-} from '../services/ClawbotChannelBridge';
+} from '../types/clawbotChannel';
 import trixNativeChannelClient, {
   type NativeMessageAttachmentInput,
   type NativeUploadAttachment,
@@ -605,4 +605,3 @@ export const useClawbotChannel = () => {
   }
   return context;
 };
-

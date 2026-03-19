@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
+import type { ClawbotChannelMessage } from '../types/clawbotChannel';
 import { logger } from '../utils/logger';
 
 interface UseClawbotMessagesOptions {

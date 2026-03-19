@@ -459,6 +459,7 @@ export class TrixNativeServer {
 
       // POST /api/study-rooms - Create a study room
       if (request.method === 'POST' && url.pathname === '/api/study-rooms') {
+        await this.assertStudyRoomAccess(request);
         const body = await readJsonBody<{ userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }>(request);
         const room = await this.createStudyRoom(body);
         sendJson(response, 201, { success: true, room } as StudyRoomAckPayload);
@@ -467,6 +468,7 @@ export class TrixNativeServer {
 
       // GET /api/study-rooms - List all study rooms
       if (request.method === 'GET' && url.pathname === '/api/study-rooms') {
+        await this.assertStudyRoomAccess(request);
         const state = await this.stateStore.read();
         sendJson(response, 200, { success: true, rooms: state.studyRooms });
         return;
@@ -475,6 +477,7 @@ export class TrixNativeServer {
       // GET /api/study-rooms/:roomCode - Get a specific study room
       const getRoomMatch = url.pathname.match(/^\/api\/study-rooms\/([^/]+)$/);
       if (request.method === 'GET' && getRoomMatch) {
+        await this.assertStudyRoomAccess(request);
         const room = await this.getStudyRoom(getRoomMatch[1]!);
         if (!room) {
           sendJson(response, 404, { success: false, error: 'Room not found' });
@@ -486,6 +489,7 @@ export class TrixNativeServer {
 
       // POST /api/study-rooms/:roomCode/join - Join a study room
       if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/join$/)) {
+        await this.assertStudyRoomAccess(request);
         const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/join$/)![1]!;
         const body = await readJsonBody<{ userId: string; displayName: string; avatarUrl?: string }>(request);
         const room = await this.joinStudyRoom(roomCode, body);
@@ -499,6 +503,7 @@ export class TrixNativeServer {
 
       // POST /api/study-rooms/:roomCode/leave - Leave a study room
       if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/leave$/)) {
+        await this.assertStudyRoomAccess(request);
         const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/leave$/)![1]!;
         const body = await readJsonBody<{ userId: string }>(request);
         await this.leaveStudyRoom(roomCode, body.userId);
@@ -508,6 +513,7 @@ export class TrixNativeServer {
 
       // POST /api/study-rooms/:roomCode/action - Host action (start_focus, pause, end)
       if (request.method === 'POST' && url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)) {
+        await this.assertStudyRoomAccess(request);
         const roomCode = url.pathname.match(/^\/api\/study-rooms\/([^/]+)\/action$/)![1]!;
         const body = await readJsonBody<{ userId: string; action: 'start_focus' | 'pause' | 'end'; durationMinutes?: number }>(request);
         const room = await this.studyRoomHostAction(roomCode, body);
@@ -521,6 +527,7 @@ export class TrixNativeServer {
 
       // DELETE /api/study-rooms/:roomCode - Delete a study room
       if (request.method === 'DELETE' && getRoomMatch) {
+        await this.assertStudyRoomAccess(request);
         await this.deleteStudyRoom(getRoomMatch[1]!);
         sendJson(response, 200, { success: true } as StudyRoomAckPayload);
         return;
@@ -733,6 +740,22 @@ export class TrixNativeServer {
     if (adminToken) {
       await this.assertAdminToken(adminToken);
       return;
+    }
+
+    const token = this.readHeader(request, 'x-trix-client-token');
+    await this.assertClientToken(conversationId, token);
+  }
+
+  private async assertStudyRoomAccess(request: http.IncomingMessage): Promise<void> {
+    const adminToken = this.readHeader(request, 'x-trix-admin-token');
+    if (adminToken) {
+      await this.assertAdminToken(adminToken);
+      return;
+    }
+
+    const conversationId = this.readHeader(request, 'x-trix-conversation-id');
+    if (!conversationId) {
+      throw new HttpError(400, 'Conversation id required for study room access');
     }
 
     const token = this.readHeader(request, 'x-trix-client-token');

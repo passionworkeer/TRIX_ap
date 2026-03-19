@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useBotStateMachine } from './useBotStateMachine';
-import type { ClawbotChannelMessage } from '../services/ClawbotChannelBridge';
+import type { ClawbotChannelMessage } from '../types/clawbotChannel';
 
 describe('useBotStateMachine', () => {
   beforeEach(() => {
