@@ -1,1 +1,1 @@
-export { createTrixNativePlugin } from './plugin.js';
+export { createTrixNativePlugin, trixPlugin } from './plugin.js';

@@ -157,6 +157,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 
     private let session: URLSession
     private let queue = DispatchQueue(label: "com.trix3d.http", qos: .userInitiated)
+    var overrideBaseURL: String?
 
     init() {
         let config = URLSessionConfiguration.default
@@ -222,8 +223,6 @@ private final class ChannelHTTPClient: @unchecked Sendable {
     func sendMessage(
         conversationId: String,
         clientToken: String,
-        senderId: String,
-        senderName: String,
         text: String,
         uploadedAttachmentIds: [String] = [],
         completion: @escaping (Result<MessageResponse, Error>) -> Void
@@ -231,11 +230,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         let body: [String: Any] = [
             "conversationId": conversationId,
             "clientToken": clientToken,
-            "direction": "inbound",
-            "senderId": senderId,
-            "senderName": senderName,
             "text": text,
-            "uploadedAttachmentIds": uploadedAttachmentIds
+            "uploadedAttachmentIds": uploadedAttachmentIds,
+            "localId": UUID().uuidString
         ]
 
         post("/api/messages", body: body) { result in
@@ -255,20 +252,13 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 
     /// 上传媒体文件 - POST /api/uploads
     func uploadMedia(data: Data, mimeType: String, filename: String, conversationId: String, clientToken: String, completion: @escaping (Result<MediaUploadResponse, Error>) -> Void) {
-        let boundary = UUID().uuidString
         var request = URLRequest(url: URL(string: baseURL + "/api/uploads")!)
         request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue(conversationId, forHTTPHeaderField: "X-Conversation-Id")
-        request.setValue(clientToken, forHTTPHeaderField: "X-Client-Token")
-
-        var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
+        request.setValue(filename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? filename, forHTTPHeaderField: "X-File-Name")
+        request.setValue(mimeType, forHTTPHeaderField: "X-Mime-Type")
+        request.setValue(conversationId, forHTTPHeaderField: "X-Trix-Conversation-Id")
+        request.setValue(clientToken, forHTTPHeaderField: "X-Trix-Client-Token")
+        request.httpBody = data
 
         queue.async { [weak self] in
             self?.session.dataTask(with: request) { data, response, error in
@@ -293,6 +283,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
     // MARK: - Private
 
     private var baseURL: String {
+        if let overrideBaseURL, !overrideBaseURL.isEmpty {
+            return normalizeBaseURL(overrideBaseURL)
+        }
         #if DEBUG
         let raw = UserDefaults.standard.string(forKey: "clawbot.channel.url") ?? ""
         return raw.isEmpty ? "http://TRIX_SERVER_HOST:8788" : normalizeBaseURL(raw)
@@ -521,23 +514,38 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 struct PairingClaimResponse: Codable {
     let conversationId: String
     let clientToken: String
-    let websocketUrl: String
+    let peerId: String?
+    let websocketUrl: String?
+    let wsUrl: String?
+    let uploadUrl: String?
+    let messagesUrl: String?
     let serverUrl: String?
     let pairing: PairingRecord?
     let agentOnline: Bool?
+
+    var resolvedWebSocketURL: String {
+        websocketUrl ?? wsUrl ?? ""
+    }
 }
 
 /// 配对记录
 struct PairingRecord: Codable {
-    let pairedAt: String?
-    let deviceId: String?
-    let deviceName: String?
+    let pairedAt: Int?
+    let pairedClientId: String?
+    let pairedDeviceName: String?
 }
 
 /// 消息响应
 struct MessageResponse: Codable {
-    let messageId: String?
-    let success: Bool?
+    struct MessageEnvelope: Codable {
+        let id: String
+    }
+
+    let message: MessageEnvelope?
+
+    var messageId: String? {
+        message?.id
+    }
 }
 
 // MARK: - Study Room API Response Models
@@ -557,10 +565,19 @@ struct StudyRoomListResponse: Codable {
 
 /// 媒体上传响应
 struct MediaUploadResponse: Codable {
-    let id: String
-    let url: String
-    let mimeType: String
-    let size: Int?
+    struct Attachment: Codable {
+        let id: String
+        let publicUrl: String?
+        let mimeType: String
+        let sizeBytes: Int?
+    }
+
+    let attachment: Attachment
+
+    var id: String { attachment.id }
+    var url: String { attachment.publicUrl ?? "" }
+    var mimeType: String { attachment.mimeType }
+    var size: Int? { attachment.sizeBytes }
 }
 
 // MARK: - Types
@@ -987,11 +1004,12 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         let clientIdValue = deviceId ?? "ios_\(resolvedUserId.prefix(8))_\(Int(Date().timeIntervalSince1970))"
 
         // 如果二维码包含服务器地址，更新 baseURL
+        let previousOverrideBaseURL = httpClient.overrideBaseURL
         if let serverUrl = parsed.serverUrl {
+            let normalizedServerURL = normalizeBaseURL(serverUrl)
+            httpClient.overrideBaseURL = normalizedServerURL
             await MainActor.run {
-                self.serverUrl = serverUrl.hasPrefix("ws") || serverUrl.hasPrefix("wss")
-                    ? serverUrl.replacingOccurrences(of: "ws", with: "http").replacingOccurrences(of: "wss", with: "https")
-                    : serverUrl
+                self.serverUrl = normalizedServerURL
             }
         }
 
@@ -1007,6 +1025,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                     self?.handlePairingSuccess(response)
                     continuation.resume(returning: true)
                 case .failure(let error):
+                    self?.httpClient.overrideBaseURL = previousOverrideBaseURL
                     continuation.resume(throwing: ClawbotError.messageFailed(error.localizedDescription))
                 }
             }
@@ -1024,6 +1043,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             self.clientToken = nil
             self.websocketUrl = nil
             self.serverUrl = nil
+            self.httpClient.overrideBaseURL = nil
             self.deviceId = nil
             self.setBotBehaviorState(.idle)
             self.clearPersistedState()
@@ -1037,15 +1057,6 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.notPaired
         }
 
-        let resolvedUserId: String
-        if let existing = userId {
-            resolvedUserId = existing
-        } else if let resolved = await resolveChannelUserId() {
-            resolvedUserId = resolved
-        } else {
-            throw ClawbotError.userNotLoggedIn
-        }
-
         let messageId = generateMessageId()
 
         await MainActor.run {
@@ -1053,14 +1064,10 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             self.pendingMessages[messageId] = .pending
         }
 
-        let senderName = "iOS User"
-
         return try await withCheckedThrowingContinuation { continuation in
             httpClient.sendMessage(
                 conversationId: conversationId,
                 clientToken: clientToken,
-                senderId: resolvedUserId,
-                senderName: senderName,
                 text: content
             ) { [weak self] result in
                 switch result {
@@ -1091,16 +1098,6 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.notPaired
         }
 
-        let resolvedUserId: String
-        if let existing = userId {
-            resolvedUserId = existing
-        } else if let resolved = await resolveChannelUserId() {
-            resolvedUserId = resolved
-        } else {
-            completion(.failure(ClawbotError.userNotLoggedIn))
-            throw ClawbotError.userNotLoggedIn
-        }
-
         let messageId = generateMessageId()
 
         await MainActor.run {
@@ -1110,13 +1107,9 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         pendingMessageCompletions[messageId] = completion
 
-        let senderName = "iOS User"
-
         httpClient.sendMessage(
             conversationId: conversationId,
             clientToken: clientToken,
-            senderId: resolvedUserId,
-            senderName: senderName,
             text: content
         ) { [weak self] result in
             switch result {
@@ -1252,12 +1245,13 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private func handlePairingSuccess(_ response: PairingClaimResponse) {
         self.conversationId = response.conversationId
         self.clientToken = response.clientToken
-        self.websocketUrl = response.websocketUrl
+        self.websocketUrl = response.resolvedWebSocketURL
         self.serverUrl = response.serverUrl
+        self.httpClient.overrideBaseURL = response.serverUrl
 
         DispatchQueue.main.async {
             self.isPaired = true
-            self.deviceId = response.pairing?.deviceId ?? self.deviceId
+            self.deviceId = response.pairing?.pairedClientId ?? self.deviceId
             self.isBotOnline = response.agentOnline ?? false
             self.botConnectionState = response.agentOnline == true ? .online : .offline
             self.persistPairingState()
@@ -1265,7 +1259,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         // 连接 WebSocket
         Task {
-            let wsUrl = response.websocketUrl.isEmpty ? self.wsURL : response.websocketUrl
+            let wsUrl = response.resolvedWebSocketURL.isEmpty ? self.wsURL : response.resolvedWebSocketURL
             await self.connectWebSocket(wsUrl: wsUrl, conversationId: response.conversationId, token: response.clientToken)
         }
     }
@@ -1413,14 +1407,17 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     /// 处理 message.created 事件
     private func handleMessageCreatedEvent(_ payload: [String: Any]) {
-        let messageId = payload["id"] as? String ?? generateMessageId()
-        let content = payload["text"] as? String ?? payload["content"] as? String ?? ""
-        let senderRaw = payload["sender"] as? String ?? payload["senderId"] as? String ?? ""
-        let timestamp = (payload["createdAt"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
+        let messagePayload = payload["message"] as? [String: Any] ?? payload
+        let messageId = messagePayload["id"] as? String ?? generateMessageId()
+        let content = messagePayload["text"] as? String ?? messagePayload["content"] as? String ?? ""
+        let senderRaw = messagePayload["sender"] as? String ?? messagePayload["senderId"] as? String ?? ""
+        let timestampMs = messagePayload["createdAt"] as? Int ?? messagePayload["timestamp"] as? Int
+        let timestamp = timestampMs.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) } ?? Date()
 
         // 判断发送者 - 来自 agent/bot 的消息
         let isFromBot = senderRaw.lowercased() == "agent" ||
                        senderRaw.lowercased() == "bot" ||
+                       senderRaw.lowercased().hasPrefix("openclaw:") ||
                        senderRaw != (userId ?? "")
 
         if !isFromBot {
@@ -1428,12 +1425,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             return
         }
 
+        let attachments = messagePayload["attachments"] as? [[String: Any]] ?? []
+        let firstAttachment = attachments.first
+
         let message = ClawbotMessage(
             id: messageId,
             content: content,
-            contentType: .text,
-            mediaUrl: payload["mediaUrl"] as? String,
-            mediaMimeType: payload["mediaMimeType"] as? String,
+            contentType: attachments.isEmpty ? .text : .mixed,
+            mediaUrl: firstAttachment?["publicUrl"] as? String ?? firstAttachment?["url"] as? String ?? messagePayload["mediaUrl"] as? String,
+            mediaMimeType: firstAttachment?["mimeType"] as? String ?? messagePayload["mediaMimeType"] as? String,
             timestamp: timestamp,
             sender: .bot
         )
@@ -1675,24 +1675,34 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private func persistPairingState() {
         if let deviceId = deviceId {
             do {
-                try KeychainManager.shared.savePairedDevice(deviceId: deviceId, deviceName: deviceId)
+                try KeychainManager.shared.savePairedDevice(deviceId: deviceId, deviceName: deviceName)
             } catch {
                 SecureLogger.shared.error("Failed to save paired device to Keychain: \(error)")
             }
         }
+
+        UserDefaults.standard.set(isPaired, forKey: "clawbot_paired")
+        UserDefaults.standard.set(deviceId, forKey: "clawbot_device_id")
+        UserDefaults.standard.set(conversationId, forKey: "clawbot_conversation_id")
+        UserDefaults.standard.set(clientToken, forKey: "clawbot_client_token")
+        UserDefaults.standard.set(websocketUrl, forKey: "clawbot_websocket_url")
+        UserDefaults.standard.set(serverUrl, forKey: "clawbot_server_url")
     }
 
     private func loadPersistedState() {
         isPaired = KeychainManager.shared.isDevicePaired()
         deviceId = KeychainManager.shared.getPairedDeviceId()
+        conversationId = UserDefaults.standard.string(forKey: "clawbot_conversation_id")
+        clientToken = UserDefaults.standard.string(forKey: "clawbot_client_token")
+        websocketUrl = UserDefaults.standard.string(forKey: "clawbot_websocket_url")
+        serverUrl = UserDefaults.standard.string(forKey: "clawbot_server_url")
+        httpClient.overrideBaseURL = serverUrl
 
-        if !isPaired && deviceId == nil {
+        if !isPaired {
             isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
+        }
+        if deviceId == nil {
             deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
-            conversationId = UserDefaults.standard.string(forKey: "clawbot_conversation_id")
-            clientToken = UserDefaults.standard.string(forKey: "clawbot_client_token")
-            websocketUrl = UserDefaults.standard.string(forKey: "clawbot_websocket_url")
-            serverUrl = UserDefaults.standard.string(forKey: "clawbot_server_url")
         }
     }
 

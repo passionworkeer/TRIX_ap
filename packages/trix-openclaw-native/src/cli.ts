@@ -43,9 +43,10 @@ async function main(): Promise<void> {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-trix-admin-token': String(flags.get('admin-token') ?? process.env.TRIX_NATIVE_ADMIN_TOKEN ?? ''),
+        authorization: `Bearer ${String(flags.get('service-token') ?? process.env.TRIX_NATIVE_SERVICE_TOKEN ?? '')}`,
       },
       body: JSON.stringify({
+        accountId: typeof flags.get('account-id') === 'string' ? String(flags.get('account-id')) : 'default',
         label: typeof flags.get('label') === 'string' ? String(flags.get('label')) : undefined,
       }),
     });
@@ -60,7 +61,7 @@ async function main(): Promise<void> {
   process.stdout.write([
     'Usage:',
     '  trix-openclaw-native server start --host 0.0.0.0 --port 8788',
-    '  trix-openclaw-native pairing create --server http://127.0.0.1:8788 --admin-token <token>',
+    '  trix-openclaw-native pairing create --server http://127.0.0.1:8788 --service-token <token>',
   ].join('\n'));
 }
 
@@ -68,4 +69,3 @@ main().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
   process.exitCode = 1;
 });
-

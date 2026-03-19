@@ -58,6 +58,42 @@ http://host/pair?code=ABCDEF12&secret=random-secret-token
 
 ---
 
+## 📅 2026-03-19 (下午) - 文档精简
+
+### 背景
+
+docs/ 目录有 55 个文档，大量重复内容。进行精简合并。
+
+### 完成内容
+
+1. **配对文档**：4 份 → 1 份
+   - 删除 `TRIX_NATIVE_PAIRING_ARCHITECTURE.md`
+   - 删除 `OPENCLAW_PAIRING_IMPLEMENTATION.md`
+   - 删除 `openclaw_reference.md`
+   - 重写 `TRIX_NATIVE_CHANNEL.md` 为唯一权威文档
+
+2. **用户指南**：3 份 → 1 份
+   - 删除 `QR_PAIRING_USER_GUIDE.md`
+   - 删除 `PAIRING_INPUT_GUIDE.md`
+   - 删除 `UNPAIR_FEATURE_GUIDE.md`
+   - 新建 `guides/PAIRING.md`
+
+3. **归档历史文档**：7 份 → 移入 `docs/.archive/`
+   - AUDIT-REPORT.md、CODE_REVIEW_REPORT.md、FIXES_20260313.md、PROJECT_ANALYSIS.md、PROJECT_DOCUMENTATION.md、PROJECT_ISSUES.md、DATABASE_MIGRATION_GUIDE.md
+   - 其中 7 个已删除，仅保留 `DATABASE_MIGRATION_GUIDE.md`（SQL 迁移参考）
+
+4. **删除过期规划**：plans/ 整个目录删除
+
+5. **清理 requirements/**：删除 `TRIX_NATIVE_IMPLEMENTATION_PLAN.md`（已完成）
+
+6. **更新索引**：更新 `INDEX.md` 反映最新结构
+
+### 结果
+
+从 55 个文档 → 33 个活跃文档（减少 40%）
+
+---
+
 ## 📅 2026-03-18 - TRIX Native Channel `running` 状态修复
 
 ### 背景

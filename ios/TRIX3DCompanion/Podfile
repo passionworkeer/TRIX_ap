@@ -1,0 +1,20 @@
+platform :ios, '18.0'
+use_frameworks!
+inhibit_all_warnings!
+
+target 'TRIX3DCompanion' do
+  # 百度地图 SDK
+  pod 'BaiduMapKit', '~> 6.5.0'  # 基础地图 + 定位
+
+  # 可选模块（按需添加）
+  # pod 'BaiduMapKit/CloudSearch'  # 云检索
+  # pod 'BaiduMapKit/Navigation'  # 导航（需要申请导航功能）
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
+    end
+  end
+end

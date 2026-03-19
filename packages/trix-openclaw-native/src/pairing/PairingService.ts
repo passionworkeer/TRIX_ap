@@ -104,6 +104,7 @@ export class PairingService {
           pairedAt: Date.now(),
           pairedClientId: input.clientId,
           pairedDeviceName: input.deviceName,
+          peerId: state.conversations.find((conversation) => conversation.id === entry.conversationId)?.peerId,
           clientToken,
         };
         return claimedPairing;

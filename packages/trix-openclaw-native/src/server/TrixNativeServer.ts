@@ -143,20 +143,37 @@ export class TrixNativeServer {
     try {
       const url = parseUrl(request);
       if (request.method === 'GET' && url.pathname === '/health') {
-        sendJson(response, 200, { ok: true, baseUrl: this.publicBaseUrl, agentOnline: this.isAgentOnline() });
+        sendJson(response, 200, { ok: true, baseUrl: this.publicBaseUrl, agentOnline: this.isServiceOnline() });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/api/service/probe') {
+        const accountId = this.resolveAccountId(url.searchParams);
+        await this.assertServiceToken(request, accountId);
+        sendJson(response, 200, {
+          ok: true,
+          service: 'trix-service',
+          accounts: {
+            [accountId]: {
+              wsConnected: this.isServiceOnline(accountId),
+              lastEventAt: Date.now(),
+            },
+          },
+        });
         return;
       }
 
       if (request.method === 'GET' && url.pathname === '/api/pairings') {
-        await this.assertAdminToken(request.headers['x-trix-admin-token']);
+        await this.assertPairingAccess(request, this.resolveAccountId(url.searchParams));
         const pairings = await this.pairingService.list();
         sendJson(response, 200, pairings);
         return;
       }
 
       if (request.method === 'POST' && url.pathname === '/api/pairings') {
-        await this.assertAdminToken(request.headers['x-trix-admin-token']);
-        const body = await readJsonBody<{ label?: string; ttlMs?: number; openClawSessionKey?: string }>(request);
+        const body = await readJsonBody<{ accountId?: string; label?: string; ttlMs?: number; openClawSessionKey?: string }>(request);
+        const accountId = body.accountId ?? this.resolveAccountId(url.searchParams);
+        await this.assertPairingAccess(request, accountId);
         const pairing = await this.createPairing(body);
         sendJson(response, 201, pairing);
         return;
@@ -164,13 +181,20 @@ export class TrixNativeServer {
 
       const pairingMatch = url.pathname.match(/^\/api\/pairings\/([^/]+)$/);
       if (request.method === 'GET' && pairingMatch) {
-        await this.assertAdminToken(request.headers['x-trix-admin-token']);
         const pairing = await this.pairingService.get(pairingMatch[1]!);
         if (!pairing) {
           sendJson(response, 404, { error: 'Pairing not found' });
           return;
         }
+        await this.assertPairingAccess(request, pairing.accountId);
         sendJson(response, 200, pairing);
+        return;
+      }
+
+      if (request.method === 'DELETE' && pairingMatch) {
+        const token = this.readBearerToken(request) ?? this.readHeader(request, 'x-trix-client-token');
+        await this.unpairClient(pairingMatch[1]!, token);
+        sendNoContent(response);
         return;
       }
 
@@ -184,16 +208,20 @@ export class TrixNativeServer {
             clientId: body.clientId,
             deviceName: body.deviceName,
           },
-          `${this.publicBaseUrl.replace(/^http/i, 'ws')}/ws`,
+          {
+            websocketUrl: this.getUserWebSocketUrl(),
+            uploadUrl: `${this.publicBaseUrl}/api/uploads`,
+            messagesUrl: `${this.publicBaseUrl}/api/messages`,
+          },
         );
         await this.broadcast(
           {
             type: 'pairing.updated',
-            payload: { ...result, agentOnline: this.isAgentOnline() },
+            payload: { ...result, agentOnline: this.isServiceOnline() },
           },
-          { role: 'agent' },
+          { role: 'service' },
         );
-        sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isAgentOnline() });
+        sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isServiceOnline() });
         return;
       }
 
@@ -218,7 +246,29 @@ export class TrixNativeServer {
         return;
       }
 
-      const attachmentMatch = url.pathname.match(/^\/api\/attachments\/([^/]+)$/);
+      if (request.method === 'POST' && url.pathname === '/api/service/uploads') {
+        const accountId = this.resolveAccountId(url.searchParams);
+        await this.assertServiceToken(request, accountId);
+        const kind = (this.readHeader(request, 'x-attachment-kind') as AttachmentDescriptor['kind'] | undefined) ?? undefined;
+        const encodedFileName = this.readHeader(request, 'x-file-name') ?? 'service-upload.bin';
+        const fileName = decodeURIComponent(encodedFileName);
+        const mimeType = this.readHeader(request, 'x-mime-type') ?? 'application/octet-stream';
+        const buffer = await readBinaryBody(request);
+        const upload = await this.attachmentStore.createUploadResponse({
+          buffer,
+          fileName,
+          mimeType,
+          kind,
+        });
+        await this.stateStore.update((state) => ({
+          ...state,
+          uploads: [upload.attachment, ...state.uploads.filter((entry) => entry.id !== upload.attachment.id)],
+        }));
+        sendJson(response, 201, upload);
+        return;
+      }
+
+      const attachmentMatch = url.pathname.match(/^\/api\/(?:service\/)?attachments\/([^/]+)$/);
       if (request.method === 'GET' && attachmentMatch) {
         const state = await this.stateStore.read();
         const attachment = this.findAttachmentById(state, attachmentMatch[1]!);
@@ -237,17 +287,51 @@ export class TrixNativeServer {
       }
 
       if (request.method === 'POST' && url.pathname === '/api/messages') {
-        const isAgentRequest = Boolean(request.headers['x-trix-admin-token']);
-        if (isAgentRequest) {
-          await this.assertAdminToken(request.headers['x-trix-admin-token']);
-        }
-        const body = await readJsonBody<CreateMessageInput>(request);
-        if (!isAgentRequest) {
-          await this.assertClientToken(body.conversationId, body.clientToken);
-        }
-        const message = await this.createMessage(body);
-        await this.broadcast({ type: 'message.created', payload: { message } }, { conversationId: message.conversationId });
+        const body = await readJsonBody<UserCreateMessageInput>(request);
+        const message = await this.createUserMessage(body);
         sendJson(response, 201, { message });
+        return;
+      }
+
+      if (request.method === 'POST' && (url.pathname === '/api/service/messages' || url.pathname === '/api/messages/service/messages')) {
+        const body = await readJsonBody<ServiceCreateMessageInput>(request);
+        const accountId = body.accountId ?? this.resolveAccountId(url.searchParams);
+        await this.assertServiceToken(request, accountId);
+        const message = await this.createServiceMessage({
+          accountId,
+          ...body,
+        });
+        sendJson(response, 201, { message });
+        return;
+      }
+
+      const serviceConversationMatch = url.pathname.match(/^\/api\/service\/conversations\/([^/]+)$/);
+      if (request.method === 'GET' && serviceConversationMatch) {
+        const state = await this.stateStore.read();
+        const conversation = state.conversations.find((entry) => entry.id === serviceConversationMatch[1]);
+        if (!conversation) {
+          sendJson(response, 404, { error: 'Conversation not found' });
+          return;
+        }
+        await this.assertServiceToken(request, conversation.accountId);
+        const messages = state.messages.filter((entry) => entry.conversationId === conversation.id);
+        sendJson(response, 200, { conversation, messages });
+        return;
+      }
+
+      const serviceConversationByPeerMatch = url.pathname.match(/^\/api\/service\/conversations\/by-peer\/([^/]+)$/);
+      if (request.method === 'GET' && serviceConversationByPeerMatch) {
+        const accountId = this.resolveAccountId(url.searchParams);
+        await this.assertServiceToken(request, accountId);
+        const state = await this.stateStore.read();
+        const conversation = [...state.conversations]
+          .filter((entry) => entry.accountId === accountId && entry.peerId === serviceConversationByPeerMatch[1])
+          .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+        if (!conversation) {
+          sendJson(response, 404, { error: 'Conversation not found' });
+          return;
+        }
+        sendJson(response, 200, { conversation });
         return;
       }
 
@@ -256,7 +340,7 @@ export class TrixNativeServer {
         await this.assertConversationAccess(request, conversationMessagesMatch[1]!);
         const state = await this.stateStore.read();
         const messages = state.messages.filter((entry) => entry.conversationId === conversationMessagesMatch[1]);
-        sendJson(response, 200, { messages, agentOnline: this.isAgentOnline() });
+        sendJson(response, 200, { messages, agentOnline: this.isServiceOnline() });
         return;
       }
 
@@ -266,7 +350,7 @@ export class TrixNativeServer {
         await this.assertConversationAccess(request, legacyMessagesMatch[1]!);
         const state = await this.stateStore.read();
         const messages = state.messages.filter((entry) => entry.conversationId === legacyMessagesMatch[1]);
-        sendJson(response, 200, { messages, agentOnline: this.isAgentOnline() });
+        sendJson(response, 200, { messages, agentOnline: this.isServiceOnline() });
         return;
       }
 
@@ -363,6 +447,11 @@ export class TrixNativeServer {
     const now = Date.now();
 
     await this.stateStore.update((state) => {
+      const conversation = state.conversations.find((entry) => entry.id === input.conversationId);
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${input.conversationId}`);
+      }
+
       const uploadedAttachments = (input.uploadedAttachmentIds ?? []).map((attachmentId) => {
         const attachment = state.uploads.find((entry) => entry.id === attachmentId);
         if (!attachment) {
@@ -373,6 +462,7 @@ export class TrixNativeServer {
 
       createdMessage = {
         id: randomId('msg', 8),
+        accountId: input.accountId ?? conversation.accountId,
         conversationId: input.conversationId,
         direction: input.direction,
         text: input.text ?? '',
@@ -380,6 +470,7 @@ export class TrixNativeServer {
         senderId: input.senderId,
         senderName: input.senderName,
         createdAt: now,
+        replyToMessageId: input.replyToMessageId ?? null,
         metadata: input.metadata,
       };
 
@@ -392,7 +483,7 @@ export class TrixNativeServer {
                 ...entry,
                 updatedAt: now,
                 participants: entry.participants.map((participant) =>
-                  participant.clientId === input.senderId
+                  participant.clientId === (input.metadata?.clientId as string | undefined)
                     ? { ...participant, lastSeenAt: now }
                     : participant,
                 ),
@@ -409,6 +500,67 @@ export class TrixNativeServer {
     return createdMessage;
   }
 
+  private async createUserMessage(input: UserCreateMessageInput): Promise<MessageRecord> {
+    const { conversation, participant } = await this.resolveClientContext(input.conversationId, input.clientToken);
+    const message = await this.createMessage({
+      accountId: conversation.accountId,
+      conversationId: input.conversationId,
+      clientToken: input.clientToken,
+      direction: 'inbound',
+      senderId: conversation.peerId,
+      senderName: conversation.peerDisplayName ?? participant.deviceName ?? conversation.peerId,
+      text: input.text ?? '',
+      replyToMessageId: input.replyToMessageId ?? null,
+      attachments: input.attachments,
+      uploadedAttachmentIds: input.uploadedAttachmentIds,
+      metadata: {
+        ...input.metadata,
+        clientId: participant.clientId,
+        localId: input.localId ?? null,
+        peerId: conversation.peerId,
+      },
+    });
+    await this.broadcast({ type: 'message.created', payload: { message } }, { role: 'user', conversationId: message.conversationId });
+    await this.broadcast(this.buildServiceMessageEnvelope(conversation, message), { role: 'service', accountId: conversation.accountId });
+    return message;
+  }
+
+  private async createServiceMessage(input: ServiceCreateMessageInput & { accountId: string }): Promise<MessageRecord> {
+    const conversation = await this.getConversation(input.conversationId);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${input.conversationId}`);
+    }
+    if (conversation.accountId !== input.accountId) {
+      throw new Error(`Conversation ${input.conversationId} does not belong to account ${input.accountId}`);
+    }
+
+    const idempotencyKey = input.message.idempotencyKey?.trim();
+    if (idempotencyKey) {
+      const existing = await this.findServiceMessageByIdempotencyKey({
+        accountId: input.accountId,
+        conversationId: input.conversationId,
+        idempotencyKey,
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const message = await this.createMessage({
+      accountId: input.accountId,
+      conversationId: input.conversationId,
+      direction: 'outbound',
+      senderId: `openclaw:${input.accountId}`,
+      senderName: 'OpenClaw',
+      text: input.message.text ?? '',
+      replyToMessageId: input.message.replyToMessageId ?? null,
+      attachments: input.message.attachments,
+      metadata: idempotencyKey ? { idempotencyKey } : undefined,
+    });
+    await this.broadcast({ type: 'message.created', payload: { message } }, { role: 'user', conversationId: message.conversationId });
+    return message;
+  }
+
   private async assertAdminToken(tokenHeader: string | string[] | undefined): Promise<void> {
     const state = await this.stateStore.read();
     const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
@@ -417,49 +569,198 @@ export class TrixNativeServer {
     }
   }
 
-  private async assertClientToken(conversationId: string, token: string | undefined): Promise<void> {
+  private async assertServiceTokenValue(tokenHeader: string | string[] | undefined, accountId = 'default'): Promise<void> {
     const state = await this.stateStore.read();
-    const conversation = state.conversations.find((entry) => entry.id === conversationId);
-    const allowed = conversation?.participants.some((entry) => entry.clientToken && entry.clientToken === token);
-    if (!allowed) {
-      throw new Error('Invalid client token');
+    const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+    const expected = state.serviceTokens[accountId];
+    if (!expected || token !== expected) {
+      throw new Error(`Invalid service token for account ${accountId}`);
     }
   }
 
+  private async assertServiceToken(request: http.IncomingMessage, accountId = 'default'): Promise<void> {
+    await this.assertServiceTokenValue(this.readBearerToken(request), accountId);
+  }
+
+  private async assertPairingAccess(request: http.IncomingMessage, accountId = 'default'): Promise<void> {
+    const adminToken = this.readHeader(request, 'x-trix-admin-token');
+    if (adminToken) {
+      await this.assertAdminToken(adminToken);
+      return;
+    }
+    await this.assertServiceToken(request, accountId);
+  }
+
+  private async resolveClientContext(conversationId: string, token: string | undefined): Promise<{
+    conversation: ConversationRecord;
+    participant: ConversationRecord['participants'][number];
+  }> {
+    const state = await this.stateStore.read();
+    const conversation = state.conversations.find((entry) => entry.id === conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+    const participant = conversation.participants.find((entry) => entry.clientToken && entry.clientToken === token);
+    if (!participant) {
+      throw new Error('Invalid client token');
+    }
+    return { conversation, participant };
+  }
+
+  private async assertClientToken(conversationId: string, token: string | undefined): Promise<void> {
+    await this.resolveClientContext(conversationId, token);
+  }
+
   private async assertConversationAccess(request: http.IncomingMessage, conversationId: string): Promise<void> {
-    const adminToken = request.headers['x-trix-admin-token'];
+    const adminToken = this.readHeader(request, 'x-trix-admin-token');
     if (adminToken) {
       await this.assertAdminToken(adminToken);
       return;
     }
 
-    const tokenHeader = request.headers['x-trix-client-token'];
-    const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+    const conversation = await this.getConversation(conversationId);
+    if (this.readBearerToken(request)) {
+      await this.assertServiceToken(request, conversation?.accountId ?? 'default');
+      return;
+    }
+
+    const token = this.readHeader(request, 'x-trix-client-token');
     await this.assertClientToken(conversationId, token);
   }
 
   private async assertAttachmentUploadAccess(request: http.IncomingMessage): Promise<void> {
-    const adminToken = request.headers['x-trix-admin-token'];
+    const adminToken = this.readHeader(request, 'x-trix-admin-token');
     if (adminToken) {
       await this.assertAdminToken(adminToken);
       return;
     }
 
-    const conversationHeader = request.headers['x-trix-conversation-id'];
-    const conversationId = Array.isArray(conversationHeader) ? conversationHeader[0] : conversationHeader;
+    if (this.readBearerToken(request)) {
+      await this.assertServiceToken(request);
+      return;
+    }
+
+    const conversationId = this.readHeader(request, 'x-trix-conversation-id');
     if (!conversationId) {
       throw new Error('Conversation id required for attachment upload');
     }
 
-    const tokenHeader = request.headers['x-trix-client-token'];
-    const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+    const token = this.readHeader(request, 'x-trix-client-token');
     await this.assertClientToken(conversationId, token);
   }
 
-  private async handleSocket(socket: WebSocket, searchParams: URLSearchParams): Promise<void> {
-    const role = (searchParams.get('role') as SocketMeta['role'] | null) ?? 'user';
-    if (role === 'agent') {
-      await this.assertAdminToken(searchParams.get('adminToken') ?? undefined);
+  private async unpairClient(clientId: string, token: string | undefined): Promise<void> {
+    if (!token) {
+      throw new Error('Client token required');
+    }
+
+    let closedConversationId: string | undefined;
+
+    await this.stateStore.update((state) => {
+      let matched = false;
+      const now = Date.now();
+      const conversations = state.conversations.map((conversation) => {
+        const hasParticipant = conversation.participants.some((participant) =>
+          participant.clientId === clientId && participant.clientToken === token,
+        );
+        if (!hasParticipant) {
+          return conversation;
+        }
+
+        matched = true;
+        closedConversationId = conversation.id;
+        return {
+          ...conversation,
+          updatedAt: now,
+          participants: conversation.participants.filter((participant) =>
+            !(participant.clientId === clientId && participant.clientToken === token),
+          ),
+        };
+      });
+
+      if (!matched) {
+        throw new Error('Invalid client token');
+      }
+
+      return {
+        ...state,
+        conversations,
+      };
+    });
+
+    for (const [socket, meta] of this.sockets.entries()) {
+      if (meta.role === 'user' && meta.clientId === clientId && (!closedConversationId || meta.conversationId === closedConversationId)) {
+        socket.close(1000, 'pairing removed');
+      }
+    }
+  }
+
+  private async getConversation(conversationId: string): Promise<ConversationRecord | undefined> {
+    const state = await this.stateStore.read();
+    return state.conversations.find((entry) => entry.id === conversationId);
+  }
+
+  private async findServiceMessageByIdempotencyKey(params: {
+    accountId: string;
+    conversationId: string;
+    idempotencyKey: string;
+  }): Promise<MessageRecord | undefined> {
+    const state = await this.stateStore.read();
+    return state.messages.find((entry) =>
+      entry.accountId === params.accountId
+      && entry.conversationId === params.conversationId
+      && entry.senderId === `openclaw:${params.accountId}`
+      && entry.metadata?.idempotencyKey === params.idempotencyKey,
+    );
+  }
+
+  private buildServiceMessageEnvelope(conversation: ConversationRecord, message: MessageRecord): ClientEnvelope {
+    return {
+      type: 'message.created',
+      payload: {
+        accountId: conversation.accountId,
+        conversationId: conversation.id,
+        chatType: 'direct',
+        peer: {
+          id: conversation.peerId,
+          displayName: conversation.peerDisplayName ?? conversation.peerId,
+        },
+        message: {
+          id: message.id,
+          text: message.text,
+          replyToMessageId: message.replyToMessageId ?? null,
+          attachments: message.attachments.map((attachment) => ({
+            id: attachment.id,
+            kind: attachment.kind,
+            mimeType: attachment.mimeType,
+            fileName: attachment.fileName,
+            sizeBytes: attachment.sizeBytes,
+            url: attachment.publicUrl ?? `${this.publicBaseUrl}/api/service/attachments/${attachment.id}`,
+          })),
+          timestamp: message.createdAt,
+        },
+      },
+    };
+  }
+
+  private async handleSocket(
+    socket: WebSocket,
+    request: http.IncomingMessage,
+    pathname: string,
+    searchParams: URLSearchParams,
+  ): Promise<void> {
+    let role = (searchParams.get('role') as SocketMeta['role'] | null) ?? 'user';
+    const accountId = this.resolveAccountId(searchParams);
+    if (pathname === '/api/service/ws') {
+      role = 'service';
+      await this.assertServiceToken(request, accountId);
+    } else if (role === 'agent') {
+      if (searchParams.get('serviceToken')) {
+        await this.assertServiceTokenValue(searchParams.get('serviceToken') ?? undefined, accountId);
+      } else {
+        await this.assertAdminToken(searchParams.get('adminToken') ?? undefined);
+      }
+      role = 'service';
     }
 
     const conversationId = searchParams.get('conversationId') ?? undefined;
@@ -473,6 +774,7 @@ export class TrixNativeServer {
 
     this.sockets.set(socket, {
       role,
+      accountId,
       conversationId,
       clientId,
     });
@@ -487,29 +789,33 @@ export class TrixNativeServer {
         type: 'connected',
         payload: {
           role,
+          accountId,
           conversationId,
-          agentOnline: this.isAgentOnline(),
+          agentOnline: this.isServiceOnline(accountId),
         },
-      } satisfies ClientEnvelope<{ role: SocketMeta['role']; conversationId?: string; agentOnline: boolean }>),
+      } satisfies ClientEnvelope<{ role: SocketMeta['role']; accountId?: string; conversationId?: string; agentOnline: boolean }>),
     );
 
-    if (role === 'agent') {
+    if (role === 'service') {
       await this.broadcast({ type: 'agent.status', payload: { online: true } }, { role: 'user' });
     }
 
     socket.on('close', () => {
       const closingMeta = this.sockets.get(socket);
       this.sockets.delete(socket);
-      if (closingMeta?.role === 'agent' && !this.isAgentOnline()) {
+      if (closingMeta?.role === 'service' && !this.isServiceOnline(closingMeta.accountId)) {
         void this.broadcast({ type: 'agent.status', payload: { online: false } }, { role: 'user' });
       }
     });
   }
 
-  private async broadcast(envelope: ClientEnvelope, target: { conversationId?: string; role?: SocketMeta['role'] }): Promise<void> {
+  private async broadcast(envelope: ClientEnvelope, target: { accountId?: string; conversationId?: string; role?: SocketMeta['role'] }): Promise<void> {
     const data = JSON.stringify(envelope);
     for (const [socket, meta] of this.sockets.entries()) {
       if (target.role && meta.role !== target.role) {
+        continue;
+      }
+      if (target.accountId && meta.accountId !== target.accountId) {
         continue;
       }
       if (target.conversationId && meta.role === 'user' && meta.conversationId !== target.conversationId) {
@@ -521,9 +827,9 @@ export class TrixNativeServer {
     }
   }
 
-  private isAgentOnline(): boolean {
+  private isServiceOnline(accountId?: string): boolean {
     for (const meta of this.sockets.values()) {
-      if (meta.role === 'agent') {
+      if (meta.role === 'service' && (!accountId || meta.accountId === accountId)) {
         return true;
       }
     }
@@ -592,7 +898,14 @@ export class TrixNativeServer {
     }
 
     const now = Date.now();
-    const room = state.studyRooms[roomIndex];
+    const currentRoom = state.studyRooms[roomIndex];
+    if (!currentRoom) {
+      return null;
+    }
+    const room: StudyRoom = {
+      ...currentRoom,
+      members: currentRoom.members.map((member) => ({ ...member })),
+    };
 
     // Check if already a member
     const existingMemberIndex = room.members.findIndex((m) => m.userId === input.userId);
@@ -650,7 +963,14 @@ export class TrixNativeServer {
     }
 
     const now = Date.now();
-    const room = state.studyRooms[roomIndex];
+    const currentRoom = state.studyRooms[roomIndex];
+    if (!currentRoom) {
+      return;
+    }
+    const room: StudyRoom = {
+      ...currentRoom,
+      members: currentRoom.members.map((member) => ({ ...member })),
+    };
 
     room.members = room.members.filter((m) => m.userId !== userId);
     room.version++;
@@ -688,7 +1008,15 @@ export class TrixNativeServer {
       return null;
     }
 
-    const room = state.studyRooms[roomIndex];
+    const currentRoom = state.studyRooms[roomIndex];
+    if (!currentRoom) {
+      return null;
+    }
+    const room: StudyRoom = {
+      ...currentRoom,
+      members: currentRoom.members.map((member) => ({ ...member })),
+      timer: currentRoom.timer ? { ...currentRoom.timer } : null,
+    };
 
     // Only host can perform actions
     if (room.hostUserId !== input.userId) {
@@ -767,6 +1095,9 @@ export class TrixNativeServer {
     }
 
     const room = state.studyRooms[roomIndex];
+    if (!room) {
+      return;
+    }
 
     await this.stateStore.update((s) => ({
       ...s,

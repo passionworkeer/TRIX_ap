@@ -1,5 +1,5 @@
 {
-  "id": "openclaw-native-channel",
+  "id": "trix-native",
   "channels": ["trix-native"],
   "configSchema": {
     "type": "object",
@@ -7,7 +7,8 @@
     "properties": {}
   },
   "uiHints": {
-    "adminToken": { "label": "Admin Token", "sensitive": true },
-    "serverUrl": { "label": "Server URL", "placeholder": "http://your-server:8788" }
+    "serviceToken": { "label": "Service Token", "sensitive": true },
+    "serviceUrl": { "label": "Service URL", "placeholder": "http://127.0.0.1:8788" },
+    "adminToken": { "label": "Admin Token", "sensitive": true }
   }
 }

@@ -26,8 +26,8 @@ export function sendJson(response: ServerResponse, statusCode: number, payload: 
   response.writeHead(statusCode, {
     'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type, x-trix-admin-token, x-trix-client-token, x-file-name, x-mime-type, x-attachment-kind',
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-headers': 'authorization, content-type, x-trix-admin-token, x-trix-client-token, x-trix-conversation-id, x-file-name, x-mime-type, x-attachment-kind',
+    'access-control-allow-methods': 'GET, POST, OPTIONS, DELETE',
   });
   response.end(json);
 }
@@ -35,8 +35,8 @@ export function sendJson(response: ServerResponse, statusCode: number, payload: 
 export function sendNoContent(response: ServerResponse): void {
   response.writeHead(204, {
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type, x-trix-admin-token, x-trix-client-token, x-file-name, x-mime-type, x-attachment-kind',
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-headers': 'authorization, content-type, x-trix-admin-token, x-trix-client-token, x-trix-conversation-id, x-file-name, x-mime-type, x-attachment-kind',
+    'access-control-allow-methods': 'GET, POST, OPTIONS, DELETE',
   });
   response.end();
 }

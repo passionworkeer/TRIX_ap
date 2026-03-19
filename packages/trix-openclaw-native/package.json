@@ -13,6 +13,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./setup-entry": {
+      "import": "./dist/setup-entry.js",
+      "types": "./dist/setup-entry.d.ts"
+    },
     "./plugin": {
       "import": "./dist/plugin/index.js",
       "types": "./dist/plugin/index.d.ts"
@@ -43,14 +47,21 @@
     "openclaw": ">=2026.3.8"
   },
   "openclaw": {
-    "extensions": ["./src/index.ts"],
+    "extensions": ["./index.ts"],
+    "setupEntry": "./setup-entry.ts",
     "channel": {
       "id": "trix-native",
       "label": "TRIX Native",
-      "aliases": ["trix", "native"]
+      "selectionLabel": "Trix Native",
+      "docsPath": "/channels/trix-native",
+      "docsLabel": "trix-native",
+      "blurb": "TRIX IM native channel",
+      "aliases": ["trix"]
     },
     "install": {
-      "npmSpec": "@trix-app/openclaw-native-channel"
+      "npmSpec": "@trix-app/openclaw-native-channel",
+      "localPath": "extensions/trix-native",
+      "defaultChoice": "npm"
     }
   },
   "devDependencies": {

@@ -88,7 +88,11 @@ type ConversationMessagesResponse = {
 type ClaimResponse = {
   conversationId: string;
   clientToken: string;
+  peerId: string;
   websocketUrl: string;
+  wsUrl?: string;
+  uploadUrl: string;
+  messagesUrl: string;
   serverUrl?: string;
   pairing: {
     code: string;
@@ -673,10 +677,8 @@ class TrixNativeChannelClient {
       body: JSON.stringify({
         conversationId: session.conversationId,
         clientToken: session.clientToken,
-        direction: 'inbound',
-        senderId: session.clientId,
-        senderName: session.deviceName || defaultDeviceName(),
         text: params.text,
+        localId: clientMessageId,
         attachments: inlineAttachments,
         uploadedAttachmentIds,
         metadata: {
@@ -768,5 +770,3 @@ class TrixNativeChannelClient {
 const trixNativeChannelClient = new TrixNativeChannelClient();
 
 export default trixNativeChannelClient;
-
-
