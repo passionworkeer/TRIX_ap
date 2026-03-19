@@ -17,6 +17,8 @@ import type {
   PairingRecord,
   ServiceCreateMessageInput,
   ServerConfig,
+  ServerRateLimitName,
+  ServerRateLimitRule,
   StudyRoom,
   StudyRoomAckPayload,
   StudyRoomStateEvent,
@@ -25,6 +27,7 @@ import type {
 import { randomId, randomToken } from '../utils/ids.js';
 import { buildPublicBaseUrl } from '../utils/network.js';
 import { parseUrl, readBinaryBody, readJsonBody, sendJson, sendNoContent } from '../utils/http.js';
+import { DEFAULT_RATE_LIMITS, getRequestIp, isIpAllowed, MemoryRateLimiter, parseCommaSeparatedList } from './accessControl.js';
 
 type SocketMeta = {
   role: 'user' | 'service' | 'agent';
@@ -35,6 +38,30 @@ type SocketMeta = {
 
 const ATTACHMENT_URL_TTL_MS = 24 * 60 * 60 * 1000;
 const LEGACY_AGENT_WS_ENV = 'TRIX_NATIVE_ENABLE_LEGACY_AGENT_WS';
+const SERVICE_ALLOWLIST_ENV = 'TRIX_NATIVE_SERVICE_ALLOWLIST';
+
+const RATE_LIMIT_ENV_KEYS: Record<ServerRateLimitName, { max: string; windowMs: string }> = {
+  claim: {
+    max: 'TRIX_NATIVE_RATE_LIMIT_CLAIM_MAX',
+    windowMs: 'TRIX_NATIVE_RATE_LIMIT_CLAIM_WINDOW_MS',
+  },
+  userMessages: {
+    max: 'TRIX_NATIVE_RATE_LIMIT_USER_MESSAGES_MAX',
+    windowMs: 'TRIX_NATIVE_RATE_LIMIT_USER_MESSAGES_WINDOW_MS',
+  },
+  userUploads: {
+    max: 'TRIX_NATIVE_RATE_LIMIT_USER_UPLOADS_MAX',
+    windowMs: 'TRIX_NATIVE_RATE_LIMIT_USER_UPLOADS_WINDOW_MS',
+  },
+  serviceMessages: {
+    max: 'TRIX_NATIVE_RATE_LIMIT_SERVICE_MESSAGES_MAX',
+    windowMs: 'TRIX_NATIVE_RATE_LIMIT_SERVICE_MESSAGES_WINDOW_MS',
+  },
+  serviceUploads: {
+    max: 'TRIX_NATIVE_RATE_LIMIT_SERVICE_UPLOADS_MAX',
+    windowMs: 'TRIX_NATIVE_RATE_LIMIT_SERVICE_UPLOADS_WINDOW_MS',
+  },
+};
 
 class HttpError extends Error {
   readonly statusCode: number;
@@ -55,11 +82,14 @@ export class TrixNativeServer {
   private readonly serviceTokenOverride?: string;
   private readonly attachmentSigningSecretOverride?: string;
   private readonly enableLegacyAgentWs: boolean;
+  private readonly serviceAllowlist: string[];
+  private readonly rateLimits: Record<ServerRateLimitName, ServerRateLimitRule>;
   private readonly pairingService: PairingService;
   private readonly attachmentStore: AttachmentStore;
   private readonly server: http.Server;
   private readonly wss: WebSocketServer;
   private readonly sockets = new Map<WebSocket, SocketMeta>();
+  private readonly rateLimiter = new MemoryRateLimiter();
 
   constructor(config: ServerConfig = {}) {
     this.host = config.host ?? '0.0.0.0';
@@ -70,6 +100,8 @@ export class TrixNativeServer {
     this.serviceTokenOverride = config.serviceToken;
     this.attachmentSigningSecretOverride = config.attachmentSigningSecret;
     this.enableLegacyAgentWs = config.enableLegacyAgentWs ?? process.env[LEGACY_AGENT_WS_ENV] === '1';
+    this.serviceAllowlist = config.serviceAllowlist ?? parseCommaSeparatedList(process.env[SERVICE_ALLOWLIST_ENV]);
+    this.rateLimits = this.resolveRateLimits(config.rateLimits);
     this.stateStore = new JsonStateStore(this.storageDir);
     this.pairingService = new PairingService(this.stateStore);
     this.attachmentStore = new AttachmentStore(this.storageDir, this.publicBaseUrl);
@@ -198,6 +230,41 @@ export class TrixNativeServer {
     return match?.[1]?.trim();
   }
 
+  private resolveRateLimits(overrides?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>): Record<ServerRateLimitName, ServerRateLimitRule> {
+    const resolved = { ...DEFAULT_RATE_LIMITS };
+    const scopes = Object.keys(DEFAULT_RATE_LIMITS) as ServerRateLimitName[];
+    for (const scope of scopes) {
+      const envKeys = RATE_LIMIT_ENV_KEYS[scope];
+      const override = overrides?.[scope];
+      const max = Number(override?.max ?? process.env[envKeys.max] ?? resolved[scope].max);
+      const windowMs = Number(override?.windowMs ?? process.env[envKeys.windowMs] ?? resolved[scope].windowMs);
+      resolved[scope] = {
+        max: Number.isFinite(max) ? max : DEFAULT_RATE_LIMITS[scope].max,
+        windowMs: Number.isFinite(windowMs) ? windowMs : DEFAULT_RATE_LIMITS[scope].windowMs,
+      };
+    }
+    return resolved;
+  }
+
+  private assertRateLimit(request: http.IncomingMessage, scope: ServerRateLimitName, subject = ''): void {
+    const ip = getRequestIp(request) ?? 'unknown';
+    const key = subject ? `${ip}:${subject}` : ip;
+    if (!this.rateLimiter.consume(scope, key, this.rateLimits[scope])) {
+      throw new HttpError(429, `Rate limit exceeded for ${scope}`);
+    }
+  }
+
+  private assertServiceNetworkAccess(request: http.IncomingMessage): void {
+    if (!this.serviceAllowlist.length) {
+      return;
+    }
+
+    const requestIp = getRequestIp(request);
+    if (!isIpAllowed(requestIp, this.serviceAllowlist)) {
+      throw new HttpError(403, 'Service access denied for source IP');
+    }
+  }
+
   private async handleRequest(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
     if (request.method === 'OPTIONS') {
       sendNoContent(response);
@@ -267,6 +334,7 @@ export class TrixNativeServer {
 
       const pairingClaimMatch = url.pathname.match(/^\/api\/pairings\/([^/]+)\/claim$/);
       if (request.method === 'POST' && pairingClaimMatch) {
+        this.assertRateLimit(request, 'claim');
         const body = await readJsonBody<{ secret?: string; clientId: string; deviceName?: string }>(request);
         const result = await this.pairingService.claim(
           {
@@ -293,6 +361,7 @@ export class TrixNativeServer {
       }
 
       if (request.method === 'POST' && url.pathname === '/api/uploads') {
+        this.assertRateLimit(request, 'userUploads');
         await this.assertAttachmentUploadAccess(request);
         const conversationId = this.readHeader(request, 'x-trix-conversation-id');
         const conversation = conversationId ? await this.getConversation(conversationId) : undefined;
@@ -324,6 +393,7 @@ export class TrixNativeServer {
 
       if (request.method === 'POST' && url.pathname === '/api/service/uploads') {
         const accountId = this.resolveAccountId(url.searchParams);
+        this.assertRateLimit(request, 'serviceUploads', accountId);
         await this.assertServiceToken(request, accountId);
         const kind = (this.readHeader(request, 'x-attachment-kind') as AttachmentDescriptor['kind'] | undefined) ?? undefined;
         const encodedFileName = this.readHeader(request, 'x-file-name') ?? 'service-upload.bin';
@@ -370,6 +440,7 @@ export class TrixNativeServer {
       }
 
       if (request.method === 'POST' && url.pathname === '/api/messages') {
+        this.assertRateLimit(request, 'userMessages');
         const body = await readJsonBody<UserCreateMessageInput>(request);
         const message = await this.createUserMessage(body);
         sendJson(response, 201, { message });
@@ -379,6 +450,7 @@ export class TrixNativeServer {
       if (request.method === 'POST' && url.pathname === '/api/service/messages') {
         const body = await readJsonBody<ServiceCreateMessageInput>(request);
         const accountId = body.accountId ?? this.resolveAccountId(url.searchParams);
+        this.assertRateLimit(request, 'serviceMessages', accountId);
         await this.assertServiceToken(request, accountId);
         const message = await this.createServiceMessage({
           accountId,
@@ -712,6 +784,7 @@ export class TrixNativeServer {
   }
 
   private async assertServiceToken(request: http.IncomingMessage, accountId = 'default'): Promise<void> {
+    this.assertServiceNetworkAccess(request);
     await this.assertServiceTokenValue(this.readBearerToken(request), accountId);
   }
 

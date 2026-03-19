@@ -1,0 +1,20 @@
+[Unit]
+Description=TRIX Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/trix-e2e/packages/trix-openclaw-native
+EnvironmentFile=/etc/trix-service.env
+ExecStart=/usr/bin/node /root/trix-e2e/packages/trix-openclaw-native/dist/cli.js server start --host 127.0.0.1 --port 8788 --storage-dir /root/trix-e2e/state --public-base-url https://trix.love
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/root/trix-e2e/state
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArrowLeft, FlipHorizontal2, Check, X, Sparkles, Send, ImageIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { generatePath, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { IMAGES } from '../constants';
@@ -186,7 +186,7 @@ const Snapshot: React.FC = () => {
 
       const uploadResult = await uploadFile(file, 'image');
 
-      navigate(AppRoutes.CHAT_DETAIL, {
+      navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: 'clawbot' }), {
         state: {
           friendId: 'clawbot',
           name: 'TRIX Bot',

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TRIX Pairing</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5efe5;
+        --panel: rgba(255, 255, 255, 0.9);
+        --text: #161616;
+        --muted: #666158;
+        --accent: #0b6e4f;
+        --danger: #b42318;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "PingFang SC", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top right, rgba(11, 110, 79, 0.14), transparent 35%),
+          linear-gradient(160deg, #f8f2e8, #efe7dc);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(560px, 100%);
+        padding: 28px;
+        border-radius: 24px;
+        background: var(--panel);
+        box-shadow: 0 24px 80px rgba(17, 24, 39, 0.12);
+        border: 1px solid rgba(17, 24, 39, 0.08);
+      }
+      h1 { margin: 0 0 12px; font-size: 2.2rem; }
+      p { margin: 0 0 14px; color: var(--muted); line-height: 1.5; }
+      label { display: block; margin: 18px 0 8px; font-weight: 700; }
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(17, 24, 39, 0.14);
+        font: inherit;
+        background: rgba(255, 255, 255, 0.8);
+      }
+      button {
+        width: 100%;
+        margin-top: 18px;
+        padding: 14px 18px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--accent);
+        color: white;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      .meta {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(17, 24, 39, 0.05);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .error { color: var(--danger); }
+      .success { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>TRIX 配对</h1>
+      <p>这个页面会直接向 Trix Service 提交 claim，并在当前浏览器生成稳定的设备 ID。</p>
+      <div id="hint" class="meta">等待配对参数...</div>
+      <label for="deviceName">设备名称</label>
+      <input id="deviceName" type="text" />
+      <button id="claimButton" type="button">完成配对</button>
+      <div id="result" class="meta" hidden></div>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const code = (params.get('code') || '').trim().toUpperCase();
+      const secret = (params.get('secret') || '').trim();
+      const hint = document.getElementById('hint');
+      const result = document.getElementById('result');
+      const button = document.getElementById('claimButton');
+      const deviceNameInput = document.getElementById('deviceName');
+      const storageKey = 'trix_native_pair_device_id';
+      const claimStorageKey = 'trix_native_last_claim';
+
+      function getClientId() {
+        const existing = window.localStorage.getItem(storageKey);
+        if (existing) return existing;
+        const generated = `device:web-${(window.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2))}`;
+        window.localStorage.setItem(storageKey, generated);
+        return generated;
+      }
+
+      function setMessage(text, className) {
+        result.hidden = false;
+        result.className = `meta ${className || ''}`.trim();
+        result.textContent = text;
+      }
+
+      if (!code) {
+        hint.textContent = '缺少配对码。请重新从 OpenClaw 登录页面打开这个链接。';
+        hint.classList.add('error');
+        button.disabled = true;
+      } else {
+        hint.textContent = `配对码：${code}`;
+      }
+
+      deviceNameInput.value = `${navigator.platform || 'Web'} / ${navigator.userAgent.split(')')[0] || 'Browser'}`.slice(0, 120);
+
+      button.addEventListener('click', async () => {
+        if (!code) return;
+        button.disabled = true;
+        setMessage('正在提交 claim，请稍候...', '');
+        try {
+          const response = await fetch(`/api/pairings/${encodeURIComponent(code)}/claim`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              secret: secret || undefined,
+              clientId: getClientId(),
+              deviceName: deviceNameInput.value.trim() || 'Web Browser',
+            }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || `Claim failed: ${response.status}`);
+          }
+          window.localStorage.setItem(claimStorageKey, JSON.stringify(payload));
+          setMessage(`配对成功。\nconversationId: ${payload.conversationId}\npeerId: ${payload.peerId}\n现在可以回到 TRIX Web / iOS 继续。`, 'success');
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error), 'error');
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

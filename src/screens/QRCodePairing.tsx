@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { generatePath, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle, Keyboard, Loader, Scan } from 'lucide-react';
 import { AppRoutes } from '../types';
@@ -22,7 +22,7 @@ const QRCodePairing: React.FC = () => {
     if (isPaired) {
       showSuccess('配对成功，即将跳转页面');
       const timer = setTimeout(() => {
-        navigate(AppRoutes.CHAT_DETAIL, {
+        navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: 'clawbot' }), {
           replace: true,
           state: {
             friendId: 'clawbot',

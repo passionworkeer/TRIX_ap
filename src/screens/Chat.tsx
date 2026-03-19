@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Camera, MessageSquare, X, Scan } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AddFriendModal from '../components/AddFriendModal';
-import { useNavigate } from 'react-router-dom';
+import { generatePath, useNavigate } from 'react-router-dom';
 import { IMAGES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
@@ -281,7 +281,7 @@ const Chat: React.FC = () => {
                           onClick={() => {
                             if (isClawbotChannelConnected && isClawbotPaired) {
                               // 已连接，进入聊天
-                              navigate(AppRoutes.CHAT_DETAIL, {
+                              navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: 'clawbot' }), {
                                 state: {
                                   name: 'TRIX Bot',
                                   avatar: botAvatarImg,
@@ -366,7 +366,7 @@ const Chat: React.FC = () => {
                               {...iosPressableMotion}
                               className="ios-list-row flex cursor-pointer items-center rounded-[1.55rem] border border-white/6 px-3 py-4 transition-colors hover:bg-white/5"
                               onClick={() => {
-                                navigate(AppRoutes.CHAT_DETAIL, {
+                                navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: friend.friend_id }), {
                                   state: {
                                     name: friend.name,
                                     avatar: avatar,

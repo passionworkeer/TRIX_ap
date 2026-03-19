@@ -54,19 +54,27 @@ openclaw plugins install /path/to/trix-3d-companion/packages/trix-openclaw-nativ
 openclaw plugins list
 ```
 
-### 步骤 3: 获取 Admin Token
+### 步骤 3: 获取 Service Token
 
 ```bash
-# 在服务器状态文件中找到 adminToken
-cat packages/trix-openclaw-native/.trix-native-channel/state.json | grep adminToken
+# 查看 systemd 环境文件中的已配置 token
+cat /etc/default/trix-service
+
+# 或使用内置 CLI 轮换 token
+node packages/trix-openclaw-native/dist/cli.js server rotate-service-token \
+  --storage-dir /var/lib/trix-service \
+  --account-id default
 
 # 输出示例：
-# "adminToken": "a1b2c3d4e5f6..."
+# {
+#   "accountId": "default",
+#   "serviceToken": "st_xxxxxxxxxxxxx"
+# }
 ```
 
 ### 步骤 4: 配置 OpenClaw
 
-编辑 `~/.openclaw/config.json`：
+编辑 `~/.openclaw/openclaw.json`：
 
 ```json5
 {
@@ -75,14 +83,14 @@ cat packages/trix-openclaw-native/.trix-native-channel/state.json | grep adminTo
   "channels": {
     // 其他 channels ...
 
-    "trixNative": {
+    "trix-native": {
       "enabled": true,
-      "defaultAccount": "default",
+      "dmPolicy": "open",
       "accounts": {
         "default": {
           "name": "TRIX Native",
-          "serverUrl": "http://TRIX_SERVER_HOST:8788",
-          "adminToken": "YOUR_ADMIN_TOKEN_HERE"
+          "serviceUrl": "https://trix.love",
+          "serviceToken": "YOUR_SERVICE_TOKEN_HERE"
         }
       }
     }
@@ -97,27 +105,27 @@ cat packages/trix-openclaw-native/.trix-native-channel/state.json | grep adminTo
 ```bash
 # 在本地项目目录
 npx trix-openclaw-native pairing create \
-  --server http://TRIX_SERVER_HOST:8788 \
-  --admin-token YOUR_ADMIN_TOKEN \
+  --server https://trix.love \
+  --service-token YOUR_SERVICE_TOKEN \
   --label "My iPhone"
 
 # 输出：
 # Pairing code: XXXXXXXX
-# Join URL: http://TRIX_SERVER_HOST:8788/claim?code=XXXXXXXX
+# Join URL: https://trix.love/pair?code=XXXXXXXX&secret=XXXXXXXX
 ```
 
 ### 方式2：使用 API
 
 ```bash
-curl -X POST http://TRIX_SERVER_HOST:8788/api/pairings \
+curl -X POST https://trix.love/api/pairings \
   -H "Content-Type: application/json" \
-  -H "X-Trix-Admin-Token: YOUR_ADMIN_TOKEN" \
+  -H "Authorization: Bearer YOUR_SERVICE_TOKEN" \
   -d '{"label": "My iPhone"}'
 
 # 返回：
 # {
 #   "code": "XXXXXXXX",
-#   "claimUrl": "http://TRIX_SERVER_HOST:8788/claim?code=XXXXXXXX",
+#   "claimUrl": "https://trix.love/pair?code=XXXXXXXX&secret=XXXXXXXX",
 #   ...
 # }
 ```
@@ -182,7 +190,7 @@ openclaw config get channels
 ### 无法连接服务器
 ```bash
 # 测试服务器健康
-curl http://TRIX_SERVER_HOST:8788/health
+curl https://trix.love/health
 
 # 查看 OpenClaw 日志
 tail -f /tmp/openclaw/openclaw-*.log
@@ -191,8 +199,8 @@ tail -f /tmp/openclaw/openclaw-*.log
 ### 配对码无效
 ```bash
 # 查看服务器配对状态
-curl http://TRIX_SERVER_HOST:8788/api/pairings \
-  -H "X-Trix-Admin-Token: YOUR_TOKEN"
+curl https://trix.love/api/pairings \
+  -H "Authorization: Bearer YOUR_SERVICE_TOKEN"
 
 # 配对码默认 24 小时过期，创建新的
 ```
