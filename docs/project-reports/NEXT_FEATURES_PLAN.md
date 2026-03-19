@@ -288,7 +288,7 @@ const db = new Database(dbPath);
 | 优化项 | 位置 | 当前状态 | 目标 |
 |--------|------|----------|------|
 | 前端包体积 | dist/assets/index-*.js | 1204 KB | < 800 KB |
-| WebSocket 延迟 | ClawbotChannelBridge | < 500ms | < 200ms |
+| WebSocket 延迟 | TrixNativeChannelClient | < 500ms | < 200ms |
 | 数据库查询 | study_sessions | 无索引 | 添加复合索引 |
 | 图片加载 | Avatar 组件 | 无优化 | 懒加载 + WebP |
 

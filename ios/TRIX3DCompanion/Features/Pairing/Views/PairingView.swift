@@ -454,14 +454,10 @@ struct PairingView: View {
                 await clawbotChannel.connect()
             }
 
-            var success = false
-
-            // 根据解析结果调用不同的配对方法
-            if let token = parsed.token {
-                // 有 token，使用 token 配对
-                success = await clawbotChannel.pairWithToken(token)
+            let success: Bool
+            if let qrPayload = parsed.qrPayload {
+                success = await clawbotChannel.pairWithQR(qrPayload)
             } else if parsed.code.count >= 6 {
-                // 纯配对码
                 success = await clawbotChannel.pairWithCode(parsed.code)
             } else {
                 // 无法解析
@@ -485,7 +481,7 @@ struct PairingView: View {
     }
 
     /// 解析二维码 - 对齐 Web 端 parseQrOrClaimPayload
-    private func parseQRCode(_ raw: String) -> (code: String, token: String?) {
+    private func parseQRCode(_ raw: String) -> (code: String, qrPayload: String?) {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 1. 尝试 JSON 格式
@@ -501,24 +497,16 @@ struct PairingView: View {
             }
             // 处理 code
             if let code = json["code"] as? String {
-                let token = json["token"] as? String ?? json["pairingToken"] as? String
-                return (code.uppercased(), token)
-            }
-            // 处理 token
-            if let token = json["token"] as? String, !token.isEmpty {
-                return ("", token)
-            }
-            if let token = json["pairingToken"] as? String, !token.isEmpty {
-                return ("", token)
+                let hasContext = (json["secret"] as? String)?.isEmpty == false || (json["serverUrl"] as? String)?.isEmpty == false
+                return hasContext ? ("", trimmed) : (code.uppercased(), nil)
             }
         }
 
         // 2. URL 格式: http://host/pair?code=XXX&secret=YYY
         if let url = URL(string: trimmed), url.scheme?.hasPrefix("http") == true {
             let code = URLComponents(string: trimmed)?.queryItems?.first(where: { $0.name == "code" })?.value ?? ""
-            let secret = URLComponents(string: trimmed)?.queryItems?.first(where: { $0.name == "secret" })?.value
             if !code.isEmpty {
-                return (code.uppercased(), secret)
+                return ("", trimmed)
             }
         }
 
@@ -527,25 +515,17 @@ struct PairingView: View {
         if compact.contains(":") {
             let parts = compact.split(separator: ":", maxSplits: 1).map(String.init)
             if let code = parts.first, !code.isEmpty {
-                return (code.uppercased(), parts.count > 1 ? parts[1] : nil)
+                let secret = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+                if !secret.isEmpty {
+                    return ("", "\(code.uppercased()):\(secret)")
+                }
             }
         }
 
-        // 4. trix:pair: 前缀
-        if trimmed.lowercased().hasPrefix("trix:pair:") {
-            let token = String(trimmed.dropFirst(9))
-            return ("", token)
-        }
-
-        // 5. 纯配对码 (6-8 位)
+        // 4. 纯配对码 (6-8 位)
         let normalized = trimmed.uppercased().filter { $0.isLetter || $0.isNumber }
         if normalized.count >= 6 && normalized.count <= 8 {
             return (normalized, nil)
-        }
-
-        // 6. 直接 Token (10+ 位)
-        if trimmed.count >= 10 {
-            return ("", trimmed)
         }
 
         return ("", nil)

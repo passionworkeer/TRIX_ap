@@ -32,7 +32,7 @@ vi.mock('./VoiceSettingsContext', () => ({
 }));
 
 // Mock dependencies after Auth and VoiceSettings
-vi.mock('../services/ClawbotChannelBridge', () => {
+vi.mock('../services/TrixNativeChannelClient', () => {
   const mockInstance = {
     on: vi.fn(),
     off: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('../services/ClawbotChannelBridge', () => {
     isPaired: vi.fn().mockReturnValue(false),
     checkPairingStatus: vi.fn().mockResolvedValue({ paired: false }),
     pairWithCode: vi.fn(),
-    pairWithToken: vi.fn(),
+    pairWithQR: vi.fn(),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     uploadMedia: vi.fn().mockResolvedValue('https://example.com/media.jpg'),
     unpair: vi.fn(),
@@ -64,7 +64,8 @@ vi.mock('../services/clawbotHistoryService', () => ({
 
 vi.mock('../config/clawbotEndpoints', () => ({
   getClawbotEndpoints: vi.fn(() => ({
-    channelUrl: 'wss://example.com/channel',
+    nativeServerUrl: 'https://chat.example.com',
+    nativePublicUrl: 'https://chat.example.com',
   })),
 }));
 
@@ -84,7 +85,7 @@ import {
   type PairingStatus,
   type BotState,
 } from '../contexts/ClawbotChannelContext';
-import clawbotChannelBridge from '../services/ClawbotChannelBridge';
+import trixNativeChannelClient from '../services/TrixNativeChannelClient';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import {
   loadClawbotMessageHistory,
@@ -166,7 +167,8 @@ describe.skip('ClawbotChannelContext', () => {
 
     // Mock getClawbotEndpoints
     vi.mocked(getClawbotEndpoints).mockReturnValue({
-      channelUrl: 'wss://test.example.com/channel',
+      nativeServerUrl: 'https://chat.example.com',
+      nativePublicUrl: 'https://chat.example.com',
     });
   });
 
@@ -177,7 +179,7 @@ describe.skip('ClawbotChannelContext', () => {
   describe('initial state', () => {
     it('should have correct initial values', async () => {
       // Mock user as logged out initially
-      vi.mocked(clawbotChannelBridge.connect).mockImplementation(() => {
+      vi.mocked(trixNativeChannelClient.connect).mockImplementation(() => {
         // Do nothing - don't trigger connection
         return Promise.resolve();
       });
@@ -205,14 +207,14 @@ describe.skip('ClawbotChannelContext', () => {
         await getByTestId('connect-btn').click();
       });
 
-      expect(clawbotChannelBridge.connect).toHaveBeenCalled();
+      expect(trixNativeChannelClient.connect).toHaveBeenCalled();
     });
 
     it('should update status on connecting event', async () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate connecting event
-      const connectingHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const connectingHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'connecting'
       )?.[1];
 
@@ -231,12 +233,12 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Mock checkPairingStatus to return not paired
-      vi.mocked(clawbotChannelBridge.checkPairingStatus).mockResolvedValueOnce({
+      vi.mocked(trixNativeChannelClient.checkPairingStatus).mockResolvedValueOnce({
         paired: false,
       });
 
       // Simulate connected event
-      const connectedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const connectedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'connected'
       )?.[1];
 
@@ -255,13 +257,13 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Mock checkPairingStatus to return paired
-      vi.mocked(clawbotChannelBridge.checkPairingStatus).mockResolvedValueOnce({
+      vi.mocked(trixNativeChannelClient.checkPairingStatus).mockResolvedValueOnce({
         paired: true,
         deviceId: 'device-123',
       });
 
       // Simulate connected event
-      const connectedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const connectedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'connected'
       )?.[1];
 
@@ -280,7 +282,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate disconnected event
-      const disconnectedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const disconnectedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'disconnected'
       )?.[1];
 
@@ -300,7 +302,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate reconnecting event
-      const reconnectingHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const reconnectingHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'reconnecting'
       )?.[1];
 
@@ -322,15 +324,15 @@ describe.skip('ClawbotChannelContext', () => {
         getByTestId('disconnect-btn').click();
       });
 
-      expect(clawbotChannelBridge.disconnect).toHaveBeenCalled();
+      expect(trixNativeChannelClient.disconnect).toHaveBeenCalled();
     });
   });
 
   describe('pairing', () => {
     it('should handle successful pairing with code', async () => {
       // Make sure bridge is connected
-      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
-      vi.mocked(clawbotChannelBridge.pairWithCode).mockResolvedValueOnce({
+      vi.mocked(trixNativeChannelClient.isConnected).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.pairWithCode).mockResolvedValueOnce({
         success: true,
         status: 'paired',
       });
@@ -341,13 +343,13 @@ describe.skip('ClawbotChannelContext', () => {
         await getByTestId('pair-btn').click();
       });
 
-      expect(clawbotChannelBridge.pairWithCode).toHaveBeenCalledWith('123456');
+      expect(trixNativeChannelClient.pairWithCode).toHaveBeenCalledWith('123456');
     });
 
     it('should set pairingStatus to paired on successful pairing', async () => {
       // Make sure bridge is connected
-      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
-      vi.mocked(clawbotChannelBridge.pairWithCode).mockResolvedValueOnce({
+      vi.mocked(trixNativeChannelClient.isConnected).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.pairWithCode).mockResolvedValueOnce({
         success: true,
         status: 'paired',
       });
@@ -360,7 +362,7 @@ describe.skip('ClawbotChannelContext', () => {
       });
 
       // Simulate connected
-      const connectedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const connectedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'connected'
       )?.[1];
 
@@ -387,14 +389,14 @@ describe.skip('ClawbotChannelContext', () => {
         getByTestId('unpair-btn').click();
       });
 
-      expect(clawbotChannelBridge.unpair).toHaveBeenCalled();
+      expect(trixNativeChannelClient.unpair).toHaveBeenCalled();
     });
 
     it('should handle paired event from bridge', async () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate paired event
-      const pairedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const pairedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'paired'
       )?.[1];
 
@@ -414,7 +416,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate paired event first
-      const pairedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const pairedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'paired'
       )?.[1];
 
@@ -425,7 +427,7 @@ describe.skip('ClawbotChannelContext', () => {
       }
 
       // Now simulate unpaired
-      const unpairedHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const unpairedHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'unpaired'
       )?.[1];
 
@@ -444,8 +446,8 @@ describe.skip('ClawbotChannelContext', () => {
   describe('messaging', () => {
     it('should send message when connected and paired', async () => {
       // First make sure connected and paired
-      vi.mocked(clawbotChannelBridge.isPaired).mockReturnValue(true);
-      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isPaired).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isConnected).mockReturnValue(true);
 
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
@@ -453,7 +455,7 @@ describe.skip('ClawbotChannelContext', () => {
         getByTestId('send-btn').click();
       });
 
-      expect(clawbotChannelBridge.sendMessage).toHaveBeenCalledWith(
+      expect(trixNativeChannelClient.sendMessage).toHaveBeenCalledWith(
         'Hello',
         'text',
         undefined,
@@ -463,8 +465,8 @@ describe.skip('ClawbotChannelContext', () => {
     });
 
     it('should throw error when not paired', async () => {
-      vi.mocked(clawbotChannelBridge.isPaired).mockReturnValue(false);
-      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isPaired).mockReturnValue(false);
+      vi.mocked(trixNativeChannelClient.isConnected).mockReturnValue(true);
 
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
@@ -480,8 +482,8 @@ describe.skip('ClawbotChannelContext', () => {
     });
 
     it('should add message to state on send', async () => {
-      vi.mocked(clawbotChannelBridge.isPaired).mockReturnValue(true);
-      vi.mocked(clawbotChannelBridge.isConnected).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isPaired).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isConnected).mockReturnValue(true);
 
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
@@ -498,7 +500,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate receiving a message
-      const messageHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const messageHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'message'
       )?.[1];
 
@@ -520,12 +522,12 @@ describe.skip('ClawbotChannelContext', () => {
     });
 
     it('should handle bot message with bot state transition', async () => {
-      vi.mocked(clawbotChannelBridge.isPaired).mockReturnValue(true);
+      vi.mocked(trixNativeChannelClient.isPaired).mockReturnValue(true);
 
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate receiving a bot message
-      const messageHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const messageHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'message'
       )?.[1];
 
@@ -552,7 +554,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // First add a message
-      const messageHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const messageHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'message'
       )?.[1];
 
@@ -588,7 +590,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate error event
-      const errorHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const errorHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'error'
       )?.[1];
 
@@ -608,7 +610,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate error event with protocol mismatch
-      const errorHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const errorHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'error'
       )?.[1];
 
@@ -634,7 +636,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate bot_offline event
-      const botOfflineHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const botOfflineHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'bot_offline'
       )?.[1];
 
@@ -655,7 +657,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate bot_online event
-      const botOnlineHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const botOnlineHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'bot_online'
       )?.[1];
 
@@ -697,7 +699,7 @@ describe.skip('ClawbotChannelContext', () => {
       const { getByTestId } = renderWithProviders(<TestConsumer />);
 
       // Simulate receiving a message
-      const messageHandler = vi.mocked(clawbotChannelBridge.on).mock.calls.find(
+      const messageHandler = vi.mocked(trixNativeChannelClient.on).mock.calls.find(
         (call) => call[0] === 'message'
       )?.[1];
 
