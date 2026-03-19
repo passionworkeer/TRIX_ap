@@ -4,25 +4,33 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-// Create mock functions
-const mockError = vi.fn();
-const mockSuccess = vi.fn();
-const mockLoading = vi.fn();
-const mockDismiss = vi.fn();
+const { mockError, mockSuccess, mockToast, mockLoading, mockDismiss } = vi.hoisted(() => ({
+  mockError: vi.fn(),
+  mockSuccess: vi.fn(),
+  mockToast: vi.fn(),
+  mockLoading: vi.fn(),
+  mockDismiss: vi.fn(),
+}));
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
-  toast: {
+  default: Object.assign(mockToast, {
     error: mockError,
     success: mockSuccess,
     loading: mockLoading,
     dismiss: mockDismiss,
-  },
+  }),
+  toast: Object.assign(mockToast, {
+    error: mockError,
+    success: mockSuccess,
+    loading: mockLoading,
+    dismiss: mockDismiss,
+  }),
 }));
 
 import { useNotification } from './useNotification';
 
-describe.skip('useNotification', () => {
+describe('useNotification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -99,7 +107,7 @@ describe.skip('useNotification', () => {
         result.current.showWarning('Warning message');
       });
 
-      expect(mockError).toHaveBeenCalledWith('Warning message', expect.objectContaining({
+      expect(mockToast).toHaveBeenCalledWith('Warning message', expect.objectContaining({
         duration: 3500,
         icon: '⚠️',
         style: expect.objectContaining({
@@ -116,7 +124,7 @@ describe.skip('useNotification', () => {
         result.current.showWarning('Warning message', { duration: 5000 });
       });
 
-      expect(mockError).toHaveBeenCalledWith('Warning message', expect.objectContaining({
+      expect(mockToast).toHaveBeenCalledWith('Warning message', expect.objectContaining({
         duration: 5000,
       }));
     });
@@ -130,7 +138,7 @@ describe.skip('useNotification', () => {
         result.current.showInfo('Info message');
       });
 
-      expect(mockError).toHaveBeenCalledWith('Info message', expect.objectContaining({
+      expect(mockToast).toHaveBeenCalledWith('Info message', expect.objectContaining({
         duration: 3000,
         icon: 'ℹ️',
         style: expect.objectContaining({

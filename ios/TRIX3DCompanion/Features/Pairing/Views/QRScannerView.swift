@@ -447,33 +447,32 @@ struct QRScannerView: View {
             let code = scanResult.string.trimmingCharacters(in: .whitespacesAndNewlines)
             var isValid = false
 
-                // Check various valid formats:
-            // 1. JSON format with "token" or "pairingToken" field
+            // Check supported native formats only:
+            // 1. JSON with claimUrl/url/code(+secret/serverUrl)
             if let data = code.data(using: .utf8),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let token = json["token"] as? String
-                let pairingToken = json["pairingToken"] as? String
-                if (token?.isEmpty == false) || (pairingToken?.isEmpty == false) {
+                if (json["claimUrl"] as? String)?.isEmpty == false ||
+                    (json["url"] as? String)?.isEmpty == false ||
+                    (json["code"] as? String)?.isEmpty == false {
                     isValid = true
                 }
             }
-            // 2. trix:pair: prefix
-            if code.hasPrefix("trix:pair:") {
+            // 2. 6-8 character alphanumeric pairing code
+            if code.range(of: "^[A-Z0-9]{6,8}$", options: .regularExpression) != nil {
                 isValid = true
             }
-            // 3. 6-character alphanumeric pairing code
-            if code.count == 6 && code.range(of: "^[A-Z0-9]+$", options: .regularExpression, range: nil, locale: nil) != nil {
-                isValid = true
-            }
-            // 4. Native channel URL format: http://host/pair?code=XXX&secret=YYY
+            // 3. Native channel URL format: http://host/pair?code=XXX&secret=YYY
             if (code.hasPrefix("http://") || code.hasPrefix("https://")),
                let url = URL(string: code),
                let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                components.queryItems?.contains(where: { $0.name == "code" }) == true {
                 isValid = true
             }
-            // 5. Direct token (10+ characters)
-            if code.count >= 10 {
+            // 4. Compact native format: CODE:SECRET
+            let compact = code.replacingOccurrences(of: "[^a-zA-Z0-9:|_ -]", with: "", options: .regularExpression)
+            if compact.contains(":"),
+               let pairCode = compact.split(separator: ":", maxSplits: 1).first,
+               String(pairCode).range(of: "^[A-Z0-9]{6,8}$", options: .regularExpression) != nil {
                 isValid = true
             }
 

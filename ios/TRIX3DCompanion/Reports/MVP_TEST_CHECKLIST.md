@@ -40,7 +40,6 @@
 
 | # | 测试套件 | 测试数 | 状态 |
 |---|----------|--------|------|
-| 1 | GatewayProtocolSmokeTests | 2 | ✅ PASSED |
 | 2 | InputValidatorSmokeTests | 3 | ✅ PASSED |
 | **总计** | | **5** | **✅ ALL PASSED** |
 

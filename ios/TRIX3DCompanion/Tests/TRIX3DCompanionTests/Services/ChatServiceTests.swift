@@ -118,7 +118,7 @@ final class MockWebSocketManagerForChat: WebSocketManagerProtocol {
 
     func pairWithCode(_ code: String) {}
 
-    func pairWithToken(_ token: String) {}
+    func pairWithQR(_ qrData: String) {}
 
     func unpair() {}
 

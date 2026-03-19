@@ -39,7 +39,6 @@
   "author": "TRIX Team",
   "license": "MIT",
   "dependencies": {
-    "@trix-app/relay-client": "file:../trix-relay-client",
     "qrcode": "^1.5.4",
     "ws": "^8.19.0"
   },

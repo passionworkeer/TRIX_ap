@@ -62,9 +62,10 @@ vi.mock('../hooks/useNotification', () => ({
   })
 }));
 
-vi.mock('../services/ClawbotChannelBridge', () => ({
+vi.mock('../services/TrixNativeChannelClient', () => ({
   default: {
     isConnected: mocks.isConnected,
+    isPaired: vi.fn(() => true),
     on: mocks.on,
     off: mocks.off,
     getStudyRoomState: mocks.getStudyRoomState,
@@ -218,7 +219,7 @@ describe('StudyRoom', () => {
     fireEvent.click(screen.getByRole('button', { name: '离开房间' }));
 
     await waitFor(() => {
-      expect(mocks.leaveStudyRoom).toHaveBeenCalledWith('ROOM01');
+      expect(mocks.leaveStudyRoom).toHaveBeenCalledWith('ROOM01', 'user-1');
     });
   });
 
@@ -234,7 +235,11 @@ describe('StudyRoom', () => {
     fireEvent.click(await screen.findByText('开始'));
 
     await waitFor(() => {
-      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', 'start_focus');
+      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
+        userId: 'user-1',
+        action: 'start_focus',
+        durationMinutes: 25,
+      });
     });
   });
 
@@ -255,7 +260,11 @@ describe('StudyRoom', () => {
     fireEvent.click(await screen.findByText('暂停'));
 
     await waitFor(() => {
-      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', 'pause');
+      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
+        userId: 'user-1',
+        action: 'pause',
+        durationMinutes: undefined,
+      });
     });
   });
 
@@ -271,7 +280,11 @@ describe('StudyRoom', () => {
     fireEvent.click(await screen.findByText('结束'));
 
     await waitFor(() => {
-      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', 'end');
+      expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
+        userId: 'user-1',
+        action: 'end',
+        durationMinutes: undefined,
+      });
     });
   });
 
@@ -300,7 +313,11 @@ describe('StudyRoom', () => {
     fireEvent.click(screen.getByRole('button', { name: '加入' }));
 
     await waitFor(() => {
-      expect(mocks.joinStudyRoom).toHaveBeenCalledWith('XYZ123', 'tester', undefined);
+      expect(mocks.joinStudyRoom).toHaveBeenCalledWith('XYZ123', {
+        userId: 'user-1',
+        displayName: 'tester',
+        avatarUrl: undefined,
+      });
     });
   });
 

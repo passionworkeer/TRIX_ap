@@ -22,7 +22,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
-import clawbotChannelBridge from '../services/ClawbotChannelBridge';
 import trixNativeChannelClient from '../services/TrixNativeChannelClient';
 import {
   iosBackdropMotion,
@@ -157,11 +156,6 @@ async function getCurrentRoom(userId: string): Promise<StudyRoomState | null> {
   }
 
   try {
-    if (IS_TEST_ENV) {
-      const room = await clawbotChannelBridge.getStudyRoomState();
-      return room ?? null;
-    }
-
     const room = await trixNativeChannelClient.getStudyRoomState({ userId });
     return room ?? null;
   } catch (error) {
@@ -173,27 +167,14 @@ async function getCurrentRoom(userId: string): Promise<StudyRoomState | null> {
 }
 
 async function createStudyRoom(params: { userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }): Promise<StudyRoomState> {
-  if (IS_TEST_ENV) {
-    return clawbotChannelBridge.createStudyRoom(params.displayName, params.avatarUrl, params.maxMembers);
-  }
-
   return trixNativeChannelClient.createStudyRoom(params);
 }
 
 async function joinStudyRoom(roomCode: string, params: { userId: string; displayName: string; avatarUrl?: string }): Promise<StudyRoomState> {
-  if (IS_TEST_ENV) {
-    return clawbotChannelBridge.joinStudyRoom(roomCode, params.displayName, params.avatarUrl);
-  }
-
   return trixNativeChannelClient.joinStudyRoom(roomCode, params);
 }
 
 async function leaveStudyRoom(roomCode: string, userId: string): Promise<void> {
-  if (IS_TEST_ENV) {
-    await clawbotChannelBridge.leaveStudyRoom(roomCode);
-    return;
-  }
-
   await trixNativeChannelClient.leaveStudyRoom(roomCode, userId);
 }
 
@@ -203,18 +184,10 @@ async function hostActionStudyRoom(
   action: StudyRoomHostAction,
   durationMinutes?: number,
 ): Promise<StudyRoomState> {
-  if (IS_TEST_ENV) {
-    return clawbotChannelBridge.hostActionStudyRoom(roomCode, action);
-  }
-
   return trixNativeChannelClient.hostActionStudyRoom(roomCode, { userId, action, durationMinutes });
 }
 
 async function lookupFriendRooms(userIds: string[]): Promise<{ users: FriendRoomLookupResult[] }> {
-  if (IS_TEST_ENV) {
-    return clawbotChannelBridge.lookupStudyRoomsByUsers(userIds);
-  }
-
   return trixNativeChannelClient.lookupStudyRoomsByUsers(userIds);
 }
 
@@ -223,7 +196,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
   const { user, profile } = useAuth();
   const { showError, showInfo, showSuccess, showWarning } = useNotification();
   const { connect: connectNativeChannel, isPaired: isChannelPaired } = useClawbotChannel();
-  const studyRoomRealtimeApi = useMemo(() => (IS_TEST_ENV ? clawbotChannelBridge : trixNativeChannelClient), []);
+  const studyRoomRealtimeApi = useMemo(() => trixNativeChannelClient, []);
 
   const [entryMode, setEntryMode] = useState<EntryMode>('self');
   const [selectedDuration, setSelectedDuration] = useState<number>(25);

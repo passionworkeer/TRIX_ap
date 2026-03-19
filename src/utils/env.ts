@@ -1,4 +1,4 @@
-import { getClawbotEndpoints, maskSecret } from '../config/clawbotEndpoints';
+import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import { logger } from './logger';
 
 const REQUIRED_ENV_VARS = [
@@ -7,15 +7,8 @@ const REQUIRED_ENV_VARS = [
 ] as const;
 
 const OPTIONAL_ENV_VARS = [
-  'VITE_CLAWBOT_CHANNEL_URL',
-  'VITE_GATEWAY_WS_URL',
-  'VITE_GATEWAY_AUTH_TOKEN',
   'VITE_TRIX_NATIVE_SERVER_URL',
   'VITE_TRIX_NATIVE_PUBLIC_URL',
-  'VITE_CLAWBOT_GATEWAY_URL',
-  'VITE_CLAWBOT_GATEWAY_TOKEN',
-  'VITE_PC_WEBSOCKET_URL',
-  'VITE_PC_AUTH_TOKEN',
   'VITE_USE_SERVER_OSS_UPLOAD',
   'VITE_ALIYUN_OSS_REGION',
   'VITE_ALIYUN_OSS_BUCKET',
@@ -120,20 +113,6 @@ function validateEnvVars(): ValidationError[] {
         message: `Invalid production URL: loopback address is not allowed (${endpoints.nativePublicUrl})`,
       });
     }
-
-    if (endpoints.channelUrl && isLoopbackUrl(endpoints.channelUrl)) {
-      errors.push({
-        variable: 'VITE_CLAWBOT_CHANNEL_URL',
-        message: `Invalid production URL: loopback address is not allowed (${endpoints.channelUrl})`,
-      });
-    }
-
-    if (endpoints.gatewayUrl && isLoopbackUrl(endpoints.gatewayUrl)) {
-      errors.push({
-        variable: 'VITE_GATEWAY_WS_URL',
-        message: `Invalid production URL: loopback address is not allowed (${endpoints.gatewayUrl})`,
-      });
-    }
   }
 
   return errors;
@@ -188,15 +167,6 @@ function displayOptionalInfo(): void {
 
   logger.ui.debug(`  - TRIX Native Server URL: ${endpoints.nativeServerUrl || 'MISSING'}`);
   logger.ui.debug(`  - TRIX Native Public URL: ${endpoints.nativePublicUrl || 'MISSING'}`);
-  logger.ui.debug(`  - Clawbot Channel URL: ${endpoints.channelUrl || 'DISABLED'}`);
-  logger.ui.debug(`  - OpenClaw Gateway URL: ${endpoints.gatewayUrl || 'DISABLED'}`);
-  logger.ui.debug(`  - OpenClaw Gateway Token: ${maskSecret(endpoints.gatewayToken) || 'MISSING'}`);
-
-  if (endpoints.channelUrl || endpoints.gatewayUrl || endpoints.gatewayToken) {
-    logger.ui.warn(
-      'Environment Variables: legacy Gateway/Channel env vars are still set; Web chat should use only VITE_TRIX_NATIVE_SERVER_URL.'
-    );
-  }
 
   if (import.meta.env.VITE_OSS_ENDPOINT?.trim()) {
     logger.ui.warn(

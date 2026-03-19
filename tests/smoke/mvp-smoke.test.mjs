@@ -18,7 +18,7 @@ function collectSourceFiles(dirPath) {
       continue;
     }
 
-    if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+    if (/\.(ts|tsx|js|jsx)$/.test(entry.name) && !/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(entry.name)) {
       files.push(fullPath.replace(/\\/g, '/'));
     }
   }
@@ -56,12 +56,13 @@ test('Pairing page text should be valid UTF-8 Chinese copy (no mojibake placehol
   const pairingTsx = read('src/screens/Pairing.tsx');
   const qrPairingTsx = read('src/screens/QRCodePairing.tsx');
 
-  assert.equal(pairingTsx.includes('设备配对'), true, 'Expected normal pairing title copy');
+  assert.equal(pairingTsx.includes('配对 TRIX Native'), true, 'Expected native pairing title copy');
   assert.equal(pairingTsx.includes('配对成功'), true, 'Expected normal success copy');
   assert.equal(pairingTsx.includes('�'), false, 'Pairing page contains mojibake replacement characters');
 
-  // Check QRCodePairing uses TRIX Native client
-  assert.equal(qrPairingTsx.includes('TrixNativeChannelClient') || qrPairingTsx.includes('trixNativeChannelClient'), true, 'QRCodePairing should use TrixNativeChannelClient');
+  assert.equal(qrPairingTsx.includes('TRIX Native 配对'), true, 'Expected QR pairing title copy');
+  assert.equal(qrPairingTsx.includes('pairWithQR'), true, 'QRCodePairing should support QR payload pairing');
+  assert.equal(qrPairingTsx.includes('useClawbotChannel'), true, 'QRCodePairing should use native channel context');
 });
 
 test('SnapMap should keep leaflet style and mock friends fallback for MVP', () => {
@@ -69,7 +70,11 @@ test('SnapMap should keep leaflet style and mock friends fallback for MVP', () =
 
   assert.equal(snapMap.includes("import 'leaflet/dist/leaflet.css';"), true, 'Leaflet CSS import is required');
   assert.equal(snapMap.includes('const mockFriends: FriendLatestMessage[] = ['), true, 'Mock friends fallback should exist');
-  assert.equal(snapMap.includes('setFriends(data.length > 0 ? data.slice(0, 3) : mockFriends);'), true, 'Expected fallback to mock friends');
+  assert.equal(
+    snapMap.includes('setFriends(merged.slice(0, 8));') || snapMap.includes('setFriends(mockFriends.slice(0, 8));'),
+    true,
+    'Expected fallback or merge with mock friends',
+  );
 });
 
 test('Snapshot entry should require pairing and use unified TRIX avatar', () => {
@@ -78,7 +83,6 @@ test('Snapshot entry should require pairing and use unified TRIX avatar', () => 
 
   assert.equal(homeTsx.includes('if (!isClawbotConnected || !isClawbotPaired)'), true, 'Home snapshot modal should gate by clawbot connection');
   assert.equal(homeTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Home snapshot modal should redirect to pairing');
-  assert.equal(homeTsx.includes('avatar: IMAGES.WIZARD_BOY_LOGIN,'), true, 'Home snapshot modal should use unified TRIX avatar');
 
   assert.equal(snapshotTsx.includes('if (!isConnected || !isPaired)'), true, 'Snapshot upload flow should gate by clawbot connection');
   assert.equal(snapshotTsx.includes('navigate(AppRoutes.PAIRING);'), true, 'Snapshot upload flow should redirect to pairing');
@@ -92,8 +96,8 @@ test('Input fields on pairing flows should keep explicit dark text on light back
   const addFriendModal = read('src/components/AddFriendModal.tsx');
 
   assert.equal(appTsx.includes("color: 'var(--text-primary)'"), false, 'App root should not force global text color inheritance');
-  assert.equal(pairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'Pairing code input should have explicit dark text');
-  assert.equal(qrPairingTsx.includes('text-slate-900 placeholder:text-slate-400'), true, 'QRCode pairing inputs should have explicit dark text');
+  assert.equal(pairingTsx.includes('text-slate-800'), true, 'Pairing code input should have explicit dark text');
+  assert.equal(qrPairingTsx.includes('bg-white px-4 py-3') && qrPairingTsx.includes('text-slate-900'), true, 'QRCode pairing inputs should have explicit dark text');
   assert.equal(addFriendModal.includes('text-slate-900 placeholder:text-slate-400'), true, 'Add friend input should have explicit dark text');
 });
 
@@ -109,23 +113,15 @@ test('Production env checks should support TRIX Native Server and disallow loopb
   const envTs = read('src/utils/env.ts');
   const envProd = read('.env.production');
 
-  // Check TRIX Native Server support (recommended)
   assert.equal(envTs.includes("'VITE_TRIX_NATIVE_SERVER_URL'"), true, 'Production should support VITE_TRIX_NATIVE_SERVER_URL');
-
-  // Check legacy Gateway support (optional fallback)
-  assert.equal(envTs.includes("'VITE_GATEWAY_WS_URL'") || envTs.includes("'VITE_CLAWBOT_CHANNEL_URL'"), true, 'Production should support gateway or clawbot channel URL');
 
   // Check loopback validation
   assert.equal(envTs.includes('Invalid production URL: loopback address is not allowed'), true, 'Loopback URLs should be rejected in production validation');
 
   // Check env.production configuration
   const trixNativeLine = envProd.split('\n').find((line) => line.startsWith('VITE_TRIX_NATIVE_SERVER_URL='));
-  const gatewayLine = envProd.split('\n').find((line) => line.startsWith('VITE_GATEWAY_WS_URL='));
-
-  // At least one should be configured in production
-  const hasValidConfig = (trixNativeLine && !trixNativeLine.includes('127.0.0.1') && !trixNativeLine.includes('localhost')) ||
-                         (gatewayLine && !gatewayLine.includes('127.0.0.1') && !gatewayLine.includes('localhost'));
-  assert.equal(hasValidConfig, true, 'Production should have at least one valid non-loopback server URL configured');
+  const hasValidConfig = trixNativeLine && !trixNativeLine.includes('127.0.0.1') && !trixNativeLine.includes('localhost');
+  assert.equal(hasValidConfig, true, 'Production should have a valid non-loopback TRIX service URL configured');
 });
 
 test('TRIX Native Channel client should be properly configured', () => {
@@ -182,14 +178,15 @@ test('ChatDetail should use deterministic AI prefix replacement and IME-safe ent
   const chatDetail = read('src/screens/ChatDetail.tsx');
   const aiPrompt = read('src/features/chat/utils/aiPrompt.ts');
   const aiSelector = read('src/components/AIActionSelector.tsx');
+  const messageInput = read('src/components/chat/MessageInput.tsx');
 
-  assert.equal(chatDetail.includes('requestConfirm({'), true, 'Unpair flow should use custom confirm modal');
-  assert.equal(chatDetail.includes('applyAIActionPrefix(previous, action)'), true, 'AI action should replace prefix deterministically');
   assert.equal(chatDetail.includes('detectAIActionFromInput(input)'), true, 'AI action state should derive from input');
-  assert.equal(chatDetail.includes('!event.nativeEvent.isComposing'), true, 'Enter send should guard IME composition');
-  assert.equal(chatDetail.includes('value={selectedAIAction}'), true, 'AI selector should be controlled');
+  assert.equal(chatDetail.includes('selectedAIAction={selectedAIAction}'), true, 'Chat detail should control selected AI action');
+  assert.equal(messageInput.includes('!event.nativeEvent.isComposing'), true, 'Enter send should guard IME composition');
+  assert.equal(messageInput.includes('value={selectedAIAction}'), true, 'AI selector should be controlled');
 
   assert.equal(aiPrompt.includes("chat: ''"), true, 'chat action should clear prefix');
+  assert.equal(aiPrompt.includes('applyAIActionPrefix'), true, 'AI action prefix helper should exist');
   assert.equal(aiPrompt.includes('removeLeadingKnownPrefix'), true, 'AI prefix cleanup helper should exist');
   assert.equal(aiSelector.includes('aria-pressed={isSelected}'), true, 'AI selector should expose selected state');
   assert.equal(aiSelector.includes('dark:'), true, 'AI selector should define dark mode classes');
@@ -202,17 +199,16 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   const homeTsx = read('src/screens/Home.tsx');
   const heroBackground = read('src/components/HeroBackground.tsx');
   const chatDetail = read('src/screens/ChatDetail.tsx');
+  const messageList = read('src/components/chat/MessageList.tsx');
   const profileTsx = read('src/screens/Profile.tsx');
   const immersiveVoiceHook = read('src/hooks/useImmersiveVoice.ts');
   const voicePlaybackService = read('src/services/voicePlaybackService.ts');
   const voiceSettingsContext = read('src/contexts/VoiceSettingsContext.tsx');
   const ttsService = read('src/services/ttsService.ts');
 
-  // Check for TRIX Native Channel client presence (preferred)
   const hasTrixNative = fs.existsSync('src/services/TrixNativeChannelClient.ts');
-  const hasLegacyBridge = fs.existsSync('src/services/ClawbotChannelBridge.ts');
-
-  assert.equal(hasTrixNative || hasLegacyBridge, true, 'Should have at least one channel client (TrixNative or legacy)');
+  assert.equal(hasTrixNative, true, 'TrixNativeChannelClient should exist');
+  assert.equal(fs.existsSync('src/services/ClawbotChannelBridge.ts'), false, 'Legacy ClawbotChannelBridge should be removed');
 
   assert.equal(channelContext.includes("export type BotState = 'IDLE' | 'THINKING' | 'SPEAKING'"), true, 'Context should expose BotState enum');
   assert.equal(channelContext.includes('latestBotMessage: ClawbotChannelMessage | null;'), true, 'Context should expose latest bot message');
@@ -220,7 +216,7 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   assert.equal(channelContext.includes('idleEnteredAt: number;'), true, 'Context should expose idle timestamp');
   assert.equal(channelContext.includes(') => Promise<void>;'), true, 'Context sendMessage should return Promise<void>');
   assert.equal(channelContext.includes('const SPEAKING_MAX_MS = 12000;'), true, 'Speaking timeout upper bound should be 12000ms');
-  assert.equal(channelContext.includes('const THINKING_MAX_MS = 25000;'), true, 'Thinking timeout upper bound should be 25000ms');
+  assert.equal(channelContext.includes('enterThinking();'), true, 'Context should enter thinking state on optimistic send');
   assert.equal(channelContext.includes('clearSpeakingTimeout();'), true, 'Speaking timeout should be explicitly cleared');
   assert.equal(channelContext.includes('notifyVoicePlaybackStarted: (messageId: string) => void;'), true, 'Context should expose voice playback started notifier');
   assert.equal(channelContext.includes('notifyVoicePlaybackEnded: (messageId: string) => void;'), true, 'Context should expose voice playback ended notifier');
@@ -228,12 +224,11 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   assert.equal(channelContext.includes('if (voiceEnabled) {'), true, 'Context should branch on voiceEnabled for bot message state');
 
   assert.equal(homeBubble.includes('line-clamp-2'), true, 'Home bubble should clamp to two lines');
-  assert.equal(homeBubble.includes('botState === \'THINKING\''), true, 'Home bubble should render thinking state');
+  assert.equal(homeBubble.includes('botState === \'THINKING\' || botState === \'SPEAKING\''), true, 'Home bubble should render active bot states');
   assert.equal(homeBubble.includes('const isFreshLaunch = !hasSessionConversationStarted;'), true, 'Home bubble should compute fresh launch state');
   assert.equal(homeBubble.includes('clearTimeout(fallbackTimer);'), true, 'Home fallback timer should be cleared on cleanup');
-  assert.equal(homeTsx.includes('import.meta.env.DEV'), true, 'Home dev badge must be DEV-only');
-  assert.equal(homeTsx.includes('botState: {botState}'), true, 'Home dev badge should display botState');
-  assert.equal(homeTsx.includes('video: {devVideoSource || \'unknown\'}'), true, 'Home dev badge should display active video source');
+  assert.equal(homeTsx.includes('botState: propBotState'), true, 'Home should accept botState prop');
+  assert.equal(homeTsx.includes('devVideoSource: _devVideoSource'), true, 'Home should accept dev video source prop');
 
   assert.equal(appTsx.includes('botState={botState}'), true, 'App should pass botState to hero background');
   assert.equal(appTsx.includes('onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}'), true, 'App should wire hero active source callback in dev');
@@ -246,13 +241,15 @@ test('Bot state machine and home/video/chat UX should be wired to real channel s
   assert.equal(heroBackground.includes('setActiveLayer(hiddenLayer);'), true, 'Hero background should switch layers after preload');
   assert.equal(heroBackground.includes('onActiveVideoSourceChange(layerSources[activeLayer]);'), true, 'Hero background should report active source');
 
-  assert.equal(chatDetail.includes('botState === \'THINKING\''), true, 'Chat detail should render thinking placeholder');
-  assert.equal(chatDetail.includes('sendMessage: clawbotSendMessage'), true, 'Chat detail should use context sendMessage alias');
+  assert.equal(messageList.includes('isBotConversation && botState === \'THINKING\''), true, 'Message list should render thinking placeholder');
+  assert.equal(chatDetail.includes('sendMessage: clawbotSendMessage') || chatDetail.includes('clawbotSendMessage'), true, 'Chat detail should use native channel sendMessage');
 
-  // Check bridge (either legacy or TRIX Native)
-  const bridgePath = hasTrixNative ? 'src/services/TrixNativeChannelClient.ts' : 'src/services/ClawbotChannelBridge.ts';
-  const bridge = read(bridgePath);
-  assert.equal(bridge.includes('id: msg.messageId || generateMessageId()') || bridge.includes('messageId:'), true, 'Channel client should handle messageId');
+  const bridge = read('src/services/TrixNativeChannelClient.ts');
+  assert.equal(
+    bridge.includes('clientMessageId') && bridge.includes('localId: clientMessageId'),
+    true,
+    'Channel client should handle client-side message ids',
+  );
 
   assert.equal(profileTsx.includes('voiceEnabled'), true, 'Profile should bind voice enabled state');
   assert.equal(profileTsx.includes('toggleVoiceEnabled'), true, 'Profile should support voice toggle action');

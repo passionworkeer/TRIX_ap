@@ -9,15 +9,15 @@
 ```typescript
 // src/services/__tests__/pairingService.test.ts
 import { describe, it, expect, vi } from 'vitest'
-import { pairWithToken } from '../pairingService'
+import { pairWithQR } from '../pairingService'
 
-describe('pairWithToken', () => {
+describe('pairWithQR', () => {
   it('should not bind user if bot is offline', async () => {
     // Arrange
     const mockBotOnline = vi.fn().mockResolvedValue(false)
 
     // Act
-    const result = await pairWithToken('test-token')
+    const result = await pairWithQR('https://trix.love/pair?code=ABC123&secret=test-secret')
 
     // Assert
     expect(result.success).toBe(false)
@@ -30,7 +30,7 @@ describe('pairWithToken', () => {
 
 ```typescript
 // src/services/pairingService.ts
-export const pairWithToken = async (token: string) => {
+export const pairWithQR = async (qrPayload: string) => {
   // 1. 先检查 Bot 在线
   const botOnline = await checkBotOnline(botId)
   if (!botOnline) {
@@ -38,7 +38,7 @@ export const pairWithToken = async (token: string) => {
   }
 
   // 2. 验证 Token
-  const tokenValid = await validateToken(token)
+  const tokenValid = await validateToken(qrPayload)
   if (!tokenValid) {
     return { success: false, error: 'Invalid token' }
   }
@@ -92,7 +92,7 @@ describe('Pairing State Consistency', () => {
     // 尝试配对
     let pairingResult
     await act(async () => {
-      pairingResult = await result.current.pairWithToken('test-token')
+      pairingResult = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=test-secret')
     })
 
     // 验证：应该失败
@@ -112,14 +112,14 @@ describe('Pairing State Consistency', () => {
     // 第一次配对失败
     await act(async () => {
       await result.current.mockBotOffline('test-bot-id')
-      const result1 = await result.current.pairWithToken('token1')
+      const result1 = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=token1')
       expect(result1.success).toBe(false)
     })
 
     // Bot 上线后配对成功
     await act(async () => {
       await result.current.mockBotOnline('test-bot-id')
-      const result2 = await result.current.pairWithToken('token2')
+      const result2 = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=token2')
       expect(result2.success).toBe(true)
     })
 
@@ -141,7 +141,7 @@ describe('Pairing State Consistency', () => {
 export const ClawbotChannelProvider = ({ children }) => {
   // ...
 
-  const pairWithToken = useCallback(async (token: string) => {
+  const pairWithQR = useCallback(async (qrPayload: string) => {
     try {
       // 1. 先检查 Bot 在线（关键修复）
       const botStatus = await checkBotStatus(currentPairing.botId)
@@ -153,7 +153,7 @@ export const ClawbotChannelProvider = ({ children }) => {
       }
 
       // 2. 验证 Token
-      const tokenData = await verifyPairingToken(token)
+      const tokenData = await verifyPairingToken(qrPayload)
       if (!tokenData.valid) {
         return {
           success: false,
@@ -165,7 +165,7 @@ export const ClawbotChannelProvider = ({ children }) => {
       const result = await databaseService.pairUserWithBot({
         userId: session.user.id,
         botId: currentPairing.botId,
-        token: token
+        qrPayload
       })
 
       return result

@@ -224,7 +224,7 @@ private func handleRegister() async {
 | 文件 | 修复数量 |
 |------|----------|
 | `SupabaseService.swift` | 5 → SecureLogger |
-| `RelayClient.swift` | 8 → SecureLogger |
+| 旧 relay 客户端 | 8 → SecureLogger |
 | `ChatService.swift` | 2 → SecureLogger |
 | `UIRenderingOptimizer.swift` | 1 → SecureLogger |
 | `MapViewModel.swift` | 2 → SecureLogger |

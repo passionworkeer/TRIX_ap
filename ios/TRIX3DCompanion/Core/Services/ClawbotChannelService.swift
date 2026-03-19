@@ -929,8 +929,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     /// 解析二维码/链接数据
     /// 支持格式:
-    /// 1. URL: https://server:8788/pair?code=ABC123&secret=xxx
-    /// 2. JSON: { "code": "ABC123", "secret": "xxx", "serverUrl": "http://..." }
+    /// 1. URL: https://trix.love/pair?code=ABC123&secret=xxx
+    /// 2. JSON: { "claimUrl": "..."} / { "url": "..."} / { "code": "ABC123", "secret": "xxx", "serverUrl": "https://..." }
     /// 3. 纯配对码: ABC123
     /// 4. code:secret 格式: ABC123:xxx
     private func parseQRData(_ raw: String) -> (code: String, secret: String?, serverUrl: String?)? {
@@ -956,9 +956,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         // 2. 尝试解析为 JSON
         if let data = normalized.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            let code = (json["code"] as? String ?? json["requestId"] as? String ?? "").uppercased()
-            let secret = json["secret"] as? String ?? json["pairingToken"] as? String
-            let serverUrl = json["serverUrl"] as? String ?? json["gatewayUrl"] as? String
+            if let claimUrl = json["claimUrl"] as? String {
+                return parseQRData(claimUrl)
+            }
+            if let url = json["url"] as? String {
+                return parseQRData(url)
+            }
+
+            let code = (json["code"] as? String ?? "").uppercased()
+            let secret = json["secret"] as? String
+            let serverUrl = json["serverUrl"] as? String
 
             if !code.isEmpty {
                 return (code, secret, serverUrl)

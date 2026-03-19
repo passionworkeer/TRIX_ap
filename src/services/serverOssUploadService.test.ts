@@ -5,9 +5,6 @@ vi.stubGlobal('fetch', mockFetch);
 
 vi.mock('../config/clawbotEndpoints', () => ({
   getClawbotEndpoints: vi.fn(() => ({
-    channelUrl: '',
-    gatewayUrl: '',
-    gatewayToken: '',
     nativeServerUrl: 'http://test-native:8788',
     nativePublicUrl: 'https://chat.example.com',
   })),

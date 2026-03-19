@@ -123,9 +123,10 @@ vi.mock('../hooks/useNotification', () => ({
   })
 }));
 
-vi.mock('../services/ClawbotChannelBridge', () => ({
+vi.mock('../services/TrixNativeChannelClient', () => ({
   default: {
     isConnected: mocks.isConnected,
+    isPaired: vi.fn(() => true),
     on: mocks.on,
     off: mocks.off,
     getStudyRoomState: mocks.getStudyRoomState,
@@ -519,15 +520,15 @@ describe('Study Screen', () => {
     });
 
     // Skip these tests as they require more complex mock setup for proper error handling
-    // The StudyRoom component handles errors internally via ClawbotChannelBridge
+    // The StudyRoom component handles errors internally via the native client
     it.skip('should handle error when createStudyRoom fails', async () => {
       // This test is skipped because proper error handling requires
-      // integration with the actual ClawbotChannelBridge component
+      // integration with the actual StudyRoom component
     });
 
     it.skip('should handle error when joinStudyRoom fails', async () => {
       // This test is skipped because proper error handling requires
-      // integration with the actual ClawbotChannelBridge component
+      // integration with the actual StudyRoom component
     });
   });
 });
