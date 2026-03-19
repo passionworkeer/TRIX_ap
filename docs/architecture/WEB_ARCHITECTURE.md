@@ -216,7 +216,15 @@ src/
 │
 ├── App.tsx                        # 应用入口
 └── main.tsx                       # 入口文件
-```
+
+### 3.2 Monorepo Packages
+
+| 包 | 路径 | 用途 |
+|----|------|------|
+| `@trix-openclaw/native-channel` | `packages/trix-openclaw-native/` | OpenClaw 插件 + TRIX Native Server（Node.js） |
+| `@trix-app/relay-client` | `packages/trix-relay-client/` | Gateway + Relay 客户端封装（Web/通用） |
+
+`packages/trix-openclaw-native/` 包含 OpenClaw Channel 插件实现、TRIX Native Server 及 CLI 工具，详见 `docs/architecture/BACKEND_ARCHITECTURE.md`。
 
 ---
 
@@ -300,16 +308,21 @@ export const supabase = createClient(
 
 | 页面 | 路由 | 功能 |
 |------|------|------|
-| 认证 | `/auth` | 登录/注册 |
+| 登录 | `/login` | 用户登录 |
+| 注册 | `/register` | 用户注册 |
 | 首页 | `/` | 主界面 + 工作台 |
 | 聊天列表 | `/chat` | 好友列表 |
-| 聊天详情 | `/chat/:friendId` | 单聊/群聊 |
+| 聊天详情 | `/chat/:friendId` | 单聊 |
 | 学习 | `/study` | 专注计时 |
+| 学习计时 | `/study/timer` | 专注计时（独立页） |
 | 地图 | `/map` | 位置地图 |
-| 积分商城 | `/mall` | 商品兑换 |
+| 快照 | `/snapshot` | 相机拍照 |
+| 快照结果 | `/snapshot/result` | AI 快照分析 |
+| 诊断 | `/diagnostic` | 诊断页面 |
+| 高级诊断 | `/diagnostic-advanced` | 高级诊断 |
+| 积分商城 | `/points-mall` | 积分商城 |
 | 个人资料 | `/profile` | 用户信息 |
-| 服装 | `/wardrobe` | 换装系统 |
-| 配对 | `/pairing` | 设备配对 |
+| 配对 | `/qr-pairing` | QR 码配对 |
 | QR配对 | `/pairing/qr` | QR 配对 |
 | 快照 | `/snapshot` | 相机拍照 |
 | 诊断 | `/diagnostic` | 调试工具 |
@@ -337,7 +350,8 @@ const Study = lazy(() => import('./screens/Study'));
 | `AuthContext` | 用户登录状态、token 管理 |
 | `ThemeContext` | 明暗主题切换 |
 | `VoiceSettingsContext` | TTS 语音设置 |
-| `ClawbotChannelContext` | WebSocket 连接状态 |
+| `GatewayContext` | OpenClaw Gateway 连接状态 |
+| `ClawbotChannelContext` | TRIX Native Channel 消息封装（内部使用 `TrixNativeChannelClient`） |
 | `QRCodePairingContext` | QR 配对状态 |
 
 ### 6.2 状态流转
@@ -575,8 +589,10 @@ VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJxxx
 
 # Server
-VITE_CLAWBOT_SERVER_URL=http://TRIX_SERVER_HOST:8765
-VITE_GATEWAY_URL=ws://127.0.0.1:18789
+VITE_CLAWBOT_CHANNEL_URL=ws://TRIX_SERVER_HOST:8765
+VITE_GATEWAY_WS_URL=ws://127.0.0.1:18789
+VITE_GATEWAY_AUTH_TOKEN=<your-auth-token>
+VITE_TRIX_NATIVE_SERVER_URL=http://TRIX_SERVER_HOST:8788
 ```
 
 ---

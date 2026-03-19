@@ -274,7 +274,7 @@ openclaw trix setup
 | QR 码扫描 | 使用手机扫描电脑上的配对 QR 码 |
 | 手动输入 | 输入 6 位配对码完成配对 |
 
-详见: `docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md`
+详见: `docs/TRIX_NATIVE_CHANNEL.md`
 
 ---
 
@@ -314,7 +314,7 @@ openclaw trix setup
 | [README.md](../README.md) | 项目概览 |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指南 |
 | [docs/INDEX.md](./INDEX.md) | 完整文档索引 |
-| [docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md) | TRIX Native 配对架构 |
+| [docs/TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md) | TRIX Native Channel 完整协议 |
 
 ---
 

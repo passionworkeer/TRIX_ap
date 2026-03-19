@@ -14,11 +14,11 @@
 配对 QR 内容为 URL 格式：
 
 ```
-http://127.0.0.1:18789/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
+http://TRIX_SERVER_HOST:8788/pair?code=ABCDEF12&secret=R8s9KxMnPqLvWzA2B4C6D8
 ```
 
-- `code`: 8 位大写字母数字
-- `secret`: 18 位随机密钥
+- `code`: 6-8 位大写字母（排除 I/O/0/1）
+- `secret`: base64url 编码的 18 字节随机数（约 24 字符）
 - 默认有效期：**1 小时**
 
 ### 1.2 支持的输入格式
@@ -26,9 +26,10 @@ http://127.0.0.1:18789/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
 | 格式 | 示例 | 说明 |
 |------|------|------|
 | URL 格式（推荐） | `http://host/pair?code=XXX&secret=YYY` | 三端均支持 |
-| JSON 格式 | `{"code":"XXX","secret":"YYY"}` | 完整信息 |
-| 复合格式 | `CODE:SECRET` | 冒号分隔 |
-| 纯配对码 | `ABCDEF12` | 仅码，需预设 serverUrl |
+| JSON 格式 | `{"code":"XXX","secret":"YYY","serverUrl":"http://..."}` | 必须包含 serverUrl |
+| 纯配对码 | `ABCDEF12` | 仅码，需预设 serverUrl（Web 仅支持 6-8 位） |
+
+> ⚠️ 复合格式 `CODE:SECRET` 在 Web 端不支持（冒号会被去除导致解析失败）。
 
 ---
 
@@ -45,7 +46,7 @@ http://127.0.0.1:18789/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
 ```
 桌面端                      手机端                      Gateway
   │                           │                           │
-  │  createPairingQr()        │                           │
+  │  pairing:createQr         │                           │
   │─────────────────────────►│                           │
   │                           │  POST /api/pairings        │
   │                           │──────────────────────────►│
@@ -59,7 +60,7 @@ http://127.0.0.1:18789/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
   │                           │  { clientToken, conversationId }
   │                           │◄──────────────────────────│
   │                           │                           │
-  │  pollPairingStatus(code)  │                           │
+  │  pairing:pollStatus(code) │                           │
   │  每 2 秒轮询              │                           │
   │──────────────────────────►│──────────────────────────►│
   │  { status: "pending" }    │                           │
@@ -158,10 +159,10 @@ const { unpair } = useClawbotChannel();
 
 unpair();
 // 清除 trix_native_channel_session
-// 清除 trix_native_channel_client_id
+// 注意：client_id 不会清除，重启后会自动复用
 ```
 
-**文件**: `src/contexts/ClawbotChannelContext.tsx`
+**文件**: `src/contexts/ClawbotChannelContext.tsx`（实际实现在 `TrixNativeChannelClient.ts`）
 
 ### iOS 端
 
@@ -171,7 +172,8 @@ viewModel.unpair()
 // 断开 WebSocket
 ```
 
-**文件**: `ios/TRIX3DCompanion/App/ClawbotChannelViewModel.swift`
+**文件**: `ios/TRIX3DCompanion/Core/ViewModels/ClawbotChannelViewModel.swift`
+（`unpair()` 实际调用 `ClawbotChannelService.unpair()`）
 
 ### 桌面端
 

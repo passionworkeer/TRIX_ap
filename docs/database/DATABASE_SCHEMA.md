@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-19（补充缺失表：friend_requests, user_sessions, user_points, point_transactions, user_achievements, outfits, user_outfits, user_purchased_items, user_settings）
 
 ---
 
@@ -17,30 +17,27 @@
 │  │                     Core Tables                                   │   │
 │  │                                                                   │   │
 │  │  ┌─────────┐      ┌─────────┐      ┌──────────────┐           │   │
-│  │  │  users  │───▶─│ friends │◀─────│ chat_messages│           │   │
-│  │  │         │      │         │      │              │           │   │
+│  │  │  users  │───▶─│ profiles│───▶─│user_sessions │           │   │
+│  │  │(Auth)   │      │         │      │(单设备登录)  │           │   │
 │  │  └────┬────┘      └────┬────┘      └──────────────┘           │   │
 │  │       │                │                                        │   │
-│  │       │                ▼                                        │   │
-│  │       │         ┌──────────────┐                                │   │
-│  │       │         │unread_counts │                                │   │
-│  │       │         └──────────────┘                                │   │
-│  │       │                                                         │   │
-│  │       ▼                                                         │   │
-│  │  ┌─────────────────┐                                          │   │
-│  │  │  study_sessions │                                          │   │
-│  │  │         │        │                                          │   │
-│  │  │         ▼        │                                          │   │
-│  │  │  ┌─────────────┐│                                          │   │
-│  │  │  │ study_rooms ││                                          │   │
-│  │  │  │     │       ││                                          │   │
-│  │  │  │     ▼       ││                                          │   │
-│  │  │  │┌──────────┐││                                          │   │
-│  │  │  ││study_room│││                                          │   │
-│  │  │  ││_members │││                                          │   │
-│  │  │  │└──────────┘││                                          │   │
-│  │  │  └─────────────┘│                                          │   │
-│  │  └─────────────────┘                                          │   │
+│  │       ▼                ▼                                        │   │
+│  │  ┌─────────┐      ┌────────────────────────────────┐          │   │
+│  │  │ friends │◀─── │  friend_requests                 │          │   │
+│  │  │         │      │  chat_messages │unread_counts  │          │   │
+│  │  └─────────┘      └────────────────────────────────┘          │   │
+│  │                                                                   │   │
+│  │  ┌─────────────────┐   ┌──────────────────────────────┐      │   │
+│  │  │  study_sessions │   │  study_rooms                   │      │   │
+│  │  │                 │   │  study_room_members            │      │   │
+│  │  └─────────────────┘   └──────────────────────────────┘      │   │
+│  │  ┌─────────────────────────────────────────────────────┐      │   │
+│  │  │  user_points │ point_transactions │ points_trans.. │      │   │
+│  │  └─────────────────────────────────────────────────────┘      │   │
+│  │  ┌──────────────────┐   ┌──────────────────────────────┐      │   │
+│  │  │ achievements     │   │ user_achievements           │      │   │
+│  │  │ outfits          │   │ user_outfits │ user_purch..  │      │   │
+│  │  └──────────────────┘   └──────────────────────────────┘      │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
@@ -50,10 +47,10 @@
 │  │  │notifications│  │  mails  │  │ todos │  │ schedules │      │   │
 │  │  └─────────────┘  └─────────┘  └───────┘  └───────────┘      │   │
 │  │                                                                   │   │
-│  │  ┌──────────────────┐  ┌──────────────────────┐              │   │
-│  │  │points_transactions│  │      mall_items      │              │   │
-│  │  └──────────────────┘  └──────────────────────┘              │   │
-│  │                                                                   │   │
+│  │  ┌──────────────────┐  ┌──────────────────────┐  ┌────────┐  │   │
+│  │  │pairings          │  │   mall_items          │  │user_set│  │   │
+│  │  │(设备配对)         │  │                      │  │-tings  │  │   │
+│  │  └──────────────────┘  └──────────────────────┘  └────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -67,11 +64,12 @@
 
 | 表名 | 描述 | 主要字段 |
 |------|------|---------|
-| `users` | 用户账户 | id, email, username, avatar_url |
-| `profiles` | 用户资料扩展 | user_id, points, total_study_time, avatar_config |
+| `users` | 用户账户（Supabase Auth） | id, email |
+| `profiles` | 用户资料扩展 | user_id, points, total_study_time, avatar_config, active_session_id |
+| `user_sessions` | 单设备登录会话 | id, user_id, platform, device_id, is_active, expires_at |
 | `friends` | 好友关系 | user_id, friend_id, status, is_studying |
-| `chat_messages` | 聊天消息 | sender_id, receiver_id, content, message_type |
-| `conversations` | 对话 | id, type, last_message_at |
+| `friend_requests` | 好友请求 | id, from_user_id, to_user_id, status |
+| `chat_messages` | 聊天消息 | sender_id, receiver_id, content, message_type, created_at |
 | `unread_counts` | 未读计数 | user_id, friend_id, unread_count |
 | `study_sessions` | 学习记录 | user_id, duration, started_at, ended_at |
 | `study_rooms` | 学习室 | host_id, name, is_active |
@@ -85,10 +83,17 @@
 | `mails` | 系统邮件 | user_id, from_name, subject, is_read |
 | `todos` | 待办事项 | user_id, title, is_completed |
 | `schedules` | 日程 | user_id, title, start_time, end_time |
-| `points_transactions` | 积分交易 | user_id, amount, type |
+| `user_points` | 用户积分余额 | user_id, balance, updated_at |
+| `point_transactions` | 积分变动流水 | user_id, amount, type, description |
+| `points_transactions` | 商城积分流水 | user_id, amount, type, description |
+| `achievements` | 成就列表（参考表） | id, type, name, description, icon |
+| `user_achievements` | 用户已解锁成就 | user_id, achievement_id, unlocked_at |
+| `outfits` | 装扮目录（参考表） | id, name, type, price, preview_url |
+| `user_outfits` | 用户已购买装扮 | user_id, outfit_id, purchased_at |
 | `mall_items` | 商城商品 | name, price, type, is_active |
-| `pairings` | 设备配对 | user_id, device_id, status |
-| `achievements` | 成就 | user_id, type, unlocked_at |
+| `user_purchased_items` | 用户已购商品 | user_id, item_id, purchased_at |
+| `pairings` | 设备配对 | user_id, device_id, status, platform |
+| `user_settings` | 用户设置 | user_id, key, value |
 
 ---
 

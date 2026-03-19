@@ -196,9 +196,8 @@ curl "http://TRIX_SERVER_HOST:8788/api/messages/{CONVERSATION_ID}" \
 
 | 文档 | 说明 |
 |------|------|
-| [docs/requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md](./requirements/TRIX_NATIVE_PAIRING_ARCHITECTURE.md) | 完整配对架构 |
-| [docs/guides/QR_PAIRING_USER_GUIDE.md](./guides/QR_PAIRING_USER_GUIDE.md) | 扫码配对指南 |
-| [docs/guides/PAIRING_INPUT_GUIDE.md](./guides/PAIRING_INPUT_GUIDE.md) | 手动输入配对 |
+| [docs/TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md) | Native Channel 完整协议 |
+| [docs/guides/PAIRING.md](../guides/PAIRING.md) | 配对指南 |
 
 ---
 

@@ -2,8 +2,8 @@
 
 > **文档版本**: 2.1
 > **最后更新**: 2026-03-19
->X 3D Companion
-> ** **产品**: TRI类型**: 双端应用 (iOS + Web)
+> **产品**: TRIX 3D Companion
+> **类型**: 双端应用 (iOS + Web + Desktop)
 
 ---
 
@@ -53,10 +53,16 @@
 | | 双人陪伴模式 | ✅ | ✅ | 已实现 |
 | | 学习室 | ✅ | ✅ | 已实现 |
 | | 专注统计 | ✅ | ✅ | 已实现 |
-| **好友系统** | 添加好友 | ✅ | ✅ | 已实现 |
+| **好友系统** | 好友请求管理 | ✅ | ✅ | 已实现 |
+| | 添加好友 | ✅ | ✅ | 已实现 |
 | | 好友列表 | ✅ | ✅ | 已实现 |
 | | 好友在线状态 | ✅ | ✅ | 已实现 |
-| | 位置共享 | ✅ | ✅ | P2 |
+| | 位置共享 | ✅ | ✅ | 已实现 |
+| **通知系统** | 系统通知 | ✅ | ✅ | 已实现 |
+| | 站内邮件 | ✅ | ✅ | 已实现 |
+| **成就系统** | 成就解锁 | ✅ | ✅ | 已实现 |
+| **用户设置** | 个性化设置 | ✅ | ✅ | 已实现 |
+| **会话管理** | 单设备登录 | ✅ | ✅ | 已实现 |
 | **位置功能** | 地图展示 | ✅ | ✅ | 已实现 |
 | | 地点打卡 | ✅ | ✅ | 已实现 |
 | | 好友位置 | ✅ | ✅ | P2 |
@@ -92,10 +98,10 @@
 - 离线消息同步
 
 **技术实现**：
-- WebSocket: 原生 WebSocket（服务器：TRIX Native Server :8788）
-- AI 集成: OpenClaw Gateway + `@trix-app/openclaw-native-channel` 插件
+- WebSocket: 原生 WebSocket（`TrixNativeChannelClient`，TRIX Native Server :8788）
+- 配对协议: QR URL → `POST /api/pairings` → WebSocket 通道建立
+- AI 集成: OpenClaw Gateway :18789 + `trix-openclaw-native` 插件
 - 消息存储: Supabase (chat_messages 表) + 服务器端 JSON 状态存储
-- 离线同步: 增量同步机制
 
 ---
 
@@ -276,7 +282,7 @@
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
 | 运行时 | Node.js | 18+ |
-| WebSocket | 原生 WebSocket | - |
+| WebSocket | 原生 WebSocket (TRIX Native Channel) | TRIX Native Server :8788 |
 | 数据库 | Supabase (PostgreSQL) + JSON 文件存储 (本地) | - |
 | AI 集成 | OpenClaw Gateway | - |
 | OSS | 阿里云 OSS | - |
@@ -537,7 +543,7 @@ WebSocket 长连接建立，数据同步开始
 |-----|------|-----|
 | 1.0 | 2026-03-04 | 初始 PRD |
 | 2.0 | 2026-03-06 | 更新功能矩阵，添加已实现功能总结 |
-| 2.1 | 2026-03-19 | 更新技术栈，反映实际实现（原生 WebSocket + JSON State Store） |
+| 2.1 | 2026-03-19 | 更新技术栈，反映实际实现；补充缺失功能（好友请求、成就、通知、会话管理） |
 
 ---
 

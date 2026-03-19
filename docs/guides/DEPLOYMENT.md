@@ -470,7 +470,7 @@ curl http://TRIX_SERVER_HOST:8788/health
 ## 相关文档
 
 - [TRIX Native 通道指南](../TRIX_NATIVE_CHANNEL.md)
-- [TRIX Native 配对架构](../TRIX_NATIVE_PAIRING_ARCHITECTURE.md)
+- [TRIX Native Channel 完整协议](../TRIX_NATIVE_CHANNEL.md)
 - [API 文档](./api/API_DOCUMENTATION.md)
 - [服务器操作指南](./guides/SERVER_GUIDE.md)
 

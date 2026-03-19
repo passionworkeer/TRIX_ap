@@ -406,10 +406,8 @@ npm run dev
 | 文档 | 说明 |
 |------|------|
 | [INDEX.md](../INDEX.md) | 完整文档索引 |
-| [ARCHITECTURE.md](./development/ARCHITECTURE.md) | 架构文档 |
-| [FEATURES.md](../FEATURES.md) | 功能文档 |
+| [requirements/PRD.md](../requirements/PRD.md) | 产品需求文档 |
 | [CHANGELOG.md](../CHANGELOG.md) | 变更日志 |
-| [PROJECT_AUDIT_P0123_2026-02-22.md](./project-reports/PROJECT_AUDIT_P0123_2026-02-22.md) | 最新审计报告 |
 
 ---
 

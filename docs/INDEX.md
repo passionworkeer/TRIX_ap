@@ -15,11 +15,7 @@ docs/
 ├── TRIX_NATIVE_CHANNEL.md           # ⭐ Native Channel 唯一权威文档
 │
 ├── 📦 需求规格 (requirements/)
-│   ├── PRD.md                       # 产品需求文档
-│   ├── PRD-WEB.md                   # Web 端 PRD
-│   ├── PRD-IOS.md                   # iOS 端 PRD
-│   ├── PRD-DESKTOP.md               # Windows 桌面端 PRD
-│   └── FEATURES.md                  # 功能文档
+│   └── PRD.md                       # 产品需求文档（三端合一）
 │
 ├── 📊 项目报告 (project-reports/)
 │   ├── PROJECT.md                   # 项目总览
@@ -40,8 +36,7 @@ docs/
 │   └── BACKEND_ARCHITECTURE.md     # 后端架构
 │
 ├── 🗄️ 数据库 (database/)
-│   ├── DATABASE_SCHEMA.md           # 数据库 Schema
-│   └── database-consistency-report.md # 数据库一致性报告
+│   └── DATABASE_SCHEMA.md           # 数据库 Schema
 │
 ├── 📡 API 文档 (api/)
 │   ├── API_DOCUMENTATION.md        # API 完整文档
@@ -56,16 +51,13 @@ docs/
 │   └── QUICK_START_GUIDE.md       # 快速开始指南
 │
 ├── 💻 桌面应用文档 (desktop/)
-│   ├── DESKTOP_ARCHITECTURE.md     # 桌面端架构文档
-│   └── (源码见 desktop/ 目录)
+│   └── DESKTOP_ARCHITECTURE.md     # 桌面端架构文档
 │
 ├── 📖 操作指南 (guides/)
 │   ├── DEPLOYMENT.md               # 生产部署指南
 │   ├── PAIRING.md                 # ⭐ 配对指南（Web/iOS/桌面）
 │   ├── SSH-SETUP.md              # SSH 配置
-│   ├── SERVER_GUIDE.md            # 服务器运维
-│   ├── IOS_TEST_DEPLOY_GUIDE.md   # iOS 测试部署
-│   └── IOS_BACKEND_SERVER_DB_MANUAL_STEPS.md  # iOS 后端数据库手动步骤
+│   └── SERVER_GUIDE.md            # 服务器运维
 │
 └── 🗂️ 归档 (.archive/)
     └── (历史文档，已废弃)
@@ -82,18 +74,14 @@ docs/
 | [TRIX_NATIVE_CHANNEL.md](./TRIX_NATIVE_CHANNEL.md) | Native Channel 完整协议 · **配对文档唯一来源** |
 | [guides/PAIRING.md](./guides/PAIRING.md) | 三端配对 · 解绑 · 故障排查 |
 | [ENVIRONMENT.md](./ENVIRONMENT.md) | 环境变量参考 |
-| [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
+| [guides/DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
 
 ### 💻 桌面应用
 
 | 文档 | 描述 |
 |------|------|
-| [requirements/PRD-DESKTOP.md](../requirements/PRD-DESKTOP.md) | 桌面端产品需求文档 |
 | [desktop/DESKTOP_ARCHITECTURE.md](./desktop/DESKTOP_ARCHITECTURE.md) | Electron 架构 · IPC · Gateway |
-| `desktop/src/main/index.ts` | Electron 主进程入口 |
-| `desktop/src/main/ipc.ts` | IPC 处理器（含配对 QR 生成） |
-| `desktop/src/renderer/float.tsx` | Float 悬浮窗 UI（含 QR 配对） |
-| `desktop/electron-builder.yml` | 打包配置 |
+| [requirements/PRD.md](./requirements/PRD.md) | 产品需求文档 |
 
 ### 🚀 用户指南
 
@@ -130,8 +118,7 @@ TRIX_NATIVE_CHANNEL.md → guides/PAIRING.md
 ### 桌面端开发 (30 分钟)
 
 ```
-requirements/PRD-DESKTOP.md → desktop/DESKTOP_ARCHITECTURE.md
-  → desktop/src/main/index.ts → desktop/src/main/ipc.ts → desktop/src/renderer/float.tsx
+requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 ```
 
 ---
@@ -153,20 +140,20 @@ requirements/PRD-DESKTOP.md → desktop/DESKTOP_ARCHITECTURE.md
 | 目录 | 文档数量 |
 |------|----------|
 | 根目录 | 4 |
-| 需求规格 (requirements/) | 5 |
+| 需求规格 (requirements/) | 1 |
 | 项目报告 (project-reports/) | 2 |
 | 🔧 开发文档 (development/) | 4 |
 | 🎨 UI 文档 (ui/) | 2 |
 | 🌐 架构文档 (architecture/) | 2 |
-| 🗄️ 数据库 (database/) | 2 |
+| 🗄️ 数据库 (database/) | 1 |
 | 📡 API 文档 (api/) | 2 |
 | 🍎 iOS 文档 (ios/) | 2 |
 | 🚀 入门指南 (getting-started/) | 2 |
 | 💻 桌面应用 (desktop/) | 1 |
-| 📖 操作指南 (guides/) | 6 |
-| 🗂️ 归档 (.archive/) | 1 | 数据库迁移执行记录 |
+| 📖 操作指南 (guides/) | 4 |
+| 🗂️ 归档 (.archive/) | 1 |
 
-**总计**: 34 个活跃文档（归档 1 个）
+**总计**: 27 个活跃文档（归档 1 个）
 
 ---
 

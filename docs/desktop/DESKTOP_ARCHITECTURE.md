@@ -76,7 +76,7 @@ window.electronAPI = {
 }
 ```
 
-**文件**: `src/preload/index.ts`
+**文件**: `src/preload/index.js`
 
 ### 2.3 渲染进程（Renderer Process）
 
@@ -103,15 +103,16 @@ interface WindowState {
 
 // 主窗口配置
 const mainWindow = new BrowserWindow({
-  width: 420, height: 760,
-  frame: true,
-  transparent: false,
+  width: 1200, height: 800,
+  minWidth: 800, minHeight: 600,
+  frame: false,
+  titleBarStyle: 'hidden',
   webPreferences: { preload: '...' },
 });
 
 // Float 窗口配置
 const floatWindow = new BrowserWindow({
-  width: 300, height: 380,
+  width: 220, height: 320,
   frame: false,
   resizable: false,
   alwaysOnTop: true,
@@ -301,12 +302,12 @@ desktop/
     │   └── ipc.ts            # IPC Handler
     │
     ├── preload/
-    │   └── index.ts          # contextBridge API
+    │   └── index.js           # contextBridge API（编译后 JS，非 TS）
     │
     ├── renderer/
-    │   ├── main.html         # 主窗口
-    │   ├── float.html        # Float 悬浮窗 HTML
-    │   └── float.tsx         # Float UI（QR 配对面板 + 轮询）
+    │   ├── main.tsx            # 主窗口 React 应用
+    │   ├── float.html          # Float 悬浮窗 HTML
+    │   └── float.tsx           # Float UI（QR 配对 + 轮询）
     │
     └── types/
         └── electron.d.ts     # 共享类型
@@ -323,7 +324,7 @@ Web 应用内容通过 Vite 开发服务器或静态文件加载，主窗口的�
 ### 6.2 Float 窗口为什么无边框？
 
 Float 窗口是悬浮在右下角的配对工具，需要：
-- 固定尺寸（300×380）
+- 固定尺寸（220×320）
 - 始终在最顶层（`alwaysOnTop: true`）
 - 无需调整大小
 

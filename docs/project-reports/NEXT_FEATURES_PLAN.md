@@ -424,10 +424,7 @@ Week 5-6: P2 功能
 
 | 文档 | 说明 |
 |------|------|
-| [docs/FEATURES.md](../FEATURES.md) | 现有功能文档 |
-| [docs/study-room-v2-upgrade-blueprint.md](./study-room-v2-upgrade-blueprint.md) | 自习室 V2 详细蓝图 |
-| [docs/project-reports/AI_COMPANION_SYSTEM_DECISION.md](./AI_COMPANION_SYSTEM_DECISION.md) | AI companion 系统决策 |
-| [docs/project-reports/PROJECT_AUDIT_P0123_2026-02-22.md](./PROJECT_AUDIT_P0123_2026-02-22.md) | 项目审计报告 |
+| [requirements/PRD.md](../requirements/PRD.md) | 现有产品需求文档 |
 
 ---
 

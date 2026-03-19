@@ -19,7 +19,7 @@ TRIX Native Channel 是 `trix-openclaw-native` 包实现的一套设备配对和
 │                                                          │
 │  ┌────────────┐   HTTP/WebSocket    ┌─────────────────┐  │
 │  │  前端/桌面  │ ◄─────────────────► │  Native Server  │  │
-│  │ (Web/iOS)  │    role=user        │  (:18789)       │  │
+│  │ (Web/iOS)  │    role=user        │  (:8788)       │  │
 │  └────────────┘                     └────────┬────────┘  │
 │                                               │             │
 │  ┌────────────┐   HTTP/WebSocket    ┌────────▼────────┐  │
@@ -52,7 +52,7 @@ TRIX Native Channel 是 `trix-openclaw-native` 包实现的一套设备配对和
 桌面端生成的 QR 码内容：
 
 ```
-http://127.0.0.1:18789/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
+http://127.0.0.1:8788/pair?code=ABCDEF12&secret=R8s9KxMnPqLvW
 ```
 
 | 字段 | 说明 | 示例 |
@@ -277,10 +277,19 @@ await client.pairWithQR('http://host/pair?code=XXX&secret=YYY');
 // 手动配对码
 await client.pairWithCode('ABCDEF12');
 
-// 监听事件
-client.on('connected', (data) => { /* ... */ });
-client.on('message', (msg) => { /* ... */ });
-client.on('pairing_success', (data) => { /* ... */ });
+// 监听事件（完整列表）
+client.on('connecting', () => { /* 连接中 */ });
+client.on('connected', () => { /* 已连接 */ });
+client.on('disconnected', () => { /* 已断开 */ });
+client.on('reconnecting', () => { /* 重连中 */ });
+client.on('pairing_success', ({ deviceId, deviceName }) => { /* 配对成功 */ });
+client.on('unpaired', () => { /* 已解绑 */ });
+client.on('bot_online', () => { /* Bot 上线 */ });
+client.on('bot_offline', () => { /* Bot 下线 */ });
+client.on('message', (msg) => { /* 收到消息 */ });
+client.on('study_room_state', (state) => { /* 学习室状态 */ });
+client.on('history', (msgs) => { /* 历史消息 */ });
+client.on('error', (err) => { /* 错误 */ });
 ```
 
 **Context**: `src/contexts/ClawbotChannelContext.tsx` → `useClawbotChannel()`
@@ -289,7 +298,7 @@ client.on('pairing_success', (data) => { /* ... */ });
 
 **核心文件**:
 - `ios/TRIX3DCompanion/Core/Services/ClawbotChannelService.swift` — HTTP/WebSocket 客户端
-- `ios/TRIX3DCompanion/App/ClawbotChannelViewModel.swift` — 配对状态管理
+- `ios/TRIX3DCompanion/Core/ViewModels/ClawbotChannelViewModel.swift` — 配对状态管理
 
 ```swift
 // 扫码配对（自动识别 URL 格式）
