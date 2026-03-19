@@ -1,7 +1,30 @@
-# TRIX Native OpenClaw Channel - 完整实施计划
+# TRIX Native OpenClaw Channel - 实施计划（规划文档）
 
-> 项目目标: 构建完整的 TRIX Native Channel，使任何安装了 OpenClaw 的用户可通过一行命令快速连接，支持完整多模态消息收发
-> 版本: 1.0 | 更新: 2026-03-14
+> **⚠️ 文档状态**: 这是早期规划文档，实际实现已落地。代码细节以最新实现为准。
+>
+> **规划版本**: 1.0 | 更新: 2026-03-14
+> **实现参考**: [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)、[TRIX_NATIVE_PAIRING_ARCHITECTURE.md](../TRIX_NATIVE_PAIRING_ARCHITECTURE.md)、[openclaw_reference.md](../openclaw_reference.md)
+
+---
+
+## ⚠️ 与实际实现的差异
+
+本文档记录早期规划思路。实际实现有以下主要差异：
+
+| 规划内容 | 实际实现 |
+|---------|---------|
+| 独立 `trix-native-server` 包 | 合并为 `packages/trix-openclaw-native` |
+| Express + Socket.IO 服务器 | 原生 Node.js HTTP + WebSocket（无 Express/Socket.IO） |
+| SQLite 数据库 | JSON 文件存储（`JsonStateStore`） |
+| `/api/messages/from-plugin` API | 使用 `/api/messages`（POST） |
+| `/ws/plugin` WebSocket | `/ws` 统一端点，`role=agent` 参数区分 |
+| `refreshToken` 刷新机制 | 使用固定 `clientToken` |
+| `PluginToken` 认证 | 使用 `X-Trix-Admin-Token` Header |
+| `/api/upload` 独立上传 | 使用 `/api/uploads` |
+| `KeyPair` 非对称加密 | 使用简单的 `clientToken` 对称认证 |
+| Docker 部署 | 直接 PM2 部署 |
+
+**包名**: `@trix-app/openclaw-native-channel`（非 `@trix-app/trix-native`）
 
 ---
 
@@ -997,4 +1020,4 @@ const ErrorCodes = {
 
 ---
 
-*文档版本: 1.1 | 最后更新: 2026-03-17*
+*文档版本: 1.1 | 最后更新: 2026-03-19*

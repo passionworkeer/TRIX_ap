@@ -1,6 +1,14 @@
 # TRIX Native OpenCLAW Channel - 配对系统架构文档
 
-## 1. 概述
+> **文档版本**: 1.2
+> **最后更新**: 2026-03-19
+> **包名**: `@trix-app/openclaw-native-channel` v0.1.0
+
+## ⚠️ 文档状态
+
+本文档记录 **v1.0 完整实现**。核心 API 设计、配对流程、消息协议已落地。
+如需了解早期规划方案演进，见 [TRIX_NATIVE_IMPLEMENTATION_PLAN.md](./requirements/TRIX_NATIVE_IMPLEMENTATION_PLAN.md)。
+当前最新 OpenClaw 规范参考 [openclaw_reference.md](./openclaw_reference.md)。
 
 TRIX Native OpenCLAW Channel 是一个原生 OpenCLAW 插件，实现了类似 WhatsApp/飞书的设备配对和消息通信系统。支持 QR 码扫描配对、WebSocket 实时通信、多模态消息（文本/图片/音频/视频）。
 
@@ -611,6 +619,6 @@ curl http://server:8788/api/messages/CONVERSATION_ID \
 
 ---
 
-**文档版本**: 1.1
-**最后更新**: 2026-03-17
+**文档版本**: 1.2
+**最后更新**: 2026-03-19
 **兼容版本**: @trix-app/openclaw-native-channel@0.1.0

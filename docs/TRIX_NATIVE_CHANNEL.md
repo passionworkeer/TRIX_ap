@@ -1,6 +1,7 @@
 # TRIX Native 通道连接指南
 
-> 最后更新: 2026-03-18
+> 最后更新: 2026-03-19
+> **包名**: `@trix-app/openclaw-native-channel` v0.1.0
 
 本文档详细说明 TRIX Native 通道如何连接 OpenClaw Gateway，以及核心代码的实现逻辑。
 
@@ -327,6 +328,8 @@ async function postReply(
 }
 ```
 
+> ⚠️ **重要**：`channels` 下的 key 必须是 `trix-native`（连字符），不能是 `trixNative`（驼峰）。配置读取代码 `channels?.['trix-native']` 使用方括号语法访问含连字符的 key。
+
 ### 4.2 Plugin 配置
 
 文件: `packages/trix-openclaw-native/src/plugin/plugin.ts`
@@ -340,10 +343,33 @@ gateway: {
       ...account,
       storageDir: account.storageDir || path.resolve('.trix-native-channel/openclaw'),
     };
-    await startInboundMonitor(ctx, effectiveAccount);
+    log.info?.(`[trix-native] Starting account ${effectiveAccount.accountId}`);
+
+    // 启动 WebSocket 长连接，拿到 cleanup 函数
+    const cleanup = await startInboundMonitor(ctx, effectiveAccount);
+
+    // ⚠️ 关键：挂起直到 Gateway 关闭（abortSignal 触发）
+    // 不加这段 = channel 显示 configured 而非 running = auto-restart 循环
+    try {
+      await new Promise<void>((resolve) => {
+        if (ctx.abortSignal?.aborted) { resolve(); return; }
+        ctx.abortSignal?.addEventListener('abort', () => resolve(), { once: true });
+      });
+    } finally {
+      cleanup?.();
+      log.info?.(`[trix-native] Account ${effectiveAccount.accountId} stopped`);
+      ctx.setStatus?.({
+        accountId: effectiveAccount.accountId,
+        running: false,
+        lastStopAt: Date.now(),
+      });
+    }
   },
 },
 ```
+
+> **核心要点**：`startAccount` 必须永远不返回（直到 `abortSignal` 触发），否则 Gateway 会触发 auto-restart 循环。
+> 参考: [openclaw_reference.md](./openclaw_reference.md) 第一条规则。
 
 ---
 
@@ -390,17 +416,26 @@ curl http://127.0.0.1:18789/health
 
 **问题**: 早期版本中，WebSocket 连接建立后 promise 就 resolved，导致函数退出，Gateway 会重启通道。
 
-**解决**: 当前版本使用 `connect()` 内部函数，包含完整的重连逻辑：
+**解决**: 当前版本 `startInboundMonitor` 内部使用 `connect()` 递归函数，包含完整的重连逻辑：
 - 监听 `close` 事件
 - 非 1000 断开码时，5 秒后自动重连
+- `startAccount` 等待 `abortSignal`，永远不提前返回
 
 ### 6.2 消息方向过滤
 
-代码中只处理 `direction === 'inbound'` 的消息:
+代码中只处理 `direction === 'inbound'` 的消息：
 
 ```typescript
 if (envelope.payload.message.direction !== 'inbound') return;
 ```
+
+### 6.3 配对码有效期
+
+当前实现中，配对码默认有效期为 **30 分钟**（`30 * 60 * 1000` ms），可通过创建配对时的 `ttlMs` 参数覆盖。
+
+### 6.4 私有 IP WebSocket 回退
+
+前端 `TrixNativeChannelClient` 会检测 WebSocket URL 是否为私有 IP（10.x, 172.16-31.x, 192.168.x），如果是则回退使用 `serverUrl`。这在 NAT 环境（如公司网络）下可能导致无法直连。
 
 ---
 
@@ -408,11 +443,23 @@ if (envelope.payload.message.direction !== 'inbound') return;
 
 | 文件 | 说明 |
 |------|------|
-| `packages/trix-openclaw-native/src/plugin/inbound.ts` | 接收消息的核心逻辑 |
-| `packages/trix-openclaw-native/src/plugin/outbound.ts` | 发送消息的逻辑 |
-| `packages/trix-openclaw-native/src/plugin/plugin.ts` | Plugin 入口和配置 |
-| `packages/trix-openclaw-native/src/plugin/accounts.ts` | 账户配置解析 |
-| `packages/trix-openclaw-native/src/types.ts` | 类型定义 |
+| `packages/trix-openclaw-native/src/plugin/inbound.ts` | 接收消息核心逻辑（`startInboundMonitor`） |
+| `packages/trix-openclaw-native/src/plugin/outbound.ts` | 发送消息逻辑（`postReply`） |
+| `packages/trix-openclaw-native/src/plugin/plugin.ts` | Plugin 入口、`buildAccountSnapshot`、`probeAccount`、`startAccount` |
+| `packages/trix-openclaw-native/src/plugin/accounts.ts` | 账户配置解析（支持 `channels['trix-native']` 和 `accounts` 两种格式） |
+| `packages/trix-openclaw-native/src/types.ts` | 类型定义（`PairingRecord`, `MessageRecord` 等） |
+| `packages/trix-openclaw-native/src/server/TrixNativeServer.ts` | HTTP + WebSocket 服务器（8788 端口） |
+| `packages/trix-openclaw-native/src/pairing/PairingService.ts` | 配对服务（TTL 默认 30 分钟） |
+| `packages/trix-openclaw-native/src/storage/JsonStateStore.ts` | JSON 持久化存储 |
+| `src/services/TrixNativeChannelClient.ts` | 前端客户端（Web） |
+
+### 7.1 包入口文件说明
+
+`trix-openclaw-native` 有两个入口文件：
+- `src/index.ts` — npm 包主入口，导出 `TrixNativeServer` 类和 `createTrixNativePlugin`
+- `src/openclaw-entry.ts` — OpenClaw 插件入口，仅导出 `createTrixNativePlugin()`
+
+两者内容相同，目的是让包使用者无需了解 OpenClaw 内部结构。
 
 ---
 

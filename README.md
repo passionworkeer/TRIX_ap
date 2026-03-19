@@ -44,12 +44,11 @@ npm install
 ```env
 VITE_SUPABASE_URL=<your-supabase-url>
 VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
-VITE_GATEWAY_WS_URL=ws://localhost:18789
-VITE_GATEWAY_AUTH_TOKEN=<your-gateway-token>
+VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
-生产环境额外要求：`VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 必填，且不能使用 `localhost` 或 `127.0.0.1`。
+> **说明**：`VITE_TRIX_NATIVE_SERVER_URL` 推荐使用 TRIX Native Channel。
+> 旧的 `VITE_CLAWBOT_CHANNEL_URL`、`VITE_GATEWAY_WS_URL`、`VITE_GATEWAY_AUTH_TOKEN` 已废弃。
 
 ### 启动
 
@@ -208,4 +207,4 @@ TRIX 3D Companion 开发团队
 
 ---
 
-**最后更新**: 2026-02-22
+**最后更新**: 2026-03-19

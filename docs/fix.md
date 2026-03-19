@@ -2,6 +2,9 @@
 
 > 给 Cursor 的执行文档。按顺序执行，每步完成后验证再继续。
 > 当前项目：trix-3d-companion | 插件包：packages/trix-openclaw-native
+>
+> 📌 **说明**: 本文档记录 2026-03-14 至 2026-03-16 的修复过程。当前代码已修复完成，
+> 参考 [openclaw_reference.md](./openclaw_reference.md) 了解最新规范。
 
 ---
 

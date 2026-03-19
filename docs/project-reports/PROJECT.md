@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-19
 > **版本**: v1.0
 > **技术栈**: React 19 + TypeScript + Vite 6 + Supabase + SwiftUI
 
@@ -324,9 +324,7 @@ npm install
 ```env
 VITE_SUPABASE_URL=<your-supabase-url>
 VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-VITE_CLAWBOT_CHANNEL_URL=ws://localhost:8765
-VITE_GATEWAY_WS_URL=ws://localhost:18789
-VITE_GATEWAY_AUTH_TOKEN=<your-gateway-token>
+VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
 ### 启动
@@ -366,5 +364,5 @@ npm run dev
 
 ---
 
-**最后更新**: 2026-02-22
+**最后更新**: 2026-03-19
 **维护者**: TRIX 3D Companion 开发团队

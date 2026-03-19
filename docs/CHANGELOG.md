@@ -4,6 +4,55 @@
 
 ---
 
+## 📅 2026-03-18 - TRIX Native Channel `running` 状态修复
+
+### 背景
+通道显示 `enabled, configured` 但不显示 `running`，而 Feishu 通道则正常显示 `running`。
+
+### 根本原因
+OpenClaw Gateway 通过 `channels.status` 命令展示通道状态时：
+1. 调用 `buildAccountSnapshot({ account, runtime, probe })` 获取账户快照
+2. 如果插件没有 `buildAccountSnapshot`，则回退到只读取 `account.configured`
+3. `runtime.running` 来自 Gateway 的 `setRuntime` 调用
+4. **没有 `buildAccountSnapshot`，Gateway 永远看不到 `runtime.running`**
+
+### 修复内容
+
+#### 1. 添加 `buildAccountSnapshot`（`plugin/plugin.ts`）
+
+返回包含 `runtime.running` 的完整账户快照：
+
+```typescript
+status: {
+  buildAccountSnapshot: ({ account, runtime, probe }) => ({
+    accountId: account.accountId,
+    enabled: account.enabled !== false,
+    configured: Boolean(account.serverUrl),
+    running: runtime?.running ?? false,
+    probeResult: probe ?? undefined,
+  }),
+  probeAccount: async ({ account }) => {
+    // HTTP 健康检查：GET /api/pairings
+    // 使 channels status 能看到 probe 结果
+  },
+},
+```
+
+#### 2. 修复 `startAccount` 简化模式
+
+移除手动状态管理，返回 monitor promise 而非手动管理状态。
+
+### Git 提交记录
+- `9590d5c`: fix: TRIX Native plugin — add buildAccountSnapshot + probeAccount for running status
+
+### 验证结果
+```
+- TRIX Native default (TRIX Native): enabled, configured, running, disconnected
+```
+（`disconnected` 是因为本机无法访问远程 TRIX 服务器的 probe 结果，不是代码问题）
+
+---
+
 ## 📅 2026-03-17 - 数据库架构整理
 
 ### 背景
@@ -456,4 +505,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-17
+**最后更新**: 2026-03-19

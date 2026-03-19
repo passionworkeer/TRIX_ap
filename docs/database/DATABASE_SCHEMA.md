@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-19
 
 ---
 
@@ -590,46 +590,89 @@ WHERE points > 0;
 
 ---
 
-## 9. SQLite 本地数据库 (TRIX Native)
+## 9. TRIX Native Server 本地状态存储
 
-TRIX Native Server 使用 SQLite 进行本地数据持久化。
+TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本地持久化，不使用 SQLite。
 
-### 9.1 表结构
+### 9.1 存储位置
 
-#### pairings 表 (配对信息)
-
-```sql
-CREATE TABLE pairings (
-  id TEXT PRIMARY KEY,
-  code TEXT UNIQUE NOT NULL,
-  device_id TEXT,
-  device_name TEXT,
-  status TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL,
-  paired_at INTEGER,
-  websocket_url TEXT,
-  client_token TEXT
-);
+```
+<storageDir>/.trix-native-channel/
+├── state.json          # 主状态文件（pairings, conversations, messages 等）
+└── attachments/        # 附件文件存储
+    └── <sha256>.ext   # 按哈希命名的附件文件
 ```
 
-#### messages 表 (消息存储)
+- `storageDir` 默认值: `./.trix-native-channel`（可通过 `TRIX_NATIVE_STORAGE_DIR` 环境变量覆盖）
+- OpenClaw 插件附件存储: `<storageDir>/openclaw/attachments/`
 
-```sql
-CREATE TABLE messages (
-  id TEXT PRIMARY KEY,
-  pairing_id TEXT NOT NULL,
-  direction TEXT NOT NULL,
-  text TEXT,
-  attachments TEXT,
-  sender_id TEXT,
-  sender_name TEXT,
-  created_at INTEGER NOT NULL,
-  status TEXT DEFAULT 'pending'
-);
+### 9.2 state.json 结构
+
+```json
+{
+  "adminToken": "...",
+  "serviceToken": "...",
+  "pairings": [/* PairingRecord[] */],
+  "conversations": [/* ConversationRecord[] */],
+  "messages": [/* MessageRecord[] */],
+  "uploads": [/* AttachmentDescriptor[] */]
+}
 ```
+
+### 9.3 核心类型（服务器端）
+
+```typescript
+// 配对记录
+interface PairingRecord {
+  code: string;              // 配对码 (6-8位字母数字)
+  secret: string;            // 配对密钥
+  label?: string;
+  createdAt: number;
+  expiresAt: number;
+  status: 'pending' | 'paired' | 'expired';
+  conversationId: string;
+  claimUrl: string;
+  qrDataUrl?: string;
+  pairedAt?: number;
+  pairedClientId?: string;
+  pairedDeviceName?: string;
+  clientToken?: string;
+}
+
+// 会话记录
+interface ConversationRecord {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  pairingCode: string;
+  participants: Array<{
+    clientId: string;
+    deviceName?: string;
+    role: 'user' | 'agent';
+    clientToken?: string;
+    connectedAt?: number;
+    lastSeenAt?: number;
+  }>;
+}
+
+// 消息记录
+interface MessageRecord {
+  id: string;
+  conversationId: string;
+  direction: 'inbound' | 'outbound' | 'system';
+  text: string;
+  attachments: AttachmentDescriptor[];
+  senderId: string;
+  senderName?: string;
+  createdAt: number;
+  metadata?: Record<string, unknown>;
+}
+```
+
+### 9.4 Study Rooms（类型已定义，初始化待实现）
+
+`study_rooms` 和 `study_room_members` 类型已在 `types.ts` 中定义，但 `DEFAULT_STATE` 中尚未初始化。详细类型见 `packages/trix-openclaw-native/src/types.ts`。
 
 ---
 
-**最后更新**: 2026-03-17
-**版本**: 2.1
+**最后更新**: 2026-03-19

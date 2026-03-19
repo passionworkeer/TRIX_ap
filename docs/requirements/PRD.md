@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
-> **文档版本**: 2.0
-> **最后更新**: 2026-03-17
+> **文档版本**: 2.1
+> **最后更新**: 2026-03-19
 >X 3D Companion
 > ** **产品**: TRI类型**: 双端应用 (iOS + Web)
 
@@ -92,9 +92,9 @@
 - 离线消息同步
 
 **技术实现**：
-- WebSocket: Socket.IO
-- AI 集成: OpenClaw Gateway
-- 消息存储: Supabase (chat_messages 表)
+- WebSocket: 原生 WebSocket（服务器：TRIX Native Server :8788）
+- AI 集成: OpenClaw Gateway + `@trix-app/openclaw-native-channel` 插件
+- 消息存储: Supabase (chat_messages 表) + 服务器端 JSON 状态存储
 - 离线同步: 增量同步机制
 
 ---
@@ -114,7 +114,7 @@
 **技术实现**：
 - 计时器: 本地定时器 + 状态同步
 - 双人模式: Supabase Realtime 实时推送
-- 学习室: WebSocket 房间管理
+- 学习室: Supabase Realtime 状态同步
 - 数据存储: study_sessions, study_rooms 表
 
 ---
@@ -276,9 +276,8 @@
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
 | 运行时 | Node.js | 18+ |
-| 框架 | Express | 4.18+ |
-| WebSocket | Socket.IO | 4.7+ |
-| 数据库 | SQLite (本地) + Supabase (远程) | - |
+| WebSocket | 原生 WebSocket | - |
+| 数据库 | Supabase (PostgreSQL) + JSON 文件存储 (本地) | - |
 | AI 集成 | OpenClaw Gateway | - |
 | OSS | 阿里云 OSS | - |
 | TTS | 豆包 TTS API | - |
@@ -538,8 +537,9 @@ WebSocket 长连接建立，数据同步开始
 |-----|------|-----|
 | 1.0 | 2026-03-04 | 初始 PRD |
 | 2.0 | 2026-03-06 | 更新功能矩阵，添加已实现功能总结 |
+| 2.1 | 2026-03-19 | 更新技术栈，反映实际实现（原生 WebSocket + JSON State Store） |
 
 ---
 
 **文档维护**: TRIX 开发团队
-**最后更新**: 2026-03-06
+**最后更新**: 2026-03-19

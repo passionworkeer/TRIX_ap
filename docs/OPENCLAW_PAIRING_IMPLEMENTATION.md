@@ -1,6 +1,8 @@
 # OpenClaw 配对方式详细实现报告
 
-> 最后更新: 2026-03-18
+> 最后更新: 2026-03-19
+>
+> 📌 **说明**: 本文档是配对实现的历史详解。当前最新规范参考 [openclaw_reference.md](./openclaw_reference.md)。
 
 ---
 
