@@ -36,7 +36,7 @@ describe('TrixNativeServer', () => {
     });
 
     const pairing = await createResponse.json() as { code: string; conversationId: string };
-    expect(pairing.code).toHaveLength(8);
+    expect(pairing.code).toHaveLength(6);
 
     const claimResponse = await fetch(`http://127.0.0.1:8799/api/pairings/${pairing.code}/claim`, {
       method: 'POST',

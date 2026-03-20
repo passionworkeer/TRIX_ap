@@ -102,6 +102,10 @@ describe('trix-native channel plugin config', () => {
     } as never)).resolves.toBeUndefined();
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))).not.toHaveProperty('ttlMs');
     expect(runtime.log).toHaveBeenCalledWith('TRIX device paired.');
   });
 });

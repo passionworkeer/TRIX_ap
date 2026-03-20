@@ -24,7 +24,7 @@ describe('PairingService', () => {
     const service = new PairingService(store);
 
     const created = await service.create({ publicBaseUrl: 'http://127.0.0.1:8788', label: 'Phone' });
-    expect(created.code).toHaveLength(8);
+    expect(created.code).toHaveLength(6);
     expect(created.qrDataUrl?.startsWith('data:image/png;base64,')).toBe(true);
 
     const claimed = await service.claim({
