@@ -10,7 +10,7 @@ export function randomToken(size = 24): string {
   return crypto.randomBytes(size).toString('base64url');
 }
 
-export function randomPairingCode(length = 8): string {
+export function randomPairingCode(length = 6): string {
   const bytes = crypto.randomBytes(length);
   let code = '';
   for (let index = 0; index < length; index += 1) {

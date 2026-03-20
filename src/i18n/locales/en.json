@@ -125,7 +125,7 @@
     "keepDistance": "Keep appropriate distance, ensure QR code is clear",
     "serverAddress": "Server address (e.g., https://your-server.com)",
     "gatewayId": "Gateway ID",
-    "pairingCode": "Pairing code (6 digits)",
+    "pairingCode": "Pairing code (6-8 characters)",
     "getPairingCode": "Run 'openclaw pair' on OpenClaw device to get pairing code",
     "relay": "Relay",
     "direct": "Direct",

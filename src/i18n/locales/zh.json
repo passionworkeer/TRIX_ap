@@ -125,7 +125,7 @@
     "keepDistance": "保持距离适中，确保二维码清晰",
     "serverAddress": "服务器地址 (如 https://your-server.com)",
     "gatewayId": "Gateway ID",
-    "pairingCode": "配对码 (6位)",
+    "pairingCode": "配对码 (6-8位)",
     "getPairingCode": "在 OpenClaw 设备上运行 openclaw pair 获取配对码",
     "relay": "中继",
     "direct": "直连",
