@@ -46,7 +46,8 @@ describe('TrixNativeServer', () => {
         deviceName: 'Browser',
       }),
     });
-    const claim = await claimResponse.json() as { conversationId: string; clientToken: string };
+    const claim = await claimResponse.json() as { accountId: string; conversationId: string; clientToken: string };
+    expect(claim.accountId).toBe('default');
 
     const messageResponse = await fetch('http://127.0.0.1:8799/api/messages', {
       method: 'POST',
@@ -464,6 +465,36 @@ describe('TrixNativeServer', () => {
     expect(pairings[0]).not.toHaveProperty('clientToken');
     expect(pairings[0]).not.toHaveProperty('claimUrl');
     expect(pairings[0]).not.toHaveProperty('qrDataUrl');
+  });
+
+  it('rejects pairing claims that specify the wrong account', async () => {
+    const server = createTestServer(8808);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8808/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'bot-b', label: 'Bot B Device' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claimResponse = await fetch(`http://127.0.0.1:8808/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        accountId: 'default',
+        clientId: 'browser-account-mismatch',
+        deviceName: 'Browser',
+      }),
+    });
+
+    expect(claimResponse.status).toBe(409);
+    const payload = await claimResponse.json() as { error: string };
+    expect(payload.error).toContain('Pairing code does not belong to account default');
   });
 
   it('rejects cross-plane token reuse and expired attachment signatures', async () => {

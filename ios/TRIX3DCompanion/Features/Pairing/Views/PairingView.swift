@@ -265,7 +265,7 @@ struct PairingView: View {
                     )
                     .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
                     .onChange(of: codeInput) { newValue in
-                        codeInput = String(newValue.uppercased().prefix(8).filter { $0.isLetter || $0.isNumber })
+                        codeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
                     }
                     .accessibilityIdentifier(PairingAccessibilityIdentifiers.codeField)
 
@@ -288,7 +288,7 @@ struct PairingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        codeInput.count >= 6 && !isLoading ?
+                        codeInput.count == 6 && !isLoading ?
                         LinearGradient(
                             colors: [.brandPurple, .brandPink],
                             startPoint: .leading,
@@ -297,7 +297,7 @@ struct PairingView: View {
                     )
                     .cornerRadius(28)
                 }
-                .disabled(codeInput.count < 6 || isLoading)
+                .disabled(codeInput.count != 6 || isLoading)
                 .accessibilityIdentifier(PairingAccessibilityIdentifiers.verifyButton)
             }
             .padding(24)
@@ -410,7 +410,7 @@ struct PairingView: View {
 
     /// 使用配对码配对 - 对齐 Web 端
     private func pairWithCode() async {
-        guard codeInput.count >= 6 else { return }
+        guard codeInput.count == 6 else { return }
 
         isLoading = true
         errorMessage = ""
@@ -457,7 +457,7 @@ struct PairingView: View {
             let success: Bool
             if let qrPayload = parsed.qrPayload {
                 success = await clawbotChannel.pairWithQR(qrPayload)
-            } else if parsed.code.count >= 6 {
+            } else if parsed.code.count == 6 {
                 success = await clawbotChannel.pairWithCode(parsed.code)
             } else {
                 // 无法解析
@@ -522,9 +522,9 @@ struct PairingView: View {
             }
         }
 
-        // 4. 纯配对码 (6-8 位)
+        // 4. 纯配对码 (6 位)
         let normalized = trimmed.uppercased().filter { $0.isLetter || $0.isNumber }
-        if normalized.count >= 6 && normalized.count <= 8 {
+        if normalized.count == 6 {
             return (normalized, nil)
         }
 

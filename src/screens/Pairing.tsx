@@ -10,7 +10,7 @@ import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
 import { logger } from '../utils/logger';
 
-const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
+const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 const Pairing: React.FC = () => {
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ const Pairing: React.FC = () => {
   const handlePairWithCode = async () => {
     const normalizedCode = codeInput.trim().toUpperCase();
     if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
-      toast.error('请输入 6 到 8 位的字母数字组合');
+      toast.error('请输入 6 位字母数字配对码');
       return;
     }
 
@@ -259,16 +259,16 @@ const Pairing: React.FC = () => {
           {mode === 'input' && (
             <div className="flex h-full flex-col justify-center py-4">
               <div className="mb-8 w-full">
-                <label className="mb-4 block text-center text-sm font-medium text-slate-600 dark:text-slate-400">请输入 TRIX Native 上的 6 到 8 位代码</label>
+                <label className="mb-4 block text-center text-sm font-medium text-slate-600 dark:text-slate-400">请输入 TRIX Native 上的 6 位配对码</label>
                 <div className="relative">
                   <input
                     ref={codeInputRef}
                     type="text"
                     value={codeInput}
-                    onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8))}
-                    placeholder="AB12CD34"
+                    onChange={(event) => setCodeInput(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
+                    placeholder="AB12CD"
                     className="w-full rounded-[20px] border-2 border-indigo-100 bg-white px-5 py-4 text-center font-mono text-[28px] font-bold tracking-[0.2em] text-slate-800 shadow-sm transition-all focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
-                    maxLength={8}
+                    maxLength={6}
                     autoFocus
                     autoCapitalize="characters"
                     spellCheck={false}

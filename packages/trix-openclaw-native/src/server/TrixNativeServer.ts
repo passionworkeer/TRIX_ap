@@ -336,20 +336,32 @@ export class TrixNativeServer {
       if (request.method === 'POST' && pairingClaimMatch) {
         this.assertRateLimit(request, 'claim');
         const body = await readJsonBody<{ accountId?: string; secret?: string; clientId: string; deviceName?: string }>(request);
-        const result = await this.pairingService.claim(
-          {
-            code: pairingClaimMatch[1]!,
-            accountId: body.accountId,
-            secret: body.secret,
-            clientId: body.clientId,
-            deviceName: body.deviceName,
-          },
-          {
-            websocketUrl: this.getUserWebSocketUrl(),
-            uploadUrl: `${this.publicBaseUrl}/api/uploads`,
-            messagesUrl: `${this.publicBaseUrl}/api/messages`,
-          },
-        );
+        let result;
+        try {
+          result = await this.pairingService.claim(
+            {
+              code: pairingClaimMatch[1]!,
+              accountId: body.accountId,
+              secret: body.secret,
+              clientId: body.clientId,
+              deviceName: body.deviceName,
+            },
+            {
+              websocketUrl: this.getUserWebSocketUrl(),
+              uploadUrl: `${this.publicBaseUrl}/api/uploads`,
+              messagesUrl: `${this.publicBaseUrl}/api/messages`,
+            },
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (message === 'Pairing code not found') {
+            throw new HttpError(404, message);
+          }
+          if (message === 'Pairing code expired') {
+            throw new HttpError(410, message);
+          }
+          throw new HttpError(409, message);
+        }
         await this.broadcast(
           {
             type: 'pairing.updated',

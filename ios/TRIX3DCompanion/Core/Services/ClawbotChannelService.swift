@@ -174,6 +174,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         code: String,
         clientId: String,
         deviceName: String,
+        accountId: String? = nil,
         secret: String? = nil,
         completion: @escaping (Result<PairingClaimResponse, Error>) -> Void
     ) {
@@ -181,6 +182,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
             "clientId": clientId,
             "deviceName": deviceName
         ]
+        if let accountId = accountId, !accountId.isEmpty {
+            body["accountId"] = accountId
+        }
         if let secret = secret, !secret.isEmpty {
             body["secret"] = secret
         }
@@ -512,6 +516,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
 
 /// 配对响应
 struct PairingClaimResponse: Codable {
+    let accountId: String?
     let conversationId: String
     let clientToken: String
     let peerId: String?
@@ -736,6 +741,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private var clientToken: String?
     private var websocketUrl: String?
     private var serverUrl: String?
+    private var accountId: String?
     private var userId: String?
     private(set) var deviceId: String?
 
@@ -770,9 +776,9 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         let defaults = UserDefaults.standard
         let raw = defaults.string(forKey: channelURLDefaultsKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return raw.isEmpty ? "http://TRIX_SERVER_HOST:8788" : normalizeBaseURL(raw)
+        return raw.isEmpty ? "https://trix.love" : normalizeBaseURL(raw)
         #else
-        return "https://api.trix3d.com"
+        return "https://trix.love"
         #endif
     }
 
@@ -785,7 +791,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             return raw.replacingOccurrences(of: "http://", with: "ws://") + "/ws"
         }
         #else
-        return "wss://api.trix3d.com/ws"
+        return "wss://trix.love/ws"
         #endif
     }
 
@@ -903,7 +909,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard normalizedCode.count >= 6 else {
+        guard normalizedCode.count == 6 else {
             throw ClawbotError.invalidResponse
         }
 
@@ -914,6 +920,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 code: normalizedCode,
                 clientId: clientIdValue,
                 deviceName: deviceName,
+                accountId: nil,
                 secret: nil
             ) { [weak self] result in
                 switch result {
@@ -933,7 +940,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     /// 2. JSON: { "claimUrl": "..."} / { "url": "..."} / { "code": "ABC123", "secret": "xxx", "serverUrl": "https://..." }
     /// 3. 纯配对码: ABC123
     /// 4. code:secret 格式: ABC123:xxx
-    private func parseQRData(_ raw: String) -> (code: String, secret: String?, serverUrl: String?)? {
+    private func parseQRData(_ raw: String) -> (code: String, secret: String?, serverUrl: String?, accountId: String?)? {
         let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return nil }
 
@@ -946,10 +953,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
             let code = (components.queryItems?.first(where: { $0.name == "code" })?.value ?? "").uppercased()
             let secret = components.queryItems?.first(where: { $0.name == "secret" })?.value
+            let accountId = components.queryItems?.first(where: { $0.name == "accountId" })?.value
             let serverUrl = "\(url.scheme ?? "http")://\(url.host ?? "")\(url.port.map { ":\($0)" } ?? "")"
 
             if !code.isEmpty {
-                return (code, secret, serverUrl)
+                return (code, secret, serverUrl, accountId)
             }
         }
 
@@ -966,9 +974,10 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             let code = (json["code"] as? String ?? "").uppercased()
             let secret = json["secret"] as? String
             let serverUrl = json["serverUrl"] as? String
+            let accountId = json["accountId"] as? String
 
             if !code.isEmpty {
-                return (code, secret, serverUrl)
+                return (code, secret, serverUrl, accountId)
             }
         }
 
@@ -979,15 +988,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 let code = String(parts[0]).uppercased()
                 let secret = String(parts[1])
                 if !code.isEmpty && code.count >= 6 {
-                    return (code, secret, nil)
+                    return (code, secret, nil, nil)
                 }
             }
         }
 
         // 4. 纯配对码 (6-8位字母数字)
         let pureCode = normalized.uppercased()
-        if pureCode.count >= 6 && pureCode.count <= 8 && pureCode.allSatisfy({ $0.isLetter || $0.isNumber }) {
-            return (pureCode, nil, nil)
+        if pureCode.count == 6 && pureCode.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return (pureCode, nil, nil, nil)
         }
 
         return nil
@@ -1025,6 +1034,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 code: parsed.code,
                 clientId: clientIdValue,
                 deviceName: deviceName,
+                accountId: parsed.accountId,
                 secret: parsed.secret
             ) { [weak self] result in
                 switch result {
@@ -1046,14 +1056,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         DispatchQueue.main.async {
             self.isPaired = false
+            self.clearPersistedPairingState()
             self.conversationId = nil
             self.clientToken = nil
             self.websocketUrl = nil
             self.serverUrl = nil
+            self.accountId = nil
             self.httpClient.overrideBaseURL = nil
             self.deviceId = nil
             self.setBotBehaviorState(.idle)
-            self.clearPersistedState()
         }
     }
 
@@ -1250,6 +1261,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     /// 处理配对成功
     private func handlePairingSuccess(_ response: PairingClaimResponse) {
+        self.accountId = response.accountId ?? "default"
         self.conversationId = response.conversationId
         self.clientToken = response.clientToken
         self.websocketUrl = response.resolvedWebSocketURL
@@ -1688,28 +1700,45 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        UserDefaults.standard.set(isPaired, forKey: "clawbot_paired")
-        UserDefaults.standard.set(deviceId, forKey: "clawbot_device_id")
-        UserDefaults.standard.set(conversationId, forKey: "clawbot_conversation_id")
-        UserDefaults.standard.set(clientToken, forKey: "clawbot_client_token")
-        UserDefaults.standard.set(websocketUrl, forKey: "clawbot_websocket_url")
-        UserDefaults.standard.set(serverUrl, forKey: "clawbot_server_url")
+        let defaults = UserDefaults.standard
+        let resolvedAccountId = accountId ?? "default"
+        defaults.set(isPaired, forKey: "clawbot_paired")
+        defaults.set(deviceId, forKey: "clawbot_device_id")
+        defaults.set(resolvedAccountId, forKey: "clawbot_active_account_id")
+        defaults.set(resolvedAccountId, forKey: "clawbot_account_id")
+        defaults.set(conversationId, forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
+        defaults.set(clientToken, forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+        defaults.set(websocketUrl, forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
+        defaults.set(serverUrl, forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+        defaults.set(conversationId, forKey: "clawbot_conversation_id")
+        defaults.set(clientToken, forKey: "clawbot_client_token")
+        defaults.set(websocketUrl, forKey: "clawbot_websocket_url")
+        defaults.set(serverUrl, forKey: "clawbot_server_url")
     }
 
     private func loadPersistedState() {
+        let defaults = UserDefaults.standard
         isPaired = KeychainManager.shared.isDevicePaired()
         deviceId = KeychainManager.shared.getPairedDeviceId()
-        conversationId = UserDefaults.standard.string(forKey: "clawbot_conversation_id")
-        clientToken = UserDefaults.standard.string(forKey: "clawbot_client_token")
-        websocketUrl = UserDefaults.standard.string(forKey: "clawbot_websocket_url")
-        serverUrl = UserDefaults.standard.string(forKey: "clawbot_server_url")
+        let resolvedAccountId = defaults.string(forKey: "clawbot_active_account_id")
+            ?? defaults.string(forKey: "clawbot_account_id")
+            ?? "default"
+        accountId = resolvedAccountId
+        conversationId = defaults.string(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
+            ?? defaults.string(forKey: "clawbot_conversation_id")
+        clientToken = defaults.string(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+            ?? defaults.string(forKey: "clawbot_client_token")
+        websocketUrl = defaults.string(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
+            ?? defaults.string(forKey: "clawbot_websocket_url")
+        serverUrl = defaults.string(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+            ?? defaults.string(forKey: "clawbot_server_url")
         httpClient.overrideBaseURL = serverUrl
 
         if !isPaired {
-            isPaired = UserDefaults.standard.bool(forKey: "clawbot_paired")
+            isPaired = defaults.bool(forKey: "clawbot_paired")
         }
         if deviceId == nil {
-            deviceId = UserDefaults.standard.string(forKey: "clawbot_device_id")
+            deviceId = defaults.string(forKey: "clawbot_device_id")
         }
     }
 
@@ -1721,6 +1750,22 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         UserDefaults.standard.removeObject(forKey: "clawbot_client_token")
         UserDefaults.standard.removeObject(forKey: "clawbot_websocket_url")
         UserDefaults.standard.removeObject(forKey: "clawbot_server_url")
+        UserDefaults.standard.removeObject(forKey: "clawbot_account_id")
+        UserDefaults.standard.removeObject(forKey: "clawbot_active_account_id")
+    }
+
+    private func clearPersistedPairingState() {
+        let defaults = UserDefaults.standard
+        let resolvedAccountId = accountId ?? defaults.string(forKey: "clawbot_active_account_id") ?? "default"
+        defaults.removeObject(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+        clearPersistedState()
+    }
+
+    private func sessionDefaultsKey(_ suffix: String, accountId: String) -> String {
+        "clawbot_session_\(accountId)_\(suffix)"
     }
 
     // MARK: - Heartbeat

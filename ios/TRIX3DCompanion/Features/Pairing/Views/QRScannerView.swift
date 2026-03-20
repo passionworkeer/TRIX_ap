@@ -457,8 +457,8 @@ struct QRScannerView: View {
                     isValid = true
                 }
             }
-            // 2. 6-8 character alphanumeric pairing code
-            if code.range(of: "^[A-Z0-9]{6,8}$", options: .regularExpression) != nil {
+            // 2. 6 character alphanumeric pairing code
+            if code.range(of: "^[A-Z0-9]{6}$", options: .regularExpression) != nil {
                 isValid = true
             }
             // 3. Native channel URL format: http://host/pair?code=XXX&secret=YYY
@@ -472,7 +472,7 @@ struct QRScannerView: View {
             let compact = code.replacingOccurrences(of: "[^a-zA-Z0-9:|_ -]", with: "", options: .regularExpression)
             if compact.contains(":"),
                let pairCode = compact.split(separator: ":", maxSplits: 1).first,
-               String(pairCode).range(of: "^[A-Z0-9]{6,8}$", options: .regularExpression) != nil {
+               String(pairCode).range(of: "^[A-Z0-9]{6}$", options: .regularExpression) != nil {
                 isValid = true
             }
 

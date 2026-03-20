@@ -7,7 +7,7 @@ import QRScanner from '../components/QRScanner';
 import { useNotification } from '../hooks/useNotification';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 
-const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6,8}$/;
+const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 const QRCodePairing: React.FC = () => {
   const navigate = useNavigate();
@@ -39,7 +39,7 @@ const QRCodePairing: React.FC = () => {
   const handleManualPairing = async () => {
     const normalizedCode = manualCode.trim().toUpperCase();
     if (!PAIRING_CODE_PATTERN.test(normalizedCode)) {
-      showError('请输入 6 到 8 位的字母数字组合');
+      showError('请输入 6 位字母数字配对码');
       return;
     }
 
@@ -137,10 +137,10 @@ const QRCodePairing: React.FC = () => {
               <input
                 type="text"
                 value={manualCode}
-                onChange={(event) => setManualCode(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8))}
-                placeholder="AB12CD34"
+                onChange={(event) => setManualCode(event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))}
+                placeholder="AB12CD"
                 className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono tracking-[0.25em] text-slate-900 outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                maxLength={8}
+                maxLength={6}
               />
               <button
                 type="button"

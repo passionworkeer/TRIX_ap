@@ -250,8 +250,8 @@ export const NOTIFICATION_VALIDATION = {
 export const PAIRING_VALIDATION = {
   code: {
     min: 6,
-    max: 8,
-    pattern: /^[A-Z0-9]{6,8}$/i,
+    max: 6,
+    pattern: /^[A-Z0-9]{6}$/i,
     required: true,
   },
   deviceId: {

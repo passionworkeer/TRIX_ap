@@ -26,6 +26,7 @@ describe('PairingService', () => {
     const created = await service.create({ publicBaseUrl: 'http://127.0.0.1:8788', label: 'Phone' });
     expect(created.code).toHaveLength(6);
     expect(created.qrDataUrl?.startsWith('data:image/png;base64,')).toBe(true);
+    expect(created.claimUrl).toContain('accountId=default');
 
     const claimed = await service.claim({
       code: created.code,
@@ -39,6 +40,7 @@ describe('PairingService', () => {
     });
 
     expect(claimed.conversationId).toBe(created.conversationId);
+    expect(claimed.accountId).toBe('default');
     expect(claimed.clientToken.length).toBeGreaterThan(10);
     expect(claimed.peerId).toMatch(/^user_/);
     expect(claimed.uploadUrl).toContain('/api/uploads');
@@ -65,6 +67,30 @@ describe('PairingService', () => {
     });
 
     expect(claimed.conversationId).toBe(created.conversationId);
+    expect(claimed.accountId).toBe('default');
     expect(claimed.peerId).toMatch(/^user_/);
+  });
+
+  it('rejects claims when the requested account does not match the pairing account', async () => {
+    const dir = await createTempDir();
+    const store = new JsonStateStore(dir);
+    const service = new PairingService(store);
+
+    const created = await service.create({
+      accountId: 'bot-b',
+      publicBaseUrl: 'https://trix.love',
+      label: 'Bot B',
+    });
+
+    await expect(service.claim({
+      code: created.code,
+      accountId: 'default',
+      clientId: 'phone-3',
+      deviceName: 'Wrong Account Device',
+    }, {
+      websocketUrl: 'wss://trix.love/ws',
+      uploadUrl: 'https://trix.love/api/uploads',
+      messagesUrl: 'https://trix.love/api/messages',
+    })).rejects.toThrow('Pairing code does not belong to account default');
   });
 });
