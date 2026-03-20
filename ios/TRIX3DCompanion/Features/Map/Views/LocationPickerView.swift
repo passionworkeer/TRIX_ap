@@ -7,6 +7,8 @@
 
 import SwiftUI
 import CoreLocation
+import BaiduMapAPI_Map
+import BaiduMapAPI_Utils
 
 // MARK: - Localization Helper
 
@@ -123,7 +125,7 @@ struct LocationPickerView: View {
                 annotations: selectedAnnotation.map { [$0] } ?? [],
                 routeCoordinates: nil,
                 showsUserLocation: true,
-                userTrackingMode: .follow,
+                userTrackingMode: BMKUserTrackingMode(rawValue: 2),
                 onAnnotationTapped: { id, name in
                     // Handle annotation tap if needed
                 },
@@ -133,7 +135,8 @@ struct LocationPickerView: View {
                 onMapClicked: { coordinate in
                     // When map is clicked, set selected location
                     handleMapClick(at: coordinate)
-                }
+                },
+                isInteractive: true
             )
             .ignoresSafeArea(edges: .bottom)
 
@@ -158,8 +161,8 @@ struct LocationPickerView: View {
 
     /// Handle map click to select location
     private func handleMapClick(at coordinate: CLLocationCoordinate2D) {
-        // Convert to WGS-84 if needed (Baidu uses GCJ-02 internally)
-        let wgs84Coord = CoordinateConverter.gcj02ToWGS84(coordinate)
+        // Convert from GCJ-02 (Baidu map internal) to WGS-84 for external use
+        let wgs84Coord = BMKCoordTrans(coordinate, BMK_COORD_TYPE(rawValue: 1)!, BMK_COORD_TYPE(rawValue: 0)!)
 
         selectedLocation = wgs84Coord
         selectedAnnotation = MapAnnotationItem(

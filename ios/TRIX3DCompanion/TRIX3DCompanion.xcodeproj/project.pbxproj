@@ -83,6 +83,7 @@
 		4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */ = {isa = PBXBuildFile; productRef = 6A0B40B4920927A4CD7E9FDC /* PopupView */; };
 		4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28903960B942093BD2167D6C /* AnimatedQRDisplay.swift */; };
 		4FB92E07D859E259CF6402FD /* BaiduMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */; };
+		AABB11223344556677889901 /* BMKMapViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB11223344556677889900 /* BMKMapViewRepresentable.swift */; };
 		51876FABCCD903DB2AA4263B /* WeChatSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */; };
 		522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BE94364156620AE20C70CB37 /* INTEGRATION_GUIDE.md */; };
 		52653C3A84CF4A2DECF3AFD6 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02375D156ED150BFE3E267CC /* SettingsViewModel.swift */; };
@@ -122,7 +123,6 @@
 		728D0F763AF1316A1237B3A0 /* FriendErrorPresentationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */; };
 		72B30C8BE3472F87C3BDFA64 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */; };
 		72F22938E6AF3C776C0497CD /* StudyRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22A215D4A20ECDA130B3FD1 /* StudyRoomView.swift */; };
-		E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */; };
 		730F7E9779547FC0FB22FD36 /* WorkbenchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61A49390552276502379FF1 /* WorkbenchView.swift */; };
 		733C56FE824422DED341124D /* PlaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC194C2516330CAFD9E29ED /* PlaceService.swift */; };
 		73AA6D02A2A73BC1F9B4E8EC /* UnreadBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8A04BBC47C886B8D18003E /* UnreadBadge.swift */; };
@@ -256,6 +256,7 @@
 		DCCE71E66F745BCE850CB74B /* AppLaunchOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500E348CD6ABB694398D10A /* AppLaunchOptimizer.swift */; };
 		DEDFEE006916925B555E2B4B /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = 8487E72F1EA1F00D45807C2E /* FirebasePerformance */; };
 		DF4650EB5C9304755F4BBA2E /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 4DBBEF2CB8A893ECDE5EC232 /* Sentry */; };
+		E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */; };
 		E5C09F2370311EFB88A3B531 /* 03_DESCRIPTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 13E38A95C451FCF33797A6B3 /* 03_DESCRIPTIONS.md */; };
 		E6F70C49A6661548BE26C74C /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35957E4CE6A88F70F4DA8B68 /* SubscriptionView.swift */; };
 		E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A9173255FA94111E92D982 /* BotState.swift */; };
@@ -267,6 +268,7 @@
 		EC466E49F263CD40FD64AF64 /* 00_QUICK_REFERENCE.md in Resources */ = {isa = PBXBuildFile; fileRef = EEE20836B94CBDB57919AAF5 /* 00_QUICK_REFERENCE.md */; };
 		EC81BD99165359BD11F1FF4A /* AuthInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495BFB391CA424F7B8C384F3 /* AuthInterceptor.swift */; };
 		ED190586991EC93888CEF399 /* UserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F633E388510A7A3298A5E5 /* UserService.swift */; };
+		EEE9758863DF1CBBB885B258 /* Pods_TRIX3DCompanion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */; };
 		EF2038C987A9363D9DC5A596 /* SSLPinningManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513F73FF6F148B0ABD671443 /* SSLPinningManager.swift */; };
 		F1BBBEBB6B3B97F1E0F0F8C6 /* SecurityHeadersValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A22E6E33DC64F7B7FB50EA0 /* SecurityHeadersValidator.swift */; };
 		F3E6B5910B7EB454E3810253 /* CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07AF70444DC04A4B1E242CA1 /* CameraViewModel.swift */; };
@@ -361,6 +363,7 @@
 		3D5249DD4B88D159F023A8F7 /* FocusStartAnimationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusStartAnimationView.swift; sourceTree = "<group>"; };
 		3DE40571BBD4FCA8A401F881 /* MallServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MallServiceProtocol.swift; sourceTree = "<group>"; };
 		42E66413B632F4A389B7927C /* 01_ICON_SPECS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = 01_ICON_SPECS.md; sourceTree = "<group>"; };
+		431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TRIX3DCompanion.debug.xcconfig"; path = "Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion.debug.xcconfig"; sourceTree = "<group>"; };
 		44D90B5BAC450714FD74548A /* RequestRetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestRetryManager.swift; sourceTree = "<group>"; };
 		455A2EA572AA68D40A9155F3 /* MessageCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCell.swift; sourceTree = "<group>"; };
 		4671ECB430B367281FF2886F /* Todo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Todo.swift; sourceTree = "<group>"; };
@@ -374,6 +377,7 @@
 		4FD61F3AC5583F1D702B3C42 /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		51292AD923DEA82151D9D658 /* WardrobeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WardrobeService.swift; sourceTree = "<group>"; };
 		513F73FF6F148B0ABD671443 /* SSLPinningManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSLPinningManager.swift; sourceTree = "<group>"; };
+		5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TRIX3DCompanion.release.xcconfig"; path = "Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion.release.xcconfig"; sourceTree = "<group>"; };
 		53F522686A2C9909962FBB2B /* TodoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoViewModel.swift; sourceTree = "<group>"; };
 		54563FA17CCB35C310FBA8E3 /* DiagnosticView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticView.swift; sourceTree = "<group>"; };
 		548F3FFB312DA57B1B1F9B18 /* Localizable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localizable.swift; sourceTree = "<group>"; };
@@ -431,6 +435,7 @@
 		84B43FC51891CC05C3728F15 /* ChatDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailViewModel.swift; sourceTree = "<group>"; };
 		851CE702189CACA3A2AD2134 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		8636DE591832F45D43A94DC8 /* VoiceMessagePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMessagePlayerView.swift; sourceTree = "<group>"; };
+		AABB11223344556677889900 /* BMKMapViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMKMapViewRepresentable.swift; sourceTree = "<group>"; };
 		86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaiduMapView.swift; sourceTree = "<group>"; };
 		86F21F7491DF0599008C3BDA /* NoInternetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoInternetView.swift; sourceTree = "<group>"; };
 		87FFD2EF7AAD7536F0BF7AA4 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
@@ -496,7 +501,6 @@
 		C1F9FAD399C6053DBECE0D71 /* speaking.mp4 */ = {isa = PBXFileReference; path = speaking.mp4; sourceTree = "<group>"; };
 		C21EF53920BB8D545F1146DD /* TRIX3DCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TRIX3DCompanionApp.swift; sourceTree = "<group>"; };
 		C22A215D4A20ECDA130B3FD1 /* StudyRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomView.swift; sourceTree = "<group>"; };
-		E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomViewModel.swift; sourceTree = "<group>"; };
 		C2DCD40DF2B62EF9E0B7078F /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
 		C40AA82CE9008B7D7CA82E73 /* ClawbotChannelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClawbotChannelViewModel.swift; sourceTree = "<group>"; };
 		C9D4AF830AE129E0833DCC4E /* PushNotificationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationServiceProtocol.swift; sourceTree = "<group>"; };
@@ -526,8 +530,10 @@
 		D7E9164A6BFA1FE90C6288F9 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
 		DBC0D2CB90AF516D7AC88553 /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
 		DC8A04BBC47C886B8D18003E /* UnreadBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnreadBadge.swift; sourceTree = "<group>"; };
+		DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TRIX3DCompanion.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSignInService.swift; sourceTree = "<group>"; };
 		DF3B96EB36A351D1A080BB33 /* EmptyPointsHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyPointsHistoryView.swift; sourceTree = "<group>"; };
+		E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomViewModel.swift; sourceTree = "<group>"; };
 		E14B42940F473663AB353BD7 /* DataExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportService.swift; sourceTree = "<group>"; };
 		E1E0F5DC6FCD6842374DD43B /* FriendServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendServiceProtocol.swift; sourceTree = "<group>"; };
 		E202D6F872CE396F238336E2 /* AnimatedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCard.swift; sourceTree = "<group>"; };
@@ -584,6 +590,7 @@
 				4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */,
 				C7FC52F178F97EA492D8391D /* WhatsNewKit in Frameworks */,
 				C5DC213B3946C88D95A0BBAA /* ActivityIndicatorView in Frameworks */,
+				EEE9758863DF1CBBB885B258 /* Pods_TRIX3DCompanion.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -667,6 +674,8 @@
 				0E17DDA25682178CDF056DFC /* Smoke */,
 				4E00016D5D1FF808E9DBB6B4 /* TRIX3DUITests */,
 				A26DEA605FBD99D7E05F55B6 /* Products */,
+				A60CFB166BEDE6EA090172EE /* Pods */,
+				92667F042D66DA6D59FEBB66 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -794,6 +803,7 @@
 		15B35CE2010494A02E0B5983 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				AABB11223344556677889900 /* BMKMapViewRepresentable.swift */,
 				86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */,
 				39FAD6864E99FEABB0756D8E /* LocationDetailView.swift */,
 				56AFB64B36451F9EB9BEFB05 /* LocationPickerView.swift */,
@@ -1105,6 +1115,14 @@
 			path = Chat;
 			sourceTree = "<group>";
 		};
+		92667F042D66DA6D59FEBB66 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		942398EB45E3B54F09AF8327 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -1168,6 +1186,16 @@
 				02C691BEFC36A1C049C6F115 /* AuthViewModel.swift */,
 			);
 			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		A60CFB166BEDE6EA090172EE /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */,
+				5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		ABE50A980BA1787B49973E75 /* Theme */ = {
@@ -1270,14 +1298,6 @@
 			path = Study;
 			sourceTree = "<group>";
 		};
-		E129A4D3415B4E4086A89C13 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
 		CD2F292306A48C8B04F33A8E /* Performance */ = {
 			isa = PBXGroup;
 			children = (
@@ -1320,6 +1340,14 @@
 				2E353AD6E7225070D79D0712 /* VoiceRecordingButton.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		E129A4D3415B4E4086A89C13 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		E33253400BFA63FCB0AD8551 /* Videos */ = {
@@ -1427,9 +1455,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DBA8E2C107082C007F926F5F /* Build configuration list for PBXNativeTarget "TRIX3DCompanion" */;
 			buildPhases = (
+				8D9E9B8246B857B40FABC1E6 /* [CP] Check Pods Manifest.lock */,
 				8C058EF399296F53A7AB459C /* Sources */,
 				0053E62410AE0DD1BE2D08E1 /* Resources */,
 				5E6854121DFC46131F662318 /* Frameworks */,
+				4FC39666BDC9A56EB6F98271 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -1468,8 +1498,6 @@
 				54E64EE070E56DBD97C517E0 /* PBXTargetDependency */,
 			);
 			name = TRIX3DCompanionTests;
-			packageProductDependencies = (
-			);
 			productName = TRIX3DCompanionTests;
 			productReference = D4330490527811D0283EA7A4 /* TRIX3DCompanionTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -1486,8 +1514,6 @@
 				1AED2500116C9EC319BF832D /* PBXTargetDependency */,
 			);
 			name = TRIX3DUITests;
-			packageProductDependencies = (
-			);
 			productName = TRIX3DUITests;
 			productReference = D02C96C1EC6CE3CB1DD4339D /* TRIX3DUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -1541,6 +1567,7 @@
 				8BDA9EDFA1079BBABB57408C /* XCRemoteSwiftPackageReference "WhatsNewKit" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = A26DEA605FBD99D7E05F55B6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1580,6 +1607,48 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		4FC39666BDC9A56EB6F98271 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		8D9E9B8246B857B40FABC1E6 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-TRIX3DCompanion-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		4A120D4B98E4E858278DD0AF /* Sources */ = {
@@ -1639,6 +1708,7 @@
 				D0D8D63111E9C49C50B9A6D3 /* AvatarView.swift in Sources */,
 				5475AC1411DEF67D8055033B /* BaiduMapService.swift in Sources */,
 				4FB92E07D859E259CF6402FD /* BaiduMapView.swift in Sources */,
+				AABB11223344556677889901 /* BMKMapViewRepresentable.swift in Sources */,
 				0315F843ED9841D589E63971 /* BatteryConsumptionOptimizer.swift in Sources */,
 				E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */,
 				DAB62424CF3545BB4F951116 /* CameraService.swift in Sources */,
@@ -2038,6 +2108,7 @@
 		};
 		B094AD076D15B304FBA10BD4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -2046,7 +2117,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.trix3d.companion;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -2058,6 +2132,7 @@
 		};
 		B7AC38280CDFA927CD317C7B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -2066,7 +2141,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.trix3d.companion;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;

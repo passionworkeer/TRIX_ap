@@ -53,10 +53,6 @@ export function createMainWindow(): void {
     log.error('Main window render-process-gone:', details.reason, details.exitCode);
   });
 
-  mainWindow.webContents.on('crashed', () => {
-    log.error('Main window crashed');
-  });
-
   mainWindow.once('ready-to-show', () => {
     log.info('Main window ready to show');
     mainWindow.show();

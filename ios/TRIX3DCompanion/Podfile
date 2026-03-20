@@ -17,4 +17,49 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.0'
     end
   end
+
+  # Create BaiduMapKit umbrella module map that exposes all sub-frameworks
+  pods_root = File.join(installer.sandbox.root, 'BaiduMapKit', 'BaiduMapKit')
+  umbrella_dir = pods_root
+  FileUtils.mkdir_p(umbrella_dir)
+
+  # Write umbrella header
+  umbrella_header = File.join(umbrella_dir, 'BaiduMapKit.h')
+  File.write(umbrella_header, <<-HEADER)
+// BaiduMapKit Umbrella Header
+// Re-exports all BaiduMapKit sub-framework headers
+#ifndef BaiduMapKit_h
+#define BaiduMapKit_h
+
+#import <BaiduMapAPI_Base/BMKBaseComponent.h>
+#import <BaiduMapAPI_Map/BMKMapComponent.h>
+#import <BaiduMapAPI_Search/BMKSearchComponent.h>
+#import <BaiduMapAPI_Utils/BMKUtilsComponent.h>
+
+#endif /* BaiduMapKit_h */
+HEADER
+
+  # Write module map
+  module_map = File.join(umbrella_dir, 'module.modulemap')
+  File.write(module_map, <<-MODULEMAP)
+// BaiduMapKit Umbrella Module Map
+// Exposes BaiduMapKit as a single module importing all sub-frameworks
+module BaiduMapKit {
+    umbrella header "BaiduMapKit.h"
+
+    export *
+    module * { export * }
+}
+MODULEMAP
+
+  # Patch BaiduMapKit/Base target to use our modulemap
+  installer.pods_project.targets.each do |target|
+    if target.name == 'BaiduMapKit'
+      target.build_configurations.each do |config|
+        config.build_settings['MODULEMAP_FILE'] = module_map
+      end
+    end
+  end
+
+  installer.pods_project.save
 end

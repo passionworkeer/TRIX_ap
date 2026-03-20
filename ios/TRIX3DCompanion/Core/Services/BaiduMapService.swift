@@ -8,7 +8,8 @@
 import Foundation
 import UIKit
 import CoreLocation
-import BaiduMapKit
+import BaiduMapAPI_Base
+import BaiduMapAPI_Search
 
 // MARK: - Baidu Map Configuration
 
@@ -136,7 +137,7 @@ enum BaiduPOICategory: String, CaseIterable {
 struct BaiduGeocodingResult {
     let latitude: Double
     let longitude: Double
-    let address: String
+    let address: String?
     let province: String?
     let city: String?
     let district: String?
@@ -210,8 +211,8 @@ protocol BaiduMapServiceProtocol: AnyObject {
 
 // MARK: - Baidu Map Service Implementation
 
-/// Baidu Map service implementation using BaiduMapKit SDK
-final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
+/// Baidu Map service implementation using BaiduMapKit SDK (v6.x API)
+final class BaiduMapService: NSObject, BaiduMapServiceProtocol, BMKGeneralDelegate {
 
     // MARK: - Singleton
 
@@ -230,8 +231,11 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     /// BMKMapManager instance
     private let mapManager = BMKMapManager()
 
-    /// BMKSearch instance for POI and geocoding
-    private var search: BMKSearch?
+    /// BMKPoiSearch instance for POI search (BaiduMapKit 6.x API)
+    private var poiSearch: BMKPoiSearch?
+
+    /// BMKGeoCodeSearch instance for geocoding (BaiduMapKit 6.x API)
+    private var geoSearch: BMKGeoCodeSearch?
 
     /// BMKRouteSearch instance for routing
     private var routeSearch: BMKRouteSearch?
@@ -275,13 +279,16 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
             return
         }
 
-        // Start Baidu Map Manager
-        let ret = mapManager.start(BaiduMapConfig.apiKey, .general)
+        // Start Baidu Map Manager (BaiduMapKit 6.x API)
+        let ret = mapManager.start(BaiduMapConfig.apiKey, generalDelegate: self)
         if ret {
             isInitialized = true
-            // Initialize search instances
-            search = BMKSearch()
-            search?.delegate = self
+            // Initialize search instances (BaiduMapKit 6.x API)
+            poiSearch = BMKPoiSearch()
+            poiSearch?.delegate = self
+
+            geoSearch = BMKGeoCodeSearch()
+            geoSearch?.delegate = self
 
             routeSearch = BMKRouteSearch()
             routeSearch?.delegate = self
@@ -311,7 +318,7 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     }
 
     func searchPOI(keyword: String, city: String?, completion: @escaping ([BaiduPOI]) -> Void) {
-        guard isAvailable, let search = search else {
+        guard isAvailable, let poiSearch = poiSearch else {
             SecureLogger.shared.warning("BaiduMapService: Search failed - not available")
             // Fallback to mock data
             let mockResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city ?? "上海")
@@ -321,20 +328,25 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
         poiSearchCompletion = completion
 
-        // Search in city
-        let cityName = city ?? "全国"
-        let ret = search.poiSearchInCity(cityName, withKey: keyword, pageIndex: 0, pageSize: 20)
+        // Search in city (BaiduMapKit 6.x API)
+        let option = BMKPOICitySearchOption()
+        option.keyword = keyword
+        option.city = city ?? "全国"
+        option.pageIndex = 0
+        option.pageSize = 20
+
+        let ret = poiSearch.poiSearch(inCity: option)
 
         if !ret {
             SecureLogger.shared.warning("BaiduMapService: POI search request failed")
             // Fallback to mock data
-            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword, city: cityName)
+            let mockResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city ?? "上海")
             completion(mockResults)
         }
     }
 
     func searchNearby(latitude: Double, longitude: Double, radius: Int, keyword: String?, completion: @escaping ([BaiduPOI]) -> Void) {
-        guard isAvailable, let search = search else {
+        guard isAvailable, let poiSearch = poiSearch else {
             SecureLogger.shared.warning("BaiduMapService: Nearby search failed - not available")
             // Fallback to mock data
             let mockResults = BaiduMapService.mockSearchResults(keyword: keyword ?? "附近", city: "上海")
@@ -344,8 +356,15 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
         poiSearchCompletion = completion
 
-        let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        let ret = search.poiSearchNear(by: keyword ?? "", withCenter: center, radius: radius, pageIndex: 0, pageSize: 20)
+        // Nearby search (BaiduMapKit 6.x API)
+        let option = BMKPOINearbySearchOption()
+        option.keywords = keyword.map { [$0] } ?? []
+        option.location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        option.radius = radius
+        option.pageIndex = 0
+        option.pageSize = 20
+
+        let ret = poiSearch.poiSearchNear(by: option)
 
         if !ret {
             SecureLogger.shared.warning("BaiduMapService: Nearby search request failed")
@@ -356,7 +375,7 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     }
 
     func geocode(address: String, city: String?, completion: @escaping (BaiduGeocodingResult?) -> Void) {
-        guard isAvailable, let search = search else {
+        guard isAvailable, let geoSearch = geoSearch else {
             SecureLogger.shared.warning("BaiduMapService: Geocode failed - not available")
             completion(nil)
             return
@@ -364,7 +383,12 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
         geocodeCompletion = completion
 
-        let ret = search.geocodeSearch(with: address, city: city ?? "")
+        // Geocoding (BaiduMapKit 6.x API)
+        let option = BMKGeoCodeSearchOption()
+        option.address = address
+        option.city = city ?? ""
+
+        let ret = geoSearch.geoCode(option)
 
         if !ret {
             SecureLogger.shared.warning("BaiduMapService: Geocode request failed")
@@ -373,7 +397,7 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
     }
 
     func reverseGeocode(latitude: Double, longitude: Double, completion: @escaping (BaiduGeocodingResult?) -> Void) {
-        guard isAvailable, let search = search else {
+        guard isAvailable, let geoSearch = geoSearch else {
             SecureLogger.shared.warning("BaiduMapService: Reverse geocode failed - not available")
             completion(nil)
             return
@@ -381,8 +405,11 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
         reverseGeocodeCompletion = completion
 
-        let location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        let ret = search.reverseGeocode(with: location)
+        // Reverse geocoding (BaiduMapKit 6.x API)
+        let option = BMKReverseGeoCodeSearchOption()
+        option.location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+
+        let ret = geoSearch.reverseGeoCode(option)
 
         if !ret {
             SecureLogger.shared.warning("BaiduMapService: Reverse geocode request failed")
@@ -409,11 +436,11 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
         endNode.name = "终点"
 
         // Create driving route option
-        let drivingRouteSearchOption = BMKDrivingRouteSearchOption()
-        drivingRouteSearchOption.from = startNode
-        drivingRouteSearchOption.to = endNode
+        let drivingRoutePlanOption = BMKDrivingRoutePlanOption()
+        drivingRoutePlanOption.from = startNode
+        drivingRoutePlanOption.to = endNode
 
-        let ret = routeSearch.drivingSearch(drivingRouteSearchOption)
+        let ret = routeSearch.drivingSearch(drivingRoutePlanOption)
 
         if !ret {
             SecureLogger.shared.warning("BaiduMapService: Route plan request failed")
@@ -444,25 +471,25 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
     // MARK: - Private Methods
 
-    /// Handle POI search results
-    private func handlePOISearchResults(_ poiList: [BMKPoiInfo]?, errorCode: BMKSearchErrorCode) {
+    /// Handle POI search results (BaiduMapKit 6.x: BMKPOISearchResult with poiInfoList)
+    private func handlePOISearchResults(_ result: BMKPOISearchResult?, errorCode: BMKSearchErrorCode) {
         guard let completion = poiSearchCompletion else { return }
 
-        if errorCode == BMK_SEARCH_NO_ERROR, let poiList = poiList {
+        if errorCode == BMK_SEARCH_NO_ERROR, let result = result, let poiList = result.poiInfoList {
             let pois = poiList.enumerated().map { index, poi -> BaiduPOI in
                 BaiduPOI(
                     id: poi.uid,
                     name: poi.name,
                     address: poi.address,
-                    latitude: poi.pt.lat,
-                    longitude: poi.pt.lon,
+                    latitude: poi.pt.latitude,
+                    longitude: poi.pt.longitude,
                     province: poi.province,
                     city: poi.city,
-                    district: poi.district,
-                    street: poi.streetName,
+                    district: poi.area ?? "",
+                    street: poi.streetID,
                     telephone: poi.phone,
-                    distance: poi.naviDistance.map { Double($0) },
-                    type: poi.ePoiType
+                    distance: poi.distance > 0 ? Double(poi.distance) : nil,
+                    type: poi.tag
                 )
             }
             lastPOISearchResults = pois
@@ -477,66 +504,75 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
         poiSearchCompletion = nil
     }
 
-    /// Handle geocode results
-    private func handleGeocodeResults(_ result: BMKGeocodeResult?, errorCode: BMKSearchErrorCode) {
+    /// Handle geocode results (BaiduMapKit 6.x: BMKGeoCodeSearchResult)
+    private func handleGeocodeResults(_ result: BMKGeoCodeSearchResult?, error: BMKSearchErrorCode) {
         guard let completion = geocodeCompletion else { return }
 
-        if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
+        if error == BMK_SEARCH_NO_ERROR, let result = result {
             let geocodeResult = BaiduGeocodingResult(
-                latitude: result.geoPt.lat,
-                longitude: result.geoPt.lon,
-                address: result.address,
-                province: result.addressDetail.province,
-                city: result.addressDetail.city,
-                district: result.addressDetail.district
+                latitude: result.location.latitude,
+                longitude: result.location.longitude,
+                address: nil,
+                province: nil,
+                city: nil,
+                district: nil
             )
             lastGeocodeResult = geocodeResult
             completion(geocodeResult)
         } else {
-            SecureLogger.shared.warning("BaiduMapService: Geocode error - \(errorCode.rawValue)")
+            SecureLogger.shared.warning("BaiduMapService: Geocode error - \(error.rawValue)")
             completion(nil)
         }
 
         geocodeCompletion = nil
     }
 
-    /// Handle reverse geocode results
-    private func handleReverseGeocodeResults(_ result: BMKReverseGeoCodeResult?, errorCode: BMKSearchErrorCode) {
+    /// Handle reverse geocode results (BaiduMapKit 6.x: BMKReverseGeoCodeSearchResult)
+    private func handleReverseGeocodeResults(_ result: BMKReverseGeoCodeSearchResult?, error: BMKSearchErrorCode) {
         guard let completion = reverseGeocodeCompletion else { return }
 
-        if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
+        if error == BMK_SEARCH_NO_ERROR, let result = result {
             let geocodeResult = BaiduGeocodingResult(
                 latitude: result.location.latitude,
                 longitude: result.location.longitude,
                 address: result.address,
-                province: result.addressDetail.province,
-                city: result.addressDetail.city,
-                district: result.addressDetail.district
+                province: result.addressDetail?.province,
+                city: result.addressDetail?.city,
+                district: result.addressDetail?.district
             )
             lastGeocodeResult = geocodeResult
             completion(geocodeResult)
         } else {
-            SecureLogger.shared.warning("BaiduMapService: Reverse geocode error - \(errorCode.rawValue)")
+            SecureLogger.shared.warning("BaiduMapService: Reverse geocode error - \(error.rawValue)")
             completion(nil)
         }
 
         reverseGeocodeCompletion = nil
     }
 
-    /// Handle route plan results
-    private func handleRoutePlanResults(_ result: BMKRouteResult?, errorCode: BMKSearchErrorCode) {
+    /// Compute total duration in seconds from BMKTime object
+    private func computeDurationSeconds(_ time: BMKTime?) -> Int {
+        guard let t = time else { return 0 }
+        let days = Int(t.dates) * 86400
+        let hours = Int(t.hours) * 3600
+        let minutes = Int(t.minutes) * 60
+        let seconds = Int(t.seconds)
+        return days + hours + minutes + seconds
+    }
+
+    /// Handle route plan results (BaiduMapKit 6.x: BMKDrivingRouteResult)
+    private func handleRoutePlanResults(_ result: BMKDrivingRouteResult?, errorCode: BMKSearchErrorCode) {
         guard let completion = routePlanCompletion else { return }
 
         if errorCode == BMK_SEARCH_NO_ERROR, let result = result {
             // Get the first route (most optimal)
-            if let route = result.routes.first {
+            if let route = result.routes.first as? BMKDrivingRouteLine {
                 var steps: [RouteStep] = []
 
-                // Extract steps from route
-                for i in 0..<route.steps.count {
-                    let step = route.steps[i]
+                // Extract steps from route (BaiduMapKit 6.x: steps is NSArray of BMKDrivingRouteStep)
+                for case let step as BMKDrivingStep in route.steps {
                     let stepInfo = RouteStep(
-                        instruction: step.instruction,
+                        instruction: step.instruction ?? "",
                         distance: Double(step.distance),
                         duration: Int(step.duration)
                     )
@@ -545,7 +581,7 @@ final class BaiduMapService: NSObject, BaiduMapServiceProtocol {
 
                 let routeResult = BaiduRoute(
                     distance: Double(route.distance),
-                    duration: Int(route.duration),
+                    duration: computeDurationSeconds(route.duration),
                     steps: steps
                 )
                 lastRouteResult = routeResult
@@ -584,26 +620,46 @@ extension BaiduMapService: CLLocationManagerDelegate {
     }
 }
 
-// MARK: - BMKSearchDelegate
+// MARK: - BMKGeneralDelegate methods
 
-extension BaiduMapService: BMKSearchDelegate {
-    func onGetPoiResult(_ searcher: BMKSearch!, result: BMKPoiResult!, errorCode: BMKSearchErrorCode) {
-        handlePOISearchResults(result.poiList, errorCode: errorCode)
+extension BaiduMapService {
+    func onGetNetworkState(_ iError: Int32) {
+        if iError != 0 {
+            SecureLogger.shared.error("BaiduMapService: Network error - \(iError)")
+        }
     }
 
-    func onGetGeoCodeResult(_ searcher: BMKSearch!, result: BMKGeocodeResult!, errorCode: BMKSearchErrorCode) {
-        handleGeocodeResults(result, errorCode: errorCode)
+    func onGetPermissionState(_ iError: Int32) {
+        if iError != 0 {
+            SecureLogger.shared.error("BaiduMapService: Permission error - \(iError)")
+        }
+    }
+}
+
+// MARK: - BMKPoiSearchDelegate
+
+extension BaiduMapService: BMKPoiSearchDelegate {
+    func onGetPoiResult(_ searcher: BMKPoiSearch, result: BMKPOISearchResult, errorCode: BMKSearchErrorCode) {
+        handlePOISearchResults(result, errorCode: errorCode)
+    }
+}
+
+// MARK: - BMKGeoCodeSearchDelegate
+
+extension BaiduMapService: BMKGeoCodeSearchDelegate {
+    func onGetGeoCodeResult(_ searcher: BMKGeoCodeSearch, result: BMKGeoCodeSearchResult, errorCode: BMKSearchErrorCode) {
+        handleGeocodeResults(result, error: errorCode)
     }
 
-    func onGetReverseGeoCodeResult(_ searcher: BMKSearch!, result: BMKReverseGeoCodeResult!, errorCode: BMKSearchErrorCode) {
-        handleReverseGeocodeResults(result, errorCode: errorCode)
+    func onGetReverseGeoCodeResult(_ searcher: BMKGeoCodeSearch, result: BMKReverseGeoCodeSearchResult, errorCode: BMKSearchErrorCode) {
+        handleReverseGeocodeResults(result, error: errorCode)
     }
 }
 
 // MARK: - BMKRouteSearchDelegate
 
 extension BaiduMapService: BMKRouteSearchDelegate {
-    func onGetDrivingRouteResult(_ searcher: BMKRouteSearch!, result: BMKRouteResult!, errorCode: BMKSearchErrorCode) {
+    func onGetDrivingRouteResult(_ searcher: BMKRouteSearch, result: BMKDrivingRouteResult, errorCode: BMKSearchErrorCode) {
         handleRoutePlanResults(result, errorCode: errorCode)
     }
 }

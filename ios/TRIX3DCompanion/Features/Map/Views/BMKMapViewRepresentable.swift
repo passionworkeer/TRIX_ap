@@ -6,8 +6,19 @@
 //
 
 import SwiftUI
-import BaiduMapKit
+import BaiduMapAPI_Map
 import CoreLocation
+
+// MARK: - Custom Annotation with ID Storage
+
+/// Custom annotation that stores ID for tap handling
+/// BMKPointAnnotation has no userData property in Swift, so we subclass
+final class BMKCustomAnnotation: BMKPointAnnotation {
+    /// Unique identifier for the annotation
+    var annotationId: String = ""
+    /// Category string for styling
+    var categoryString: String = ""
+}
 
 // MARK: - BMKMapView Representable
 
@@ -18,54 +29,47 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
     // MARK: - Coordinator
 
     /// Coordinator for BMKMapViewDelegate
+    /// Stores a reference to the parent Binding for updating center coordinate
     class Coordinator: NSObject, BMKMapViewDelegate {
 
         // MARK: - Properties
 
-        /// Parent representable view
-        weak var parent: BMKMapViewRepresentable?
+        /// Binding to the parent view's center coordinate
+        var centerCoordinateBinding: Binding<CLLocationCoordinate2D>?
 
         /// Current annotations on the map
-        private var currentAnnotations: [BMKPointAnnotation] = []
+        private var currentAnnotations: [BMKCustomAnnotation] = []
 
         /// Current route overlay
         private var currentOverlay: BMKPolyline?
 
-        // MARK: - Initialization
+        // MARK: - Callback Closures
 
-        init(parent: BMKMapViewRepresentable) {
-            self.parent = parent
-        }
+        var onAnnotationTapped: ((String, String) -> Void)?
+        var onRegionChanged: ((CLLocationCoordinate2D) -> Void)?
+        var onMapClicked: ((CLLocationCoordinate2D) -> Void)?
 
         // MARK: - BMKMapViewDelegate
 
-        func mapView(_ mapView: BMKMapView!, didSelect view: BMKMapViewAnnotation!) {
-            guard let annotation = view as? BMKPointAnnotation,
-                  let userInfo = annotation.userData as? [String: Any] else { return }
-
-            let id = userInfo["id"] as? String ?? ""
-            let name = annotation.title ?? ""
-            parent?.onAnnotationTapped?(id, name)
+        func mapView(_ mapView: BMKMapView!, didSelectAnnotationView view: BMKAnnotationView!) {
+            guard let annotation = view.annotation as? BMKCustomAnnotation else { return }
+            onAnnotationTapped?(annotation.annotationId, annotation.title ?? "")
         }
 
         func mapView(_ mapView: BMKMapView!, regionDidChangeAnimated animated: Bool) {
             let center = mapView.centerCoordinate
-            parent?.centerCoordinate = center
-            parent?.onRegionChanged?(center)
+            centerCoordinateBinding?.wrappedValue = center
+            onRegionChanged?(center)
         }
 
         func mapView(_ mapView: BMKMapView!, onClickedMapCoordinate mapCoordinate: CLLocationCoordinate2D) {
-            parent?.onMapClicked?(mapCoordinate)
-        }
-
-        func mapView(_ mapView: BMKMapView!, didAddOverlayviews overlayviews: [Any]!) {
-            // Handle overlay additions if needed
+            onMapClicked?(mapCoordinate)
         }
 
         func mapView(_ mapView: BMKMapView!, viewFor overlay: BMKOverlay!) -> BMKOverlayView! {
             if let polyline = overlay as? BMKPolyline {
                 let overlayView = BMKPolylineView(polyline: polyline)
-                overlayView?.strokeColor = UIColor(red: 0.58, green: 0.39, blue: 0.95, alpha: 1.0) // brandPurple
+                overlayView?.strokeColor = UIColor(red: 0.58, green: 0.39, blue: 0.95, alpha: 1.0)
                 overlayView?.lineWidth = 5.0
                 return overlayView
             }
@@ -76,18 +80,17 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
 
         /// Update annotations on the map
         func updateAnnotations(_ annotations: [MapAnnotationItem], mapView: BMKMapView) {
-            // Remove old annotations
             mapView.removeAnnotations(currentAnnotations)
             currentAnnotations.removeAll()
 
-            // Add new annotations
-            var newAnnotations: [BMKPointAnnotation] = []
+            var newAnnotations: [BMKCustomAnnotation] = []
             for item in annotations {
-                let annotation = BMKPointAnnotation()
+                let annotation = BMKCustomAnnotation()
                 annotation.coordinate = item.coordinate
                 annotation.title = item.name
                 annotation.subtitle = item.subtitle
-                annotation.userData = ["id": item.id, "category": item.category.rawValue]
+                annotation.annotationId = item.id
+                annotation.categoryString = item.category.rawValue
                 newAnnotations.append(annotation)
             }
 
@@ -97,19 +100,18 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
 
         /// Update route overlay on the map
         func updateRouteOverlay(_ coordinates: [CLLocationCoordinate2D], mapView: BMKMapView) {
-            // Remove old overlay
             if let oldOverlay = currentOverlay {
                 mapView.remove(oldOverlay)
             }
 
             guard coordinates.count > 1 else { return }
 
-            // Create new overlay
-            let points = coordinates.map { BMKMapPointForCGPoint(CGPoint(x: $0.longitude, y: $0.latitude)) }
-            // Use coordinate array directly for polyline
-            let polyline = BMKPolyline(coordinates: coordinates, count: UInt(coordinates.count))
-            currentOverlay = polyline
-            mapView.add(polyline)
+            // Create polyline using init(coordinates:count:)
+            var mutableCoords = coordinates
+            if let polyline = BMKPolyline(coordinates: &mutableCoords, count: UInt(coordinates.count)) {
+                currentOverlay = polyline
+                mapView.add(polyline)
+            }
         }
 
         /// Clear all overlays
@@ -159,6 +161,12 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
         let mapView = BMKMapView()
         mapView.delegate = context.coordinator
 
+        // Configure coordinator with binding
+        context.coordinator.centerCoordinateBinding = $centerCoordinate
+        context.coordinator.onAnnotationTapped = onAnnotationTapped
+        context.coordinator.onRegionChanged = onRegionChanged
+        context.coordinator.onMapClicked = onMapClicked
+
         // Configure map view
         mapView.centerCoordinate = centerCoordinate
         mapView.zoomLevel = zoomLevel
@@ -167,12 +175,7 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
         mapView.isRotateEnabled = false
         mapView.showsUserLocation = showsUserLocation
         mapView.userTrackingMode = userTrackingMode
-
-        // Set map type to standard
         mapView.mapType = .standard
-
-        // Set padding
-        mapView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
 
         // Update annotations
         context.coordinator.updateAnnotations(annotations, mapView: mapView)
@@ -188,18 +191,24 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
     // MARK: - Update UIView
 
     func updateUIView(_ mapView: BMKMapView, context: Context) {
+        // Update coordinator state
+        context.coordinator.centerCoordinateBinding = $centerCoordinate
+        context.coordinator.onAnnotationTapped = onAnnotationTapped
+        context.coordinator.onRegionChanged = onRegionChanged
+        context.coordinator.onMapClicked = onMapClicked
+
         // Update center coordinate if changed significantly
         let currentCenter = mapView.centerCoordinate
         let latDiff = abs(currentCenter.latitude - centerCoordinate.latitude)
         let lonDiff = abs(currentCenter.longitude - centerCoordinate.longitude)
 
         if latDiff > 0.0001 || lonDiff > 0.0001 {
-            mapView.setCenter(centerCoordinate, animated: true)
+            mapView.centerCoordinate = centerCoordinate
         }
 
         // Update zoom level if changed
         if abs(mapView.zoomLevel - zoomLevel) > 0.5 {
-            mapView.setZoomLevel(zoomLevel, animated: true)
+            mapView.zoomLevel = zoomLevel
         }
 
         // Update annotations
@@ -219,14 +228,6 @@ struct BMKMapViewRepresentable: UIViewRepresentable {
     // MARK: - Make Coordinator
 
     func makeCoordinator() -> Coordinator {
-        return Coordinator(parent: self)
-    }
-}
-
-// MARK: - BMKUserTrackingMode Extension
-
-extension BMKUserTrackingMode: @retroactive CaseIterable {
-    public static var allCases: [BMKUserTrackingMode] {
-        [.none, .follow, .followWithHeading]
+        return Coordinator()
     }
 }

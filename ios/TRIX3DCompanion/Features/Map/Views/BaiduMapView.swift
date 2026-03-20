@@ -7,6 +7,8 @@
 
 import SwiftUI
 import CoreLocation
+import BaiduMapAPI_Map
+import BaiduMapAPI_Utils
 
 // MARK: - Baidu Map View
 
@@ -54,7 +56,7 @@ struct BaiduMapView: View {
                 annotations: annotations,
                 routeCoordinates: routeCoordinates,
                 showsUserLocation: showsUserLocation,
-                userTrackingMode: .follow,
+                userTrackingMode: BMKUserTrackingMode(rawValue: 2),
                 onAnnotationTapped: { id, name in
                     if let annotation = annotations.first(where: { $0.id == id }) {
                         onAnnotationTapped?(annotation)
@@ -62,7 +64,8 @@ struct BaiduMapView: View {
                 },
                 onRegionChanged: { coordinate in
                     onRegionChanged?(coordinate)
-                }
+                },
+                isInteractive: true
             )
             .ignoresSafeArea()
 
@@ -99,8 +102,8 @@ struct BaiduMapView: View {
                 zoomLevel = Double(bmkZoomLevel)
             case .centerUser:
                 if let location = LocationManager.shared.currentLocation {
-                    // Convert to GCJ-02 for Baidu Map
-                    let gcj02Coord = CoordinateConverter.wgs84ToGCJ02(location.coordinate)
+                    // Convert from WGS-84 (device) to GCJ-02 for Baidu Map
+                    let gcj02Coord = BMKCoordTrans(location.coordinate, BMK_COORD_TYPE(rawValue: 0)!, BMK_COORD_TYPE(rawValue: 1)!)
                     centerCoordinate = gcj02Coord
                 }
             }

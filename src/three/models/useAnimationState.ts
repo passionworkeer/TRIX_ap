@@ -9,7 +9,6 @@ function botStateToAnim(state: CharacterBotState): string {
   switch (state) {
     case 'THINKING': return 'Think';
     case 'SPEAKING': return 'Speak';
-    case 'BORING':   return 'Boring';
     case 'IDLE':
     default:         return 'Idle';
   }
