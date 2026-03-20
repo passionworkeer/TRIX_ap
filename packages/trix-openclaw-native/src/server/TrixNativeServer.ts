@@ -250,6 +250,11 @@ export class TrixNativeServer {
     const ip = getRequestIp(request) ?? 'unknown';
     const key = subject ? `${ip}:${subject}` : ip;
     if (!this.rateLimiter.consume(scope, key, this.rateLimits[scope])) {
+      console.warn('[trix-native-server] rate limit exceeded', {
+        scope,
+        ip: getRequestIp(request) ?? 'unknown',
+        subject,
+      });
       throw new HttpError(429, `Rate limit exceeded for ${scope}`);
     }
   }
@@ -266,6 +271,7 @@ export class TrixNativeServer {
   }
 
   private async handleRequest(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
+    const startTime = Date.now();
     if (request.method === 'OPTIONS') {
       sendNoContent(response);
       return;
@@ -370,6 +376,13 @@ export class TrixNativeServer {
           { role: 'service', accountId: result.accountId },
         );
         sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isServiceOnline(result.accountId) });
+        console.info('[trix-native-server] pairing claimed', {
+          code: pairingClaimMatch[1],
+          clientId: body.clientId,
+          deviceName: body.deviceName,
+          accountId: result.accountId,
+          conversationId: result.conversationId,
+        });
         return;
       }
 
@@ -400,6 +413,13 @@ export class TrixNativeServer {
             accountId: conversation?.accountId ?? upload.attachment.accountId ?? 'default',
             conversationId: conversationId ?? upload.attachment.conversationId,
           }, upload.attachment),
+        });
+        console.info('[trix-native-server] attachment uploaded', {
+          attachmentId: upload.attachment.id,
+          kind: upload.attachment.kind,
+          mimeType: upload.attachment.mimeType,
+          sizeBytes: upload.attachment.sizeBytes,
+          conversationId,
         });
         return;
       }
@@ -449,6 +469,11 @@ export class TrixNativeServer {
           'access-control-allow-origin': '*',
         });
         response.end(buffer);
+        console.info('[trix-native-server] attachment served', {
+          attachmentId: attachmentMatch[1],
+          audience: url.pathname.startsWith('/api/service/') ? 'service' : 'user',
+          fromPath: url.pathname,
+        });
         return;
       }
 
@@ -628,6 +653,13 @@ export class TrixNativeServer {
       }
 
       sendJson(response, 404, { error: 'Not found' });
+      console.info('[trix-native-server] request', {
+        method: request.method,
+        path: url.pathname,
+        status: 404,
+        durationMs: Date.now() - startTime,
+        ip: getRequestIp(request),
+      });
     } catch (error) {
       const statusCode = error instanceof HttpError ? error.statusCode : 500;
       sendJson(response, statusCode, {
@@ -736,6 +768,13 @@ export class TrixNativeServer {
     const state = await this.stateStore.read();
     await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
     await this.broadcast(this.buildServiceMessageEnvelope(state, conversation, message), { role: 'service', accountId: conversation.accountId });
+    console.info('[trix-native-server] user message created', {
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      hasAttachments: (input.uploadedAttachmentIds?.length ?? 0) > 0 || (input.attachments?.length ?? 0) > 0,
+      textLength: (input.text ?? '').length,
+      messageId: message.id,
+    });
     return message;
   }
 
@@ -773,6 +812,13 @@ export class TrixNativeServer {
     });
     const state = await this.stateStore.read();
     await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
+    console.info('[trix-native-server] service message created', {
+      conversationId: message.conversationId,
+      accountId: input.accountId,
+      hasAttachments: (input.message.attachments?.length ?? 0) > 0,
+      textLength: (input.message.text ?? '').length,
+      messageId: message.id,
+    });
     return message;
   }
 
@@ -917,6 +963,10 @@ export class TrixNativeServer {
         socket.close(1000, 'pairing removed');
       }
     }
+    console.info('[trix-native-server] client unpaired', {
+      clientId,
+      conversationId: closedConversationId,
+    });
   }
 
   private async getConversation(conversationId: string): Promise<ConversationRecord | undefined> {
@@ -1058,6 +1108,8 @@ export class TrixNativeServer {
       sizeBytes: scoped.sizeBytes,
       publicUrl: signedUrl,
       url: signedUrl,
+      // Service-plane path (authenticated, no signature needed)
+      servicePath: `/api/service/attachments/${scoped.id}`,
       width: scoped.width,
       height: scoped.height,
       durationMs: scoped.durationMs,
@@ -1189,6 +1241,7 @@ export class TrixNativeServer {
             fileName: attachment.fileName,
             sizeBytes: attachment.sizeBytes,
             url: attachment.url,
+            servicePath: (attachment as { servicePath?: string }).servicePath,
           })),
           timestamp: message.createdAt,
         },
@@ -1234,6 +1287,13 @@ export class TrixNativeServer {
       conversationId,
       clientId,
     });
+    console.info('[trix-native-server] socket connected', {
+      role,
+      accountId,
+      conversationId,
+      clientId,
+      ip: getRequestIp(request),
+    });
 
     // 响应客户端 ping，保持连接活跃
     socket.on('ping', () => {
@@ -1253,12 +1313,22 @@ export class TrixNativeServer {
     );
 
     if (role === 'service') {
+      console.info('[trix-native-server] service socket connected', {
+        accountId,
+        agentOnline: this.isServiceOnline(accountId),
+      });
       await this.broadcast({ type: 'agent.status', payload: { online: true } }, { role: 'user' });
     }
 
-    socket.on('close', () => {
+    socket.on('close', (code, reason) => {
       const closingMeta = this.sockets.get(socket);
       this.sockets.delete(socket);
+      console.info('[trix-native-server] socket closed', {
+        role: closingMeta?.role,
+        accountId: closingMeta?.accountId,
+        code,
+        reason: reason.toString(),
+      });
       if (closingMeta?.role === 'service' && !this.isServiceOnline(closingMeta.accountId)) {
         void this.broadcast({ type: 'agent.status', payload: { online: false } }, { role: 'user' });
       }
@@ -1267,6 +1337,7 @@ export class TrixNativeServer {
 
   private async broadcast(envelope: ClientEnvelope, target: { accountId?: string; conversationId?: string; role?: SocketMeta['role'] }): Promise<void> {
     const data = JSON.stringify(envelope);
+    let sentCount = 0;
     for (const [socket, meta] of this.sockets.entries()) {
       if (target.role && meta.role !== target.role) {
         continue;
@@ -1279,8 +1350,17 @@ export class TrixNativeServer {
       }
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(data);
+        sentCount++;
       }
     }
+    console.info('[trix-native-server] broadcast', {
+      envelopeType: envelope.type,
+      targetRole: target.role,
+      targetAccountId: target.accountId,
+      targetConversationId: target.conversationId,
+      sentCount,
+      totalSockets: this.sockets.size,
+    });
   }
 
   private isServiceOnline(accountId?: string): boolean {

@@ -132,11 +132,13 @@ function getBrowserName(ua: string): string {
  *
  * @param userId - 用户 ID
  * @param deviceName - 设备名称（可选，自动检测）
+ * @param forceCreateNew - 强制插入新会话（忽略已有活跃会话检查）
  * @returns 新创建的会话记录，失败返回 null
  */
 export async function upsertSession(
   userId: string,
   deviceName?: string,
+  forceCreateNew: boolean = false,
 ): Promise<UserSession | null> {
   const deviceId = getOrCreateDeviceId();
   const name = deviceName ?? getDeviceName();
@@ -144,8 +146,10 @@ export async function upsertSession(
     Date.now() + SESSION_EXPIRY_HOURS.web * 60 * 60 * 1000,
   ).toISOString();
 
+  logger.auth.info('[session] upsert start', { userId, forceCreateNew });
+
   try {
-    // 1. 先标记当前用户的同平台旧会话为 inactive
+    // 1. 先标记当前用户的同平台旧会话为 inactive（无条件标记）
     const { error: markError } = await supabase
       .from('user_sessions')
       .update({ is_active: false })
@@ -154,8 +158,10 @@ export async function upsertSession(
       .eq('is_active', true);
 
     if (markError) {
-      logger.auth.error('标记旧会话失败:', markError);
+      logger.auth.error('[session] mark old sessions failed', { error: markError });
       // 继续尝试插入，不因标记失败而终止
+    } else {
+      logger.auth.debug('[session] marked old sessions inactive', { userId });
     }
 
     // 2. 插入新会话
@@ -173,28 +179,31 @@ export async function upsertSession(
       .single();
 
     if (insertError) {
-      logger.auth.error('插入会话失败:', insertError);
+      logger.auth.error('[session] insert failed', { error: insertError });
       return null;
     }
 
-    // 3. 更新 profiles.active_session_id
+    // 3. 更新 profiles.active_session_id（使用刚插入返回的 session ID，消除 race 窗口）
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ active_session_id: newSession.id })
       .eq('id', userId);
 
     if (profileError) {
-      logger.auth.error('更新 profiles.active_session_id 失败:', profileError);
+      logger.auth.error('[session] update profiles.active_session_id failed', { error: profileError });
       // 会话已创建，session ID 仍返回给调用方
     }
 
     // 4. 存储到 localStorage
     storeLocalSessionId(newSession.id);
 
-    logger.auth.info(`会话已创建: ${newSession.id}`);
+    logger.auth.info('[session] upsert complete', {
+      sessionId: newSession.id,
+      activeSessionId: newSession.id,
+    });
     return newSession as UserSession;
   } catch (err) {
-    logger.auth.error('upsertSession 异常:', err);
+    logger.auth.error('[session] upsert failed', { error: err });
     return null;
   }
 }
@@ -303,9 +312,7 @@ export async function checkSessionValidity(): Promise<SessionValidityResult> {
     // active_session_id 为 null 表示初始状态（还没记录过），视为有效
     // 只有明确记录了另一个 session ID 时才判定为 mismatch（被挤掉了）
     if (profile.active_session_id !== null && profile.active_session_id !== localId) {
-      logger.auth.warn(
-        `Session mismatch: local=${localId}, db=${profile.active_session_id}`,
-      );
+      logger.auth.warn('[session] mismatch detected', { localId, profileActiveId: profile.active_session_id });
       return { isValid: false, reason: 'mismatch' };
     }
 

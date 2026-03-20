@@ -8,6 +8,28 @@ const RECONNECT_DELAY_MS = 3000;
 const KEEPALIVE_PING_INTERVAL_MS = 25_000;
 const activeMonitors = new Map<string, boolean>();
 
+async function fetchServiceAttachment(params: {
+  serviceUrl: string;
+  servicePath: string;
+  serviceToken: string;
+}): Promise<{ buffer: Buffer; contentType?: string }> {
+  const response = await fetch(`${params.serviceUrl.replace(/\/$/, '')}${params.servicePath}`, {
+    headers: {
+      authorization: `Bearer ${params.serviceToken}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`service attachment fetch failed: ${response.status}`);
+  }
+
+  const contentType = response.headers.get('content-type') ?? undefined;
+  const arrayBuffer = await response.arrayBuffer();
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    contentType,
+  };
+}
+
 function waitUntilAbort(signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     if (!signal) {
@@ -138,6 +160,12 @@ export async function monitorTrixProvider(opts: {
           return;
         }
 
+        console.info('[trix-native] inbound message', {
+          conversationId: normalized.conversationId,
+          hasAttachments: normalized.message.attachments.length > 0,
+          isSlashCommand: normalized.message.text?.startsWith('/') ?? false,
+        });
+
         const route = runtime.routing.resolveAgentRoute({
           cfg: opts.config,
           channel: 'trix-native',
@@ -155,39 +183,81 @@ export async function monitorTrixProvider(opts: {
           { agentId: route.agentId as string | undefined },
         );
 
-        const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
-        const bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
+        const rawText = normalized.message.text ?? '';
+        const isSlashCommand = rawText.startsWith('/');
 
         let mediaPath: string | undefined;
         let mediaType: string | undefined;
-        const firstAttachment = normalized.message.attachments.find((attachment) => attachment.url);
-        if (firstAttachment?.url) {
-          try {
-            const fetched = await runtime.media.fetchRemoteMedia({ url: firstAttachment.url });
-            const stored = await runtime.media.saveMediaBuffer(
-              fetched.buffer,
-              fetched.contentType ?? firstAttachment.mimeType,
-              'inbound',
-              MAX_MEDIA_BYTES,
-            );
-            mediaPath = stored.path;
-            mediaType = stored.contentType ?? firstAttachment.mimeType;
-          } catch (error) {
-            console.warn('[trix-native] inbound attachment fetch skipped', {
-              accountId: account.accountId,
-              conversationId: normalized.conversationId,
-              attachmentId: firstAttachment.id,
-              url: firstAttachment.url,
-              error: error instanceof Error ? error.message : String(error),
-            });
+        let bodyForAgent: string;
+        let rawBody = rawText;
+        let commandBody = rawText;
+
+        if (isSlashCommand) {
+          // Slash commands: preserve raw text without attachment pollution
+          bodyForAgent = rawText;
+
+          console.info('[trix-native] command dispatch', {
+            conversationId: normalized.conversationId,
+            commandName: rawText.split(' ')[0],
+            senderId: normalized.peerId,
+          });
+        } else {
+          // Regular messages: text + attachment summary, fetch media via servicePath
+          const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
+          bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
+
+          const firstAttachment = normalized.message.attachments.find((a) => a.url || (a as { servicePath?: string }).servicePath);
+          if (firstAttachment) {
+            const servicePath = (firstAttachment as { servicePath?: string }).servicePath;
+            const downloadUrl: string = servicePath
+              ? `${account.serviceUrl.replace(/\/$/, '')}${servicePath}`
+              : firstAttachment.url!;
+
+            try {
+              const fetched = servicePath
+                ? await fetchServiceAttachment({
+                    serviceUrl: account.serviceUrl ?? '',
+                    servicePath,
+                    serviceToken: account.serviceToken ?? '',
+                  })
+                : await runtime.media.fetchRemoteMedia({ url: downloadUrl });
+              const stored = await runtime.media.saveMediaBuffer(
+                fetched.buffer,
+                fetched.contentType ?? firstAttachment.mimeType,
+                'inbound',
+                MAX_MEDIA_BYTES,
+              );
+              mediaPath = stored.path;
+              mediaType = stored.contentType ?? firstAttachment.mimeType;
+
+              console.info('[trix-native] inbound attachment fetch ok', {
+                accountId: account.accountId,
+                conversationId: normalized.conversationId,
+                attachmentId: firstAttachment.id,
+                url: downloadUrl,
+                mediaPath,
+                usedServicePath: !!servicePath,
+              });
+            } catch (error) {
+              console.warn('[trix-native] inbound attachment fetch failed, using summary fallback', {
+                accountId: account.accountId,
+                conversationId: normalized.conversationId,
+                attachmentId: firstAttachment.id,
+                url: downloadUrl,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              // bodyForAgent already has the attachment summary, so fallback is automatic
+            }
           }
         }
 
         const ctxPayload = runtime.reply.finalizeInboundContext({
           Body: bodyForAgent,
           BodyForAgent: bodyForAgent,
-          RawBody: bodyForAgent,
-          CommandBody: bodyForAgent,
+          RawBody: rawBody,
+          CommandBody: commandBody,
+          BodyForCommands: commandBody,
+          ...(isSlashCommand ? { CommandSource: 'text' } : {}),
           From: `trix-native:${normalized.peerId}`,
           To: `conv:${normalized.conversationId}`,
           SessionKey: route.sessionKey,
@@ -232,6 +302,7 @@ export async function monitorTrixProvider(opts: {
                 conversationId: normalized.conversationId,
                 payload,
               });
+              console.info('[trix-native] reply dispatch ok', { conversationId: normalized.conversationId });
               opts.statusSink?.({
                 accountId: account.accountId,
                 lastOutboundAt: Date.now(),

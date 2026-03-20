@@ -4,6 +4,7 @@ export type TrixInboundAttachment = {
   mimeType?: string;
   fileName?: string;
   url?: string;
+  servicePath?: string;
   sizeBytes?: number;
 };
 

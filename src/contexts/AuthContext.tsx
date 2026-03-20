@@ -7,6 +7,7 @@ import {
   checkSessionValidity,
   touchSession,
   clearLocalSessionId,
+  getLocalSessionId,
 } from '../services/sessionService';
 import { handleGlobalError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -73,8 +74,8 @@ const VALIDITY_CHECK_INTERVAL_HEARTBEATS = 3;
 // ============================================
 
 /** 强制登出，跳转到登录页 */
-function forceLogout(reason: string) {
-  logger.auth.warn(`[安全事件] 会话失效（${reason}），强制登出`);
+function forceLogout(reason: string, localSessionId: string | null) {
+  logger.auth.warn(`[auth] forced logout reason=${reason}`, { reason, localSessionId, timestamp: new Date().toISOString() });
   clearLocalSessionId();
   supabase.auth.signOut();
 }
@@ -87,6 +88,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /** 心跳计数器：每 VALIDITY_CHECK_INTERVAL_HEARTBEATS 次检查一次有效性 */
   const heartbeatCheckCounterRef = useRef(0);
+
+  /** 防止 getSession + onAuthStateChange 双重调用 upsertSession 的护栏 */
+  const hasBootstrappedSessionRef = useRef(false);
+
+  /** 心跳 interval ID（使用 ref 而非闭包变量，确保 onAuthStateChange 回调可访问） */
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch user profile from database
   const fetchProfile = async (userId: string) => {
@@ -105,80 +112,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  /** 启动带有效性检查的心跳（幂等：调用前先清掉旧 interval） */
+  const startHeartbeat = () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    heartbeatCheckCounterRef.current = 0;
+    heartbeatIntervalRef.current = setInterval(async () => {
+      updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
+      touchSession().catch(err => logger.error('Auth', 'touchSession 失败:', err));
+      heartbeatCheckCounterRef.current += 1;
+      if (heartbeatCheckCounterRef.current >= VALIDITY_CHECK_INTERVAL_HEARTBEATS) {
+        heartbeatCheckCounterRef.current = 0;
+        const validity = await checkSessionValidity();
+        if (!validity.isValid) {
+          if (validity.reason === 'network_error') return; // 断网不登出自己
+          forceLogout(validity.reason, getLocalSessionId());
+        }
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+  };
+
   // Initialize auth state
   useEffect(() => {
-    let heartbeatInterval: ReturnType<typeof setInterval>;
-
-    // Get initial session
+    // 1. getSession() 是页面加载时 Supabase 恢复已有 session 的同步入口
+    //    不要在 onAuthStateChange('INITIAL_SESSION') 里再次 upsertSession
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
         updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        // 创建会话记录
-        upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
-        // 启动带有效性检查的心跳
-        heartbeatInterval = setInterval(async () => {
-          updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-          touchSession().catch(err => logger.error('Auth', 'touchSession 失败:', err));
-          heartbeatCheckCounterRef.current += 1;
-          if (heartbeatCheckCounterRef.current >= VALIDITY_CHECK_INTERVAL_HEARTBEATS) {
-            heartbeatCheckCounterRef.current = 0;
-            const validity = await checkSessionValidity();
-            if (!validity.isValid) {
-              if (validity.reason === 'network_error') return; // 断网不登出自己
-              forceLogout(validity.reason);
-            }
-          }
-        }, HEARTBEAT_INTERVAL_MS);
+        // 仅在首次加载时创建 DB session，防止 getSession + INITIAL_SESSION 双重调用
+        if (!hasBootstrappedSessionRef.current) {
+          hasBootstrappedSessionRef.current = true;
+          upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
+        }
+        // 启动带有效性检查的心跳（幂等）
+        startHeartbeat();
       }
       setLoading(false);
     });
 
-    // Listen for auth changes
+    // 2. onAuthStateChange 处理所有后续 auth 事件，按事件类型分流
+    //    核心原则：INITIAL_SESSION 不创建 DB session（session 已被 getSession 恢复）
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-
       if (session?.user) {
         fetchProfile(session.user.id);
-        updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
-        heartbeatCheckCounterRef.current = 0;
-        heartbeatInterval = setInterval(async () => {
+
+        if (event === 'INITIAL_SESSION') {
+          // Supabase 从 storage 恢复 session，upsertSession 已在 getSession() 分支处理
+          // 这里只需启动/保活心跳
+          startHeartbeat();
+        } else if (event === 'SIGNED_IN') {
+          // 真正的登录事件：getSession() 在此之前返回旧/null session，
+          // 故 this SIGNED_IN 代表全新登录，调用 upsertSession 并启动心跳
+          upsertSession(session.user.id, undefined, true).catch(err =>
+            logger.error('Auth', '创建会话失败:', err),
+          );
+          startHeartbeat();
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token 刷新：session 仍然有效，无需 upsertSession，也无需重启心跳
           updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-          touchSession().catch(err => logger.error('Auth', 'touchSession 失败:', err));
-          heartbeatCheckCounterRef.current += 1;
-          if (heartbeatCheckCounterRef.current >= VALIDITY_CHECK_INTERVAL_HEARTBEATS) {
-            heartbeatCheckCounterRef.current = 0;
-            const validity = await checkSessionValidity();
-            if (!validity.isValid) {
-              if (validity.reason === 'network_error') return;
-              forceLogout(validity.reason);
-            }
-          }
-        }, HEARTBEAT_INTERVAL_MS);
+        }
+        // USER_UPDATED 等其他事件：忽略，不操作
       } else {
+        // SIGNED_OUT 或其他使 session 变 null 的事件
         setProfile(null);
         clearLocalSessionId();
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
       }
-      setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
