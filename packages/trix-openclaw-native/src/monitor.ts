@@ -5,6 +5,7 @@ import { sendPayloadTrix } from './outbound.js';
 
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 const RECONNECT_DELAY_MS = 3000;
+const KEEPALIVE_PING_INTERVAL_MS = 25_000;
 const activeMonitors = new Map<string, boolean>();
 
 function waitUntilAbort(signal?: AbortSignal): Promise<void> {
@@ -35,7 +36,7 @@ export async function monitorTrixProvider(opts: {
       resolveAgentRoute: (params: Record<string, unknown>) => { sessionKey: string; accountId?: string; agentId?: string } | null;
     };
     session: {
-      resolveStorePath: (cfg: Record<string, unknown>) => string;
+      resolveStorePath: (store?: string, options?: { agentId?: string | null }) => string;
       recordInboundSession: (params: Record<string, unknown>) => Promise<void>;
     };
     media: {
@@ -91,8 +92,31 @@ export async function monitorTrixProvider(opts: {
       },
     );
     currentSocket = socket;
+    let pingTimer: ReturnType<typeof setInterval> | null = null;
+
+    const clearPingTimer = () => {
+      if (pingTimer) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+      }
+    };
 
     socket.on('open', () => {
+      clearPingTimer();
+      pingTimer = setInterval(() => {
+        if (socket.readyState !== WebSocket.OPEN) {
+          clearPingTimer();
+          return;
+        }
+        try {
+          socket.ping();
+        } catch (error) {
+          opts.statusSink?.({
+            accountId: account.accountId,
+            lastError: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }, KEEPALIVE_PING_INTERVAL_MS);
       opts.statusSink?.({
         accountId: account.accountId,
         connected: true,
@@ -126,6 +150,10 @@ export async function monitorTrixProvider(opts: {
         if (!route) {
           return;
         }
+        const storePath = runtime.session.resolveStorePath(
+          (opts.config as { session?: { store?: string } }).session?.store,
+          { agentId: route.agentId as string | undefined },
+        );
 
         const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
         const bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
@@ -134,15 +162,25 @@ export async function monitorTrixProvider(opts: {
         let mediaType: string | undefined;
         const firstAttachment = normalized.message.attachments.find((attachment) => attachment.url);
         if (firstAttachment?.url) {
-          const fetched = await runtime.media.fetchRemoteMedia({ url: firstAttachment.url });
-          const stored = await runtime.media.saveMediaBuffer(
-            fetched.buffer,
-            fetched.contentType ?? firstAttachment.mimeType,
-            'inbound',
-            MAX_MEDIA_BYTES,
-          );
-          mediaPath = stored.path;
-          mediaType = stored.contentType ?? firstAttachment.mimeType;
+          try {
+            const fetched = await runtime.media.fetchRemoteMedia({ url: firstAttachment.url });
+            const stored = await runtime.media.saveMediaBuffer(
+              fetched.buffer,
+              fetched.contentType ?? firstAttachment.mimeType,
+              'inbound',
+              MAX_MEDIA_BYTES,
+            );
+            mediaPath = stored.path;
+            mediaType = stored.contentType ?? firstAttachment.mimeType;
+          } catch (error) {
+            console.warn('[trix-native] inbound attachment fetch skipped', {
+              accountId: account.accountId,
+              conversationId: normalized.conversationId,
+              attachmentId: firstAttachment.id,
+              url: firstAttachment.url,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         const ctxPayload = runtime.reply.finalizeInboundContext({
@@ -171,7 +209,7 @@ export async function monitorTrixProvider(opts: {
         });
 
         await runtime.session.recordInboundSession({
-          storePath: runtime.session.resolveStorePath(opts.config),
+          storePath,
           sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
           ctx: ctxPayload,
           updateLastRoute: {
@@ -194,8 +232,20 @@ export async function monitorTrixProvider(opts: {
                 conversationId: normalized.conversationId,
                 payload,
               });
+              opts.statusSink?.({
+                accountId: account.accountId,
+                lastOutboundAt: Date.now(),
+                lastError: null,
+              });
             },
-            onError: () => undefined,
+            onError: (error: unknown) => {
+              const message = error instanceof Error ? error.message : String(error);
+              console.error('[trix-native] reply dispatch failed', error);
+              opts.statusSink?.({
+                accountId: account.accountId,
+                lastError: `TRIX reply dispatch failed: ${message}`,
+              });
+            },
           },
           replyOptions: {},
         });
@@ -208,15 +258,26 @@ export async function monitorTrixProvider(opts: {
           lastEventAt: Date.now(),
           lastError: null,
         });
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[trix-native] inbound processing failed', error);
         opts.statusSink?.({
           accountId: account.accountId,
-          lastError: 'Failed to process inbound trix-native event',
+          lastError: `Failed to process inbound trix-native event: ${message}`,
         });
       }
     });
 
+    socket.on('pong', () => {
+      opts.statusSink?.({
+        accountId: account.accountId,
+        connected: true,
+        lastEventAt: Date.now(),
+      });
+    });
+
     socket.on('close', () => {
+      clearPingTimer();
       if (currentSocket === socket) {
         currentSocket = null;
       }
@@ -236,6 +297,7 @@ export async function monitorTrixProvider(opts: {
     });
 
     socket.on('error', (error) => {
+      clearPingTimer();
       opts.statusSink?.({
         accountId: account.accountId,
         connected: false,

@@ -70,25 +70,25 @@ final class MapViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let locationService: any LocationServiceProtocol
-    private let baiduMapService: BaiduMapService
+    private let mapSearchService: MapSearchService
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Baidu Search State
+    // MARK: - POI Search State
 
-    /// POI 搜索结果 (百度)
-    @Published var searchResults: [BaiduPOI] = []
+    /// POI 搜索结果
+    @Published var searchResults: [POIResult] = []
 
     /// 是否显示搜索结果
     @Published var showSearchResults: Bool = false
 
     /// 导航路线
-    @Published var currentRoute: BaiduRoute?
+    @Published var currentRoute: RouteResult?
 
     /// 是否正在搜索
     @Published var isSearching: Bool = false
 
     /// 导航目的地
-    @Published var navigationDestination: BaiduPOI?
+    @Published var navigationDestination: POIResult?
 
     /// 是否显示导航卡片
     @Published var showNavigationCard: Bool = false
@@ -104,31 +104,19 @@ final class MapViewModel: ObservableObject {
     /// Search radius in meters
     private let searchRadius: Double = 5000
 
-    /// Clustering distance in meters (for coordinate aggregation)
-    private let clusteringDistance: Double = 50 // 50m clustering distance
-
     // MARK: - Initialization
 
     /// Initialize MapViewModel
     /// - Parameter locationService: Location service dependency
-    init(locationService: (any LocationServiceProtocol)? = nil, baiduMapService: BaiduMapService? = nil) {
+    init(locationService: (any LocationServiceProtocol)? = nil, mapSearchService: MapSearchService? = nil) {
         self.locationService = locationService ?? LocationService.shared
-        self.baiduMapService = baiduMapService ?? BaiduMapService.shared
+        self.mapSearchService = mapSearchService ?? MapSearchService.shared
 
         // Initialize region with default location (Shanghai Lujiazui)
         self.region = MKCoordinateRegion(
             center: defaultCoordinate,
             span: defaultSpan
         )
-
-        // Initialize Baidu Map Service
-        self.baiduMapService.initialize { success in
-            if success {
-                SecureLogger.shared.info("MapViewModel: Baidu Map Service initialized")
-            } else {
-                SecureLogger.shared.warning("MapViewModel: Baidu Map Service not available, using mock data")
-            }
-        }
 
         // Setup bindings
         setupBindings()
@@ -174,8 +162,6 @@ final class MapViewModel: ObservableObject {
     }
 
     /// Load friend locations from API
-    /// - Note: Requires backend API endpoint (e.g., GET /friends/locations)
-    /// - Currently returns empty until API is implemented
     private func loadFriendLocationsFromAPI() async {
         // Friend locations API not yet implemented - use mock for demo
         loadMockFriends()
@@ -339,12 +325,11 @@ final class MapViewModel: ObservableObject {
         filteredLocations = mockPlaces
     }
 
-    /// Load mock friend locations (similar to Web端的 mockFriends)
+    /// Load mock friend locations
     private func loadMockFriends() {
         let baseLat = 31.2304
         let baseLng = 121.4737
 
-        // Helper to generate offset positions similar to web
         let offsets: [(Double, Double)] = [
             (0.0015, -0.0015),
             (-0.0018, -0.0026),
@@ -354,14 +339,13 @@ final class MapViewModel: ObservableObject {
             (-0.0016, 0.0028)
         ]
 
-        // Mock avatar URLs (using pravatar.cc for demo)
         let avatarURLs = [
-            "https://i.pravatar.cc/150?img=1",   // Ava
-            "https://i.pravatar.cc/150?img=3",   // Leo
-            "https://i.pravatar.cc/150?img=5",   // Mia
-            "https://i.pravatar.cc/150?img=8",   // David
-            "https://i.pravatar.cc/150?img=11",  // Bob
-            "https://i.pravatar.cc/150?img=9"    // Alice
+            "https://i.pravatar.cc/150?img=1",
+            "https://i.pravatar.cc/150?img=3",
+            "https://i.pravatar.cc/150?img=5",
+            "https://i.pravatar.cc/150?img=8",
+            "https://i.pravatar.cc/150?img=11",
+            "https://i.pravatar.cc/150?img=9"
         ]
 
         friendLocations = [
@@ -452,11 +436,10 @@ final class MapViewModel: ObservableObject {
 
     /// Setup Combine bindings
     private func setupBindings() {
-        // Baidu POI search when search query changes
+        // POI search when search query changes
         $searchQuery
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] query in
-                // 同时进行本地过滤和百度搜索
                 self?.filterLocations(query: query)
                 self?.searchPOI(keyword: query)
             }
@@ -487,7 +470,6 @@ final class MapViewModel: ObservableObject {
     /// Center map on user's current location
     func centerOnUserLocation() {
         guard let location = locationService.currentLocation else {
-            // Start location updates if not available
             locationService.startLocationUpdates()
             return
         }
@@ -511,7 +493,6 @@ final class MapViewModel: ObservableObject {
 
         switch result {
         case .success(let locations):
-            // Use API result - if empty, fallback to mock for demo
             if locations.isEmpty {
                 loadMockData()
             } else {
@@ -521,7 +502,6 @@ final class MapViewModel: ObservableObject {
             }
 
         case .failure(let error):
-            // API failed, fallback to mock data for demo
             SecureLogger.shared.warning("MapViewModel: API failed: \(error.localizedDescription), using mock data")
             loadMockData()
         }
@@ -530,12 +510,10 @@ final class MapViewModel: ObservableObject {
     }
 
     /// Select a location
-    /// - Parameter location: Location to select
     func selectLocation(_ location: Location) {
         selectedLocation = location
         showLocationDetail = true
 
-        // Center map on selected location
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             region = MKCoordinateRegion(
                 center: location.coordinate,
@@ -545,12 +523,10 @@ final class MapViewModel: ObservableObject {
     }
 
     /// Select a friend on the map
-    /// - Parameter friend: Friend to select
     func selectFriend(_ friend: FriendMapLocation) {
         selectedFriend = friend
         showFriendDetail = true
 
-        // Center map on friend's location
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             region = MKCoordinateRegion(
                 center: friend.coordinate,
@@ -561,15 +537,12 @@ final class MapViewModel: ObservableObject {
     }
 
     /// Share location with companion
-    /// - Parameter companionId: Companion device ID
     func shareLocation(with companionId: String) async {
         let result = await locationService.shareLocation(with: companionId)
 
         switch result {
         case .success:
-            // Location shared successfully
             errorMessage = nil
-
         case .failure(let error):
             errorMessage = error.errorDescription
         }
@@ -601,18 +574,13 @@ final class MapViewModel: ObservableObject {
 
     // MARK: - Category Filter
 
-    /// Set category filter
-    /// - Parameter category: Category to filter by, or nil for all
     func setCategoryFilter(_ category: LocationCategory?) {
         selectedCategory = category
     }
 
-    // MARK: - Baidu POI Search
+    // MARK: - POI Search
 
-    /// 使用百度地图搜索 POI
-    /// - Parameters:
-    ///   - keyword: 搜索关键词
-    ///   - city: 搜索城市，默认上海
+    /// 使用 MapKit 搜索 POI
     func searchPOI(keyword: String, city: String = "上海") {
         guard !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             searchResults = []
@@ -623,30 +591,15 @@ final class MapViewModel: ObservableObject {
         isSearching = true
         showSearchResults = true
 
-        // 优先使用百度地图搜索
-        if baiduMapService.isAvailable {
-            baiduMapService.searchPOI(keyword: keyword, city: city) { [weak self] results in
-                DispatchQueue.main.async {
-                    self?.isSearching = false
-                    self?.searchResults = results
-
-                    // 如果百度没有结果，使用 mock 数据
-                    if results.isEmpty {
-                        self?.searchResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city)
-                    }
-                }
+        mapSearchService.searchPOI(keyword: keyword, city: city) { [weak self] results in
+            DispatchQueue.main.async {
+                self?.isSearching = false
+                self?.searchResults = results
             }
-        } else {
-            // 使用 mock 数据
-            isSearching = false
-            searchResults = BaiduMapService.mockSearchResults(keyword: keyword, city: city)
         }
     }
 
     /// 搜索周边地点
-    /// - Parameters:
-    ///   - keyword: 搜索关键词
-    ///   - radius: 搜索半径(米)
     func searchNearbyPOI(keyword: String, radius: Int = 3000) {
         guard let location = locationService.currentLocation else {
             errorMessage = "无法获取当前位置"
@@ -656,7 +609,7 @@ final class MapViewModel: ObservableObject {
         isSearching = true
         showSearchResults = true
 
-        baiduMapService.searchNearby(
+        mapSearchService.searchNearby(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
             radius: radius,
@@ -665,21 +618,15 @@ final class MapViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self?.isSearching = false
                 self?.searchResults = results
-
-                if results.isEmpty {
-                    self?.searchResults = BaiduMapService.mockSearchResults(keyword: keyword)
-                }
             }
         }
     }
 
     /// 选择搜索结果
-    /// - Parameter poi: 选中的 POI
-    func selectSearchResult(_ poi: BaiduPOI) {
+    func selectSearchResult(_ poi: POIResult) {
         showSearchResults = false
         navigationDestination = poi
 
-        // 移动地图到该位置
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             region = MKCoordinateRegion(
                 center: poi.coordinate,
@@ -687,12 +634,10 @@ final class MapViewModel: ObservableObject {
             )
         }
 
-        // 规划路线
         planRoute(to: poi.coordinate)
     }
 
     /// 规划导航路线
-    /// - Parameter destination: 目的地坐标
     func planRoute(to destination: CLLocationCoordinate2D) {
         let start: CLLocationCoordinate2D
 
@@ -702,25 +647,19 @@ final class MapViewModel: ObservableObject {
             start = region.center
         }
 
-        baiduMapService.routePlan(from: start, to: destination) { [weak self] route in
+        mapSearchService.routePlan(from: start, to: destination) { [weak self] route in
             DispatchQueue.main.async {
                 self?.currentRoute = route
                 self?.showNavigationCard = route != nil
             }
         }
-
-        // 如果没有返回路线，显示导航卡片（待实现）
-        if currentRoute == nil {
-            showNavigationCard = true
-        }
     }
 
     /// 开始导航
-    /// - Parameter poi: 目的地
-    func startNavigation(to poi: BaiduPOI) {
+    func startNavigation(to poi: POIResult) {
         let fromCoordinate = locationService.currentLocation?.coordinate
 
-        baiduMapService.openNavigation(
+        mapSearchService.openNavigation(
             toLatitude: poi.latitude,
             toLongitude: poi.longitude,
             toName: poi.name,
@@ -746,8 +685,6 @@ final class MapViewModel: ObservableObject {
 
     // MARK: - Private Methods
 
-    /// Filter locations based on search query
-    /// - Parameter query: Search query string
     private func filterLocations(query: String) {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
@@ -766,14 +703,9 @@ final class MapViewModel: ObservableObject {
         applyCategoryFilter()
     }
 
-    /// Apply category filter to locations
     private func applyCategoryFilter() {
-        guard let category = selectedCategory else {
-            // If no category selected, keep current search-filtered results
-            return
-        }
+        guard let category = selectedCategory else { return }
 
-        // If we have a search query, filter from already filtered results
         let sourceLocations = searchQuery.isEmpty ? allLocations : filteredLocations
 
         filteredLocations = sourceLocations.filter { location in
@@ -786,55 +718,31 @@ final class MapViewModel: ObservableObject {
 
 extension MapViewModel {
 
-    /// Get marker color for location category
-    /// - Parameter location: Location to get color for
-    /// - Returns: Color for the marker
     func markerColor(for location: Location) -> Color {
         switch location.category {
-        case .school:
-            return .blue
-        case .library:
-            return .purple
-        case .cafe:
-            return .orange
-        case .restaurant:
-            return .red
-        case .entertainment:
-            return .pink
-        case .home:
-            return .green
-        case .park:
-            return .mint
-        case .other:
-            return .gray
-        case .none:
-            return .secondary
+        case .school: return .blue
+        case .library: return .purple
+        case .cafe: return .orange
+        case .restaurant: return .red
+        case .entertainment: return .pink
+        case .home: return .green
+        case .park: return .mint
+        case .other: return .gray
+        case .none: return .secondary
         }
     }
 
-    /// Get icon name for location category
-    /// - Parameter location: Location to get icon for
-    /// - Returns: SF Symbol name
     func iconName(for location: Location) -> String {
         switch location.category {
-        case .school:
-            return "graduationcap.fill"
-        case .library:
-            return "books.vertical.fill"
-        case .cafe:
-            return "cup.and.saucer.fill"
-        case .restaurant:
-            return "fork.knife"
-        case .entertainment:
-            return "gamecontroller.fill"
-        case .home:
-            return "house.fill"
-        case .park:
-            return "tree.fill"
-        case .other:
-            return "mappin.circle.fill"
-        case .none:
-            return "mappin.circle"
+        case .school: return "graduationcap.fill"
+        case .library: return "books.vertical.fill"
+        case .cafe: return "cup.and.saucer.fill"
+        case .restaurant: return "fork.knife"
+        case .entertainment: return "gamecontroller.fill"
+        case .home: return "house.fill"
+        case .park: return "tree.fill"
+        case .other: return "mappin.circle.fill"
+        case .none: return "mappin.circle"
         }
     }
 }
@@ -843,7 +751,6 @@ extension MapViewModel {
 
 #if DEBUG
 extension MapViewModel {
-    /// Create preview view model with sample data
     static var preview: MapViewModel {
         let vm = MapViewModel()
         vm.allLocations = [

@@ -92,7 +92,7 @@ const ChatDetail: React.FC = () => {
     friendId: string;
     photoUri: string | null;
   }>({
-    name: stateData.name || 'Clawdbot Gateway',
+    name: stateData.name || 'TRIX 原生助手',
     avatar: stateData.avatar || IMAGES.WIZARD_BOY_LOGIN,
     isBot: stateData.isBot ?? true,
     friendId: urlFriendId || stateData.friendId || 'clawbot',

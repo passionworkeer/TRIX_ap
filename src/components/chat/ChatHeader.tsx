@@ -59,18 +59,19 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
 
     if (isBotConversation) {
-      if (isPaired && !botOnline) {
-        return 'bg-red-500';
-      }
-      if (isPaired && botOnline) {
-        return 'bg-green-500';
-      }
-      if (isPaired && (status === 'CONNECTING' || status === 'RECONNECTING')) {
-        return 'bg-yellow-500 animate-pulse';
-      }
       if (!isPaired) {
         return 'bg-gray-400';
       }
+      if (status === 'CONNECTING' || status === 'RECONNECTING') {
+        return 'bg-yellow-500 animate-pulse';
+      }
+      if (status === 'ERROR') {
+        return 'bg-red-500';
+      }
+      if (botOnline) {
+        return 'bg-green-500';
+      }
+      return 'bg-red-500';
     }
 
     switch (status) {
@@ -93,18 +94,19 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
 
     if (isBotConversation) {
-      if (isPaired && !botOnline) {
-        return 'Bot Offline';
-      }
-      if (isPaired && botOnline) {
-        return 'Online';
-      }
-      if (isPaired && (status === 'CONNECTING' || status === 'RECONNECTING')) {
-        return 'Connecting...';
-      }
       if (!isPaired) {
-        return 'Not Paired';
+        return '未配对';
       }
+      if (status === 'CONNECTING' || status === 'RECONNECTING') {
+        return '正在连接本机 OpenClaw...';
+      }
+      if (status === 'ERROR') {
+        return '连接异常';
+      }
+      if (botOnline) {
+        return '本机 OpenClaw 已连接';
+      }
+      return '本机 OpenClaw 离线';
     }
 
     switch (status) {
@@ -120,7 +122,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const handleUnpair = async () => {
     const accepted = await onRequestConfirm({
       title: '解除 Clawbot 配对',
-      message: '确定要取消与 Clawbot 的配对吗？\n\n取消后需要重新配对才能继续使用。',
+      message: '确定要取消当前设备与 TRIX 原生通道的配对吗？\n\n取消后需要重新配对才能继续使用。',
       confirmText: '解除配对',
       cancelText: '保留配对',
       variant: 'danger',
@@ -128,7 +130,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (!accepted) return;
 
     onUnpair();
-    onShowSuccess('配对已取消，你可以重新进入配对页连接新的 Clawbot');
+    onShowSuccess('配对已取消，你可以重新进入配对页连接新的设备');
   };
 
   return (
@@ -221,8 +223,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
                 {isBotConversation && !isPaired && (
                   <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-                    <p className="text-xs">当前未配对</p>
-                    <p className="mt-1 text-xs">请在 Clawbot 端发起配对</p>
+                    <p className="text-xs">当前设备尚未配对</p>
+                    <p className="mt-1 text-xs">请在本机 OpenClaw 中发起新的配对码</p>
                   </div>
                 )}
               </motion.div>

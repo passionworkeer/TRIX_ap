@@ -7,21 +7,21 @@
 ### 1. 红：先写失败的测试
 
 ```typescript
-// src/services/__tests__/pairingService.test.ts
+// src/services/__tests__/chatService.test.ts
 import { describe, it, expect, vi } from 'vitest'
-import { pairWithQR } from '../pairingService'
+import { sendMessage } from '../chatService'
 
-describe('pairWithQR', () => {
-  it('should not bind user if bot is offline', async () => {
+describe('sendMessage', () => {
+  it('should not send message if user is not authenticated', async () => {
     // Arrange
-    const mockBotOnline = vi.fn().mockResolvedValue(false)
+    const mockGetSession = vi.fn().mockResolvedValue(null)
 
     // Act
-    const result = await pairWithQR('https://trix.love/pair?code=ABC123&secret=test-secret')
+    const result = await sendMessage('friend-id', 'Hello', mockGetSession)
 
     // Assert
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Bot is offline')
+    expect(result.error).toBe('Not authenticated')
   })
 })
 ```
@@ -29,22 +29,22 @@ describe('pairWithQR', () => {
 ### 2. 绿：实现功能让测试通过
 
 ```typescript
-// src/services/pairingService.ts
-export const pairWithQR = async (qrPayload: string) => {
-  // 1. 先检查 Bot 在线
-  const botOnline = await checkBotOnline(botId)
-  if (!botOnline) {
-    return { success: false, error: 'Bot is offline' }
+// src/services/chatService.ts
+export const sendMessage = async (friendId: string, text: string, getSession: () => Promise<Session | null>) => {
+  // 1. 先检查认证状态
+  const session = await getSession()
+  if (!session) {
+    return { success: false, error: 'Not authenticated' }
   }
 
-  // 2. 验证 Token
-  const tokenValid = await validateToken(qrPayload)
-  if (!tokenValid) {
-    return { success: false, error: 'Invalid token' }
-  }
+  // 2. 发送消息
+  const { error } = await supabase
+    .from('chat_messages')
+    .insert({ sender_id: session.user.id, receiver_id: friendId, text })
 
-  // 3. 执行绑定
-  await bindUserToBot(userId, botId)
+  if (error) {
+    return { success: false, error: error.message }
+  }
 
   return { success: true }
 }
@@ -54,82 +54,49 @@ export const pairWithQR = async (qrPayload: string) => {
 
 ```typescript
 // 提取函数，改善代码结构
-const checkBotOnline = async (botId: string): Promise<boolean> => {
-  const bot = await db.bots.findById(botId)
-  return bot?.status === 'online'
+const checkAuth = async (getSession: () => Promise<Session | null>): Promise<Session | null> => {
+  const session = await getSession()
+  return session
 }
 
-const validateToken = async (token: string): Promise<boolean> => {
-  const data = await verifyToken(token)
-  return data?.valid === true
+const persistMessage = async (senderId: string, receiverId: string, text: string) => {
+  const { error } = await supabase
+    .from('chat_messages')
+    .insert({ sender_id: senderId, receiver_id: receiverId, text })
+  return error
 }
 ```
 
-## 完整示例：修复配对状态问题
+## 完整示例：修复聊天消息发送状态问题
 
 ### 背景
-配对后出现"表里已绑定但实际未配对"的状态脏写
+聊天消息发送后出现"消息已存库但 UI 未更新"的状态不一致
 
 ### TDD 流程
 
 #### 步骤 1：编写测试
 
 ```typescript
-// src/integration-tests/pairing-state.test.ts
-import { describe, it, expect } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
-import { useClawbotChannel } from '../contexts/ClawbotChannelContext'
+// src/services/__tests__/chatService.test.ts
+import { describe, it, expect, vi } from 'vitest'
+import { sendMessage } from '../chatService'
 
-describe('Pairing State Consistency', () => {
-  it('should not bind user if bot is offline', async () => {
-    const { result } = renderHook(() => useClawbotChannel())
-
-    // 模拟 Bot 离线
-    await act(async () => {
-      await result.current.mockBotOffline('test-bot-id')
-    })
-
-    // 尝试配对
-    let pairingResult
-    await act(async () => {
-      pairingResult = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=test-secret')
-    })
-
-    // 验证：应该失败
-    expect(pairingResult.success).toBe(false)
-    expect(pairingResult.error).toBe('Bot is offline')
-
-    // 验证：数据库中没有绑定记录
-    await waitFor(async () => {
-      const binding = await db.pairings.findByUserId('test-user-id')
-      expect(binding).toBeNull()
-    })
+describe('sendMessage', () => {
+  it('should not send message if user is not authenticated', async () => {
+    const mockGetSession = vi.fn().mockResolvedValue(null)
+    const result = await sendMessage('friend-id', 'Hello', mockGetSession)
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authenticated')
   })
 
-  it('should maintain consistent state after failed pairing', async () => {
-    const { result } = renderHook(() => useClawbotChannel())
-
-    // 第一次配对失败
-    await act(async () => {
-      await result.current.mockBotOffline('test-bot-id')
-      const result1 = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=token1')
-      expect(result1.success).toBe(false)
-    })
-
-    // Bot 上线后配对成功
-    await act(async () => {
-      await result.current.mockBotOnline('test-bot-id')
-      const result2 = await result.current.pairWithQR('https://trix.love/pair?code=ABC123&secret=token2')
-      expect(result2.success).toBe(true)
-    })
-
-    // 验证：只有一条绑定记录
-    await waitFor(async () => {
-      const bindings = await db.pairings.findAllByUserId('test-user-id')
-      expect(bindings).toHaveLength(1)
-      expect(bindings[0].botId).toBe('test-bot-id')
-      expect(bindings[0].status).toBe('paired')
-    })
+  it('should insert message into database on success', async () => {
+    const mockSession = { user: { id: 'user-123' } }
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const result = await sendMessage('friend-id', 'Hello', () => Promise.resolve(mockSession), mockInsert)
+    expect(result.success).toBe(true)
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ sender_id: 'user-123', receiver_id: 'friend-id', text: 'Hello' })
+    )
   })
 })
 ```
@@ -137,48 +104,40 @@ describe('Pairing State Consistency', () => {
 #### 步骤 2：实现功能
 
 ```typescript
-// src/contexts/ClawbotChannelContext.tsx
-export const ClawbotChannelProvider = ({ children }) => {
-  // ...
-
-  const pairWithQR = useCallback(async (qrPayload: string) => {
-    try {
-      // 1. 先检查 Bot 在线（关键修复）
-      const botStatus = await checkBotStatus(currentPairing.botId)
-      if (botStatus !== 'online') {
-        return {
-          success: false,
-          error: 'Bot is offline'
-        }
-      }
-
-      // 2. 验证 Token
-      const tokenData = await verifyPairingToken(qrPayload)
-      if (!tokenData.valid) {
-        return {
-          success: false,
-          error: 'Invalid token'
-        }
-      }
-
-      // 3. 执行原子绑定（事务）
-      const result = await databaseService.pairUserWithBot({
-        userId: session.user.id,
-        botId: currentPairing.botId,
-        qrPayload
-      })
-
-      return result
-    } catch (error) {
-      console.error('Pairing failed:', error)
-      return {
-        success: false,
-        error: 'Pairing failed'
-      }
+// src/services/chatService.ts
+export const sendMessage = async (
+  friendId: string,
+  text: string,
+  getSession: () => Promise<Session | null>,
+  insertMessage: (msg: object) => Promise<{ error: Error | null }> = defaultInsert
+) => {
+  try {
+    // 1. 先检查认证状态
+    const session = await getSession()
+    if (!session) {
+      return { success: false, error: 'Not authenticated' }
     }
-  }, [session, currentPairing])
 
-  // ...
+    // 2. 构造 conversation_id（按 userId_friendId 排序）
+    const conversationId = [session.user.id, friendId].sort().join('_')
+
+    // 3. 插入数据库
+    const { error } = await insertMessage({
+      conversation_id: conversationId,
+      sender_id: session.user.id,
+      receiver_id: friendId,
+      text,
+      message_type: 'text',
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: 'Unexpected error' }
+  }
 }
 ```
 
@@ -186,10 +145,10 @@ export const ClawbotChannelProvider = ({ children }) => {
 
 ```bash
 # 运行测试
-npm test
+npm run test:unit -- src/services/__tests__/chatService.test.ts
 
 # 查看覆盖率
-npm run test:coverage
+npm run test:unit:coverage
 ```
 
 ## 关键原则
@@ -287,7 +246,7 @@ npm run test:ui
 npm run test:coverage
 
 # 运行特定测试
-npm test -- pairingService.test
+npm test -- chatService.test
 ```
 
 ## 参考资料

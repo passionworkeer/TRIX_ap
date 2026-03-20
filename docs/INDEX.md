@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -145,15 +145,15 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 🔧 开发文档 (development/) | 4 |
 | 🎨 UI 文档 (ui/) | 2 |
 | 🌐 架构文档 (architecture/) | 2 |
-| 🗄️ 数据库 (database/) | 1 |
+| 🗄️ 数据库 (database/) | 2（含一致性报告） |
 | 📡 API 文档 (api/) | 2 |
 | 🍎 iOS 文档 (ios/) | 2 |
 | 🚀 入门指南 (getting-started/) | 2 |
 | 💻 桌面应用 (desktop/) | 1 |
-| 📖 操作指南 (guides/) | 4 |
+| 📖 操作指南 (guides/) | 5（含 iOS 测试部署指南） |
 | 🗂️ 归档 (.archive/) | 1 |
 
-**总计**: 27 个活跃文档（归档 1 个）
+**总计**: 30 个活跃文档（归档 1 个）
 
 ---
 

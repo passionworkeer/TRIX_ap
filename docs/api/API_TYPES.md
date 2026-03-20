@@ -2,7 +2,7 @@
 
 > 本文档为 AI 提供完整的 TypeScript 类型定义，方便理解和调用 API
 > 版本: 1.2.1
-> 最后更新: 2026-03-17
+> **最后更新**: 2026-03-20
 
 ---
 
@@ -1162,8 +1162,8 @@ type DeleteConversationResponse = ApiResponse<{ deleted: boolean }>;
 ### 连接
 
 ```typescript
-// WebSocket URL
-const WS_URL = 'wss://api.trix3d.com';
+// WebSocket URL（通过 TrixNativeChannelClient 连接）
+const WS_URL = 'https://trix.love';
 
 // 连接
 const ws = new WebSocket(WS_URL + '?token=' + access_token);

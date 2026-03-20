@@ -8,7 +8,7 @@
 |------|------|------|------|
 | 前端 (Nginx) | http://TRIX_SERVER_HOST | 80 | Web 应用 |
 | TRIX Native Server | http://TRIX_SERVER_HOST | 8788 | iOS-Web 消息同步 |
-| Clawbot Channel | ws://TRIX_SERVER_HOST | 8765 | WebSocket 消息 |
+| ~~Clawbot Channel~~ | ~~ws://TRIX_SERVER_HOST~~ | ~~8765~~ | ~~WebSocket 消息~~ (已废弃，改用 TRIX Native Server :8788) |
 | Gateway | ws://TRIX_SERVER_HOST | 18789 | 网关服务 |
 
 ## 连接服务器
@@ -153,3 +153,7 @@ systemctl status mysql
 # 重启 MySQL
 systemctl restart mysql
 ```
+
+---
+
+**最后更新**: 2026-03-20

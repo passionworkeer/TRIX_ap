@@ -2,13 +2,11 @@
 //  LocationPickerView.swift
 //  TRIX3DCompanion
 //
-//  Location picker view for selecting locations using Baidu Map
+//  Location picker view using MapKit SwiftUI Map
 //
 
 import SwiftUI
-import CoreLocation
-import BaiduMapAPI_Map
-import BaiduMapAPI_Utils
+import MapKit
 
 // MARK: - Localization Helper
 
@@ -16,17 +14,9 @@ private func L(_ key: String) -> String {
     NSLocalizedString(key, comment: "")
 }
 
-// MARK: - Location Annotation
-
-/// Annotation item for map marker
-struct LocationAnnotation: Identifiable {
-    let id = UUID()
-    let coordinate: CLLocationCoordinate2D
-}
-
 // MARK: - Location Picker View
 
-/// A view for picking a location using Baidu Map
+/// A view for picking a location using MapKit
 struct LocationPickerView: View {
 
     // MARK: - Environment
@@ -35,19 +25,26 @@ struct LocationPickerView: View {
 
     // MARK: - State
 
-    /// Current region center (stored as CLLocationCoordinate2D for Baidu)
-    @State private var centerCoordinate = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
-
-    /// Zoom level for Baidu Map
-    @State private var zoomLevel: Float = 14
+    /// Map camera position (MapKit uses CameraPosition)
+    @State private var cameraPosition: MapCameraPosition = .automatic
 
     /// Selected location coordinate
-    @State private var selectedLocation: CLLocationCoordinate2D?
+    @State private var selectedCoordinate: CLLocationCoordinate2D?
 
     @State private var searchText = ""
 
     /// Annotation for selected location
     @State private var selectedAnnotation: MapAnnotationItem?
+
+    /// Search results
+    @State private var searchResults: [POIResult] = []
+    @State private var isSearching = false
+
+    /// Map region (derived from camera position)
+    @State private var mapRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737),
+        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+    )
 
     // MARK: - Properties
 
@@ -67,13 +64,13 @@ struct LocationPickerView: View {
                 // Search bar
                 searchBar
 
-                // Map view using Baidu
-                baiduMapView
-
-                // Selected location info
-                if let location = selectedLocation {
-                    selectedLocationInfo(coordinate: location)
+                // Search results
+                if !searchResults.isEmpty {
+                    searchResultsList
                 }
+
+                // Map view using MapKit
+                mapView
             }
             .navigationTitle(L("location.pick"))
             .navigationBarTitleDisplayMode(.inline)
@@ -88,12 +85,11 @@ struct LocationPickerView: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(L("action.done")) {
-                        // Handle done action
                         if showAsSheet {
                             dismiss()
                         }
                     }
-                    .disabled(selectedLocation == nil)
+                    .disabled(selectedCoordinate == nil)
                 }
             }
         }
@@ -108,6 +104,9 @@ struct LocationPickerView: View {
 
             TextField(L("location.search"), text: $searchText)
                 .textFieldStyle(.plain)
+                .onSubmit {
+                    performSearch()
+                }
         }
         .padding(12)
         .background(Color(.systemGray6))
@@ -115,33 +114,94 @@ struct LocationPickerView: View {
         .padding()
     }
 
-    // MARK: - Baidu Map View
+    // MARK: - Search Results List
 
-    private var baiduMapView: some View {
+    private var searchResultsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 8) {
+                ForEach(searchResults) { result in
+                    Button(action: {
+                        selectedCoordinate = result.coordinate
+                        selectedAnnotation = MapAnnotationItem(
+                            id: result.id.uuidString,
+                            name: result.name,
+                            subtitle: result.address,
+                            coordinate: result.coordinate,
+                            category: .other
+                        )
+                        mapRegion = MKCoordinateRegion(
+                            center: result.coordinate,
+                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                        )
+                        searchResults = []
+                        searchText = ""
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(result.name)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                                Text(result.address)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(12)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+        }
+        .frame(maxHeight: 200)
+        .background(Color(.systemGray6))
+    }
+
+    // MARK: - Map View
+
+    private var mapView: some View {
         ZStack {
-            BMKMapViewRepresentable(
-                centerCoordinate: $centerCoordinate,
-                zoomLevel: $zoomLevel,
-                annotations: selectedAnnotation.map { [$0] } ?? [],
-                routeCoordinates: nil,
-                showsUserLocation: true,
-                userTrackingMode: BMKUserTrackingMode(rawValue: 2),
-                onAnnotationTapped: { id, name in
-                    // Handle annotation tap if needed
-                },
-                onRegionChanged: { coordinate in
-                    // Update center coordinate on pan
-                },
-                onMapClicked: { coordinate in
-                    // When map is clicked, set selected location
-                    handleMapClick(at: coordinate)
-                },
-                isInteractive: true
-            )
+            MapReader { proxy in
+                Map(position: $cameraPosition) {
+                    // Selected annotation
+                    if let annotation = selectedAnnotation {
+                        Annotation(annotation.name, coordinate: annotation.coordinate) {
+                            VStack(spacing: 0) {
+                                Circle()
+                                    .fill(Color.brandPurple.gradient)
+                                    .frame(width: 36, height: 36)
+                                    .shadow(color: .brandPurple.opacity(0.4), radius: 4, x: 0, y: 2)
+                                Triangle()
+                                    .fill(Color.brandPurple.gradient)
+                                    .frame(width: 12, height: 8)
+                                    .offset(y: -2)
+                            }
+                        }
+                    }
+                }
+                .mapControls {
+                    MapCompass()
+                    MapScaleView()
+                }
+                .mapStyle(.standard)
+                .onTapGesture { coordinate in
+                    if let coord = proxy.convert(coordinate, from: .local) {
+                        handleMapTap(at: coord)
+                    }
+                }
+            }
             .ignoresSafeArea(edges: .bottom)
 
-            // Center crosshair for location picking
-            if selectedLocation == nil {
+            // Center crosshair when no location selected
+            if selectedCoordinate == nil {
                 VStack {
                     Spacer()
                     HStack {
@@ -154,53 +214,56 @@ struct LocationPickerView: View {
                     Spacer()
                 }
             }
+
+            // Instruction banner
+            if selectedCoordinate == nil && !searchResults.isEmpty == false {
+                VStack {
+                    Text("点击地图选择位置")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(16)
+                        .padding(.top, 8)
+                    Spacer()
+                }
+            }
+        }
+        .onMapCameraChange { context in
+            mapRegion = context.region
         }
     }
 
     // MARK: - Methods
 
-    /// Handle map click to select location
-    private func handleMapClick(at coordinate: CLLocationCoordinate2D) {
-        // Convert from GCJ-02 (Baidu map internal) to WGS-84 for external use
-        let wgs84Coord = BMKCoordTrans(coordinate, BMK_COORD_TYPE(rawValue: 1)!, BMK_COORD_TYPE(rawValue: 0)!)
+    private func performSearch() {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else {
+            searchResults = []
+            return
+        }
 
-        selectedLocation = wgs84Coord
+        isSearching = true
+        MapSearchService.shared.searchPOI(keyword: keyword) { results in
+            DispatchQueue.main.async {
+                self.isSearching = false
+                self.searchResults = results
+            }
+        }
+    }
+
+    /// Handle map tap to select location
+    private func handleMapTap(at coordinate: CLLocationCoordinate2D) {
+        selectedCoordinate = coordinate
         selectedAnnotation = MapAnnotationItem(
-            id: "selected",
+            id: UUID().uuidString,
             name: "选中的位置",
             subtitle: nil,
-            coordinate: coordinate, // Use original coordinate for display on Baidu map
+            coordinate: coordinate,
             category: .other
         )
-    }
-
-    // MARK: - Computed Properties
-
-    private var selectedLocations: [LocationAnnotation] {
-        guard let location = selectedLocation else { return [] }
-        return [LocationAnnotation(coordinate: location)]
-    }
-
-    // MARK: - Selected Location Info
-
-    private func selectedLocationInfo(coordinate: CLLocationCoordinate2D) -> some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "location.fill")
-                    .foregroundColor(.purple)
-
-                Text(L("location.selected"))
-                    .font(.headline)
-
-                Spacer()
-
-                Text("\(coordinate.latitude, specifier: "%.4f"), \(coordinate.longitude, specifier: "%.4f")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-        }
-        .background(Color(.systemBackground))
+        searchResults = []
     }
 }
 

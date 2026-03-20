@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
 > **文档版本**: 2.1
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 > **产品**: TRIX 3D Companion
 > **类型**: 双端应用 (iOS + Web + Desktop)
 
@@ -176,8 +176,8 @@
 - 解除配对
 
 **技术实现**：
-- 配对服务: pairingService.js
-- 配对存储: pairings 表
+- 配对服务: TrixNativeChannelClient.ts（Web）/ ClawbotChannelService.swift（iOS）
+- 配对存储: pairings 表（Supabase）+ JSON 文件（TRIX Native Server）
 - 消息路由: 配对设备间消息转发
 
 ---
@@ -256,11 +256,12 @@
 | 语言 | Swift | 5.9+ |
 | UI 框架 | SwiftUI | iOS 16+ |
 | 状态管理 | Combine | 内置 |
-| 网络 | Alamofire + Starscream | 最新 |
+| 项目构建 | XcodeGen (project.yml) + CocoaPods (Podfile) | - |
+| 网络 | URLSession + Supabase Swift | 内置/2.x |
 | 本地存储 | SQLite (GRDB) + Keychain | - |
 | 支付 | StoreKit 2 | - |
 | 测试 | XCTest | - |
-| 代码量 | 25,000+ 行 | 80+ 文件 |
+| 代码量 | 25,000+ 行 | 988 Swift 文件 |
 
 #### Web 端
 
@@ -269,9 +270,9 @@
 | 语言 | TypeScript | 5.8+ |
 | 框架 | React | 19+ |
 | 构建工具 | Vite | 6+ |
-| 状态管理 | React Context + Zustand | - |
+| 状态管理 | React Context + Zustand (仅 3D 场景) | - |
 | HTTP 客户端 | @supabase/supabase-js | 2.94+ |
-| WebSocket | socket.io-client | 4.8+ |
+| WebSocket | 原生 WebSocket（TrixNativeChannelClient） | TRIX Native Server :8788 |
 | 地图 | Leaflet + react-leaflet | - |
 | 样式 | Tailwind CSS | 4.0 |
 | 动画 | Framer Motion | 12+ |

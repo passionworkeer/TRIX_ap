@@ -35,3 +35,7 @@ Web 不再：
 - `VITE_TRIX_NATIVE_PUBLIC_URL`
 
 旧的 Gateway / relay 前端环境变量已删除。
+
+---
+
+**最后更新**: 2026-03-20

@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js + Express + Socket.io
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 
 ---
 
@@ -121,7 +121,7 @@ ws://host/ws?role=agent&accountId=xxx&serviceToken=xxx               # Agent（O
 |-----|------|-----|
 | 运行时 | Node.js | 18+ |
 | 框架 | Express | 4.18+ |
-| WebSocket | Socket.IO | 4.7+ |
+| WebSocket | 原生 WebSocket（TRIX Native Server） | - |
 | 数据库 | SQLite | 3.x |
 | 远程数据库 | Supabase | - |
 | 文件存储 | 阿里云 OSS | - |
@@ -471,10 +471,9 @@ DBAO_TTS_APP_ID=xxx
 
 ## 9. 性能优化
 
-### 9.1 WebSocket 心跳 连接管理
+### 9.1 WebSocket 心跳连接管理
 
--s)
-- 自动保活 (30重连
+- 自动保活（30s 重连）
 - 连接池复用
 
 ### 9.2 消息处理
@@ -516,11 +515,11 @@ curl http://TRIX_SERVER_HOST:8788/health
 {
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2",
+    "ws": "^8.19.0",
+    "qrcode": "^1.5.4",
     "cors": "^2.8.5",
     "multer": "^1.4.5-lts.1",
     "express-rate-limit": "^7.1.5",
-    "better-sqlite3": "^9.2.2",
     "dotenv": "^16.3.1",
     "ali-oss": "^6.20.0",
     "axios": "^1.6.2"
@@ -557,5 +556,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-17
+**最后更新**: 2026-03-20
 **版本**: 3.1

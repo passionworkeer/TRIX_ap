@@ -5,6 +5,11 @@
 > **日期**: 2026-02-25
 > **作者**: 架构师 Agent
 > **项目阶段**: MVP 后期优化阶段
+> **⚠️ 注意**: 本文档为历史规划文档（2026-02-25），部分架构方案已变更：
+> - `server/clawbot-channel/` → 已废弃，改用 `packages/trix-openclaw-native/` + TRIX Native Server (:8788)
+> - Socket.IO → 原生 WebSocket（TrixNativeChannelClient）
+> - `clawbotPairingService.ts` → 已删除，改用 `TrixNativeChannelClient.ts`
+> - 部分 P0/P1 功能已实现，详见 CHANGELOG.md
 
 ---
 

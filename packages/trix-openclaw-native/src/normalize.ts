@@ -80,7 +80,9 @@ export function summarizeInboundAttachments(attachments: TrixInboundAttachment[]
     return '';
   }
   return attachments
-    .map((attachment) => `[${String(attachment.kind ?? 'file').toUpperCase()}: ${attachment.fileName ?? attachment.id}]`)
+    .map((attachment) => {
+      const label = `[${String(attachment.kind ?? 'file').toUpperCase()}: ${attachment.fileName ?? attachment.id}]`;
+      return attachment.url ? `${label} ${attachment.url}` : label;
+    })
     .join('\n');
 }
-

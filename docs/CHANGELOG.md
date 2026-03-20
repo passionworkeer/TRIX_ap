@@ -4,6 +4,56 @@
 
 ---
 
+## 📅 2026-03-20 - 文档与实际代码对齐修正
+
+### 背景
+
+根据实际代码全面核对 docs/ 目录文档，发现多处文档与最新代码存在不一致。
+
+### 完成内容
+
+1. **PROJECT.md**：
+   - Contexts: 6个 → 4个（移除不存在的 `GatewayContext`、`QRCodePairingContext`）
+   - Screens: 12个 → 17个（补全 `SnapMapScreen`、`Wardrobe`、`PointsMall`、`DiagnosticAdvanced` 等）
+   - Features: 补全 `location/`、`schedule/`、`todo/` 三个目录
+   - Services: 移除废弃的 `GatewayClient`、`GatewayRPC`、`RelayClient`、`ClawbotChannelBridge`；补全 `ConnectionManager`、`TrixNativeChannelClient`
+   - Hooks: 更新为 11 个实际存在的 hooks（移除 `useSpeechRecognition`，补全 `useVoiceRecorder`、`useWebVitals`）
+   - Packages: 移除不存在的 `trix-relay-client`
+   - 修正文档路径引用（database/docs/SCHEMA.md → database/DATABASE_SCHEMA.md；api/new_clawbot_api.md → api/API_DOCUMENTATION.md）
+   - 统计数字更新（TS 服务 40个，Hooks 11个，TSX 组件 60+，TSX 页面 17个）
+
+2. **DATABASE_SCHEMA.md**：
+   - 移除重复的 `point_transactions` 表（统一为 `points_transactions`）
+
+3. **SERVER_GUIDE.md**：
+   - Clawbot Channel 端口 8765 标记为已废弃（改用 TRIX Native Server :8788）
+
+4. **TESTING.md**：
+   - 移除不存在的 `useSpeechRecognition.test.ts`、`clawbotChannelBridge.test.ts`
+   - 更新测试文件数量（服务 30+ → 24 个实际文件，Hooks 11 → 10）
+
+5. **TDD-EXAMPLES.md**：
+   - 更新示例代码为实际存在的 `chatService`（替代已删除的 `pairingService`）
+
+6. **SETUP.md**：
+   - 修正 Xcode 26+ → Xcode 16+
+   - 补充 Web 端连接说明
+
+7. **PRD.md**：
+   - WebSocket socket.io-client → 原生 WebSocket（TrixNativeChannelClient）
+   - iOS 网络栈 Alamofire + Starscream → URLSession + Supabase Swift
+   - iOS 项目构建工具补充 XcodeGen (project.yml) + CocoaPods (Podfile)
+   - iOS 文件数 80+ → 988 Swift 文件
+   - Zustand 状态管理标注为仅 3D 场景使用
+
+8. **IOS_TEST_DEPLOY_GUIDE.md**：
+   - 移除不适用于本项目的 Ionic/Capacitor 构建流程
+
+9. **API_DOCUMENTATION.md**：
+   - 修正 `place_favorites` → `user_favorite_places`
+
+---
+
 ## 📅 2026-03-19 - 三端配对系统对齐
 
 ### 背景

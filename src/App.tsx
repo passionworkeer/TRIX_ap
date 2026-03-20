@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { HashRouter, BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, BrowserRouter, Routes, Route, useLocation, Navigate, matchPath } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
@@ -121,7 +121,7 @@ function AppContent() {
   useImmersiveVoice();
 
   const isHomePage = location.pathname === '/' || location.pathname === '';
-  const isChatDetailPage = location.pathname === AppRoutes.CHAT_DETAIL;
+  const isChatDetailPage = Boolean(matchPath(AppRoutes.CHAT_DETAIL, location.pathname));
   const isTimerPage = location.pathname === '/study/timer';
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
   const isPairingPage = location.pathname === AppRoutes.PAIRING;
@@ -169,7 +169,7 @@ function AppContent() {
         <HeroBackground
           botState={botState}
           onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
-          force3D={true}
+          force3D={false}
         />
       )}
 

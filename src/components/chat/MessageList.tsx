@@ -155,7 +155,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
         </div>
       )}
 
-      <div className="my-4 text-center text-xs text-slate-400 dark:text-slate-500">Today</div>
+      <div className="my-4 text-center text-xs text-slate-400 dark:text-slate-500">今天</div>
 
       {messages.map((msg) => {
         const msgAttachments = getMessageAttachments(msg);
@@ -272,10 +272,12 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
         </div>
       )}
 
-      {isBot && status === 'CONNECTING' && (
+      {isBot && (status === 'CONNECTING' || status === 'RECONNECTING') && (
         <div className="my-4 flex justify-center">
           <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500 animate-pulse dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            Connecting to Secure Gateway...
+            {status === 'RECONNECTING'
+              ? '正在重新连接本机 OpenClaw...'
+              : '正在连接本机 OpenClaw...'}
           </span>
         </div>
       )}

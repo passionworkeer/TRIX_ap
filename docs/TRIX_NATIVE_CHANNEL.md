@@ -64,3 +64,7 @@ OpenClaw Gateway (本机)
 - 服务器只部署 Trix Service + Nginx + TLS
 - OpenClaw 只安装在用户自己的电脑上
 - 当前生产域名：`https://trix.love`
+
+---
+
+**最后更新**: 2026-03-20

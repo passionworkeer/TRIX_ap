@@ -1,6 +1,6 @@
 # iOS 端问题清单
 
-> 最后更新: 2026-03-19
+> 最后更新: 2026-03-20
 
 本文档记录 TRIX3DCompanion iOS 端目前已知的问题，包括已修复和未修复的问题。
 
@@ -22,7 +22,7 @@
 
 | # | 问题 | 修复日期 | 状态 |
 |---|------|----------|------|
-| 1 | Socket.IO 支持 | 2026-03-13 | ✅ 已实现 (ClawbotChannelService.swift) |
+| 1 | WebSocket 消息同步支持 | 2026-03-13 | ✅ 已实现 (ClawbotChannelService.swift + TRIX Native Channel) |
 | 2 | 后端 API 接入 | 2026-03-13 | ✅ User/Friend/Chat/Points 等 20+ 模块 |
 | 3 | 配对功能 | 2026-03-13 | ⚠️ 基础实现完成 |
 | 4 | 聊天界面点击无反应 | 2026-03-18 | ✅ 已修复 (MainTabView.swift - safeAreaInset) |

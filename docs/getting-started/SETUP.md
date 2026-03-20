@@ -4,7 +4,7 @@
 
 - Node.js 22+
 - npm 10+
-- Xcode 26+（iOS）
+- Xcode 16+（iOS）
 - 本机已安装 OpenClaw
 
 ## 安装
@@ -20,7 +20,7 @@ npm run dev
 npm run build
 ```
 
-Web 只连接 `Trix Service`，不再直连 Gateway。
+Web 只连接 `https://trix.love`（Trix Service），通过 TRIX Native Channel 进行消息同步。
 
 ## iOS
 
@@ -49,3 +49,5 @@ packages/
     ├── test/                # plugin/service tests
     └── ops/                 # nginx/systemd/backup scripts
 ```
+
+> **最后更新**: 2026-03-20

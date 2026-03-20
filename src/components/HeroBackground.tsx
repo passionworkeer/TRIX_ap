@@ -78,7 +78,8 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
     setBotState(botState as CharacterBotState);
   }, [botState, setBotState]);
 
-  const use3D = enabled3D && webglCapable && force3D;
+  const allow3D = force3D === true;
+  const use3D = allow3D && enabled3D && webglCapable;
 
   const videoRefs = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)] as const;
   const [activeLayer, setActiveLayer] = useState<LayerIndex>(0);
@@ -245,25 +246,27 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
               <CharacterScene />
             </React.Suspense>
           </div>
-          <button
-            onClick={toggle3D}
-            title="切换到视频模式"
-            style={{
-              position: 'absolute',
-              bottom: '80px',
-              right: '20px',
-              zIndex: 100,
-              background: 'rgba(0,0,0,0.5)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              padding: '6px 10px',
-              color: 'white',
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            🎭 3D
-          </button>
+          {allow3D && (
+            <button
+              onClick={toggle3D}
+              title="切换到视频模式"
+              style={{
+                position: 'absolute',
+                bottom: '80px',
+                right: '20px',
+                zIndex: 100,
+                background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              🎭 3D
+            </button>
+          )}
         </>
       ) : (
         <>
@@ -296,25 +299,27 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
               />
             );
           })}
-          <button
-            onClick={toggle3D}
-            title="切换到3D模式"
-            style={{
-              position: 'absolute',
-              bottom: '80px',
-              right: '20px',
-              zIndex: 100,
-              background: 'rgba(0,0,0,0.5)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              padding: '6px 10px',
-              color: 'white',
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            🎬 视频
-          </button>
+          {allow3D && (
+            <button
+              onClick={toggle3D}
+              title="切换到3D模式"
+              style={{
+                position: 'absolute',
+                bottom: '80px',
+                right: '20px',
+                zIndex: 100,
+                background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              🎬 视频
+            </button>
+          )}
         </>
       )}
 

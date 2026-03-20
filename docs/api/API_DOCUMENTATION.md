@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
 > 版本: 1.2.1
-> 最后更新: 2026-03-17
+> **最后更新**: 2026-03-20
 
 ---
 
@@ -504,7 +504,7 @@ study_room_participants -- 房间参与者
 
 ```sql
 places -- 地点
-place_favorites -- 地点收藏
+user_favorite_places -- 地点收藏
 user_locations -- 用户位置
 ```
 
@@ -540,12 +540,15 @@ device_tokens -- 设备令牌
 
 ---
 
-## Socket.io 事件
+## WebSocket 事件（TRIX Native Channel）
 
 ### 连接
 
+WebSocket 连接通过 TRIX Native Server (:8788) 使用原生 WebSocket 协议，不使用 Socket.IO。
+
 ```javascript
-const socket = new WebSocket('ws://TRIX_SERVER_HOST:8788/ws/phone');
+// 用户面 WebSocket 连接（来自 Web/iOS）
+const socket = new WebSocket('https://trix.love/ws?role=user&conversationId=...&clientId=...&clientToken=...');
 ```
 
 ### 事件列表

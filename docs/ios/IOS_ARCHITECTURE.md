@@ -39,3 +39,7 @@ iOS 现在只接受：
 - JSON `claimUrl/url/code`
 - `CODE:SECRET`
 - 纯配对码
+
+---
+
+**最后更新**: 2026-03-20

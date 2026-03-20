@@ -2,17 +2,16 @@
 //  BaiduMapView.swift
 //  TRIX3DCompanion
 //
-//  Baidu Map SwiftUI view using real BMKMapView
+//  MapKit-based SwiftUI Map view replacing BaiduMapView
 //
 
 import SwiftUI
+import MapKit
 import CoreLocation
-import BaiduMapAPI_Map
-import BaiduMapAPI_Utils
 
-// MARK: - Baidu Map View
+// MARK: - Map View
 
-/// Baidu Map SwiftUI view using BMKMapView
+/// MapKit SwiftUI view replacing the Baidu map wrapper
 struct BaiduMapView: View {
 
     // MARK: - Properties
@@ -20,7 +19,7 @@ struct BaiduMapView: View {
     /// Center coordinate
     @Binding var centerCoordinate: CLLocationCoordinate2D
 
-    /// Zoom level
+    /// Zoom level (converted to span delta for MapKit)
     @Binding var zoomLevel: Double
 
     /// Annotations
@@ -43,30 +42,55 @@ struct BaiduMapView: View {
 
     // MARK: - State
 
-    @State private var bmkZoomLevel: Float = 14
+    /// Map camera position
+    @State private var cameraPosition: MapCameraPosition = .automatic
+
+    /// Selected annotation ID
+    @State private var selectedAnnotationId: String?
 
     // MARK: - Body
 
     var body: some View {
         ZStack {
-            // Baidu Map via UIViewRepresentable
-            BMKMapViewRepresentable(
-                centerCoordinate: $centerCoordinate,
-                zoomLevel: $bmkZoomLevel,
-                annotations: annotations,
-                routeCoordinates: routeCoordinates,
-                showsUserLocation: showsUserLocation,
-                userTrackingMode: BMKUserTrackingMode(rawValue: 2),
-                onAnnotationTapped: { id, name in
-                    if let annotation = annotations.first(where: { $0.id == id }) {
-                        onAnnotationTapped?(annotation)
+            // MapKit base map
+            Map(position: $cameraPosition) {
+                // User location
+                if showsUserLocation {
+                    UserAnnotation()
+                }
+
+                // Location annotations
+                ForEach(annotations) { annotation in
+                    Annotation(
+                        annotation.name,
+                        coordinate: annotation.coordinate,
+                        anchor: .bottom
+                    ) {
+                        AnnotationMarkerView(
+                            annotation: annotation,
+                            isSelected: selectedAnnotationId == annotation.id
+                        ) {
+                            selectedAnnotationId = annotation.id
+                            onAnnotationTapped?(annotation)
+                            // Deselect after delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                selectedAnnotationId = nil
+                            }
+                        }
                     }
-                },
-                onRegionChanged: { coordinate in
-                    onRegionChanged?(coordinate)
-                },
-                isInteractive: true
-            )
+                }
+
+                // Route polyline overlay
+                if let routeCoords = routeCoordinates, routeCoords.count > 1 {
+                    MapPolyline(coordinates: routeCoords)
+                        .stroke(routeColor, lineWidth: 4)
+                }
+            }
+            .mapStyle(.standard)
+            .mapControls {
+                MapCompass()
+                MapScaleView()
+            }
             .ignoresSafeArea()
 
             // Zoom controls overlay
@@ -82,47 +106,108 @@ struct BaiduMapView: View {
             }
         }
         .onAppear {
-            bmkZoomLevel = Float(zoomLevel)
+            syncCameraPosition()
         }
-        .onChange(of: zoomLevel) { newValue in
-            bmkZoomLevel = Float(newValue)
+        .onMapCameraChange { context in
+            let newCenter = context.region.center
+            // Only update if coordinate actually changed
+            if centerCoordinate.latitude != newCenter.latitude || centerCoordinate.longitude != newCenter.longitude {
+                centerCoordinate = newCenter
+            }
+            let span = context.region.span.latitudeDelta
+            zoomLevel = span
+            onRegionChanged?(context.region.center)
         }
     }
 
     // MARK: - Methods
 
+    private func syncCameraPosition() {
+        cameraPosition = .region(MKCoordinateRegion(
+            center: centerCoordinate,
+            span: MKCoordinateSpan(
+                latitudeDelta: zoomLevel,
+                longitudeDelta: zoomLevel
+            )
+        ))
+    }
+
     private func handleZoomAction(_ action: ZoomControlAction) {
         withAnimation {
             switch action {
             case .zoomIn:
-                bmkZoomLevel = min(21, bmkZoomLevel + 1)
-                zoomLevel = Double(bmkZoomLevel)
+                let newSpan = max(0.001, zoomLevel / 2)
+                zoomLevel = newSpan
+                cameraPosition = .region(MKCoordinateRegion(
+                    center: centerCoordinate,
+                    span: MKCoordinateSpan(latitudeDelta: newSpan, longitudeDelta: newSpan)
+                ))
             case .zoomOut:
-                bmkZoomLevel = max(3, bmkZoomLevel - 1)
-                zoomLevel = Double(bmkZoomLevel)
+                let newSpan = min(1.0, zoomLevel * 2)
+                zoomLevel = newSpan
+                cameraPosition = .region(MKCoordinateRegion(
+                    center: centerCoordinate,
+                    span: MKCoordinateSpan(latitudeDelta: newSpan, longitudeDelta: newSpan)
+                ))
             case .centerUser:
-                if let location = LocationManager.shared.currentLocation {
-                    // Convert from WGS-84 (device) to GCJ-02 for Baidu Map
-                    let gcj02Coord = BMKCoordTrans(location.coordinate, BMK_COORD_TYPE(rawValue: 0)!, BMK_COORD_TYPE(rawValue: 1)!)
-                    centerCoordinate = gcj02Coord
+                if let location = LocationService.shared.currentLocation {
+                    centerCoordinate = location.coordinate
                 }
             }
         }
     }
 }
 
-// MARK: - Zoom Control Action
+// MARK: - Annotation Marker View
 
-/// Zoom control action
-enum ZoomControlAction {
-    case zoomIn
-    case zoomOut
-    case centerUser
+/// Custom annotation marker for BaiduMapView
+struct AnnotationMarkerView: View {
+    let annotation: MapAnnotationItem
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(annotationColor.gradient)
+                        .frame(width: isSelected ? 44 : 36, height: isSelected ? 44 : 36)
+                        .shadow(color: annotationColor.opacity(0.4), radius: 4, x: 0, y: 2)
+
+                    Image(systemName: annotation.iconName)
+                        .font(.system(size: isSelected ? 18 : 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .scaleEffect(isSelected ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3), value: isSelected)
+
+                Triangle()
+                    .fill(annotationColor)
+                    .frame(width: 12, height: 8)
+                    .offset(y: -2)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var annotationColor: Color {
+        switch annotation.category {
+        case .school: return .blue
+        case .library: return .purple
+        case .cafe: return .orange
+        case .restaurant: return .red
+        case .entertainment: return .pink
+        case .home: return .green
+        case .park: return .mint
+        case .other: return .gray
+        }
+    }
 }
 
 // MARK: - Map Annotation Item
 
-/// Map annotation item - compatible with both MapKit and Baidu
+/// Map annotation item - compatible with MapKit
 struct MapAnnotationItem: Identifiable {
     let id: String
     let name: String
@@ -140,6 +225,15 @@ struct MapAnnotationItem: Identifiable {
         self.iconName = MapAnnotationItem.iconForCategory(category)
     }
 
+    static func == (lhs: MapAnnotationItem, rhs: MapAnnotationItem) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.name == rhs.name &&
+        lhs.subtitle == rhs.subtitle &&
+        lhs.coordinate.latitude == rhs.coordinate.latitude &&
+        lhs.coordinate.longitude == rhs.coordinate.longitude &&
+        lhs.category == rhs.category
+    }
+
     static func iconForCategory(_ category: LocationCategory) -> String {
         switch category {
         case .school: return "building.columns.fill"
@@ -154,73 +248,13 @@ struct MapAnnotationItem: Identifiable {
     }
 }
 
-// MARK: - Annotation View
+// MARK: - Zoom Control Action
 
-/// Annotation view for displaying map markers
-struct AnnotationView: View {
-    let annotation: MapAnnotationItem
-    var onTapped: ((MapAnnotationItem) -> Void)?
-
-    @State private var isSelected = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                Circle()
-                    .fill(annotationColor)
-                    .frame(width: isSelected ? 44 : 36, height: isSelected ? 44 : 36)
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                Image(systemName: annotation.iconName)
-                    .font(.system(size: isSelected ? 18 : 14, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-
-            // Tail
-            PointerShape()
-                .fill(annotationColor)
-                .frame(width: 12, height: 8)
-                .offset(y: -2)
-        }
-        .scaleEffect(isSelected ? 1.1 : 1.0)
-        .animation(.spring(response: 0.3), value: isSelected)
-        .onTapGesture {
-            withAnimation {
-                isSelected = true
-            }
-            onTapped?(annotation)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isSelected = false
-            }
-        }
-    }
-
-    private var annotationColor: Color {
-        switch annotation.category {
-        case .school: return .blue
-        case .library: return .purple
-        case .cafe: return .orange
-        case .restaurant: return .red
-        case .entertainment: return .pink
-        case .home: return .green
-        case .park: return .mint
-        case .other: return .gray
-        }
-    }
-}
-
-// MARK: - Pointer Shape
-
-/// Pointer shape for annotation tail
-struct PointerShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.closeSubpath()
-        return path
-    }
+/// Zoom control action
+enum ZoomControlAction {
+    case zoomIn
+    case zoomOut
+    case centerUser
 }
 
 // MARK: - Zoom Controls View
@@ -305,49 +339,6 @@ struct RouteOverlayView: View {
     }
 }
 
-// MARK: - Location Manager
-
-/// Simple location manager
-final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    static let shared = LocationManager()
-
-    @Published var currentLocation: CLLocation?
-    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
-
-    private let manager = CLLocationManager()
-
-    override init() {
-        super.init()
-        manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-    }
-
-    func requestPermission() {
-        manager.requestWhenInUseAuthorization()
-    }
-
-    func startUpdating() {
-        manager.startUpdatingLocation()
-    }
-
-    func stopUpdating() {
-        manager.stopUpdatingLocation()
-    }
-
-    // MARK: - CLLocationManagerDelegate
-
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.last
-    }
-
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            manager.startUpdatingLocation()
-        }
-    }
-}
-
 // MARK: - POI Search Bar
 
 /// POI search bar
@@ -408,7 +399,7 @@ struct POISearchBar: View {
 
 /// POI list item view
 struct POIListItem: View {
-    let poi: BaiduPOI
+    let poi: POIResult
     var onTap: (() -> Void)?
 
     var body: some View {
@@ -456,7 +447,7 @@ struct POIListItem: View {
 
 /// Navigation card view
 struct NavigationCard: View {
-    let route: BaiduRoute
+    let route: RouteResult
     let destination: String
     var onStartNavigation: (() -> Void)?
     var onClose: (() -> Void)?

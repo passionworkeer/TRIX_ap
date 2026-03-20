@@ -477,7 +477,7 @@ describe('TrixNativeServer', () => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${state.serviceTokens.default}`,
+        'x-trix-admin-token': state.adminToken,
       },
       body: JSON.stringify({ accountId: 'bot-b', label: 'Bot B Device' }),
     }).then((response) => response.json()) as { code: string };

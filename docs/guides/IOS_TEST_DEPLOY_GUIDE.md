@@ -1,6 +1,7 @@
 # iOS 测试与打包完整指南
 
 > 本文档介绍在 Windows 环境下开发、测试 iOS 应用并打包上架的完整方案
+> **最后更新**: 2026-03-20
 
 ---
 
@@ -134,28 +135,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Ionic CLI
-        run: npm install -g @ionic/cli
-
-      - name: Install Capacitor
-        run: npm install @capacitor/core @capacitor/cli @capacitor/ios
-
-      - name: Add iOS platform
-        run: npx cap add ios
-
-      - name: Sync iOS
-        run: npx cap sync ios
+      - name: Build Web
+        run: npm run build
 
       - name: Build iOS project
         run: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 15' build
+          cd ios/TRIX3DCompanion
+          xcodebuild -workspace TRIX3DCompanion.xcworkspace -scheme TRIX3DCompanion -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 15' build
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/App/App.ipa
+          path: ios/TRIX3DCompanion/build/App.ipa
 ```
 
 #### Step 4: 触发构建

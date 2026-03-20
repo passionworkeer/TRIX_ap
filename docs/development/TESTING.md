@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 > **测试框架**: Vitest + Node.js Test Runner
 
 ---
@@ -18,14 +18,13 @@ trix-3d-companion/
 │   │   ├── escapeHtml.test.ts
 │   │   ├── pairingToast.test.ts
 │   │   └── performance.test.ts
-│   ├── services/                       # 服务层测试（30+ 测试文件）
+│   ├── services/                       # 服务层测试（24 测试文件）
 │   │   ├── chatService.test.ts
 │   │   ├── databaseService.test.ts
 │   │   ├── StorageService.test.ts
 │   │   ├── achievementService.test.ts
-│   │   ├── connectionManager.test.ts
+│   │   ├── ConnectionManager.test.ts
 │   │   ├── friendService.test.ts
-│   │   ├── clawbotChannelBridge.test.ts
 │   │   ├── clawbotHistoryService.test.ts
 │   │   ├── locationService.test.ts
 │   │   ├── mallService.test.ts
@@ -43,7 +42,8 @@ trix-3d-companion/
 │   │   ├── ttsService.test.ts
 │   │   ├── uploadService.test.ts
 │   │   ├── userStatsService.test.ts
-│   │   └── voicePlaybackService.test.ts
+│   │   ├── voicePlaybackService.test.ts
+│   │   └── wardrobeService.test.ts
 │   ├── components/                      # 组件测试
 │   │   ├── AIActionModal.test.tsx
 │   │   ├── AddFriendModal.test.tsx
@@ -72,7 +72,6 @@ trix-3d-companion/
 │   │   ├── useImmersiveVoice.test.ts
 │   │   ├── useNotification.test.ts
 │   │   ├── useResourcePreloader.test.ts
-│   │   ├── useSpeechRecognition.test.ts
 │   │   ├── useSpeechToText.test.ts
 │   │   ├── useTouchGestures.test.ts
 │   │   └── ...
@@ -150,10 +149,10 @@ npm run test:e2e:ui
 | 模块 | 文件数 | 覆盖内容 |
 |------|--------|---------|
 | **工具函数** `src/utils/` | ~7 | dateFormat, env, logger, errorHandler, escapeHtml, pairingToast, performance |
-| **服务层** `src/services/` | ~30 | chatService, databaseService, StorageService, connectionManager, friendService, clawbotChannelBridge, locationService, mallService, notificationService, pointsService, scheduleService, studySessionService, studyHistoryService, ttsService, voicePlaybackService, uploadService, userStatsService, wardrobeService 等 |
+| **服务层** `src/services/` | ~24 | chatService, databaseService, StorageService, achievementService, ConnectionManager, friendService, clawbotHistoryService, locationService, mallService, notificationService, pointsService, scheduleService, studySessionService, studyHistoryService, ttsService, voicePlaybackService, uploadService, userStatsService, wardrobeService 等 |
 | **组件** `src/components/` | ~18 | AIActionModal, AddFriendModal, Avatar, DynamicBackground, FileAttachmentCard, GlassDock, GlassPanel, HeroBackground, HomeBotBubble, LoadingSpinner, MailPanel, NotificationPanel, OutfitCard, OutfitPreview, StudyRoom, UserSwitcher 等 |
 | **Contexts** `src/contexts/` | ~2 | AuthContext, ClawbotChannelContext |
-| **Hooks** `src/hooks/` | ~11 | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useImmersiveVoice, useNotification, useResourcePreloader, useSpeechRecognition, useSpeechToText, useTouchGestures 等 |
+| **Hooks** `src/hooks/` | ~10 | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useImmersiveVoice, useNotification, useResourcePreloader, useSpeechToText, useTouchGestures 等 |
 | **Features** `src/features/` | ~1 | chat/useChatMessages |
 | **Library** `src/lib/` | ~1 | validation |
 

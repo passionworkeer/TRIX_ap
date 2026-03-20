@@ -23,16 +23,11 @@ openclaw trix setup
 
 在 OpenClaw 中：
 ```
-# 生成配对码
-openclaw trix pair
+# 登录 trix-native channel 并生成配对码
+openclaw channels login --channel trix-native --account default --verbose
 ```
 
-会显示：
-```
-✅ 配对码已生成！
-📱 配对码：ABC123
-⏰ 有效期：30分钟
-```
+会显示配对二维码和 URL。
 
 ### 第 3 步：App 配对（15 秒）
 

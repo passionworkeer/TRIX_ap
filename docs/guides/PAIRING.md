@@ -46,3 +46,7 @@ openclaw channels login --channel trix-native --account default --verbose
 - iOS: 调用 `ClawbotChannelViewModel.unpair()`
 
 服务端会删除当前设备配对，用户面连接随之失效。
+
+---
+
+**最后更新**: 2026-03-20

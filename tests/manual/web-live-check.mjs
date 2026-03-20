@@ -98,7 +98,7 @@ async function main() {
     await page.goto(`${webBaseUrl}/#/pairing`);
     await page.waitForLoadState('domcontentloaded');
     await page.getByRole('button', { name: '手动输入配对码' }).click();
-    await page.locator('input[placeholder="AB12CD34"]').fill(pairingCode);
+    await page.locator('input[placeholder="AB12CD"]').fill(pairingCode);
     await page.getByRole('button', { name: '验证配对' }).click();
     await page.waitForTimeout(2500);
 

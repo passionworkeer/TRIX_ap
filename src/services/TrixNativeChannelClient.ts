@@ -142,6 +142,7 @@ const STORAGE_KEYS = {
   legacySession: 'trix_native_channel_session',
   legacyClaim: 'trix_native_last_claim',
   clientId: 'trix_native_channel_client_id',
+  legacyPairDeviceId: 'trix_native_pair_device_id',
 } as const;
 
 function generateSecureRandomString(length: number): string {
@@ -332,6 +333,11 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
   throw new Error('无法解析配对二维码或配对链接');
 }
 
+async function readErrorPayload(response: Response, fallbackMessage: string): Promise<string> {
+  const payload = await response.json().catch(() => ({ error: fallbackMessage })) as { error?: string };
+  return typeof payload.error === 'string' ? payload.error : fallbackMessage;
+}
+
 class TrixNativeChannelClient {
   private socket: WebSocket | null = null;
   private readonly listeners = new Map<string, Set<EventCallback<unknown>>>();
@@ -371,8 +377,14 @@ class TrixNativeChannelClient {
     if (stored?.trim()) {
       return stored;
     }
+    const legacyStored = localStorage.getItem(STORAGE_KEYS.legacyPairDeviceId);
+    if (legacyStored?.trim()) {
+      localStorage.setItem(STORAGE_KEYS.clientId, legacyStored);
+      return legacyStored;
+    }
     const next = `web_${generateSecureRandomString(18)}`;
     localStorage.setItem(STORAGE_KEYS.clientId, next);
+    localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, next);
     return next;
   }
 
@@ -390,6 +402,37 @@ class TrixNativeChannelClient {
       clientId: parsed.clientId,
       deviceName: parsed.deviceName,
       pairingCode: parsed.pairingCode,
+    };
+  }
+
+  private normalizeClaimPayload(parsed: Partial<ClaimResponse> & {
+    websocketUrl?: string;
+    clientId?: string;
+    deviceName?: string;
+    pairingCode?: string;
+  }): StoredSession | null {
+    if (!parsed.conversationId || !parsed.clientToken) {
+      return null;
+    }
+
+    const serverUrl = normalizeServerUrl(parsed.serverUrl || resolveConfiguredNativeBaseUrl() || '');
+    if (!serverUrl) {
+      return null;
+    }
+
+    const clientId = typeof parsed.clientId === 'string' && parsed.clientId.trim()
+      ? parsed.clientId
+      : this.getOrCreateClientId();
+
+    return {
+      accountId: normalizeAccountId(parsed.accountId),
+      serverUrl,
+      websocketUrl: resolveWebSocketUrl(parsed.websocketUrl || parsed.wsUrl, serverUrl),
+      conversationId: parsed.conversationId,
+      clientToken: parsed.clientToken,
+      clientId,
+      deviceName: parsed.deviceName,
+      pairingCode: parsed.pairingCode || parsed.pairing?.code,
     };
   }
 
@@ -449,12 +492,39 @@ class TrixNativeChannelClient {
       return migrated;
     } catch (error) {
       logger.debug('TrixNativeChannel', 'Legacy session migration failed:', error);
-      return {
-        version: 2,
-        activeAccountId: 'default',
-        sessions: {},
-      };
     }
+
+    const legacyClaimRaw = localStorage.getItem(STORAGE_KEYS.legacyClaim);
+    if (legacyClaimRaw) {
+      try {
+        const legacyClaim = JSON.parse(legacyClaimRaw) as Partial<ClaimResponse> & {
+          websocketUrl?: string;
+          clientId?: string;
+          deviceName?: string;
+          pairingCode?: string;
+        };
+        const normalized = this.normalizeClaimPayload(legacyClaim);
+        if (normalized) {
+          const migrated = {
+            version: 2 as const,
+            activeAccountId: normalized.accountId,
+            sessions: {
+              [normalized.accountId]: normalized,
+            },
+          };
+          this.writeSessionState(migrated);
+          return migrated;
+        }
+      } catch (error) {
+        logger.debug('TrixNativeChannel', 'Legacy claim migration failed:', error);
+      }
+    }
+
+    return {
+      version: 2,
+      activeAccountId: 'default',
+      sessions: {},
+    };
   }
 
   private writeSessionState(state: StoredSessionState): void {
@@ -464,6 +534,8 @@ class TrixNativeChannelClient {
     const activeSession = state.sessions[state.activeAccountId];
     if (activeSession) {
       localStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(activeSession));
+      localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
+      localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
     } else {
       localStorage.removeItem(STORAGE_KEYS.legacySession);
     }
@@ -595,6 +667,53 @@ class TrixNativeChannelClient {
     this.socket = null;
   }
 
+  private async claimPairing(params: {
+    serverUrl: string;
+    code: string;
+    clientId: string;
+    deviceName: string;
+    accountId?: string;
+    secret?: string;
+    fallbackError: string;
+  }): Promise<ClaimResponse> {
+    const requestBody = {
+      accountId: params.accountId,
+      clientId: params.clientId,
+      deviceName: params.deviceName,
+      secret: params.secret,
+    };
+
+    const runClaim = async (body: typeof requestBody) => {
+      const response = await fetch(`${params.serverUrl}/api/pairings/${encodeURIComponent(params.code)}/claim`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      return response;
+    };
+
+    let response = await runClaim(requestBody);
+    if (!response.ok) {
+      const message = await readErrorPayload(response, params.fallbackError);
+      const shouldRetryWithoutSecret = Boolean(params.secret) && /invalid pairing secret/i.test(message);
+      if (!shouldRetryWithoutSecret) {
+        throw new Error(message);
+      }
+
+      response = await runClaim({
+        ...requestBody,
+        secret: undefined,
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorPayload(response, params.fallbackError));
+      }
+    }
+
+    return await response.json() as ClaimResponse;
+  }
+
   async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string, accountId?: string): Promise<{ success: boolean }> {
     const session = this.getSession();
     const serverUrl = normalizeServerUrl(resolveConfiguredNativeBaseUrl() || session?.serverUrl || '');
@@ -603,25 +722,15 @@ class TrixNativeChannelClient {
     }
 
     const clientId = this.getOrCreateClientId();
-    const response = await fetch(`${serverUrl}/api/pairings/${encodeURIComponent(code)}/claim`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        accountId: accountId ? normalizeAccountId(accountId) : undefined,
-        clientId,
-        deviceName,
-        secret,
-      }),
+    const claim = await this.claimPairing({
+      serverUrl,
+      code,
+      clientId,
+      deviceName,
+      accountId: accountId ? normalizeAccountId(accountId) : undefined,
+      secret,
+      fallbackError: '配对失败',
     });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '配对失败' }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '配对失败');
-    }
-
-    const claim = await response.json() as ClaimResponse;
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
       accountId: normalizeAccountId(claim.accountId),
@@ -647,25 +756,15 @@ class TrixNativeChannelClient {
     }
 
     const clientId = this.getOrCreateClientId();
-    const response = await fetch(`${serverUrl}/api/pairings/${encodeURIComponent(parsed.code)}/claim`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        accountId: parsed.accountId,
-        clientId,
-        deviceName,
-        secret: parsed.secret,
-      }),
+    const claim = await this.claimPairing({
+      serverUrl,
+      code: parsed.code,
+      clientId,
+      deviceName,
+      accountId: parsed.accountId,
+      secret: parsed.secret,
+      fallbackError: '二维码配对失败',
     });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '二维码配对失败' }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '二维码配对失败');
-    }
-
-    const claim = await response.json() as ClaimResponse;
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
       accountId: normalizeAccountId(claim.accountId),

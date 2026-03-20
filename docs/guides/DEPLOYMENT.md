@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 
 ---
 
@@ -422,11 +422,11 @@ pm2 logs trix-native
 ### 10.3 WebSocket 连接失败
 
 ```bash
-# 检查 WebSocket 端口
-netstat -tlnp | grep 18789
+# 检查 WebSocket 端口（TRIX Native Server :8788）
+netstat -tlnp | grep 8788
 
-# 测试 WebSocket 连接
-wscat -c ws://TRIX_SERVER_HOST:18789
+# 测试 WebSocket 连接（TRIX Native Server）
+wscat -c ws://TRIX_SERVER_HOST:8788
 ```
 
 ### 10.4 文件上传失败
@@ -476,4 +476,4 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-19
+**最后更新**: 2026-03-20

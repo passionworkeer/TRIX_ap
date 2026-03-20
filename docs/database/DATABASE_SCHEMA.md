@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-19（补充缺失表：friend_requests, user_sessions, user_points, point_transactions, user_achievements, outfits, user_outfits, user_purchased_items, user_settings）
+> **最后更新**: 2026-03-20（修正表名：统一为 points_transactions；补全缺失表）
 
 ---
 
@@ -32,7 +32,7 @@
 │  │  │                 │   │  study_room_members            │      │   │
 │  │  └─────────────────┘   └──────────────────────────────┘      │   │
 │  │  ┌─────────────────────────────────────────────────────┐      │   │
-│  │  │  user_points │ point_transactions │ points_trans.. │      │   │
+│  │  │  user_points │ points_transactions                 │      │   │
 │  │  └─────────────────────────────────────────────────────┘      │   │
 │  │  ┌──────────────────┐   ┌──────────────────────────────┐      │   │
 │  │  │ achievements     │   │ user_achievements           │      │   │
@@ -84,8 +84,7 @@
 | `todos` | 待办事项 | user_id, title, is_completed |
 | `schedules` | 日程 | user_id, title, start_time, end_time |
 | `user_points` | 用户积分余额 | user_id, balance, updated_at |
-| `point_transactions` | 积分变动流水 | user_id, amount, type, description |
-| `points_transactions` | 商城积分流水 | user_id, amount, type, description |
+| `points_transactions` | 积分变动流水 | user_id, amount, type, description |
 | `achievements` | 成就列表（参考表） | id, type, name, description, icon |
 | `user_achievements` | 用户已解锁成就 | user_id, achievement_id, unlocked_at |
 | `outfits` | 装扮目录（参考表） | id, name, type, price, preview_url |

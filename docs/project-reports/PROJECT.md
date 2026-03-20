@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-03-19
+> **最后更新**: 2026-03-20
 > **版本**: v1.0.0
 > **版本**: v1.0
 > **技术栈**: React 19 + TypeScript + Vite 6 + Supabase + SwiftUI
@@ -52,78 +52,80 @@ trix-3d-companion/
 │   │   ├── study/                # 学习相关
 │   │   └── map/                  # 地图相关
 │   │
-│   ├── screens/                  # 页面组件 (12个)
+│   ├── screens/                  # 页面组件 (17个)
 │   │   ├── Home.tsx              # 首页
 │   │   ├── Chat.tsx              # 聊天列表
 │   │   ├── ChatDetail.tsx        # 聊天详情
 │   │   ├── Study.tsx             # 学习计时器
 │   │   ├── Profile.tsx           # 个人中心
-│   │   ├── Map.tsx               # 地图
 │   │   ├── Auth.tsx              # 登录/注册
 │   │   ├── Pairing.tsx           # PC 配对
 │   │   ├── QRCodePairing.tsx     # 二维码配对
 │   │   ├── Snapshot.tsx          # 拍照截图
-│   │   └── Diagnostic.tsx        # 诊断工具
+│   │   ├── SnapMapScreen.tsx     # 地图拍照
+│   │   ├── Wardrobe.tsx          # 换装
+│   │   ├── PointsMall.tsx        # 积分商城
+│   │   ├── Diagnostic.tsx         # 诊断工具
+│   │   ├── DiagnosticAdvanced.tsx # 高级诊断
+│   │   └── ...
 │   │
 │   ├── features/                 # 功能模块
 │   │   ├── chat/                 # 聊天功能
 │   │   │   ├── components/       # 聊天组件
-│   │   │   ├── hooks/            # 聊天 Hooks
-│   │   │   └── utils/            # 聊天工具
-│   │   └── study/                # 学习功能
-│   │       └── components/       # 学习组件
+│   │   │   └── ...
+│   │   ├── location/            # 位置功能
+│   │   ├── schedule/            # 日程功能
+│   │   ├── study/              # 学习功能
+│   │   │       └── components/  # 学习组件
+│   │   └── todo/               # 待办功能
 │   │
-│   ├── contexts/                 # React Context (6个)
+│   ├── contexts/                 # React Context (4个)
 │   │   ├── AuthContext.tsx       # 认证状态
 │   │   ├── ThemeContext.tsx      # 主题状态
 │   │   ├── VoiceSettingsContext.tsx   # TTS 设置
-│   │   ├── GatewayContext.tsx    # Gateway 连接状态
-│   │   ├── ClawbotChannelContext.tsx  # WebSocket 连接
-│   │   └── QRCodePairingContext.tsx   # QR 配对状态
+│   │   └── ClawbotChannelContext.tsx  # WebSocket 连接
 │   │
-│   ├── services/                 # 业务服务层 (30+个)
+│   ├── services/                 # 业务服务层 (40个)
 │   │   ├── TrixNativeChannelClient.ts  # TRIX Native Channel 配对客户端
-│   │   ├── GatewayClient.ts            # Gateway RPC/HTTP 客户端
-│   │   ├── GatewayRPC.ts               # Gateway RPC 方法封装
-│   │   ├── RelayClient.ts              # Relay 中继客户端
-│   │   ├── ClawbotChannelBridge.ts    # WebSocket 通信（遗留）
+│   │   ├── ConnectionManager.ts        # 连接管理器
 │   │   ├── chatService.ts             # 聊天服务
-│   │   ├── friendService.ts            # 好友服务
-│   │   ├── notificationService.ts       # 通知服务
-│   │   ├── studySessionService.ts      # 学习会话
-│   │   ├── studyHistoryService.ts      # 学习历史
-│   │   ├── sessionService.ts           # 会话管理
-│   │   ├── pointsService.ts           # 积分服务
-│   │   ├── mallService.ts             # 商城服务
-│   │   ├── placeService.ts            # 地点服务
-│   │   ├── locationService.ts         # 位置服务
-│   │   ├── wardrobeService.ts          # 换装服务
-│   │   ├── uploadService.ts           # 文件上传
-│   │   ├── serverOssUploadService.ts  # 服务端 OSS 上传
-│   │   ├── OSSService.ts             # 阿里云 OSS
-│   │   ├── ttsService.ts             # 语音合成
-│   │   ├── voicePlaybackService.ts    # 语音播放
-│   │   ├── todoService.ts            # 待办服务
-│   │   ├── scheduleService.ts         # 日程服务
-│   │   ├── userStatsService.ts       # 用户统计
-│   │   ├── achievementService.ts      # 成就服务
-│   │   ├── projectService.ts         # 项目服务
-│   │   ├── clawbotHistoryService.ts   # Bot 历史服务
-│   │   ├── databaseService.ts        # 数据库操作
-│   │   └── StorageService.ts         # 本地存储
+│   │   ├── friendService.ts           # 好友服务
+│   │   ├── notificationService.ts      # 通知服务
+│   │   ├── studySessionService.ts     # 学习会话
+│   │   ├── studyHistoryService.ts     # 学习历史
+│   │   ├── sessionService.ts          # 会话管理
+│   │   ├── pointsService.ts          # 积分服务
+│   │   ├── mallService.ts            # 商城服务
+│   │   ├── placeService.ts          # 地点服务
+│   │   ├── locationService.ts       # 位置服务
+│   │   ├── wardrobeService.ts       # 换装服务
+│   │   ├── uploadService.ts         # 文件上传
+│   │   ├── serverOssUploadService.ts # 服务端 OSS 上传
+│   │   ├── OSSService.ts           # 阿里云 OSS
+│   │   ├── ttsService.ts          # 语音合成
+│   │   ├── voicePlaybackService.ts  # 语音播放
+│   │   ├── todoService.ts         # 待办服务
+│   │   ├── scheduleService.ts     # 日程服务
+│   │   ├── userStatsService.ts   # 用户统计
+│   │   ├── achievementService.ts  # 成就服务
+│   │   ├── projectService.ts     # 项目服务
+│   │   ├── clawbotHistoryService.ts  # Bot 历史服务
+│   │   ├── databaseService.ts    # 数据库操作
+│   │   ├── StorageService.ts    # 本地存储
+│   │   └── ...
 │   │
-│   ├── hooks/                    # 自定义 Hooks (11+个)
+│   ├── hooks/                    # 自定义 Hooks (11个)
 │   │   ├── useTouchGestures.ts       # 手势
 │   │   ├── useImmersiveVoice.ts      # 沉浸式语音
 │   │   ├── useSpeechToText.ts        # 语音识别
-│   │   ├── useSpeechRecognition.ts   # 语音识别
 │   │   ├── useCamera.ts              # 相机
 │   │   ├── useNotification.ts        # 通知
 │   │   ├── useAudioPlayer.ts         # 音频播放
 │   │   ├── useBotStateMachine.ts     # Bot 状态机
 │   │   ├── useClawbotMessages.ts     # Bot 消息
-│   │   ├── useResourcePreloader.ts    # 资源预加载
-│   │   └── ...                       # 更多 Hooks
+│   │   ├── useResourcePreloader.ts   # 资源预加载
+│   │   ├── useVoiceRecorder.ts       # 语音录制
+│   │   └── useWebVitals.ts           # Web 性能指标
 │   │
 │   ├── config/                   # 配置文件
 │   │   ├── supabase.ts           # Supabase 客户端
@@ -145,26 +147,24 @@ trix-3d-companion/
 │   └── App.tsx                   # 主应用组件
 │
 ├── packages/                       # npm 包
-│   ├── trix-openclaw-native/     # TRIX Native Channel + OpenClaw 插件
-│   │   ├── src/
-│   │   │   ├── plugin/           # OpenClaw 插件（startAccount）
-│   │   │   │   ├── plugin.ts
-│   │   │   │   ├── accounts.ts
-│   │   │   │   ├── inbound.ts
-│   │   │   │   └── outbound.ts
-│   │   │   ├── server/           # TRIX Native Server (:8788)
-│   │   │   │   └── TrixNativeServer.ts
-│   │   │   ├── pairing/          # 配对服务
-│   │   │   │   └── PairingService.ts
-│   │   │   ├── storage/          # JSON 持久化
-│   │   │   │   └── JsonStateStore.ts
-│   │   │   ├── utils/            # 工具函数
-│   │   │   ├── types.ts
-│   │   │   ├── cli.ts
-│   │   │   └── ...
-│   │   └── test/                  # 测试文件
-│   └── trix-relay-client/        # Relay 中继客户端
-│       └── test/client.test.ts
+│   └── trix-openclaw-native/     # TRIX Native Channel + OpenClaw 插件
+│       ├── src/
+│       │   ├── plugin/           # OpenClaw 插件（startAccount）
+│       │   │   ├── plugin.ts
+│       │   │   ├── accounts.ts
+│       │   │   ├── inbound.ts
+│       │   │   └── outbound.ts
+│       │   ├── server/           # TRIX Native Server (:8788)
+│       │   │   └── TrixNativeServer.ts
+│       │   ├── pairing/          # 配对服务
+│       │   │   └── PairingService.ts
+│       │   ├── storage/          # JSON 持久化
+│       │   │   └── JsonStateStore.ts
+│       │   ├── utils/            # 工具函数
+│       │   ├── types.ts
+│       │   ├── cli.ts
+│       │   └── ...
+│       └── test/                  # 测试文件
 │
 ├── database/                     # 数据库脚本 (Supabase)
 │   ├── schema-complete.sql        # 完整 21 表初始化脚本
@@ -233,10 +233,10 @@ trix-3d-companion/
 |------|------|
 | `pairing_requests` | 配对请求 |
 | `user_points` | 用户积分 |
-| `point_transactions` | 积分交易记录 |
+| `points_transactions` | 积分交易记录 |
 | `user_settings` | 用户隐私设置 |
 
-详细文档: [database/docs/SCHEMA.md](../../database/docs/SCHEMA.md)
+详细文档: [database/DATABASE_SCHEMA.md](../database/DATABASE_SCHEMA.md)
 
 ---
 
@@ -245,7 +245,7 @@ trix-3d-companion/
 ### 前端 API
 
 - **Supabase Client** - 数据库 CRUD 操作
-- **ClawbotChannelBridge** - Bot WebSocket 通信
+- **TrixNativeChannelClient** - TRIX Native Channel 通信（替代旧 ClawbotChannelBridge）
 - **TTS Service** - 语音合成
 
 ### 后端 API
@@ -253,7 +253,7 @@ trix-3d-companion/
 - **HTTP API** - 文件上传、TTS、健康检查
 - **WebSocket API** - 配对、消息转发、心跳
 
-详细文档: [docs/api/new_clawbot_api.md](../api/new_clawbot_api.md)
+详细文档: [api/API_DOCUMENTATION.md](../api/API_DOCUMENTATION.md)
 
 ---
 
@@ -337,7 +337,6 @@ socket.on('bot_message', (data) => { ... });
 AuthContext          - 用户认证状态
 ThemeContext         - 主题/暗色模式
 ClawbotChannelContext - Bot 连接和消息状态
-QRCodePairingContext  - 配对流程状态
 VoiceSettingsContext  - 语音设置
 ```
 
@@ -392,12 +391,14 @@ npm run dev
 
 | 类别 | 数量 |
 |------|------|
-| 前端 TypeScript 文件 | 29 |
-| 前端 TSX 组件文件 | 62 |
+| 前端 TypeScript 服务/工具文件 | 40 |
+| 前端 Hook 文件 | 11 |
+| 前端 TSX 组件文件 | 60+ |
+| 前端 TSX 页面文件 | 17 |
 | 后端 JavaScript 文件 | 12 |
 | 数据库表 | 13 |
 | 核心文档 | 15+ |
-| **总代码文件** | **~117** |
+| **总代码文件** | **~140** |
 
 ---
 
