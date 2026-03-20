@@ -22,7 +22,7 @@ export class PairingService {
     const createdAt = Date.now();
     const expiresAt = createdAt + (input.ttlMs ?? DEFAULT_TTL_MS);
     const conversationId = randomId('conv', 10);
-    const claimUrl = `${input.publicBaseUrl.replace(/\/$/, '')}/pair?code=${code}&secret=${secret}`;
+    const claimUrl = `${input.publicBaseUrl.replace(/\/$/, '')}/pair?code=${code}&secret=${secret}&accountId=${encodeURIComponent(accountId)}`;
     const qrDataUrl = await QRCode.toDataURL(claimUrl, { margin: 1, width: 320 });
 
     const pairing: PairingRecord = {
@@ -84,6 +84,7 @@ export class PairingService {
     let claimedPairing: PairingRecord | undefined;
     let claimedConversation: ConversationRecord | undefined;
     const clientToken = randomToken(20);
+    const requestedAccountId = input.accountId?.trim();
 
     await this.store.update((state) => {
       const pairings = state.pairings.map((entry) => {
@@ -96,6 +97,9 @@ export class PairingService {
         }
         if (input.secret?.trim() && entry.secret !== input.secret.trim()) {
           throw new Error('Invalid pairing secret');
+        }
+        if (requestedAccountId && entry.accountId !== requestedAccountId) {
+          throw new Error(`Pairing code does not belong to account ${requestedAccountId}`);
         }
 
         claimedPairing = {
@@ -147,6 +151,7 @@ export class PairingService {
     });
 
     return {
+      accountId: claimedPairing!.accountId,
       conversationId: claimedPairing!.conversationId,
       clientToken,
       peerId: claimedConversation?.peerId ?? claimedPairing?.peerId ?? randomId('user', 10),

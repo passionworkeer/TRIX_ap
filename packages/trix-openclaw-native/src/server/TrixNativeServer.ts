@@ -335,10 +335,11 @@ export class TrixNativeServer {
       const pairingClaimMatch = url.pathname.match(/^\/api\/pairings\/([^/]+)\/claim$/);
       if (request.method === 'POST' && pairingClaimMatch) {
         this.assertRateLimit(request, 'claim');
-        const body = await readJsonBody<{ secret?: string; clientId: string; deviceName?: string }>(request);
+        const body = await readJsonBody<{ accountId?: string; secret?: string; clientId: string; deviceName?: string }>(request);
         const result = await this.pairingService.claim(
           {
             code: pairingClaimMatch[1]!,
+            accountId: body.accountId,
             secret: body.secret,
             clientId: body.clientId,
             deviceName: body.deviceName,
@@ -352,11 +353,11 @@ export class TrixNativeServer {
         await this.broadcast(
           {
             type: 'pairing.updated',
-            payload: { ...result, agentOnline: this.isServiceOnline() },
+            payload: { ...result, agentOnline: this.isServiceOnline(result.accountId) },
           },
-          { role: 'service' },
+          { role: 'service', accountId: result.accountId },
         );
-        sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isServiceOnline() });
+        sendJson(response, 200, { ...result, serverUrl: this.publicBaseUrl, agentOnline: this.isServiceOnline(result.accountId) });
         return;
       }
 

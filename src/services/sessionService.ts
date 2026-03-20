@@ -284,7 +284,8 @@ export async function checkSessionValidity(): Promise<SessionValidityResult> {
     }
 
     // 2. 对比 profiles.active_session_id 是否匹配本地 ID
-    const { data: { user } } = await supabase.auth.getSession();
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const user = authSession?.user;
     if (!user) {
       return { isValid: false, reason: 'not_found' };
     }

@@ -7,6 +7,8 @@ import { probeTrix } from './probe.js';
 import { trixSetupAdapter } from './setup.js';
 
 const pendingPairingCodeByAccount = new Map<string, string>();
+const PAIRING_STATUS_POLL_INTERVAL_MS = 7_000;
+const DEFAULT_PAIRING_WAIT_TIMEOUT_MS = 5 * 60_000;
 type RuntimeSnapshot = {
   running?: boolean;
   connected?: boolean;
@@ -16,7 +18,7 @@ type RuntimeSnapshot = {
   lastOutboundAt?: number | null;
 };
 
-async function createServicePairing(accountId?: string | null, timeoutMs?: number) {
+async function createServicePairing(accountId?: string | null) {
   const account = resolveRegisteredTrixAccount(accountId);
   const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings`, {
     method: 'POST',
@@ -27,7 +29,6 @@ async function createServicePairing(accountId?: string | null, timeoutMs?: numbe
     body: JSON.stringify({
       accountId: account.accountId,
       label: account.name,
-      ttlMs: timeoutMs,
     }),
   });
   if (!response.ok) {
@@ -46,7 +47,7 @@ async function waitForServicePairing(accountId?: string | null, timeoutMs?: numb
   }
 
   const startedAt = Date.now();
-  const effectiveTimeoutMs = timeoutMs ?? 60_000;
+  const effectiveTimeoutMs = timeoutMs ?? DEFAULT_PAIRING_WAIT_TIMEOUT_MS;
   while (Date.now() - startedAt < effectiveTimeoutMs) {
     try {
       const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
@@ -70,10 +71,10 @@ async function waitForServicePairing(accountId?: string | null, timeoutMs?: numb
       if (error instanceof Error && error.message.startsWith('Failed to poll pairing status:')) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, PAIRING_STATUS_POLL_INTERVAL_MS));
       continue;
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, PAIRING_STATUS_POLL_INTERVAL_MS));
   }
 
   pendingPairingCodeByAccount.delete(account.accountId);
@@ -176,7 +177,7 @@ export const trixPlugin: ChannelPlugin = {
   },
   auth: {
     login: async ({ accountId, runtime, verbose }) => {
-      const { payload } = await createServicePairing(accountId, 120_000);
+      const { payload } = await createServicePairing(accountId);
       const logger = runtime as { log?: (message: string) => void };
       logger.log?.(`TRIX pairing code: ${payload.code}`);
       if (payload.claimUrl) {
@@ -186,7 +187,7 @@ export const trixPlugin: ChannelPlugin = {
         logger.log?.(`TRIX QR data URL: ${payload.qrDataUrl}`);
       }
 
-      const result = await waitForServicePairing(accountId, 120_000);
+      const result = await waitForServicePairing(accountId, DEFAULT_PAIRING_WAIT_TIMEOUT_MS);
       logger.log?.(result.message);
       if (!result.connected) {
         throw new Error(result.message);
@@ -248,7 +249,7 @@ export const trixPlugin: ChannelPlugin = {
       });
     },
     loginWithQrStart: async ({ accountId, timeoutMs }) => {
-      const { payload } = await createServicePairing(accountId, timeoutMs);
+      const { payload } = await createServicePairing(accountId);
       return {
         qrDataUrl: payload.qrDataUrl,
         message: `Use pairing code ${payload.code}${payload.claimUrl ? ` or visit ${payload.claimUrl}` : ''}`,

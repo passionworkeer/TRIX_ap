@@ -106,6 +106,7 @@ export interface PairingCreateInput {
 
 export interface PairingClaimInput {
   code: string;
+  accountId?: string;
   secret?: string;
   clientId: string;
   deviceName?: string;
@@ -147,6 +148,7 @@ export interface PairingCreatedResponse extends PairingRecord {
 }
 
 export interface PairingClaimResponse {
+  accountId: string;
   conversationId: string;
   clientToken: string;
   peerId: string;

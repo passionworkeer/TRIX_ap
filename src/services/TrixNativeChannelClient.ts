@@ -59,6 +59,7 @@ type NativeSocketEventPayload<TEvent extends NativeSocketEventName> = NativeSock
 type EventCallback<TPayload> = (payload: TPayload) => void;
 
 type StoredSession = {
+  accountId: string;
   serverUrl: string;
   websocketUrl: string;
   conversationId: string;
@@ -66,6 +67,12 @@ type StoredSession = {
   clientId: string;
   deviceName?: string;
   pairingCode?: string;
+};
+
+type StoredSessionState = {
+  version: 2;
+  activeAccountId: string;
+  sessions: Record<string, StoredSession>;
 };
 
 type ConversationMessagesResponse = {
@@ -94,6 +101,7 @@ type ConversationMessagesResponse = {
 };
 
 type ClaimResponse = {
+  accountId: string;
   conversationId: string;
   clientToken: string;
   peerId: string;
@@ -129,7 +137,10 @@ type StudyRoomsListResponse = {
 };
 
 const STORAGE_KEYS = {
-  session: 'trix_native_channel_session',
+  sessions: 'trix_native_channel_sessions_v2',
+  activeAccountId: 'trix_native_channel_active_account',
+  legacySession: 'trix_native_channel_session',
+  legacyClaim: 'trix_native_last_claim',
   clientId: 'trix_native_channel_client_id',
 } as const;
 
@@ -263,7 +274,11 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
   };
 }
 
-function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: string; secret?: string } {
+function normalizeAccountId(accountId: string | undefined | null): string {
+  return accountId?.trim() || 'default';
+}
+
+function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: string; secret?: string; accountId?: string } {
   const raw = rawInput.trim();
 
   try {
@@ -279,6 +294,7 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
         serverUrl: typeof parsed.serverUrl === 'string' ? parsed.serverUrl : undefined,
         code: parsed.code.trim().toUpperCase(),
         secret: typeof parsed.secret === 'string' ? parsed.secret.trim() : undefined,
+        accountId: typeof parsed.accountId === 'string' ? normalizeAccountId(parsed.accountId) : undefined,
       };
     }
   } catch (error) {
@@ -296,6 +312,7 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
       serverUrl: `${url.protocol}//${url.host}`,
       code: code.trim().toUpperCase(),
       secret: url.searchParams.get('secret')?.trim(),
+      accountId: normalizeAccountId(url.searchParams.get('accountId')),
     };
   }
 
@@ -308,7 +325,7 @@ function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: st
   }
 
   const normalizedCode = compact.toUpperCase();
-  if (/^[A-Z0-9]{6,8}$/.test(normalizedCode)) {
+  if (/^[A-Z0-9]{6}$/.test(normalizedCode)) {
     return { code: normalizedCode };
   }
 
@@ -359,38 +376,142 @@ class TrixNativeChannelClient {
     return next;
   }
 
-  getSession(): StoredSession | null {
-    const raw = localStorage.getItem(STORAGE_KEYS.session);
-    if (!raw) {
+  private normalizeStoredSession(parsed: Partial<StoredSession>): StoredSession | null {
+    if (!parsed.serverUrl || !parsed.conversationId || !parsed.clientToken || !parsed.clientId) {
       return null;
+    }
+
+    return {
+      accountId: normalizeAccountId(parsed.accountId),
+      serverUrl: normalizeServerUrl(parsed.serverUrl),
+      websocketUrl: parsed.websocketUrl ? normalizeServerUrl(parsed.websocketUrl) : toWebSocketUrl(parsed.serverUrl),
+      conversationId: parsed.conversationId,
+      clientToken: parsed.clientToken,
+      clientId: parsed.clientId,
+      deviceName: parsed.deviceName,
+      pairingCode: parsed.pairingCode,
+    };
+  }
+
+  private readSessionState(): StoredSessionState {
+    const raw = localStorage.getItem(STORAGE_KEYS.sessions);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
+        const sessions = Object.fromEntries(
+          Object.entries(parsed.sessions ?? {})
+            .map(([accountId, session]) => [normalizeAccountId(accountId), this.normalizeStoredSession(session)])
+            .filter((entry): entry is [string, StoredSession] => Boolean(entry[1])),
+        );
+        const activeAccountId = normalizeAccountId(
+          parsed.activeAccountId
+          || localStorage.getItem(STORAGE_KEYS.activeAccountId)
+          || Object.keys(sessions)[0],
+        );
+
+        return {
+          version: 2,
+          activeAccountId,
+          sessions,
+        };
+      } catch (error) {
+        logger.debug('TrixNativeChannel', 'Session state parsing failed:', error);
+      }
+    }
+
+    const legacyRaw = localStorage.getItem(STORAGE_KEYS.legacySession);
+    if (!legacyRaw) {
+      return {
+        version: 2,
+        activeAccountId: 'default',
+        sessions: {},
+      };
     }
 
     try {
-      const parsed = JSON.parse(raw) as Partial<StoredSession>;
-      if (!parsed.serverUrl || !parsed.conversationId || !parsed.clientToken || !parsed.clientId) {
-        return null;
+      const legacyParsed = JSON.parse(legacyRaw) as Partial<StoredSession>;
+      const normalized = this.normalizeStoredSession({ ...legacyParsed, accountId: normalizeAccountId(legacyParsed.accountId) });
+      if (!normalized) {
+        return {
+          version: 2,
+          activeAccountId: 'default',
+          sessions: {},
+        };
       }
-      return {
-        serverUrl: normalizeServerUrl(parsed.serverUrl),
-        websocketUrl: parsed.websocketUrl ? normalizeServerUrl(parsed.websocketUrl) : toWebSocketUrl(parsed.serverUrl),
-        conversationId: parsed.conversationId,
-        clientToken: parsed.clientToken,
-        clientId: parsed.clientId,
-        deviceName: parsed.deviceName,
-        pairingCode: parsed.pairingCode,
+      const migrated = {
+        version: 2 as const,
+        activeAccountId: normalized.accountId,
+        sessions: {
+          [normalized.accountId]: normalized,
+        },
       };
+      this.writeSessionState(migrated);
+      return migrated;
     } catch (error) {
-      logger.debug('TrixNativeChannel', 'Session parsing failed:', error);
-      return null;
+      logger.debug('TrixNativeChannel', 'Legacy session migration failed:', error);
+      return {
+        version: 2,
+        activeAccountId: 'default',
+        sessions: {},
+      };
     }
   }
 
-  private saveSession(session: StoredSession): void {
-    localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(session));
+  private writeSessionState(state: StoredSessionState): void {
+    localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
+
+    const activeSession = state.sessions[state.activeAccountId];
+    if (activeSession) {
+      localStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.legacySession);
+    }
   }
 
-  clearSession(): void {
-    localStorage.removeItem(STORAGE_KEYS.session);
+  private getActiveAccountId(): string {
+    return this.readSessionState().activeAccountId;
+  }
+
+  getSession(accountId?: string): StoredSession | null {
+    const state = this.readSessionState();
+    const resolvedAccountId = normalizeAccountId(accountId ?? state.activeAccountId);
+    return state.sessions[resolvedAccountId] ?? null;
+  }
+
+  private saveSession(session: StoredSession): void {
+    const state = this.readSessionState();
+    const nextState: StoredSessionState = {
+      version: 2,
+      activeAccountId: session.accountId,
+      sessions: {
+        ...state.sessions,
+        [session.accountId]: session,
+      },
+    };
+    this.writeSessionState(nextState);
+  }
+
+  clearSession(accountId?: string): void {
+    const state = this.readSessionState();
+    const resolvedAccountId = normalizeAccountId(accountId ?? state.activeAccountId);
+    const sessions = { ...state.sessions };
+    delete sessions[resolvedAccountId];
+    const nextActiveAccountId = sessions[state.activeAccountId]
+      ? state.activeAccountId
+      : normalizeAccountId(Object.keys(sessions)[0]);
+
+    this.writeSessionState({
+      version: 2,
+      activeAccountId: Object.keys(sessions).length > 0 ? nextActiveAccountId : 'default',
+      sessions,
+    });
+
+    if (Object.keys(sessions).length === 0) {
+      localStorage.removeItem(STORAGE_KEYS.sessions);
+      localStorage.removeItem(STORAGE_KEYS.activeAccountId);
+      localStorage.removeItem(STORAGE_KEYS.legacySession);
+    }
   }
 
   isConnected(): boolean {
@@ -474,9 +595,9 @@ class TrixNativeChannelClient {
     this.socket = null;
   }
 
-  async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string): Promise<{ success: boolean }> {
+  async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string, accountId?: string): Promise<{ success: boolean }> {
     const session = this.getSession();
-    const serverUrl = normalizeServerUrl(session?.serverUrl || resolveConfiguredNativeBaseUrl());
+    const serverUrl = normalizeServerUrl(resolveConfiguredNativeBaseUrl() || session?.serverUrl || '');
     if (!serverUrl) {
       throw new Error('未配置 TRIX Native Server 地址，请先设置 VITE_TRIX_NATIVE_SERVER_URL');
     }
@@ -488,6 +609,7 @@ class TrixNativeChannelClient {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
+        accountId: accountId ? normalizeAccountId(accountId) : undefined,
         clientId,
         deviceName,
         secret,
@@ -502,6 +624,7 @@ class TrixNativeChannelClient {
     const claim = await response.json() as ClaimResponse;
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
+      accountId: normalizeAccountId(claim.accountId),
       serverUrl: finalServerUrl,
       websocketUrl: resolveWebSocketUrl(claim.websocketUrl, finalServerUrl),
       conversationId: claim.conversationId,
@@ -518,7 +641,7 @@ class TrixNativeChannelClient {
 
   async pairWithQR(rawPayload: string, deviceName: string = defaultDeviceName()): Promise<{ success: boolean }> {
     const parsed = parseQrOrClaimPayload(rawPayload);
-    const serverUrl = normalizeServerUrl(parsed.serverUrl || this.getSession()?.serverUrl || resolveConfiguredNativeBaseUrl());
+    const serverUrl = normalizeServerUrl(parsed.serverUrl || resolveConfiguredNativeBaseUrl() || this.getSession()?.serverUrl || '');
     if (!serverUrl) {
       throw new Error('二维码没有包含服务器地址，且当前环境未配置 VITE_TRIX_NATIVE_SERVER_URL');
     }
@@ -530,6 +653,7 @@ class TrixNativeChannelClient {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
+        accountId: parsed.accountId,
         clientId,
         deviceName,
         secret: parsed.secret,
@@ -544,6 +668,7 @@ class TrixNativeChannelClient {
     const claim = await response.json() as ClaimResponse;
     const finalServerUrl = claim.serverUrl || serverUrl;
     this.saveSession({
+      accountId: normalizeAccountId(claim.accountId),
       serverUrl: finalServerUrl,
       websocketUrl: resolveWebSocketUrl(claim.websocketUrl, finalServerUrl),
       conversationId: claim.conversationId,
