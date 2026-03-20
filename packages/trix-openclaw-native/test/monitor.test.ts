@@ -64,12 +64,25 @@ describe('monitorTrixProvider', () => {
     const finalizeInboundContext = vi.fn((ctx) => ctx);
     const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
     const recordInboundSession = vi.fn(async () => undefined);
+    const readAllowFromStore = vi.fn(async () => []);
+    const shouldComputeCommandAuthorized = vi.fn(() => true);
+    const resolveCommandAuthorizedFromAuthorizers = vi.fn(({ useAccessGroups, authorizers }) => {
+      if (!useAccessGroups) {
+        return true;
+      }
+      return authorizers.some((entry: { configured: boolean; allowed: boolean }) => entry.configured && entry.allowed);
+    });
     const abortController = new AbortController();
 
     const monitorPromise = monitorTrixProvider({
       config: {
+        commands: {
+          useAccessGroups: true,
+        },
         channels: {
           'trix-native': {
+            dmPolicy: 'open',
+            allowFrom: ['*'],
             accounts: {
               default: {
                 enabled: true,
@@ -94,6 +107,13 @@ describe('monitorTrixProvider', () => {
           resolveStorePath: () => '/tmp/session-store',
           recordInboundSession,
         },
+        pairing: {
+          readAllowFromStore,
+        },
+        commands: {
+          shouldComputeCommandAuthorized,
+          resolveCommandAuthorizedFromAuthorizers,
+        },
         media: {
           fetchRemoteMedia: vi.fn(),
           saveMediaBuffer: vi.fn(),
@@ -114,6 +134,9 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.BodyForCommands).toBe('/help');
     expect(call.ctx.BodyForAgent).toBe('/help');
     expect(call.ctx.CommandSource).toBe('text');
+    expect(call.ctx.CommandAuthorized).toBe(true);
+    expect(shouldComputeCommandAuthorized).toHaveBeenCalledWith('/help', expect.any(Object));
+    expect(readAllowFromStore).not.toHaveBeenCalled();
 
     abortController.abort();
     await monitorPromise;
@@ -159,6 +182,9 @@ describe('monitorTrixProvider', () => {
     const saveMediaBuffer = vi.fn(async () => ({ path: '/tmp/inbound/photo.png', contentType: 'image/png' }));
     const fetchRemoteMedia = vi.fn();
     const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
+    const readAllowFromStore = vi.fn(async () => []);
+    const shouldComputeCommandAuthorized = vi.fn(() => false);
+    const resolveCommandAuthorizedFromAuthorizers = vi.fn(() => false);
     const abortController = new AbortController();
 
     const monitorPromise = monitorTrixProvider({
@@ -189,6 +215,13 @@ describe('monitorTrixProvider', () => {
           resolveStorePath: () => '/tmp/session-store',
           recordInboundSession: vi.fn(async () => undefined),
         },
+        pairing: {
+          readAllowFromStore,
+        },
+        commands: {
+          shouldComputeCommandAuthorized,
+          resolveCommandAuthorizedFromAuthorizers,
+        },
         media: {
           fetchRemoteMedia,
           saveMediaBuffer,
@@ -213,6 +246,8 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.BodyForCommands).toBe('请看图片');
     expect(call.ctx.MediaPath).toBe('/tmp/inbound/photo.png');
     expect(call.ctx.MediaType).toBe('image/png');
+    expect(call.ctx.CommandAuthorized).toBeUndefined();
+    expect(readAllowFromStore).not.toHaveBeenCalled();
 
     abortController.abort();
     await monitorPromise;

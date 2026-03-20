@@ -8,6 +8,45 @@ const RECONNECT_DELAY_MS = 3000;
 const KEEPALIVE_PING_INTERVAL_MS = 25_000;
 const activeMonitors = new Map<string, boolean>();
 
+type TrixDmPolicy = 'pairing' | 'allowlist' | 'open' | 'disabled';
+
+function readTrixChannelConfig(config: Record<string, unknown>): Record<string, unknown> {
+  const channels = (config as { channels?: Record<string, unknown> }).channels;
+  return (channels?.['trix-native'] as Record<string, unknown> | undefined) ?? {};
+}
+
+function resolveConfiguredAccountSettings(config: Record<string, unknown>, accountId: string): {
+  dmPolicy: TrixDmPolicy;
+  allowFrom: string[];
+  groupAllowFrom: string[];
+} {
+  const channel = readTrixChannelConfig(config);
+  const accounts = (channel.accounts as Record<string, Record<string, unknown>> | undefined) ?? {};
+  const rawAccount = accounts[accountId] ?? {};
+  const dmPolicy = ((rawAccount.dmPolicy as string | undefined) ?? (channel.dmPolicy as string | undefined) ?? 'open') as TrixDmPolicy;
+  const allowFrom = [
+    ...(((channel.allowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+    ...(((rawAccount.allowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+  ];
+  const groupAllowFrom = [
+    ...(((channel.groupAllowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+    ...(((rawAccount.groupAllowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+  ];
+
+  return {
+    dmPolicy,
+    allowFrom: [...new Set(allowFrom)],
+    groupAllowFrom: [...new Set(groupAllowFrom)],
+  };
+}
+
+function allowListIncludes(entries: string[], peerId: string): boolean {
+  if (entries.includes('*')) {
+    return true;
+  }
+  return entries.includes(peerId);
+}
+
 async function fetchServiceAttachment(params: {
   serviceUrl: string;
   servicePath: string;
@@ -28,6 +67,63 @@ async function fetchServiceAttachment(params: {
     buffer: Buffer.from(arrayBuffer),
     contentType,
   };
+}
+
+async function resolveCommandAuthorized(params: {
+  config: Record<string, unknown>;
+  runtime: NonNullable<Parameters<typeof monitorTrixProvider>[0]['channelRuntime']>;
+  accountId: string;
+  chatType: 'direct' | 'channel';
+  peerId: string;
+  rawText: string;
+}): Promise<boolean | undefined> {
+  if (!params.runtime.commands.shouldComputeCommandAuthorized(params.rawText, params.config)) {
+    return undefined;
+  }
+
+  const useAccessGroups = ((params.config as { commands?: { useAccessGroups?: boolean } }).commands?.useAccessGroups) !== false;
+  const { dmPolicy, allowFrom, groupAllowFrom } = resolveConfiguredAccountSettings(params.config, params.accountId);
+  const normalizedPeerId = params.peerId.trim();
+
+  if (params.chatType === 'channel') {
+    return params.runtime.commands.resolveCommandAuthorizedFromAuthorizers({
+      useAccessGroups,
+      authorizers: [
+        {
+          configured: groupAllowFrom.length > 0,
+          allowed: allowListIncludes(groupAllowFrom, normalizedPeerId),
+        },
+      ],
+    });
+  }
+
+  if (dmPolicy === 'disabled') {
+    return false;
+  }
+
+  if (dmPolicy === 'open') {
+    return true;
+  }
+
+  const storeAllowFrom = await params.runtime.pairing.readAllowFromStore({
+    channel: 'trix-native',
+    accountId: params.accountId,
+  });
+  const normalizedStoreAllowFrom = storeAllowFrom.map((entry) => String(entry).trim()).filter(Boolean);
+
+  return params.runtime.commands.resolveCommandAuthorizedFromAuthorizers({
+    useAccessGroups,
+    authorizers: [
+      {
+        configured: allowFrom.length > 0,
+        allowed: allowListIncludes(allowFrom, normalizedPeerId),
+      },
+      {
+        configured: normalizedStoreAllowFrom.length > 0 || dmPolicy === 'pairing',
+        allowed: allowListIncludes(normalizedStoreAllowFrom, normalizedPeerId),
+      },
+    ],
+  });
 }
 
 function waitUntilAbort(signal?: AbortSignal): Promise<void> {
@@ -69,6 +165,17 @@ export async function monitorTrixProvider(opts: {
         direction: 'inbound' | 'outbound',
         maxBytes: number,
       ) => Promise<{ path: string; contentType?: string }>;
+    };
+    pairing: {
+      readAllowFromStore: (params: { channel: string; accountId: string }) => Promise<string[]>;
+    };
+    commands: {
+      shouldComputeCommandAuthorized: (text: string, cfg?: Record<string, unknown>, options?: Record<string, unknown>) => boolean;
+      resolveCommandAuthorizedFromAuthorizers: (params: {
+        useAccessGroups: boolean;
+        authorizers: Array<{ configured: boolean; allowed: boolean }>;
+        modeWhenAccessGroupsOff?: 'allow' | 'deny' | 'configured';
+      }) => boolean;
     };
   };
 }): Promise<void> {
@@ -185,6 +292,14 @@ export async function monitorTrixProvider(opts: {
 
         const rawText = normalized.message.text ?? '';
         const isSlashCommand = rawText.startsWith('/');
+        const commandAuthorized = await resolveCommandAuthorized({
+          config: opts.config,
+          runtime,
+          accountId: account.accountId,
+          chatType: normalized.chatType,
+          peerId: normalized.peerId,
+          rawText,
+        });
 
         let mediaPath: string | undefined;
         let mediaType: string | undefined;
@@ -257,6 +372,7 @@ export async function monitorTrixProvider(opts: {
           RawBody: rawBody,
           CommandBody: commandBody,
           BodyForCommands: commandBody,
+          ...(typeof commandAuthorized === 'boolean' ? { CommandAuthorized: commandAuthorized } : {}),
           ...(isSlashCommand ? { CommandSource: 'text' } : {}),
           From: `trix-native:${normalized.peerId}`,
           To: `conv:${normalized.conversationId}`,

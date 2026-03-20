@@ -130,6 +130,91 @@ describe('TrixNativeServer', () => {
     expect(unsignedAttachmentResponse.status).toBe(401);
   });
 
+  it('includes servicePath on service websocket attachment events', async () => {
+    const server = createTestServer(8804);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8804/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8804/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-attachments-1',
+        deviceName: 'Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const uploadPayload = await fetch('http://127.0.0.1:8804/api/uploads', {
+      method: 'POST',
+      headers: {
+        'x-file-name': 'image.png',
+        'x-mime-type': 'image/png',
+        'x-attachment-kind': 'image',
+        'x-trix-conversation-id': claim.conversationId,
+        'x-trix-client-token': claim.clientToken,
+      },
+      body: Buffer.from('png-binary', 'utf8'),
+    }).then((response) => response.json()) as { attachment: { id: string } };
+
+    const serviceMessagePromise = new Promise<Record<string, unknown>>((resolve, reject) => {
+      const socket = new WebSocket('ws://127.0.0.1:8804/api/service/ws?accountId=default', {
+        headers: {
+          authorization: `Bearer ${state.serviceTokens.default}`,
+        },
+      });
+
+      socket.once('message', () => {
+        // Ignore "connected".
+      });
+
+      socket.on('message', (raw) => {
+        const event = JSON.parse(String(raw)) as { type?: string };
+        if (event.type === 'message.created') {
+          socket.close();
+          resolve(event as Record<string, unknown>);
+        }
+      });
+
+      socket.once('error', reject);
+    });
+
+    await fetch('http://127.0.0.1:8804/api/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: claim.clientToken,
+        text: 'image inbound',
+        uploadedAttachmentIds: [uploadPayload.attachment.id],
+      }),
+    });
+
+    const serviceEvent = await serviceMessagePromise as {
+      payload: {
+        message: {
+          attachments: Array<{
+            id: string;
+            servicePath?: string;
+          }>;
+        };
+      };
+    };
+
+    expect(serviceEvent.payload.message.attachments).toHaveLength(1);
+    expect(serviceEvent.payload.message.attachments[0]?.id).toBe(uploadPayload.attachment.id);
+    expect(serviceEvent.payload.message.attachments[0]?.servicePath).toBe(`/api/service/attachments/${uploadPayload.attachment.id}`);
+  });
+
   it('removes a claimed device session when the client unpairs', async () => {
     const server = createTestServer(8802);
     servers.push(server);

@@ -1241,7 +1241,7 @@ export class TrixNativeServer {
             fileName: attachment.fileName,
             sizeBytes: attachment.sizeBytes,
             url: attachment.url,
-            servicePath: (attachment as { servicePath?: string }).servicePath,
+            servicePath: (attachment as { servicePath?: string }).servicePath ?? `/api/service/attachments/${attachment.id}`,
           })),
           timestamp: message.createdAt,
         },

@@ -61,8 +61,8 @@ async function sendServiceReply(conversationId, message) {
 async function login(page) {
   await page.goto(`${webBaseUrl}/#/login`);
   await page.waitForLoadState('domcontentloaded');
-  await page.fill('#email-input', email);
-  await page.fill('#password-input', password);
+  await page.locator('input[type="email"], input[placeholder*="Email" i], #email-input').first().fill(email);
+  await page.locator('input[type="password"], #password-input').first().fill(password);
   await page.locator('button').filter({ hasText: /登录|Login/i }).first().click();
   await page.waitForTimeout(8000);
 
@@ -82,6 +82,27 @@ async function login(page) {
 
   await page.waitForLoadState('load');
   await page.waitForTimeout(3000);
+  await page.waitForURL(/#\/$/, { timeout: 20000 });
+}
+
+async function openPairingPage(page) {
+  await page.goto(`${webBaseUrl}/#/pairing`);
+  await page.waitForLoadState('domcontentloaded');
+
+  await page.waitForFunction(() => {
+    const text = document.body?.innerText ?? '';
+    return !text.includes('页面加载中...');
+  }, { timeout: 20000 });
+
+  const manualButton = page.getByRole('button', { name: '手动输入配对码' });
+  const codeInput = page.locator('input[placeholder="AB12CD"]');
+
+  if (await manualButton.count()) {
+    await manualButton.click();
+  }
+
+  await codeInput.waitFor({ timeout: 15000 });
+  return codeInput;
 }
 
 async function main() {
@@ -95,10 +116,8 @@ async function main() {
   try {
     await login(page);
 
-    await page.goto(`${webBaseUrl}/#/pairing`);
-    await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('button', { name: '手动输入配对码' }).click();
-    await page.locator('input[placeholder="AB12CD"]').fill(pairingCode);
+    const codeInput = await openPairingPage(page);
+    await codeInput.fill(pairingCode);
     await page.getByRole('button', { name: '验证配对' }).click();
     await page.waitForTimeout(2500);
 
