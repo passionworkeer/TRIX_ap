@@ -125,6 +125,7 @@ export class PairingService {
 
         claimedConversation = {
           ...conversation,
+          appUserId: input.appUserId ?? conversation.appUserId,
           updatedAt: Date.now(),
           peerDisplayName: input.deviceName ?? conversation.peerDisplayName,
           participants: [

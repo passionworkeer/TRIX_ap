@@ -362,24 +362,52 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   }, [enterIdle, handleBotMessageState, resetSessionScopedState, toPersistedMessageId, upsertMessageState]);
 
   useEffect(() => {
+    trixNativeChannelClient.setAuthUser(user?.id ?? null);
+
     if (!user?.id) {
       trixNativeChannelClient.disconnect();
       resetSessionScopedState();
       return;
     }
 
-    const session = trixNativeChannelClient.getSession();
-    setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
-    setPairingCode(session?.pairingCode ?? null);
-    setPairingStatus(session ? 'paired' : 'idle');
+    let cancelled = false;
 
-    if (session) {
-      void trixNativeChannelClient.connect().catch((error: unknown) => {
+    void (async () => {
+      try {
+        await trixNativeChannelClient.bindCurrentSessionToAuthUser().catch((error: unknown) => {
+          logger.clawbot.warn('[TrixNativeContext] failed to bind local session to auth user', error);
+        });
+
+        let session = trixNativeChannelClient.getSession();
+        if (!session) {
+          session = await trixNativeChannelClient.restoreSession();
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
+        setPairingCode(session?.pairingCode ?? null);
+        setPairingStatus(session ? 'paired' : 'idle');
+        setLastError(null);
+
+        if (session) {
+          await trixNativeChannelClient.connect();
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
         const message = resolveErrorMessage(error);
         setStatus('ERROR');
         setLastError(message);
-      });
-    }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [resetSessionScopedState, user?.id]);
 
   const connect = useCallback(async (): Promise<void> => {

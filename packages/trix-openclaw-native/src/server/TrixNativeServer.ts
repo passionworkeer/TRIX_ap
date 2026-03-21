@@ -84,6 +84,8 @@ export class TrixNativeServer {
   private readonly enableLegacyAgentWs: boolean;
   private readonly serviceAllowlist: string[];
   private readonly rateLimits: Record<ServerRateLimitName, ServerRateLimitRule>;
+  private readonly supabaseUrl?: string;
+  private readonly supabaseAnonKey?: string;
   private readonly pairingService: PairingService;
   private readonly attachmentStore: AttachmentStore;
   private readonly server: http.Server;
@@ -102,6 +104,8 @@ export class TrixNativeServer {
     this.enableLegacyAgentWs = config.enableLegacyAgentWs ?? process.env[LEGACY_AGENT_WS_ENV] === '1';
     this.serviceAllowlist = config.serviceAllowlist ?? parseCommaSeparatedList(process.env[SERVICE_ALLOWLIST_ENV]);
     this.rateLimits = this.resolveRateLimits(config.rateLimits);
+    this.supabaseUrl = config.supabaseUrl ?? process.env.TRIX_NATIVE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+    this.supabaseAnonKey = config.supabaseAnonKey ?? process.env.TRIX_NATIVE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
     this.stateStore = new JsonStateStore(this.storageDir);
     this.pairingService = new PairingService(this.stateStore);
     this.attachmentStore = new AttachmentStore(this.storageDir, this.publicBaseUrl);
@@ -230,6 +234,41 @@ export class TrixNativeServer {
     return match?.[1]?.trim();
   }
 
+  private async resolveAuthenticatedAppUser(request: http.IncomingMessage): Promise<{ id: string } | null> {
+    const bearerToken = this.readBearerToken(request);
+    if (!bearerToken || !this.supabaseUrl || !this.supabaseAnonKey) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${this.supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+        headers: {
+          apikey: this.supabaseAnonKey,
+          authorization: `Bearer ${bearerToken}`,
+        },
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const payload = await response.json() as { id?: string };
+      if (!payload.id) {
+        return null;
+      }
+      return { id: payload.id };
+    } catch (error) {
+      console.warn('[trix-native-server] failed to resolve authenticated app user', error);
+      return null;
+    }
+  }
+
+  private async requireAuthenticatedAppUser(request: http.IncomingMessage): Promise<{ id: string }> {
+    const appUser = await this.resolveAuthenticatedAppUser(request);
+    if (!appUser) {
+      throw new HttpError(401, 'Authenticated app user required');
+    }
+    return appUser;
+  }
+
   private resolveRateLimits(overrides?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>): Record<ServerRateLimitName, ServerRateLimitRule> {
     const resolved = { ...DEFAULT_RATE_LIMITS };
     const scopes = Object.keys(DEFAULT_RATE_LIMITS) as ServerRateLimitName[];
@@ -342,6 +381,7 @@ export class TrixNativeServer {
       if (request.method === 'POST' && pairingClaimMatch) {
         this.assertRateLimit(request, 'claim');
         const body = await readJsonBody<{ accountId?: string; secret?: string; clientId: string; deviceName?: string }>(request);
+        const appUser = await this.resolveAuthenticatedAppUser(request);
         let result;
         try {
           result = await this.pairingService.claim(
@@ -351,6 +391,7 @@ export class TrixNativeServer {
               secret: body.secret,
               clientId: body.clientId,
               deviceName: body.deviceName,
+              appUserId: appUser?.id,
             },
             {
               websocketUrl: this.getUserWebSocketUrl(),
@@ -383,6 +424,39 @@ export class TrixNativeServer {
           accountId: result.accountId,
           conversationId: result.conversationId,
         });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/client/session/bind') {
+        const appUser = await this.requireAuthenticatedAppUser(request);
+        const body = await readJsonBody<{ conversationId: string; clientToken: string }>(request);
+        const conversation = await this.bindConversationToAppUser({
+          appUserId: appUser.id,
+          conversationId: body.conversationId,
+          clientToken: body.clientToken,
+        });
+        sendJson(response, 200, {
+          ok: true,
+          accountId: conversation.accountId,
+          conversationId: conversation.id,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/client/session/restore') {
+        const appUser = await this.requireAuthenticatedAppUser(request);
+        const body = await readJsonBody<{ accountId?: string; clientId: string; deviceName?: string }>(request);
+        const restored = await this.restoreClientSessionForAppUser({
+          appUserId: appUser.id,
+          accountId: body.accountId?.trim() || 'default',
+          clientId: body.clientId,
+          deviceName: body.deviceName,
+        });
+        if (!restored) {
+          sendJson(response, 404, { error: 'No paired session found for this account' });
+          return;
+        }
+        sendJson(response, 200, restored);
         return;
       }
 
@@ -972,6 +1046,129 @@ export class TrixNativeServer {
   private async getConversation(conversationId: string): Promise<ConversationRecord | undefined> {
     const state = await this.stateStore.read();
     return state.conversations.find((entry) => entry.id === conversationId);
+  }
+
+  private async bindConversationToAppUser(params: {
+    appUserId: string;
+    conversationId: string;
+    clientToken: string;
+  }): Promise<ConversationRecord> {
+    let updatedConversation: ConversationRecord | undefined;
+
+    await this.stateStore.update((state) => {
+      const conversations = state.conversations.map((conversation) => {
+        if (conversation.id !== params.conversationId) {
+          return conversation;
+        }
+
+        const participant = conversation.participants.find((entry) => entry.clientToken === params.clientToken);
+        if (!participant) {
+          throw new HttpError(401, 'Invalid client token');
+        }
+        if (conversation.appUserId && conversation.appUserId !== params.appUserId) {
+          throw new HttpError(403, 'Conversation belongs to a different app user');
+        }
+
+        updatedConversation = {
+          ...conversation,
+          appUserId: params.appUserId,
+          updatedAt: Date.now(),
+        };
+        return updatedConversation;
+      });
+
+      if (!updatedConversation) {
+        throw new HttpError(404, 'Conversation not found');
+      }
+
+      return {
+        ...state,
+        conversations,
+      };
+    });
+
+    return updatedConversation!;
+  }
+
+  private async restoreClientSessionForAppUser(params: {
+    appUserId: string;
+    accountId: string;
+    clientId: string;
+    deviceName?: string;
+  }): Promise<{
+    accountId: string;
+    conversationId: string;
+    clientToken: string;
+    peerId: string;
+    websocketUrl: string;
+    wsUrl: string;
+    uploadUrl: string;
+    messagesUrl: string;
+    pairingCode?: string;
+    serverUrl: string;
+    agentOnline: boolean;
+  } | null> {
+    let restoredConversation: ConversationRecord | undefined;
+    const clientToken = randomToken(20);
+    const now = Date.now();
+
+    await this.stateStore.update((state) => {
+      const targetConversation = state.conversations.find((conversation) =>
+        conversation.accountId === params.accountId
+        && conversation.appUserId === params.appUserId,
+      );
+
+      if (!targetConversation) {
+        return state;
+      }
+
+      const conversations = state.conversations.map((conversation) => {
+        if (conversation.id !== targetConversation.id) {
+          return conversation;
+        }
+
+        restoredConversation = {
+          ...conversation,
+          updatedAt: now,
+          participants: [
+            ...conversation.participants.filter((participant) => participant.clientId !== params.clientId),
+            {
+              clientId: params.clientId,
+              peerId: conversation.peerId,
+              deviceName: params.deviceName,
+              role: 'user',
+              clientToken,
+              connectedAt: now,
+              lastSeenAt: now,
+            },
+          ],
+        };
+        return restoredConversation;
+      });
+
+      return {
+        ...state,
+        conversations,
+      };
+    });
+
+    if (!restoredConversation) {
+      return null;
+    }
+
+    return {
+      accountId: restoredConversation.accountId,
+      conversationId: restoredConversation.id,
+      clientToken,
+      peerId: restoredConversation.peerId,
+      websocketUrl: this.getUserWebSocketUrl(),
+      wsUrl: this.getUserWebSocketUrl(),
+      uploadUrl: `${this.publicBaseUrl}/api/uploads`,
+      messagesUrl: `${this.publicBaseUrl}/api/messages`,
+      pairingCode: restoredConversation.pairingCode,
+      serverUrl: this.publicBaseUrl,
+      agentOnline: this.isServiceOnline(restoredConversation.accountId),
+    };
   }
 
   private async findServiceMessageByIdempotencyKey(params: {

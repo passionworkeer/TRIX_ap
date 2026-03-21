@@ -26,6 +26,24 @@
     <!-- 生产环境配置 -->
     <script>
       (async () => {
+        const canonicalHost = 'trix.love';
+        const legacyHosts = new Set([
+          'taxilab.app',
+          'www.taxilab.app',
+          'taxilab.com',
+          'www.taxilab.com',
+          'taxilab.ai',
+          'www.taxilab.ai',
+        ]);
+
+        if (legacyHosts.has(window.location.hostname)) {
+          const target = new URL(window.location.href);
+          target.protocol = 'https:';
+          target.host = canonicalHost;
+          window.location.replace(target.toString());
+          return;
+        }
+
         try {
           if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
@@ -34,9 +52,7 @@
           if ('caches' in window) {
             const cacheNames = await caches.keys();
             await Promise.allSettled(
-              cacheNames
-                .filter((cacheName) => /^trix(?:-|$)/i.test(cacheName))
-                .map((cacheName) => caches.delete(cacheName))
+              cacheNames.map((cacheName) => caches.delete(cacheName))
             );
           }
         } catch (error) {

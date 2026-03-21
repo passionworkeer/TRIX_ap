@@ -63,6 +63,7 @@ export interface ConversationRecord {
   id: string;
   accountId: string;
   peerId: string;
+  appUserId?: string;
   peerDisplayName?: string;
   createdAt: number;
   updatedAt: number;
@@ -110,6 +111,7 @@ export interface PairingClaimInput {
   secret?: string;
   clientId: string;
   deviceName?: string;
+  appUserId?: string;
 }
 
 export interface ServerConfig {
@@ -124,6 +126,8 @@ export interface ServerConfig {
   uploadBaseUrl?: string;
   serviceAllowlist?: string[];
   rateLimits?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
 }
 
 export type ServerRateLimitName =

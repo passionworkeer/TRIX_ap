@@ -1,5 +1,3 @@
-const LEGACY_CACHE_PREFIX = /^trix(?:-|$)/i;
-
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -9,9 +7,7 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const cacheNames = await caches.keys();
       await Promise.all(
-        cacheNames
-          .filter((cacheName) => LEGACY_CACHE_PREFIX.test(cacheName))
-          .map((cacheName) => caches.delete(cacheName))
+        cacheNames.map((cacheName) => caches.delete(cacheName))
       );
 
       const clientList = await self.clients.matchAll({

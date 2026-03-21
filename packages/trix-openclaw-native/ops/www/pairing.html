@@ -4,6 +4,46 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TRIX Pairing</title>
+    <script>
+      (async () => {
+        const canonicalHost = 'trix.love';
+        const legacyHosts = new Set([
+          'taxilab.app',
+          'www.taxilab.app',
+          'taxilab.com',
+          'www.taxilab.com',
+          'taxilab.ai',
+          'www.taxilab.ai',
+        ]);
+
+        if (legacyHosts.has(window.location.hostname)) {
+          const target = new URL(window.location.href);
+          target.protocol = 'https:';
+          target.host = canonicalHost;
+          window.location.replace(target.toString());
+          return;
+        }
+
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.allSettled(registrations.map((registration) => registration.unregister()));
+          }
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.allSettled(cacheNames.map((cacheName) => caches.delete(cacheName)));
+          }
+        } catch (error) {
+          console.warn('[TRIX] Failed to retire legacy PWA shell', error);
+        }
+      })();
+
+      window.addEventListener('message', (event) => {
+        if (event?.data?.type === 'trix-sw-retired') {
+          window.location.reload();
+        }
+      });
+    </script>
     <style>
       :root {
         color-scheme: light;
@@ -97,6 +137,37 @@
       const activeAccountKey = 'trix_native_channel_active_account';
       const legacySessionKey = 'trix_native_channel_session';
 
+      function getSupabaseAccessToken() {
+        for (const key of Object.keys(window.localStorage)) {
+          if (!/^sb-.*-auth-token$/.test(key)) continue;
+          const rawValue = window.localStorage.getItem(key);
+          if (!rawValue) continue;
+          try {
+            const parsed = JSON.parse(rawValue);
+            if (typeof parsed?.access_token === 'string') return parsed.access_token;
+            if (typeof parsed?.currentSession?.access_token === 'string') return parsed.currentSession.access_token;
+            if (typeof parsed?.session?.access_token === 'string') return parsed.session.access_token;
+            if (Array.isArray(parsed)) {
+              const candidate = parsed.find((entry) => typeof entry?.access_token === 'string');
+              if (candidate?.access_token) return candidate.access_token;
+            }
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      function decodeSupabaseUserId(accessToken) {
+        if (!accessToken) return undefined;
+        const parts = accessToken.split('.');
+        if (parts.length < 2) return undefined;
+        try {
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          return typeof payload?.sub === 'string' && payload.sub.trim() ? payload.sub.trim() : undefined;
+        } catch (_) {
+          return undefined;
+        }
+      }
+
       function getClientId() {
         const existing = window.localStorage.getItem(storageKey);
         if (existing) return existing;
@@ -140,18 +211,22 @@
           };
 
           const runClaim = async (body) => {
+            const accessToken = getSupabaseAccessToken();
             const response = await fetch(`/api/pairings/${encodeURIComponent(code)}/claim`, {
               method: 'POST',
-              headers: { 'content-type': 'application/json' },
+              headers: {
+                'content-type': 'application/json',
+                ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+              },
               body: JSON.stringify(body),
             });
             const payload = await response.json().catch(() => ({}));
-            return { response, payload };
+            return { response, payload, accessToken };
           };
 
-          let { response, payload } = await runClaim(requestBody);
+          let { response, payload, accessToken } = await runClaim(requestBody);
           if (!response.ok && requestBody.secret && /invalid pairing secret/i.test(payload.error || '')) {
-            ({ response, payload } = await runClaim({
+            ({ response, payload, accessToken } = await runClaim({
               ...requestBody,
               secret: undefined,
             }));
@@ -162,8 +237,10 @@
           }
           const resolvedAccountId = (payload.accountId || accountId || 'default').trim() || 'default';
           const websocketUrl = payload.websocketUrl || payload.wsUrl || `${String(payload.serverUrl || window.location.origin).replace(/^http/i, 'ws').replace(/\/$/, '')}/ws`;
+          const appUserId = decodeSupabaseUserId(accessToken);
           const storedSession = {
             accountId: resolvedAccountId,
+            appUserId,
             serverUrl: payload.serverUrl || window.location.origin,
             websocketUrl,
             conversationId: payload.conversationId,
@@ -184,6 +261,21 @@
               [resolvedAccountId]: storedSession,
             },
           };
+
+          if (accessToken) {
+            await fetch('/api/client/session/bind', {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                conversationId: payload.conversationId,
+                clientToken: payload.clientToken,
+              }),
+            }).catch(() => null);
+          }
+
           window.localStorage.setItem(sessionStateKey, JSON.stringify(sessionState));
           window.localStorage.setItem(activeAccountKey, resolvedAccountId);
           window.localStorage.setItem(legacySessionKey, JSON.stringify(storedSession));

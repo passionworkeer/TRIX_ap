@@ -10,8 +10,6 @@ import { validateEnv } from './utils/env'; // Import env validation
 // Validate environment variables before starting the app
 validateEnv();
 
-const LEGACY_CACHE_PREFIX = /^trix(?:-|$)/i;
-
 async function retireLegacyPwaShell() {
   const cleanupTasks: Promise<unknown>[] = [];
 
@@ -29,9 +27,7 @@ async function retireLegacyPwaShell() {
     cleanupTasks.push(
       caches.keys().then((cacheNames) =>
         Promise.allSettled(
-          cacheNames
-            .filter((cacheName) => LEGACY_CACHE_PREFIX.test(cacheName))
-            .map((cacheName) => caches.delete(cacheName))
+          cacheNames.map((cacheName) => caches.delete(cacheName))
         )
       )
     );

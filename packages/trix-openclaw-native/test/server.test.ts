@@ -1,3 +1,4 @@
+import http from 'node:http';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
@@ -5,6 +6,7 @@ import { TrixNativeServer } from '../src/server/TrixNativeServer.js';
 import type { ServerConfig } from '../src/types.js';
 
 const servers: TrixNativeServer[] = [];
+const authServers: http.Server[] = [];
 
 function createTestServer(port: number, config: ServerConfig = {}): TrixNativeServer {
   return new TrixNativeServer({
@@ -17,7 +19,41 @@ function createTestServer(port: number, config: ServerConfig = {}): TrixNativeSe
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map(async (server) => server.stop().catch(() => undefined)));
+  await Promise.all(authServers.splice(0).map(async (server) => new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  })));
 });
+
+async function createAuthStubServer(port: number): Promise<http.Server> {
+  const server = http.createServer((request, response) => {
+    if (request.url !== '/auth/v1/user') {
+      response.writeHead(404).end();
+      return;
+    }
+
+    const authorization = request.headers.authorization ?? '';
+    if (authorization === 'Bearer valid-user-a') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ id: 'user-a' }));
+      return;
+    }
+
+    if (authorization === 'Bearer valid-user-b') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ id: 'user-b' }));
+      return;
+    }
+
+    response.writeHead(401, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'invalid token' }));
+  });
+
+  authServers.push(server);
+  await new Promise<void>((resolve) => {
+    server.listen(port, '127.0.0.1', () => resolve());
+  });
+  return server;
+}
 
 describe('TrixNativeServer', () => {
   it('creates pairing and accepts inbound message flow', async () => {
@@ -756,5 +792,142 @@ describe('TrixNativeServer', () => {
       },
     });
     expect(allowedCidr.status).toBe(200);
+  });
+
+  it('restores a paired session for the same authenticated app user on another client', async () => {
+    await createAuthStubServer(8891);
+
+    const server = createTestServer(8812, {
+      supabaseUrl: 'http://127.0.0.1:8891',
+      supabaseAnonKey: 'anon-key',
+    });
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8812/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8812/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-a',
+      },
+      body: JSON.stringify({
+        clientId: 'browser-user-a-1',
+        deviceName: 'Browser A',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const restoreResponse = await fetch('http://127.0.0.1:8812/api/client/session/restore', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-a',
+      },
+      body: JSON.stringify({
+        accountId: 'default',
+        clientId: 'browser-user-a-2',
+        deviceName: 'Browser B',
+      }),
+    });
+
+    expect(restoreResponse.status).toBe(200);
+    const restored = await restoreResponse.json() as {
+      conversationId: string;
+      clientToken: string;
+      pairingCode?: string;
+    };
+    expect(restored.conversationId).toBe(claim.conversationId);
+    expect(restored.clientToken).not.toBe(claim.clientToken);
+    expect(restored.pairingCode).toBe(pairing.code);
+
+    const updatedState = await server.stateStore.read();
+    const conversation = updatedState.conversations.find((entry) => entry.id === claim.conversationId);
+    expect(conversation?.appUserId).toBe('user-a');
+    expect(conversation?.participants.some((participant) => participant.clientId === 'browser-user-a-2')).toBe(true);
+
+    const wrongUserRestore = await fetch('http://127.0.0.1:8812/api/client/session/restore', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-b',
+      },
+      body: JSON.stringify({
+        accountId: 'default',
+        clientId: 'browser-user-b-1',
+        deviceName: 'Wrong User Browser',
+      }),
+    });
+    expect(wrongUserRestore.status).toBe(404);
+  });
+
+  it('binds an existing local paired session to the authenticated app user and blocks cross-user rebinding', async () => {
+    await createAuthStubServer(8892);
+
+    const server = createTestServer(8813, {
+      supabaseUrl: 'http://127.0.0.1:8892',
+      supabaseAnonKey: 'anon-key',
+    });
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8813/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8813/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'legacy-browser',
+        deviceName: 'Legacy Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const bindResponse = await fetch('http://127.0.0.1:8813/api/client/session/bind', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-a',
+      },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: claim.clientToken,
+      }),
+    });
+    expect(bindResponse.status).toBe(200);
+
+    let updatedState = await server.stateStore.read();
+    expect(updatedState.conversations.find((entry) => entry.id === claim.conversationId)?.appUserId).toBe('user-a');
+
+    const reboundResponse = await fetch('http://127.0.0.1:8813/api/client/session/bind', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-b',
+      },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: claim.clientToken,
+      }),
+    });
+    expect(reboundResponse.status).toBe(403);
+
+    updatedState = await server.stateStore.read();
+    expect(updatedState.conversations.find((entry) => entry.id === claim.conversationId)?.appUserId).toBe('user-a');
   });
 });

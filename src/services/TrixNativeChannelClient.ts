@@ -1,4 +1,5 @@
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { supabase } from '../config/supabase';
 import {
   logger,
 } from '../utils/logger';
@@ -60,6 +61,7 @@ type EventCallback<TPayload> = (payload: TPayload) => void;
 
 type StoredSession = {
   accountId: string;
+  appUserId?: string;
   serverUrl: string;
   websocketUrl: string;
   conversationId: string;
@@ -345,6 +347,7 @@ class TrixNativeChannelClient {
   private reconnectAttempts = 0;
   private manualDisconnect = false;
   private agentOnline = false;
+  private currentAuthUserId: string | null = null;
 
   on<TEvent extends NativeSocketEventName>(event: TEvent, callback: EventCallback<NativeSocketEventPayload<TEvent>>): void {
     if (!this.listeners.has(event)) {
@@ -372,6 +375,15 @@ class TrixNativeChannelClient {
     });
   }
 
+  setAuthUser(userId: string | null | undefined): void {
+    this.currentAuthUserId = userId?.trim() || null;
+  }
+
+  private async getAuthAccessToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
+  }
+
   getOrCreateClientId(): string {
     const stored = localStorage.getItem(STORAGE_KEYS.clientId);
     if (stored?.trim()) {
@@ -395,6 +407,7 @@ class TrixNativeChannelClient {
 
     return {
       accountId: normalizeAccountId(parsed.accountId),
+      appUserId: parsed.appUserId?.trim() || undefined,
       serverUrl: normalizeServerUrl(parsed.serverUrl),
       websocketUrl: parsed.websocketUrl ? normalizeServerUrl(parsed.websocketUrl) : toWebSocketUrl(parsed.serverUrl),
       conversationId: parsed.conversationId,
@@ -410,6 +423,7 @@ class TrixNativeChannelClient {
     clientId?: string;
     deviceName?: string;
     pairingCode?: string;
+    appUserId?: string;
   }): StoredSession | null {
     if (!parsed.conversationId || !parsed.clientToken) {
       return null;
@@ -426,6 +440,7 @@ class TrixNativeChannelClient {
 
     return {
       accountId: normalizeAccountId(parsed.accountId),
+      appUserId: parsed.appUserId?.trim() || undefined,
       serverUrl,
       websocketUrl: resolveWebSocketUrl(parsed.websocketUrl || parsed.wsUrl, serverUrl),
       conversationId: parsed.conversationId,
@@ -545,20 +560,38 @@ class TrixNativeChannelClient {
     return this.readSessionState().activeAccountId;
   }
 
-  getSession(accountId?: string): StoredSession | null {
+  private getStoredSession(accountId?: string): StoredSession | null {
     const state = this.readSessionState();
     const resolvedAccountId = normalizeAccountId(accountId ?? state.activeAccountId);
     return state.sessions[resolvedAccountId] ?? null;
   }
 
+  getSession(accountId?: string): StoredSession | null {
+    const session = this.getStoredSession(accountId);
+    if (!session) {
+      return null;
+    }
+    if (!this.currentAuthUserId) {
+      return null;
+    }
+    if (session.appUserId !== this.currentAuthUserId) {
+      return null;
+    }
+    return session;
+  }
+
   private saveSession(session: StoredSession): void {
+    const scopedSession: StoredSession = {
+      ...session,
+      appUserId: this.currentAuthUserId ?? session.appUserId,
+    };
     const state = this.readSessionState();
     const nextState: StoredSessionState = {
       version: 2,
-      activeAccountId: session.accountId,
+      activeAccountId: scopedSession.accountId,
       sessions: {
         ...state.sessions,
-        [session.accountId]: session,
+        [scopedSession.accountId]: scopedSession,
       },
     };
     this.writeSessionState(nextState);
@@ -683,11 +716,14 @@ class TrixNativeChannelClient {
       secret: params.secret,
     };
 
+    const accessToken = await this.getAuthAccessToken();
+
     const runClaim = async (body: typeof requestBody) => {
       const response = await fetch(`${params.serverUrl}/api/pairings/${encodeURIComponent(params.code)}/claim`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify(body),
       });
@@ -712,6 +748,108 @@ class TrixNativeChannelClient {
     }
 
     return await response.json() as ClaimResponse;
+  }
+
+  async bindCurrentSessionToAuthUser(): Promise<boolean> {
+    if (!this.currentAuthUserId) {
+      return false;
+    }
+
+    const session = this.getStoredSession();
+    if (!session || session.appUserId === this.currentAuthUserId) {
+      return Boolean(session?.appUserId === this.currentAuthUserId);
+    }
+
+    const accessToken = await this.getAuthAccessToken();
+    if (!accessToken) {
+      return false;
+    }
+
+    const response = await fetch(`${session.serverUrl}/api/client/session/bind`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        conversationId: session.conversationId,
+        clientToken: session.clientToken,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorMessage = await readErrorPayload(response, '绑定当前配对会话失败');
+      if (response.status === 403 || response.status === 401) {
+        this.clearSession(session.accountId);
+      }
+      throw new Error(errorMessage);
+    }
+
+    this.saveSession({
+      ...session,
+      appUserId: this.currentAuthUserId,
+    });
+    return true;
+  }
+
+  async restoreSession(accountId?: string, deviceName: string = defaultDeviceName()): Promise<StoredSession | null> {
+    if (!this.currentAuthUserId) {
+      return null;
+    }
+
+    const accessToken = await this.getAuthAccessToken();
+    if (!accessToken) {
+      return null;
+    }
+
+    const serverUrl = normalizeServerUrl(resolveConfiguredNativeBaseUrl() || this.getStoredSession(accountId)?.serverUrl || '');
+    if (!serverUrl) {
+      return null;
+    }
+
+    const clientId = this.getOrCreateClientId();
+    const resolvedAccountId = normalizeAccountId(accountId);
+    const response = await fetch(`${serverUrl}/api/client/session/restore`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        accountId: resolvedAccountId,
+        clientId,
+        deviceName,
+      }),
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(await readErrorPayload(response, '恢复已配对会话失败'));
+    }
+
+    const payload = await response.json() as ClaimResponse & {
+      pairingCode?: string;
+      serverUrl?: string;
+    };
+
+    const finalServerUrl = payload.serverUrl || serverUrl;
+    const restored: StoredSession = {
+      accountId: normalizeAccountId(payload.accountId ?? resolvedAccountId),
+      appUserId: this.currentAuthUserId,
+      serverUrl: finalServerUrl,
+      websocketUrl: resolveWebSocketUrl(payload.websocketUrl || payload.wsUrl, finalServerUrl),
+      conversationId: payload.conversationId,
+      clientToken: payload.clientToken,
+      clientId,
+      deviceName,
+      pairingCode: payload.pairingCode || payload.pairing?.code,
+    };
+
+    this.saveSession(restored);
+    this.agentOnline = Boolean(payload.agentOnline);
+    return restored;
   }
 
   async pairWithCode(code: string, deviceName: string = defaultDeviceName(), secret?: string, accountId?: string): Promise<{ success: boolean }> {
