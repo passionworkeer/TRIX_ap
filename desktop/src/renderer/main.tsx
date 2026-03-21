@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import '@/index.css';
 import '@/i18n';
-import { DesktopLayout } from './components/DesktopLayout';
+import { LuminaLayout } from './stitch/shared/LuminaLayout';
 
 // Global error handlers — show errors inline in the app
 window.onerror = (msg, src, line, col, err) => {
@@ -116,12 +116,12 @@ const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('No root element');
 
 const root = ReactDOM.createRoot(rootElement);
-console.log('[Desktop] creating React root, rendering DesktopLayout');
+console.log('[Desktop] creating React root, rendering LuminaLayout');
 root.render(
   <React.StrictMode>
     <RenderErrorBoundary>
-      <DesktopLayout />
+      <LuminaLayout />
     </RenderErrorBoundary>
   </React.StrictMode>
 );
-console.log('[Desktop] render called');
+console.log('[Desktop] LuminaLayout render called');
