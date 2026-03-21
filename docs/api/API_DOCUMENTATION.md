@@ -492,7 +492,7 @@ user_purchased_items -- 已购商品
 outfits -- 装扮
 user_outfits -- 用户装扮
 user_points -- 用户积分
-points_transactions -- 积分记录
+point_transactions -- 积分记录
 purchase_history -- 购买历史
 ```
 

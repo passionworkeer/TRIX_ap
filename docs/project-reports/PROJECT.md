@@ -1,9 +1,8 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-03-20
-> **版本**: v1.0.0
+> **最后更新**: 2026-03-21
 > **版本**: v1.0
-> **技术栈**: React 19 + TypeScript + Vite 6 + Supabase + SwiftUI
+> **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Supabase + SwiftUI
 
 ---
 
@@ -18,7 +17,7 @@
 - 📱 **TRIX Native** - 通过 OpenClaw 平台实现 iOS 与 Web 双向消息同步
 - 👥 **社交功能** - 好友聊天、实时消息、未读提醒
 - ⏱️ **学习计时** - 番茄钟学习工具，支持状态同步和虚拟自习室
-- 🗣️ **语音交互** - TTS 语音合成（豆包集成）、语音识别
+- 🗣️ **语音交互** - TTS 语音合成（Edge TTS）、语音识别
 - 📱 **扫码配对** - 手机端与电脑端 Gateway 通过二维码配对
 
 ---
@@ -34,7 +33,7 @@
 | 实时通信 | WebSocket + Supabase Realtime | - |
 | 动画 | Framer Motion | 12.33.0 |
 | 地图 | Leaflet + React Leaflet | - |
-| 样式 | Tailwind CSS | - |
+| 样式 | Tailwind CSS | 4.2.0 |
 | 国际化 | i18next | - |
 
 ---
@@ -85,7 +84,7 @@ trix-3d-companion/
 │   │   ├── VoiceSettingsContext.tsx   # TTS 设置
 │   │   └── ClawbotChannelContext.tsx  # WebSocket 连接
 │   │
-│   ├── services/                 # 业务服务层 (40个)
+│   ├── services/                 # 业务服务层 (27个)
 │   │   ├── TrixNativeChannelClient.ts  # TRIX Native Channel 配对客户端
 │   │   ├── ConnectionManager.ts        # 连接管理器
 │   │   ├── chatService.ts             # 聊天服务
@@ -233,7 +232,7 @@ trix-3d-companion/
 |------|------|
 | `pairing_requests` | 配对请求 |
 | `user_points` | 用户积分 |
-| `points_transactions` | 积分交易记录 |
+| `point_transactions` | 积分交易记录 |
 | `user_settings` | 用户隐私设置 |
 
 详细文档: [database/DATABASE_SCHEMA.md](../database/DATABASE_SCHEMA.md)
@@ -412,5 +411,5 @@ npm run dev
 
 ---
 
-**最后更新**: 2026-03-19
+**最后更新**: 2026-03-21
 **维护者**: TRIX 3D Companion 开发团队

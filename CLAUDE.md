@@ -9,9 +9,9 @@
 
 - **项目**: TRIX 3D Companion — AI 伴侣应用（Web + iOS + Windows 桌面）
 - **核心架构**: Supabase（后端）+ OpenClaw Gateway（实时通信）+ TRIX Native Channel（跨端同步）
-- **三端**: Web (React 19 + Vite + Tailwind 4), iOS (SwiftUI + MVVM), Desktop (Electron 38)
+- **三端**: Web (React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Tailwind CSS 4.2), iOS (SwiftUI + MVVM), Desktop (Electron 33.4)
 - **包管理**: npm workspaces（根目录 `packages/*`）
-- **最后更新**: 2026-03-19
+- **最后更新**: 2026-03-21
 
 ---
 

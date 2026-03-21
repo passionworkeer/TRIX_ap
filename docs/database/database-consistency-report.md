@@ -101,15 +101,16 @@ id, email, username, display_name, avatar_url, bio, created_at, updated_at
 | 功能 | Web 表 | iOS 模型 | 状态 | 问题 |
 |------|--------|----------|------|------|
 | 用户积分 | `user_points` | `UserPointsStats` | ⚠️ 字段差异 | |
-| 积分交易 | `point_transactions` / `points_transactions` | `PointsTransaction` | 🔴 命名不一致 | 两种命名! |
+| 积分交易 | `point_transactions` | `PointsTransaction` | ✅ 已修复 | 实际表名为 point_transactions（单数），已修复 mallService.ts 中的代码 Bug |
 | 商城物品 | `mall_items` | `MallItem` | ✅ 一致 | |
 | 已购物品 | `user_purchased_items` | `PurchaseHistoryItem` | ⚠️ 字段差异 | |
 | 订单 | ❌ 无 | `Order` | ❌ 缺失 | Web 无订单表 |
 
-**积分表命名问题:**
-- `database/add-points-system.sql`: 使用 `point_transactions` (单数)
-- `database/create_missing_tables.sql`: 使用 `points_transactions` (复数)
-- Web 代码混用两者!
+**积分表命名问题: ✅ 已修复**
+- `database/add-points-system.sql`: 使用 `point_transactions` (单数) — **正确**
+- `database/create_missing_tables.sql`: 使用 `points_transactions` (复数) — **错误**
+- `src/services/mallService.ts`: 原混用两者 → **已修复为 `point_transactions`（单数）**
+- **结论**: 实际表名为 `point_transactions`（单数），与其他表命名一致
 
 ---
 
@@ -156,7 +157,7 @@ id, email, username, display_name, avatar_url, bio, created_at, updated_at
 | 用户收藏地点 | `user_favorite_places` | ❌ 无 | ❌ 缺失 | iOS 无收藏功能 |
 | 用户位置 | `user_locations` | `Location` | ⚠️ 字段差异 | |
 | 位置设置 | `user_location_settings` | ❌ 无 | ❌ 缺失 | iOS 无 |
-| 好友位置 | `friendships` | ❌ 无 | ❌ 缺失 | iOS 无位置共享 |
+| 好友关系 | `friends` | ❌ 无 | ❌ 缺失 | iOS 无位置共享（`locationService.ts` 曾错误引用 `friendships`） |
 
 ---
 
@@ -211,14 +212,14 @@ id, email, username, display_name, avatar_url, bio, created_at, updated_at
 
 ---
 
-### 2. 积分表命名不一致 (严重)
+### 2. 积分表命名不一致 (严重) — ✅ 已修复
 
 **现状:**
-- `add-points-system.sql`: `point_transactions`
-- `create_missing_tables.sql`: `points_transactions`
-- Web 代码混用
+- `add-points-system.sql`: `point_transactions` ✅ 正确
+- `create_missing_tables.sql`: `points_transactions` ❌ 错误
+- Web 代码原混用两者
 
-**建议:** 统一使用 `points_transactions`（复数，与其他表命名一致）
+**✅ 已修复（2026-03-21）:** `src/services/mallService.ts` 中 `points_transactions` → `point_transactions`（单数，与实际表名一致）
 
 ---
 
@@ -262,7 +263,7 @@ study_room_members -- 自习室成员
 
 -- 积分/商城
 user_points       -- 用户积分
-points_transactions -- 积分交易 (统一命名!)
+point_transactions -- 积分交易 (已修复：实际表名为 point_transactions 单数)
 mall_items        -- 商城物品
 user_purchased_items -- 已购物品
 
@@ -290,10 +291,10 @@ user_locations   -- 用户位置
 ## 🔧 后续行动
 
 1. **统一用户表**: 将 `complete-init.sql` 中的 `users` 表改为使用 `profiles`
-2. **修复积分表命名**: 统一使用 `points_transactions`
+2. **修复积分表命名**: ✅ 已修复 — `mallService.ts` 已更正为 `point_transactions`（单数）
 3. **补齐 iOS 功能**: 根据业务优先级实现缺失功能
 4. **字段同步**: 考虑添加可选字段到 iOS 端
 
 ---
 
-*报告结束*
+> **⚠️ 本报告生成于 2026-03-10，反映彼时状态。积分表命名问题已于 2026-03-21 修复（见上述更新）。**

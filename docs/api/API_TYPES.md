@@ -1368,5 +1368,5 @@ type EventCallback<TPayload> = (payload: TPayload) => void;
 
 ---
 
-*文档生成时间: 2026-03-15*
+*文档生成时间: 2026-03-21*
 *适用于 TRIX3D API v1.2.0*

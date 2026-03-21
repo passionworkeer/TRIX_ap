@@ -4,6 +4,118 @@
 
 ---
 
+## 📅 2026-03-21（深夜）- 最终全面验证修复
+
+### 完成内容
+
+1. **PRD.md 技术栈版本补全**：
+   - TypeScript 5.8+ → **5.8.2**
+   - React 19+ → **19.2.4**
+   - Vite 6+ → **6.2.0**
+   - Tailwind CSS 4 → **4.2.0**（2 处）
+   - React 19.2 → **19.2.4**（架构图）
+   - XcodeGen + CocoaPods → **XcodeGen + Swift Package Manager**
+
+2. **SETUP.md 技术栈补全**：
+   - Web: "React 19.2 + TS 5.8 + Vite 6.2 + Tailwind 4.2" → "**19.2.4 + 5.8.2 + 6.2.0 + 4.2.0**"
+   - Desktop: "React 19.2 + Tailwind CSS 4" → "**19.2.4 + 4.2.0**"
+   - CocoaPods 描述: "已弃用" → "**Podfile 为空（未使用）**"
+
+3. **DESKTOP_PRD.md 版本修正**：
+   - React 19 → **19.2.4**
+   - Tailwind CSS **4** → **4.2.0**
+
+4. **DESKTOP_ARCHITECTURE.md 架构图**：
+   - React 19 + Vite → **React 19.2.4 + Vite 6.2**
+
+5. **PROJECT.md 技术栈**：
+   - Tailwind CSS "-" → **4.2.0**
+
+6. **全文档最终验证（全部通过）**：
+   - ✅ `Electron 38` 残留：**0**
+   - ✅ `988 Swift` 残留：**0**
+   - ✅ `points_transactions` 复数错误引用：**0**
+   - ✅ `friendships` 错误表名：**0**
+   - ✅ `meowdoone` SSH 用户：**0**
+   - ✅ 豆包 TTS 残留：**0**
+   - ✅ `CocoaPods` 错误引用：**0**
+   - ✅ Tailwind CSS 错误版本：**0**
+   - ✅ React 错误版本：**0**
+   - ✅ `最后更新` 非 2026-03-21：**0**
+
+---
+
+## 📅 2026-03-21（晚间）- 文档全面收尾
+
+### 完成内容
+
+1. **数据库表名修正**（全面）：
+   - `requirements/PRD.md`：`points_transactions` → `point_transactions`（3 处）
+   - `project-reports/PROJECT.md`：`points_transactions` → `point_transactions`
+   - `api/API_DOCUMENTATION.md`：`points_transactions` → `point_transactions`
+   - `database/DATABASE_SCHEMA.md`：架构图中标注 `(单数)`
+   - `database/database-consistency-report.md`：
+     - 修正错误建议（"统一使用 points_transactions 复数" → "实际为 point_transactions 单数"）
+     - 添加已修复说明（`mallService.ts` 已在 2026-03-21 修复）
+     - `friendships` → `friends`（好友关系表）
+     - 添加报告时效说明
+
+2. **豆包 TTS → Edge TTS**：`requirements/PRD.md` TTS 行更新
+
+3. **日期全面同步至 2026-03-21**：
+   - `guides/IOS_TEST_DEPLOY_GUIDE.md`（header + footer）
+   - `development/DOCUMENTATION_GUIDELINES.md`
+   - `api/API_TYPES.md`（文档生成时间）
+   - `ui/COMPONENTS.md`（文档生成时间）
+   - `guides/PAIRING.md`、`guides/DEPLOYMENT.md`、`ios/IOS_ISSUES.md`
+   - `project-reports/PROJECT.md`（footer）
+   - `ENVIRONMENT.md`、`development/TESTING.md`
+   - `project-reports/NEXT_FEATURES_PLAN.md`
+
+4. **全文档全面扫描**（除 .archive/）：0 处残留 `Electron 38`、`988 Swift`、`meowdoone` SSH 用户
+
+---
+
+## 📅 2026-03-21（下午）- 文档补漏修正
+
+### 背景
+
+对剩余未核对文档进行全面扫描，发现并修正多处数字/版本错误。
+
+### 完成内容
+
+1. `architecture/BACKEND_ARCHITECTURE.md`：
+   - Socket.IO → 原生 WebSocket
+   - 豆包 TTS → Edge TTS（`node-edge-tts`）
+   - 配对码 TTL 30min → **1小时**
+   - 移除过时 Socket.IO 心跳代码
+   - API 端点全面修正（移除旧 `/api/auth`、`/api/messages/from-plugin`）
+   - TRIX_NATIVE_PUBLIC_BASE_URL → `https://trix.love`
+   - 目录结构修正（移除 `server/routes/`、`server/websocket/`）
+   - 添加 Study Room、TTS 端点
+   - 添加 `node-edge-tts` 依赖
+
+2. `ui/UI_DOCUMENTATION.md`：版本 1.2.0 → **1.3.0**
+
+3. `getting-started/QUICK_START_GUIDE.md`：
+   - 移除过时 CLI 命令（`npm run cli`、`openclaw trix setup`）
+   - 说明生产环境免启动
+   - 引用 docs/guides/PAIRING.md
+
+4. `requirements/PRD.md`：`988 Swift 文件` → `328`，Electron 38 → **33.4.0**
+
+5. `project-reports/PROJECT.md`：
+   - 业务服务 40个 → **27个**
+   - 技术栈补全为 `React 19.2.4 + TypeScript 5.8.2 + Vite 6.2`
+   - 修正重复 `版本` 字段
+   - `最后更新` → 2026-03-21
+
+6. `guides/SSH-SETUP.md`：SSH 用户 `meowdoone` → `root`（全部 5 处）
+
+7. `INDEX.md`、`CLAUDE.md`：日期同步更新至 2026-03-21
+
+---
+
 ## 📅 2026-03-21 - 全面文档与代码对齐更新
 
 ### 背景
@@ -89,20 +201,23 @@
 
 10. **其余文档更新**：
     - `getting-started/SETUP.md`：全面重写（修正项目结构、技术栈版本、端口、iOS 路径）
-    - `getting-started/QUICK_START_GUIDE.md`：移除过时 CLI 命令，改为文档参考
+    - `getting-started/QUICK_START_GUIDE.md`：精简 CLI 命令，移除过时内容，改为文档参考
     - `api/API_DOCUMENTATION.md`：精简 TRIX Native Server API 章节，指向权威文档
     - `api/API_TYPES.md`：版本更新
     - `ui/COMPONENTS.md`：版本更新
+    - `ui/UI_DOCUMENTATION.md`：版本 1.2.0 → **1.3.0**
+    - `architecture/BACKEND_ARCHITECTURE.md`：Socket.IO → 原生 WebSocket，豆包 TTS → Edge TTS，配对码 TTL 30min → **1小时**，API 端点修正，TRIX_NATIVE_PUBLIC_BASE_URL 更新
+    - `requirements/PRD.md`：`988 Swift 文件` → `328 Swift 文件`，Electron 38 → **33.4.0**
+    - `project-reports/PROJECT.md`：业务服务 40个 → **27个**，React 19 → **19.2.4**，技术栈版本补全，`最后更新` 2026-03-20 → **2026-03-21**
+    - `guides/SSH-SETUP.md`：SSH 用户 `meowdoone` → `root`（所有实例）
+
+11. **发现的代码 Bug**（已修复）：
+   - `src/services/mallService.ts`：`points_transactions` → `point_transactions`（单数）
+   - `src/services/locationService.ts`：`friendships` → `friends`（表名修正）+ 外键引用更新
 
 ---
 
 ## 📅 2026-03-20 - 文档与实际代码对齐修正
-
-### 背景
-
-根据实际代码全面核对 docs/ 目录文档，发现多处文档与最新代码存在不一致。
-
-### 完成内容
 
 1. **PROJECT.md**：
    - Contexts: 6个 → 4个（移除不存在的 `GatewayContext`、`QRCodePairingContext`）
@@ -776,4 +891,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-19
+**最后更新**: 2026-03-21

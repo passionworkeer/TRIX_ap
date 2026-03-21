@@ -336,7 +336,7 @@ Float 窗口 (renderer/float.tsx)
 │                               │ contextBridge                          │
 │                               ▼                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                      Renderer Process (React 19)                   │  │
+│  │                      Renderer Process (React 19.2.4)                   │  │
 │  │                                                                    │  │
 │  │  ┌────────────────────────┐    ┌────────────────────────────┐   │  │
 │  │  │     Main Window         │    │       Float Window           │   │  │
@@ -403,7 +403,7 @@ Float 窗口 (renderer/float.tsx)
 | 构建工具 | Vite | **6.2** |
 | Electron 集成 | vite-plugin-electron | 0.29 |
 | 打包工具 | electron-builder | 25 |
-| 样式 | Tailwind CSS | **4** |
+| 样式 | Tailwind CSS | **4.2.0** |
 | Vite Dev Server Port | — | **5174**（修正） |
 | 图标 | lucide-react | 最新 |
 | 日志 | electron-log | 5 |

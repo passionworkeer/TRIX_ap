@@ -38,7 +38,7 @@ npm run build
 
 **Web 连接到 TRIX Native Server**（由 `VITE_TRIX_NATIVE_SERVER_URL` 配置）。
 
-**技术栈**：React 19.2 + TypeScript 5.8 + Vite 6.2 + Tailwind CSS 4.2
+**技术栈**：React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0
 
 ---
 
@@ -57,7 +57,7 @@ npm run build:desktop
 
 **Desktop 启动 OpenClaw Gateway**（本地子进程，端口 18789）。
 
-**技术栈**：Electron 33.4 + React 19.2 + Tailwind CSS 4
+**技术栈**：Electron 33.4 + React 19.2.4 + Tailwind CSS 4.2.0
 
 ---
 
@@ -81,7 +81,7 @@ xcodebuild -workspace TRIX3DCompanion.xcworkspace \
 
 **注意**：
 - 使用 `TRIX3DCompanion.xcworkspace`（**不是** `.xcodeproj`）
-- CocoaPods 已弃用，依赖完全使用 **Swift Package Manager**
+- Podfile 为空（未使用 CocoaPods），完全依赖 **Swift Package Manager**
 
 **技术栈**：Swift 5.9 + SwiftUI + iOS 18.0
 

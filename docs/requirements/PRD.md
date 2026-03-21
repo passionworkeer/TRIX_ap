@@ -227,7 +227,7 @@
 │                                                                          │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐           │
 │  │      iOS        │ │       Web       │ │    Desktop      │           │
-│  │   (SwiftUI/iOS 18) │ │  (React 19.2)  │ │  (Electron 33.4)  │           │
+│  │   (SwiftUI/iOS 18) │ │  (React 19.2.4)  │ │  (Electron 33.4)  │           │
 │  │   328 Swift 文件    │ │   60+ 组件     │ │  主窗口+Float   │           │
 │  └────────┬────────┘ └────────┬────────┘ └────────┬────────┘           │
 │           │                    │                    │                    │
@@ -260,25 +260,25 @@
 | 语言 | Swift | 5.9+ |
 | UI 框架 | SwiftUI | iOS 16+ |
 | 状态管理 | Combine | 内置 |
-| 项目构建 | XcodeGen (project.yml) + CocoaPods (Podfile) | - |
+| 项目构建 | XcodeGen (project.yml) + Swift Package Manager（SPM） | - |
 | 网络 | URLSession + Supabase Swift | 内置/2.x |
 | 本地存储 | SQLite (GRDB) + Keychain | - |
 | 支付 | StoreKit 2 | - |
 | 测试 | XCTest | - |
-| 代码量 | 25,000+ 行 | 988 Swift 文件 |
+| 代码量 | 25,000+ 行 | 328 Swift 文件 |
 
 #### Web 端
 
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
-| 语言 | TypeScript | 5.8+ |
-| 框架 | React | 19+ |
-| 构建工具 | Vite | 6+ |
+| 语言 | TypeScript | 5.8.2 |
+| 框架 | React | 19.2.4 |
+| 构建工具 | Vite | 6.2.0 |
 | 状态管理 | React Context + Zustand (仅 3D 场景) | - |
 | HTTP 客户端 | @supabase/supabase-js | 2.94+ |
 | WebSocket | 原生 WebSocket（TrixNativeChannelClient） | TRIX Native Server :8788 |
 | 地图 | Leaflet + react-leaflet | - |
-| 样式 | Tailwind CSS | 4.0 |
+| 样式 | Tailwind CSS | 4.2.0 |
 | 动画 | Framer Motion | 12+ |
 | 测试 | Vitest + Playwright | - |
 
@@ -286,12 +286,12 @@
 
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
-| 框架 | Electron | 38 |
+| 框架 | Electron | 33.4.0 |
 | 主进程 | Node.js + TypeScript | 20+ |
 | 渲染进程 | React + TypeScript | 19 / 5.8 |
 | 构建工具 | Vite + vite-plugin-electron | 6 / 0.29 |
 | 打包工具 | electron-builder | 25 |
-| 样式 | Tailwind CSS | 4 |
+| 样式 | Tailwind CSS | 4.2.0 |
 | 日志 | electron-log | 5 |
 | 配置存储 | electron-store | 8 |
 | 安装程序 | NSIS + MSI | - |
@@ -305,7 +305,7 @@
 | 数据库 | Supabase (PostgreSQL) + JSON 文件存储 (本地) | - |
 | AI 集成 | OpenClaw Gateway | - |
 | OSS | 阿里云 OSS | - |
-| TTS | 豆包 TTS API | - |
+| TTS | Edge TTS（node-edge-tts） | - |
 | 部署 | PM2 | - |
 
 ---
@@ -325,7 +325,7 @@
 | `study_room_members` | 学习室成员 | room_id, user_id, status |
 | `notifications` | 通知 | user_id, type, content, read |
 | `pairings` | 设备配对 | user_id, device_id, status |
-| `points_transactions` | 积分交易 | user_id, amount, type |
+| `point_transactions` | 积分交易 | user_id, amount, type |
 | `mall_items` | 商城商品 | name, price, type |
 | `places` | 打卡地点 | name, latitude, longitude, user_id |
 | `todos` | 待办事项 | user_id, title, completed |
@@ -344,7 +344,7 @@ users (1) ── (N) friends ── (1) users
      │
      ├── (N) pairings
      │      │
-     │      └── (N) points_transactions
+     │      └── (N) point_transactions
      │
      ├── (N) places
      │

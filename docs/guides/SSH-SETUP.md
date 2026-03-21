@@ -2,13 +2,13 @@
 
 ## 服务器信息
 - **Host**: trix-server (TRIX_SERVER_HOST)
-- **User**: meowdoone
+- **User**: root
 
 ## 步骤 1：手动添加公钥到服务器
 
 ### 方法 A：使用 ssh-copy-id（需要输入密码）
 ```bash
-ssh-copy-id -i ~/.ssh/id_ed25519.pub meowdoone@TRIX_SERVER_HOST
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@TRIX_SERVER_HOST
 ```
 
 ### 方法 B：手动复制（推荐，如果方法 A 失败）
@@ -19,7 +19,7 @@ cat ~/.ssh/id_ed25519.pub
 
 2. 登录到服务器：
 ```bash
-ssh meowdoone@TRIX_SERVER_HOST
+ssh root@TRIX_SERVER_HOST
 ```
 
 3. 在服务器上添加公钥：
@@ -59,8 +59,8 @@ ssh trix-server "pm2 logs trix-native"
 ```bash
 ssh trix-server "ls -la ~/.ssh/"
 # 应该显示：
-# drwx------ 2 meowdoone meowdoone 4096 .ssh/
-# -rw------- 1 meowdoone meowdoone xxx authorized_keys
+# drwx------ 2 root root 4096 .ssh/
+# -rw------- 1 root root xxx authorized_keys
 ```
 
 2. 检查 SSH 服务日志：

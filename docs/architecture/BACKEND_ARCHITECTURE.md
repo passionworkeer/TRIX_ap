@@ -451,23 +451,20 @@ NODE_ENV=production
 
 # TRIX Native
 TRIX_NATIVE_ADMIN_TOKEN=your-admin-token
-TRIX_NATIVE_PUBLIC_BASE_URL=http://TRIX_SERVER_HOST:8788
+TRIX_NATIVE_PUBLIC_BASE_URL=https://trix.love
 TRIX_NATIVE_STORAGE_DIR=./.trix-native-channel
 
 # OpenClaw Gateway
 GATEWAY_URL=ws://127.0.0.1:18789
 GATEWAY_AUTH_TOKEN=your-auth-token
-```
 
-# Aliyun OSS
+# OSS（可选）
 ALIYUN_ACCESS_KEY_ID=xxx
 ALIYUN_ACCESS_KEY_SECRET=xxx
 ALIYUN_BUCKET=xxx
 ALIYUN_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 
-# TTS_API_KEY=OUBAO_Txxx
-DOUTS
-DBAO_TTS_APP_ID=xxx
+# Edge TTS（已内置，无需额外配置）
 ```
 
 ---
@@ -525,7 +522,8 @@ curl http://TRIX_SERVER_HOST:8788/health
     "express-rate-limit": "^7.1.5",
     "dotenv": "^16.3.1",
     "ali-oss": "^6.20.0",
-    "axios": "^1.6.2"
+    "axios": "^1.6.2",
+    "node-edge-tts": "^3.1.0"
   },
   "devDependencies": {
     "pm2": "^5.3.0"
