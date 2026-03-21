@@ -22,6 +22,12 @@
    - `docs/INDEX.md` 新增 `screenshots/` 目录结构说明
    - 新增"截图资产"导航章节
 
+4. **Git 仓库状态检查**：
+   - `stitch/` 含 24 个子目录（设计草稿，含 `screen.png` + `code.html`），全部在 `.gitignore` 中，不进 git
+   - `test_results.xcresult/` 有 39 个文件被 git 跟踪（Xcode 测试结果二进制文件），暂未清理
+   - `deploy.sh`、`database/*.sql` 在 git 中，跟踪合理
+   - Git push 代理问题：移除本地 `http.proxy` 后推送成功
+
 ### 变更文件
 
 - `docs/INDEX.md` — 新增截图资产章节
@@ -917,4 +923,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-21
+**最后更新**: 2026-03-22
