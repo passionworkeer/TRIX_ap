@@ -92,6 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /** 防止 getSession + onAuthStateChange 双重调用 upsertSession 的护栏 */
   const hasBootstrappedSessionRef = useRef(false);
 
+  /** 仅在用户主动登录时允许 SIGNED_IN 创建新 DB session，避免恢复态自挤掉自己 */
+  const interactiveSignInPendingRef = useRef(false);
+
   /** 心跳 interval ID（使用 ref 而非闭包变量，确保 onAuthStateChange 回调可访问） */
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -127,7 +130,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         heartbeatCheckCounterRef.current = 0;
         const validity = await checkSessionValidity();
         if (!validity.isValid) {
-          if (validity.reason === 'network_error') return; // 断网不登出自己
+          if (validity.reason === 'network_error' || validity.reason === 'not_found') {
+            logger.auth.warn('[auth] skipped forced logout during heartbeat validity check', {
+              reason: validity.reason,
+              localSessionId: getLocalSessionId(),
+            });
+            return;
+          }
           forceLogout(validity.reason, getLocalSessionId());
         }
       }
@@ -144,10 +153,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         fetchProfile(session.user.id);
         updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));
-        // 仅在首次加载时创建 DB session，防止 getSession + INITIAL_SESSION 双重调用
+        // 恢复已有登录态时，优先复用本地 session id，避免刷新页面时把自己挤下线
         if (!hasBootstrappedSessionRef.current) {
           hasBootstrappedSessionRef.current = true;
-          upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
+          if (!getLocalSessionId()) {
+            upsertSession(session.user.id).catch(err => logger.error('Auth', '创建会话失败:', err));
+          } else {
+            logger.auth.info('[auth] bootstrap reused existing local session', {
+              userId: session.user.id,
+              localSessionId: getLocalSessionId(),
+            });
+          }
         }
         // 启动带有效性检查的心跳（幂等）
         startHeartbeat();
@@ -171,11 +187,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // 这里只需启动/保活心跳
           startHeartbeat();
         } else if (event === 'SIGNED_IN') {
-          // 真正的登录事件：getSession() 在此之前返回旧/null session，
-          // 故 this SIGNED_IN 代表全新登录，调用 upsertSession 并启动心跳
-          upsertSession(session.user.id, undefined, true).catch(err =>
-            logger.error('Auth', '创建会话失败:', err),
-          );
+          const hasLocalSession = Boolean(getLocalSessionId());
+          if (interactiveSignInPendingRef.current || !hasLocalSession) {
+            interactiveSignInPendingRef.current = false;
+            hasBootstrappedSessionRef.current = true;
+            upsertSession(session.user.id, undefined, true).catch(err =>
+              logger.error('Auth', '创建会话失败:', err),
+            );
+          } else {
+            logger.auth.info('[auth] skipped session upsert for restored SIGNED_IN event', {
+              userId: session.user.id,
+              localSessionId: getLocalSessionId(),
+            });
+          }
           startHeartbeat();
         } else if (event === 'TOKEN_REFRESHED') {
           // Token 刷新：session 仍然有效，无需 upsertSession，也无需重启心跳
@@ -184,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // USER_UPDATED 等其他事件：忽略，不操作
       } else {
         // SIGNED_OUT 或其他使 session 变 null 的事件
+        interactiveSignInPendingRef.current = false;
         setProfile(null);
         clearLocalSessionId();
         if (heartbeatIntervalRef.current) {
@@ -204,6 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      interactiveSignInPendingRef.current = true;
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -221,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // 记录登录失败（安全审计）
         logger.auth.warn(`[安全事件] 登录失败 — email: ${email}, error: ${error.message}`);
+        interactiveSignInPendingRef.current = false;
 
         return { error: new AuthError(errorType, error) };
       }
@@ -229,6 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: null };
     } catch (error) {
       // 捕获网络错误等异常
+      interactiveSignInPendingRef.current = false;
       if (error instanceof TypeError && error.message.includes('fetch')) {
         return { error: new AuthError(AuthErrorType.NETWORK_ERROR, error) };
       }
@@ -275,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    interactiveSignInPendingRef.current = false;
     await revokeSession();
     clearLocalSessionId();
     await supabase.auth.signOut();

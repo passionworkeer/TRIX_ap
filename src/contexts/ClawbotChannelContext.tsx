@@ -83,6 +83,7 @@ const SPEAKING_MIN_MS = 1200;
 const SPEAKING_MAX_MS = 12000;
 const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
+const REPLY_SETTLE_WINDOW_MS = 4500;
 const MAX_MESSAGES = 500;
 
 const resolveErrorMessage = (error: unknown): string => {
@@ -116,9 +117,11 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const [idleEnteredAt, setIdleEnteredAt] = useState<number>(() => Date.now());
 
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const replySettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ClawbotChannelMessage[]>([]);
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
+  const pendingBotReplyRef = useRef(false);
 
   // Push botState changes to Electron float window via IPC
   useEffect(() => {
@@ -148,21 +151,48 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     }
   }, []);
 
+  const clearReplySettleTimeout = useCallback(() => {
+    if (replySettleTimeoutRef.current) {
+      clearTimeout(replySettleTimeoutRef.current);
+      replySettleTimeoutRef.current = null;
+    }
+  }, []);
+
   const enterIdle = useCallback(() => {
     clearSpeakingTimeout();
+    clearReplySettleTimeout();
+    pendingBotReplyRef.current = false;
     setBotState('IDLE');
     setIdleEnteredAt(Date.now());
     activeVoiceMessageIdRef.current = null;
     pendingVoiceMessageIdRef.current = null;
-  }, [clearSpeakingTimeout]);
+  }, [clearReplySettleTimeout, clearSpeakingTimeout]);
 
   const enterThinking = useCallback(() => {
     clearSpeakingTimeout();
+    clearReplySettleTimeout();
+    pendingBotReplyRef.current = true;
     setBotState('THINKING');
-  }, [clearSpeakingTimeout]);
+  }, [clearReplySettleTimeout, clearSpeakingTimeout]);
+
+  const scheduleReplySettle = useCallback(() => {
+    clearReplySettleTimeout();
+    replySettleTimeoutRef.current = setTimeout(() => {
+      replySettleTimeoutRef.current = null;
+      if (activeVoiceMessageIdRef.current || pendingVoiceMessageIdRef.current) {
+        scheduleReplySettle();
+        return;
+      }
+      pendingBotReplyRef.current = false;
+      setBotState('IDLE');
+      setIdleEnteredAt(Date.now());
+    }, REPLY_SETTLE_WINDOW_MS);
+  }, [clearReplySettleTimeout]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
+    clearReplySettleTimeout();
+    pendingBotReplyRef.current = true;
     setBotState('SPEAKING');
     setLatestBotMessage(message);
     activeVoiceMessageIdRef.current = null;
@@ -176,10 +206,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
     speakingTimeoutRef.current = setTimeout(() => {
       speakingTimeoutRef.current = null;
-      setBotState('IDLE');
-      setIdleEnteredAt(Date.now());
+      scheduleReplySettle();
     }, durationMs);
-  }, [clearSpeakingTimeout]);
+  }, [clearReplySettleTimeout, clearSpeakingTimeout, scheduleReplySettle]);
 
   const handleBotMessageState = useCallback((message: ClawbotChannelMessage) => {
     enterSpeakingWithTimeout(message);
@@ -231,8 +260,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   useEffect(() => {
     return () => {
       clearSpeakingTimeout();
+      clearReplySettleTimeout();
     };
-  }, [clearSpeakingTimeout]);
+  }, [clearReplySettleTimeout, clearSpeakingTimeout]);
 
   useEffect(() => {
     const handleConnecting = () => {
@@ -250,7 +280,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     };
     const handleDisconnected = () => {
       setStatus('DISCONNECTED');
-      enterIdle();
     };
     const handleReconnecting = () => {
       setStatus('RECONNECTING');
@@ -302,7 +331,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       const message = resolveErrorMessage(error);
       setLastError(message);
       setStatus('ERROR');
-      enterIdle();
       logger.clawbot.error('[TrixNativeContext] transport error', error);
     };
 

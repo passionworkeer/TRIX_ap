@@ -1,4 +1,5 @@
 import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
+import qrcode from 'qrcode-terminal';
 import { applyTrixAccountConfig, inspectTrixAccount, listTrixAccountIds, resolveDefaultTrixAccountId, resolveRegisteredTrixAccount, resolveTrixAccount } from './account.js';
 import { looksLikeTrixTarget, normalizeTrixTarget } from './bindings.js';
 import { monitorTrixProvider } from './monitor.js';
@@ -17,6 +18,24 @@ type RuntimeSnapshot = {
   lastInboundAt?: number | null;
   lastOutboundAt?: number | null;
 };
+
+function renderClaimQr(claimUrl: string, log?: (message: string) => void) {
+  if (!log || !claimUrl) {
+    return;
+  }
+
+  let rendered = '';
+  qrcode.generate(claimUrl, { small: true }, (output) => {
+    rendered = output;
+  });
+
+  if (!rendered.trim()) {
+    return;
+  }
+
+  log('TRIX scan QR:');
+  log(rendered.trimEnd());
+}
 
 async function createServicePairing(accountId?: string | null) {
   const account = resolveRegisteredTrixAccount(accountId);
@@ -182,6 +201,7 @@ export const trixPlugin: ChannelPlugin = {
       logger.log?.(`TRIX pairing code: ${payload.code}`);
       if (payload.claimUrl) {
         logger.log?.(`TRIX claim URL: ${payload.claimUrl}`);
+        renderClaimQr(payload.claimUrl, logger.log);
       }
       if (payload.qrDataUrl && verbose) {
         logger.log?.(`TRIX QR data URL: ${payload.qrDataUrl}`);
