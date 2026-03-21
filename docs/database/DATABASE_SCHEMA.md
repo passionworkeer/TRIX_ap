@@ -2,7 +2,21 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-20（修正表名：统一为 points_transactions；补全缺失表）
+> **最后更新**: 2026-03-21（添加 user_points_overview 视图；补充 points_transactions 命名说明）
+
+---
+
+## ⚠️ 重要：表名对照
+
+以下为代码中实际使用的表名，与某些旧迁移脚本中的名称可能不同：
+
+| 实际表名 | 旧迁移/文档名 | 说明 |
+|---------|------------|------|
+| `point_transactions`（单数） | `points_transactions`（复数） | 代码中正确使用 `point_transactions` |
+| `friends` | `friendships` | `locationService.ts` 曾错误引用 `friendships` |
+| `user_points_overview`（视图） | — | 存在于代码中但旧 Schema 未记录 |
+
+> `mallService.ts` 使用 `points_transactions`（复数）是**代码 Bug**，实际数据库表名为 `point_transactions`（单数）。
 
 ---
 
@@ -84,7 +98,7 @@
 | `todos` | 待办事项 | user_id, title, is_completed |
 | `schedules` | 日程 | user_id, title, start_time, end_time |
 | `user_points` | 用户积分余额 | user_id, balance, updated_at |
-| `points_transactions` | 积分变动流水 | user_id, amount, type, description |
+| `point_transactions` | 积分变动流水（⚠️ 单数，代码 Bug 写成了复数） | user_id, amount, type |
 | `achievements` | 成就列表（参考表） | id, type, name, description, icon |
 | `user_achievements` | 用户已解锁成就 | user_id, achievement_id, unlocked_at |
 | `outfits` | 装扮目录（参考表） | id, name, type, price, preview_url |
@@ -93,6 +107,13 @@
 | `user_purchased_items` | 用户已购商品 | user_id, item_id, purchased_at |
 | `pairings` | 设备配对 | user_id, device_id, status, platform |
 | `user_settings` | 用户设置 | user_id, key, value |
+
+### 2.3 视图（Views）
+
+| 视图名 | 描述 | 代码引用 |
+|--------|------|---------|
+| `friend_latest_messages` | 好友最新消息 | `friendService.ts` |
+| `user_points_overview` | 用户积分概览 | `pointsService.ts`（⚠️ 旧 Schema 未记录） |
 
 ---
 
@@ -337,10 +358,12 @@ CREATE INDEX idx_notifications_read ON notifications(is_read) WHERE is_read = fa
 
 ---
 
-### 3.10 积分交易表 (points_transactions)
+### 3.10 积分交易表 (point_transactions)
+
+> ⚠️ 实际数据库表名为 `point_transactions`（单数），`mallService.ts` 中使用 `points_transactions`（复数）为代码 Bug。
 
 ```sql
-CREATE TABLE points_transactions (
+CREATE TABLE point_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   amount INTEGER NOT NULL,
@@ -349,9 +372,28 @@ CREATE TABLE points_transactions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_points_user ON points_transactions(user_id);
-CREATE INDEX idx_points_created ON points_transactions(created_at DESC);
+CREATE INDEX idx_points_user ON point_transactions(user_id);
+CREATE INDEX idx_points_created ON point_transactions(created_at DESC);
 ```
+
+---
+
+## 视图（Views）
+
+### friend_latest_messages
+
+获取每个好友的最新一条消息，用于聊天列表展示。
+
+```sql
+-- 存在于 init.sql，friendService.ts 中使用
+CREATE VIEW friend_latest_messages AS ...
+```
+
+### user_points_overview
+
+用户积分概览视图，`pointsService.ts` 中使用。
+
+> 代码引用：`src/services/pointsService.ts` — **旧 Schema 未记录此视图**
 
 ---
 
@@ -679,4 +721,4 @@ interface MessageRecord {
 
 ---
 
-**最后更新**: 2026-03-19
+**最后更新**: 2026-03-21

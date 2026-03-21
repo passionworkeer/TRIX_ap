@@ -232,7 +232,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     }
 
     // 3. 记录积分交易
-    await supabase.from('points_transactions').insert({
+    await supabase.from('point_transactions').insert({
       user_id: user.id,
       amount: -item.price,
       type: 'spend',
@@ -376,7 +376,7 @@ export async function getPointsTransactions(limit: number = 20): Promise<PointsT
     }
 
     const { data, error } = await supabase
-      .from('points_transactions')
+      .from('point_transactions')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })

@@ -15,7 +15,8 @@ docs/
 ├── TRIX_NATIVE_CHANNEL.md           # ⭐ Native Channel 唯一权威文档
 │
 ├── 📦 需求规格 (requirements/)
-│   └── PRD.md                       # 产品需求文档（三端合一）
+│   ├── PRD.md                       # 产品需求文档（三端合一）
+│   └── DESKTOP_PRD.md              # Desktop 产品需求文档 ← 新增
 │
 ├── 📊 项目报告 (project-reports/)
 │   ├── PROJECT.md                   # 项目总览
@@ -81,7 +82,8 @@ docs/
 | 文档 | 描述 |
 |------|------|
 | [desktop/DESKTOP_ARCHITECTURE.md](./desktop/DESKTOP_ARCHITECTURE.md) | Electron 架构 · IPC · Gateway |
-| [requirements/PRD.md](./requirements/PRD.md) | 产品需求文档 |
+| [requirements/DESKTOP_PRD.md](./requirements/DESKTOP_PRD.md) | Desktop 产品需求文档 |
+| [requirements/PRD.md](./requirements/PRD.md) | 产品需求文档（参考） |
 
 ### 🚀 用户指南
 
@@ -140,7 +142,7 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 目录 | 文档数量 |
 |------|----------|
 | 根目录 | 4 |
-| 需求规格 (requirements/) | 1 |
+| 需求规格 (requirements/) | 2 ← 新增 |
 | 项目报告 (project-reports/) | 2 |
 | 🔧 开发文档 (development/) | 4 |
 | 🎨 UI 文档 (ui/) | 2 |
@@ -157,4 +159,4 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 ---
 
-**最后更新**: 2026-03-19
+**最后更新**: 2026-03-21

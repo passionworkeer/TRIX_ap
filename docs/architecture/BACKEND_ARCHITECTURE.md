@@ -1,8 +1,8 @@
 # 后端架构文档
 
 > 📚 TRIX 3D Companion 后端服务架构
-> 🎯 基于 Node.js + Express + Socket.io
-> **最后更新**: 2026-03-20
+> 🎯 基于 Node.js + Express + 原生 WebSocket
+> **最后更新**: 2026-03-21
 
 ---
 
@@ -22,23 +22,23 @@
 │                             ▼                                       │
 │                    ┌──────────────┐                              │
 │                    │   Express     │                              │
-│                    │   + Socket.io │                              │
+│                    │ Server (:8788)│                              │
 │                    └──────┬───────┘                              │
 │                           │                                       │
 │         ┌─────────────────┼─────────────────┐                     │
 │         ▼                 ▼                 ▼                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
 │  │   Pairing    │  │   Message    │  │     TTS      │      │
-│  │   Service    │  │   Service    │  │   Service    │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│  │   Service    │  │   Service    │  │  (Edge TTS)  │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
 │         │                 │                 │                    │
 │         └─────────────────┼─────────────────┘                    │
 │                           ▼                                       │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                     Data Layer                                 │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │   │
-│  │  │   SQLite     │  │  Supabase    │  │   Aliyun     │      │   │
-│  │  │  (Local)     │  │ (PostgreSQL) │  │     OSS      │      │   │
+│  │  │   SQLite     │  │  Supabase    │  │    OSS       │      │   │
+│  │  │  (Local)     │  │ (PostgreSQL) │  │   (可选)      │      │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘      │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                          │
@@ -97,20 +97,27 @@ TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息�
 
 | 方法 | 路径 | 描述 |
 |------|------|------|
+| GET | /health | 健康检查 |
 | POST | /api/pairings | 生成配对码 |
+| GET | /api/pairings | 列出所有配对（需 Admin Token） |
 | GET | /api/pairings/:code | 查询配对状态 |
-| POST | /api/pairings/:code/claim | 确认配对 |
-| POST | /api/auth | 认证 |
-| POST | /api/messages/from-plugin | 发送消息 |
-| GET | /api/messages/to-plugin | 拉取消息 |
-| POST | /api/upload | 文件上传 |
+| POST | /api/pairings/:code/claim | 认领配对 |
+| POST | /api/messages | 发送消息 |
+| POST | /api/uploads | 上传附件 |
+| GET | /api/conversations/:id/messages | 历史消息 |
+| POST | /api/study-rooms | 创建学习房间 |
+| GET | /api/study-rooms | 列出房间 |
+| POST | /api/study-rooms/:roomCode/join | 加入房间 |
+| POST | /api/tts/synthesize | Edge TTS 语音合成 |
+
+> 完整协议见 [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)。
 
 ### WebSocket 端点
 
-连接 URL：
+连接 URL（生产: `https://trix.love`）：
 ```
-ws://host/ws?role=user&conversationId=xxx&clientId=xxx&clientToken=xxx  # 客户端
-ws://host/ws?role=agent&accountId=xxx&serviceToken=xxx               # Agent（OpenClaw Plugin）
+wss://trix.love/ws?role=user&conversationId=xxx&clientId=xxx&clientToken=xxx  # 用户端
+wss://trix.love/api/service/ws?accountId=xxx&serviceToken=xxx               # Service/Plugin
 ```
 
 ---
@@ -121,12 +128,14 @@ ws://host/ws?role=agent&accountId=xxx&serviceToken=xxx               # Agent（O
 |-----|------|-----|
 | 运行时 | Node.js | 18+ |
 | 框架 | Express | 4.18+ |
-| WebSocket | 原生 WebSocket（TRIX Native Server） | - |
+| WebSocket | 原生 WebSocket（`ws` 库） | 8.x |
 | 数据库 | SQLite | 3.x |
-| 远程数据库 | Supabase | - |
-| 文件存储 | 阿里云 OSS | - |
-| 语音合成 | 豆包 TTS API | - |
+| 远程数据库 | Supabase (PostgreSQL) | - |
+| 文件存储 | OSS（可选） | - |
+| 语音合成 | Edge TTS（`node-edge-tts`） | - |
 | 部署 | PM2 | - |
+
+> ⚠️ 旧版 Clawbot Channel (Socket.IO, 端口 8765) 已废弃，当前使用 TRIX Native Server（端口 8788）。
 
 ---
 
@@ -224,9 +233,9 @@ CREATE TABLE pairings (
 
 ### 4.3 TTS / OSS 服务
 
-TTS 和 OSS 功能通过前端服务实现：
-- **TTS**: `src/services/ttsService.ts` → 调用豆包 TTS API
-- **OSS**: `src/services/OSSService.ts` / `serverOssUploadService.ts` → 阿里云 OSS
+TTS 和 OSS 功能：
+- **TTS**: `packages/trix-openclaw-native/src/server/TrixNativeServer.ts` → 使用 `node-edge-tts`（Edge TTS），非豆包 TTS
+- **OSS**: `src/services/OSSService.ts` / `serverOssUploadService.ts` → 阿里云 OSS（可选）
 
 ---
 
@@ -263,23 +272,27 @@ class StudyRoomService {
 
 | 方法 | 路径 | 描述 |
 |------|------|------|
-| GET | /health | 健康检查 |
+| GET | /health | 健康检查（含 agentOnline） |
 | POST | /api/pairings | 创建配对码 |
 | GET | /api/pairings | 列出所有配对（需 Admin Token） |
-| GET | /api/pairings/:code | 查询配对状态 |
+| GET | /api/pairings/:code | 查询配对状态（配对码有效期 1 小时） |
 | POST | /api/pairings/:code/claim | 认领配对 |
+| POST | /api/messages | 发送消息 |
+| POST | /api/uploads | 上传附件 |
+| GET | /api/conversations/:id/messages | 历史消息 |
+| POST | /api/study-rooms | 创建学习房间 |
+| POST | /api/tts/synthesize | Edge TTS 语音合成 |
 
 ### 5.2 WebSocket 协议
 
 > 完整协议见 [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)。
 
-| 事件 | 方向 | 描述 |
-|------|------|------|
-| `message` | <-> | 发送/接收消息 |
-| `typing` | <-> | 正在输入 |
-| `connected` | <- | 连接成功 |
-| `pairing_update` | <- | 配对状态更新 |
-| `bot_response` | <- | AI 响应 |
+WebSocket 连接（生产 `wss://trix.love`）：
+
+| 角色 | URL 参数 | 用途 |
+|------|---------|------|
+| user | `role=user&conversationId=...&clientId=...&clientToken=...` | 用户端消息 |
+| service | `role=service&accountId=...&serviceToken=...` | OpenClaw Plugin 端 |
 
 
 ## 6. 网络安全
@@ -300,13 +313,9 @@ const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
 
 ### 6.2 速率限制
 
-```javascript
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 最多100次请求
-  message: 'Too many requests'
-});
-```
+> 完整限流配置见 [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md)（可配置限制，非固定 100 次）。
+
+每端点独立限流（默认）：
 
 ### 6.3 消息去重
 
@@ -322,13 +331,7 @@ function seenRecently(key) {
 
 ### 6.4 心跳机制
 
-```javascript
-const io = new Server(server, {
-  pingInterval: 30000,      // 30秒心跳间隔
-  pingTimeout: 60000,       // 60秒超时
-  upgradeTimeout: 30000      // 30秒升级超时
-});
-```
+WebSocket 原生心跳（`ws` 库）：
 
 ---
 
@@ -541,7 +544,7 @@ curl http://TRIX_SERVER_HOST:8788/health
 | 消息去重 | 内存缓存 (10s TTL) |
 | SQL 参数化 | better-sqlite3 预处理 |
 | Token 验证 | WebSocket 认证 |
-| 配对码过期 | 30 分钟有效期 |
+| 配对码过期 | 1 小时有效期 |
 
 ---
 
@@ -556,5 +559,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-20
-**版本**: 3.1
+**最后更新**: 2026-03-21
+**版本**: 3.2

@@ -102,23 +102,26 @@ curl -X POST http://<服务器IP>:<端口>/api/auth/register \
 
 ## 数据库操作
 
-### 连接数据库
+> ⚠️ **注意**：数据库使用 **PostgreSQL (Supabase)**，**不是** MySQL。以下为 Supabase/PostgreSQL 操作方式。
 
-```bash
-mysql -u<用户名> -p<密码> <数据库名>
-```
+### 连接 Supabase
 
-### 常用 SQL
+Supabase 数据库通过 Supabase Dashboard 管理，无需 SSH 连接服务器：
+
+- Dashboard: https://supabase.com/dashboard
+- 直接 SQL 编辑器: Settings → Database → Connection Pooling → pg
+
+### 常用 SQL（PostgreSQL）
 
 ```sql
 -- 查看所有表
-SHOW TABLES;
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
 
 -- 查看用户表
-SELECT * FROM users;
+SELECT * FROM profiles LIMIT 10;
 
 -- 删除测试数据
-DELETE FROM users WHERE email = 'test@example.com';
+DELETE FROM profiles WHERE email = 'test@example.com';
 ```
 
 ## 端口开放
@@ -147,13 +150,11 @@ pm2 logs <服务名> --err --lines 50
 ### 数据库连接失败
 
 ```bash
-# 检查 MySQL 状态
-systemctl status mysql
-
-# 重启 MySQL
-systemctl restart mysql
+# 检查 Supabase 状态
+# 访问 https://status.supabase.com
+# 检查 Connection String 是否正确
 ```
 
 ---
 
-**最后更新**: 2026-03-20
+**最后更新**: 2026-03-21

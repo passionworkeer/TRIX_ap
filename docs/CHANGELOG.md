@@ -4,6 +4,98 @@
 
 ---
 
+## 📅 2026-03-21 - 全面文档与代码对齐更新
+
+### 背景
+
+使用 5 个并行 Agent 全面调研源码（Desktop/Web/iOS/DB/API），发现并修正大量文档与实际代码的差异。
+
+### 完成内容
+
+1. **TRIX_NATIVE_CHANNEL.md（全面重写）**：
+   - 新增 Study Room API + WebSocket 事件文档
+   - 新增 TTS (Edge TTS) 端点文档
+   - 新增 Session Management (bind/restore) 文档
+   - 新增 Rate Limiting 文档（可配置限制）
+   - 新增 WebSocket 三角色（user/service/agent）文档
+   - 新增完整消息信封格式（用户端 + 服务端）
+   - 修正配对码 TTL：文档 5-30 分钟 → 实际 **1 小时**
+   - 修正 clientToken 传递：文档 header → 实际 **JSON body**
+   - 更新架构图添加 Study Room + TTS 层
+   - 添加完整 API 端点一览表
+
+2. **desktop/DESKTOP_ARCHITECTURE.md**：
+   - Electron 版本：38 → **33.4.0**
+   - 目录结构：`packages/desktop/` → `desktop/`
+   - Vite Dev Server 端口：5173 → **5174**
+   - 新增 IPC 通道：`openclaw:status`、`openclaw:install-progress`
+   - 修正 OpenClaw 命令白名单（移除代码中不存在的 `backup restore`）
+   - 修正托盘图标：文件加载 → **程序生成**
+   - 修正视频路径：`videos/{state}.mp4` → `videos/role1/{state}.mp4`
+   - 新增 BORING 状态文档
+   - 新增 electron-builder 中文 NSIS + MSI + 侧边栏特性
+   - 新增 RenderErrorBoundary 错误边界文档
+   - 修正 Gateway 自动重启：**未实现**
+
+3. **requirements/DESKTOP_PRD.md**：
+   - Electron 版本：38 → **33.4.0**
+   - React 版本：19 → **19.2**
+   - 新增 `openclaw:status`、`openclaw:install-progress` IPC 通道
+   - Bot 状态：三种 → **四种**（新增 BORING）
+   - 视频路径修正
+   - Float 窗口定位：显式 x/y → **默认居中**
+   - 白名单移除 `backup restore`
+   - Vite Dev Port 5173 → **5174**
+
+4. **architecture/WEB_ARCHITECTURE.md（全面重写）**：
+   - 补充完整技术栈：React **19.2.4** + TypeScript **5.8.2** + Vite **6.2.0** + Tailwind CSS **4.2.0**
+   - 全部 **19 条路由**（HashRouter）
+   - 全部 **27 个服务文件**
+   - 4 个 Context + Zustand（仅 three/）
+   - 移除不存在的 `useClawbotMessages` hook
+   - 新增 TrixNativeChannelClient 详细功能说明
+   - 新增 Tailwind CSS 4 配置和自定义工具类
+   - 新增环境变量完整列表
+
+5. **ios/IOS_ARCHITECTURE.md**：
+   - 新增完整项目结构（328 Swift 文件）
+   - iOS 部署目标：18.0
+   - Swift 5.9
+   - 使用 **XcodeGen project.yml**（非命令行）
+   - Podfile 为空，**仅使用 Swift Package Manager**
+   - 14 个 SPM 依赖包完整列表
+   - "ClawbotChannel" = iOS 命名别名（TRIX Native Channel）
+   - 三语言支持：en, zh-Hans, zh-Hant
+   - MVVM + Protocol + 单例架构
+
+6. **database/DATABASE_SCHEMA.md**：
+   - 添加未文档化视图：`user_points_overview`、`friend_latest_messages`
+   - ⚠️ 表名修正：`point_transactions`（单数，非复数）
+   - ⚠️ `mallService.ts` 使用 `points_transactions`（复数）为代码 Bug
+   - ⚠️ `locationService.ts` 使用 `friendships` 为代码 Bug
+
+7. **guides/SERVER_GUIDE.md**：
+   - 修正 MySQL → **PostgreSQL (Supabase)**
+   - 更新数据库操作方式（Supabase Dashboard 而非 SSH）
+   - 更新故障排查（Supabase 状态检查）
+
+8. **INDEX.md**：
+   - 新增 `requirements/DESKTOP_PRD.md` 引用
+   - 更新文档统计
+
+9. **发现的代码 Bug**（已修复）：
+   - `src/services/mallService.ts`：`points_transactions` → `point_transactions`（单数）
+   - `src/services/locationService.ts`：`friendships` → `friends`（表名修正）+ 外键引用更新
+
+10. **其余文档更新**：
+    - `getting-started/SETUP.md`：全面重写（修正项目结构、技术栈版本、端口、iOS 路径）
+    - `getting-started/QUICK_START_GUIDE.md`：移除过时 CLI 命令，改为文档参考
+    - `api/API_DOCUMENTATION.md`：精简 TRIX Native Server API 章节，指向权威文档
+    - `api/API_TYPES.md`：版本更新
+    - `ui/COMPONENTS.md`：版本更新
+
+---
+
 ## 📅 2026-03-20 - 文档与实际代码对齐修正
 
 ### 背景

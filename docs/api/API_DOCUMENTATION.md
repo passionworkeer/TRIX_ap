@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
-> 版本: 1.2.1
-> **最后更新**: 2026-03-20
+> 版本: 1.3.0
+> **最后更新**: 2026-03-21（精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
 
 ---
 
@@ -364,50 +364,55 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ## TRIX Native Server API
 
-TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息同步。
+> ⚠️ **完整文档已移至 `../TRIX_NATIVE_CHANNEL.md`**（唯一权威文档）。
+>
+> 以下为摘要，详细信息请参阅该文档。
 
-### 配对相关
+### 生产服务
 
-| 方法 | 路径 | 描述 |
+| 服务 | URL |
+|------|-----|
+| TRIX Native Server | `https://trix.love`（端口 8788） |
+
+### 核心端点
+
+| 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/pairings` | 生成配对码 |
 | GET | `/api/pairings/:code` | 查询配对状态 |
-| POST | `/api/pairings/:code/claim` | 确认配对 |
+| POST | `/api/pairings/:code/claim` | 认领配对 |
+| GET | `/health` | 健康检查（含 agentOnline） |
+| POST | `/api/messages` | 发送消息（clientToken 在 body 中） |
+| POST | `/api/uploads` | 上传附件 |
+| GET | `/api/conversations/:id/messages` | 历史消息 |
 
-### 认证
+### Study Room
 
-| 方法 | 路径 | 描述 |
+| 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/auth` | 认证获取 token |
+| POST | `/api/study-rooms` | 创建房间 |
+| GET | `/api/study-rooms` | 列出房间 |
+| POST | `/api/study-rooms/:roomCode/join` | 加入 |
+| POST | `/api/study-rooms/:roomCode/action` | 主持人操作 |
 
-### 消息
+### TTS
 
-| 方法 | 路径 | 描述 |
+| 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/messages/from-plugin` | Plugin 发送消息到手机 |
-| GET | `/api/messages/to-plugin` | Plugin 拉取手机消息 |
-
-### 文件上传
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | `/api/upload` | 上传图片/音频/视频/文件 |
+| POST | `/api/tts/synthesize` | Edge TTS 语音合成 |
 
 ### WebSocket
 
-| 路径 | 描述 |
-|------|------|
-| `/ws/phone?code=XXX` | iOS 连接，实时接收消息 |
-| `/ws/plugin?token=XXX` | OpenClaw Plugin 连接 |
+| 路径 | 角色 | 说明 |
+|------|------|------|
+| `/ws?role=user&...` | user | 用户实时消息 |
+| `/api/service/ws` | service | Service/Plugin 实时消息 |
 
-### 配对码流程
+### 配对码
 
-```
-1. iOS 生成配对码 → POST /api/pairings
-2. Web 前端输入配对码 → GET /api/pairings/:code
-3. iOS 确认配对 → POST /api/pairings/:code/claim
-4. 双方建立 WebSocket 连接 → /ws/phone
-```
+- **格式**：6-8 位大写字母
+- **有效期**：1 小时（60 分钟）
+- **轮询间隔**：7 秒，超时 5 分钟
 
 ---
 

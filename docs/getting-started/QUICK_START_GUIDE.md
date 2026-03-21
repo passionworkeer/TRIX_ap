@@ -1,33 +1,28 @@
 # 🚀 TRIX 三端联通 - 快速启动指南
 
-## ⚡ 30 秒快速启动
+> **最后更新**: 2026-03-21（精简 CLI 命令，移除过时内容）
+
+---
 
 ### 第 1 步：启动 TRIX Native Server（10 秒）
 
+TRIX Native Server 已部署在生产环境（`https://trix.love`），Desktop 端通过 OpenClaw Gateway 自动连接，无需手动启动服务器。
+
+如需本地开发：
+
 ```bash
-# 方式 1: 使用 CLI 启动
 cd packages/trix-openclaw-native
-npm run cli -- server start --port 8788
-
-# 方式 2: 使用 OpenClaw 插件
-openclaw trix setup
-```
-
-服务器启动后会显示：
-```
-✅ TRIX Native Server 已启动
-📡 服务器: http://localhost:8788
+npx ts-node src/server/TrixNativeServer.ts
 ```
 
 ### 第 2 步：生成配对码（5 秒）
 
-在 OpenClaw 中：
-```
-# 登录 trix-native channel 并生成配对码
-openclaw channels login --channel trix-native --account default --verbose
-```
+在 Desktop 端使用 Float 窗口配对（Desktop 自动连接 Gateway）：
 
-会显示配对二维码和 URL。
+```
+# Desktop Float 窗口 → 点击"配对"按钮
+# 会自动生成配对码并显示 QR
+```
 
 ### 第 3 步：App 配对（15 秒）
 
@@ -39,6 +34,8 @@ openclaw channels login --channel trix-native --account default --verbose
 5. 点击确认配对
 6. ✅ 配对成功！
 ```
+
+完整配对说明见 [docs/guides/PAIRING.md](../guides/PAIRING.md)。
 
 ---
 

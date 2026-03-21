@@ -22,8 +22,8 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
 
   // Get user's friends
   const { data: friendships, error: friendError } = await supabase
-    .from('friendships')
-    .select('friend_id, users!friendships_friend_id_fkey(id, username, avatar_url, status)')
+    .from('friends')
+    .select('friend_id, profiles!friends_friend_id_fkey(id, username, avatar_url, status)')
     .eq('user_id', user.id)
     .eq('status', 'accepted');
 
