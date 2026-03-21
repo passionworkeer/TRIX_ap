@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 文档索引
 
-> **最后更新**: 2026-03-21
+> **最后更新**: 2026-03-22
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -60,6 +60,9 @@ docs/
 │   ├── SSH-SETUP.md              # SSH 配置
 │   └── SERVER_GUIDE.md            # 服务器运维
 │
+├── 📷 截图资产 (screenshots/)
+│   └── *.png                     # 工作区截图 · 标准存放目录
+│
 └── 🗂️ 归档 (.archive/)
     └── (历史文档，已废弃)
 ```
@@ -100,6 +103,12 @@ docs/
 | [API_DOCUMENTATION.md](./api/API_DOCUMENTATION.md) | API 文档 |
 | [CHANGELOG.md](./CHANGELOG.md) | 开发日志和架构决策 |
 | [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
+
+### 📷 截图资产
+
+| 目录 | 描述 |
+|------|------|
+| [screenshots/](./screenshots/) | 工作区截图标准存放目录 · 散乱 PNG 已归档于此 |
 
 ---
 
@@ -155,8 +164,8 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 📖 操作指南 (guides/) | 5（含 iOS 测试部署指南） |
 | 🗂️ 归档 (.archive/) | 1 |
 
-**总计**: 30 个活跃文档（归档 1 个）
+**总计**: 30 个活跃文档（归档 1 个） + screenshots/（截图资产目录）
 
 ---
 
-**最后更新**: 2026-03-21
+**最后更新**: 2026-03-22

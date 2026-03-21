@@ -4,6 +4,32 @@
 
 ---
 
+## 📅 2026-03-22 - 工作区清理
+
+### 完成内容
+
+1. **PNG 截图归档**：
+   - 根目录 10 张散乱 PNG 整理 → `docs/screenshots/`
+   - `desktop/` 目录 4 张散乱 PNG → `docs/screenshots/`
+   - 删除中间变体（`map-test*.png`、`home-fixed.png`）5 张
+   - 保留最终版（`home-new.png`、`map-full.png`、`map-fixed.png` 等）9 张
+
+2. **测试脚本归档**：
+   - 根目录 6 个 ad-hoc `.cjs` 脚本 → `scripts/`
+   - 涉及：home-test、map-test、test-cdp、test-electron、test-map
+
+3. **文档同步**：
+   - `docs/INDEX.md` 新增 `screenshots/` 目录结构说明
+   - 新增"截图资产"导航章节
+
+### 变更文件
+
+- `docs/INDEX.md` — 新增截图资产章节
+- `docs/screenshots/` — 新增目录（含 9 张 PNG）
+- `scripts/` — 新增目录（含 6 个 .cjs 脚本）
+
+---
+
 ## 📅 2026-03-21（深夜）- 最终全面验证修复
 
 ### 完成内容
