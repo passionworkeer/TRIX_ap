@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import {
-  Home,
   MessageSquare,
   BookOpen,
   Camera,
-  Map,
   User,
   LayoutDashboard,
   Bot,
   MessageCircle,
-  Zap,
   FolderOpen,
   Settings,
   ChevronLeft,
@@ -17,8 +14,9 @@ import {
 } from 'lucide-react';
 
 export type SidebarRoute =
-  | 'home' | 'chat' | 'study' | 'snapshot' | 'map' | 'profile'
-  | 'dashboard' | 'agents' | 'channels' | 'skills' | 'backups' | 'settings';
+  | 'chat' | 'study' | 'snapshot' | 'profile'
+  | 'dashboard' | 'agents' | 'channels' | 'backups' | 'settings'
+  | 'skills';
 
 interface NavItem {
   id: SidebarRoute;
@@ -26,22 +24,21 @@ interface NavItem {
   label: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: 'home', icon: Home, label: '首页' },
+// Lumina light pages (study-style pages)
+const LUMINA_ITEMS: NavItem[] = [
   { id: 'chat', icon: MessageSquare, label: '聊天' },
   { id: 'study', icon: BookOpen, label: '学习' },
-  { id: 'snapshot', icon: Camera, label: '拍照' },
-  { id: 'map', icon: Map, label: '地图' },
-  { id: 'profile', icon: User, label: '我的' },
+  { id: 'snapshot', icon: Camera, label: '快照' },
+  { id: 'profile', icon: User, label: '个人资料' },
 ];
 
+// Noir dark management pages
 const MANAGEMENT_ITEMS: NavItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: '控制台' },
-  { id: 'agents', icon: Bot, label: 'Agent 管理' },
+  { id: 'agents', icon: Bot, label: '智能体' },
   { id: 'channels', icon: MessageCircle, label: '渠道配置' },
-  { id: 'skills', icon: Zap, label: 'Skill 管理' },
-  { id: 'backups', icon: FolderOpen, label: '配置备份' },
-  { id: 'settings', icon: Settings, label: '桌面设置' },
+  { id: 'backups', icon: FolderOpen, label: '数据备份' },
+  { id: 'settings', icon: Settings, label: '系统设置' },
 ];
 
 const COLLAPSED_WIDTH = 56;
@@ -63,7 +60,7 @@ interface NavButtonProps {
 
 const NavButton = (props: NavButtonProps) => {
   const { item, active, collapsed, onClick } = props;
-  const Icon = item.icon;
+  const Icon = item.icon as React.ComponentType<{ size?: number }>;
 
   return (
     <button
@@ -119,7 +116,9 @@ const NavButton = (props: NavButtonProps) => {
         />
       )}
 
-      <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+      <span style={{ display: 'inline-flex', flexShrink: 0 }}>
+        <Icon size={18} />
+      </span>
       {!collapsed && <span>{item.label}</span>}
     </button>
   );
@@ -214,11 +213,11 @@ export const LuminaSidebar = (props: SidebarProps) => {
               fontFamily: 'system-ui, -apple-system, sans-serif',
             }}
           >
-            导航
+            功能
           </p>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {NAV_ITEMS.map((item) => (
+          {LUMINA_ITEMS.map((item) => (
             <NavButton
               key={item.id}
               item={item}

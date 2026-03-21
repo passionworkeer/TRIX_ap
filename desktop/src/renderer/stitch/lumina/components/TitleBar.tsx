@@ -1,5 +1,4 @@
 import React from 'react';
-import { cn } from '../../shared/cn';
 
 interface LuminaTitleBarProps {
   children?: React.ReactNode;

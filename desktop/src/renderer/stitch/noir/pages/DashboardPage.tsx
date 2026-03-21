@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Zap, Activity, Server, Bot, Cpu, HardDrive,
-  RefreshCw, Play, Square, Stethoscope, Terminal,
-  CheckCircle, AlertCircle, XCircle, Globe,
+  RefreshCw, Play, Square, Stethoscope, Globe,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -61,7 +60,7 @@ const MetricCard = ({
   value,
   sub,
 }: {
-  icon: React.ElementType;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
   iconColor: string;
   label: string;
   value: string;
@@ -126,7 +125,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [logStatus, setLogStatus] = useState<StatusType>('idle');
+  const [, setLogStatus] = useState<StatusType>('idle');
 
   const addLog = (entry: LogEntry) =>
     setLogEntries((prev) => [...prev.slice(-99), entry]);

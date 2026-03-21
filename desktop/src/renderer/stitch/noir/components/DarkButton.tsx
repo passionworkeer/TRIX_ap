@@ -2,7 +2,8 @@ import React from 'react';
 import { cn } from '../../shared/cn';
 
 interface DarkButtonProps {
-  children: React.ReactNode;
+  label: string;
+  icon?: React.ReactNode;
   onClick?: () => void;
   variant?: 'ghost' | 'outline' | 'primary' | 'danger';
   size?: 'sm' | 'md' | 'lg';
@@ -47,7 +48,8 @@ const sizeStyles = {
 };
 
 export const DarkButton = ({
-  children,
+  label,
+  icon,
   onClick,
   variant = 'ghost',
   size = 'md',
@@ -103,7 +105,8 @@ export const DarkButton = ({
           }}
         />
       )}
-      {children}
+      {icon && <span style={{ display: 'inline-flex', flexShrink: 0 }}>{icon}</span>}
+      <span>{label}</span>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </button>
   );

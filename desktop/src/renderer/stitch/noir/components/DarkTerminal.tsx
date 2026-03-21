@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { cn } from '../../shared/cn';
 
-interface LogEntry {
+export interface LogEntry {
   id: number;
   type: 'info' | 'success' | 'error' | 'warning' | 'command' | 'output';
   text: string;

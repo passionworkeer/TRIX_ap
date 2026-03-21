@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Bot, RefreshCw, Terminal, Plus, Minus, ChevronRight,
-  Zap, Globe, Shield, Cpu, MessageSquare,
+  Bot, RefreshCw, Terminal,
+  Zap, Cpu, ChevronRight,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -59,8 +59,8 @@ const AGENT_COLORS = [
 
 type DetailTab = 'info' | 'capabilities' | 'tools';
 
-const AgentAvatar = ({ name, index }: { name: string; index: number }) => {
-  const color = AGENT_COLORS[index % AGENT_COLORS.length];
+const AgentAvatar = ({ index }: { index: number }) => {
+  const color = AGENT_COLORS[index % AGENT_COLORS.length]!;
   return (
     <div
       style={{
@@ -89,7 +89,7 @@ const TabButton = ({
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
 }) => (
   <button
     onClick={onClick}
@@ -146,7 +146,6 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
-  const [cmdLoading, setCmdLoading] = useState(false);
 
   const addLog = (entry: LogEntry) =>
     setLogEntries((prev) => [...prev.slice(-99), entry]);
@@ -161,7 +160,7 @@ export default function AgentsPage() {
       const parsed = parseAgentsOutput(output);
       setAgents(parsed);
       if (parsed.length > 0 && !selectedAgent) {
-        setSelectedAgent(parsed[0]);
+        setSelectedAgent(parsed[0]!);
       }
       if (parsed.length === 0) {
         addLog(createLogEntry('warning', '未检测到 Agent，请先安装 OpenClaw'));
@@ -178,24 +177,6 @@ export default function AgentsPage() {
   useEffect(() => {
     loadAgents();
   }, [loadAgents]);
-
-  const runCommand = async (cmd: string, label: string) => {
-    const api = window.electronAPI;
-    if (!api) return;
-    setCmdLoading(true);
-    addLog(createLogEntry('command', `$ ${cmd}`));
-    try {
-      const result: CommandResult = await api.runOpenClawCommand(cmd);
-      const output = result.stdout || result.stderr || result.error || '无输出';
-      output.split('\n').forEach((line) => {
-        if (line.trim()) addLog(createLogEntry(result.success ? 'output' : 'error', line));
-      });
-      addLog(createLogEntry(result.success ? 'success' : 'error', label));
-    } catch (err) {
-      addLog(createLogEntry('error', `执行失败: ${String(err)}`));
-    }
-    setCmdLoading(false);
-  };
 
   return (
     <div
@@ -296,7 +277,7 @@ export default function AgentsPage() {
                     if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.02)';
                   }}
                 >
-                  <AgentAvatar name={agent.name} index={i} />
+                  <AgentAvatar index={i} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
@@ -336,10 +317,7 @@ export default function AgentsPage() {
               <DarkCard elevation="low" style={{ padding: '16px 18px' }}>
                 {/* Agent header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <AgentAvatar
-                    name={selectedAgent.name}
-                    index={agents.indexOf(selectedAgent)}
-                  />
+                  <AgentAvatar index={agents.indexOf(selectedAgent)} />
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: '#e5e2e1' }}>
                       {selectedAgent.name}

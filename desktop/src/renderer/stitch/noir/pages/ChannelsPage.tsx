@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   MessageCircle, Send, Users, MessageSquare, Phone,
-  Building2, Plus, Settings2, RefreshCw, Check, X,
-  Wifi, WifiOff, AlertCircle, Copy,
+  Building2, Plus, Settings2,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -114,7 +113,7 @@ const ChannelCard = ({
   selected: boolean;
   onClick: () => void;
 }) => {
-  const Icon = channel.icon;
+  const Icon = channel.icon as React.ComponentType<{ size?: number; color?: string }>;
   return (
     <button
       onClick={onClick}
@@ -180,7 +179,7 @@ const ChannelCard = ({
 
 export default function ChannelsPage() {
   const [channels, setChannels] = useState<Channel[]>(CHANNELS);
-  const [selectedChannel, setSelectedChannel] = useState<Channel>(CHANNELS[0]);
+  const [selectedChannel, setSelectedChannel] = useState<Channel>(CHANNELS[0]!);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
 
   const addLog = (entry: LogEntry) =>
@@ -292,7 +291,7 @@ export default function ChannelsPage() {
           <DarkCard elevation="low" style={{ padding: '16px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               {(() => {
-                const Icon = selectedChannel.icon;
+                const Icon = selectedChannel.icon as React.ComponentType<{ size?: number; color?: string }>;
                 return (
                   <div
                     style={{

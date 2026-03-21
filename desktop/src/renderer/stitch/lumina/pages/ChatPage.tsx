@@ -4,7 +4,6 @@ import {
   Star, MoreVertical, Plus, Bot, User, Loader2,
 } from 'lucide-react';
 import { LuminaButton } from '../components/buttons';
-import { SurfaceCard } from '../components/cards';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
