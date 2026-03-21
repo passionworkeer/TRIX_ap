@@ -6,7 +6,7 @@ interface LuminaTitleBarProps {
 
 export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
   const handleMinimize = () => window.electronAPI?.minimizeToTray();
-  const handleClose = () => window.electronAPI?.minimizeToTray();
+  const handleClose = () => window.electronAPI?.hideMainWindow();
 
   return (
     <div

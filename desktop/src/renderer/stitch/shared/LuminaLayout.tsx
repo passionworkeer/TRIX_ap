@@ -48,13 +48,7 @@ const DARK_ROUTES: DesktopRoute[] = [
   'skills',
 ];
 
-// Lumina light routes — content area bg: #f7f9fb
-const LIGHT_ROUTES: DesktopRoute[] = [
-  'chat',
-  'study',
-  'snapshot',
-  'profile',
-];
+// Lumina light routes — anything not in DARK_ROUTES gets #f7f9fb background
 
 interface LuminaLayoutProps {
   initialRoute?: DesktopRoute;

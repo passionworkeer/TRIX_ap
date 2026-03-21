@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Settings, Monitor, Bot, Zap, FolderOpen, Link, Server,
-  Info, CheckCircle, XCircle, RefreshCw, Download, Copy,
+  Bot, Zap, FolderOpen, Link, Server,
+  Info, CheckCircle, XCircle, RefreshCw,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -112,7 +112,7 @@ const TabButton = ({
   onClick: () => void;
 }) => {
   const cfg = TAB_LABELS[tab];
-  const Icon = cfg.icon;
+  const Icon = cfg.icon as React.ComponentType<{ size?: number }>;
   return (
     <button
       onClick={onClick}

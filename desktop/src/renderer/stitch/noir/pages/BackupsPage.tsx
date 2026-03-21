@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Calendar, Filter, Trash2, Terminal, Copy, ExternalLink,
   ChevronDown, RefreshCw, CheckCircle, XCircle, Info,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
+import { DarkButton } from '../components/DarkButton';
+import { DarkTerminal, createLogEntry, type LogEntry } from '../components/DarkTerminal';
 
 interface BackupEntry {
   id: string;
@@ -13,7 +15,14 @@ interface BackupEntry {
   status: 'success' | 'failed' | 'restoring';
 }
 
-const BACKUP_HISTORY: BackupEntry[] = [
+interface CommandResult {
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  error?: string;
+}
+
+const MOCK_BACKUPS: BackupEntry[] = [
   { id: 'BK_001', date: '2024-05-24 14:22', description: '系统自动快照 (v2.4.1)', size: '1.2 GB', status: 'success' },
   { id: 'BK_002', date: '2024-05-23 23:30', description: '例行每日备份', size: '1.1 GB', status: 'success' },
   { id: 'BK_003', date: '2024-05-22 23:30', description: '例行每日备份', size: '1.1 GB', status: 'failed' },
@@ -27,12 +36,40 @@ const STORAGE_ITEMS = [
   { label: '系统配置', size: '2.3 GB', color: '#919191' },
 ];
 
+function parseBackupsOutput(output: string): BackupEntry[] {
+  const lines = output.split('\n').filter((l) => l.trim());
+  if (lines.length === 0) return MOCK_BACKUPS;
+  // Try JSON parse first
+  try {
+    const parsed = JSON.parse(output);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through to line parsing
+  }
+  // Line-based fallback
+  return lines
+    .map((line) => {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 3) {
+        return {
+          id: parts[0] ?? `BK_${Date.now()}`,
+          date: parts[1] ?? '',
+          description: parts.slice(2).join(' '),
+          size: '—',
+          status: line.toLowerCase().includes('fail') ? 'failed' : 'success',
+        } as BackupEntry;
+      }
+      return null;
+    })
+    .filter(Boolean) as BackupEntry[];
+}
+
 const StatusBadge = ({ status }: { status: BackupEntry['status'] }) => {
   const cfg = {
     success: { bg: 'rgba(74,222,128,0.1)', color: '#4ade80', label: '成功' },
     failed: { bg: 'rgba(255,107,107,0.1)', color: '#ff6b6b', label: '失败' },
     restoring: { bg: 'rgba(251,191,36,0.1)', color: '#fbbf24', label: '恢复中' },
-  }[status];
+  }[status]!;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
@@ -52,21 +89,100 @@ export default function BackupsPage() {
   const [autoBackup, setAutoBackup] = useState(true);
   const [backupFreq, setBackupFreq] = useState('每天一次');
   const [retention, setRetention] = useState('保留最近 30 个版本');
-  const [running, setRunning] = useState(false);
+  const [backups, setBackups] = useState<BackupEntry[]>(MOCK_BACKUPS);
+  const [loading, setLoading] = useState(false);
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
 
-  const usedPct = 42;
+  const addLog = (entry: LogEntry) =>
+    setLogEntries((prev) => [...prev.slice(-99), entry]);
+
+  const loadBackups = async () => {
+    const api = window.electronAPI;
+    setLoading(true);
+    addLog(createLogEntry('info', '正在加载备份列表...'));
+    try {
+      if (api) {
+        const result: CommandResult = await api.listBackups();
+        if (result.success && result.stdout) {
+          const parsed = parseBackupsOutput(result.stdout);
+          setBackups(parsed.length > 0 ? parsed : MOCK_BACKUPS);
+          addLog(createLogEntry('success', `已加载 ${parsed.length || MOCK_BACKUPS.length} 条备份记录`));
+        } else {
+          setBackups(MOCK_BACKUPS);
+          addLog(createLogEntry('warning', '无法获取真实备份，使用演示数据'));
+        }
+      } else {
+        setBackups(MOCK_BACKUPS);
+        addLog(createLogEntry('warning', '桌面 API 不可用，显示演示数据'));
+      }
+    } catch (err) {
+      setBackups(MOCK_BACKUPS);
+      addLog(createLogEntry('error', `加载失败: ${String(err)}`));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBackups();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleBackupNow = async () => {
-    setRunning(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setRunning(false);
+    const api = window.electronAPI;
+    if (!api) return;
+    setLoading(true);
+    addLog(createLogEntry('command', '$ backup create'));
+    try {
+      const result: CommandResult = await api.runOpenClawCommand('backup create');
+      const output = result.stdout || result.stderr || result.error || '';
+      if (result.success) {
+        addLog(createLogEntry('success', '备份创建成功'));
+        (output.split('\n') || []).forEach((l) => { if (l.trim()) addLog(createLogEntry('output', l)); });
+        await loadBackups();
+      } else {
+        addLog(createLogEntry('error', `备份失败: ${output || '未知错误'}`));
+      }
+    } catch (err) {
+      addLog(createLogEntry('error', `执行失败: ${String(err)}`));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    const api = window.electronAPI;
+    setRunningId(id);
+    addLog(createLogEntry('command', `$ backup restore ${id}`));
+    setBackups((prev) =>
+      prev.map((b) => b.id === id ? { ...b, status: 'restoring' } : b)
+    );
+    try {
+      if (api) {
+        const result: CommandResult = await api.restoreBackup(id);
+        if (result.success) {
+          addLog(createLogEntry('success', `备份 ${id} 还原成功`));
+        } else {
+          addLog(createLogEntry('error', `还原失败: ${result.stderr || result.error}`));
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 2000));
+        addLog(createLogEntry('success', `[演示] 备份 ${id} 还原完成`));
+      }
+    } catch (err) {
+      addLog(createLogEntry('error', `还原失败: ${String(err)}`));
+    } finally {
+      setRunningId(null);
+      await loadBackups();
+    }
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#131313', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ padding: '32px 48px 48px', maxWidth: 1100 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#131313', fontFamily: 'system-ui, sans-serif', overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px 16px' }}>
         {/* Editorial Header */}
-        <div style={{ marginBottom: 40 }}>
+        <div style={{ marginBottom: 28 }}>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: '#630ed4', marginBottom: 4, display: 'block' }}>
             Data Continuity
           </span>
@@ -79,7 +195,7 @@ export default function BackupsPage() {
         </div>
 
         {/* Grid: auto backup + storage */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, marginBottom: 16 }}>
           {/* Auto Backup Settings */}
           <DarkCard elevation="low" style={{ padding: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
@@ -89,7 +205,6 @@ export default function BackupsPage() {
                 </div>
                 <span style={{ fontSize: 15, fontWeight: 600, color: '#e5e2e1' }}>自动备份设置</span>
               </div>
-              {/* Toggle */}
               <button
                 onClick={() => setAutoBackup(!autoBackup)}
                 style={{
@@ -141,7 +256,6 @@ export default function BackupsPage() {
               </div>
             </div>
 
-            {/* Next backup info */}
             <div style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 20, background: 'rgba(99,14,212,0.08)', border: '1px solid rgba(99,14,212,0.2)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <Info size={14} color="#630ed4" style={{ marginTop: 1, flexShrink: 0 }} />
               <div>
@@ -151,16 +265,21 @@ export default function BackupsPage() {
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
+              <DarkButton
+                label={loading ? '备份中...' : '立即备份'}
+                icon={<Calendar size={13} />}
                 onClick={handleBackupNow}
-                disabled={running}
-                style={{ padding: '10px 20px', borderRadius: 10, background: 'linear-gradient(135deg, #630ed4, #7c3aed)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: running ? 'wait' : 'pointer', fontFamily: 'system-ui', boxShadow: '0 4px 16px rgba(99,14,212,0.25)', opacity: running ? 0.7 : 1 }}
-              >
-                {running ? '备份中...' : '立即备份'}
-              </button>
-              <button style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', color: '#e5e2e1', fontSize: 13, fontWeight: 600, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', fontFamily: 'system-ui' }}>
-                修改路径
-              </button>
+                variant="primary"
+                size="md"
+                disabled={loading}
+                loading={loading}
+              />
+              <DarkButton
+                label="修改路径"
+                onClick={() => addLog(createLogEntry('info', '路径配置功能开发中'))}
+                variant="outline"
+                size="md"
+              />
             </div>
           </DarkCard>
 
@@ -173,7 +292,7 @@ export default function BackupsPage() {
                   <span style={{ fontSize: 22, fontWeight: 700, color: '#e5e2e1' }}>42.8 GB</span>
                   <span style={{ fontSize: 12, color: '#919191', marginLeft: 4 }}>/ 100 GB</span>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#630ed4' }}>{usedPct}%</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#630ed4' }}>42%</span>
               </div>
               <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: '42%', borderRadius: 5, background: 'linear-gradient(90deg, #630ed4, #7c3aed)', transition: 'width 0.5s ease' }} />
@@ -200,13 +319,23 @@ export default function BackupsPage() {
         </div>
 
         {/* Backup History Table */}
-        <DarkCard elevation="low" style={{ padding: 0, marginBottom: 24, overflow: 'hidden' }}>
+        <DarkCard elevation="low" style={{ padding: 0, marginBottom: 16, overflow: 'hidden' }}>
           <div style={{ padding: '18px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#e5e2e1', margin: 0 }}>备份历史记录</h3>
-            <button style={{ fontSize: 11, fontWeight: 600, color: '#630ed4', background: 'rgba(99,14,212,0.08)', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'system-ui' }}>
-              <Filter size={12} />
-              筛选结果
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <DarkButton
+                label="刷新"
+                icon={<RefreshCw size={13} />}
+                onClick={loadBackups}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+              />
+              <button style={{ fontSize: 11, fontWeight: 600, color: '#630ed4', background: 'rgba(99,14,212,0.08)', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'system-ui' }}>
+                <Filter size={12} />
+                筛选结果
+              </button>
+            </div>
           </div>
 
           <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
@@ -218,7 +347,7 @@ export default function BackupsPage() {
               </tr>
             </thead>
             <tbody>
-              {BACKUP_HISTORY.map((entry) => (
+              {backups.map((entry) => (
                 <tr key={entry.id} style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -228,8 +357,12 @@ export default function BackupsPage() {
                   <td style={{ padding: '16px 28px', fontSize: 13, color: '#919191', fontFamily: "'JetBrains Mono', monospace" }}>{entry.size}</td>
                   <td style={{ padding: '16px 28px' }}><StatusBadge status={entry.status} /></td>
                   <td style={{ padding: '16px 28px', textAlign: 'right' }}>
-                    <button style={{ fontSize: 12, fontWeight: 600, color: entry.status === 'failed' ? '#919191' : '#630ed4', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'system-ui' }}>
-                      {entry.status === 'failed' ? '重试' : '还原'}
+                    <button
+                      onClick={() => handleRestore(entry.id)}
+                      disabled={runningId === entry.id || entry.status === 'failed'}
+                      style={{ fontSize: 12, fontWeight: 600, color: entry.status === 'failed' ? '#919191' : '#630ed4', background: 'none', border: 'none', cursor: entry.status === 'failed' ? 'default' : 'pointer', fontFamily: 'system-ui', opacity: runningId === entry.id ? 0.6 : 1 }}
+                    >
+                      {runningId === entry.id ? '还原中...' : entry.status === 'failed' ? '重试' : '还原'}
                     </button>
                   </td>
                 </tr>
@@ -261,7 +394,10 @@ export default function BackupsPage() {
               <div key={item.label} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: '14px 16px', border: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 11, color: '#919191' }}>{item.label}</span>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#919191' }}>
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(item.cmd); addLog(createLogEntry('info', `已复制: ${item.cmd}`)); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#919191' }}
+                  >
                     <Copy size={12} />
                   </button>
                 </div>
@@ -281,6 +417,11 @@ export default function BackupsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Terminal log */}
+      <div style={{ height: 180, padding: '0 48px 24px', flexShrink: 0 }}>
+        <DarkTerminal entries={logEntries} autoScroll maxEntries={200} />
       </div>
     </div>
   );

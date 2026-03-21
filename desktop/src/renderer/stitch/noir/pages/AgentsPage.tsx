@@ -38,7 +38,7 @@ function parseAgentsOutput(output: string): Agent[] {
       if (parts.length >= 1) {
         return {
           id: String(i),
-          name: parts[0].replace(/^[*\-+•]/, ''),
+          name: parts[0]!.replace(/^[*\-+•]/, ''),
           model: parts[1] || 'Unknown',
           status: line.toLowerCase().includes('running') ? 'running' : 'stopped',
         };
