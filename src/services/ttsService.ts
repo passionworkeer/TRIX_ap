@@ -1,4 +1,5 @@
 import { getClawbotEndpoints } from '../config/clawbotEndpoints';
+import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
 
 export type TtsScene = 'welcome' | 'status' | 'bot_reply';
@@ -88,11 +89,17 @@ async function requestSynthesizeAtBaseUrl(
   body: TtsRequestBody,
   signal?: AbortSignal
 ): Promise<Blob> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (session?.access_token) {
+    headers.authorization = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${baseUrl}/api/tts/synthesize`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(body),
     signal,
   });

@@ -7,6 +7,8 @@ const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 const RECONNECT_DELAY_MS = 3000;
 const KEEPALIVE_PING_INTERVAL_MS = 25_000;
 const activeMonitors = new Map<string, boolean>();
+const INBOUND_ACK_TTL_MS = 30 * 60 * 1000;
+const MAX_TRACKED_INBOUND_MESSAGES = 2048;
 
 type TrixDmPolicy = 'pairing' | 'allowlist' | 'open' | 'disabled';
 
@@ -199,6 +201,52 @@ export async function monitorTrixProvider(opts: {
 
   let stopped = false;
   let currentSocket: WebSocket | null = null;
+  const inboundDeliveryState = new Map<string, { status: 'processing' | 'done'; updatedAt: number }>();
+
+  const pruneInboundDeliveryState = () => {
+    const now = Date.now();
+    for (const [messageKey, entry] of inboundDeliveryState.entries()) {
+      if (entry.status === 'done' && now - entry.updatedAt > INBOUND_ACK_TTL_MS) {
+        inboundDeliveryState.delete(messageKey);
+      }
+    }
+
+    if (inboundDeliveryState.size <= MAX_TRACKED_INBOUND_MESSAGES) {
+      return;
+    }
+
+    const entries = [...inboundDeliveryState.entries()].sort((left, right) => left[1].updatedAt - right[1].updatedAt);
+    for (const [messageKey] of entries) {
+      inboundDeliveryState.delete(messageKey);
+      if (inboundDeliveryState.size <= MAX_TRACKED_INBOUND_MESSAGES) {
+        break;
+      }
+    }
+  };
+
+  const markInboundDeliveryState = (messageKey: string, status: 'processing' | 'done') => {
+    inboundDeliveryState.set(messageKey, { status, updatedAt: Date.now() });
+    pruneInboundDeliveryState();
+  };
+
+  const clearInboundDeliveryState = (messageKey: string) => {
+    inboundDeliveryState.delete(messageKey);
+  };
+
+  const sendServiceAck = (messageId: string) => {
+    const ackSocket = currentSocket;
+    if (!ackSocket || ackSocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    ackSocket.send(JSON.stringify({
+      type: 'message.ack',
+      payload: {
+        accountId: account.accountId,
+        messageId,
+      },
+    }));
+  };
 
   opts.abortSignal?.addEventListener('abort', () => {
     stopped = true;
@@ -261,11 +309,30 @@ export async function monitorTrixProvider(opts: {
         return;
       }
 
+      let inboundMessageKey: string | null = null;
       try {
         const normalized = normalizeInboundEvent(JSON.parse(String(data)));
         if (!normalized) {
           return;
         }
+        const normalizedMessageId = normalized.message.id;
+        if (!normalizedMessageId) {
+          throw new Error('Inbound trix-native message missing id');
+        }
+        inboundMessageKey = `${account.accountId}:${normalizedMessageId}`;
+        const inboundDelivery = inboundDeliveryState.get(inboundMessageKey);
+        if (inboundDelivery?.status === 'done') {
+          sendServiceAck(normalizedMessageId);
+          return;
+        }
+        if (inboundDelivery?.status === 'processing') {
+          console.info('[trix-native] duplicate inbound replay ignored while processing', {
+            conversationId: normalized.conversationId,
+            messageId: normalized.message.id,
+          });
+          return;
+        }
+        markInboundDeliveryState(inboundMessageKey, 'processing');
 
         console.info('[trix-native] inbound message', {
           conversationId: normalized.conversationId,
@@ -407,6 +474,8 @@ export async function monitorTrixProvider(opts: {
           onRecordError: () => undefined,
         });
 
+        let inboundReplyAcknowledged = false;
+
         await runtime.reply.dispatchReplyWithBufferedBlockDispatcher({
           ctx: ctxPayload,
           cfg: opts.config,
@@ -424,6 +493,11 @@ export async function monitorTrixProvider(opts: {
                 lastOutboundAt: Date.now(),
                 lastError: null,
               });
+              if (!inboundReplyAcknowledged) {
+                inboundReplyAcknowledged = true;
+                markInboundDeliveryState(inboundMessageKey!, 'done');
+                sendServiceAck(normalizedMessageId);
+              }
             },
             onError: (error: unknown) => {
               const message = error instanceof Error ? error.message : String(error);
@@ -448,6 +522,9 @@ export async function monitorTrixProvider(opts: {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error('[trix-native] inbound processing failed', error);
+        if (inboundMessageKey) {
+          clearInboundDeliveryState(inboundMessageKey);
+        }
         opts.statusSink?.({
           accountId: account.accountId,
           lastError: `Failed to process inbound trix-native event: ${message}`,

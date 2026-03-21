@@ -17,7 +17,7 @@ const IDLE_GREETING_DELAY_MS = 30000;
 const MAX_HISTORY_MESSAGES = 3;
 
 const TypingIndicator: React.FC = () => (
-  <div className="flex items-center gap-1 py-0.5" aria-label="Bot is thinking">
+  <div className="flex items-center gap-1 py-0.5" aria-label="Bot is thinking" data-testid="home-bot-typing-indicator">
     {[0, 1, 2].map((index) => (
       <span
         key={index}
@@ -210,7 +210,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
   }, [botState, defaultGreeting, isFreshLaunch, latestBotMessage?.content, showDefaultGreeting]);
 
   return (
-    <div className="fixed top-[15%] right-[5%] z-50">
+    <div className="fixed top-[15%] right-[5%] z-50" data-testid="home-bot-bubble" data-bot-state={botState}>
       <AnimatePresence mode="wait">
         {isExpanded ? (
           // 展开模式：对话窗口
@@ -344,6 +344,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
             type="button"
             className="cursor-pointer border-0 bg-transparent p-0 text-left"
             onClick={toggleExpanded}
+            data-testid="home-bot-collapsed-trigger"
             aria-label={t('homeBotBubble.openTrixBot')}
             initial={{ opacity: 0, y: 12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: iosQuickSpring }}

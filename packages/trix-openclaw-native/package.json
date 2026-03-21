@@ -39,6 +39,7 @@
   "author": "TRIX Team",
   "license": "MIT",
   "dependencies": {
+    "node-edge-tts": "^1.2.10",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "ws": "^8.19.0"

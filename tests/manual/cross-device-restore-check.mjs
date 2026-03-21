@@ -36,7 +36,7 @@ async function login(page) {
   await page.locator('input[type="email"], #email-input').first().fill(email);
   await page.locator('input[type="password"], #password-input').first().fill(password);
   await page.getByRole('button', { name: /登录|login/i }).first().click();
-  await page.waitForURL(/#\/$/, { timeout: 30000 });
+  await page.waitForFunction(() => window.location.hash !== '#/login', { timeout: 30000 });
   await page.waitForTimeout(3000);
 }
 

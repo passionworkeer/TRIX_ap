@@ -216,6 +216,14 @@ describe('TrixNativeServer', () => {
       socket.on('message', (raw) => {
         const event = JSON.parse(String(raw)) as { type?: string };
         if (event.type === 'message.created') {
+          const payload = event as { payload?: { message?: { id?: string } } };
+          socket.send(JSON.stringify({
+            type: 'message.ack',
+            payload: {
+              accountId: 'default',
+              messageId: payload.payload?.message?.id,
+            },
+          }));
           socket.close();
           resolve(event as Record<string, unknown>);
         }
@@ -249,6 +257,101 @@ describe('TrixNativeServer', () => {
     expect(serviceEvent.payload.message.attachments).toHaveLength(1);
     expect(serviceEvent.payload.message.attachments[0]?.id).toBe(uploadPayload.attachment.id);
     expect(serviceEvent.payload.message.attachments[0]?.servicePath).toBe(`/api/service/attachments/${uploadPayload.attachment.id}`);
+  });
+
+  it('replays pending inbound messages when the service websocket reconnects', async () => {
+    const server = createTestServer(8805);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8805/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Replay Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8805/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-replay-1',
+        deviceName: 'Replay Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const createMessageResponse = await fetch('http://127.0.0.1:8805/api/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: claim.clientToken,
+        text: 'replay me after reconnect',
+      }),
+    });
+    expect(createMessageResponse.status).toBe(201);
+    const createdMessage = await createMessageResponse.json() as { message: { id: string } };
+
+    const stateAfterCreate = await server.stateStore.read();
+    const pendingMessage = stateAfterCreate.messages.find((message) => message.id === createdMessage.message.id);
+    expect(pendingMessage?.metadata?.serviceDispatchPending).toBe(true);
+
+    const replayedEvent = await new Promise<{
+      payload: {
+        conversationId: string;
+        message: { id: string; text: string };
+      };
+    }>((resolve, reject) => {
+      const socket = new WebSocket('ws://127.0.0.1:8805/api/service/ws?accountId=default', {
+        headers: {
+          authorization: `Bearer ${state.serviceTokens.default}`,
+        },
+      });
+
+      socket.on('message', (raw) => {
+        const event = JSON.parse(String(raw)) as { type?: string };
+        if (event.type === 'message.created') {
+          const payload = event as { payload?: { message?: { id?: string } } };
+          socket.send(JSON.stringify({
+            type: 'message.ack',
+            payload: {
+              accountId: 'default',
+              messageId: payload.payload?.message?.id,
+            },
+          }));
+          socket.close();
+          resolve(event as {
+            payload: {
+              conversationId: string;
+              message: { id: string; text: string };
+            };
+          });
+        }
+      });
+
+      socket.once('error', reject);
+    });
+
+    expect(replayedEvent.payload.conversationId).toBe(claim.conversationId);
+    expect(replayedEvent.payload.message.id).toBe(createdMessage.message.id);
+    expect(replayedEvent.payload.message.text).toBe('replay me after reconnect');
+
+    let pendingState: boolean | undefined = true;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const stateAfterReplay = await server.stateStore.read();
+      pendingState = stateAfterReplay.messages.find((message) => message.id === createdMessage.message.id)?.metadata?.serviceDispatchPending as boolean | undefined;
+      if (pendingState === false) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(pendingState).toBe(false);
+    const stateAfterReplay = await server.stateStore.read();
+    const deliveredMessage = stateAfterReplay.messages.find((message) => message.id === createdMessage.message.id);
+    expect(typeof deliveredMessage?.metadata?.serviceDeliveredAt).toBe('number');
   });
 
   it('removes a claimed device session when the client unpairs', async () => {
@@ -492,6 +595,14 @@ describe('TrixNativeServer', () => {
       socket.on('message', (raw) => {
         const event = JSON.parse(String(raw)) as { type?: string };
         if (event.type === 'message.created') {
+          const payload = event as { payload?: { message?: { id?: string } } };
+          socket.send(JSON.stringify({
+            type: 'message.ack',
+            payload: {
+              accountId: 'default',
+              messageId: payload.payload?.message?.id,
+            },
+          }));
           socket.close();
           resolve(event as Record<string, unknown>);
         }
@@ -546,6 +657,71 @@ describe('TrixNativeServer', () => {
     }).then((response) => response.json()) as { messages: Array<{ text: string }> };
 
     expect(history.messages.map((message) => message.text)).toEqual(['hello from user', 'hello from bot']);
+  });
+
+  it('marks inbound service dispatch complete when a reply references replyToMessageId', async () => {
+    const server = createTestServer(8812);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8812/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Reply Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8812/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-reply-1',
+        deviceName: 'Reply Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const inboundResponse = await fetch('http://127.0.0.1:8812/api/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: claim.conversationId,
+        clientToken: claim.clientToken,
+        text: 'clear me on reply',
+      }),
+    });
+    expect(inboundResponse.status).toBe(201);
+    const inboundPayload = await inboundResponse.json() as { message: { id: string } };
+
+    const createdState = await server.stateStore.read();
+    const pendingInbound = createdState.messages.find((message) => message.id === inboundPayload.message.id);
+    expect(pendingInbound?.metadata?.serviceDispatchPending).toBe(true);
+
+    const replyResponse = await fetch('http://127.0.0.1:8812/api/service/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({
+        accountId: 'default',
+        conversationId: claim.conversationId,
+        message: {
+          idempotencyKey: 'reply-clears-pending',
+          text: 'reply delivered',
+          replyToMessageId: inboundPayload.message.id,
+        },
+      }),
+    });
+
+    expect(replyResponse.status).toBe(201);
+
+    const finalState = await server.stateStore.read();
+    const deliveredInbound = finalState.messages.find((message) => message.id === inboundPayload.message.id);
+    expect(deliveredInbound?.metadata?.serviceDispatchPending).toBe(false);
+    expect(typeof deliveredInbound?.metadata?.serviceDeliveredAt).toBe('number');
   });
 
   it('filters pairing inspection by account and strips sensitive claim state', async () => {
@@ -929,5 +1105,65 @@ describe('TrixNativeServer', () => {
 
     updatedState = await server.stateStore.read();
     expect(updatedState.conversations.find((entry) => entry.id === claim.conversationId)?.appUserId).toBe('user-a');
+  });
+
+  it('serves synthesized TTS audio for authenticated app users', async () => {
+    await createAuthStubServer(8893);
+
+    const server = createTestServer(8814, {
+      supabaseUrl: 'http://127.0.0.1:8893',
+      supabaseAnonKey: 'anon-key',
+      ttsSynthesizer: async ({ text, scene, messageId, userId }) => ({
+        buffer: Buffer.from(JSON.stringify({ text, scene, messageId, userId }), 'utf8'),
+        contentType: 'audio/mpeg',
+      }),
+    });
+    servers.push(server);
+    await server.start();
+
+    const response = await fetch('http://127.0.0.1:8814/api/tts/synthesize', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer valid-user-a',
+      },
+      body: JSON.stringify({
+        text: '你好，测试一下 TTS',
+        scene: 'bot_reply',
+        messageId: 'msg-tts-1',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('audio/mpeg');
+    const payload = JSON.parse(await response.text()) as { text: string; scene: string; messageId?: string; userId?: string };
+    expect(payload.text).toBe('你好，测试一下 TTS');
+    expect(payload.scene).toBe('bot_reply');
+    expect(payload.messageId).toBe('msg-tts-1');
+    expect(payload.userId).toBe('user-a');
+  });
+
+  it('rejects unauthenticated TTS synthesis requests', async () => {
+    const server = createTestServer(8815, {
+      ttsSynthesizer: async ({ text }) => ({
+        buffer: Buffer.from(text, 'utf8'),
+        contentType: 'audio/mpeg',
+      }),
+    });
+    servers.push(server);
+    await server.start();
+
+    const response = await fetch('http://127.0.0.1:8815/api/tts/synthesize', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: 'unauthorized',
+        scene: 'status',
+      }),
+    });
+
+    expect(response.status).toBe(401);
   });
 });

@@ -5,10 +5,25 @@ import { monitorTrixProvider } from '../src/monitor.js';
 
 async function createTestServer(
   onAttachmentRequest?: (request: http.IncomingMessage, response: http.ServerResponse) => void,
+  onServiceMessageRequest?: (request: http.IncomingMessage, body: string) => void,
 ) {
   const server = http.createServer((request, response) => {
     if (request.url === '/api/service/attachments/att_1' && onAttachmentRequest) {
       onAttachmentRequest(request, response);
+      return;
+    }
+    if (request.url === '/api/service/messages' && request.method === 'POST') {
+      const chunks = [] as Buffer[];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        onServiceMessageRequest?.(request, Buffer.concat(chunks).toString('utf8'));
+        response.writeHead(201, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({
+          message: {
+            id: 'msg_reply_1',
+          },
+        }));
+      });
       return;
     }
     response.writeHead(404);
@@ -39,9 +54,16 @@ describe('monitorTrixProvider', () => {
   });
 
   it('preserves raw slash command text for command routing', async () => {
-    const testServer = await createTestServer();
+    const serviceMessages: string[] = [];
+    const testServer = await createTestServer(undefined, (_request, body) => {
+      serviceMessages.push(body);
+    });
+    const acknowledgements: Array<{ type?: string; payload?: { messageId?: string; accountId?: string } }> = [];
     const connectionReady = new Promise<void>((resolve) => {
       testServer.wss.once('connection', (socket) => {
+        socket.on('message', (raw) => {
+          acknowledgements.push(JSON.parse(String(raw)) as { type?: string; payload?: { messageId?: string; accountId?: string } });
+        });
         socket.send(JSON.stringify({
           type: 'message.created',
           payload: {
@@ -62,7 +84,12 @@ describe('monitorTrixProvider', () => {
     });
 
     const finalizeInboundContext = vi.fn((ctx) => ctx);
-    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async ({ dispatcherOptions }: { dispatcherOptions: { deliver: (payload: Record<string, unknown>) => Promise<void> } }) => {
+      await dispatcherOptions.deliver({
+        text: 'Help reply',
+        replyToId: 'msg_1',
+      });
+    });
     const recordInboundSession = vi.fn(async () => undefined);
     const readAllowFromStore = vi.fn(async () => []);
     const shouldComputeCommandAuthorized = vi.fn(() => true);
@@ -126,7 +153,7 @@ describe('monitorTrixProvider', () => {
     await connectionReady;
     await vi.waitFor(() => {
       expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 10_000 });
 
     const call = dispatchReplyWithBufferedBlockDispatcher.mock.calls[0]?.[0] as { ctx: Record<string, unknown> };
     expect(call.ctx.RawBody).toBe('/help');
@@ -137,6 +164,16 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.CommandAuthorized).toBe(true);
     expect(shouldComputeCommandAuthorized).toHaveBeenCalledWith('/help', expect.any(Object));
     expect(readAllowFromStore).not.toHaveBeenCalled();
+    expect(serviceMessages).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(acknowledgements).toContainEqual({
+        type: 'message.ack',
+        payload: {
+          accountId: 'default',
+          messageId: 'msg_1',
+        },
+      });
+    }, { timeout: 10_000 });
 
     abortController.abort();
     await monitorPromise;
@@ -234,7 +271,7 @@ describe('monitorTrixProvider', () => {
     await connectionReady;
     await vi.waitFor(() => {
       expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 10_000 });
 
     expect(onAttachmentRequest).toHaveBeenCalledTimes(1);
     expect(fetchRemoteMedia).not.toHaveBeenCalled();
@@ -248,6 +285,92 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.MediaType).toBe('image/png');
     expect(call.ctx.CommandAuthorized).toBeUndefined();
     expect(readAllowFromStore).not.toHaveBeenCalled();
+
+    abortController.abort();
+    await monitorPromise;
+    await testServer.close();
+  });
+
+  it('does not acknowledge inbound delivery until a reply is delivered', async () => {
+    const testServer = await createTestServer();
+    const acknowledgements: Array<{ type?: string; payload?: { messageId?: string; accountId?: string } }> = [];
+    const connectionReady = new Promise<void>((resolve) => {
+      testServer.wss.once('connection', (socket) => {
+        socket.on('message', (raw) => {
+          acknowledgements.push(JSON.parse(String(raw)) as { type?: string; payload?: { messageId?: string; accountId?: string } });
+        });
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_2',
+            chatType: 'direct',
+            peer: { id: 'user_2', displayName: 'Bob' },
+            message: {
+              id: 'msg_2',
+              text: 'hello',
+              attachments: [],
+              timestamp: Date.now(),
+            },
+          },
+        }));
+        resolve();
+      });
+    });
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
+    const abortController = new AbortController();
+
+    const monitorPromise = monitorTrixProvider({
+      config: {
+        channels: {
+          'trix-native': {
+            accounts: {
+              default: {
+                enabled: true,
+                serviceUrl: `http://127.0.0.1:${testServer.port}`,
+                serviceToken: 'service-token',
+                transport: 'ws',
+              },
+            },
+          },
+        },
+      },
+      abortSignal: abortController.signal,
+      channelRuntime: {
+        reply: {
+          dispatchReplyWithBufferedBlockDispatcher,
+          finalizeInboundContext: (ctx) => ctx,
+        },
+        routing: {
+          resolveAgentRoute: () => ({ sessionKey: 'session_2', accountId: 'default', agentId: 'agent_2' }),
+        },
+        session: {
+          resolveStorePath: () => '/tmp/session-store',
+          recordInboundSession: vi.fn(async () => undefined),
+        },
+        pairing: {
+          readAllowFromStore: vi.fn(async () => []),
+        },
+        commands: {
+          shouldComputeCommandAuthorized: vi.fn(() => false),
+          resolveCommandAuthorizedFromAuthorizers: vi.fn(() => false),
+        },
+        media: {
+          fetchRemoteMedia: vi.fn(),
+          saveMediaBuffer: vi.fn(),
+        },
+      },
+      runtime: {},
+      statusSink: () => undefined,
+    });
+
+    await connectionReady;
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    }, { timeout: 10_000 });
+
+    expect(acknowledgements).toEqual([]);
 
     abortController.abort();
     await monitorPromise;

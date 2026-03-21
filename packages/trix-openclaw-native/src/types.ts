@@ -128,6 +128,29 @@ export interface ServerConfig {
   rateLimits?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  ttsEnabled?: boolean;
+  ttsBaseUrl?: string;
+  ttsAppKey?: string;
+  ttsToken?: string;
+  ttsSpeaker?: string;
+  ttsSampleRate?: number;
+  ttsTimeoutMs?: number;
+  ttsMaxTextLength?: number;
+  ttsSynthesizer?: (request: TtsSynthesisRequest) => Promise<TtsSynthesisResult>;
+}
+
+export type TtsScene = 'welcome' | 'status' | 'bot_reply';
+
+export interface TtsSynthesisRequest {
+  text: string;
+  scene: TtsScene;
+  messageId?: string;
+  userId?: string;
+}
+
+export interface TtsSynthesisResult {
+  buffer: Buffer;
+  contentType: string;
 }
 
 export type ServerRateLimitName =

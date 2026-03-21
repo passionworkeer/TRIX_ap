@@ -1,7 +1,9 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { EdgeTTS } from 'node-edge-tts';
 import { WebSocketServer, WebSocket } from 'ws';
 import { AttachmentStore } from '../attachments/AttachmentStore.js';
 import { PairingService } from '../pairing/PairingService.js';
@@ -22,6 +24,9 @@ import type {
   StudyRoom,
   StudyRoomAckPayload,
   StudyRoomStateEvent,
+  TtsScene,
+  TtsSynthesisRequest,
+  TtsSynthesisResult,
   UserCreateMessageInput,
 } from '../types.js';
 import { randomId, randomToken } from '../utils/ids.js';
@@ -86,6 +91,13 @@ export class TrixNativeServer {
   private readonly rateLimits: Record<ServerRateLimitName, ServerRateLimitRule>;
   private readonly supabaseUrl?: string;
   private readonly supabaseAnonKey?: string;
+  private readonly ttsEnabled: boolean;
+  private readonly ttsVoice: string;
+  private readonly ttsProxy?: string;
+  private readonly ttsTimeoutMs: number;
+  private readonly ttsMaxTextLength: number;
+  private readonly ttsOutputFormat: string;
+  private readonly ttsSynthesizer?: (request: TtsSynthesisRequest) => Promise<TtsSynthesisResult>;
   private readonly pairingService: PairingService;
   private readonly attachmentStore: AttachmentStore;
   private readonly server: http.Server;
@@ -106,6 +118,13 @@ export class TrixNativeServer {
     this.rateLimits = this.resolveRateLimits(config.rateLimits);
     this.supabaseUrl = config.supabaseUrl ?? process.env.TRIX_NATIVE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     this.supabaseAnonKey = config.supabaseAnonKey ?? process.env.TRIX_NATIVE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+    this.ttsEnabled = config.ttsEnabled ?? process.env.TRIX_NATIVE_TTS_ENABLED !== '0';
+    this.ttsVoice = config.ttsSpeaker ?? process.env.TRIX_NATIVE_TTS_VOICE ?? 'zh-CN-XiaoxiaoNeural';
+    this.ttsProxy = config.ttsBaseUrl ?? process.env.TRIX_NATIVE_TTS_PROXY_URL;
+    this.ttsTimeoutMs = Number(config.ttsTimeoutMs ?? process.env.TRIX_NATIVE_TTS_TIMEOUT_MS ?? 15000);
+    this.ttsMaxTextLength = Number(config.ttsMaxTextLength ?? process.env.TRIX_NATIVE_TTS_MAX_TEXT_LENGTH ?? 800);
+    this.ttsOutputFormat = this.resolveTtsOutputFormat(config.ttsSampleRate ?? Number(process.env.TRIX_NATIVE_TTS_SAMPLE_RATE ?? 24000));
+    this.ttsSynthesizer = config.ttsSynthesizer;
     this.stateStore = new JsonStateStore(this.storageDir);
     this.pairingService = new PairingService(this.stateStore);
     this.attachmentStore = new AttachmentStore(this.storageDir, this.publicBaseUrl);
@@ -269,6 +288,95 @@ export class TrixNativeServer {
     return appUser;
   }
 
+  private resolveTtsOutputFormat(sampleRate: number): string {
+    if (sampleRate >= 48000) {
+      return 'audio-48khz-96kbitrate-mono-mp3';
+    }
+    if (sampleRate >= 24000) {
+      return 'audio-24khz-48kbitrate-mono-mp3';
+    }
+    if (sampleRate >= 16000) {
+      return 'audio-16khz-32kbitrate-mono-mp3';
+    }
+    return 'audio-24khz-48kbitrate-mono-mp3';
+  }
+
+  private resolveTtsLanguage(scene: TtsScene, text: string): string {
+    const normalizedVoice = this.ttsVoice.toLowerCase();
+    if (normalizedVoice.startsWith('en-')) {
+      return 'en-US';
+    }
+    if (normalizedVoice.startsWith('ja-')) {
+      return 'ja-JP';
+    }
+    if (normalizedVoice.startsWith('ko-')) {
+      return 'ko-KR';
+    }
+    if (scene === 'status' && /[a-z]/i.test(text) && !/[\u4e00-\u9fff]/.test(text)) {
+      return 'en-US';
+    }
+    return 'zh-CN';
+  }
+
+  private resolveTtsVoice(scene: TtsScene, text: string): string {
+    if (this.ttsVoice) {
+      return this.ttsVoice;
+    }
+    if (scene === 'status' && /[a-z]/i.test(text) && !/[\u4e00-\u9fff]/.test(text)) {
+      return 'en-US-AriaNeural';
+    }
+    return 'zh-CN-XiaoxiaoNeural';
+  }
+
+  private async synthesizeSpeech(request: TtsSynthesisRequest): Promise<TtsSynthesisResult> {
+    const text = String(request.text ?? '').trim();
+    if (!this.ttsEnabled) {
+      throw new HttpError(503, 'TTS is disabled');
+    }
+    if (!text) {
+      throw new HttpError(400, 'TTS text is required');
+    }
+    if (text.length > this.ttsMaxTextLength) {
+      throw new HttpError(413, `TTS text exceeds ${this.ttsMaxTextLength} characters`);
+    }
+
+    if (this.ttsSynthesizer) {
+      return this.ttsSynthesizer({
+        ...request,
+        text,
+      });
+    }
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'trix-tts-'));
+    const outputPath = path.join(tempDir, `${randomId('tts')}.mp3`);
+    try {
+      const tts = new EdgeTTS({
+        voice: this.resolveTtsVoice(request.scene, text),
+        lang: this.resolveTtsLanguage(request.scene, text),
+        outputFormat: this.ttsOutputFormat,
+        proxy: this.ttsProxy,
+        timeout: this.ttsTimeoutMs,
+      });
+      await tts.ttsPromise(text, outputPath);
+      const buffer = await fs.readFile(outputPath);
+      if (!buffer.byteLength) {
+        throw new HttpError(502, 'Synthesized audio was empty');
+      }
+      return {
+        buffer,
+        contentType: 'audio/mpeg',
+      };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new HttpError(502, `TTS synthesis failed: ${message}`);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
   private resolveRateLimits(overrides?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>): Record<ServerRateLimitName, ServerRateLimitRule> {
     const resolved = { ...DEFAULT_RATE_LIMITS };
     const scopes = Object.keys(DEFAULT_RATE_LIMITS) as ServerRateLimitName[];
@@ -336,6 +444,25 @@ export class TrixNativeServer {
             },
           },
         });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/tts/synthesize') {
+        const appUser = await this.requireAuthenticatedAppUser(request);
+        const body = await readJsonBody<{ text?: string; scene?: TtsScene; messageId?: string }>(request);
+        const audio = await this.synthesizeSpeech({
+          text: body.text ?? '',
+          scene: body.scene ?? 'bot_reply',
+          messageId: body.messageId,
+          userId: appUser.id,
+        });
+        response.writeHead(200, {
+          'content-type': audio.contentType,
+          'content-length': audio.buffer.byteLength,
+          'cache-control': 'no-store',
+          'access-control-allow-origin': '*',
+        });
+        response.end(audio.buffer);
         return;
       }
 
@@ -837,11 +964,15 @@ export class TrixNativeServer {
         clientId: participant.clientId,
         localId: input.localId ?? null,
         peerId: conversation.peerId,
+        serviceDispatchPending: true,
       },
     });
     const state = await this.stateStore.read();
     await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
-    await this.broadcast(this.buildServiceMessageEnvelope(state, conversation, message), { role: 'service', accountId: conversation.accountId });
+    await this.broadcast(
+      this.buildServiceMessageEnvelope(state, conversation, message),
+      { role: 'service', accountId: conversation.accountId },
+    );
     console.info('[trix-native-server] user message created', {
       conversationId: message.conversationId,
       senderId: message.senderId,
@@ -886,6 +1017,30 @@ export class TrixNativeServer {
     });
     const state = await this.stateStore.read();
     await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
+    if (input.message.replyToMessageId) {
+      await this.stateStore.update((currentState) => ({
+        ...currentState,
+        messages: currentState.messages.map((entry) => {
+          if (
+            entry.id !== input.message.replyToMessageId
+            || entry.direction !== 'inbound'
+            || entry.accountId !== input.accountId
+            || entry.conversationId !== input.conversationId
+          ) {
+            return entry;
+          }
+
+          return {
+            ...entry,
+            metadata: {
+              ...(entry.metadata ?? {}),
+              serviceDispatchPending: false,
+              serviceDeliveredAt: Date.now(),
+            },
+          };
+        }),
+      }));
+    }
     console.info('[trix-native-server] service message created', {
       conversationId: message.conversationId,
       accountId: input.accountId,
@@ -1360,6 +1515,59 @@ export class TrixNativeServer {
     };
   }
 
+  private isServiceDispatchPending(message: MessageRecord): boolean {
+    if (message.direction !== 'inbound') {
+      return false;
+    }
+    return message.metadata?.serviceDispatchPending !== false;
+  }
+
+  private async updateServiceDispatchPending(messageId: string, pending: boolean): Promise<void> {
+    await this.stateStore.update((state) => ({
+      ...state,
+      messages: state.messages.map((message) => {
+        if (message.id !== messageId) {
+          return message;
+        }
+        return {
+          ...message,
+          metadata: {
+            ...(message.metadata ?? {}),
+            serviceDispatchPending: pending,
+            serviceDeliveredAt: pending ? null : Date.now(),
+          },
+        };
+      }),
+    }));
+  }
+
+  private async drainPendingServiceMessages(accountId: string, socket: WebSocket): Promise<number> {
+    const state = await this.stateStore.read();
+    const pendingMessages = state.messages
+      .filter((message) => message.accountId === accountId && this.isServiceDispatchPending(message))
+      .sort((left, right) => left.createdAt - right.createdAt);
+
+    let sentCount = 0;
+    for (const message of pendingMessages) {
+      const conversation = state.conversations.find((entry) => entry.id === message.conversationId);
+      if (!conversation) {
+        continue;
+      }
+      if (socket.readyState !== WebSocket.OPEN) {
+        break;
+      }
+      socket.send(JSON.stringify(this.buildServiceMessageEnvelope(state, conversation, message)));
+      sentCount += 1;
+    }
+
+    console.info('[trix-native-server] drained pending service messages', {
+      accountId,
+      sentCount,
+    });
+
+    return sentCount;
+  }
+
   private async assertAttachmentReadAccess(
     request: http.IncomingMessage,
     state: NativeChannelState,
@@ -1515,7 +1723,45 @@ export class TrixNativeServer {
         agentOnline: this.isServiceOnline(accountId),
       });
       await this.broadcast({ type: 'agent.status', payload: { online: true } }, { role: 'user' });
+      await this.drainPendingServiceMessages(accountId, socket);
     }
+
+    socket.on('message', (raw) => {
+      if (role !== 'service') {
+        return;
+      }
+
+      let event: { type?: string; payload?: { messageId?: string; accountId?: string } } | null = null;
+      try {
+        event = JSON.parse(String(raw)) as { type?: string; payload?: { messageId?: string; accountId?: string } };
+      } catch {
+        return;
+      }
+
+      if (event?.type !== 'message.ack') {
+        return;
+      }
+
+      const ackedMessageId = event.payload?.messageId;
+      if (!ackedMessageId) {
+        return;
+      }
+
+      void this.updateServiceDispatchPending(ackedMessageId, false)
+        .then(() => {
+          console.info('[trix-native-server] service message acked', {
+            accountId: event?.payload?.accountId ?? accountId,
+            messageId: ackedMessageId,
+          });
+        })
+        .catch((error: unknown) => {
+          console.error('[trix-native-server] failed to persist service ack', {
+            accountId: event?.payload?.accountId ?? accountId,
+            messageId: ackedMessageId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+    });
 
     socket.on('close', (code, reason) => {
       const closingMeta = this.sockets.get(socket);
@@ -1532,7 +1778,7 @@ export class TrixNativeServer {
     });
   }
 
-  private async broadcast(envelope: ClientEnvelope, target: { accountId?: string; conversationId?: string; role?: SocketMeta['role'] }): Promise<void> {
+  private async broadcast(envelope: ClientEnvelope, target: { accountId?: string; conversationId?: string; role?: SocketMeta['role'] }): Promise<number> {
     const data = JSON.stringify(envelope);
     let sentCount = 0;
     for (const [socket, meta] of this.sockets.entries()) {
@@ -1558,6 +1804,7 @@ export class TrixNativeServer {
       sentCount,
       totalSockets: this.sockets.size,
     });
+    return sentCount;
   }
 
   private isServiceOnline(accountId?: string): boolean {

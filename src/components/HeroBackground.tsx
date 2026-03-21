@@ -227,6 +227,8 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
       className="fixed inset-0 w-full h-full overflow-hidden"
       style={bgStyle}
       data-hero-background
+      data-bot-state={botState}
+      data-render-mode={use3D ? '3d' : 'video'}
     >
       {use3D ? (
         <>
@@ -277,6 +279,8 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
                 key={layer}
                 ref={videoRefs[layer]}
                 src={layerSources[layer]}
+                data-hero-video-layer={layer}
+                data-active={activeLayer === layer ? 'true' : 'false'}
                 autoPlay
                 loop
                 muted

@@ -15,6 +15,20 @@ vi.mock('../config/clawbotEndpoints', () => ({
   })),
 }));
 
+vi.mock('../config/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(async () => ({
+        data: {
+          session: {
+            access_token: 'test-access-token',
+          },
+        },
+      })),
+    },
+  },
+}));
+
 // Mock import.meta.env
 vi.stubGlobal('import.meta', {
   env: {
@@ -53,6 +67,7 @@ describe('ttsService', () => {
       expect(String(url)).toContain('/api/tts/synthesize');
       expect(options.method).toBe('POST');
       expect(options.headers['Content-Type']).toBe('application/json');
+      expect(options.headers.authorization).toBe('Bearer test-access-token');
 
       const body = JSON.parse(options.body);
       expect(body.text).toBe('Hello');
@@ -75,6 +90,27 @@ describe('ttsService', () => {
       const [, options] = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
       const body = JSON.parse(options.body);
       expect(body.messageId).toBe('msg-123');
+    });
+
+    it('omits authorization header when no authenticated session exists', async () => {
+      const { supabase } = await import('../../src/config/supabase');
+      vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+        data: {
+          session: null,
+        },
+      } as Awaited<ReturnType<typeof supabase.auth.getSession>>);
+
+      const mockBlob = new Blob(['audio-data'], { type: 'audio/mpeg' });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: () => Promise.resolve(mockBlob),
+      });
+
+      const { synthesizeSpeech } = await import('../../src/services/ttsService');
+      await synthesizeSpeech('Hello', 'bot_reply');
+
+      const [, options] = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+      expect(options.headers.authorization).toBeUndefined();
     });
 
     it('should throw error on HTTP failure', async () => {

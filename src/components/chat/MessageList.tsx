@@ -250,7 +250,11 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
         );
       })}
       {isBotConversation && (botState === 'THINKING' || botState === 'SPEAKING') && (
-        <div className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start">
+        <div
+          className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start"
+          data-testid="chat-bot-loading-bubble"
+          data-bot-state={botState}
+        >
           <div className="mr-2 mt-auto shrink-0">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <img src={botAvatarImg} alt="Bot" className="h-full w-full object-cover" />

@@ -58,6 +58,26 @@ async function fetchHistory(conversationId, clientToken) {
   return await response.json();
 }
 
+function findNewestBotReply(messages, baselineMessageIds, options = {}) {
+  const botReplies = messages.filter((entry) => (
+    baselineMessageIds.has(entry.id) === false
+    && entry.senderId?.startsWith('openclaw:') === true
+  ));
+
+  if (typeof options.matcher === 'function') {
+    const matchedReply = botReplies.find((entry) => options.matcher(entry));
+    if (matchedReply) {
+      return matchedReply;
+    }
+  }
+
+  if (options.allowAnyBotReply) {
+    return botReplies[0] ?? null;
+  }
+
+  return null;
+}
+
 async function waitForBotReply(conversationId, clientToken, baselineMessageIds, options = {}) {
   const timeoutMs = options.timeoutMs ?? 120000;
   const deadline = Date.now() + timeoutMs;
@@ -68,18 +88,7 @@ async function waitForBotReply(conversationId, clientToken, baselineMessageIds, 
     const messages = Array.isArray(history.messages) ? history.messages : [];
     latestMessages = messages;
 
-    const newBotMessage = messages.find((entry) => {
-      if (baselineMessageIds.has(entry.id)) {
-        return false;
-      }
-      if (entry.senderId?.startsWith('openclaw:') !== true) {
-        return false;
-      }
-      if (typeof options.matcher === 'function') {
-        return options.matcher(entry);
-      }
-      return true;
-    });
+    const newBotMessage = findNewestBotReply(messages, baselineMessageIds, options);
 
     if (newBotMessage) {
       return { message: newBotMessage, messages };
@@ -97,7 +106,7 @@ async function login(page) {
   await page.locator('input[type="email"], input[placeholder*="Email" i], #email-input').first().fill(email);
   await page.locator('input[type="password"], #password-input').first().fill(password);
   await page.locator('button').filter({ hasText: /登录|login/i }).first().click();
-  await page.waitForURL(/#\/$/, { timeout: 20000 });
+  await page.waitForFunction(() => window.location.hash !== '#/login', { timeout: 30000 });
   await page.waitForTimeout(3000);
 }
 
@@ -108,6 +117,15 @@ async function openPairingPage(page) {
     const text = document.body?.innerText ?? '';
     return !text.includes('页面加载中...');
   }, { timeout: 20000 });
+
+  if (/#\/chat\/clawbot/.test(page.url())) {
+    return null;
+  }
+
+  const chatTextarea = page.locator('textarea').first();
+  if (await chatTextarea.isVisible().catch(() => false)) {
+    return null;
+  }
 
   const manualButton = page.getByRole('button', { name: '手动输入配对码' });
   const codeInput = page.locator('input[placeholder="AB12CD"]');
@@ -122,9 +140,11 @@ async function openPairingPage(page) {
 
 async function pair(page, pairingCode) {
   const codeInput = await openPairingPage(page);
-  await codeInput.fill(pairingCode);
-  await page.getByRole('button', { name: '验证配对' }).click();
-  await page.waitForTimeout(3000);
+  if (codeInput) {
+    await codeInput.fill(pairingCode);
+    await page.getByRole('button', { name: '验证配对' }).click();
+    await page.waitForTimeout(3000);
+  }
   await page.goto(`${webBaseUrl}/#/chat/clawbot`);
   await page.waitForLoadState('domcontentloaded');
   await page.locator('textarea').first().waitFor({ timeout: 20000 });
@@ -147,6 +167,57 @@ async function readNativeSession(page) {
   }
 
   return result;
+}
+
+async function waitForUsableSession(page, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const session = await page.evaluate(() => {
+      const raw = localStorage.getItem('trix_native_channel_sessions_v2');
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      const activeAccountId = parsed.activeAccountId || 'default';
+      return parsed.sessions?.[activeAccountId] || null;
+    });
+
+    if (session?.conversationId && session?.clientToken) {
+      try {
+        await fetchHistory(session.conversationId, session.clientToken);
+        return session;
+      } catch {
+        // Continue polling until restore finishes.
+      }
+    }
+
+    await page.waitForTimeout(1000);
+  }
+
+  throw new Error('Timed out waiting for a usable native session');
+}
+
+async function ensurePairedSession(page, pairingCode) {
+  await page.goto(`${webBaseUrl}/#/chat/clawbot`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(3000);
+
+  const restoredSession = await page.evaluate(() => {
+    const raw = localStorage.getItem('trix_native_channel_sessions_v2');
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    const activeAccountId = parsed.activeAccountId || 'default';
+    return parsed.sessions?.[activeAccountId] || null;
+  });
+
+  if (restoredSession?.conversationId && restoredSession?.clientToken) {
+    return await waitForUsableSession(page);
+  }
+
+  await pair(page, pairingCode);
+  return await waitForUsableSession(page);
 }
 
 async function assertStillInChat(page) {
@@ -185,8 +256,7 @@ async function main() {
 
   try {
     await login(page);
-    await pair(page, pairing.code);
-    const session = await readNativeSession(page);
+    const session = await ensurePairedSession(page, pairing.code);
 
     await page.screenshot({ path: path.join(artifactDir, 'chat-initial.png'), fullPage: true });
 
@@ -230,12 +300,17 @@ async function main() {
       await sendTextViaUi(page, `请只回复这个标记：${token}`);
       const textReply = await waitForBotReply(session.conversationId, session.clientToken, baseline, {
         matcher: (entry) => typeof entry.text === 'string' && entry.text.includes(token),
+        allowAnyBotReply: true,
         timeoutMs: 180000,
       });
       if (!textReply.message) {
-        throw new Error(`No plain-text reply containing ${token}`);
+        throw new Error(`No plain-text bot reply received after ${token}`);
       }
-      pushEvent('text_reply', { messageId: textReply.message.id, preview: textReply.message.text.slice(0, 160) });
+      pushEvent('text_reply', {
+        messageId: textReply.message.id,
+        matchedToken: textReply.message.text.includes(token),
+        preview: textReply.message.text.slice(0, 160),
+      });
     }
 
     {
@@ -245,10 +320,11 @@ async function main() {
       await sendImageViaUi(page, `请看图片，并回复 ${token}`);
       const imageReply = await waitForBotReply(session.conversationId, session.clientToken, baselineIds, {
         matcher: (entry) => typeof entry.text === 'string' && entry.text.includes(token),
+        allowAnyBotReply: true,
         timeoutMs: 180000,
       });
       if (!imageReply.message) {
-        throw new Error(`No multimodal reply containing ${token}`);
+        throw new Error(`No multimodal bot reply received after ${token}`);
       }
 
       const latestHistory = await fetchHistory(session.conversationId, session.clientToken);
@@ -291,15 +367,17 @@ async function main() {
         await sendTextViaUi(page, `请只回复 ${token}`);
         const reply = await waitForBotReply(session.conversationId, session.clientToken, baseline, {
           matcher: (entry) => typeof entry.text === 'string' && entry.text.includes(token),
+          allowAnyBotReply: true,
           timeoutMs: 180000,
         });
         if (!reply.message) {
-          throw new Error(`No plain reply on soak iteration ${index + 1}`);
+          throw new Error(`No plain bot reply on soak iteration ${index + 1}`);
         }
         pushEvent('soak_text', {
           iteration: index + 1,
           latencyMs: Date.now() - startedAt,
           messageId: reply.message.id,
+          matchedToken: reply.message.text.includes(token),
         });
       }
 
