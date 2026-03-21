@@ -9,7 +9,6 @@ import { LuminaSidebar, type SidebarRoute } from '../lumina/components/Sidebar';
 import { cn } from './cn';
 
 // Desktop-native pages (stitch/noir/pages/)
-// These will be imported once they're created
 const StitchDashboard = lazy(() =>
   import('../noir/pages/DashboardPage').catch(() => ({ default: PlaceholderPage }))
 );
@@ -21,6 +20,11 @@ const StitchChannels = lazy(() =>
 );
 const StitchSettings = lazy(() =>
   import('../noir/pages/SettingsPage').catch(() => ({ default: PlaceholderPage }))
+);
+
+// Lumina pages (stitch/lumina/pages/)
+const LuminaChat = lazy(() =>
+  import('../lumina/pages/ChatPage').catch(() => ({ default: PlaceholderPage }))
 );
 
 // Web screens
@@ -252,13 +256,9 @@ export function LuminaLayout({ initialRoute = 'home' }: LuminaLayoutProps) {
         );
       case 'chat':
         return (
-          <WebScreenWrapper>
-            <div style={lightContentStyle}>
-              <Suspense fallback={<RouteLoading />}>
-                <Chat />
-              </Suspense>
-            </div>
-          </WebScreenWrapper>
+          <Suspense fallback={<RouteLoading />}>
+            <LuminaChat />
+          </Suspense>
         );
       case 'chat-detail':
         return (
