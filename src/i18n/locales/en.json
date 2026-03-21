@@ -1,7 +1,7 @@
 {
   "auth": {
     "welcomeBack": "Welcome Back",
-    "exploreWorld": "Explore the Infinite 3D World",
+    "exploreWorld": "Connect to your native OpenClaw workspace",
     "login": "Login",
     "loggingIn": "Logging in...",
     "register": "Register",
@@ -9,8 +9,8 @@
     "registerSuccess": "Registration successful! Redirecting...",
     "welcome": "Welcome",
     "joinNow": "Join Now",
-    "startJourney": "Start Your 3D Journey",
-    "thirdPartyLogin": "Third-party Login",
+    "startJourney": "Start your native chat session",
+    "thirdPartyLogin": "Other sign-in options",
     "wechatLogin": "WeChat Login",
     "appleLogin": "Apple Login",
     "noAccount": "Don't have an account?",

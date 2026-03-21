@@ -4,6 +4,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TRIX Pairing</title>
+    <script>
+      (async () => {
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.allSettled(registrations.map((registration) => registration.unregister()));
+          }
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.allSettled(
+              cacheNames
+                .filter((cacheName) => /^trix(?:-|$)/i.test(cacheName))
+                .map((cacheName) => caches.delete(cacheName))
+            );
+          }
+        } catch (error) {
+          console.warn('[TRIX] Failed to retire legacy PWA shell', error);
+        }
+      })();
+
+      window.addEventListener('message', (event) => {
+        if (event?.data?.type === 'trix-sw-retired') {
+          window.location.reload();
+        }
+      });
+    </script>
     <style>
       :root {
         color-scheme: light;

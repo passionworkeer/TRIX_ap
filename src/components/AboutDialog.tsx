@@ -79,7 +79,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
 
                 {/* Logo 和标题 */}
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold mb-1">TRIX 3D Companion</h2>
+                  <h2 className="text-2xl font-bold mb-1">TRIX</h2>
                   <p className="text-white/90 text-sm font-medium">版本 {APP_VERSION}</p>
                 </div>
               </div>
@@ -121,7 +121,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     主要功能
                   </h4>
                   <div className="grid grid-cols-2 gap-2">
-                    {['3D 虚拟陪伴', '智能聊天', '专注学习', '社交互动'].map((feature) => (
+                    {['原生聊天', '智能回复', '专注学习', '社交互动'].map((feature) => (
                       <div
                         key={feature}
                         className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400"

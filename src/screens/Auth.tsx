@@ -47,29 +47,29 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-slate-900 dark:via-purple-950 dark:to-slate-900 relative overflow-hidden flex flex-col justify-between px-8 py-10">
+    <div className="h-screen w-full bg-gradient-to-br from-[#f8f2e8] via-[#f3ede2] to-[#e8f0e4] dark:from-[#0f1720] dark:via-[#10221c] dark:to-[#132a21] relative overflow-hidden flex flex-col justify-between px-8 py-10">
       {/* Background Elements */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Floating shapes */}
-        <div className="absolute -top-[10%] -right-[10%] w-[500px] h-[500px] bg-purple-300/20 rounded-full blur-[100px] animate-pulse"></div>
-        <div className="absolute top-[20%] -left-[20%] w-[400px] h-[400px] bg-pink-300/30 rounded-full blur-[90px] animate-pulse delay-700"></div>
-        <div className="absolute bottom-[10%] -right-[10%] w-[300px] h-[300px] bg-indigo-300/20 rounded-full blur-[80px] animate-pulse delay-500"></div>
+        <div className="absolute -top-[10%] -right-[10%] w-[500px] h-[500px] bg-emerald-300/20 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute top-[20%] -left-[20%] w-[400px] h-[400px] bg-amber-200/35 rounded-full blur-[90px] animate-pulse delay-700"></div>
+        <div className="absolute bottom-[10%] -right-[10%] w-[300px] h-[300px] bg-teal-200/20 rounded-full blur-[80px] animate-pulse delay-500"></div>
 
         {/* Decorative dots */}
-        <div className="absolute top-1/4 left-10 w-2 h-2 bg-purple-400/40 rounded-full animate-ping"></div>
-        <div className="absolute top-1/3 right-16 w-3 h-3 bg-pink-400/30 rounded-full animate-ping delay-300"></div>
-        <div className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-indigo-400/40 rounded-full animate-ping delay-700"></div>
+        <div className="absolute top-1/4 left-10 w-2 h-2 bg-emerald-500/40 rounded-full animate-ping"></div>
+        <div className="absolute top-1/3 right-16 w-3 h-3 bg-amber-400/30 rounded-full animate-ping delay-300"></div>
+        <div className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-teal-500/40 rounded-full animate-ping delay-700"></div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative -mt-10">
          <div className="text-center relative z-20">
             {/* Logo Icon */}
             <div className="mb-6 relative">
-               <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-purple-500/40 animate-float">
+               <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center shadow-2xl shadow-emerald-600/30 animate-float">
                   <Sparkles className="w-10 h-10 text-white" />
                </div>
-               <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                  <span className="text-xs">✨</span>
+               <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white/95 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-700" />
                </div>
             </div>
 
@@ -91,8 +91,8 @@ export const Login: React.FC = () => {
          )}
 
          <div className="space-y-4">
-            <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-purple-500/50 group !border-white/50 dark:!border-white/10">
-               <User className="text-slate-400 group-focus-within:text-purple-600 dark:group-focus-within:text-purple-400 transition-colors" size={22} />
+            <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-emerald-500/50 group !border-white/50 dark:!border-white/10">
+               <User className="text-slate-400 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400 transition-colors" size={22} />
                <label htmlFor="email-input" className="sr-only">{t('auth.email')}</label>
                <input
                  id="email-input"
@@ -104,8 +104,8 @@ export const Login: React.FC = () => {
                  className="w-full bg-transparent border-none p-0 pl-4 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-0 text-[17px] font-medium"
                />
             </GlassPanel>
-            <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-purple-500/50 group !border-white/50 dark:!border-white/10">
-               <Lock className="text-slate-400 group-focus-within:text-purple-600 dark:group-focus-within:text-purple-400 transition-colors" size={22} />
+            <GlassPanel className="flex items-center px-5 py-4 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-emerald-500/50 group !border-white/50 dark:!border-white/10">
+               <Lock className="text-slate-400 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400 transition-colors" size={22} />
                <label htmlFor="password-input" className="sr-only">{t('auth.password')}</label>
                <input
                  id="password-input"
@@ -124,7 +124,7 @@ export const Login: React.FC = () => {
            type="button"
            onClick={handleLogin}
            disabled={loading}
-           className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold tracking-wider text-white shadow-xl shadow-purple-500/40 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+           className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold tracking-wider text-white shadow-xl shadow-emerald-600/25 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
          >
             {loading ? (
               <>
@@ -162,7 +162,7 @@ export const Login: React.FC = () => {
                </button>
             </div>
             <div className="text-[13px] text-slate-500 dark:text-slate-400 font-medium">
-               {t('auth.noAccount')} <button type="button" onClick={() => navigate(AppRoutes.REGISTER)} className="ios-pressable rounded-full px-2 py-1 text-purple-600 dark:text-purple-400 font-bold hover:text-purple-500 dark:hover:text-purple-300 transition-colors">{t('auth.signUpNow')}</button>
+               {t('auth.noAccount')} <button type="button" onClick={() => navigate(AppRoutes.REGISTER)} className="ios-pressable rounded-full px-2 py-1 text-emerald-700 dark:text-emerald-400 font-bold hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors">{t('auth.signUpNow')}</button>
             </div>
          </div>
       </div>
@@ -223,23 +223,23 @@ export const Register: React.FC = () => {
    };
 
    return (
-     <div className="h-screen w-full bg-gradient-to-br from-violet-100 via-purple-50 to-indigo-100 dark:from-slate-900 dark:via-purple-950 dark:to-slate-900 relative overflow-hidden flex flex-col justify-between px-8 py-10">
+     <div className="h-screen w-full bg-gradient-to-br from-[#f8f2e8] via-[#f3ede2] to-[#e8f0e4] dark:from-[#0f1720] dark:via-[#10221c] dark:to-[#132a21] relative overflow-hidden flex flex-col justify-between px-8 py-10">
        {/* Background Elements */}
        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-         <div className="absolute -top-[10%] -right-[10%] w-[500px] h-[500px] bg-purple-300/20 rounded-full blur-[100px] animate-pulse"></div>
-         <div className="absolute top-[30%] -left-[20%] w-[400px] h-[400px] bg-violet-300/30 rounded-full blur-[80px] animate-pulse delay-500"></div>
-         <div className="absolute bottom-[20%] right-[10%] w-[250px] h-[250px] bg-indigo-300/20 rounded-full blur-[60px] animate-pulse delay-300"></div>
+         <div className="absolute -top-[10%] -right-[10%] w-[500px] h-[500px] bg-emerald-300/20 rounded-full blur-[100px] animate-pulse"></div>
+         <div className="absolute top-[30%] -left-[20%] w-[400px] h-[400px] bg-amber-200/30 rounded-full blur-[80px] animate-pulse delay-500"></div>
+         <div className="absolute bottom-[20%] right-[10%] w-[250px] h-[250px] bg-teal-200/20 rounded-full blur-[60px] animate-pulse delay-300"></div>
 
          {/* Decorative stars */}
-         <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-yellow-400/50 rounded-full animate-ping"></div>
-         <div className="absolute bottom-1/4 left-1/3 w-1 h-1 bg-pink-400/50 rounded-full animate-ping delay-500"></div>
+         <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-emerald-500/50 rounded-full animate-ping"></div>
+         <div className="absolute bottom-1/4 left-1/3 w-1 h-1 bg-amber-400/50 rounded-full animate-ping delay-500"></div>
        </div>
 
        <div className="flex-1 flex flex-col items-center justify-center relative -mt-4">
           <div className="text-center space-y-2">
              {/* Logo Icon */}
              <div className="mb-4 relative">
-               <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-xl shadow-purple-500/30 animate-float">
+               <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-600/25 animate-float">
                   <Sparkles className="w-8 h-8 text-white" />
                </div>
              </div>
@@ -268,8 +268,8 @@ export const Register: React.FC = () => {
           )}
 
           <div className="space-y-4">
-             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-violet-500/50 group !border-white/50 dark:!border-white/10">
-                <User className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
+             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-emerald-500/50 group !border-white/50 dark:!border-white/10">
+                <User className="text-slate-400 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400 transition-colors" size={20} />
                 <input
                   type="text"
                   placeholder={t('auth.placeholder.username')}
@@ -279,8 +279,8 @@ export const Register: React.FC = () => {
                   className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-0 text-base font-medium h-6"
                 />
              </GlassPanel>
-             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-violet-500/50 group !border-white/50 dark:!border-white/10">
-                <Smartphone className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
+             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-emerald-500/50 group !border-white/50 dark:!border-white/10">
+                <Smartphone className="text-slate-400 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400 transition-colors" size={20} />
                 <input
                   type="email"
                   placeholder={t('auth.placeholder.email')}
@@ -290,8 +290,8 @@ export const Register: React.FC = () => {
                   className="w-full bg-transparent border-none p-0 pl-3 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-0 text-base font-medium h-6"
                 />
              </GlassPanel>
-             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-violet-500/50 group !border-white/50 dark:!border-white/10">
-                <Lock className="text-slate-400 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-400 transition-colors" size={20} />
+             <GlassPanel className="flex items-center px-4 py-3.5 !bg-white/60 dark:!bg-white/10 !rounded-2xl transition-all duration-300 focus-within:!bg-white/80 dark:focus-within:!bg-white/20 focus-within:!ring-2 focus-within:!ring-emerald-500/50 group !border-white/50 dark:!border-white/10">
+                <Lock className="text-slate-400 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400 transition-colors" size={20} />
                 <input
                   type="password"
                   placeholder={t('auth.placeholder.password')}
@@ -308,7 +308,7 @@ export const Register: React.FC = () => {
             type="button"
             onClick={handleRegister}
             disabled={loading || success}
-            className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white shadow-lg shadow-violet-500/40 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="ios-pressable ios-primary-button flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white shadow-lg shadow-emerald-600/25 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
              {loading ? (
                <>
@@ -329,7 +329,7 @@ export const Register: React.FC = () => {
           </button>
 
           <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-             {t('auth.hasAccount')}<button type="button" onClick={() => navigate(AppRoutes.LOGIN)} className="ios-pressable rounded-full px-2 py-1 text-violet-600 dark:text-violet-400 font-bold hover:text-violet-500 dark:hover:text-violet-300 transition-colors">{t('auth.loginNow')}</button>
+             {t('auth.hasAccount')}<button type="button" onClick={() => navigate(AppRoutes.LOGIN)} className="ios-pressable rounded-full px-2 py-1 text-emerald-700 dark:text-emerald-400 font-bold hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors">{t('auth.loginNow')}</button>
           </div>
        </div>
      </div>

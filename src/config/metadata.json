@@ -1,6 +1,6 @@
 {
-  "name": "TRIX 3D Companion",
-  "description": "A futuristic 3D companion app for study, focus, and productivity featuring glassmorphism design.",
+  "name": "TRIX",
+  "description": "Native OpenClaw chat companion for study, focus, and messaging.",
   "requestFramePermissions": [
     "camera"
   ]

@@ -1,7 +1,7 @@
 {
   "auth": {
     "welcomeBack": "欢迎回来",
-    "exploreWorld": "探索无限 3D 世界",
+    "exploreWorld": "连接到你的原生 OpenClaw 工作区",
     "login": "登录",
     "loggingIn": "登录中...",
     "register": "注册",
@@ -9,8 +9,8 @@
     "registerSuccess": "注册成功！正在跳转...",
     "welcome": "欢迎加入",
     "joinNow": "立即注册",
-    "startJourney": "开启你的 3D 探索之旅",
-    "thirdPartyLogin": "第三方登录",
+    "startJourney": "开启你的原生聊天会话",
+    "thirdPartyLogin": "其他登录方式",
     "wechatLogin": "微信登录",
     "appleLogin": "Apple 登录",
     "noAccount": "还没有账号？",
