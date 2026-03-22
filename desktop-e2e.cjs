@@ -353,18 +353,23 @@ async function test_float_window_launch(fw) {
   log('Float Window Launch tests...', 'section');
   await withFloat(async () => {
     await fw.waitForLoadState('domcontentloaded');
-    await fw.waitForTimeout(3000);
     if (!await fw.locator('#root').count()) throw new Error('Float #root not found');
     const bodyLen = await fw.evaluate(() => document.body.innerHTML.length);
     if (bodyLen < 100) throw new Error(`Float body too small (${bodyLen} bytes)`);
     log(`Float: HTML length ${bodyLen} bytes`, 'info');
+    // Wait for React to fully hydrate — the status pill text must appear
+    await fw.waitForFunction(
+      () => ['待机', '思考中', '说话中'].some(s => document.body.innerText.includes(s)),
+      { timeout: 20000 }
+    );
+    log('Float: React hydrated — status pill visible', 'info');
   }, 'Float: Root element rendered');
 }
 
 async function test_float_status_pill(fw) {
   log('Float Status Pill tests...', 'section');
   await withFloat(async () => {
-    await fw.waitForTimeout(1500);
+    // Status pill already confirmed visible by test_float_window_launch
     const bodyText = await fw.evaluate(() => document.body.innerText);
     if (!['待机', '思考中', '说话中'].some(s => bodyText.includes(s))) {
       throw new Error('Status pill not found');
@@ -375,7 +380,6 @@ async function test_float_status_pill(fw) {
 async function test_float_chat_bar_toggle(fw) {
   log('Float Chat Bar Toggle tests...', 'section');
   await withFloat(async () => {
-    await fw.waitForTimeout(1500);
     const pill = fw.locator('div').filter({ hasText: /待机|思考中|说话中/ }).first();
     if (!await pill.count()) throw new Error('Status pill not found for click');
     await pill.click({ force: true });
@@ -388,7 +392,6 @@ async function test_float_chat_bar_toggle(fw) {
 async function test_float_quick_replies(fw) {
   log('Float Quick Replies tests...', 'section');
   await withFloat(async () => {
-    await fw.waitForTimeout(500);
     const phrases = ['好的', '稍等', '谢谢', '在吗', '了解', '收到'];
     let found = 0;
     for (const phrase of phrases) {
@@ -401,7 +404,6 @@ async function test_float_quick_replies(fw) {
 async function test_float_input_and_send(fw) {
   log('Float Input & Send tests...', 'section');
   await withFloat(async () => {
-    await fw.waitForTimeout(500);
     const input = fw.locator('input[placeholder="发送消息..."]');
     if (!await input.count()) throw new Error('Message input not found');
     await input.fill('测试消息');
@@ -414,7 +416,6 @@ async function test_float_input_and_send(fw) {
 async function test_float_emoji_reactions(fw) {
   log('Float Emoji Reactions tests...', 'section');
   await withFloat(async () => {
-    await fw.waitForTimeout(500);
     const emojis = ['👍', '❤️', '😂'];
     let found = 0;
     for (const emoji of emojis) {
@@ -431,6 +432,7 @@ async function test_float_emoji_reactions(fw) {
 async function test_float_qr_button(fw) {
   log('Float QR Button tests...', 'section');
   await withFloat(async () => {
+    // Status pill guaranteed visible by test_float_window_launch
     const pill = fw.locator('div').filter({ hasText: /待机|思考中|说话中/ }).first();
     await pill.click({ force: true });
     await fw.waitForTimeout(500);
