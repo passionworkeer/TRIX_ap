@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
-import '@/index.css';
+import './desktop.css';
 import '@/i18n';
 import type { BotState } from '../types/electron.d';
 import { FloatHeroBackground } from './components/FloatHeroBackground';

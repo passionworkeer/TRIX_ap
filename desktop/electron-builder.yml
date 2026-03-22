@@ -1,22 +1,30 @@
 appId: com.trixapp.companion
 productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
-
 directories:
-  output: "C:/Users/wang/Desktop/TRIX Companion 3"
+  output: C:/Users/wang/Desktop/TRIX Companion 3
   buildResources: build
-
+asar: true
+compression: maximum
 files:
-  - dist-desktop/**/*
-  # Exclude videos from asar — extraResources handles them at resourcesPath
-  - "!**/videos/**"
-
+  - dist-desktop/main/**/*
+  - dist-desktop/preload/**/*
+  - dist-desktop/renderer/assets/**/*
+  - dist-desktop/renderer/*.html
+  - '!**/3d/**'
+  - '!**/companion-check.html'
+  - '!**/env-check.html'
+  - '!**/pairing.html'
+  - '!**/manifest.json'
+  - '!**/sw.js'
+  - '!**/videos/**'
+  - '!**/dist/**'
+  - '!**/node_modules/**'
 extraResources:
   - from: ../public/videos
     to: videos
     filter:
-      - "**/*"
-
+      - '**/*'
 win:
   target:
     - target: nsis
@@ -26,8 +34,7 @@ win:
       arch:
         - x64
   icon: build/icon.ico
-  artifactName: "${productName}-Setup-${version}.${ext}"
-
+  artifactName: ${productName}-Setup-${version}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
@@ -35,27 +42,17 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: TRIX Companion
   include: build/installer.nsh
-  # 简体中文安装向导
   language: 2052
-  # 侧边栏图片（左侧紫色品牌图）
   installerSidebar: build/sidebar.bmp
   uninstallerSidebar: build/sidebar.bmp
-  # 安装向导图标
   installerHeaderIcon: build/icon.ico
-  # 用户协议（安装时必须同意）
   license: build/eula.txt
-  # 卸载时也显示协议确认
   uninstallerIcon: build/icon.ico
-  # 安装后自动运行
   runAfterFinish: true
-
 msi:
   oneClick: false
-
 electronDist: ../node_modules/electron/dist
-electronVersion: "33.4.0"
-
+electronVersion: 33.4.0
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
-
 publish: null

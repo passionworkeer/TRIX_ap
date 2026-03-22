@@ -11,7 +11,7 @@
     "dev:desktop": "vite build --config vite.config.desktop.ts && electron .",
     "dev:desktop:watch": "vite build --config vite.config.desktop.ts && electron . --remote-debugging-port=9222",
     "start": "electron .",
-    "build:desktop": "vite build --config vite.config.desktop.ts && electron-builder --win --x64",
+    "build:desktop": "node scripts/clean-stale.cjs && vite build --config vite.config.desktop.ts && electron-builder --win --x64",
     "build:desktop:dir": "vite build --config vite.config.desktop.ts && electron-builder --win --x64 --dir",
     "typecheck:desktop": "tsc --noEmit -p tsconfig.desktop.json",
     "test": "vitest run",
@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "electron-log": "^5.2.4",
     "electron-store": "^8.2.0"
   },

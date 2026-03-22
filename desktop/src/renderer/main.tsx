@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@/index.css';
+import './desktop.css';
 import '@/i18n';
 import { LuminaLayout } from './stitch/shared/LuminaLayout';
 
