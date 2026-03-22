@@ -1,10 +1,11 @@
 ﻿import React, { useState } from 'react';
-import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, Volume2, Bot } from 'lucide-react';
+import { Verified, Plus, Globe, Moon, Lock, LogOut, ChevronRight, Volume2, Bot, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
 import { AboutDialog } from '../components/AboutDialog';
+import { AchievementsPanel } from '../components/AchievementsPanel';
 import { StatsDetailDialog } from '../components/StatsDetailDialog';
 import { PrivacySettings } from '../components/PrivacySettings';
 import { PointsHistory } from '../components/PointsHistory';
@@ -32,6 +33,7 @@ const Profile: React.FC = () => {
   const [isPrivacySettingsOpen, setIsPrivacySettingsOpen] = useState(false);
   const [isPointsHistoryOpen, setIsPointsHistoryOpen] = useState(false);
   const [isOpenClawControlOpen, setIsOpenClawControlOpen] = useState(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -162,6 +164,13 @@ const Profile: React.FC = () => {
         onClose={() => setIsStatsDialogOpen(false)}
         stats={userStats}
         loading={statsLoading}
+      />
+
+      {/* 成就面板 */}
+      <AchievementsPanel
+        isOpen={isAchievementsOpen}
+        onClose={() => setIsAchievementsOpen(false)}
+        userId={user?.id || ''}
       />
 
       {/* 隐私设置对话框 */}
@@ -386,6 +395,20 @@ const Profile: React.FC = () => {
                    {/* 通用设置 */}
                    <h3 className={`text-lg font-bold mb-3 pl-1 mt-6 ${primaryTextClass}`}>{t('profile.general')}</h3>
                    <div className="flex flex-col gap-3">
+                      {/* 成就 */}
+                      <GlassPanel
+                         onClick={() => setIsAchievementsOpen(true)}
+                         className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 transform group-hover:scale-105 transition-transform duration-300">
+                               <Trophy size={20} />
+                            </div>
+                            <span className={`font-bold text-sm ${secondaryTextClass}`}>成就</span>
+                         </div>
+                         <ChevronRight size={16} className={mutedTextClass} />
+                      </GlassPanel>
+
                       <GlassPanel
                          onClick={handlePrivacyClick}
                          className={`p-4 !rounded-xl flex items-center justify-between cursor-pointer group border ${panelClass}`}
