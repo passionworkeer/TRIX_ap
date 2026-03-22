@@ -22,6 +22,10 @@
 
 本 API 为 TRIX3D 应用提供后端服务，支持用户管理、社交、学习、商城等功能。
 
+> ⚠️ **版本说明**：本文档 v1.3.0 中的 **API 端点列表**（第 4 节起）描述的是 **Supabase v2 目标架构**（三端合一计划），约 85% 的端点尚未在生产代码中实现。
+>
+> **当前生产环境唯一权威文档**：[`../TRIX_NATIVE_CHANNEL.md`](../TRIX_NATIVE_CHANNEL.md) — TRIX Native Server（端口 8788），包含配对、消息、Study Room、TTS、WebSocket 等已实现的全部端点。
+
 ### 服务端口
 
 | 服务 | 端口 | 描述 |

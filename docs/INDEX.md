@@ -84,9 +84,10 @@ docs/
 
 | 文档 | 描述 |
 |------|------|
-| [desktop/DESKTOP_ARCHITECTURE.md](./desktop/DESKTOP_ARCHITECTURE.md) | Electron 架构 · IPC · Gateway |
+| [desktop/DESKTOP_ARCHITECTURE.md](./desktop/DESKTOP_ARCHITECTURE.md) | Electron 架构 · IPC · Gateway · LuminaLayout 路由 |
 | [requirements/DESKTOP_PRD.md](./requirements/DESKTOP_PRD.md) | Desktop 产品需求文档 |
-| [requirements/PRD.md](./requirements/PRD.md) | 产品需求文档（参考） |
+
+**Desktop 页面**（stitch/ 设计系统）：浅色 chat · study · snapshot · profile | 深色 dashboard · agents · channels · backups · settings |
 
 ### 🚀 用户指南
 

@@ -61,24 +61,57 @@ Electron 应用的主入口，运行在 Node.js 环境中。
 
 通过 `contextBridge` 安全地将主进程 API 暴露给渲染进程。
 
-**暴露 API**:
+**暴露 API**（`desktop/src/preload/index.js`）：
 ```typescript
 window.electronAPI = {
-  // Gateway
-  checkGatewayHealth: () => Promise<boolean>,
-  // Pairing
-  createPairingQr: () => Promise<PairingQrData>,
+  // === Platform ===
+  platform: string,              // process.platform
+  isDesktop: true,
+
+  // === Window Management ===
+  showMainWindow: () => Promise<void>,
+  hideMainWindow: () => Promise<void>,
+  minimizeToTray: () => Promise<void>,
+
+  // === Bot State ===
+  pushBotState: (state: string) => Promise<void>,
+
+  // === OpenClaw ===
+  checkOpenClaw: () => Promise<OpenClawStatus>,
+  installOpenClaw: () => Promise<void>,
+  runOpenClawDoctor: () => Promise<string>,
+  runOpenClawCommand: (cmd: string) => Promise<string>,
+  listAgents: () => Promise<Agent[]>,
+  listSkills: () => Promise<Skill[]>,
+  installSkill: (name: string) => Promise<void>,
+  uninstallSkill: (name: string) => Promise<void>,
+  listBackups: () => Promise<Backup[]>,
+  restoreBackup: (id: string) => Promise<void>,
+  createPairingCode: () => Promise<{ code: string }>,
+
+  // === Native Channel Pairing ===
+  createQrCode: (label?: string) => Promise<PairingQrData>,   // ← 推荐名称
+  createPairingQr: (label?: string) => Promise<PairingQrData>, // ← 兼容别名
   pollPairingStatus: (code: string) => Promise<PairingStatus>,
-  // OpenClaw
-  checkOpenclaw: () => Promise<OpenClawStatus>,
-  installOpenclaw: () => Promise<void>,
-  runCommand: (cmd: string, args?: string[]) => Promise<string>,
-  // Video resources
+
+  // === Gateway ===
+  getGatewayStatus: () => Promise<GatewayStatus>,
+  restartGateway: () => Promise<void>,
+
+  // === App Info ===
+  getAppInfo: () => Promise<AppInfo>,
+
+  // === Video Resources ===
   getVideoBaseUrl: () => string,
   getVideoUrl: (filename: string) => string,
-  // Utilities
+
+  // === Utilities ===
   openExternal: (url: string) => void,
   getResourcesPath: () => string,
+
+  // === Event Listeners（返回取消函数）===
+  onBotStateChange: (callback: (state: string) => void) => () => void,
+  onInstallProgress: (callback: (msg: string) => void) => () => void,
 }
 ```
 
@@ -90,10 +123,27 @@ window.electronAPI = {
 
 | 窗口 | 入口 | 用途 |
 |------|------|------|
-| 主窗口 | `renderer/main.tsx` + `main.html` | 加载 Web 应用 URL（`loadFile()`） |
+| 主窗口 | `renderer/main.tsx` + `main.html` | stitch 设计系统（`LuminaLayout`）|
 | Float 窗口 | `renderer/float.tsx` + `float.html` | 右下角 QR 配对面板 |
 
 > **注意**：主窗口使用 `loadFile()` 而非 `loadURL()`，解决 asar 打包兼容问题。
+
+**LuminaLayout 路由系统**（内存状态，非 URL 路由）：
+
+| 路由 ID | 页面 | 主题 | 说明 |
+|---------|------|------|------|
+| `chat` | ChatPage | Lumina 浅色 | 默认首页 |
+| `study` | StudyPage | Lumina 浅色 | 学习页 |
+| `snapshot` | SnapshotPage | Lumina 浅色 | 快照页 |
+| `profile` | ProfilePage | Lumina 浅色 | 个人资料 |
+| `dashboard` | DashboardPage | Noir 深色 | OpenClaw 控制台 |
+| `agents` | AgentsPage | Noir 深色 | Agent 管理 |
+| `channels` | ChannelsPage | Noir 深色 | 渠道配置 |
+| `backups` | BackupsPage | Noir 深色 | 数据备份（真实 API）|
+| `settings` | SettingsPage | Noir 深色 | 系统设置 |
+| `skills` | SkillsPlaceholder | Noir 深色 | 引导至 Settings |
+
+**路由分发逻辑**：`LuminaLayout` 使用 React `useState` 管理 `activeRoute`，`LuminaSidebar` 点击触发 `onNavigate`，页面通过 `React.lazy` + `Suspense` 懒加载。
 
 ---
 
