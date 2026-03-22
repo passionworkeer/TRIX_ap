@@ -43,14 +43,14 @@ interface PomodoroState {
   sessionsCompleted: number;
 }
 
-// ── Mock Data ───────────────────────────────────────────────────────────────
+// ── Demo fallback data ────────────────────────────────────────────────────────
 
-const MOCK_TODOS: TodoItem[] = [
-  { id: '1', text: '完成 TRIX 原型设计稿', completed: false, priority: 'high', deadline: '今日' },
-  { id: '2', text: '阅读量子计算第三章', completed: true, priority: 'medium' },
-  { id: '3', text: '复习微积分重点公式', completed: false, priority: 'medium', deadline: '明日' },
-  { id: '4', text: '整理学习笔记卡片', completed: false, priority: 'low' },
-  { id: '5', text: '完成英语单词记忆计划', completed: false, priority: 'high', deadline: '今日' },
+const DEMO_TODOS: TodoItem[] = [
+  { id: 'demo-1', text: '完成 TRIX 原型设计稿', completed: false, priority: 'high', deadline: '今日' },
+  { id: 'demo-2', text: '阅读量子计算第三章', completed: true, priority: 'medium' },
+  { id: 'demo-3', text: '复习微积分重点公式', completed: false, priority: 'medium', deadline: '明日' },
+  { id: 'demo-4', text: '整理学习笔记卡片', completed: false, priority: 'low' },
+  { id: 'demo-5', text: '完成英语单词记忆计划', completed: false, priority: 'high', deadline: '今日' },
 ];
 
 const MOCK_PROCESSES = [
@@ -715,14 +715,51 @@ const SecurityCTA = () => (
 // ── Main StudyPage Component ─────────────────────────────────────────────────
 
 export default function StudyPage() {
+  const api = window.electronAPI;
   const [activeTab, setActiveTab] = useState<'focus' | 'courses' | 'stats'>('focus');
-  const [todos, setTodos] = useState<TodoItem[]>(MOCK_TODOS);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+
+  // Load todos from IPC (Supabase via main process)
+  useEffect(() => {
+    if (!api) {
+      setTodos(DEMO_TODOS);
+      return;
+    }
+    api.listTodos().then((result) => {
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        setTodos(result.data.map((t) => {
+          const raw = t as { id: string; text?: string; title?: string; completed: boolean; priority?: string; deadline?: string };
+          const priority = raw.priority as 'high' | 'medium' | 'low';
+          return {
+            id: raw.id,
+            text: raw.text ?? raw.title ?? '',
+            completed: raw.completed,
+            priority: (priority === 'high' || priority === 'medium' || priority === 'low') ? priority : 'medium',
+            deadline: raw.deadline,
+          };
+        }));
+      } else {
+        setTodos(DEMO_TODOS);
+      }
+    }).catch(() => {
+      setTodos(DEMO_TODOS);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleTodo = useCallback((id: string) => {
+    // Optimistic update
     setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+      prev.map((t) => t.id === id ? { ...t, completed: !t.completed } : t)
     );
-  }, []);
+    // Persist via API (fire-and-forget, graceful failure)
+    if (api && !id.startsWith('demo-')) {
+      const todo = todos.find((t) => t.id === id);
+      if (todo) {
+        api.toggleTodo(id, !todo.completed).catch(() => {});
+      }
+    }
+  }, [api, todos]);
 
   const tabs = [
     { key: 'focus' as const, label: '专注模式' },

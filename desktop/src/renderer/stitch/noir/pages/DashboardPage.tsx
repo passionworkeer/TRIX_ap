@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Zap, Activity, Server, Bot, Cpu, HardDrive,
-  RefreshCw, Play, Square, Stethoscope, Globe,
+  Zap, Activity, Server, Bot, Cpu, HardDrive, Package,
+  RefreshCw, Play, Square, Stethoscope, Globe, MemoryStick,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -21,13 +21,22 @@ interface OpenClawStatus {
   error?: string;
 }
 
-interface AppInfo {
-  version: string;
-  electron: string;
-  node: string;
-  chrome: string;
-  platform: string;
-  isPackaged: boolean;
+interface SystemInfo {
+  cpu: { usage: number; cores: number; model: string };
+  memory: { used: number; total: number; usage: number; free: number };
+  os: { hostname: string; platform: string; arch: string; version: string; release: string };
+}
+
+interface DiskDrive {
+  letter: string;
+  total: number;
+  free: number;
+}
+
+interface PkgStatus {
+  name: string;
+  installed: boolean;
+  version?: string;
 }
 
 interface CommandResult {
@@ -121,7 +130,9 @@ const MetricCard = ({
 export default function DashboardPage() {
   const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus | null>(null);
   const [openClawStatus, setOpenClawStatus] = useState<OpenClawStatus | null>(null);
-  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [diskInfo, setDiskInfo] = useState<DiskDrive[]>([]);
+  const [packages, setPackages] = useState<PkgStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -135,14 +146,19 @@ export default function DashboardPage() {
     if (!api) return;
     setLoading(true);
     try {
-      const [gw, oc, info] = await Promise.all([
+      const [gw, oc, _info, sys, disk, pkgs] = await Promise.all([
         api.getGatewayStatus(),
         api.checkOpenClaw(),
         api.getAppInfo(),
+        api.getSystemInfo(),
+        api.getDiskInfo(),
+        api.checkPackages(),
       ]);
       setGatewayStatus(gw);
       setOpenClawStatus(oc);
-      setAppInfo(info);
+      if (sys.success && sys.data) setSystemInfo(sys.data);
+      if (disk.success && disk.data) setDiskInfo(disk.data);
+      if (pkgs.success && pkgs.data) setPackages(pkgs.data);
     } catch (err) {
       addLog(createLogEntry('error', `状态加载失败: ${String(err)}`));
     } finally {
@@ -418,18 +434,113 @@ export default function DashboardPage() {
         <MetricCard
           icon={Cpu}
           iconColor="#34d399"
-          label="Node.js"
-          value={appInfo?.node ?? '—'}
-          sub="Electron 运行环境"
+          label="CPU 占用"
+          value={systemInfo ? `${systemInfo.cpu.usage}%` : '—'}
+          sub={systemInfo ? `${systemInfo.cpu.cores} 核 · ${systemInfo.cpu.model.slice(0, 28)}` : '加载中…'}
+        />
+        <MetricCard
+          icon={MemoryStick}
+          iconColor="#fb923c"
+          label="内存占用"
+          value={systemInfo ? `${systemInfo.memory.usage}%` : '—'}
+          sub={systemInfo ? `已用 ${systemInfo.memory.used} GB / ${systemInfo.memory.total} GB` : '加载中…'}
         />
         <MetricCard
           icon={HardDrive}
           iconColor="#fbbf24"
-          label="Electron"
-          value={appInfo?.electron ?? '—'}
-          sub={appInfo?.isPackaged ? '生产环境' : '开发模式'}
+          label="磁盘占用"
+          value={
+            diskInfo.length > 0
+              ? diskInfo
+                  .map((d) => `${d.letter} ${Math.round((1 - d.free / d.total) * 100)}%`)
+                  .join(' · ')
+              : '—'
+          }
+          sub={
+            diskInfo.length > 0
+              ? diskInfo
+                  .map((d) => `${d.letter} ${d.free} GB 可用 / ${d.total} GB`)
+                  .join(' · ')
+              : '加载中…'
+          }
+        />
+        <MetricCard
+          icon={Activity}
+          iconColor="#60a5fa"
+          label="设备名称"
+          value={systemInfo?.os.hostname ?? '—'}
+          sub={systemInfo ? `${systemInfo.os.version} (${systemInfo.os.arch})` : '加载中…'}
         />
       </div>
+
+      {/* Installed Packages */}
+      {packages.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 12,
+            padding: '16px 20px',
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Package size={14} color="#919191" />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: '#919191',
+              }}
+            >
+              已安装的全局包
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {packages.map((pkg) => (
+              <div
+                key={pkg.name}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 10px',
+                  borderRadius: 8,
+                  background: pkg.installed ? 'rgba(74, 222, 128, 0.08)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${pkg.installed ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255,255,255,0.06)'}`,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: pkg.installed ? '#4ade80' : '#ff6b6b',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: pkg.installed ? '#4ade80' : '#919191',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {pkg.name}
+                </span>
+                {pkg.version && (
+                  <span style={{ fontSize: 11, color: '#666', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {pkg.version}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Gateway URL */}
       {gatewayStatus?.running && gatewayStatus?.url && (

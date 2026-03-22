@@ -449,7 +449,7 @@ describe('mallService', () => {
 
       await getPointsTransactions();
 
-      expect(supabase.from).toHaveBeenCalledWith('points_transactions');
+      expect(supabase.from).toHaveBeenCalledWith('point_transactions');
     });
   });
 });

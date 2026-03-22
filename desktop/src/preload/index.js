@@ -44,6 +44,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreBackup: (id) => ipcRenderer.invoke('openclaw:backup-restore', id),
   createPairingCode: () => ipcRenderer.invoke('openclaw:pairing-create'),
 
+  // === Study Data (Supabase — requires login) ===
+  listTodos: () => ipcRenderer.invoke('study:list-todos'),
+  createTodo: (title, priority) => ipcRenderer.invoke('study:create-todo', title, priority),
+  toggleTodo: (id, completed) => ipcRenderer.invoke('study:toggle-todo', id, completed),
+  deleteTodo: (id) => ipcRenderer.invoke('study:delete-todo', id),
+  getAchievements: () => ipcRenderer.invoke('study:get-achievements'),
+  getProfileStats: () => ipcRenderer.invoke('profile:get-stats'),
+
+  // === TrixNativeServer Chat API ===
+  listConversations: () => ipcRenderer.invoke('trixnative:conversations'),
+  fetchMessages: (conversationId) => ipcRenderer.invoke('trixnative:messages', conversationId),
+  sendMessage: (conversationId, content) => ipcRenderer.invoke('trixnative:send-message', conversationId, content),
+
   // === Native Channel Pairing ===
   createQrCode: (label) => ipcRenderer.invoke('pairing:createQr', label),
   // Aliases for backward compatibility
@@ -56,6 +69,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // === App Info ===
   getAppInfo: () => ipcRenderer.invoke('app:info'),
+
+  // === System Info (CPU / Memory / Disk / Packages) ===
+  getSystemInfo: () => ipcRenderer.invoke('system:info'),
+  getDiskInfo: () => ipcRenderer.invoke('system:disk'),
+  checkPackages: () => ipcRenderer.invoke('system:check-packages'),
 
   // === Event Listeners ===
   onBotStateChange: (callback) => {

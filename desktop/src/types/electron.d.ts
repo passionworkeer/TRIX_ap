@@ -19,6 +19,13 @@ export interface OpenClawCommandResult {
   error?: string;
 }
 
+/** Generic success+data envelope used by TrixNativeServer API calls */
+export interface ApiResult<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export interface GatewayStatus {
   running: boolean;
   port?: number;
@@ -82,6 +89,19 @@ export interface ElectronAPI {
   restoreBackup: (backupId: string) => Promise<OpenClawCommandResult>;
   createPairingCode: () => Promise<OpenClawCommandResult>;
 
+  // Study Data (Supabase — requires login, falls back gracefully)
+  listTodos: () => Promise<ApiResult<Array<{ id: string; title: string; completed: boolean; priority: string; deadline?: string }>>>;
+  createTodo: (title: string, priority: string) => Promise<ApiResult<{ id: string }>>;
+  toggleTodo: (id: string, completed: boolean) => Promise<ApiResult<void>>;
+  deleteTodo: (id: string) => Promise<ApiResult<void>>;
+  getAchievements: () => Promise<ApiResult<Array<{ id: string; label: string; icon: string; earned: boolean; earnedAt?: string }>>>;
+  getProfileStats: () => Promise<ApiResult<{ displayName: string; points: number; streak: number; level: number; totalStudyMinutes: number }>>;
+
+  // TrixNativeServer Chat API
+  listConversations: () => Promise<ApiResult<Array<{ id: string; title: string; updatedAt?: string }>>>;
+  fetchMessages: (conversationId: string) => Promise<ApiResult<Array<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>>;
+  sendMessage: (conversationId: string, content: string) => Promise<ApiResult<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>;
+
   // Native Channel Pairing
   createQrCode: (label?: string) => Promise<PairingQrResult>;
   createPairingQr: (label?: string) => Promise<PairingQrResult>; // alias for createQrCode
@@ -94,9 +114,50 @@ export interface ElectronAPI {
   // App Info
   getAppInfo: () => Promise<AppInfo>;
 
+  // System Info (CPU / Memory / Disk / Packages)
+  getSystemInfo: () => Promise<SystemInfoResult>;
+  getDiskInfo: () => Promise<DiskInfoResult>;
+  checkPackages: () => Promise<PkgCheckResult>;
+
   // Event Listeners
   onBotStateChange: (callback: (state: BotState) => void) => () => void;
   onInstallProgress: (callback: (msg: string) => void) => () => void;
+}
+
+export interface SystemInfo {
+  cpu: { usage: number; cores: number; model: string };
+  memory: { used: number; total: number; usage: number; free: number };
+  os: { hostname: string; platform: string; arch: string; version: string; release: string };
+}
+
+export interface SystemInfoResult {
+  success: boolean;
+  data?: SystemInfo;
+  error?: string;
+}
+
+export interface DiskDrive {
+  letter: string;
+  total: number;
+  free: number;
+}
+
+export interface DiskInfoResult {
+  success: boolean;
+  data?: DiskDrive[];
+  error?: string;
+}
+
+export interface PkgStatus {
+  name: string;
+  installed: boolean;
+  version?: string;
+}
+
+export interface PkgCheckResult {
+  success: boolean;
+  data?: PkgStatus[];
+  error?: string;
 }
 
 declare global {

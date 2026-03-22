@@ -13,16 +13,21 @@
     "start": "electron .",
     "build:desktop": "vite build --config vite.config.desktop.ts && electron-builder --win --x64",
     "build:desktop:dir": "vite build --config vite.config.desktop.ts && electron-builder --win --x64 --dir",
-    "typecheck:desktop": "tsc --noEmit -p tsconfig.desktop.json"
+    "typecheck:desktop": "tsc --noEmit -p tsconfig.desktop.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "electron-log": "^5.2.4",
     "electron-store": "^8.2.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20.11.0",
     "electron": "^33.4.0",
     "electron-builder": "^25.1.8",
+    "happy-dom": "^20.8.4",
     "typescript": "^5.8.2",
     "vite": "^6.2.0",
     "vite-plugin-electron": "^0.29.1",

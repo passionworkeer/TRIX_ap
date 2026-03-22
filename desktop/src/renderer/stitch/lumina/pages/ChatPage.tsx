@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Search, Send, Paperclip, Smile, Image, Mic,
   Star, MoreVertical, Plus, Bot, User, Loader2,
@@ -26,6 +26,21 @@ interface ChatSession {
   isActive: boolean;
 }
 
+// ── TrixNativeServer API response shapes ─────────────────────────────────────
+
+interface TrixConversation {
+  id: string;
+  title: string;
+  updatedAt?: string;
+}
+
+interface TrixMessage {
+  id: string;
+  content: string;
+  direction: 'incoming' | 'outgoing';
+  timestamp: string;
+}
+
 // ── Design Tokens (Lumina) ────────────────────────────────────────────────────
 
 const C = {
@@ -44,11 +59,11 @@ const C = {
   error: '#ba1a1a',
 } as const;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
+// ── Mock / Demo fallback ─────────────────────────────────────────────────────
 
-const MOCK_SESSIONS: ChatSession[] = [
+const DEMO_SESSIONS: ChatSession[] = [
   {
-    id: '1',
+    id: 'demo-1',
     title: '产品原型设计讨论',
     preview: '好的，关于那个界面的玻璃拟态效果，我们可以尝试...',
     updatedAt: new Date(Date.now() - 1000 * 60 * 30),
@@ -64,7 +79,7 @@ const MOCK_SESSIONS: ChatSession[] = [
       {
         id: 'm2',
         role: 'user',
-        content: '我想重点讨论一下 AI 聊天界面的交互细节。我们需要一种能够体现"高级感"和"编辑感"的视觉风格，避免那种传统的列表堆砌感。',
+        content: '我想重点讨论一下 AI 聊天界面的交互细节。我们需要一种能够体现"高级感"和"编辑感"的视觉风格。',
         timestamp: new Date(Date.now() - 1000 * 60 * 33),
       },
       {
@@ -82,7 +97,7 @@ const MOCK_SESSIONS: ChatSession[] = [
     ],
   },
   {
-    id: '2',
+    id: 'demo-2',
     title: '量子计算基础',
     preview: '你能解释一下什么是量子纠缠吗？',
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
@@ -97,13 +112,13 @@ const MOCK_SESSIONS: ChatSession[] = [
       {
         id: 'm6',
         role: 'assistant',
-        content: '量子纠缠是量子力学中最神奇的现象之一。当两个粒子处于纠缠态时，无论它们相距多远，对其中一个粒子的测量会瞬间影响另一个粒子的状态——这正是爱因斯坦所说的"鬼魅般的超距作用"。',
+        content: '量子纠缠是量子力学中最神奇的现象之一。当两个粒子处于纠缠态时，无论它们相距多远，对其中一个粒子的测量会瞬间影响另一个粒子的状态。',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60),
       },
     ],
   },
   {
-    id: '3',
+    id: 'demo-3',
     title: '旅行行程规划',
     preview: '去京都的五天行程推荐有哪些？',
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
@@ -111,7 +126,7 @@ const MOCK_SESSIONS: ChatSession[] = [
     messages: [],
   },
   {
-    id: '4',
+    id: 'demo-4',
     title: 'Python 代码重构',
     preview: '请帮我审查这段数据清洗的代码逻辑。',
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
@@ -119,6 +134,32 @@ const MOCK_SESSIONS: ChatSession[] = [
     messages: [],
   },
 ];
+
+// ── API helper ────────────────────────────────────────────────────────────────
+
+function parseApiConversations(result: { success: boolean; data?: TrixConversation[] }): ChatSession[] {
+  if (!result.success || !Array.isArray(result.data) || result.data.length === 0) {
+    return DEMO_SESSIONS;
+  }
+  return result.data.map((conv: TrixConversation, idx: number) => ({
+    id: conv.id,
+    title: conv.title || `对话 ${idx + 1}`,
+    preview: '',
+    updatedAt: conv.updatedAt ? new Date(conv.updatedAt) : new Date(),
+    messages: [],
+    isActive: idx === 0,
+  }));
+}
+
+function parseApiMessages(result: { success: boolean; data?: TrixMessage[] }): ChatMessage[] {
+  if (!result.success || !Array.isArray(result.data)) return [];
+  return result.data.map((msg: TrixMessage) => ({
+    id: msg.id,
+    role: msg.direction === 'outgoing' ? 'user' : 'assistant',
+    content: msg.content,
+    timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+  }));
+}
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -297,14 +338,39 @@ const TypingIndicator = () => (
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ChatPage() {
-  const [sessions, setSessions] = useState<ChatSession[]>(MOCK_SESSIONS);
-  const [activeSessionId, setActiveSessionId] = useState<string>('1');
+  const api = window.electronAPI;
+
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('demo-1');
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChatHint, setShowNewChatHint] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load conversations on mount
+  useEffect(() => {
+    if (!api) {
+      setSessions(DEMO_SESSIONS);
+      return;
+    }
+    setLoadingConversations(true);
+    api.listConversations().then((result: { success: boolean; data?: TrixConversation[] }) => {
+      const parsed = parseApiConversations(result);
+      setSessions(parsed);
+      if (parsed.length > 0 && !parsed.find((s) => s.id === activeSessionId)) {
+        setActiveSessionId(parsed[0]!.id);
+      }
+    }).catch(() => {
+      setSessions(DEMO_SESSIONS);
+    }).finally(() => {
+      setLoadingConversations(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
   const filteredSessions = sessions.filter(
@@ -312,6 +378,36 @@ export default function ChatPage() {
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.preview.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // Load messages when switching sessions
+  const loadMessages = useCallback(async (sessionId: string, convId: string) => {
+    if (!api || convId.startsWith('demo-')) return;
+    setLoadingMessages(true);
+    try {
+      const result = await api.fetchMessages(convId) as { success: boolean; data?: TrixMessage[] };
+      const messages = parseApiMessages(result);
+      if (messages.length > 0) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages, preview: messages[messages.length - 1]?.content ?? '' }
+              : s,
+          ),
+        );
+      }
+    } catch {
+      // silently ignore — session stays with empty messages
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, [api]);
+
+  // When active session changes, load messages if not yet loaded
+  useEffect(() => {
+    if (activeSession && activeSession.messages.length === 0) {
+      loadMessages(activeSession.id, activeSession.id);
+    }
+  }, [activeSessionId, activeSession, loadMessages]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -346,8 +442,34 @@ export default function ChatPage() {
     if (inputRef.current) inputRef.current.style.height = 'auto';
     setIsTyping(true);
 
-    // Simulate AI response
-    await new Promise((r) => setTimeout(r, 1800));
+    const currentId = activeSessionId;
+
+    if (api && !currentId.startsWith('demo-')) {
+      // Real: POST to TrixNativeServer
+      try {
+        const result = await api.sendMessage(currentId, inputValue.trim()) as { success: boolean; data?: TrixMessage };
+        if (result.success && result.data) {
+          const aiMsg: ChatMessage = {
+            id: result.data.id,
+            role: 'assistant',
+            content: result.data.content,
+            timestamp: result.data.timestamp ? new Date(result.data.timestamp) : new Date(),
+          };
+          setIsTyping(false);
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s,
+            ),
+          );
+          return;
+        }
+      } catch {
+        // fall through to fallback
+      }
+    }
+
+    // Fallback: simulate AI response after delay
+    await new Promise((r) => setTimeout(r, 1600));
     const aiMsg: ChatMessage = {
       id: `ai-${Date.now()}`,
       role: 'assistant',
@@ -358,7 +480,7 @@ export default function ChatPage() {
     setIsTyping(false);
     setSessions((prev) =>
       prev.map((s) =>
-        s.id === activeSessionId ? { ...s, messages: [...s.messages, aiMsg] } : s,
+        s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s,
       ),
     );
   };
@@ -429,8 +551,9 @@ export default function ChatPage() {
             </h2>
             <button
               onClick={() => {
+                const newId = `local-${Date.now()}`;
                 const newSession: ChatSession = {
-                  id: `new-${Date.now()}`,
+                  id: newId,
                   title: '新对话',
                   preview: '',
                   updatedAt: new Date(),
@@ -438,7 +561,7 @@ export default function ChatPage() {
                   messages: [],
                 };
                 setSessions((prev) => [newSession, ...prev]);
-                setActiveSessionId(newSession.id);
+                setActiveSessionId(newId);
                 setShowNewChatHint(true);
               }}
               style={{

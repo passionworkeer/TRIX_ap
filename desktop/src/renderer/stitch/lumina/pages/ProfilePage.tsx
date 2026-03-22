@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User, Edit, Share2, Shield, Key, Smartphone,
   Monitor, ChevronRight, Plus, Twitter, Github,
@@ -59,9 +59,9 @@ const C = {
   disabledText: '#9ca3af',
 } as const;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
+// ── Demo fallback data ────────────────────────────────────────────────────────
 
-const MOCK_ACHIEVEMENTS: Achievement[] = [
+const DEMO_ACHIEVEMENTS: Achievement[] = [
   { id: '1', icon: <User size={20} />, label: '首次配对', earned: true },
   { id: '2', icon: <Award size={20} />, label: '7天连续活跃', earned: true },
   { id: '3', icon: <MessageCircle size={20} />, label: 'AI 对话大师', earned: true },
@@ -292,7 +292,39 @@ const SocialAccountRow = (props: SocialAccountRowProps) => {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const api = window.electronAPI;
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
+  const [achievements, setAchievements] = useState<Achievement[]>(DEMO_ACHIEVEMENTS);
+  const [profileStats, setProfileStats] = useState<{
+    displayName: string;
+    points: number;
+    streak: number;
+    level: number;
+  }>({ displayName: 'TRIX 用户', points: 0, streak: 0, level: 1 });
+
+  // Load achievements + profile stats from IPC (Supabase via main process)
+  useEffect(() => {
+    if (!api) return;
+
+    api.getAchievements().then((result: { success: boolean; data?: Achievement[] }) => {
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        setAchievements(result.data.map((a: Achievement) => ({
+          id: a.id,
+          icon: typeof a.icon === 'string' ? <span style={{ fontSize: 22 }}>{a.icon}</span> : a.icon,
+          label: a.label,
+          earned: a.earned,
+        })));
+      }
+      // else: keep DEMO_ACHIEVEMENTS
+    }).catch(() => {});
+
+    api.getProfileStats().then((result: { success: boolean; data?: { displayName: string; points: number; streak: number; level: number } }) => {
+      if (result.success && result.data) {
+        setProfileStats(result.data);
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConnect = (id: string) => {
     setSocialAccounts((prev) =>
@@ -310,7 +342,7 @@ export default function ProfilePage() {
     );
   };
 
-  const earnedCount = MOCK_ACHIEVEMENTS.filter((a) => a.earned).length;
+  const earnedCount = achievements.filter((a) => a.earned).length;
 
   return (
     <div
@@ -465,7 +497,7 @@ export default function ProfilePage() {
               成就徽章
             </h2>
             <span style={{ fontSize: 12, color: C.onSurfaceVariant }}>
-              {earnedCount} / {MOCK_ACHIEVEMENTS.length} 已获得
+              {earnedCount} / {achievements.length} 已获得
             </span>
           </div>
           <SurfaceCard elevation="low" style={{ padding: 20 }}>
@@ -476,7 +508,7 @@ export default function ProfilePage() {
                 gap: 12,
               }}
             >
-              {MOCK_ACHIEVEMENTS.map((achievement) => (
+              {achievements.map((achievement) => (
                 <div
                   key={achievement.id}
                   style={{
