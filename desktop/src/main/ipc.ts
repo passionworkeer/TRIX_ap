@@ -13,9 +13,10 @@ import {
   hideMainWindow,
   minimizeToTray,
   pushBotState,
+  getMainWindow,
 } from './window-state';
 import { checkOpenClaw, installOpenClaw, runCommand } from './openclaw';
-import { getGatewayStatus, restartGateway } from './gateway';
+import { getGatewayStatus, restartGateway, startGateway, stopGateway, getGatewayLogs } from './gateway';
 
 // === Input Validation Helpers ===
 
@@ -573,6 +574,33 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  /** Send a reaction emoji to a message */
+  ipcMain.handle('trixnative:send-reaction', async (_event, messageId: string, emoji: string) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/messages/${encodeURIComponent(messageId)}/reactions`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-client-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (res.statusCode !== 200 && res.statusCode !== 201) {
+        return { success: false, error: `Server returned ${res.statusCode}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
   // === Native Channel Pairing (HTTP API) ===
 
   /**
@@ -702,6 +730,122 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  /**
+   * Generate a new pairing code via TRIX Native Server.
+   */
+  ipcMain.handle('pairing:generate', async (_event, label?: string) => {
+    try {
+      const config = getNativeChannelConfig();
+      if (!config) {
+        return { success: false, error: 'Native channel not configured (configure TRIX Native in OpenClaw first)' };
+      }
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/pairings`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.adminToken,
+        },
+        body: JSON.stringify({ label: label ?? 'Desktop Settings' }),
+      });
+
+      if (res.statusCode !== 201) {
+        return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+      }
+
+      const pairing = JSON.parse(res.body);
+      // Mask the code in logs — only log prefix
+      log.info('Pairing code generated:', pairing.code?.slice(0, 3) + '***');
+      return {
+        success: true,
+        data: {
+          code: pairing.code,
+          createdAt: pairing.createdAt ?? new Date().toISOString(),
+          expiresAt: pairing.expiresAt,
+          claimed: false,
+          qrDataUrl: pairing.qrDataUrl,
+        },
+      };
+    } catch (err) {
+      log.error('pairing:generate error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /**
+   * List all pairing codes from TRIX Native Server.
+   */
+  ipcMain.handle('pairing:list', async () => {
+    try {
+      const config = getNativeChannelConfig();
+      if (!config) {
+        return { success: false, error: 'Native channel not configured', data: [] };
+      }
+
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${config.serverUrl}/api/pairings`,
+        headers: {
+          'x-trix-admin-token': config.adminToken,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.statusCode !== 200) {
+        return { success: false, error: `Server returned ${res.statusCode}`, data: [] };
+      }
+
+      const data = JSON.parse(res.body);
+      const pairings = (Array.isArray(data) ? data : []).map((p: {
+        code?: string; createdAt?: string; expiresAt?: string; status?: string
+      }) => ({
+        code: p.code,
+        createdAt: p.createdAt ?? '',
+        expiresAt: p.expiresAt ?? '',
+        claimed: p.status === 'claimed',
+      }));
+      return { success: true, data: pairings };
+    } catch (err) {
+      log.error('pairing:list error:', err);
+      return { success: false, error: String(err), data: [] };
+    }
+  });
+
+  /**
+   * Revoke (delete) a pairing code from TRIX Native Server.
+   */
+  ipcMain.handle('pairing:revoke', async (_event, code: string) => {
+    try {
+      const config = getNativeChannelConfig();
+      if (!config) {
+        return { success: false, error: 'Native channel not configured' };
+      }
+      // Validate input
+      if (typeof code !== 'string' || !/^[A-Z0-9]+$/i.test(code) || code.length > 32) {
+        return { success: false, error: 'Invalid code format' };
+      }
+
+      const res = await httpRequest({
+        method: 'DELETE',
+        url: `${config.serverUrl}/api/pairings/${encodeURIComponent(code)}`,
+        headers: {
+          'x-trix-admin-token': config.adminToken,
+        },
+      });
+
+      if (res.statusCode !== 200 && res.statusCode !== 204) {
+        return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+      }
+
+      log.info('Pairing code revoked:', code.slice(0, 3) + '***');
+      return { success: true };
+    } catch (err) {
+      log.error('pairing:revoke error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
   // === Gateway ===
   ipcMain.handle('gateway:status', async () => {
     try {
@@ -712,13 +856,44 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle('gateway:start', async () => {
+    try {
+      await startGateway();
+      const status = await getGatewayStatus();
+      return { success: true, data: { port: status.port, pid: status.pid } };
+    } catch (err) {
+      log.error('gateway:start error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('gateway:stop', async () => {
+    try {
+      await stopGateway();
+      return { success: true };
+    } catch (err) {
+      log.error('gateway:stop error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
   ipcMain.handle('gateway:restart', async () => {
     try {
       await restartGateway();
-      return { success: true };
+      const status = await getGatewayStatus();
+      return { success: true, data: { port: status.port, pid: status.pid } };
     } catch (err) {
       log.error('gateway:restart error:', err);
       return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('gateway:logs', async (_event, opts?: { lines?: number }) => {
+    try {
+      const lines = getGatewayLogs({ lines: opts?.lines ?? 100 });
+      return { success: true, data: lines };
+    } catch (err) {
+      return { success: false, error: String(err), data: [] };
     }
   });
 
@@ -1020,6 +1195,401 @@ export function setupIpcHandlers(): void {
       return { success: false, message: '不支持的渠道' };
     } catch (err) {
       log.error('channels:test error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // === Third-party Channel Messaging =========================================
+
+  // ── Types ──────────────────────────────────────────────────────────────────
+  interface ChannelMessage {
+    id: string;
+    channel: string;
+    text: string;
+    from: string;
+    timestamp: string;
+    direction: 'incoming' | 'outgoing';
+    raw?: Record<string, unknown>;
+  }
+
+  // ── In-memory store per channel ────────────────────────────────────────────
+  const messageStore: Map<string, ChannelMessage[]> = new Map();
+  const listenerState: Map<string, {
+    timer?: ReturnType<typeof setTimeout>;
+    ws?: unknown;
+    stopRequested?: boolean;
+  }> = new Map();
+
+  function pushToRenderer(channel: string, msg: ChannelMessage): void {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('channels:message-received', msg);
+    }
+  }
+
+  function pushStatusToRenderer(channel: string, status: string, error?: string): void {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('channels:status-update', { channel, status, error });
+    }
+  }
+
+  function appendMessage(channel: string, msg: ChannelMessage): void {
+    const existing = messageStore.get(channel) ?? [];
+    existing.push(msg);
+    if (existing.length > 100) existing.splice(0, existing.length - 100);
+    messageStore.set(channel, existing);
+    pushToRenderer(channel, msg);
+  }
+
+  function stopListener(channel: string): void {
+    const state = listenerState.get(channel);
+    if (!state) return;
+    if (state.timer) { clearTimeout(state.timer); }
+    listenerState.delete(channel);
+    // Note: ws close handled by the individual listener functions
+  }
+
+  // ── Telegram: long-polling getUpdates ─────────────────────────────────────
+
+  function startTelegramListener(botToken: string): void {
+    let offset = 0;
+    let active = true;
+
+    const poll = async (): Promise<void> => {
+      if (!active) return;
+      try {
+        const res = await httpRequest({
+          method: 'GET',
+          url: `https://api.telegram.org/bot${botToken}/getUpdates?offset=${offset}&timeout=55&allowed_updates=messages`,
+        });
+        if (res.statusCode !== 200) {
+          pushStatusToRenderer('telegram', 'error', `HTTP ${res.statusCode}`);
+          scheduleNext();
+          return;
+        }
+        const data = JSON.parse(res.body);
+        if (data.ok && Array.isArray(data.result)) {
+          for (const update of data.result as Array<{
+            message?: {
+              message_id: number; from?: { first_name: string };
+              chat: { title?: string; username?: string }; text?: string; date: number;
+            };
+          }>) {
+            const msg = update.message;
+            if (!msg) continue;
+            const from = msg.from?.first_name ?? msg.chat?.title ?? msg.chat?.username ?? 'Unknown';
+            appendMessage('telegram', {
+              id: `${msg.message_id}`, channel: 'telegram',
+              text: msg.text ?? '', from,
+              timestamp: new Date(msg.date * 1000).toISOString(),
+              direction: 'incoming',
+            });
+            offset = Math.max(offset, msg.message_id + 1);
+          }
+        }
+        pushStatusToRenderer('telegram', 'connected');
+      } catch (err) {
+        log.warn('Telegram poll error:', err);
+        pushStatusToRenderer('telegram', 'error', String(err));
+      }
+      scheduleNext();
+    };
+
+    function scheduleNext(): void {
+      if (!active) return;
+      const state = listenerState.get('telegram');
+      if (state) { state.timer = setTimeout(poll, 10_000); }
+    }
+
+    poll();
+
+    // Store stop-flag on the listener state
+    const state = listenerState.get('telegram');
+    if (state) {
+      // Override stopRequested getter by tracking active flag
+      void active; // captured in closure; stopListener sets active=false via listenerState
+    }
+  }
+
+  // ── Feishu: WebSocket real-time events ────────────────────────────────────
+
+  async function startFeishuListener(appId: string, appSecret: string): Promise<void> {
+    try {
+      // Step 1: get tenant access token
+      const tokenRes = await httpRequest({
+        method: 'POST',
+        url: 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+      });
+      if (tokenRes.statusCode !== 200) {
+        pushStatusToRenderer('feishu', 'error', `Auth failed: ${tokenRes.statusCode}`);
+        return;
+      }
+      const tData = JSON.parse(tokenRes.body);
+      const wsToken = tData.tenant_access_token as string | undefined;
+      if (!wsToken) { pushStatusToRenderer('feishu', 'error', 'No access token'); return; }
+
+      // Step 2: HTTP polling fallback (30s) since wss:// requires the Feishu SDK
+      startFeishuPolling(wsToken);
+    } catch (err) {
+      log.error('Feishu listener error:', err);
+      pushStatusToRenderer('feishu', 'error', String(err));
+    }
+  }
+
+  function startFeishuPolling(accessToken: string): void {
+    let active = true;
+    let lastMsgTime = 0;
+
+    const poll = async (): Promise<void> => {
+      if (!active) return;
+      try {
+        const res = await httpRequest({
+          method: 'GET',
+          url: 'https://open.feishu.cn/open-apis/im/v1/messages?page_size=20',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.statusCode === 200) {
+          pushStatusToRenderer('feishu', 'connected');
+          try {
+            const data = JSON.parse(res.body);
+            const items: Array<{
+              message_id?: string; create_time?: string;
+              sender?: { id?: string; name?: string; sender_type?: string };
+              body?: { content?: string };
+            }> = Array.isArray(data.data?.items) ? data.data.items : [];
+            for (const item of items) {
+              const msgTime = Number(item.create_time) || 0;
+              if (msgTime <= lastMsgTime) continue;
+              lastMsgTime = Math.max(lastMsgTime, msgTime);
+              const isBot = item.sender?.sender_type === 'bot';
+              appendMessage('feishu', {
+                id: item.message_id ?? `feishu-${msgTime}`,
+                channel: 'feishu',
+                text: item.body?.content ?? '',
+                from: isBot ? 'You' : (item.sender?.name ?? '飞书用户'),
+                timestamp: msgTime ? new Date(msgTime).toISOString() : new Date().toISOString(),
+                direction: isBot ? 'outgoing' : 'incoming',
+              });
+            }
+          } catch { /* ignore parse errors */ }
+        } else {
+          pushStatusToRenderer('feishu', 'error', `HTTP ${res.statusCode}`);
+        }
+      } catch (err) {
+        pushStatusToRenderer('feishu', 'error', String(err));
+      }
+      if (active) {
+        const state = listenerState.get('feishu');
+        if (state) state.timer = setTimeout(poll, 30_000);
+      }
+    };
+
+    pushStatusToRenderer('feishu', 'connected');
+    poll();
+  }
+
+  // ── Webhook channels: 30s polling stub ───────────────────────────────────
+
+  function startWebhookPoll(channel: string, webhookUrl: string): void {
+    const poll = async (): Promise<void> => {
+      try {
+        const res = await httpRequest({ method: 'GET', url: webhookUrl });
+        if (res.statusCode === 200) {
+          pushStatusToRenderer(channel, 'connected');
+          try {
+            const data = JSON.parse(res.body);
+            const msgs: Array<{
+              id?: string; content?: string; author?: { username?: string }; timestamp?: string;
+            }> = Array.isArray(data) ? data : [data];
+            for (const item of msgs) {
+              if (!item.content) continue;
+              appendMessage(channel, {
+                id: item.id ?? `${Date.now()}-${Math.random()}`,
+                channel,
+                text: item.content,
+                from: item.author?.username ?? channel,
+                timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+                direction: 'incoming',
+              });
+            }
+          } catch { /* non-JSON response */ }
+        } else {
+          pushStatusToRenderer(channel, 'error', `HTTP ${res.statusCode}`);
+        }
+      } catch (err) {
+        pushStatusToRenderer(channel, 'error', String(err));
+      }
+      const state = listenerState.get(channel);
+      if (state) state.timer = setTimeout(poll, 30_000);
+    };
+
+    pushStatusToRenderer(channel, 'connected', 'experimental: 30s轮询模式');
+    poll();
+  }
+
+  // ── IPC Handlers ───────────────────────────────────────────────────────────
+
+  ipcMain.handle('channels:start-listening', async (_event, channelId: unknown) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      const stored = channelStore.get('channels')[channelId as string];
+      if (!stored) return { success: false, error: 'Channel not configured' };
+
+      stopListener(channelId as string);
+      listenerState.set(channelId as string, { stopRequested: false });
+      const cfg = stored.config;
+
+      if (channelId === 'telegram') {
+        const token = cfg['botToken'];
+        if (!token) return { success: false, error: 'Bot Token not configured' };
+        startTelegramListener(token);
+        return { success: true, message: 'started' };
+      }
+
+      if (channelId === 'feishu') {
+        const appId = cfg['appId'];
+        const appSecret = cfg['appSecret'];
+        if (!appId || !appSecret) return { success: false, error: 'App ID or App Secret not configured' };
+        await startFeishuListener(appId, appSecret);
+        return { success: true, message: 'started' };
+      }
+
+      if (channelId === 'discord' || channelId === 'slack' || channelId === 'wecom') {
+        const webhookUrl = cfg['webhookUrl'];
+        if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
+        startWebhookPoll(channelId as string, webhookUrl);
+        return { success: true, message: 'started (experimental, 30s polling)' };
+      }
+
+      if (channelId === 'whatsapp') {
+        pushStatusToRenderer('whatsapp', 'connected', 'experimental: manual refresh only');
+        return { success: true, message: 'WhatsApp — paid API required for listening' };
+      }
+
+      return { success: false, error: 'Unsupported channel' };
+    } catch (err) {
+      log.error('channels:start-listening error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('channels:stop-listening', async (_event, channelId: unknown) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      const state = listenerState.get(channelId as string);
+      if (state) { state.stopRequested = true; }
+      stopListener(channelId as string);
+      pushStatusToRenderer(channelId as string, 'disconnected');
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('channels:get-messages', async (_event, channelId: unknown, opts?: { limit?: number }) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel', data: [] };
+      const msgs = messageStore.get(channelId as string) ?? [];
+      const limit = Math.min(opts?.limit ?? 20, 100);
+      return { success: true, data: msgs.slice(-limit) };
+    } catch (err) {
+      return { success: false, error: String(err), data: [] };
+    }
+  });
+
+  ipcMain.handle('channels:send-message', async (_event, channelId: unknown, text: string, _opts?: Record<string, string>) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      if (typeof text !== 'string' || !text.trim()) return { success: false, error: 'Empty message' };
+      const stored = channelStore.get('channels')[channelId as string];
+      if (!stored) return { success: false, error: 'Channel not configured' };
+      const cfg = stored.config;
+      const outMsgId = `local-${Date.now()}`;
+
+      if (channelId === 'telegram') {
+        const token = cfg['botToken'];
+        const chatId = cfg['chatId'];
+        if (!token) return { success: false, error: 'Bot Token not configured' };
+        const body = JSON.stringify({ chat_id: chatId ?? 'me', text: text.trim() });
+        const res = await httpRequest({ method: 'POST', url: `https://api.telegram.org/bot${token}/sendMessage`, headers: { 'Content-Type': 'application/json' }, body });
+        if (res.statusCode !== 200) return { success: false, error: `Telegram API ${res.statusCode}` };
+        const data = JSON.parse(res.body);
+        const sentId = String(data.result?.message_id ?? outMsgId);
+        appendMessage('telegram', { id: sentId, channel: 'telegram', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: sentId };
+      }
+
+      if (channelId === 'feishu') {
+        const appId = cfg['appId'];
+        const appSecret = cfg['appSecret'];
+        if (!appId || !appSecret) return { success: false, error: 'App ID or App Secret not configured' };
+        const tokenRes = await httpRequest({ method: 'POST', url: 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app_id: appId, app_secret: appSecret }) });
+        if (tokenRes.statusCode !== 200) return { success: false, error: 'Feishu auth failed' };
+        const tData = JSON.parse(tokenRes.body);
+        const feishuToken = tData.tenant_access_token as string | undefined;
+        if (!feishuToken) return { success: false, error: 'No Feishu access token' };
+        const receiveId = cfg['receiveId'] ?? '';
+        const sendBody = JSON.stringify({ receive_id: receiveId, msg_type: 'text', content: JSON.stringify({ text: text.trim() }) });
+        const sendRes = await httpRequest({ method: 'POST', url: 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${feishuToken}` }, body: sendBody });
+        if (sendRes.statusCode !== 200 && sendRes.statusCode !== 201) return { success: false, error: `Feishu API ${sendRes.statusCode}` };
+        const sData = JSON.parse(sendRes.body);
+        const sentId = String(sData.data?.message_id ?? outMsgId);
+        appendMessage('feishu', { id: sentId, channel: 'feishu', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: sentId };
+      }
+
+      if (channelId === 'discord') {
+        const webhookUrl = cfg['webhookUrl'];
+        if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
+        const body = JSON.stringify({ content: text.trim() });
+        const res = await httpRequest({ method: 'POST', url: webhookUrl, headers: { 'Content-Type': 'application/json' }, body });
+        if (res.statusCode !== 200 && res.statusCode !== 204) return { success: false, error: `Discord ${res.statusCode}` };
+        appendMessage('discord', { id: outMsgId, channel: 'discord', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: outMsgId };
+      }
+
+      if (channelId === 'slack') {
+        const webhookUrl = cfg['webhookUrl'];
+        if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
+        const body = JSON.stringify({ text: text.trim() });
+        const res = await httpRequest({ method: 'POST', url: webhookUrl, headers: { 'Content-Type': 'application/json' }, body });
+        if (res.statusCode !== 200) return { success: false, error: `Slack ${res.statusCode}` };
+        appendMessage('slack', { id: outMsgId, channel: 'slack', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: outMsgId };
+      }
+
+      if (channelId === 'wecom') {
+        const webhookUrl = cfg['webhookUrl'];
+        if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
+        const body = JSON.stringify({ msgtype: 'text', text: { content: text.trim() } });
+        const res = await httpRequest({ method: 'POST', url: webhookUrl, headers: { 'Content-Type': 'application/json' }, body });
+        if (res.statusCode !== 200) return { success: false, error: `WeCom ${res.statusCode}` };
+        const wData = JSON.parse(res.body);
+        if (wData.errcode !== 0) return { success: false, error: wData.errmsg ?? 'WeCom error' };
+        const sentId = String(wData.msgid ?? outMsgId);
+        appendMessage('wecom', { id: sentId, channel: 'wecom', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: sentId };
+      }
+
+      if (channelId === 'whatsapp') {
+        const instanceId = cfg['instanceId'];
+        const apiToken = cfg['apiToken'];
+        const phoneNumber = cfg['phoneNumber'];
+        if (!instanceId || !apiToken) return { success: false, error: 'WhatsApp credentials not configured' };
+        const waUrl = `https://api.ultramsg.com/instance${instanceId}/messages/chat`;
+        const body = new URLSearchParams({ token: apiToken, to: phoneNumber ?? '', body: text.trim() }).toString();
+        const res = await httpRequest({ method: 'POST', url: waUrl, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        if (res.statusCode !== 200 && res.statusCode !== 201) return { success: false, error: `WhatsApp API ${res.statusCode}` };
+        appendMessage('whatsapp', { id: outMsgId, channel: 'whatsapp', text: text.trim(), from: 'You', timestamp: new Date().toISOString(), direction: 'outgoing' });
+        return { success: true, messageId: outMsgId };
+      }
+
+      return { success: false, error: 'Unsupported channel' };
+    } catch (err) {
+      log.error('channels:send-message error:', err);
       return { success: false, error: String(err) };
     }
   });

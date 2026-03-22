@@ -29,8 +29,23 @@ export interface ApiResult<T = unknown> {
 export interface GatewayStatus {
   running: boolean;
   port?: number;
+  pid?: number;
   url?: string;
   error?: string;
+}
+
+export interface GatewayLogsResult {
+  success: boolean;
+  data?: string[];
+  error?: string;
+}
+
+export interface PairingCode {
+  code: string;
+  createdAt: string;
+  expiresAt: string;
+  claimed: boolean;
+  qrDataUrl?: string;
 }
 
 export interface AppInfo {
@@ -107,15 +122,23 @@ export interface ElectronAPI {
   listConversations: () => Promise<ApiResult<Array<{ id: string; title: string; updatedAt?: string }>>>;
   fetchMessages: (conversationId: string) => Promise<ApiResult<Array<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>>;
   sendMessage: (conversationId: string, content: string) => Promise<ApiResult<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>;
+  sendReaction: (messageId: string, emoji: string) => Promise<ApiResult<void>>;
 
   // Native Channel Pairing
   createQrCode: (label?: string) => Promise<PairingQrResult>;
   createPairingQr: (label?: string) => Promise<PairingQrResult>; // alias for createQrCode
   pollPairingStatus: (code: string) => Promise<PairingStatusResult>;
+  pairingGenerate: () => Promise<ApiResult<PairingCode>>;
+  pairingList: () => Promise<ApiResult<PairingCode[]>>;
+  pairingRevoke: (code: string) => Promise<ApiResult<void>>;
 
   // Gateway
   getGatewayStatus: () => Promise<GatewayStatus>;
-  restartGateway: () => Promise<{ success: boolean; error?: string }>;
+  gatewayStart: () => Promise<ApiResult<{ port: number; pid?: number }>>;
+  gatewayStop: () => Promise<ApiResult<void>>;
+  restartGateway: () => Promise<ApiResult<{ port: number; pid?: number }>>;
+  gatewayLogs: (opts?: { lines?: number }) => Promise<GatewayLogsResult>;
+  onGatewayLog: (callback: (log: string) => void) => () => void;
 
   // App Info
   getAppInfo: () => Promise<AppInfo>;
@@ -131,9 +154,21 @@ export interface ElectronAPI {
   channelsDelete: (channel: string) => Promise<ApiResult<void>>;
   channelsTest: (channel: string, config: Record<string, string>) => Promise<ChannelTestResult>;
 
+  // Third-party Channel Messaging
+  channelsStartListening: (channel: string) => Promise<ChannelListeningResult>;
+  channelsStopListening: (channel: string) => Promise<ApiResult<void>>;
+  channelsGetMessages: (channel: string, opts?: { limit?: number }) => Promise<ChannelMessagesResult>;
+  channelsSendMessage: (channel: string, text: string, opts?: Record<string, string>) => Promise<ChannelSendResult>;
+
   // Event Listeners
   onBotStateChange: (callback: (state: BotState) => void) => () => void;
   onInstallProgress: (callback: (msg: string) => void) => () => void;
+  /** Fired when TRIX Native receives a new incoming message */
+  onTrixMessage: (callback: (msg: { id: string; content: string; direction: 'incoming'; timestamp: string }) => void) => () => void;
+  /** Fired when a third-party channel receives a new message */
+  onChannelMessage: (callback: (msg: ChannelMessage) => void) => () => void;
+  /** Fired when a third-party channel connection status changes */
+  onChannelStatusUpdate: (callback: (data: ChannelStatusUpdate) => void) => () => void;
 }
 
 export interface SystemInfo {
@@ -184,6 +219,40 @@ export interface ChannelListResult {
 export interface ChannelTestResult {
   success: boolean;
   message?: string;
+  error?: string;
+}
+
+export interface ChannelMessage {
+  id: string;
+  channel: string;
+  text: string;
+  from: string;
+  timestamp: string;
+  direction: 'incoming' | 'outgoing';
+  raw?: Record<string, unknown>;
+}
+
+export interface ChannelMessagesResult {
+  success: boolean;
+  data?: ChannelMessage[];
+  error?: string;
+}
+
+export interface ChannelSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+export interface ChannelListeningResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface ChannelStatusUpdate {
+  channel: string;
+  status: string;
   error?: string;
 }
 

@@ -62,16 +62,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listConversations: () => ipcRenderer.invoke('trixnative:conversations'),
   fetchMessages: (conversationId) => ipcRenderer.invoke('trixnative:messages', conversationId),
   sendMessage: (conversationId, content) => ipcRenderer.invoke('trixnative:send-message', conversationId, content),
+  sendReaction: (messageId, emoji) => ipcRenderer.invoke('trixnative:send-reaction', messageId, emoji),
 
-  // === Native Channel Pairing ===
+  // === Event Listeners ===
+  onBotStateChange: (callback) => {
+    const handler = (_event, state) => callback(state);
+    ipcRenderer.on('bot-state:changed', handler);
+    return () => ipcRenderer.removeListener('bot-state:changed', handler);
+  },
+
+  onTrixMessage: (callback) => {
+    // Listens for new incoming TRIX messages (broadcast from main window via IPC)
+    const handler = (_event, msg) => callback(msg);
+    ipcRenderer.on('trixnative:new-message', handler);
+    return () => ipcRenderer.removeListener('trixnative:new-message', handler);
+  },
   createQrCode: (label) => ipcRenderer.invoke('pairing:createQr', label),
   // Aliases for backward compatibility
   createPairingQr: (label) => ipcRenderer.invoke('pairing:createQr', label),
   pollPairingStatus: (code) => ipcRenderer.invoke('pairing:pollStatus', code),
+  pairingGenerate: () => ipcRenderer.invoke('pairing:generate'),
+  pairingList: () => ipcRenderer.invoke('pairing:list'),
+  pairingRevoke: (code) => ipcRenderer.invoke('pairing:revoke', code),
 
   // === Gateway ===
   getGatewayStatus: () => ipcRenderer.invoke('gateway:status'),
+  gatewayStart: () => ipcRenderer.invoke('gateway:start'),
+  gatewayStop: () => ipcRenderer.invoke('gateway:stop'),
   restartGateway: () => ipcRenderer.invoke('gateway:restart'),
+  gatewayLogs: (opts) => ipcRenderer.invoke('gateway:logs', opts),
+  onGatewayLog: (callback) => {
+    const handler = (_event, log) => callback(log);
+    ipcRenderer.on('gateway:log', handler);
+    return () => ipcRenderer.removeListener('gateway:log', handler);
+  },
 
   // === App Info ===
   getAppInfo: () => ipcRenderer.invoke('app:info'),
@@ -86,6 +110,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   channelsList: () => ipcRenderer.invoke('channels:list'),
   channelsDelete: (channel) => ipcRenderer.invoke('channels:delete', channel),
   channelsTest: (channel, config) => ipcRenderer.invoke('channels:test', channel, config),
+
+  // === Third-party Channel Messaging ===
+  channelsStartListening: (channel) => ipcRenderer.invoke('channels:start-listening', channel),
+  channelsStopListening: (channel) => ipcRenderer.invoke('channels:stop-listening', channel),
+  channelsGetMessages: (channel, opts) => ipcRenderer.invoke('channels:get-messages', channel, opts),
+  channelsSendMessage: (channel, text, opts) => ipcRenderer.invoke('channels:send-message', channel, text, opts),
+
+  onChannelMessage: (callback) => {
+    const handler = (_event, msg) => callback(msg);
+    ipcRenderer.on('channels:message-received', handler);
+    return () => ipcRenderer.removeListener('channels:message-received', handler);
+  },
+
+  onChannelStatusUpdate: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('channels:status-update', handler);
+    return () => ipcRenderer.removeListener('channels:status-update', handler);
+  },
 
   // === Event Listeners ===
   onBotStateChange: (callback) => {
