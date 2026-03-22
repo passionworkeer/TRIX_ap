@@ -10,16 +10,16 @@ import { FloatHeroBackground } from './components/FloatHeroBackground';
 
 // Bot state labels
 const BOT_STATE_LABELS: Record<BotState, string> = {
-  IDLE: '🤖 待机',
-  THINKING: '💭 思考中',
-  SPEAKING: '🗣 说话中',
+  IDLE: '待机',
+  THINKING: '思考中',
+  SPEAKING: '说话中',
 };
 
 // Pairing status labels
 const PAIRING_STATUS_LABELS: Record<string, string> = {
-  pending: '⏳ 等待配对',
-  paired: '✅ 已配对',
-  expired: '❌ 已过期',
+  pending: '等待配对',
+  paired: '已配对',
+  expired: '已过期',
 };
 
 function FloatApp() {
@@ -80,9 +80,7 @@ function FloatApp() {
       setPairingStatus(result.status ?? null);
 
       if (result.status === 'paired') {
-        // Paired! Stop polling and show success for a moment
         stopPolling();
-        // Auto-close after 3 seconds
         setTimeout(() => {
           setShowQrPanel(false);
           setQrDataUrl(null);
@@ -121,7 +119,6 @@ function FloatApp() {
 
     if (result.status === 'paired') return;
 
-    // Start polling
     if (result.code) {
       startPolling(result.code);
     }
@@ -143,7 +140,6 @@ function FloatApp() {
   }, [showQrPanel]);
 
   const handleQrClick = useCallback((e: React.MouseEvent) => {
-    // Don't propagate to panel click handler
     e.stopPropagation();
   }, []);
 
@@ -153,46 +149,66 @@ function FloatApp() {
       style={{
         width: '100%',
         height: '100%',
-        background: 'transparent',
+        background: '#131313',
         cursor: 'pointer',
         borderRadius: '12px',
         overflow: 'hidden',
         position: 'relative',
+        border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
       <FloatHeroBackground botState={botState} />
 
-      {/* QR Toggle Button */}
+      {/* Dark overlay so video reads well under noir UI */}
       <div
         style={{
           position: 'absolute',
-          bottom: showQrPanel ? undefined : '8px',
+          inset: 0,
+          background: 'rgba(19,19,19,0.55)',
+          borderRadius: '12px',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Status indicator pill */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '8px',
           left: '50%',
           transform: 'translateX(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px',
+          background: 'rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: '20px',
+          padding: '3px 12px',
+          fontSize: '11px',
+          color: '#f2f4f6',
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 500,
+          pointerEvents: 'none',
+          letterSpacing: '0.3px',
+          whiteSpace: 'nowrap',
         }}
       >
-        {/* Status indicator */}
+        {BOT_STATE_LABELS[botState]}
+      </div>
+
+      {/* QR toggle button */}
+      {!showQrPanel && (
         <div
           style={{
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(4px)',
-            borderRadius: '8px',
-            padding: '2px 8px',
-            fontSize: '10px',
-            color: 'rgba(255,255,255,0.8)',
-            fontFamily: 'system-ui, sans-serif',
-            pointerEvents: 'none',
+            position: 'absolute',
+            bottom: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'auto',
           }}
         >
-          {BOT_STATE_LABELS[botState]}
-        </div>
-
-        {/* QR toggle button */}
-        {!showQrPanel && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -200,120 +216,165 @@ function FloatApp() {
               handleShowQr();
             }}
             style={{
-              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+              background: 'rgba(255,255,255,0.90)',
               border: 'none',
-              borderRadius: '8px',
-              padding: '4px 10px',
-              fontSize: '10px',
-              color: 'white',
+              borderRadius: '10px',
+              padding: '6px 14px',
+              fontSize: '11px',
+              color: '#131313',
               fontFamily: 'system-ui, sans-serif',
+              fontWeight: 700,
               cursor: 'pointer',
-              fontWeight: 600,
-              pointerEvents: 'auto',
+              letterSpacing: '0.2px',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 16px rgba(0,0,0,0.5)',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#ffffff';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.90)';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
             }}
           >
-            📱 显示配对 QR
+            配对
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* QR Panel */}
+      {/* QR Panel — glassmorphism noir panel */}
       {showQrPanel && (
         <div
-          className="qr-panel"
           onClick={handleQrClick}
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
-            background: 'rgba(15, 23, 42, 0.95)',
-            backdropFilter: 'blur(12px)',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            padding: '8px',
+            background: 'rgba(32,31,31,0.82)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px 12px 0 0',
+            padding: '12px 12px 14px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
           }}
         >
-          {/* Close button */}
-          <button
-            onClick={handleHideQr}
-            style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
-              background: 'rgba(255,255,255,0.1)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '18px',
-              height: '18px',
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: '10px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: '18px',
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Panel title */}
+          {/* Panel header */}
           <div
             style={{
-              fontSize: '10px',
-              color: 'rgba(255,255,255,0.6)',
-              fontFamily: 'system-ui, sans-serif',
-              fontWeight: 600,
-              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              marginBottom: '2px',
             }}
           >
-            用手机扫码配对
-          </div>
-
-          {/* QR Code */}
-          {isCreatingQr && (
-            <div
+            <span
               style={{
-                width: '120px',
-                height: '120px',
+                fontSize: '10px',
+                color: 'rgba(242,244,246,0.50)',
+                fontFamily: 'system-ui, sans-serif',
+                fontWeight: 600,
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+              }}
+            >
+              扫码配对
+            </span>
+
+            {/* Close button — no-drag */}
+            <button
+              onClick={handleHideQr}
+              style={{
+                background: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: '6px',
+                width: '22px',
+                height: '22px',
+                color: 'rgba(242,244,246,0.60)',
+                fontSize: '11px',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'rgba(255,255,255,0.5)',
+                lineHeight: 1,
+                padding: 0,
+                transition: 'all 0.15s ease',
+                pointerEvents: 'auto',
+                WebkitAppRegion: 'no-drag',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,68,68,0.20)';
+                (e.currentTarget as HTMLButtonElement).style.color = '#ffb4ab';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,68,68,0.30)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(242,244,246,0.60)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)';
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* QR Code or loading */}
+          {isCreatingQr ? (
+            <div
+              style={{
+                width: '128px',
+                height: '128px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(242,244,246,0.40)',
                 fontSize: '10px',
                 fontFamily: 'system-ui, sans-serif',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '8px',
               }}
             >
               生成中...
             </div>
-          )}
-
-          {qrDataUrl && !isCreatingQr && (
-            <img
-              src={qrDataUrl}
-              alt="Pairing QR Code"
+          ) : qrDataUrl ? (
+            <div
               style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.96)',
+                borderRadius: '10px',
+                padding: '8px',
+                border: '1px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
               }}
-            />
-          )}
+            >
+              <img
+                src={qrDataUrl}
+                alt="Pairing QR Code"
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '6px',
+                  display: 'block',
+                }}
+              />
+            </div>
+          ) : null}
 
           {/* Pairing code */}
           {pairingCode && (
             <div
               style={{
-                fontSize: '11px',
-                color: 'rgba(255,255,255,0.7)',
-                fontFamily: 'monospace',
+                fontSize: '13px',
+                color: '#f2f4f6',
+                fontFamily: '"SF Mono", "Cascadia Code", monospace',
                 fontWeight: 600,
-                letterSpacing: '1px',
+                letterSpacing: '2px',
+                opacity: 0.85,
               }}
             >
               {pairingCode}
@@ -329,9 +390,10 @@ function FloatApp() {
                   pairingStatus === 'paired'
                     ? '#4ade80'
                     : pairingStatus === 'expired'
-                    ? '#f87171'
-                    : 'rgba(255,255,255,0.6)',
+                    ? '#ffb4ab'
+                    : 'rgba(242,244,246,0.55)',
                 fontFamily: 'system-ui, sans-serif',
+                fontWeight: 500,
               }}
             >
               {PAIRING_STATUS_LABELS[pairingStatus] ?? pairingStatus}
@@ -343,10 +405,11 @@ function FloatApp() {
             <div
               style={{
                 fontSize: '9px',
-                color: '#f87171',
+                color: '#ffb4ab',
                 fontFamily: 'system-ui, sans-serif',
                 textAlign: 'center',
                 maxWidth: '160px',
+                lineHeight: 1.4,
               }}
             >
               {pairingError}
@@ -361,17 +424,27 @@ function FloatApp() {
                 handleShowQr();
               }}
               style={{
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.10)',
                 borderRadius: '6px',
-                padding: '2px 8px',
+                padding: '3px 10px',
                 fontSize: '9px',
-                color: 'rgba(255,255,255,0.6)',
+                color: 'rgba(242,244,246,0.50)',
                 fontFamily: 'system-ui, sans-serif',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                letterSpacing: '0.3px',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(242,244,246,0.80)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(242,244,246,0.50)';
               }}
             >
-              刷新 QR
+              刷新
             </button>
           )}
         </div>
