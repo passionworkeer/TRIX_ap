@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
-> **文档版本**: 1.1
-> **最后更新**: 2026-03-21
+> **文档版本**: 1.2
+> **最后更新**: 2026-03-22
 > **产品**: TRIX Companion Desktop
 > **平台**: Windows (Electron 33.4.0)
 > **类型**: 桌面客户端
@@ -340,10 +340,10 @@ Float 窗口 (renderer/float.tsx)
 │  │                                                                    │  │
 │  │  ┌────────────────────────┐    ┌────────────────────────────┐   │  │
 │  │  │     Main Window         │    │       Float Window           │   │  │
-│  │  │  · DesktopLayout        │    │  · 配对 QR 码展示            │   │  │
-│  │  │  · DesktopTitleBar      │    │  · 配对码状态轮询            │   │  │
-│  │  │  · DesktopSidebar      │    │  · Bot 状态动画背景          │   │  │
-│  │  │  · Page Components      │    │  · 220×320 透明置顶         │   │  │
+│  │  │  · LuminaLayout        │    │  · 配对 QR 码展示            │   │  │
+│  │  │  · LuminaTitleBar      │    │  · 配对码状态轮询            │   │  │
+│  │  │  · LuminaSidebar      │    │  · Bot 状态动画背景          │   │  │
+│  │  │  · Page Components     │    │  · 220×320 透明置顶         │   │  │
 │  │  └────────────────────────┘    └────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                          │
@@ -442,16 +442,37 @@ desktop/
     │   ├── float.tsx          # Float 窗口 React 应用
     │   │
     │   ├── components/
-    │   │   ├── DesktopLayout.tsx      # 主布局
-    │   │   ├── DesktopTitleBar.tsx   # 自定义标题栏
-    │   │   ├── DesktopSidebar.tsx     # 可折叠侧边栏
-    │   │   ├── FloatHeroBackground.tsx # Bot 状态视频（BORING 新增）
-    │   │   ├── RenderErrorBoundary.tsx # React 渲染错误边界
-    │   │   │
-    │   │   ├── OpenClawDashboard.tsx  # Gateway 控制台
-    │   │   ├── OpenClawAgents.tsx     # Agent 管理
-    │   │   ├── OpenClawChannels.tsx   # Channel 配置
-    │   │   └── DesktopSettings.tsx    # 设置页面（6 Tabs）
+    │   │   └── FloatHeroBackground.tsx # Bot 状态视频（含 BORING 状态）
+    │   │
+    │   └── stitch/             # ★ stitch 设计系统（Lumina + Monolith Noir）
+    │       ├── shared/
+    │       │   ├── LuminaLayout.tsx   # 主布局（浅色/深色双主题路由）
+    │       │   └── cn.ts            # classMerge 工具
+    │       ├── lumina/
+    │       │   ├── tokens.ts        # Lumina 浅色 token
+    │       │   ├── components/
+    │       │   │   ├── TitleBar.tsx   # 36px 标题栏
+    │       │   │   ├── Sidebar.tsx     # 可折叠 240px 侧边栏
+    │       │   │   ├── buttons.tsx    # LuminaButton
+    │       │   │   ├── cards.tsx      # SurfaceCard
+    │       │   │   └── inputs.tsx    # LuminaInput
+    │       │   └── pages/
+    │       │       ├── ChatPage.tsx
+    │       │       ├── StudyPage.tsx
+    │       │       ├── SnapshotPage.tsx
+    │       │       └── ProfilePage.tsx
+    │       └── noir/
+    │           ├── tokens.ts        # Monolith Noir 深色 token
+    │           ├── components/
+    │           │   ├── DarkCard.tsx
+    │           │   ├── DarkButton.tsx
+    │           │   └── DarkTerminal.tsx
+    │           └── pages/
+    │               ├── DashboardPage.tsx
+    │               ├── AgentsPage.tsx
+    │               ├── ChannelsPage.tsx
+    │               ├── SettingsPage.tsx
+    │               └── BackupsPage.tsx
     │   │
     │   └── pages/             # 页面组件
     │
@@ -556,4 +577,4 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 ---
 
 **文档维护**: TRIX 开发团队
-**最后更新**: 2026-03-21
+**最后更新**: 2026-03-22

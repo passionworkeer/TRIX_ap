@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
 > 版本: 1.3.0
-> **最后更新**: 2026-03-21（精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
+> **最后更新**: 2026-03-22（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
 
 ---
 

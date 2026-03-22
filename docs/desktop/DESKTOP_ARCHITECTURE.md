@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.1
-> **最后更新**: 2026-03-21
+> **版本**: 1.2
+> **最后更新**: 2026-03-22
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,7 +21,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (22 handlers)            │  │   │
+│  │  │                    IPC Handlers (21 handlers)             │  │   │
 │  │  │  pairing:createQr · gateway:status · openclaw:*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -197,8 +197,16 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
+**概况**：共 **21 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。
+
+**bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
+- `bot-state:push` → 渲染进程 → 主进程（handler）
+- `bot-state:changed` → 主进程 → Float 窗口（webContents.send，非 ipcMain.on）
+
+**openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
+
 ```typescript
-// 全部 22 个 handler + 2 个事件
+// 全部 21 个 ipcMain.handle
 
 // Window Management
 'window:show-main'       → 显示主窗口
@@ -207,13 +215,11 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 // Bot State
 'bot-state:push'         → 推送 Bot 状态（Renderer → Main）
-'bot-state:changed'       → 状态变更通知（Main → Float window）
 
 // OpenClaw
 'openclaw:check'         → 检查安装状态
 'openclaw:install'       → 安装 OpenClaw
-'openclaw:install-progress' → 安装进度事件（Main → Renderer）
-'openclaw:status'        → 运行 openclaw status 命令 ← 新增
+'openclaw:status'        → 运行 openclaw status 命令
 'openclaw:doctor'        → 健康检查
 'openclaw:run-command'   → 执行白名单命令
 'openclaw:agents-list'  → 列出 Agents
@@ -245,9 +251,9 @@ const ALLOWED_COMMANDS = [
   { cmd: 'skills', args: ['list'] },
   { cmd: 'pairing', args: ['create'] },
   { cmd: 'backup', args: ['list'] },
+  { cmd: 'backup', args: ['restore'] },  // ← 已实现
 ];
 ```
-> ⚠️ `backup restore` **未在代码中实现**，不包含在白名单内。
 
 ### 3.6 Float UI (`float.tsx`)
 
@@ -326,7 +332,7 @@ electronDownload:
 ```
 desktop/
 ├── electron-builder.yml        # 打包配置（NSIS + MSI，中文）
-├── package.json               # 依赖 + electron 33.4.0
+├── package.json               # 依赖 + electron ^33.4.0
 ├── vite.config.desktop.ts    # Vite 配置（主窗口 + Float 窗口，dev port: 5174）
 ├── tsconfig.desktop.json      # TS 配置
 │
@@ -337,11 +343,11 @@ desktop/
 └── src/
     ├── main/
     │   ├── index.ts           # 主进程入口
-    │   ├── window-state.ts    # 窗口状态管理
+    │   ├── window-state.ts    # 窗口状态管理 + bot-state:changed 推送
     │   ├── tray.ts            # 系统托盘
     │   ├── gateway.ts         # Gateway 子进程
     │   ├── openclaw.ts        # OpenClaw CLI 封装
-    │   ├── ipc.ts             # IPC Handler（22 handlers + 2 events）
+    │   ├── ipc.ts             # IPC Handler（21 个 ipcMain.handle）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -352,20 +358,42 @@ desktop/
     │   ├── main.html          # 主窗口 HTML Shell
     │   ├── float.html         # Float 窗口 HTML Shell
     │   ├── float.tsx          # Float UI（QR 配对 + 轮询）
-    │   │
     │   ├── components/
-    │   │   ├── DesktopLayout.tsx       # 主布局
-    │   │   ├── DesktopTitleBar.tsx      # 自定义标题栏
-    │   │   ├── DesktopSidebar.tsx       # 可折叠侧边栏
-    │   │   ├── FloatHeroBackground.tsx   # Bot 状态视频（含 BORING 状态）
-    │   │   ├── RenderErrorBoundary.tsx   # React 渲染错误边界 ← 新增
-    │   │   │
-    │   │   ├── OpenClawDashboard.tsx     # Gateway 控制台
-    │   │   ├── OpenClawAgents.tsx        # Agent 管理
-    │   │   ├── OpenClawChannels.tsx      # Channel 配置
-    │   │   └── DesktopSettings.tsx        # 设置页面（6 Tabs）
+    │   │   └── FloatHeroBackground.tsx   # Bot 状态视频（含 BORING 状态）
     │   │
-    │   └── pages/             # 页面组件（由 DesktopLayout 渲染）
+    │   └── stitch/            # ★ stitch 设计系统（2026-03-22 重构）
+    │       ├── shared/
+    │       │   ├── LuminaLayout.tsx   # ★ 主布局（LuminaLayout）
+    │       │   │                         # 路由：chat / study / snapshot / profile（浅色）
+    │       │   │                         # 路由：dashboard / agents / channels / backups / settings / skills（深色）
+    │       │   └── cn.ts                # classMerge 工具（clsx + twMerge）
+    │       │
+    │       ├── lumina/        # Lumina 浅色主题（#f7f9fb 背景）
+    │       │   ├── tokens.ts    # 颜色 token（primary #630ed4 等）
+    │       │   ├── components/
+    │       │   │   ├── TitleBar.tsx      # 36px 标题栏
+    │       │   │   ├── Sidebar.tsx        # 可折叠 240px 侧边栏
+    │       │   │   ├── buttons.tsx        # LuminaButton（primary/secondary/ghost/outline）
+    │       │   │   ├── cards.tsx          # SurfaceCard（low/mid/high 三层级）
+    │       │   │   └── inputs.tsx        # LuminaInput（底部线条输入框）
+    │       │   └── pages/
+    │       │       ├── ChatPage.tsx       # 聊天页（双栏：对话列表 + 聊天窗口）
+    │       │       ├── StudyPage.tsx       # 学习页
+    │       │       ├── SnapshotPage.tsx   # 快照页
+    │       │       └── ProfilePage.tsx    # 个人资料页
+    │       │
+    │       └── noir/           # Monolith Noir 深色主题（#131313 背景）
+    │           ├── tokens.ts    # 深色 token
+    │           ├── components/
+    │           │   ├── DarkCard.tsx       # 玻璃态深色卡片
+    │           │   ├── DarkButton.tsx     # 深色按钮
+    │           │   └── DarkTerminal.tsx   # 深色终端面板
+    │           └── pages/
+    │               ├── DashboardPage.tsx   # Dashboard（OpenClaw 控制台）
+    │               ├── AgentsPage.tsx     # Agent 管理
+    │               ├── ChannelsPage.tsx    # Channel 配置
+    │               ├── SettingsPage.tsx    # 设置页
+    │               └── BackupsPage.tsx     # 备份管理（真实 API）
     │
     └── types/
         └── electron.d.ts      # electronAPI TypeScript 声明
@@ -441,4 +469,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-21
+**最后更新**: 2026-03-22

@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-21（添加 user_points_overview 视图；补充 points_transactions 命名说明）
+> **最后更新**: 2026-03-22（内容已审阅；user_points_overview 视图、points_transactions 命名说明已验证）
 
 ---
 
@@ -721,4 +721,4 @@ interface MessageRecord {
 
 ---
 
-**最后更新**: 2026-03-21
+**最后更新**: 2026-03-22
