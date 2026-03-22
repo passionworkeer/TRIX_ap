@@ -89,6 +89,12 @@ export interface ElectronAPI {
   restoreBackup: (backupId: string) => Promise<OpenClawCommandResult>;
   createPairingCode: () => Promise<OpenClawCommandResult>;
 
+  // Supabase Auth
+  authGetSession: () => Promise<AuthResult>;
+  authSignIn: (email: string, password: string) => Promise<AuthResult>;
+  authSignOut: () => Promise<ApiResult<void>>;
+  authSignUp: (email: string, password: string) => Promise<AuthResult>;
+
   // Study Data (Supabase — requires login, falls back gracefully)
   listTodos: () => Promise<ApiResult<Array<{ id: string; title: string; completed: boolean; priority: string; deadline?: string }>>>;
   createTodo: (title: string, priority: string) => Promise<ApiResult<{ id: string }>>;
@@ -118,6 +124,12 @@ export interface ElectronAPI {
   getSystemInfo: () => Promise<SystemInfoResult>;
   getDiskInfo: () => Promise<DiskInfoResult>;
   checkPackages: () => Promise<PkgCheckResult>;
+
+  // Third-party Channels
+  channelsConfigure: (channel: string, config: Record<string, string>) => Promise<ApiResult<void>>;
+  channelsList: () => Promise<ChannelListResult>;
+  channelsDelete: (channel: string) => Promise<ApiResult<void>>;
+  channelsTest: (channel: string, config: Record<string, string>) => Promise<ChannelTestResult>;
 
   // Event Listeners
   onBotStateChange: (callback: (state: BotState) => void) => () => void;
@@ -152,6 +164,49 @@ export interface PkgStatus {
   name: string;
   installed: boolean;
   version?: string;
+}
+
+export interface ChannelConfig {
+  id: string;
+  name: string;
+  type: string;
+  enabled: boolean;
+  configured: boolean;
+  config?: Record<string, string>;
+}
+
+export interface ChannelListResult {
+  success: boolean;
+  data?: ChannelConfig[];
+  error?: string;
+}
+
+export interface ChannelTestResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/** Supabase auth session data stored in electron-store */
+export interface SupabaseSession {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  expires_at?: number;
+  token_type?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    created_at?: string;
+    [key: string]: unknown;
+  };
+}
+
+/** Result envelope for auth operations */
+export interface AuthResult {
+  success: boolean;
+  data?: SupabaseSession | null;
+  error?: string;
 }
 
 export interface PkgCheckResult {

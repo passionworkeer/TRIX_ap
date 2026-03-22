@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAchievements: () => ipcRenderer.invoke('study:get-achievements'),
   getProfileStats: () => ipcRenderer.invoke('profile:get-stats'),
 
+  // === Supabase Auth ===
+  authGetSession: () => ipcRenderer.invoke('auth:get-session'),
+  authSignIn: (email, password) => ipcRenderer.invoke('auth:sign-in', email, password),
+  authSignOut: () => ipcRenderer.invoke('auth:sign-out'),
+  authSignUp: (email, password) => ipcRenderer.invoke('auth:sign-up', email, password),
+
   // === TrixNativeServer Chat API ===
   listConversations: () => ipcRenderer.invoke('trixnative:conversations'),
   fetchMessages: (conversationId) => ipcRenderer.invoke('trixnative:messages', conversationId),
@@ -74,6 +80,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSystemInfo: () => ipcRenderer.invoke('system:info'),
   getDiskInfo: () => ipcRenderer.invoke('system:disk'),
   checkPackages: () => ipcRenderer.invoke('system:check-packages'),
+
+  // === Third-party Channels ===
+  channelsConfigure: (channel, config) => ipcRenderer.invoke('channels:configure', channel, config),
+  channelsList: () => ipcRenderer.invoke('channels:list'),
+  channelsDelete: (channel) => ipcRenderer.invoke('channels:delete', channel),
+  channelsTest: (channel, config) => ipcRenderer.invoke('channels:test', channel, config),
 
   // === Event Listeners ===
   onBotStateChange: (callback) => {

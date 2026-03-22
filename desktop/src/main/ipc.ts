@@ -1,4 +1,4 @@
-import { ipcMain, app } from 'electron';
+import { ipcMain } from 'electron';
 import log from 'electron-log/main';
 import https from 'https';
 import http from 'http';
@@ -7,6 +7,7 @@ import path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import Store from 'electron-store';
 import {
   showMainWindow,
   hideMainWindow,
@@ -205,59 +206,282 @@ export function setupIpcHandlers(): void {
     }
   });
 
-  // ── Study Data (Supabase) ────────────────────────────────────────────────────
-  // Note: These require Supabase auth session (user login).
-  // Falls back gracefully when not authenticated.
+  // ── Supabase Auth Helpers ────────────────────────────────────────────────────
+
+  const SUPABASE_URL = process.env.SUPABASE_URL as string | undefined;
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY as string | undefined;
+
+  const authStore = new Store<{ session: unknown }>({ name: 'auth', defaults: { session: null } });
+
+  function isSupabaseConfigured(): boolean {
+    return Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY);
+  }
+
+  function getSession(): { access_token?: string; user?: { id?: string; email?: string; created_at?: string } } | null {
+    const session = authStore.get('session');
+    if (session && typeof session === 'object' && session !== null) return session as ReturnType<typeof getSession>;
+    return null;
+  }
+
+  // ── Supabase Auth IPC Handlers ─────────────────────────────────────────────
+
+  ipcMain.handle('auth:get-session', async () => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session) return { success: false, error: 'not_authenticated' };
+    return { success: true, data: session };
+  });
+
+  ipcMain.handle('auth:sign-in', async (_event, email: string, password: string) => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: null };
+    const url = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
+    try {
+      const res = await httpRequest({
+        method: 'POST',
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = JSON.parse(res.body);
+      if (res.statusCode !== 200) {
+        const msg = typeof data?.msg === 'string' ? data.msg
+          : typeof data?.error === 'string' ? data.error
+          : '登录失败，请检查邮箱和密码';
+        return { success: false, error: msg, data: null };
+      }
+      authStore.set('session', data);
+      log.info('User signed in:', data.user?.email);
+      return { success: true, data };
+    } catch (e: unknown) {
+      log.error('auth:sign-in error:', e);
+      return { success: false, error: String(e), data: null };
+    }
+  });
+
+  ipcMain.handle('auth:sign-out', async () => {
+    authStore.delete('session');
+    return { success: true };
+  });
+
+  ipcMain.handle('auth:sign-up', async (_event, email: string, password: string) => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: null };
+    const url = `${SUPABASE_URL}/auth/v1/signup`;
+    try {
+      const res = await httpRequest({
+        method: 'POST',
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = JSON.parse(res.body);
+      if (res.statusCode !== 200) {
+        const msg = typeof data?.msg === 'string' ? data.msg
+          : typeof data?.error === 'string' ? data.error
+          : '注册失败';
+        return { success: false, error: msg, data: null };
+      }
+      return { success: true, data };
+    } catch (e: unknown) {
+      log.error('auth:sign-up error:', e);
+      return { success: false, error: String(e), data: null };
+    }
+  });
+
+  // ── Study Data (Supabase — requires login) ─────────────────────────────────
 
   /** List todos for the logged-in user */
   ipcMain.handle('study:list-todos', async () => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    // Expected Supabase query: supabase.from('todos').select().eq('user_id', userId)
-    return { success: false, error: 'not_authenticated', data: [] };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: [] };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated', data: [] };
+    try {
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/todos?select=id,text:title,completed,priority,deadline,created_at&order=created_at.desc`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+          'Prefer': 'count=exact',
+        },
+      });
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: Array.isArray(data) ? data : [] };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated', data: [] };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}`, data: [] };
+    } catch (e: unknown) {
+      return { success: false, error: String(e), data: [] };
+    }
   });
 
   /** Create a new todo */
   ipcMain.handle('study:create-todo', async (_event, title: string, priority: string) => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    // Expected: supabase.from('todos').insert({ user_id, title, priority })
-    void title; void priority;
-    return { success: false, error: 'not_authenticated' };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    const userId = (session.user as { id?: string } | undefined)?.id;
+    if (!userId) return { success: false, error: 'not_authenticated' };
+    try {
+      const body = JSON.stringify({ title, priority: priority || 'medium', user_id: userId });
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${SUPABASE_URL}/rest/v1/todos`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=representation',
+        },
+        body,
+      });
+      if (res.statusCode === 201) {
+        const data = JSON.parse(res.body);
+        const item = Array.isArray(data) ? data[0] : data;
+        return { success: true, data: { id: item?.id, title: item?.title, completed: false, priority: item?.priority } };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
   });
 
   /** Toggle todo completion */
   ipcMain.handle('study:toggle-todo', async (_event, id: string, completed: boolean) => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    void id; void completed;
-    return { success: false, error: 'not_authenticated' };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/todos?id=eq.${encodeURIComponent(id)}`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ completed }),
+      });
+      if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
   });
 
   /** Delete a todo */
   ipcMain.handle('study:delete-todo', async (_event, id: string) => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    void id;
-    return { success: false, error: 'not_authenticated' };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'DELETE',
+        url: `${SUPABASE_URL}/rest/v1/todos?id=eq.${encodeURIComponent(id)}`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=minimal',
+        },
+      });
+      if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
   });
 
   /** Get user achievements */
   ipcMain.handle('study:get-achievements', async () => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    return { success: false, error: 'not_authenticated', data: [] };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: [] };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated', data: [] };
+    try {
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/achievements?select=id,label,icon,earned,earned_at&order=earned_at.desc`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: Array.isArray(data) ? data : [] };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated', data: [] };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}`, data: [] };
+    } catch (e: unknown) {
+      return { success: false, error: String(e), data: [] };
+    }
   });
 
   /** Get user profile stats (points, streak, etc.) */
   ipcMain.handle('profile:get-stats', async () => {
-    // TODO: Wire to Supabase once desktop login flow is implemented.
-    return {
-      success: false,
-      error: 'not_authenticated',
-      data: {
-        displayName: 'TRIX 用户',
-        points: 0,
-        streak: 0,
-        level: 1,
-        totalStudyMinutes: 0,
-      },
-    };
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated', data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    const userId = (session.user as { id?: string } | undefined)?.id;
+    if (!userId) return { success: false, error: 'not_authenticated', data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    try {
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/user_stats?user_id=eq.${encodeURIComponent(userId)}&select=display_name,points,streak,level,total_study_minutes`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+          'Accept-Profile': 'public',
+        },
+      });
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        const stats = Array.isArray(data) ? data[0] : data;
+        if (stats) {
+          return {
+            success: true,
+            data: {
+              displayName: stats.display_name || (session.user as { email?: string } | undefined)?.email?.split('@')[0] || 'TRIX 用户',
+              points: stats.points ?? 0,
+              streak: stats.streak ?? 0,
+              level: stats.level ?? 1,
+              totalStudyMinutes: stats.total_study_minutes ?? 0,
+            },
+          };
+        }
+      }
+      return { success: true, data: { displayName: (session.user as { email?: string } | undefined)?.email?.split('@')[0] || 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    } catch (e: unknown) {
+      return { success: false, error: String(e), data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    }
   });
 
   /**
@@ -640,6 +864,163 @@ export function setupIpcHandlers(): void {
       return { success: true, data: results };
     } catch (err) {
       return { success: false, error: String(err), data: [] };
+    }
+  });
+
+  // === Third-party Channel Configuration (electron-store) =====================
+
+  interface ChannelStoreSchema {
+    channels: Record<string, {
+      enabled: boolean;
+      config: Record<string, string>;
+    }>;
+  }
+
+  const channelStore = new Store<ChannelStoreSchema>({
+    name: 'channels',
+    defaults: { channels: {} },
+  });
+
+  const KNOWN_CHANNELS = [
+    { id: 'telegram', name: 'Telegram', requiredFields: ['botToken'] },
+    { id: 'feishu',   name: '飞书',      requiredFields: ['appId', 'appSecret'] },
+    { id: 'discord',  name: 'Discord',   requiredFields: ['webhookUrl'] },
+    { id: 'slack',    name: 'Slack',     requiredFields: ['webhookUrl'] },
+    { id: 'whatsapp', name: 'WhatsApp',  requiredFields: ['phoneNumber', 'instanceId', 'apiToken'] },
+    { id: 'wecom',    name: '企业微信',  requiredFields: ['webhookUrl', 'corpId', 'agentId'] },
+  ] as const;
+
+  /** Validate channel ID against the allowlist */
+  function isKnownChannel(id: unknown): id is string {
+    return typeof id === 'string' && KNOWN_CHANNELS.some((c) => c.id === id);
+  }
+
+  /** Validate config object has no prototype pollution risk */
+  function sanitizeConfig(raw: unknown): Record<string, string> {
+    if (typeof raw !== 'object' || raw === null) throw new Error('Config must be an object');
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof k !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(k)) continue;
+      if (typeof v !== 'string') continue;
+      if (v.length > 512) continue;
+      result[k] = v;
+    }
+    return result;
+  }
+
+  /** Persist channel config */
+  ipcMain.handle('channels:configure', async (_event, channelId: unknown, config: unknown) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      const cleanConfig = sanitizeConfig(config);
+      const channels = channelStore.get('channels');
+      channels[channelId] = { enabled: true, config: cleanConfig };
+      channelStore.set('channels', channels);
+      log.info(`Channel configured: ${channelId}`);
+      return { success: true };
+    } catch (err) {
+      log.error('channels:configure error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** List all known channels with their configured state */
+  ipcMain.handle('channels:list', async () => {
+    try {
+      const stored = channelStore.get('channels');
+      const list = KNOWN_CHANNELS.map((ch) => {
+        const saved = stored[ch.id];
+        return {
+          id: ch.id,
+          name: ch.name,
+          type: ch.id,
+          enabled: saved?.enabled ?? false,
+          configured: saved != null && Object.keys(saved.config ?? {}).length > 0,
+          config: saved?.config,
+        };
+      });
+      return { success: true, data: list };
+    } catch (err) {
+      log.error('channels:list error:', err);
+      return { success: false, error: String(err), data: [] };
+    }
+  });
+
+  /** Delete a channel config */
+  ipcMain.handle('channels:delete', async (_event, channelId: unknown) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      const channels = channelStore.get('channels');
+      delete channels[channelId];
+      channelStore.set('channels', channels);
+      log.info(`Channel deleted: ${channelId}`);
+      return { success: true };
+    } catch (err) {
+      log.error('channels:delete error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /**
+   * Test channel connectivity (read-only validation, no side effects).
+   * Telegram: GET https://api.telegram.org/bot<token>/getMe
+   * Feishu: POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+   * Discord/Slack/WeCom: HEAD request to webhook URL (validates URL is reachable)
+   * WhatsApp: validates token presence only (real API requires paid key)
+   */
+  ipcMain.handle('channels:test', async (_event, channelId: unknown, config: unknown) => {
+    try {
+      if (!isKnownChannel(channelId)) return { success: false, error: 'Unknown channel' };
+      const cfg = sanitizeConfig(config);
+
+      if (channelId === 'telegram') {
+        const token = cfg['botToken'];
+        if (!token) return { success: false, message: '缺少 Bot Token' };
+        const res = await httpRequest({
+          method: 'GET',
+          url: `https://api.telegram.org/bot${token}/getMe`,
+        });
+        if (res.statusCode === 200) {
+          return { success: true, message: 'Bot Token 验证成功' };
+        }
+        return { success: false, message: `验证失败: ${res.statusCode}` };
+      }
+
+      if (channelId === 'feishu') {
+        const appId = cfg['appId'];
+        const appSecret = cfg['appSecret'];
+        if (!appId || !appSecret) return { success: false, message: '缺少 App ID 或 App Secret' };
+        const res = await httpRequest({
+          method: 'POST',
+          url: 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+        });
+        if (res.statusCode === 200) {
+          return { success: true, message: '飞书凭证验证成功' };
+        }
+        return { success: false, message: `验证失败: ${res.statusCode}` };
+      }
+
+      if (channelId === 'discord' || channelId === 'slack' || channelId === 'wecom') {
+        const webhookUrl = cfg['webhookUrl'];
+        if (!webhookUrl) return { success: false, message: '缺少 Webhook URL' };
+        const res = await httpRequest({ method: 'HEAD', url: webhookUrl });
+        if (res.statusCode >= 200 && res.statusCode < 400) {
+          return { success: true, message: 'Webhook URL 可达' };
+        }
+        return { success: false, message: `Webhook URL 返回 ${res.statusCode}` };
+      }
+
+      if (channelId === 'whatsapp') {
+        if (!cfg['apiToken']) return { success: false, message: '缺少 API Token' };
+        return { success: true, message: 'WhatsApp 凭证格式正确' };
+      }
+
+      return { success: false, message: '不支持的渠道' };
+    } catch (err) {
+      log.error('channels:test error:', err);
+      return { success: false, error: String(err) };
     }
   });
 
