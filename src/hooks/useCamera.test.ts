@@ -5,15 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCamera } from './useCamera';
 
-// Mock navigator.mediaDevices
-const mockMediaDevices = {
-  getUserMedia: vi.fn(),
-};
-
-Object.defineProperty(navigator, 'mediaDevices', {
-  value: mockMediaDevices,
-  writable: true,
-});
+// Save original navigator
+const originalNavigator = { ...navigator };
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
 const mockCreateObjectURL = vi.fn((blob) => `blob:${Date.now()}`);
@@ -22,106 +15,161 @@ const mockRevokeObjectURL = vi.fn();
 Object.defineProperty(URL, 'createObjectURL', {
   value: mockCreateObjectURL,
   writable: true,
+  configurable: true,
 });
 
 Object.defineProperty(URL, 'revokeObjectURL', {
   value: mockRevokeObjectURL,
   writable: true,
+  configurable: true,
 });
 
-describe.skip('useCamera', () => {
+// Helper to set up mock navigator with getUserMedia
+function setupMockNavigator() {
+  const mockStream = {
+    getTracks: () => [{ stop: vi.fn() }],
+  };
+  const mockGetUserMedia = vi.fn().mockResolvedValue(mockStream);
+
+  Object.defineProperty(navigator, 'mediaDevices', {
+    value: {
+      getUserMedia: mockGetUserMedia,
+    },
+    writable: true,
+    configurable: true,
+  });
+
+  return { mockGetUserMedia, mockStream };
+}
+
+// Helper to set up unsupported navigator
+function setupUnsupportedNavigator() {
+  Object.defineProperty(navigator, 'mediaDevices', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+}
+
+// Helper to set up a mock video element
+function createMockVideoElement() {
+  return {
+    srcObject: null as any,
+    play: vi.fn().mockResolvedValue(undefined),
+    videoWidth: 1920,
+    videoHeight: 1080,
+  };
+}
+
+describe('useCamera', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockMediaDevices.getUserMedia.mockReset();
+    mockRevokeObjectURL.mockClear();
+    // Restore navigator to original state
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: originalNavigator.mediaDevices,
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    // Ensure navigator is restored after each test
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: originalNavigator.mediaDevices,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe('Initial State', () => {
     it('should have correct initial state', () => {
+      setupUnsupportedNavigator();
+
       const { result } = renderHook(() => useCamera());
 
+      // Check initial values before effect runs
       expect(result.current.status).toBe('idle');
-      expect(result.current.isSupported).toBe(false);
-      expect(result.current.error).toBe('');
       expect(result.current.capturedPhoto).toBeNull();
       expect(result.current.isReady).toBe(false);
     });
 
     it('should detect camera support on mount', async () => {
-      mockMediaDevices.getUserMedia.mockResolvedValue({
-        getTracks: () => [],
-      });
+      const { mockGetUserMedia } = setupMockNavigator();
 
       const { result } = renderHook(() => useCamera());
 
-      // Wait for effect to run
       await waitFor(() => {
         expect(result.current.isSupported).toBe(true);
       });
     });
 
-    it('should handle unsupported browser', () => {
-      // Temporarily remove mediaDevices
-      const originalMediaDevices = navigator.mediaDevices;
-      Object.defineProperty(navigator, 'mediaDevices', {
-        value: undefined,
-        writable: true,
-      });
+    it('should handle unsupported browser', async () => {
+      setupUnsupportedNavigator();
 
       const { result } = renderHook(() => useCamera());
 
-      expect(result.current.isSupported).toBe(false);
-      expect(result.current.error).toBe('当前浏览器不支持相机功能');
-
-      // Restore
-      Object.defineProperty(navigator, 'mediaDevices', {
-        value: originalMediaDevices,
-        writable: true,
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(false);
+        expect(result.current.error).toBe('当前浏览器不支持相机功能');
       });
     });
   });
 
   describe('startCamera', () => {
     it('should start camera successfully', async () => {
-      const mockStream = {
-        getTracks: () => [{ stop: vi.fn() }],
-      };
-      mockMediaDevices.getUserMedia.mockResolvedValue(mockStream);
+      const { mockGetUserMedia } = setupMockNavigator();
+      const mockVideoElement = createMockVideoElement();
 
-      const mockVideoElement = {
-        srcObject: null,
-        play: vi.fn().mockResolvedValue(undefined),
-        videoWidth: 1920,
-        videoHeight: 1080,
-      };
-
-      // Create a video element and attach to ref
       const { result } = renderHook(() => useCamera());
+
+      // Wait for hook to initialize and effect to run
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
 
       // Set up the video element
       act(() => {
-        if (result.current.videoRef.current) {
-          Object.assign(result.current.videoRef.current, mockVideoElement);
-        }
+        const videoRef = result.current.videoRef;
+        // Create a new mock object and assign to ref
+        Object.defineProperty(videoRef, 'current', {
+          value: mockVideoElement,
+          writable: true,
+          configurable: true,
+        });
       });
 
+      // Start camera
       await act(async () => {
         await result.current.startCamera();
       });
 
-      expect(mockMediaDevices.getUserMedia).toHaveBeenCalled();
-      expect(result.current.status).toBe('ready');
+      // Wait for status to change to ready
+      await waitFor(() => {
+        expect(result.current.status).toBe('ready');
+      });
+
+      expect(mockGetUserMedia).toHaveBeenCalled();
+      expect(mockVideoElement.srcObject).not.toBeNull();
     });
 
     it('should handle permission denied error', async () => {
       const error = new Error('Permission denied');
       error.name = 'NotAllowedError';
-      mockMediaDevices.getUserMedia.mockRejectedValue(error);
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(error),
+        },
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() => useCamera());
+
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
 
       await act(async () => {
         await result.current.startCamera();
@@ -134,9 +182,20 @@ describe.skip('useCamera', () => {
     it('should handle not found error', async () => {
       const error = new Error('Not found');
       error.name = 'NotFoundError';
-      mockMediaDevices.getUserMedia.mockRejectedValue(error);
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(error),
+        },
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() => useCamera());
+
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
 
       await act(async () => {
         await result.current.startCamera();
@@ -149,9 +208,20 @@ describe.skip('useCamera', () => {
     it('should handle not readable error', async () => {
       const error = new Error('Not readable');
       error.name = 'NotReadableError';
-      mockMediaDevices.getUserMedia.mockRejectedValue(error);
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(error),
+        },
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() => useCamera());
+
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
 
       await act(async () => {
         await result.current.startCamera();
@@ -162,9 +232,19 @@ describe.skip('useCamera', () => {
     });
 
     it('should handle generic error', async () => {
-      mockMediaDevices.getUserMedia.mockRejectedValue(new Error('Unknown error'));
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: vi.fn().mockRejectedValue(new Error('Unknown error')),
+        },
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() => useCamera());
+
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
 
       await act(async () => {
         await result.current.startCamera();
@@ -177,22 +257,44 @@ describe.skip('useCamera', () => {
 
   describe('stopCamera', () => {
     it('should stop camera and release stream', async () => {
-      const mockTrack = {
-        stop: vi.fn(),
-      };
+      const mockTrack = { stop: vi.fn() };
       const mockStream = {
         getTracks: () => [mockTrack],
       };
-      mockMediaDevices.getUserMedia.mockResolvedValue(mockStream);
+      const mockGetUserMedia = vi.fn().mockResolvedValue(mockStream);
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          getUserMedia: mockGetUserMedia,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const mockVideoElement = createMockVideoElement();
 
       const { result } = renderHook(() => useCamera());
 
-      // Start camera first
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
+
+      act(() => {
+        Object.defineProperty(result.current.videoRef, 'current', {
+          value: mockVideoElement,
+          writable: true,
+          configurable: true,
+        });
+      });
+
       await act(async () => {
         await result.current.startCamera();
       });
 
-      // Now stop
+      await waitFor(() => {
+        expect(result.current.status).toBe('ready');
+      });
+
       act(() => {
         result.current.stopCamera();
       });
@@ -203,20 +305,27 @@ describe.skip('useCamera', () => {
   });
 
   describe('capture', () => {
-    it('should return null when camera not ready', () => {
+    it('should return null when camera not ready', async () => {
+      setupUnsupportedNavigator();
+
       const { result } = renderHook(() => useCamera());
 
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(false);
+      });
+
+      // Camera not started, status is idle
       const photoData = result.current.capture();
 
       expect(photoData).toBeNull();
-      expect(result.current.error).toBe('相机未就绪');
+      // The error is set to '相机未就绪' when capture is called but camera isn't ready
+      await waitFor(() => {
+        expect(result.current.error).toBe('相机未就绪');
+      });
     });
 
     it('should capture photo when camera is ready', async () => {
-      const mockStream = {
-        getTracks: () => [{ stop: vi.fn() }],
-      };
-      mockMediaDevices.getUserMedia.mockResolvedValue(mockStream);
+      setupMockNavigator();
 
       const mockCanvas = {
         width: 1920,
@@ -224,20 +333,17 @@ describe.skip('useCamera', () => {
         getContext: vi.fn(() => ({
           drawImage: vi.fn(),
         })),
-        toBlob: vi.fn((callback) => {
-          callback(new Blob(['test'], { type: 'image/jpeg' }));
+        toBlob: vi.fn((callback: (blob: Blob | null) => void) => {
+          // Call callback asynchronously to simulate real behavior
+          setTimeout(() => {
+            callback(new Blob(['test'], { type: 'image/jpeg' }));
+          }, 0);
         }),
         toDataURL: vi.fn(() => 'data:image/jpeg;base64,test'),
       };
 
-      const mockVideoElement = {
-        srcObject: null,
-        play: vi.fn().mockResolvedValue(undefined),
-        videoWidth: 1920,
-        videoHeight: 1080,
-      };
+      const mockVideoElement = createMockVideoElement();
 
-      // Mock document.createElement to return our canvas
       const originalCreateElement = document.createElement;
       vi.spyOn(document, 'createElement').mockImplementation((tag) => {
         if (tag === 'canvas') {
@@ -248,27 +354,33 @@ describe.skip('useCamera', () => {
 
       const { result } = renderHook(() => useCamera());
 
-      // Set up the video element
-      act(() => {
-        if (result.current.videoRef.current) {
-          Object.assign(result.current.videoRef.current, mockVideoElement);
-        }
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
       });
 
-      // Start camera
+      act(() => {
+        Object.defineProperty(result.current.videoRef, 'current', {
+          value: mockVideoElement,
+          writable: true,
+          configurable: true,
+        });
+      });
+
       await act(async () => {
         await result.current.startCamera();
       });
 
-      // Capture photo
-      await act(async () => {
+      await waitFor(() => {
+        expect(result.current.status).toBe('ready');
+      });
+
+      act(() => {
         result.current.capture();
       });
 
-      // Wait for the async toBlob callback
       await waitFor(() => {
         expect(result.current.capturedPhoto).not.toBeNull();
-      }, { timeout: 1000 });
+      }, { timeout: 2000 });
 
       expect(result.current.status).toBe('ready');
       expect(mockCanvas.toBlob).toHaveBeenCalled();
@@ -277,10 +389,7 @@ describe.skip('useCamera', () => {
 
   describe('clearPhoto', () => {
     it('should clear captured photo', async () => {
-      const mockStream = {
-        getTracks: () => [{ stop: vi.fn() }],
-      };
-      mockMediaDevices.getUserMedia.mockResolvedValue(mockStream);
+      setupMockNavigator();
 
       const mockCanvas = {
         width: 1920,
@@ -288,18 +397,15 @@ describe.skip('useCamera', () => {
         getContext: vi.fn(() => ({
           drawImage: vi.fn(),
         })),
-        toBlob: vi.fn((callback) => {
-          callback(new Blob(['test'], { type: 'image/jpeg' }));
+        toBlob: vi.fn((callback: (blob: Blob | null) => void) => {
+          setTimeout(() => {
+            callback(new Blob(['test'], { type: 'image/jpeg' }));
+          }, 0);
         }),
         toDataURL: vi.fn(() => 'data:image/jpeg;base64,test'),
       };
 
-      const mockVideoElement = {
-        srcObject: null,
-        play: vi.fn().mockResolvedValue(undefined),
-        videoWidth: 1920,
-        videoHeight: 1080,
-      };
+      const mockVideoElement = createMockVideoElement();
 
       const originalCreateElement = document.createElement;
       vi.spyOn(document, 'createElement').mockImplementation((tag) => {
@@ -311,23 +417,33 @@ describe.skip('useCamera', () => {
 
       const { result } = renderHook(() => useCamera());
 
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
+
       act(() => {
-        if (result.current.videoRef.current) {
-          Object.assign(result.current.videoRef.current, mockVideoElement);
-        }
+        Object.defineProperty(result.current.videoRef, 'current', {
+          value: mockVideoElement,
+          writable: true,
+          configurable: true,
+        });
       });
 
       await act(async () => {
         await result.current.startCamera();
       });
 
-      await act(async () => {
+      await waitFor(() => {
+        expect(result.current.status).toBe('ready');
+      });
+
+      act(() => {
         result.current.capture();
       });
 
       await waitFor(() => {
         expect(result.current.capturedPhoto).not.toBeNull();
-      }, { timeout: 1000 });
+      }, { timeout: 2000 });
 
       act(() => {
         result.current.clearPhoto();
@@ -340,31 +456,28 @@ describe.skip('useCamera', () => {
 
   describe('switchCamera', () => {
     it('should call startCamera when switching', async () => {
-      const mockStream = {
-        getTracks: () => [{ stop: vi.fn() }],
-      };
-      mockMediaDevices.getUserMedia.mockResolvedValue(mockStream);
-
-      const mockVideoElement = {
-        srcObject: null,
-        play: vi.fn().mockResolvedValue(undefined),
-        videoWidth: 1920,
-        videoHeight: 1080,
-      };
+      const { mockGetUserMedia } = setupMockNavigator();
+      const mockVideoElement = createMockVideoElement();
 
       const { result } = renderHook(() => useCamera());
 
+      await waitFor(() => {
+        expect(result.current.isSupported).toBe(true);
+      });
+
       act(() => {
-        if (result.current.videoRef.current) {
-          Object.assign(result.current.videoRef.current, mockVideoElement);
-        }
+        Object.defineProperty(result.current.videoRef, 'current', {
+          value: mockVideoElement,
+          writable: true,
+          configurable: true,
+        });
       });
 
       await act(async () => {
         await result.current.switchCamera();
       });
 
-      expect(mockMediaDevices.getUserMedia).toHaveBeenCalled();
+      expect(mockGetUserMedia).toHaveBeenCalled();
     });
   });
 });

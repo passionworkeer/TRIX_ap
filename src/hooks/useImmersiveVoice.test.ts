@@ -5,9 +5,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useImmersiveVoice } from './useImmersiveVoice';
 
-// Mock dependencies
+// Mock dependencies - create shared mocks that can be configured
+const mockUseLocation = vi.fn(() => ({ pathname: '/' }));
+const mockVoiceSettings = vi.fn(() => ({ voiceEnabled: false }));
+const mockSubscribeAudioUnlocked = vi.fn(() => vi.fn());
+const mockStopCurrent = vi.fn();
+
 vi.mock('react-router-dom', () => ({
-  useLocation: vi.fn(() => ({ pathname: '/' })),
+  useLocation: () => mockUseLocation(),
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -30,9 +35,7 @@ vi.mock('../contexts/ClawbotChannelContext', () => ({
 }));
 
 vi.mock('../contexts/VoiceSettingsContext', () => ({
-  useVoiceSettings: vi.fn(() => ({
-    voiceEnabled: false,
-  })),
+  useVoiceSettings: () => mockVoiceSettings(),
 }));
 
 vi.mock('../services/ttsService', () => ({
@@ -42,13 +45,15 @@ vi.mock('../services/ttsService', () => ({
 vi.mock('../services/voicePlaybackService', () => ({
   isAudioUnlocked: vi.fn().mockReturnValue(true),
   playFromBlob: vi.fn().mockResolvedValue(undefined),
-  stopCurrent: vi.fn(),
-  subscribeAudioUnlocked: vi.fn(() => vi.fn()),
+  stopCurrent: (...args: unknown[]) => mockStopCurrent(...args),
+  subscribeAudioUnlocked: (...args: unknown[]) => mockSubscribeAudioUnlocked(...args),
 }));
 
-describe.skip('useImmersiveVoice', () => {
+describe('useImmersiveVoice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseLocation.mockReturnValue({ pathname: '/' });
+    mockVoiceSettings.mockReturnValue({ voiceEnabled: false });
     // Clear sessionStorage
     window.sessionStorage.clear();
   });
@@ -109,14 +114,13 @@ describe.skip('useImmersiveVoice', () => {
     });
 
     it('should skip welcome message on auth routes', () => {
-      const { useLocation } = require('react-router-dom');
-      useLocation.mockReturnValue({ pathname: '/login' });
+      mockUseLocation.mockReturnValue({ pathname: '/login' });
 
       expect(() => {
         renderHook(() => useImmersiveVoice());
       }).not.toThrow();
 
-      useLocation.mockReturnValue({ pathname: '/' });
+      mockUseLocation.mockReturnValue({ pathname: '/' });
     });
   });
 
@@ -137,13 +141,14 @@ describe.skip('useImmersiveVoice', () => {
   });
 
   describe('Audio unlock', () => {
-    it('should subscribe to audio unlock events', () => {
-      const { subscribeAudioUnlocked } = require('../services/voicePlaybackService');
+    it('should subscribe to audio unlock events when voice is enabled', () => {
+      // Enable voice settings so subscribeAudioUnlocked is called
+      mockVoiceSettings.mockReturnValue({ voiceEnabled: true });
 
       renderHook(() => useImmersiveVoice());
 
-      // The hook should subscribe to audio unlock events
-      expect(subscribeAudioUnlocked).toHaveBeenCalled();
+      // The hook should subscribe to audio unlock events when voiceEnabled is true
+      expect(mockSubscribeAudioUnlocked).toHaveBeenCalled();
     });
   });
 
@@ -157,15 +162,13 @@ describe.skip('useImmersiveVoice', () => {
     });
 
     it('should stop current playback on unmount', () => {
-      const { stopCurrent } = require('../services/voicePlaybackService');
-
       const { unmount } = renderHook(() => useImmersiveVoice());
 
       unmount();
 
       // The hook should call stopCurrent on unmount
       // Note: It calls with false parameter
-      expect(stopCurrent).toHaveBeenCalled();
+      expect(mockStopCurrent).toHaveBeenCalled();
     });
   });
 

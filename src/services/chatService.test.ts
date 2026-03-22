@@ -58,7 +58,7 @@ import {
   subscribeToUnreadCounts
 } from './chatService';
 
-describe.skip('chatService', () => {
+describe('chatService', () => {
   const mockUser = {
     id: 'user-123',
     email: 'test@example.com'
@@ -84,7 +84,7 @@ describe.skip('chatService', () => {
       });
 
       const result = await getChatHistory('friend-456');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ messages: [], hasMore: false });
     });
 
     it('should return empty array when no messages', async () => {
@@ -96,13 +96,15 @@ describe.skip('chatService', () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [], error: null })
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 })
+            })
           })
         })
       } as any);
 
       const result = await getChatHistory('friend-456');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ messages: [], hasMore: false });
     });
 
     it('should return messages correctly transformed', async () => {
@@ -135,18 +137,20 @@ describe.skip('chatService', () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: mockMessages, error: null })
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: mockMessages, error: null, count: 2 })
+            })
           })
         })
       } as any);
 
       const result = await getChatHistory('friend-456');
 
-      expect(result).toHaveLength(2);
-      expect(result[0].sender).toBe('user');
-      expect(result[0].text).toBe('Hello');
-      expect(result[1].sender).toBe('friend');
-      expect(result[1].text).toBe('Hi there');
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0].sender).toBe('user');
+      expect(result.messages[0].text).toBe('Hello');
+      expect(result.messages[1].sender).toBe('friend');
+      expect(result.messages[1].text).toBe('Hi there');
     });
 
     it('should return empty array on error', async () => {
@@ -158,13 +162,15 @@ describe.skip('chatService', () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: null, error: new Error('DB error') })
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: null, error: new Error('DB error') })
+            })
           })
         })
       } as any);
 
       const result = await getChatHistory('friend-456');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ messages: [], hasMore: false });
       expect(handleGlobalError).toHaveBeenCalled();
     });
   });

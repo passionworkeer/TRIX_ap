@@ -21,7 +21,7 @@ class MockSpeechRecognition {
   abort = vi.fn();
 }
 
-describe.skip('useSpeechToText', () => {
+describe('useSpeechToText', () => {
   let mockInstance: MockSpeechRecognition;
 
   beforeEach(() => {
@@ -203,11 +203,21 @@ describe.skip('useSpeechToText', () => {
         await result.current.startListening();
       });
 
+      // Manually trigger onstart since mock.start() doesn't call it
+      if (mockInstance.onstart) {
+        mockInstance.onstart({} as Event);
+      }
+
       expect(onStatusChange).toHaveBeenCalledWith('listening');
 
       await act(async () => {
         await result.current.stopListening();
       });
+
+      // Manually trigger onend
+      if (mockInstance.onend) {
+        mockInstance.onend({} as Event);
+      }
 
       expect(onStatusChange).toHaveBeenCalledWith('idle');
     });
@@ -326,7 +336,9 @@ describe.skip('useSpeechToText', () => {
         });
       }
 
-      expect(result.current.interimTranscript).toBe('Thinking...');
+      await waitFor(() => {
+        expect(result.current.interimTranscript).toBe('Thinking...');
+      });
     });
   });
 });

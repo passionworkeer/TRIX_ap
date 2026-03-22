@@ -271,7 +271,6 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     };
     const handleConnected = (payload: { agentOnline: boolean }) => {
       setStatus('CONNECTED');
-      setPairingStatus(trixNativeChannelClient.isPaired() ? 'paired' : 'idle');
       setBotOnline(payload.agentOnline);
       setLastError(null);
       const session = trixNativeChannelClient.getSession();

@@ -23,6 +23,15 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
+// Store for event callbacks
+const eventCallbacks: Record<string, Function[]> = {
+  canplay: [],
+  ended: [],
+  error: [],
+  pause: [],
+  play: [],
+};
+
 // Mock Audio
 class MockAudio {
   play = vi.fn().mockResolvedValue(undefined);
@@ -34,18 +43,37 @@ class MockAudio {
   currentTime = 0;
 
   addEventListener = vi.fn((event: string, callback: Function) => {
-    // Store callback for later triggering
+    if (eventCallbacks[event]) {
+      eventCallbacks[event].push(callback);
+    }
   });
 
-  removeEventListener = vi.fn();
+  removeEventListener = vi.fn((event: string, callback: Function) => {
+    if (eventCallbacks[event]) {
+      eventCallbacks[event] = eventCallbacks[event].filter(cb => cb !== callback);
+    }
+  });
 }
 
-describe.skip('useAudioPlayer', () => {
+// Helper to trigger events
+function triggerEvent(event: string) {
+  eventCallbacks[event].forEach(cb => cb());
+}
+
+// Helper to clear event callbacks
+function clearEventCallbacks() {
+  Object.keys(eventCallbacks).forEach(key => {
+    eventCallbacks[key] = [];
+  });
+}
+
+describe('useAudioPlayer', () => {
   let mockAudio: MockAudio;
 
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock.clear();
+    clearEventCallbacks();
     mockAudio = new MockAudio();
 
     // Mock Audio constructor
@@ -54,6 +82,7 @@ describe.skip('useAudioPlayer', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    clearEventCallbacks();
   });
 
   describe('Initial State', () => {
@@ -147,14 +176,7 @@ describe.skip('useAudioPlayer', () => {
 
       const { result } = renderHook(() => useAudioPlayer());
 
-      // Get the canplay handler
-      let canPlayCallback: Function | null = null;
-      mockAudio.addEventListener.mockImplementation((event: string, callback: Function) => {
-        if (event === 'canplay') {
-          canPlayCallback = callback;
-        }
-      });
-
+      // Get the canplay handler from the event
       act(() => {
         result.current.play(testTrack);
       });
@@ -162,11 +184,9 @@ describe.skip('useAudioPlayer', () => {
       expect(result.current.isLoading).toBe(true);
 
       // Simulate canplay event
-      if (canPlayCallback) {
-        await act(async () => {
-          canPlayCallback();
-        });
-      }
+      act(() => {
+        triggerEvent('canplay');
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -192,11 +212,8 @@ describe.skip('useAudioPlayer', () => {
       });
 
       // Simulate playing
-      await act(async () => {
-        const playCallback = mockAudio.addEventListener.mock.calls.find(
-          (call: any[]) => call[0] === 'play'
-        )?.[1];
-        if (playCallback) playCallback();
+      act(() => {
+        triggerEvent('play');
       });
 
       expect(result.current.isPlaying).toBe(true);
@@ -264,11 +281,8 @@ describe.skip('useAudioPlayer', () => {
       });
 
       // Simulate play event
-      await act(async () => {
-        const playCallback = mockAudio.addEventListener.mock.calls.find(
-          (call: any[]) => call[0] === 'play'
-        )?.[1];
-        if (playCallback) playCallback();
+      act(() => {
+        triggerEvent('play');
       });
 
       act(() => {
@@ -298,11 +312,8 @@ describe.skip('useAudioPlayer', () => {
       });
 
       // Simulate play event
-      await act(async () => {
-        const playCallback = mockAudio.addEventListener.mock.calls.find(
-          (call: any[]) => call[0] === 'play'
-        )?.[1];
-        if (playCallback) playCallback();
+      act(() => {
+        triggerEvent('play');
       });
 
       // Toggle - should pause
@@ -429,23 +440,10 @@ describe.skip('useAudioPlayer', () => {
 
       const { result } = renderHook(() => useAudioPlayer());
 
-      let errorCallback: Function | null = null;
-      mockAudio.addEventListener.mockImplementation((event: string, callback: Function) => {
-        if (event === 'error') {
-          errorCallback = callback;
-        }
+      // Trigger error event directly
+      act(() => {
+        triggerEvent('error');
       });
-
-      await act(async () => {
-        result.current.play(testTrack);
-      });
-
-      // Simulate error event
-      if (errorCallback) {
-        await act(async () => {
-          errorCallback();
-        });
-      }
 
       await waitFor(() => {
         expect(result.current.error).toBe('加载音频失败');

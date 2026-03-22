@@ -90,6 +90,9 @@ vi.mock('../utils/logger', () => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
+    chat: { error: vi.fn() },
+    notification: { error: vi.fn() },
+    study: { error: vi.fn() },
   },
 }));
 
@@ -103,7 +106,7 @@ vi.stubGlobal('import.meta', {
   },
 });
 
-describe.skip('databaseService', () => {
+describe('databaseService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocalStorage.getItem.mockReset();
@@ -435,7 +438,7 @@ describe.skip('databaseService', () => {
   // ============================================
 
   describe('getChatHistory', () => {
-    it('should return empty array on error', async () => {
+    it('should return empty messages array on error', async () => {
       vi.mocked(mockSupabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -447,16 +450,19 @@ describe.skip('databaseService', () => {
       const { getChatHistory } = await import('../services/databaseService');
       const result = await getChatHistory('friend-1');
 
-      expect(result).toEqual([]);
+      expect(result.messages).toEqual([]);
+      expect(result.hasMore).toBe(false);
     });
 
     it('should call supabase to get chat history', async () => {
       vi.mocked(mockSupabase.from).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
             }),
           }),
         }),
@@ -465,8 +471,9 @@ describe.skip('databaseService', () => {
       const { getChatHistory } = await import('../services/databaseService');
       const result = await getChatHistory('friend-1');
 
-      // Returns empty array when no data
-      expect(result).toEqual([]);
+      // Returns object with empty messages array when no data
+      expect(result.messages).toEqual([]);
+      expect(result.hasMore).toBe(false);
     });
   });
 
@@ -955,7 +962,7 @@ describe.skip('databaseService', () => {
     it('should throw error for empty account', async () => {
       const { sendFriendRequest } = await import('../services/databaseService');
 
-      await expect(sendFriendRequest('')).rejects.toThrow('请输入用户名或邮箱');
+      await expect(sendFriendRequest('')).rejects.toThrow('请输入账号');
     });
 
     it('should throw error when user not found', async () => {

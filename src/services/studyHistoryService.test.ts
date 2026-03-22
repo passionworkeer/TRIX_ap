@@ -32,7 +32,7 @@ vi.mock('../config/supabase', () => ({
 import { supabase } from '../config/supabase';
 import { studyHistoryService } from './studyHistoryService';
 
-describe.skip('studyHistoryService', () => {
+describe('studyHistoryService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -130,9 +130,9 @@ describe.skip('studyHistoryService', () => {
   describe('getTodaySummary', () => {
     it('should return today summary with correct calculations', async () => {
       const mockSessions = [
-        { duration_minutes: 30 },
-        { duration_minutes: 45 },
-        { duration_minutes: 25 }
+        { duration: 30 },
+        { duration: 45 },
+        { duration: 25 }
       ];
 
       const mockSelect = vi.fn().mockReturnValue({

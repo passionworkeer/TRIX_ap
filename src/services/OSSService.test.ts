@@ -45,7 +45,7 @@ const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 // Import after mocks
 import { ossService } from './OSSService';
 
-describe.skip('OSSService', () => {
+describe('OSSService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -74,9 +74,13 @@ describe.skip('OSSService', () => {
       // Re-import to trigger constructor with warning
       vi.resetModules();
       const { ossService: newService } = await import('./OSSService');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        '[OSS] VITE_OSS_ENDPOINT is deprecated; please migrate to VITE_ALIYUN_OSS_ENDPOINT'
-      );
+      // Check that the warning message is included in the call (logger adds style prefixes/styles)
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      // Logger calls: console.warn(prefix..., styles..., message)
+      // So the actual message is the last argument
+      const warnArgs = consoleWarnSpy.mock.calls[0];
+      const warnMessage = warnArgs[warnArgs.length - 1] as string;
+      expect(warnMessage).toBe('[OSS] VITE_OSS_ENDPOINT is deprecated; please migrate to VITE_ALIYUN_OSS_ENDPOINT');
     });
   });
 

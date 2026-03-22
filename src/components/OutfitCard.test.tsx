@@ -16,7 +16,7 @@ vi.mock('../constants', () => ({
   },
 }));
 
-describe.skip('OutfitCard', () => {
+describe('OutfitCard', () => {
   const mockOutfit = {
     id: 'outfit-1',
     name: 'Test Outfit',
@@ -85,7 +85,8 @@ describe.skip('OutfitCard', () => {
       />
     );
 
-    expect(screen.getByText('未拥有')).toBeDefined();
+    // Use getAllByText since there are multiple "未拥有" texts (overlay + button)
+    expect(screen.getAllByText('未拥有').length).toBeGreaterThan(0);
   });
 
   it('should show "已装备" badge when equipped', async () => {
