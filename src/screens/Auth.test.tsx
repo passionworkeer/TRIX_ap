@@ -5,6 +5,40 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Login, Register } from './Auth';
 import { AppRoutes } from '../types';
 
+// Mock i18next
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'auth.welcomeBack': '欢迎回来',
+        'auth.welcome': '欢迎加入',
+        'auth.exploreWorld': '开启你的智能学习之旅',
+        'auth.startJourney': '与 TRIX 一起踏上学习之旅',
+        'auth.placeholder.email': '邮箱',
+        'auth.placeholder.password': '密码',
+        'auth.placeholder.username': '用户名',
+        'auth.placeholder.passwordMin': '设置密码 (至少 6 位)',
+        'auth.login': '登录',
+        'auth.loggingIn': '登录中...',
+        'auth.registering': '注册中...',
+        'auth.registerSuccess': '注册成功',
+        'auth.joinNow': '立即注册',
+        'auth.signUpNow': '立即注册',
+        'auth.noAccount': '还没有账号?',
+        'auth.hasAccount': '已有账号?',
+        'auth.loginNow': '立即登录',
+        'auth.thirdPartyLogin': '或',
+        'auth.wechatLogin': '微信登录',
+        'auth.appleLogin': 'Apple 登录',
+        'auth.email': '邮箱',
+        'auth.password': '密码',
+        'auth.username': '用户名',
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 // Mock hooks
 const mocks = vi.hoisted(() => ({
   signIn: vi.fn(async () => ({ error: null })),
@@ -27,7 +61,7 @@ vi.mock('../contexts/AuthContext', () => ({
   })
 }));
 
-describe.skip('Auth - Login', () => {
+describe('Auth - Login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.signIn.mockResolvedValue({ error: null });
@@ -49,20 +83,21 @@ describe.skip('Auth - Login', () => {
   it('renders login form with email and password inputs', () => {
     renderLogin();
 
-    expect(screen.getByText('欢迎回来')).toBeDefined();
-    expect(screen.getByPlaceholderText('邮箱')).toBeDefined();
-    expect(screen.getByPlaceholderText('密码')).toBeDefined();
-    expect(screen.getByRole('button', { name: '登录' })).toBeDefined();
+    expect(screen.getByText('欢迎回来')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('邮箱')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '登录 →' })).toBeInTheDocument();
   });
 
   it('shows validation error when submitting empty form', async () => {
     renderLogin();
 
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeDefined();
-      expect(screen.getByText('请输入邮箱和密码')).toBeDefined();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      // Component shows first validation error only (email is checked first)
+      expect(screen.getByText('请输入邮箱')).toBeInTheDocument();
     });
   });
 
@@ -72,10 +107,10 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('请输入邮箱和密码')).toBeDefined();
+      expect(screen.getByText('请输入邮箱')).toBeInTheDocument();
     });
   });
 
@@ -85,10 +120,10 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('请输入邮箱和密码')).toBeDefined();
+      expect(screen.getByText('请输入密码')).toBeInTheDocument();
     });
   });
 
@@ -101,7 +136,7 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
       expect(mocks.signIn).toHaveBeenCalledWith('test@example.com', 'password123');
@@ -121,12 +156,10 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    // Click the submit button using exact text match
-    const buttons = screen.getAllByRole('button');
-    const loginButton = buttons.find(btn => btn.textContent === '登录');
-    fireEvent.click(loginButton!);
+    // Click the submit button
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
-    expect(screen.getByText('登录中...')).toBeDefined();
+    expect(screen.getByText('登录中...')).toBeInTheDocument();
     // Button should be disabled during loading
     expect(screen.getByText('登录中...').closest('button')).toBeDisabled();
   });
@@ -140,7 +173,7 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith(AppRoutes.HOME);
@@ -160,10 +193,10 @@ describe.skip('Auth - Login', () => {
     fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'wrongpassword' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid login credentials')).toBeDefined();
+      expect(screen.getByText('Invalid login credentials')).toBeInTheDocument();
     });
   });
 
@@ -192,7 +225,7 @@ describe.skip('Auth - Login', () => {
   });
 });
 
-describe.skip('Auth - Register', () => {
+describe('Auth - Register', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.signUp.mockResolvedValue({ error: null });
@@ -214,20 +247,21 @@ describe.skip('Auth - Register', () => {
   it('renders register form with username, email and password inputs', () => {
     renderRegister();
 
-    expect(screen.getByText('欢迎加入')).toBeDefined();
-    expect(screen.getByPlaceholderText('用户名')).toBeDefined();
-    expect(screen.getByPlaceholderText('邮箱')).toBeDefined();
-    expect(screen.getByPlaceholderText('设置密码 (至少 6 位)')).toBeDefined();
-    expect(screen.getByRole('button', { name: '立即注册' })).toBeDefined();
+    expect(screen.getByText('欢迎加入')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('邮箱')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '立即注册 →' })).toBeInTheDocument();
   });
 
   it('shows validation error when submitting empty form', async () => {
     renderRegister();
 
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('请填写所有字段')).toBeDefined();
+      // Component shows first validation error only (username is checked first)
+      expect(screen.getByText('请输入用户名')).toBeInTheDocument();
     });
   });
 
@@ -237,13 +271,13 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('请填写所有字段')).toBeDefined();
+      expect(screen.getByText('请输入用户名')).toBeInTheDocument();
     });
   });
 
@@ -256,13 +290,14 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: '12345' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('密码至少需要 6 个字符')).toBeDefined();
+      // AUTH_VALIDATION.password.min is 8, so the error says 8 characters
+      expect(screen.getByText('密码至少需要8个字符')).toBeInTheDocument();
     });
   });
 
@@ -275,10 +310,10 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
       expect(mocks.signUp).toHaveBeenCalledWith('test@example.com', 'password123', 'testuser');
@@ -298,16 +333,14 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
 
     // Find and click the submit button
-    const buttons = screen.getAllByRole('button');
-    const submitButton = buttons.find(btn => btn.textContent === '立即注册');
-    fireEvent.click(submitButton!);
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
-    expect(screen.getByText('注册中...')).toBeDefined();
+    expect(screen.getByText('注册中...')).toBeInTheDocument();
     // The button should be disabled during loading
     expect(screen.getByText('注册中...').closest('button')).toBeDisabled();
   });
@@ -321,13 +354,16 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('注册成功！正在跳转...')).toBeDefined();
+      // Success message appears in both the alert div and the button
+      // Use getAllByText to find all occurrences
+      const successElements = screen.getAllByText(/注册成功/);
+      expect(successElements.length).toBeGreaterThan(0);
     });
   });
 
@@ -344,13 +380,13 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'existing@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Email already registered')).toBeDefined();
+      expect(screen.getByText('Email already registered')).toBeInTheDocument();
     });
   });
 
@@ -371,10 +407,10 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.keyDown(screen.getByPlaceholderText('设置密码 (至少 6 位)'), { key: 'Enter' });
+    fireEvent.keyDown(screen.getByPlaceholderText('密码'), { key: 'Enter' });
 
     await waitFor(() => {
       expect(mocks.signUp).toHaveBeenCalled();
@@ -392,13 +428,14 @@ describe.skip('Auth - Register', () => {
     fireEvent.input(screen.getByPlaceholderText('邮箱'), {
       target: { value: 'test@example.com' }
     });
-    fireEvent.input(screen.getByPlaceholderText('设置密码 (至少 6 位)'), {
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
       target: { value: 'password123' }
     });
-    fireEvent.click(screen.getByRole('button', { name: '立即注册' }));
+    fireEvent.click(screen.getByRole('button', { name: '立即注册 →' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '注册成功' })).toBeDefined();
+      // Button changes to success state showing '✓ 注册成功'
+      expect(screen.getByRole('button', { name: /注册成功/ })).toBeInTheDocument();
     });
   });
 });
