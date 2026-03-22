@@ -1220,7 +1220,7 @@ export function setupIpcHandlers(): void {
     stopRequested?: boolean;
   }> = new Map();
 
-  function pushToRenderer(channel: string, msg: ChannelMessage): void {
+  function pushToRenderer(_channel: string, msg: ChannelMessage): void {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send('channels:message-received', msg);

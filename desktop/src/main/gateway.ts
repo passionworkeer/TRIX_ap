@@ -3,7 +3,6 @@ import { promisify } from 'util';
 import http from 'http';
 import log from 'electron-log/main';
 import { app } from 'electron';
-import path from 'path';
 import fs from 'fs';
 import { getOpenClawPath } from './openclaw';
 
@@ -13,7 +12,23 @@ let gatewayProcess: ChildProcess | null = null;
 const GATEWAY_PORT = 18789;
 const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
 
-function isPortInUse(port: number): Promise<boolean> {
+// In-memory ring buffer for gateway stdout/stderr (max 500 lines)
+const LOG_BUFFER: string[] = [];
+const MAX_LOG_LINES = 500;
+
+function pushLog(line: string): void {
+  LOG_BUFFER.push(line);
+  if (LOG_BUFFER.length > MAX_LOG_LINES) {
+    LOG_BUFFER.shift();
+  }
+}
+
+export function getGatewayLogs(opts?: { lines?: number }): string[] {
+  const count = opts?.lines ?? 100;
+  return LOG_BUFFER.slice(-count);
+}
+
+function isPortInUse(_port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const req = http.get(`${GATEWAY_URL}/health`, (res) => {
       resolve(res.statusCode === 200);
@@ -84,12 +99,18 @@ export async function startGateway(): Promise<void> {
 
   gatewayProcess.stdout?.on('data', (data) => {
     const msg = data.toString().trim();
-    if (msg) log.info('[gateway]', msg);
+    if (msg) {
+      log.info('[gateway]', msg);
+      pushLog(msg);
+    }
   });
 
   gatewayProcess.stderr?.on('data', (data) => {
     const msg = data.toString().trim();
-    if (msg) log.warn('[gateway:err]', msg);
+    if (msg) {
+      log.warn('[gateway:err]', msg);
+      pushLog(`[ERR] ${msg}`);
+    }
   });
 
   gatewayProcess.on('close', (code) => {
@@ -124,7 +145,7 @@ export async function stopGateway(): Promise<void> {
     try {
       await execAsync(`netstat -ano | findstr :${GATEWAY_PORT}`, { shell: 'cmd.exe' });
       // Try to kill the process by port
-      const { stdout } = await execAsync(
+      const { stdout: _stdout } = await execAsync(
         `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${GATEWAY_PORT}') do taskkill /F /PID %a`,
         { shell: 'cmd.exe' }
       );
@@ -137,14 +158,20 @@ export async function stopGateway(): Promise<void> {
 export async function getGatewayStatus(): Promise<{
   running: boolean;
   port?: number;
+  pid?: number;
   url?: string;
   error?: string;
 }> {
   const inUse = await isPortInUse(GATEWAY_PORT);
   if (inUse) {
-    return { running: true, port: GATEWAY_PORT, url: GATEWAY_URL };
+    return {
+      running: true,
+      port: GATEWAY_PORT,
+      pid: gatewayProcess?.pid,
+      url: GATEWAY_URL,
+    };
   }
-  return { running: false };
+  return { running: false, port: GATEWAY_PORT };
 }
 
 export async function restartGateway(): Promise<void> {
