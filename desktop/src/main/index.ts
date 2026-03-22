@@ -1,6 +1,14 @@
 import { app, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
+import { config as dotenvConfig } from 'dotenv';
 import { setupIpcHandlers } from './ipc';
+import path from 'path';
+
+// Load .env.local from desktop/ directory (dev + packaged fallback)
+dotenvConfig({ path: path.join(app.getAppPath(), 'desktop', '.env.local') });
+// In dev mode app.getAppPath() is the project root; in packaged mode it's the asar root.
+// Always also try project-root relative path as a fallback.
+dotenvConfig({ path: path.join(process.cwd(), 'desktop', '.env.local') });
 import { checkOpenClaw } from './openclaw';
 import { startGateway, stopGateway } from './gateway';
 import { createTray } from './tray';

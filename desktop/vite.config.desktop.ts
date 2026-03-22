@@ -36,7 +36,7 @@ export default defineConfig(() => {
                 fileName: () => 'index.cjs',
               },
               rollupOptions: {
-                external: ['electron', 'electron-log', 'electron-log/main', 'electron-store'],
+                external: ['electron', 'electron-log', 'electron-log/main', 'electron-store', 'dotenv'],
                 output: {
                   entryFileNames: 'index.cjs',
                 },

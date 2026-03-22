@@ -4,7 +4,7 @@ import { cn } from '../../shared/cn';
 interface DarkButtonProps {
   label: string;
   icon?: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   variant?: 'ghost' | 'outline' | 'primary' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
