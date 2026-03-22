@@ -46,8 +46,10 @@ vi.mock('../services/TrixNativeChannelClient', () => {
     pairWithQR: vi.fn(),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     uploadMedia: vi.fn().mockResolvedValue('https://example.com/media.jpg'),
+    uploadAttachment: vi.fn().mockResolvedValue({ attachmentId: 'test', url: 'https://example.com/file.jpg', kind: 'image', mimeType: 'image/jpeg', fileName: 'test.jpg', size: 100 }),
     unpair: vi.fn(),
     getUserId: vi.fn().mockReturnValue('test-user-id'),
+    getOrCreateClientId: vi.fn().mockReturnValue('test-client-id'),
   };
 
   return {

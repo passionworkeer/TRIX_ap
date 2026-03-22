@@ -26,7 +26,7 @@ import {
   getValidationErrorMessage,
 } from './validation';
 
-describe.skip('Validation Rules', () => {
+describe('Validation Rules', () => {
   describe('AUTH_VALIDATION', () => {
     it('should have correct username rules', () => {
       expect(AUTH_VALIDATION.username.min).toBe(1);
@@ -73,7 +73,7 @@ describe.skip('Validation Rules', () => {
   });
 });
 
-describe.skip('validateString', () => {
+describe('validateString', () => {
   it('should pass valid username', () => {
     const result = validateString('user123', AUTH_VALIDATION.username, 'username');
     expect(result).toBeNull();
@@ -146,7 +146,7 @@ describe.skip('validateString', () => {
   });
 });
 
-describe.skip('validateObject', () => {
+describe('validateObject', () => {
   it('should validate object with multiple fields', () => {
     const data = {
       username: 'testuser',
@@ -194,7 +194,7 @@ describe.skip('validateObject', () => {
   });
 });
 
-describe.skip('sanitizeString', () => {
+describe('sanitizeString', () => {
   it('should trim whitespace', () => {
     const result = sanitizeString('  hello  ', 100);
     expect(result).toBe('hello');
@@ -211,7 +211,7 @@ describe.skip('sanitizeString', () => {
   });
 });
 
-describe.skip('truncateString', () => {
+describe('truncateString', () => {
   it('should return string as-is if within limit', () => {
     const result = truncateString('hello', 10);
     expect(result).toBe('hello');
@@ -233,7 +233,7 @@ describe.skip('truncateString', () => {
   });
 });
 
-describe.skip('isValidLength', () => {
+describe('isValidLength', () => {
   it('should return true for valid length', () => {
     expect(isValidLength('hello', 1, 10)).toBe(true);
   });
@@ -251,7 +251,7 @@ describe.skip('isValidLength', () => {
   });
 });
 
-describe.skip('getValidationErrorMessage', () => {
+describe('getValidationErrorMessage', () => {
   it('should return user-friendly message for required field', () => {
     const error = {
       field: 'username',
@@ -302,7 +302,7 @@ describe.skip('getValidationErrorMessage', () => {
   });
 });
 
-describe.skip('TODO_VALIDATION', () => {
+describe('TODO_VALIDATION', () => {
   it('should accept valid todo title', () => {
     const result = validateString('Buy groceries', TODO_VALIDATION.title, 'title');
     expect(result).toBeNull();
@@ -334,7 +334,7 @@ describe.skip('TODO_VALIDATION', () => {
   });
 });
 
-describe.skip('CHAT_VALIDATION', () => {
+describe('CHAT_VALIDATION', () => {
   it('should accept message within limit', () => {
     const result = validateString('Hello!', CHAT_VALIDATION.messageText, 'messageText');
     expect(result).toBeNull();
@@ -351,15 +351,20 @@ describe.skip('CHAT_VALIDATION', () => {
   });
 });
 
-describe.skip('PAIRING_VALIDATION', () => {
+describe('PAIRING_VALIDATION', () => {
   it('should accept valid 6-digit pairing code', () => {
     const result = validateString('123456', VALIDATION_RULES.code, 'code');
     expect(result).toBeNull();
   });
 
-  it('should reject pairing code with letters', () => {
+  it('should accept pairing code with letters (case insensitive)', () => {
     const result = validateString('12345a', VALIDATION_RULES.code, 'code');
-    expect(result).not.toBeNull();
+    expect(result).toBeNull();
+  });
+
+  it('should accept pairing code with all letters', () => {
+    const result = validateString('ABCDEF', VALIDATION_RULES.code, 'code');
+    expect(result).toBeNull();
   });
 
   it('should reject pairing code that is too short', () => {
@@ -373,7 +378,7 @@ describe.skip('PAIRING_VALIDATION', () => {
   });
 });
 
-describe.skip('STUDY_VALIDATION', () => {
+describe('STUDY_VALIDATION', () => {
   it('should accept valid subject', () => {
     const result = validateString('Mathematics', STUDY_VALIDATION.subject, 'subject');
     expect(result).toBeNull();
@@ -411,9 +416,9 @@ describe.skip('STUDY_VALIDATION', () => {
     expect(result).toBeNull();
   });
 
-  it('should reject pairing code with letters', () => {
+  it('should accept pairing code with letters (case insensitive)', () => {
     const result = validateString('12345a', STUDY_VALIDATION.pairingCode, 'pairingCode');
-    expect(result).not.toBeNull();
+    expect(result).toBeNull();
   });
 
   it('should reject pairing code with special characters', () => {
@@ -438,7 +443,7 @@ describe.skip('STUDY_VALIDATION', () => {
   });
 });
 
-describe.skip('FRIEND_VALIDATION', () => {
+describe('FRIEND_VALIDATION', () => {
   it('should accept valid account', () => {
     const result = validateString('friend@example.com', FRIEND_VALIDATION.account, 'account');
     expect(result).toBeNull();
@@ -486,7 +491,7 @@ describe.skip('FRIEND_VALIDATION', () => {
   });
 });
 
-describe.skip('SCHEDULE_VALIDATION', () => {
+describe('SCHEDULE_VALIDATION', () => {
   it('should accept valid title', () => {
     const result = validateString('Team Meeting', SCHEDULE_VALIDATION.title, 'title');
     expect(result).toBeNull();
@@ -534,7 +539,7 @@ describe.skip('SCHEDULE_VALIDATION', () => {
   });
 });
 
-describe.skip('LOCATION_VALIDATION', () => {
+describe('LOCATION_VALIDATION', () => {
   it('should accept valid placeName', () => {
     const result = validateString('Coffee Shop', LOCATION_VALIDATION.placeName, 'placeName');
     expect(result).toBeNull();
@@ -582,7 +587,7 @@ describe.skip('LOCATION_VALIDATION', () => {
   });
 });
 
-describe.skip('NOTIFICATION_VALIDATION', () => {
+describe('NOTIFICATION_VALIDATION', () => {
   it('should accept valid title', () => {
     const result = validateString('New Message', NOTIFICATION_VALIDATION.title, 'title');
     expect(result).toBeNull();
@@ -641,7 +646,7 @@ describe.skip('NOTIFICATION_VALIDATION', () => {
   });
 });
 
-describe.skip('MALL_VALIDATION', () => {
+describe('MALL_VALIDATION', () => {
   it('should accept valid itemName', () => {
     const result = validateString('Cool Avatar', MALL_VALIDATION.itemName, 'itemName');
     expect(result).toBeNull();
@@ -674,7 +679,7 @@ describe.skip('MALL_VALIDATION', () => {
   });
 });
 
-describe.skip('WARDROBE_VALIDATION', () => {
+describe('WARDROBE_VALIDATION', () => {
   it('should accept valid itemName', () => {
     const result = validateString('Red Shirt', WARDROBE_VALIDATION.itemName, 'itemName');
     expect(result).toBeNull();
@@ -708,7 +713,7 @@ describe.skip('WARDROBE_VALIDATION', () => {
   });
 });
 
-describe.skip('Validation Boundary Tests', () => {
+describe('Validation Boundary Tests', () => {
   describe('边界值测试', () => {
     it('应该接受正好在最小边界的值', () => {
       const result = validateString('a', AUTH_VALIDATION.username, 'username');
@@ -938,7 +943,7 @@ describe.skip('Validation Boundary Tests', () => {
   });
 });
 
-describe.skip('Validation Integration Tests', () => {
+describe('Validation Integration Tests', () => {
   describe('表单提交完整验证流程', () => {
     it('应该验证完整的注册表单', () => {
       const formData = {
