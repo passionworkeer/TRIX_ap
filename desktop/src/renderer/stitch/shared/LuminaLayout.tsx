@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Suspense, lazy } from 'react';
+import React, { Component, useState, useCallback, Suspense, lazy } from 'react';
 import { LuminaTitleBar } from '../lumina/components/TitleBar';
 import { LuminaSidebar, type SidebarRoute } from '../lumina/components/Sidebar';
 
@@ -52,6 +52,61 @@ const DARK_ROUTES: DesktopRoute[] = [
 
 interface LuminaLayoutProps {
   initialRoute?: DesktopRoute;
+}
+
+// ErrorBoundary catches runtime errors in lazy-loaded pages
+class PageErrorBoundary extends Component<
+  { children: React.ReactNode; dark?: boolean },
+  { hasError: boolean; error?: string }
+> {
+  constructor(props: { children: React.ReactNode; dark?: boolean }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  render() {
+    if (this.state.hasError) {
+      const dark = this.props.dark;
+      return (
+        <div
+          style={{
+            height: '100%',
+            background: dark ? '#131313' : '#f7f9fb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div style={{ textAlign: 'center', maxWidth: 320 }}>
+            <p style={{ fontSize: 18, fontWeight: 600, color: dark ? '#e5e2e1' : '#1a1c1c', marginBottom: 8 }}>
+              页面加载失败
+            </p>
+            <p style={{ fontSize: 12, color: dark ? '#919191' : '#7b7487', marginBottom: 16 }}>
+              {this.state.error ?? '未知错误'}
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              style={{
+                padding: '6px 16px',
+                background: dark ? '#2a2a2a' : '#e8e0f0',
+                color: dark ? '#e5e2e1' : '#630ed4',
+                border: `1px solid ${dark ? '#3a3a3a' : '#d4c0e8'}`,
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 const RouteLoading = ({ dark = false }: { dark?: boolean }) => (
@@ -122,59 +177,77 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
       // ── Lumina light pages ─────────────────────────────────────────────
       case 'chat':
         return (
-          <Suspense fallback={<RouteLoading />}>
-            <LuminaChat />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <LuminaChat />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'study':
         return (
-          <Suspense fallback={<RouteLoading />}>
-            <LuminaStudy />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <LuminaStudy />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'snapshot':
         return (
-          <Suspense fallback={<RouteLoading />}>
-            <LuminaSnapshot />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <LuminaSnapshot />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'profile':
         return (
-          <Suspense fallback={<RouteLoading />}>
-            <LuminaProfile />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <LuminaProfile />
+            </Suspense>
+          </PageErrorBoundary>
         );
 
       // ── Noir dark pages ─────────────────────────────────────────────────
       case 'dashboard':
         return (
-          <Suspense fallback={fallback}>
-            <NoirDashboard />
-          </Suspense>
+          <PageErrorBoundary dark>
+            <Suspense fallback={fallback}>
+              <NoirDashboard />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'agents':
         return (
-          <Suspense fallback={fallback}>
-            <NoirAgents />
-          </Suspense>
+          <PageErrorBoundary dark>
+            <Suspense fallback={fallback}>
+              <NoirAgents />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'channels':
         return (
-          <Suspense fallback={fallback}>
-            <NoirChannels />
-          </Suspense>
+          <PageErrorBoundary dark>
+            <Suspense fallback={fallback}>
+              <NoirChannels />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'backups':
         return (
-          <Suspense fallback={fallback}>
-            <NoirBackups />
-          </Suspense>
+          <PageErrorBoundary dark>
+            <Suspense fallback={fallback}>
+              <NoirBackups />
+            </Suspense>
+          </PageErrorBoundary>
         );
       case 'settings':
         return (
-          <Suspense fallback={fallback}>
-            <NoirSettings />
-          </Suspense>
+          <PageErrorBoundary dark>
+            <Suspense fallback={fallback}>
+              <NoirSettings />
+            </Suspense>
+          </PageErrorBoundary>
         );
 
       case 'skills':

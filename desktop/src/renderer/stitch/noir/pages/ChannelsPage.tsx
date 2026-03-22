@@ -192,14 +192,22 @@ export default function ChannelsPage() {
   const handleConnect = async () => {
     addLog(createLogEntry('warning', `[${selectedChannel.name}] 正在建立连接...`));
     // Simulate connection flow
-    setTimeout(() => {
-      addLog(createLogEntry('error', `[${selectedChannel.name}] 连接失败: 需要配置 API 凭证`));
-      setChannels((prev) =>
-        prev.map((c) =>
-          c.id === selectedChannel.id ? { ...c, status: 'error' as const } : c,
-        ),
-      );
-    }, 1000);
+    try {
+      setTimeout(() => {
+        try {
+          addLog(createLogEntry('error', `[${selectedChannel.name}] 连接失败: 需要配置 API 凭证`));
+          setChannels((prev) =>
+            prev.map((c) =>
+              c.id === selectedChannel.id ? { ...c, status: 'error' as const } : c,
+            ),
+          );
+        } catch (e) {
+          console.error('Channels connect callback error:', e);
+        }
+      }, 1000);
+    } catch (e) {
+      addLog(createLogEntry('error', `连接异常: ${String(e)}`));
+    }
   };
 
   return (

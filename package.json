@@ -22,6 +22,7 @@
     "test:server:extended": "npm --prefix server/clawbot-channel test -- tests/*.test.js",
     "test:api": "TEST_SERVER_URL=http://localhost:8765 npm --prefix server/clawbot-channel test -- tests/api-integration.test.js",
     "test:e2e": "playwright test",
+    "test:e2e:desktop": "node desktop-e2e.cjs",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test:unit && npm run test:smoke && npm run test:e2e",
