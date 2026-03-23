@@ -7,7 +7,7 @@ import renderer from 'vite-plugin-electron-renderer';
 
 const projectRoot = path.resolve(__dirname, '..');
 
-export default defineConfig(() => {
+export default defineConfig(async () => {
   return {
     root: projectRoot,
     base: './',
@@ -82,5 +82,5 @@ export default defineConfig(() => {
       port: 5174,
       strictPort: true,
     },
-  };
+  } as any;
 });

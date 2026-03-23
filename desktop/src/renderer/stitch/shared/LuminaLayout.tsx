@@ -66,7 +66,7 @@ class PageErrorBoundary extends Component<
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error: error.message };
   }
-  render() {
+  override render() {
     if (this.state.hasError) {
       const dark = this.props.dark;
       return (

@@ -580,10 +580,6 @@ class TrixNativeChannelClient {
     }
   }
 
-  private getActiveAccountId(): string {
-    return this.readSessionState().activeAccountId;
-  }
-
   private getStoredSession(accountId?: string): StoredSession | null {
     const state = this.readSessionState();
     const resolvedAccountId = normalizeAccountId(accountId ?? state.activeAccountId);

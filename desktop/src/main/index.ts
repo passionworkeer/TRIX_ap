@@ -22,7 +22,7 @@ import { checkOpenClaw } from './openclaw';
 import { startGateway, stopGateway } from './gateway';
 import { createTray } from './tray';
 import { createFloatWindow } from './float-window';
-import { getPreloadPath, getMainUrl, getFloatUrl, setMainWindow, showMainWindow } from './window-state';
+import { getPreloadPath, getMainUrl, setMainWindow, showMainWindow } from './window-state';
 import { destroyTray } from './tray';
 
 // FIRST: Write a marker file to prove the bundle is running

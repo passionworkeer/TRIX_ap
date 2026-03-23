@@ -1,8 +1,7 @@
-import { defineConfig, chromium, type ElectronBrowser, type ElectronPage } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 
 const ELECTRON_PATH = 'C:/Users/wang/Desktop/TRIX Companion 3/win-unpacked/TRIX Companion.exe';
 const CDP_PORT = 9228;
-const APP_URL = `http://localhost:${CDP_PORT + 1}`; // electron app serves on this port
 
 export default defineConfig({
   testDir: '.',
@@ -27,9 +26,6 @@ export default defineConfig({
       },
     },
   ],
-
-  // Expose custom config values
-  extraHTTPHeaders: {},
 });
 
 export { ELECTRON_PATH, CDP_PORT };

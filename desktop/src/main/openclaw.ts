@@ -1,10 +1,9 @@
-import { exec, spawn, type ChildProcess } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { app } from 'electron';
 import log from 'electron-log/main';
 import fs from 'fs';
-import os from 'os';
 
 const execAsync = promisify(exec);
 
@@ -37,7 +36,7 @@ async function findOpenClaw(): Promise<{ path: string; version: string } | null>
   const PATH_cmd = process.platform === 'win32' ? 'where openclaw' : 'which openclaw';
   try {
     const { stdout } = await execAsync(PATH_cmd, { timeout: 5000 });
-    const cmdPath = stdout.trim().split('\n')[0].trim();
+    const cmdPath = stdout.trim().split('\n')[0]?.trim() ?? '';
     if (cmdPath) {
       const { stdout: ver } = await execAsync(`"${cmdPath}" --version`, { timeout: 10000 });
       return { path: cmdPath, version: ver.trim() };

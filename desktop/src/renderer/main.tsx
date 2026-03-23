@@ -44,7 +44,7 @@ class RenderErrorBoundary extends React.Component<
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error: error.message, stack: error.stack || '' };
   }
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div

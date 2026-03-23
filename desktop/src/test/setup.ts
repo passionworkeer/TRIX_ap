@@ -1,5 +1,5 @@
 // Desktop test setup — mocks for Electron and native Node modules
-import { beforeEach, vi } from 'vitest';
+import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 // ── Electron mock ───────────────────────────────────────────────────────────
@@ -74,19 +74,20 @@ vi.mock('electron-log/main', () => ({
 }));
 
 // ── child_process mock ──────────────────────────────────────────────────────
-const mockSpawn = {
-  stdout: { on: vi.fn() },
-  stderr: { on: vi.fn() },
-  on: vi.fn((event: string, cb: (code: number) => void) => {
+    const onHandler = vi.fn((event: string, cb: (code: number) => void): typeof mockSpawn => {
     if (event === 'close') setTimeout(() => cb(0), 10);
     if (event === 'error') setTimeout(() => cb(1), 10);
     return mockSpawn;
-  }),
+  });
+const mockSpawn: { stdout: { on: ReturnType<typeof vi.fn> }; stderr: { on: ReturnType<typeof vi.fn> }; on: typeof onHandler; kill: ReturnType<typeof vi.fn> } = {
+  stdout: { on: vi.fn() },
+  stderr: { on: vi.fn() },
+  on: onHandler,
   kill: vi.fn(),
 };
 
 vi.mock('child_process', () => ({
-  exec: vi.fn((cmd: string, opts: object, cb: Function) => {
+  exec: vi.fn((_cmd: string, _opts: object, cb: Function) => {
     setTimeout(() => cb(null, { stdout: '', stderr: '' }), 10);
     return { kill: vi.fn() } as unknown;
   }),
@@ -114,19 +115,16 @@ vi.mock('http', async (real) => {
   return {
     ...http,
     request: vi.fn(() => ({
-      on: vi.fn((event: string, cb: Function) => {
+      on: vi.fn((event: string, cb: Function): Record<string, unknown> => {
         if (event === 'data') setTimeout(() => cb(Buffer.from('{}')), 5);
         if (event === 'end') setTimeout(() => cb(), 10);
-        return this;
+        if (event === 'error') setTimeout(() => cb(new Error('mock')), 5);
+        return this as unknown as Record<string, unknown>;
       }),
       setTimeout: vi.fn().mockReturnThis(),
       write: vi.fn(),
       end: vi.fn(),
       destroy: vi.fn(),
-      on: vi.fn((event: string, cb: Function) => {
-        if (event === 'error') setTimeout(() => cb(new Error('mock')), 5);
-        return this;
-      }),
     })),
     get: vi.fn(),
   };

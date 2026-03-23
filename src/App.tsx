@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { HashRouter, BrowserRouter, Routes, Route, useLocation, Navigate, matchPath } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, Navigate, matchPath } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';

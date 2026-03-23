@@ -116,9 +116,10 @@ function FloatApp() {
 
     api.listConversations().then((result) => {
       if (result.success && result.data && result.data.length > 0) {
-        setActiveConversationId(result.data[0].id);
+        const first = result.data[0]!;
+        setActiveConversationId(first.id);
         // Load messages for this conversation
-        api.fetchMessages(result.data[0].id).then((msgResult) => {
+        api.fetchMessages(first.id).then((msgResult) => {
           if (msgResult.success && msgResult.data) {
             setMessages(msgResult.data);
           }
@@ -277,7 +278,7 @@ function FloatApp() {
     const api = window.electronAPI;
     if (!api?.sendReaction || messages.length === 0) return;
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg.direction !== 'incoming') return;
+    if (!lastMsg || lastMsg.direction !== 'incoming') return;
     api.sendReaction(lastMsg.id, emoji).catch(() => { /* silent */ });
   }, [messages]);
 

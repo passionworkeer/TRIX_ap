@@ -295,7 +295,7 @@ export default function ProfilePage() {
   const api = window.electronAPI;
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
   const [achievements, setAchievements] = useState<Achievement[]>(DEMO_ACHIEVEMENTS);
-  const [profileStats, setProfileStats] = useState<{
+  const [, setProfileStats] = useState<{
     displayName: string;
     points: number;
     streak: number;

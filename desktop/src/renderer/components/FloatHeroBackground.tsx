@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import type { BotState } from '@/contexts/ClawbotChannelContext';
+import { useEffect, useRef, useState } from 'react';
+import type { BotState } from '../../types/electron';
 
 interface FloatHeroBackgroundProps {
   botState: BotState;

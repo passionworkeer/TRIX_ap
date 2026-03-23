@@ -12,53 +12,86 @@ docs/
 ├── INDEX.md                          # 文档索引（本文档）
 ├── CHANGELOG.md                     # 开发迭代日志
 ├── ENVIRONMENT.md                   # 环境变量参考
+├── INSTALLATION_GUIDE.md            # trix-openclaw-native 安装指南
 ├── TRIX_NATIVE_CHANNEL.md           # ⭐ Native Channel 唯一权威文档
 │
 ├── 📦 需求规格 (requirements/)
 │   ├── PRD.md                       # 产品需求文档（三端合一）
-│   └── DESKTOP_PRD.md              # Desktop 产品需求文档 ← 新增
+│   ├── DESKTOP_PRD.md              # Desktop 产品需求文档
+│   └── DESKTOP_PHASE2_PLAN.md      # Desktop Phase 2 计划
 │
 ├── 📊 项目报告 (project-reports/)
 │   ├── PROJECT.md                   # 项目总览
-│   └── NEXT_FEATURES_PLAN.md        # 下一步功能计划
+│   ├── NEXT_FEATURES_PLAN.md        # 下一步功能计划
+│   ├── LONGCODE_PLAN.md            # Longcode 执行计划
+│   ├── PHASE7_LAUNCH_PLAN.md      # iOS Phase 7 上线计划
+│   ├── MVP_TEST_CHECKLIST.md       # MVP 测试清单
+│   ├── P1-3_Performance_Benchmark_Report.md
+│   ├── P2-4_Documentation_Update_Report.md
+│   ├── P3_Completion_Report_20260227.md
+│   ├── PROJECT_TASKS.md            # trix-openclaw-native 项目任务
+│   └── 任务完成度报告_20260227.md
 │
 ├── 🔧 开发文档 (development/)
 │   ├── TESTING.md                  # 测试指南
-│   ├── DOCUMENTATION_GUIDELINES.md   # 文档规范
+│   ├── DOCUMENTATION_GUIDELINES.md # 文档规范
 │   ├── STATE-TEMPLATE.md           # 状态模板
 │   └── TDD-EXAMPLES.md             # TDD 示例
 │
 ├── 🎨 UI 文档 (ui/)
 │   ├── COMPONENTS.md               # 组件文档
-│   └── UI_DOCUMENTATION.md         # UI 完整文档
+│   ├── UI_DOCUMENTATION.md         # UI 完整文档
+│   ├── DESIGN.md                   # Lumina/Desktop 设计系统
+│   └── ARCHITECTURE_DIAGRAM.md     # iOS 架构图
 │
 ├── 🌐 架构文档 (architecture/)
 │   ├── WEB_ARCHITECTURE.md          # Web 端架构
 │   └── BACKEND_ARCHITECTURE.md     # 后端架构
 │
 ├── 🗄️ 数据库 (database/)
-│   └── DATABASE_SCHEMA.md           # 数据库 Schema
+│   ├── DATABASE_SCHEMA.md           # 数据库 Schema
+│   ├── database-consistency-report.md
+│   └── README.md                   # 数据库快速开始
 │
 ├── 📡 API 文档 (api/)
 │   ├── API_DOCUMENTATION.md        # API 完整文档
-│   └── API_TYPES.md               # API 类型定义
+│   └── API_TYPES.md                # API 类型定义
 │
 ├── 🍎 iOS 文档 (ios/)
 │   ├── IOS_ARCHITECTURE.md         # iOS 架构
-│   └── IOS_ISSUES.md              # iOS 问题记录
+│   ├── IOS_API_REFERENCE.md        # iOS API 参考
+│   ├── IOS_ISSUES.md              # iOS 问题记录
+│   ├── IOS_SECURITY_HARDENING.md  # iOS 安全加固
+│   ├── SECURITY_AUDIT*.md          # 安全审计报告（P0-1/P0-2/P0-8）
+│   ├── SECURITY_CONFIGURATION.md   # 安全配置
+│   ├── P1-2.1-remove-hardcoded-credentials.md
+│   ├── P1-2.3-sql-injection-audit.md
+│   ├── P1-2.4-data-flow-analysis.md
+│   ├── INTEGRATION_GUIDE.md        # 主题集成指南
+│   ├── IOS_BACKEND_COMPLETION_REPORT.md
+│   ├── IOS_QUALITY_FIXES_20260309.md
+│   ├── IOS_REIMPLEMENTATION_PLAN.md
+│   ├── IOS_RESCAN_AUDIT_20260308.md
+│   ├── DOCUMENTATION_COVERAGE_REPORT.md
+│   ├── QUICK_REFERENCE.md          # Push Notifications 快速参考
+│   ├── TESTING.md / TESTING_REPORT*.md  # 测试报告
+│   ├── checklist.md                # AppStore 上架清单
+│   └── README.md                  # Push Notifications 说明
 │
 ├── 🚀 入门指南 (getting-started/)
 │   ├── SETUP.md                   # 环境配置指南
 │   └── QUICK_START_GUIDE.md       # 快速开始指南
 │
 ├── 💻 桌面应用文档 (desktop/)
-│   └── DESKTOP_ARCHITECTURE.md     # 桌面端架构文档
+│   └── DESKTOP_ARCHITECTURE.md    # 桌面端架构文档
 │
 ├── 📖 操作指南 (guides/)
-│   ├── DEPLOYMENT.md               # 生产部署指南
+│   ├── DEPLOYMENT.md              # 生产部署指南
 │   ├── PAIRING.md                 # ⭐ 配对指南（Web/iOS/桌面）
 │   ├── SSH-SETUP.md              # SSH 配置
-│   └── SERVER_GUIDE.md            # 服务器运维
+│   ├── SERVER_GUIDE.md            # 服务器运维
+│   ├── IOS_TEST_DEPLOY_GUIDE.md  # iOS 测试部署
+│   └── MACOS_LAUNCHD.md          # macOS launchd 模板
 │
 ├── 📷 截图资产 (screenshots/)
 │   └── *.png                     # 工作区截图 · 标准存放目录
@@ -151,21 +184,21 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 | 目录 | 文档数量 |
 |------|----------|
-| 根目录 | 4 |
-| 需求规格 (requirements/) | 2 ← 新增 |
-| 项目报告 (project-reports/) | 2 |
+| 根目录 | 5（不含归档） |
+| 需求规格 (requirements/) | 3 |
+| 项目报告 (project-reports/) | 9 |
 | 🔧 开发文档 (development/) | 4 |
-| 🎨 UI 文档 (ui/) | 2 |
+| 🎨 UI 文档 (ui/) | 4（含 Lumina/Noir 设计文档） |
 | 🌐 架构文档 (architecture/) | 2 |
-| 🗄️ 数据库 (database/) | 2（含一致性报告） |
+| 🗄️ 数据库 (database/) | 3 |
 | 📡 API 文档 (api/) | 2 |
-| 🍎 iOS 文档 (ios/) | 2 |
+| 🍎 iOS 文档 (ios/) | 17（架构/安全/测试/质量报告） |
 | 🚀 入门指南 (getting-started/) | 2 |
 | 💻 桌面应用 (desktop/) | 1 |
-| 📖 操作指南 (guides/) | 5（含 iOS 测试部署指南） |
+| 📖 操作指南 (guides/) | 6（含 MACOS_LAUNCHD） |
 | 🗂️ 归档 (.archive/) | 1 |
 
-**总计**: 32 个活跃文档（不含 .archive/，不含 screens/）+ screenshots/（截图资产目录）
+**总计**: 50+ 个活跃文档（不含 .archive/，不含 screenshots/）
 
 ---
 

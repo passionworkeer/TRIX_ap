@@ -1,14 +1,6 @@
 import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
-import { ACHIEVEMENTS, Achievement, AchievementType } from '../types/achievement';
-
-interface UserAchievement {
-  id: string;
-  user_id: string;
-  achievement_id: string;
-  unlocked_at: string;
-  metadata?: Record<string, any>;
-}
+import { ACHIEVEMENTS, Achievement } from '../types/achievement';
 
 interface UserStats {
   total_minutes: number;

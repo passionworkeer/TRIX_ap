@@ -15,7 +15,7 @@
  *   npm i -D @playwright/test && npx playwright install chromium
  */
 
-import { test, expect, type BrowserContext, type Page, type ElectronApplication } from '@playwright/test';
+import { test, expect, type Page, type ElectronApplication } from '@playwright/test';
 import { _electron as electron } from '@playwright/test';
 import { ELECTRON_PATH, CDP_PORT } from './playwright-desktop.config';
 
@@ -255,7 +255,6 @@ test.describe('Agents Page (Noir)', () => {
   test('loading state shows and clears', async () => {
     // Loading indicator should eventually clear
     await page.waitForTimeout(3000);
-    const loadingText = page.locator('text=加载中...');
     // May or may not be visible depending on API response time
     console.log('✓ Agents page loaded (API call completed or timed out)');
   });

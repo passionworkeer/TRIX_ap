@@ -268,7 +268,7 @@ export const trixPlugin: ChannelPlugin = {
         channelRuntime: ctx.channelRuntime as Parameters<typeof monitorTrixProvider>[0]['channelRuntime'],
       });
     },
-    loginWithQrStart: async ({ accountId, timeoutMs }) => {
+    loginWithQrStart: async ({ accountId, timeoutMs: _timeoutMs }) => {
       const { payload } = await createServicePairing(accountId);
       return {
         qrDataUrl: payload.qrDataUrl,

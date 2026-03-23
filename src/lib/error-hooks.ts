@@ -15,6 +15,8 @@ import {
   ApiResponse,
 } from './errors';
 
+const isDev = import.meta.env.DEV;
+
 /**
  * useErrorHandler 返回类型
  */

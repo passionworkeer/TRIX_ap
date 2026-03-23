@@ -2,7 +2,6 @@ import { BrowserWindow, app } from 'electron';
 
 let _mainWindow: BrowserWindow | null = null;
 let _floatWindow: BrowserWindow | null = null;
-const isDev = !app.isPackaged;
 
 function getPreloadPath(): string {
   // app.getAppPath() = project root in dev, app root in prod
