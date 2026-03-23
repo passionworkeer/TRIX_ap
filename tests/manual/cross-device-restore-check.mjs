@@ -47,12 +47,18 @@ async function pairViaCode(page, pairingCode) {
     return !text.includes('页面加载中...');
   }, { timeout: 20000 });
 
+  if (/#\/chat\/clawbot/.test(page.url())) {
+    await page.locator('textarea').first().waitFor({ timeout: 30000 });
+    await page.waitForTimeout(4000);
+    return;
+  }
+
   const manualButton = page.getByRole('button', { name: '手动输入配对码' });
   if (await manualButton.count()) {
     await manualButton.click();
   }
 
-  const codeInput = page.locator('input[placeholder="AB12CD"]');
+  const codeInput = page.locator('input[placeholder="AB12CD"], input[maxlength="6"]').first();
   await codeInput.waitFor({ timeout: 15000 });
   await codeInput.fill(pairingCode);
   await page.getByRole('button', { name: '验证配对' }).click();
@@ -65,7 +71,7 @@ async function ensureDesktopSession(page, pairingCode) {
   await page.goto(`${webBaseUrl}/#/chat/clawbot`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
 
-  let session = await readNativeSession(page);
+  let session = await waitForRestoredSession(page, null, 8000);
   if (session?.conversationId && session?.appUserId) {
     await page.locator('textarea').first().waitFor({ timeout: 30000 });
     return session;
@@ -92,12 +98,15 @@ async function readNativeSession(page) {
   });
 }
 
-async function waitForRestoredSession(page, expectedConversationId, timeoutMs = 30000) {
+async function waitForRestoredSession(page, expectedConversationId = null, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const session = await readNativeSession(page);
-    if (session?.conversationId === expectedConversationId && session?.appUserId) {
+    const conversationMatches = expectedConversationId
+      ? session?.conversationId === expectedConversationId
+      : Boolean(session?.conversationId);
+    if (conversationMatches && session?.appUserId) {
       return session;
     }
     await page.waitForTimeout(1000);

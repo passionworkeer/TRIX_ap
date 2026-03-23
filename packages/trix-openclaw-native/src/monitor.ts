@@ -9,6 +9,8 @@ const KEEPALIVE_PING_INTERVAL_MS = 25_000;
 const activeMonitors = new Map<string, boolean>();
 const INBOUND_ACK_TTL_MS = 30 * 60 * 1000;
 const MAX_TRACKED_INBOUND_MESSAGES = 2048;
+const DEFAULT_INBOUND_DEBOUNCE_MS = 900;
+const MAX_DEBOUNCED_BATCH_SIZE = 8;
 
 type TrixDmPolicy = 'pairing' | 'allowlist' | 'open' | 'disabled';
 
@@ -141,6 +143,24 @@ function waitUntilAbort(signal?: AbortSignal): Promise<void> {
   });
 }
 
+function resolveInboundDebounceMs(config: Record<string, unknown>): number {
+  const inbound = (config as {
+    messages?: {
+      inbound?: {
+        debounceMs?: number;
+        byChannel?: Record<string, number>;
+      };
+    };
+  }).messages?.inbound;
+
+  const rawValue = inbound?.byChannel?.['trix-native'] ?? inbound?.debounceMs ?? DEFAULT_INBOUND_DEBOUNCE_MS;
+  const resolved = Number(rawValue);
+  if (!Number.isFinite(resolved) || resolved <= 0) {
+    return 0;
+  }
+  return resolved;
+}
+
 export async function monitorTrixProvider(opts: {
   config: Record<string, unknown>;
   runtime: unknown;
@@ -202,6 +222,12 @@ export async function monitorTrixProvider(opts: {
   let stopped = false;
   let currentSocket: WebSocket | null = null;
   const inboundDeliveryState = new Map<string, { status: 'processing' | 'done'; updatedAt: number }>();
+  const sessionProcessingQueue = new Map<string, Promise<void>>();
+  const inboundDebounceMs = resolveInboundDebounceMs(opts.config);
+  const bufferedInboundBySession = new Map<string, {
+    timer: ReturnType<typeof setTimeout>;
+    items: Array<{ normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>; inboundMessageKey: string }>;
+  }>();
 
   const pruneInboundDeliveryState = () => {
     const now = Date.now();
@@ -248,9 +274,337 @@ export async function monitorTrixProvider(opts: {
     }));
   };
 
+  const sendServiceAcks = (messageIds: string[]) => {
+    for (const messageId of messageIds) {
+      sendServiceAck(messageId);
+    }
+  };
+
+  const getSessionQueueKey = (normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>) => (
+    `${account.accountId}:${normalized.chatType}:${normalized.conversationId}:${normalized.peerId}`
+  );
+
+  const shouldDebounceInbound = (normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>) => {
+    if (inboundDebounceMs <= 0) {
+      return false;
+    }
+    if (!normalized.message.text.trim()) {
+      return false;
+    }
+    if (normalized.message.attachments.length > 0) {
+      return false;
+    }
+    if (normalized.message.replyToMessageId) {
+      return false;
+    }
+    if (normalized.message.text.startsWith('/')) {
+      return false;
+    }
+    return true;
+  };
+
+  const mergeBufferedInboundItems = (
+    items: Array<{ normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>; inboundMessageKey: string }>,
+  ) => {
+    const ordered = [...items].sort((left, right) => left.normalized.message.timestamp - right.normalized.message.timestamp);
+    const last = ordered[ordered.length - 1];
+    if (!last) {
+      return null;
+    }
+
+    const combinedText = ordered
+      .map((item) => item.normalized.message.text.trim())
+      .filter(Boolean)
+      .join('\n');
+
+    return {
+      normalized: {
+        ...last.normalized,
+        message: {
+          ...last.normalized.message,
+          text: combinedText || last.normalized.message.text,
+        },
+      },
+      messageIds: ordered.map((item) => item.normalized.message.id),
+      messageKeys: ordered.map((item) => item.inboundMessageKey),
+      batchSize: ordered.length,
+    };
+  };
+
+  const enqueueSessionWork = (sessionKey: string, work: () => Promise<void>) => {
+    const previous = sessionProcessingQueue.get(sessionKey) ?? Promise.resolve();
+    const next = previous
+      .catch(() => undefined)
+      .then(work);
+    const settled = next.then(() => undefined, () => undefined);
+    sessionProcessingQueue.set(sessionKey, settled);
+    void settled.finally(() => {
+      if (sessionProcessingQueue.get(sessionKey) === settled) {
+        sessionProcessingQueue.delete(sessionKey);
+      }
+    });
+    return next;
+  };
+
+  const processInboundItems = async (
+    items: Array<{ normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>; inboundMessageKey: string }>,
+  ) => {
+    const merged = mergeBufferedInboundItems(items);
+    if (!merged) {
+      return;
+    }
+
+    const normalized = merged.normalized;
+    const normalizedMessageId = normalized.message.id;
+    const isSlashCommand = normalized.message.text.startsWith('/');
+    const rawText = normalized.message.text ?? '';
+    const messageIdsToAck = merged.messageIds;
+    const messageKeysToAck = merged.messageKeys;
+
+    try {
+      console.info('[trix-native] inbound message', {
+        conversationId: normalized.conversationId,
+        hasAttachments: normalized.message.attachments.length > 0,
+        isSlashCommand,
+        batchSize: merged.batchSize,
+      });
+
+      const route = runtime.routing.resolveAgentRoute({
+        cfg: opts.config,
+        channel: 'trix-native',
+        accountId: account.accountId,
+        peer: {
+          kind: normalized.chatType === 'channel' ? 'group' : 'direct',
+          id: normalized.peerId,
+        },
+      });
+      if (!route) {
+        return;
+      }
+
+      const storePath = runtime.session.resolveStorePath(
+        (opts.config as { session?: { store?: string } }).session?.store,
+        { agentId: route.agentId as string | undefined },
+      );
+
+      const commandAuthorized = await resolveCommandAuthorized({
+        config: opts.config,
+        runtime,
+        accountId: account.accountId,
+        chatType: normalized.chatType,
+        peerId: normalized.peerId,
+        rawText,
+      });
+
+      let mediaPath: string | undefined;
+      let mediaType: string | undefined;
+      let bodyForAgent: string;
+      const rawBody = rawText;
+      const commandBody = rawText;
+
+      if (isSlashCommand) {
+        bodyForAgent = rawText;
+
+        console.info('[trix-native] command dispatch', {
+          conversationId: normalized.conversationId,
+          commandName: rawText.split(' ')[0],
+          senderId: normalized.peerId,
+        });
+      } else {
+        const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
+        bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
+
+        const firstAttachment = normalized.message.attachments.find((a) => a.url || (a as { servicePath?: string }).servicePath);
+        if (firstAttachment) {
+          const servicePath = (firstAttachment as { servicePath?: string }).servicePath;
+          const downloadUrl: string = servicePath
+            ? `${account.serviceUrl.replace(/\/$/, '')}${servicePath}`
+            : firstAttachment.url!;
+
+          try {
+            const fetched = servicePath
+              ? await fetchServiceAttachment({
+                  serviceUrl: account.serviceUrl ?? '',
+                  servicePath,
+                  serviceToken: account.serviceToken ?? '',
+                })
+              : await runtime.media.fetchRemoteMedia({ url: downloadUrl });
+            const stored = await runtime.media.saveMediaBuffer(
+              fetched.buffer,
+              fetched.contentType ?? firstAttachment.mimeType,
+              'inbound',
+              MAX_MEDIA_BYTES,
+            );
+            mediaPath = stored.path;
+            mediaType = stored.contentType ?? firstAttachment.mimeType;
+
+            console.info('[trix-native] inbound attachment fetch ok', {
+              accountId: account.accountId,
+              conversationId: normalized.conversationId,
+              attachmentId: firstAttachment.id,
+              url: downloadUrl,
+              mediaPath,
+              usedServicePath: !!servicePath,
+            });
+          } catch (error) {
+            console.warn('[trix-native] inbound attachment fetch failed, using summary fallback', {
+              accountId: account.accountId,
+              conversationId: normalized.conversationId,
+              attachmentId: firstAttachment.id,
+              url: downloadUrl,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
+
+      const ctxPayload = runtime.reply.finalizeInboundContext({
+        Body: bodyForAgent,
+        BodyForAgent: bodyForAgent,
+        RawBody: rawBody,
+        CommandBody: commandBody,
+        BodyForCommands: commandBody,
+        ...(typeof commandAuthorized === 'boolean' ? { CommandAuthorized: commandAuthorized } : {}),
+        ...(isSlashCommand ? { CommandSource: 'text' } : {}),
+        From: `trix-native:${normalized.peerId}`,
+        To: `conv:${normalized.conversationId}`,
+        SessionKey: route.sessionKey,
+        AccountId: route.accountId ?? account.accountId,
+        ChatType: normalized.chatType,
+        ConversationLabel: normalized.peerDisplayName ?? normalized.peerId,
+        SenderName: normalized.peerDisplayName,
+        SenderId: normalized.peerId,
+        Provider: 'trix-native',
+        Surface: 'trix-native',
+        MessageSid: normalizedMessageId,
+        ReplyToId: normalized.message.replyToMessageId ?? undefined,
+        Timestamp: normalized.message.timestamp,
+        MediaPath: mediaPath,
+        MediaType: mediaType,
+        MediaUrl: mediaPath,
+        OriginatingChannel: 'trix-native',
+        OriginatingTo: `conv:${normalized.conversationId}`,
+        TrixMessageIds: messageIdsToAck,
+      });
+
+      await runtime.session.recordInboundSession({
+        storePath,
+        sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+        ctx: ctxPayload,
+        updateLastRoute: {
+          sessionKey: route.sessionKey,
+          channel: 'trix-native',
+          to: `conv:${normalized.conversationId}`,
+          accountId: account.accountId,
+        },
+        onRecordError: () => undefined,
+      });
+
+      let inboundReplyAcknowledged = false;
+
+      await runtime.reply.dispatchReplyWithBufferedBlockDispatcher({
+        ctx: ctxPayload,
+        cfg: opts.config,
+        dispatcherOptions: {
+          deliver: async (payload: { text?: string; mediaUrls?: string[]; mediaUrl?: string; replyToId?: string }) => {
+            await sendPayloadTrix({
+              cfg: opts.config,
+              accountId: account.accountId,
+              conversationId: normalized.conversationId,
+              payload,
+            });
+            console.info('[trix-native] reply dispatch ok', {
+              conversationId: normalized.conversationId,
+              batchSize: merged.batchSize,
+            });
+            opts.statusSink?.({
+              accountId: account.accountId,
+              lastOutboundAt: Date.now(),
+              lastError: null,
+            });
+            if (!inboundReplyAcknowledged) {
+              inboundReplyAcknowledged = true;
+              for (const messageKey of messageKeysToAck) {
+                markInboundDeliveryState(messageKey, 'done');
+              }
+              sendServiceAcks(messageIdsToAck);
+            }
+          },
+          onError: (error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('[trix-native] reply dispatch failed', error);
+            opts.statusSink?.({
+              accountId: account.accountId,
+              lastError: `TRIX reply dispatch failed: ${message}`,
+            });
+          },
+        },
+        replyOptions: {},
+      });
+
+      opts.statusSink?.({
+        accountId: account.accountId,
+        connected: true,
+        running: true,
+        lastInboundAt: Date.now(),
+        lastEventAt: Date.now(),
+        lastError: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[trix-native] inbound processing failed', error);
+      for (const messageKey of messageKeysToAck) {
+        clearInboundDeliveryState(messageKey);
+      }
+      opts.statusSink?.({
+        accountId: account.accountId,
+        lastError: `Failed to process inbound trix-native event: ${message}`,
+      });
+    }
+  };
+
+  const flushBufferedSession = (sessionKey: string) => {
+    const pending = bufferedInboundBySession.get(sessionKey);
+    if (!pending) {
+      return;
+    }
+    bufferedInboundBySession.delete(sessionKey);
+    clearTimeout(pending.timer);
+    void enqueueSessionWork(sessionKey, async () => {
+      await processInboundItems(pending.items);
+    }).catch(() => undefined);
+  };
+
+  const bufferInboundForSession = (
+    sessionKey: string,
+    item: { normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>; inboundMessageKey: string },
+  ) => {
+    const existing = bufferedInboundBySession.get(sessionKey);
+    if (existing) {
+      existing.items.push(item);
+      if (existing.items.length >= MAX_DEBOUNCED_BATCH_SIZE) {
+        flushBufferedSession(sessionKey);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      flushBufferedSession(sessionKey);
+    }, inboundDebounceMs);
+
+    bufferedInboundBySession.set(sessionKey, {
+      timer,
+      items: [item],
+    });
+  };
+
   opts.abortSignal?.addEventListener('abort', () => {
     stopped = true;
     activeMonitors.delete(key);
+    for (const pending of bufferedInboundBySession.values()) {
+      clearTimeout(pending.timer);
+    }
+    bufferedInboundBySession.clear();
     currentSocket?.close(1000, 'plugin stop');
     currentSocket = null;
   }, { once: true });
@@ -309,7 +663,6 @@ export async function monitorTrixProvider(opts: {
         return;
       }
 
-      let inboundMessageKey: string | null = null;
       try {
         const normalized = normalizeInboundEvent(JSON.parse(String(data)));
         if (!normalized) {
@@ -319,7 +672,7 @@ export async function monitorTrixProvider(opts: {
         if (!normalizedMessageId) {
           throw new Error('Inbound trix-native message missing id');
         }
-        inboundMessageKey = `${account.accountId}:${normalizedMessageId}`;
+        const inboundMessageKey = `${account.accountId}:${normalizedMessageId}`;
         const inboundDelivery = inboundDeliveryState.get(inboundMessageKey);
         if (inboundDelivery?.status === 'done') {
           sendServiceAck(normalizedMessageId);
@@ -333,198 +686,24 @@ export async function monitorTrixProvider(opts: {
           return;
         }
         markInboundDeliveryState(inboundMessageKey, 'processing');
+        const sessionKey = getSessionQueueKey(normalized);
+        const item = {
+          normalized,
+          inboundMessageKey,
+        };
 
-        console.info('[trix-native] inbound message', {
-          conversationId: normalized.conversationId,
-          hasAttachments: normalized.message.attachments.length > 0,
-          isSlashCommand: normalized.message.text?.startsWith('/') ?? false,
-        });
-
-        const route = runtime.routing.resolveAgentRoute({
-          cfg: opts.config,
-          channel: 'trix-native',
-          accountId: account.accountId,
-          peer: {
-            kind: normalized.chatType === 'channel' ? 'group' : 'direct',
-            id: normalized.peerId,
-          },
-        });
-        if (!route) {
+        if (shouldDebounceInbound(normalized)) {
+          bufferInboundForSession(sessionKey, item);
           return;
         }
-        const storePath = runtime.session.resolveStorePath(
-          (opts.config as { session?: { store?: string } }).session?.store,
-          { agentId: route.agentId as string | undefined },
-        );
 
-        const rawText = normalized.message.text ?? '';
-        const isSlashCommand = rawText.startsWith('/');
-        const commandAuthorized = await resolveCommandAuthorized({
-          config: opts.config,
-          runtime,
-          accountId: account.accountId,
-          chatType: normalized.chatType,
-          peerId: normalized.peerId,
-          rawText,
-        });
-
-        let mediaPath: string | undefined;
-        let mediaType: string | undefined;
-        let bodyForAgent: string;
-        let rawBody = rawText;
-        let commandBody = rawText;
-
-        if (isSlashCommand) {
-          // Slash commands: preserve raw text without attachment pollution
-          bodyForAgent = rawText;
-
-          console.info('[trix-native] command dispatch', {
-            conversationId: normalized.conversationId,
-            commandName: rawText.split(' ')[0],
-            senderId: normalized.peerId,
-          });
-        } else {
-          // Regular messages: text + attachment summary, fetch media via servicePath
-          const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
-          bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
-
-          const firstAttachment = normalized.message.attachments.find((a) => a.url || (a as { servicePath?: string }).servicePath);
-          if (firstAttachment) {
-            const servicePath = (firstAttachment as { servicePath?: string }).servicePath;
-            const downloadUrl: string = servicePath
-              ? `${account.serviceUrl.replace(/\/$/, '')}${servicePath}`
-              : firstAttachment.url!;
-
-            try {
-              const fetched = servicePath
-                ? await fetchServiceAttachment({
-                    serviceUrl: account.serviceUrl ?? '',
-                    servicePath,
-                    serviceToken: account.serviceToken ?? '',
-                  })
-                : await runtime.media.fetchRemoteMedia({ url: downloadUrl });
-              const stored = await runtime.media.saveMediaBuffer(
-                fetched.buffer,
-                fetched.contentType ?? firstAttachment.mimeType,
-                'inbound',
-                MAX_MEDIA_BYTES,
-              );
-              mediaPath = stored.path;
-              mediaType = stored.contentType ?? firstAttachment.mimeType;
-
-              console.info('[trix-native] inbound attachment fetch ok', {
-                accountId: account.accountId,
-                conversationId: normalized.conversationId,
-                attachmentId: firstAttachment.id,
-                url: downloadUrl,
-                mediaPath,
-                usedServicePath: !!servicePath,
-              });
-            } catch (error) {
-              console.warn('[trix-native] inbound attachment fetch failed, using summary fallback', {
-                accountId: account.accountId,
-                conversationId: normalized.conversationId,
-                attachmentId: firstAttachment.id,
-                url: downloadUrl,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              // bodyForAgent already has the attachment summary, so fallback is automatic
-            }
-          }
-        }
-
-        const ctxPayload = runtime.reply.finalizeInboundContext({
-          Body: bodyForAgent,
-          BodyForAgent: bodyForAgent,
-          RawBody: rawBody,
-          CommandBody: commandBody,
-          BodyForCommands: commandBody,
-          ...(typeof commandAuthorized === 'boolean' ? { CommandAuthorized: commandAuthorized } : {}),
-          ...(isSlashCommand ? { CommandSource: 'text' } : {}),
-          From: `trix-native:${normalized.peerId}`,
-          To: `conv:${normalized.conversationId}`,
-          SessionKey: route.sessionKey,
-          AccountId: route.accountId ?? account.accountId,
-          ChatType: normalized.chatType,
-          ConversationLabel: normalized.peerDisplayName ?? normalized.peerId,
-          SenderName: normalized.peerDisplayName,
-          SenderId: normalized.peerId,
-          Provider: 'trix-native',
-          Surface: 'trix-native',
-          MessageSid: normalized.message.id,
-          ReplyToId: normalized.message.replyToMessageId ?? undefined,
-          Timestamp: normalized.message.timestamp,
-          MediaPath: mediaPath,
-          MediaType: mediaType,
-          MediaUrl: mediaPath,
-          OriginatingChannel: 'trix-native',
-          OriginatingTo: `conv:${normalized.conversationId}`,
-        });
-
-        await runtime.session.recordInboundSession({
-          storePath,
-          sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
-          ctx: ctxPayload,
-          updateLastRoute: {
-            sessionKey: route.sessionKey,
-            channel: 'trix-native',
-            to: `conv:${normalized.conversationId}`,
-            accountId: account.accountId,
-          },
-          onRecordError: () => undefined,
-        });
-
-        let inboundReplyAcknowledged = false;
-
-        await runtime.reply.dispatchReplyWithBufferedBlockDispatcher({
-          ctx: ctxPayload,
-          cfg: opts.config,
-          dispatcherOptions: {
-            deliver: async (payload: { text?: string; mediaUrls?: string[]; mediaUrl?: string; replyToId?: string }) => {
-              await sendPayloadTrix({
-                cfg: opts.config,
-                accountId: account.accountId,
-                conversationId: normalized.conversationId,
-                payload,
-              });
-              console.info('[trix-native] reply dispatch ok', { conversationId: normalized.conversationId });
-              opts.statusSink?.({
-                accountId: account.accountId,
-                lastOutboundAt: Date.now(),
-                lastError: null,
-              });
-              if (!inboundReplyAcknowledged) {
-                inboundReplyAcknowledged = true;
-                markInboundDeliveryState(inboundMessageKey!, 'done');
-                sendServiceAck(normalizedMessageId);
-              }
-            },
-            onError: (error: unknown) => {
-              const message = error instanceof Error ? error.message : String(error);
-              console.error('[trix-native] reply dispatch failed', error);
-              opts.statusSink?.({
-                accountId: account.accountId,
-                lastError: `TRIX reply dispatch failed: ${message}`,
-              });
-            },
-          },
-          replyOptions: {},
-        });
-
-        opts.statusSink?.({
-          accountId: account.accountId,
-          connected: true,
-          running: true,
-          lastInboundAt: Date.now(),
-          lastEventAt: Date.now(),
-          lastError: null,
-        });
+        flushBufferedSession(sessionKey);
+        void enqueueSessionWork(sessionKey, async () => {
+          await processInboundItems([item]);
+        }).catch(() => undefined);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error('[trix-native] inbound processing failed', error);
-        if (inboundMessageKey) {
-          clearInboundDeliveryState(inboundMessageKey);
-        }
         opts.statusSink?.({
           accountId: account.accountId,
           lastError: `Failed to process inbound trix-native event: ${message}`,

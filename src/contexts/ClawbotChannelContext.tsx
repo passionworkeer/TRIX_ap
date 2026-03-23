@@ -122,6 +122,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const activeVoiceMessageIdRef = useRef<string | null>(null);
   const pendingVoiceMessageIdRef = useRef<string | null>(null);
   const pendingBotReplyRef = useRef(false);
+  const pendingReplyKeysRef = useRef<Set<string>>(new Set());
+  const replyAliasMapRef = useRef<Map<string, string>>(new Map());
 
   // Push botState changes to Electron float window via IPC
   useEffect(() => {
@@ -144,6 +146,45 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     return `${message.sender}-${message.timestamp}`;
   }, []);
 
+  const clearReplyAliasMapping = useCallback((canonicalKey: string) => {
+    for (const [alias, mappedKey] of replyAliasMapRef.current.entries()) {
+      if (alias === canonicalKey || mappedKey === canonicalKey) {
+        replyAliasMapRef.current.delete(alias);
+      }
+    }
+  }, []);
+
+  const attachPendingReplyAlias = useCallback((alias: string | null | undefined, canonicalKey: string) => {
+    if (!alias) {
+      return;
+    }
+    replyAliasMapRef.current.set(alias, canonicalKey);
+  }, []);
+
+  const registerPendingReplyKey = useCallback((canonicalKey: string) => {
+    pendingReplyKeysRef.current.add(canonicalKey);
+    replyAliasMapRef.current.set(canonicalKey, canonicalKey);
+  }, []);
+
+  const resolvePendingReplyKey = useCallback((alias: string | null | undefined): string | null => {
+    if (!alias) {
+      return null;
+    }
+    return replyAliasMapRef.current.get(alias) ?? alias;
+  }, []);
+
+  const clearPendingReplyKey = useCallback((alias: string | null | undefined): boolean => {
+    const canonicalKey = resolvePendingReplyKey(alias);
+    if (!canonicalKey) {
+      return false;
+    }
+    const removed = pendingReplyKeysRef.current.delete(canonicalKey);
+    if (removed) {
+      clearReplyAliasMapping(canonicalKey);
+    }
+    return removed;
+  }, [clearReplyAliasMapping, resolvePendingReplyKey]);
+
   const clearSpeakingTimeout = useCallback(() => {
     if (speakingTimeoutRef.current) {
       clearTimeout(speakingTimeoutRef.current);
@@ -161,11 +202,16 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const enterIdle = useCallback(() => {
     clearSpeakingTimeout();
     clearReplySettleTimeout();
+    activeVoiceMessageIdRef.current = null;
+    pendingVoiceMessageIdRef.current = null;
+    if (pendingReplyKeysRef.current.size > 0) {
+      pendingBotReplyRef.current = true;
+      setBotState('THINKING');
+      return;
+    }
     pendingBotReplyRef.current = false;
     setBotState('IDLE');
     setIdleEnteredAt(Date.now());
-    activeVoiceMessageIdRef.current = null;
-    pendingVoiceMessageIdRef.current = null;
   }, [clearReplySettleTimeout, clearSpeakingTimeout]);
 
   const enterThinking = useCallback(() => {
@@ -183,11 +229,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
         scheduleReplySettle();
         return;
       }
-      pendingBotReplyRef.current = false;
-      setBotState('IDLE');
-      setIdleEnteredAt(Date.now());
+      enterIdle();
     }, REPLY_SETTLE_WINDOW_MS);
-  }, [clearReplySettleTimeout]);
+  }, [clearReplySettleTimeout, enterIdle]);
 
   const enterSpeakingWithTimeout = useCallback((message: ClawbotChannelMessage) => {
     clearSpeakingTimeout();
@@ -218,6 +262,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   }, [enterSpeakingWithTimeout, toPersistedMessageId, voiceEnabled]);
 
   const resetSessionScopedState = useCallback(() => {
+    pendingReplyKeysRef.current.clear();
+    replyAliasMapRef.current.clear();
     setStatus('DISCONNECTED');
     setPairingStatus('idle');
     setPairingCode(null);
@@ -249,6 +295,41 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       return next;
     });
   }, [toPersistedMessageId]);
+
+  const rebuildPendingReplyState = useCallback((allMessages: ClawbotChannelMessage[]) => {
+    pendingReplyKeysRef.current.clear();
+    replyAliasMapRef.current.clear();
+
+    const sortedMessages = [...allMessages].sort((left, right) => left.timestamp - right.timestamp);
+    for (const message of sortedMessages) {
+      if (message.sender === 'user') {
+        const metadata = message.metadata as {
+          clientMessageId?: string;
+          serverMessageId?: string;
+          serviceDispatchPending?: boolean;
+        } | undefined;
+        const canonicalKey = toPersistedMessageId(message);
+        const isPending = metadata?.serviceDispatchPending !== false;
+
+        replyAliasMapRef.current.set(canonicalKey, canonicalKey);
+        if (metadata?.clientMessageId) {
+          replyAliasMapRef.current.set(metadata.clientMessageId, canonicalKey);
+        }
+        if (metadata?.serverMessageId) {
+          replyAliasMapRef.current.set(metadata.serverMessageId, canonicalKey);
+        }
+
+        if (isPending) {
+          pendingReplyKeysRef.current.add(canonicalKey);
+        }
+        continue;
+      }
+
+      if (message.sender === 'bot' && message.replyToMessageId) {
+        clearPendingReplyKey(message.replyToMessageId);
+      }
+    }
+  }, [clearPendingReplyKey, toPersistedMessageId]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -309,18 +390,39 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       });
     };
     const handleHistory = (historyMessages: ClawbotChannelMessage[]) => {
-      setMessages(historyMessages.map((message) => ({
+      const normalizedHistory = historyMessages.map((message) => ({
         ...message,
         id: toPersistedMessageId(message),
-      })));
-      const latest = [...historyMessages].reverse().find((message) => message.sender === 'bot') || null;
+      }));
+      rebuildPendingReplyState(normalizedHistory);
+      setMessages(normalizedHistory);
+      const latest = [...normalizedHistory].reverse().find((message) => message.sender === 'bot') || null;
       setLatestBotMessage(latest);
+      if (pendingReplyKeysRef.current.size > 0) {
+        pendingBotReplyRef.current = true;
+        setBotState('THINKING');
+      }
     };
     const handleMessage = (message: ClawbotChannelMessage) => {
       const normalized = {
         ...message,
         id: toPersistedMessageId(message),
       };
+      const metadata = normalized.metadata as {
+        clientMessageId?: string;
+        serverMessageId?: string;
+      } | undefined;
+
+      if (normalized.sender === 'user') {
+        const canonicalKey = toPersistedMessageId(normalized);
+        attachPendingReplyAlias(metadata?.clientMessageId, canonicalKey);
+        attachPendingReplyAlias(metadata?.serverMessageId, canonicalKey);
+      }
+
+      if (normalized.sender === 'bot' && normalized.replyToMessageId) {
+        clearPendingReplyKey(normalized.replyToMessageId);
+      }
+
       upsertMessageState(normalized);
       if (normalized.sender === 'bot') {
         handleBotMessageState(normalized);
@@ -358,7 +460,16 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       trixNativeChannelClient.off('message', handleMessage);
       trixNativeChannelClient.off('error', handleError);
     };
-  }, [enterIdle, handleBotMessageState, resetSessionScopedState, toPersistedMessageId, upsertMessageState]);
+  }, [
+    attachPendingReplyAlias,
+    clearPendingReplyKey,
+    enterIdle,
+    handleBotMessageState,
+    rebuildPendingReplyState,
+    resetSessionScopedState,
+    toPersistedMessageId,
+    upsertMessageState,
+  ]);
 
   useEffect(() => {
     trixNativeChannelClient.setAuthUser(user?.id ?? null);
@@ -491,6 +602,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
     const optimisticMessage: ClawbotChannelMessage = {
       id: optimisticMessageId,
+      replyToMessageId: null,
       content,
       contentType,
       mediaUrl: mediaUrl || optimisticAttachments[0]?.url,
@@ -511,6 +623,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     };
 
     setHasSessionConversationStarted(true);
+    registerPendingReplyKey(optimisticMessageId);
     enterThinking();
     upsertMessageState(optimisticMessage);
 
@@ -526,6 +639,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       });
       setLastError(null);
     } catch (error) {
+      clearPendingReplyKey(optimisticMessageId);
       setMessages((prev) => prev.filter((message) => toPersistedMessageId(message) !== optimisticMessageId));
       const message = resolveErrorMessage(error);
       setLastError(message);
@@ -533,7 +647,14 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       enterIdle();
       throw error instanceof Error ? error : new Error(message);
     }
-  }, [enterIdle, enterThinking, toPersistedMessageId, upsertMessageState]);
+  }, [
+    clearPendingReplyKey,
+    enterIdle,
+    enterThinking,
+    registerPendingReplyKey,
+    toPersistedMessageId,
+    upsertMessageState,
+  ]);
 
   const notifyVoicePlaybackStarted = useCallback((messageId: string) => {
     if (!voiceEnabled || !messageId) {

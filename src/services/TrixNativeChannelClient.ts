@@ -83,6 +83,7 @@ type ConversationMessagesResponse = {
     conversationId: string;
     direction: 'inbound' | 'outbound' | 'system';
     text: string;
+    replyToMessageId?: string | null;
     attachments: Array<{
       id: string;
       kind: 'image' | 'audio' | 'video' | 'file';
@@ -265,13 +266,17 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
     : new Date(rawMessage.createdAt).getTime();
   return {
     id: rawMessage.id,
+    replyToMessageId: rawMessage.replyToMessageId ?? null,
     content: rawMessage.text,
     contentType: deriveContentType(rawMessage.text, attachments),
     mediaUrl: primaryAttachment?.url,
     mediaMimeType: primaryAttachment?.mimeType,
     mediaMetadata: toMediaMetadata(attachments),
     attachments,
-    metadata: rawMessage.metadata,
+    metadata: {
+      ...(rawMessage.metadata ?? {}),
+      serverMessageId: rawMessage.id,
+    },
     timestamp,
     sender: rawMessage.senderId?.startsWith('openclaw:') ? 'bot' : 'user',
   };
@@ -340,6 +345,10 @@ async function readErrorPayload(response: Response, fallbackMessage: string): Pr
   return typeof payload.error === 'string' ? payload.error : fallbackMessage;
 }
 
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 class TrixNativeChannelClient {
   private socket: WebSocket | null = null;
   private readonly listeners = new Map<string, Set<EventCallback<unknown>>>();
@@ -380,8 +389,23 @@ class TrixNativeChannelClient {
   }
 
   private async getAuthAccessToken(): Promise<string | null> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ?? null;
+    if (!this.currentAuthUserId) {
+      return null;
+    }
+
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        return session.access_token;
+      }
+      await wait(250);
+    }
+
+    logger.clawbot.warn('[TrixNative] auth token unavailable for native session flow', {
+      appUserId: this.currentAuthUserId,
+    });
+    return null;
   }
 
   getOrCreateClientId(): string {

@@ -15,6 +15,7 @@ const DEFAULT_STATE: NativeChannelState = {
 
 export class JsonStateStore {
   private readonly filePath: string;
+  private updateQueue: Promise<void> = Promise.resolve();
 
   constructor(storageDir: string) {
     this.filePath = path.join(storageDir, 'state.json');
@@ -53,9 +54,20 @@ export class JsonStateStore {
   }
 
   async update(mutator: (state: NativeChannelState) => NativeChannelState | Promise<NativeChannelState>): Promise<NativeChannelState> {
-    const state = await this.read();
-    const next = await mutator(state);
-    await this.write(next);
-    return next;
+    let nextState: NativeChannelState | undefined;
+    const operation = this.updateQueue.then(async () => {
+      const state = await this.read();
+      nextState = await mutator(state);
+      await this.write(nextState);
+    });
+
+    this.updateQueue = operation.then(() => undefined, () => undefined);
+    await operation;
+
+    if (!nextState) {
+      throw new Error('JsonStateStore update did not produce a next state');
+    }
+
+    return nextState;
   }
 }

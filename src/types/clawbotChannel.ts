@@ -12,6 +12,7 @@ export interface ClawbotChannelAttachment {
 
 export interface ClawbotChannelMessage {
   id?: string;
+  replyToMessageId?: string | null;
   content: string;
   contentType: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
   mediaUrl?: string;
