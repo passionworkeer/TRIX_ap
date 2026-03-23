@@ -9,6 +9,8 @@ import { SettingsSkills } from './SettingsSkills';
 import { SettingsBackups } from './SettingsBackups';
 import { SettingsPairing } from './SettingsPairing';
 import { SettingsGateway } from './SettingsGateway';
+import { SettingsChannels } from './SettingsChannels';
+import { SettingsPlugins } from './SettingsPlugins';
 import { SettingsAccount } from './SettingsAccount';
 import { SettingsModels } from './SettingsModels';
 import { SettingsCron } from './SettingsCron';
@@ -239,7 +241,8 @@ export default function SettingsContainer() {
         <div style={{ display: 'flex', gap: 2 }}>
           {(Object.keys({
             overview: true, agents: true, models: true, cron: true,
-            skills: true, backups: true, pairing: true, gateway: true, account: true,
+            skills: true, backups: true, pairing: true, gateway: true,
+            channels: true, plugins: true, account: true,
           }) as SettingsTab[]).map((tab) => (
             <TabButton key={tab} tab={tab} active={activeTab === tab} onClick={() => setActiveTab(tab)} />
           ))}
@@ -256,6 +259,8 @@ export default function SettingsContainer() {
         {activeTab === 'backups' && <SettingsBackups {...shared} />}
         {activeTab === 'pairing' && <SettingsPairing {...shared} />}
         {activeTab === 'gateway' && <SettingsGateway {...shared} />}
+        {activeTab === 'channels' && <SettingsChannels {...shared} />}
+        {activeTab === 'plugins' && <SettingsPlugins {...shared} />}
         {activeTab === 'account' && <SettingsAccount {...shared} />}
 
         {/* Shared Log */}

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
-import { Info, Bot, Zap, FolderOpen, Link, Server, User, Cpu, Clock } from 'lucide-react';
+import { Info, Bot, Zap, FolderOpen, Link, Server, User, Cpu, Clock, Radio, Puzzle } from 'lucide-react';
 
-export type SettingsTab = 'overview' | 'agents' | 'models' | 'cron' | 'skills' | 'backups' | 'pairing' | 'gateway' | 'account';
+export type SettingsTab = 'overview' | 'agents' | 'models' | 'cron' | 'skills' | 'backups' | 'pairing' | 'gateway' | 'channels' | 'plugins' | 'account';
 
 interface TabConfig {
   label: string;
@@ -17,6 +17,8 @@ export const SETTINGS_TAB_LABELS: Record<SettingsTab, TabConfig> = {
   backups: { label: '备份', icon: FolderOpen },
   pairing: { label: '配对码', icon: Link },
   gateway: { label: 'Gateway', icon: Server },
+  channels: { label: '频道', icon: Radio },
+  plugins: { label: '插件', icon: Puzzle },
   account: { label: '账户', icon: User },
 };
 
