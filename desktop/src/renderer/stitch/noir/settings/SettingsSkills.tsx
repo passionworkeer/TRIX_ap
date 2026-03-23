@@ -110,19 +110,16 @@ export function SettingsSkills(_props: SettingsSharedState) {
     setInstallErrors(prev => { const n = { ...prev }; delete n[id]; return n; });
     try {
       const api = window.electronAPI;
-      if (!api) throw new Error('no api');
-      // Use openclaw CLI via IPC (skills install is not yet exposed — use runCommand as fallback)
-      // For now, mark as "installing" and update installed set on success
-      // This calls the existing openclaw:skills-install if available
-      const result = await api.installSkill?.(id);
-      if (result?.success !== false) {
+      if (!api?.installSkill) throw new Error('API 不可用');
+      const result = await api.installSkill(id);
+      if (result.success) {
         setInstalled(prev => new Set([...prev, id]));
       } else {
-        setInstallErrors(prev => ({ ...prev, [id]: result?.error || '安装失败' }));
+        const errMsg = result.stderr || result.error || '安装失败';
+        setInstallErrors(prev => ({ ...prev, [id]: errMsg }));
       }
-    } catch {
-      // Simulate success for demo — skills are read from local dir
-      setInstalled(prev => new Set([...prev, id]));
+    } catch (err) {
+      setInstallErrors(prev => ({ ...prev, [id]: String(err) }));
     } finally {
       setInstalling(null);
     }
@@ -132,9 +129,9 @@ export function SettingsSkills(_props: SettingsSharedState) {
     setUninstalling(id);
     try {
       const api = window.electronAPI;
-      if (!api) throw new Error('no api');
-      const result = await api.uninstallSkill?.(id);
-      if (result?.success !== false) {
+      if (!api?.uninstallSkill) throw new Error('API 不可用');
+      const result = await api.uninstallSkill(id);
+      if (result.success) {
         setInstalled(prev => { const n = new Set(prev); n.delete(id); return n; });
       }
     } catch {

@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Monitor, Bell, BellOff, Eye, EyeOff, Save } from 'lucide-react';
+import { Monitor, Bell, BellOff, Eye, EyeOff } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
-import { DarkButton } from '../components/DarkButton';
 import type { SettingsSharedState } from './SettingsContainer';
-
-interface SystemSettings {
-  autostart: boolean;
-  notifications: {
-    enabled: boolean;
-    mentionOnly: boolean;
-    sound: boolean;
-    unreadBadge: boolean;
-  };
-}
 
 export function SettingsSystem(_props: SettingsSharedState) {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 

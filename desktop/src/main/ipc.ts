@@ -1745,7 +1745,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('system:autostart-set', async (_event, enabled: unknown) => {
     try {
       if (typeof enabled !== 'boolean') return { success: false, error: 'Expected boolean' };
-      app.setLoginItem({ openAtLogin: enabled, path: process.execPath });
+      app.setLoginItemSettings({ openAtLogin: enabled });
       return { success: true };
     } catch (err: unknown) {
       return { success: false, error: String(err) };
