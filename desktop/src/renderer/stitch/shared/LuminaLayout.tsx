@@ -13,7 +13,7 @@ const NoirChannels = lazy(() =>
   import('../noir/pages/ChannelsPage').catch(() => ({ default: NoirPlaceholder }))
 );
 const NoirSettings = lazy(() =>
-  import('../noir/pages/SettingsPage').catch(() => ({ default: NoirPlaceholder }))
+  import('../noir/settings/SettingsContainer').catch(() => ({ default: NoirPlaceholder }))
 );
 const NoirBackups = lazy(() =>
   import('../noir/pages/BackupsPage').catch(() => ({ default: NoirPlaceholder }))

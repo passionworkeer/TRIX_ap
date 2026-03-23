@@ -1594,5 +1594,144 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  // ── Config Read/Write ──────────────────────────────────────────────────────
+  // Reads the raw openclaw.json file
+  ipcMain.handle('config:read', async () => {
+    try {
+      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
+      return { success: true, data: JSON.parse(raw) };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Writes the raw openclaw.json file (full replacement)
+  ipcMain.handle('config:write', async (_event, data: unknown) => {
+    try {
+      if (typeof data !== 'object' || data === null) return { success: false, error: 'Expected object' };
+      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+      await fs.promises.writeFile(cfgPath, JSON.stringify(data, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Reads a single top-level section from openclaw.json
+  ipcMain.handle('config:read-section', async (_event, section: unknown) => {
+    try {
+      const s = isSafeString(section, 64);
+      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
+      const cfg = JSON.parse(raw);
+      if (cfg[s] === undefined) return { success: false, error: `Section '${s}' not found` };
+      return { success: true, data: cfg[s] };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Writes a single top-level section into openclaw.json (deep merge)
+  ipcMain.handle('config:write-section', async (_event, section: unknown, value: unknown) => {
+    try {
+      const s = isSafeString(section, 64);
+      if (typeof value !== 'object' || value === null) return { success: false, error: 'Expected object value' };
+      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
+      const cfg = JSON.parse(raw);
+      cfg[s] = value;
+      await fs.promises.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Cron Jobs ──────────────────────────────────────────────────────────────
+  // Lists all cron jobs
+  ipcMain.handle('cron:list', async () => {
+    try {
+      const cronPath = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      const raw = await fs.promises.readFile(cronPath, 'utf-8');
+      return { success: true, data: JSON.parse(raw) };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Creates a new cron job (appends to jobs array)
+  ipcMain.handle('cron:create', async (_event, job: unknown) => {
+    try {
+      if (typeof job !== 'object' || job === null) return { success: false, error: 'Expected object' };
+      const cronPath = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      let jobs: unknown[] = [];
+      try {
+        const raw = await fs.promises.readFile(cronPath, 'utf-8');
+        jobs = JSON.parse(raw);
+      } catch { /* file doesn't exist yet */ }
+      if (!Array.isArray(jobs)) jobs = [];
+      (jobs as unknown[]).push(job);
+      await fs.promises.mkdir(path.dirname(cronPath), { recursive: true });
+      await fs.promises.writeFile(cronPath, JSON.stringify(jobs, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Updates an existing cron job by id
+  ipcMain.handle('cron:update', async (_event, id: unknown, updates: unknown) => {
+    try {
+      const safeId = isSafeString(id, 64);
+      if (typeof updates !== 'object' || updates === null) return { success: false, error: 'Expected object' };
+      const cronPath = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      const raw = await fs.promises.readFile(cronPath, 'utf-8');
+      const jobs: unknown[] = JSON.parse(raw);
+      const idx = (jobs as { id?: string }[]).findIndex(j => j?.id === safeId);
+      if (idx === -1) return { success: false, error: `Job '${safeId}' not found` };
+      jobs[idx] = { ...(jobs[idx] as object), ...(updates as object) };
+      await fs.promises.writeFile(cronPath, JSON.stringify(jobs, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Deletes a cron job by id
+  ipcMain.handle('cron:delete', async (_event, id: unknown) => {
+    try {
+      const safeId = isSafeString(id, 64);
+      const cronPath = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      const raw = await fs.promises.readFile(cronPath, 'utf-8');
+      const jobs: unknown[] = JSON.parse(raw);
+      const filtered = (jobs as { id?: string }[]).filter(j => j?.id !== safeId);
+      if (filtered.length === jobs.length) return { success: false, error: `Job '${safeId}' not found` };
+      await fs.promises.writeFile(cronPath, JSON.stringify(filtered, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Toggles enabled state of a cron job by id
+  ipcMain.handle('cron:toggle', async (_event, id: unknown, enabled: unknown) => {
+    try {
+      const safeId = isSafeString(id, 64);
+      if (typeof enabled !== 'boolean') return { success: false, error: 'Expected boolean' };
+      const cronPath = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      const raw = await fs.promises.readFile(cronPath, 'utf-8');
+      const jobs: unknown[] = JSON.parse(raw);
+      const idx = (jobs as { id?: string }[]).findIndex(j => j?.id === safeId);
+      const job = (jobs as { id?: string; enabled?: boolean }[])[idx];
+      if (!job) return { success: false, error: `Job '${safeId}' not found` };
+      job.enabled = enabled;
+      await fs.promises.writeFile(cronPath, JSON.stringify(jobs, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
   log.info('IPC handlers ready');
 }

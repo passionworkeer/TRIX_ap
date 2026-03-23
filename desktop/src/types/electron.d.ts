@@ -169,6 +169,19 @@ export interface ElectronAPI {
   onChannelMessage: (callback: (msg: ChannelMessage) => void) => () => void;
   /** Fired when a third-party channel connection status changes */
   onChannelStatusUpdate: (callback: (data: ChannelStatusUpdate) => void) => () => void;
+
+  // OpenClaw Config Read/Write
+  configRead: () => Promise<ApiResult<Record<string, unknown>>>;
+  configWrite: (data: Record<string, unknown>) => Promise<ApiResult<void>>;
+  configReadSection: (section: string) => Promise<ApiResult<unknown>>;
+  configWriteSection: (section: string, value: unknown) => Promise<ApiResult<void>>;
+
+  // Cron Jobs CRUD
+  cronList: () => Promise<ApiResult<unknown[]>>;
+  cronCreate: (job: unknown) => Promise<ApiResult<void>>;
+  cronUpdate: (id: string, updates: unknown) => Promise<ApiResult<void>>;
+  cronDelete: (id: string) => Promise<ApiResult<void>>;
+  cronToggle: (id: string, enabled: boolean) => Promise<ApiResult<void>>;
 }
 
 export interface SystemInfo {

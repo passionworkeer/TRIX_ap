@@ -137,7 +137,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('channels:status-update', handler);
   },
 
-  // === Event Listeners ===
+  // Event Listeners
   onBotStateChange: (callback) => {
     const handler = (_event, state) => callback(state);
     ipcRenderer.on('bot-state:changed', handler);
@@ -149,4 +149,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('openclaw:install-progress', handler);
     return () => ipcRenderer.removeListener('openclaw:install-progress', handler);
   },
+
+  // OpenClaw Config
+  configRead: () => ipcRenderer.invoke('config:read'),
+  configWrite: (data) => ipcRenderer.invoke('config:write', data),
+  configReadSection: (section) => ipcRenderer.invoke('config:read-section', section),
+  configWriteSection: (section, value) => ipcRenderer.invoke('config:write-section', section, value),
+
+  // Cron Jobs
+  cronList: () => ipcRenderer.invoke('cron:list'),
+  cronCreate: (job) => ipcRenderer.invoke('cron:create', job),
+  cronUpdate: (id, updates) => ipcRenderer.invoke('cron:update', id, updates),
+  cronDelete: (id) => ipcRenderer.invoke('cron:delete', id),
+  cronToggle: (id, enabled) => ipcRenderer.invoke('cron:toggle', id, enabled),
 });
