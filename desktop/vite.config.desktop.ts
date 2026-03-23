@@ -7,6 +7,61 @@ import renderer from 'vite-plugin-electron-renderer';
 
 const projectRoot = path.resolve(__dirname, '..');
 
+// Module-level const typed as `any` breaks the Plugin type recursion in TypeScript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// @ts-expect-error Plugin type recursion between vite and vite-plugin-electron
+const desktopPlugins = [
+  react(),
+  tailwindcss(),
+  renderer(),
+  electron([
+    {
+      entry: 'desktop/src/main/index.ts',
+      onstart({ startup }) {
+        startup();
+      },
+      vite: {
+        build: {
+          outDir: 'desktop/dist-desktop/main',
+          lib: {
+            entry: 'desktop/src/main/index.ts',
+            formats: ['cjs'],
+            fileName: () => 'index.cjs',
+          },
+          rollupOptions: {
+            external: ['electron', 'electron-store', 'dotenv'],
+            output: {
+              entryFileNames: 'index.cjs',
+            },
+          },
+        },
+      },
+    },
+    {
+      entry: 'desktop/src/preload/index.js',
+      onstart({ reload }) {
+        reload();
+      },
+      vite: {
+        build: {
+          outDir: 'desktop/dist-desktop/preload',
+          lib: {
+            entry: 'desktop/src/preload/index.js',
+            formats: ['cjs'],
+            fileName: () => 'index.cjs',
+          },
+          rollupOptions: {
+            output: {
+              format: 'cjs',
+              entryFileNames: 'index.cjs',
+            },
+          },
+        },
+      },
+    },
+  ]),
+];
+
 export default defineConfig(async () => {
   return {
     root: projectRoot,
@@ -17,57 +72,7 @@ export default defineConfig(async () => {
         '@': path.resolve(projectRoot, 'src'),
       },
     },
-    plugins: [
-      react(),
-      tailwindcss(),
-      renderer(),
-      electron([
-        {
-          entry: 'desktop/src/main/index.ts',
-          onstart({ startup }) {
-            startup();
-          },
-          vite: {
-            build: {
-              outDir: 'desktop/dist-desktop/main',
-              lib: {
-                entry: 'desktop/src/main/index.ts',
-                formats: ['cjs'],
-                fileName: () => 'index.cjs',
-              },
-              rollupOptions: {
-                external: ['electron', 'electron-store', 'dotenv'],
-                output: {
-                  entryFileNames: 'index.cjs',
-                },
-              },
-            },
-          },
-        },
-        {
-          entry: 'desktop/src/preload/index.js',
-          onstart({ reload }) {
-            reload();
-          },
-          vite: {
-            build: {
-              outDir: 'desktop/dist-desktop/preload',
-              lib: {
-                entry: 'desktop/src/preload/index.js',
-                formats: ['cjs'],
-                fileName: () => 'index.cjs',
-              },
-              rollupOptions: {
-                output: {
-                  format: 'cjs',
-                  entryFileNames: 'index.cjs',
-                },
-              },
-            },
-          },
-        },
-      ]),
-    ],
+    plugins: desktopPlugins,
     build: {
       outDir: 'desktop/dist-desktop/renderer',
       emptyOutDir: true,
