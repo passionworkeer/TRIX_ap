@@ -95,9 +95,12 @@ enum PairingAccessibilityIdentifiers {
 
 enum TrixBotAccessibilityIdentifiers {
     static let screen = "trixbot.screen"
+    static let pairedBanner = "trixbot.banner.paired"
+    static let unpairedBanner = "trixbot.banner.unpaired"
     static let inputField = "trixbot.input.field"
     static let sendButton = "trixbot.send.button"
     static let closeButton = "trixbot.close.button"
+    static let attachmentPreview = "trixbot.attachment.preview"
 }
 
 extension View {

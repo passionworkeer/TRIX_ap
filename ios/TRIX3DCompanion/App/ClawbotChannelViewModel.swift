@@ -107,9 +107,12 @@ final class ClawbotChannelViewModel: ObservableObject {
         _ content: String,
         contentType: ClawbotMessageContentType = .text,
         mediaUrl: String? = nil,
-        mediaMimeType: String? = nil
+        mediaMimeType: String? = nil,
+        mediaData: Data? = nil,
+        mediaFileName: String? = nil
     ) async -> Bool {
         guard isPaired else {
+            NSLog("[TRIX-UI] viewModel send blocked not paired text=%{public}@", content)
             lastError = NSLocalizedString("error.clawbot.not.paired", comment: "")
             return false
         }
@@ -122,11 +125,17 @@ final class ClawbotChannelViewModel: ObservableObject {
         }
 
         do {
+            NSLog("[TRIX-UI] viewModel send begin text=%{public}@ type=%{public}@ media=%{public}@",
+                  content,
+                  contentType.rawValue,
+                  String(mediaData != nil || mediaUrl != nil))
             try await service.sendMessage(
                 content,
                 contentType: contentType,
                 mediaUrl: mediaUrl,
-                mediaMimeType: mediaMimeType
+                mediaMimeType: mediaMimeType,
+                mediaData: mediaData,
+                mediaFileName: mediaFileName
             )
             let userMessage = ClawbotMessage(
                 id: generateMessageId(),
@@ -138,8 +147,12 @@ final class ClawbotChannelViewModel: ObservableObject {
                 sender: .user
             )
             messages.append(userMessage)
+            NSLog("[TRIX-UI] viewModel send appended local user message id=%{public}@", userMessage.id)
             return true
         } catch {
+            NSLog("[TRIX-UI] viewModel send failed text=%{public}@ error=%{public}@",
+                  content,
+                  error.localizedDescription)
             lastError = error.localizedDescription
             return false
         }
@@ -166,6 +179,9 @@ final class ClawbotChannelViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .compactMap { $0 }
             .sink { [weak self] message in
+                NSLog("[TRIX-UI] viewModel received bot message id=%{public}@ text=%{public}@",
+                      message.id,
+                      String(message.content.prefix(80)))
                 self?.messages.append(message)
             }
             .store(in: &cancellables)

@@ -84,13 +84,26 @@
 		4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28903960B942093BD2167D6C /* AnimatedQRDisplay.swift */; };
 		4FB92E07D859E259CF6402FD /* BaiduMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CD0EC06A237769DD2C3F71 /* BaiduMapView.swift */; };
 		51876FABCCD903DB2AA4263B /* WeChatSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */; };
+		522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BE94364156620AE20C70CB37 /* INTEGRATION_GUIDE.md */; };
 		52653C3A84CF4A2DECF3AFD6 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02375D156ED150BFE3E267CC /* SettingsViewModel.swift */; };
 		532FDC1D93B2F8B25A0CDB42 /* UserDefaultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBF6060F79D7F3B2732888CB /* UserDefaultsManager.swift */; };
 		5345CDFA114FB3E3525A3D84 /* TodoListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8EAB8F78E35EF70A11755B /* TodoListView.swift */; };
 		539CD1EFB750682B30FD1206 /* MainAppFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6774C1F0DD88E4044F548C41 /* MainAppFlowTests.swift */; };
 		5454CDA95C6BE271718CE49A /* AVAudioPlayer+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7F79C30FABA09D75E11759 /* AVAudioPlayer+Extensions.swift */; };
 		55235E42B80C90BFDF6C6731 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE235710AA3353A19C8BEEBA /* ContentView.swift */; };
+		56621C4825CE2EBDEAB4BE99 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 211C98B42146688288CA5027 /* SQLite */; };
+		56F44B909527D6D078539374 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F58F9B58F31B01BA8A41D5 /* ChatService.swift */; };
+		57C6AC6141BFB35C87312DF8 /* PointsHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E734D45EC4001AD14E1AABE /* PointsHistoryViewModel.swift */; };
+		5AAFCCB014C1FC4F22091098 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C71499D4B26E0E1551C247 /* AnalyticsService.swift */; };
+		5C80890EC9A2133CF7EE0CC3 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51723EBCF04AA0CDF55380F /* Typography.swift */; };
+		5CEE6EC102E5113C872A8E7E /* MapSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F305F8139F43B6D354BFF44 /* MapSearchService.swift */; };
+		5D9B7C22DAC971179963D69D /* TTSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F1D83EEE0F941E481597BC /* TTSViewModel.swift */; };
+		5EBED8F76EF44563DD123B24 /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */; };
+		5F5FBAF1BF9FDFE102EF3170 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A392BF599E2030352431EA /* ProfileViewModel.swift */; };
+		600DAC467985C80B397EDAD4 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9988A9EFABA8980C69C164 /* CameraView.swift */; };
+		6042B541E3D1413B0354A1AE /* MapModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F405DE5F0761B2FF54EA47E /* MapModels.swift */; };
 		6047A76C447B18977A3CCDE1 /* KeychainSecurityValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5473F7EDE830E3AB092E2AD /* KeychainSecurityValidator.swift */; };
+		628AD47105460F46EA69CFAA /* TrixBotNativeFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8A16F52DAFCA8C710A952A /* TrixBotNativeFlowTests.swift */; };
 		634CE41D25D6B41840D4BC20 /* PushNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1630294691403E930BE67566 /* PushNotificationService.swift */; };
 		645587080E9C132D05CB74EB /* VoicePlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6A246EC40C2DEE85C5A59F /* VoicePlaybackService.swift */; };
 		66790A2B2DDFF79DF2C8E5F8 /* VoicePlaybackServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F577EB9F0F5DBA246C0D3F9 /* VoicePlaybackServiceProtocol.swift */; };
@@ -153,6 +166,7 @@
 		9C8501A2E8370A0842EEDF8F /* FocusStartAnimationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5249DD4B88D159F023A8F7 /* FocusStartAnimationView.swift */; };
 		9CA2115B04951A012EE03913 /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0BFDD888624BC5EB5733BD /* Animations.swift */; };
 		9CB5EF3FCB8E2FFF3B8D4CF7 /* DiagnosticViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785BFD9A17B0B3F2B4DFE11E /* DiagnosticViewModel.swift */; };
+		9D3433556066AB9E811554B8 /* CoordinateConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AE3F1D209DDAABBB5FB8C0 /* CoordinateConverter.swift */; };
 		9F0F07610625A990C74FCAAA /* SnapshotListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 157589058AA33A9B67748FEB /* SnapshotListViewModel.swift */; };
 		9F71D88A7F9A4EAF184D90E4 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA174D6F4BFDDF8784E7B301 /* MainTabView.swift */; };
 		A4DE7E3BF371C35F7122707D /* MessageCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455A2EA572AA68D40A9155F3 /* MessageCell.swift */; };
@@ -243,19 +257,18 @@
 		DCCE71E66F745BCE850CB74B /* AppLaunchOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9500E348CD6ABB694398D10A /* AppLaunchOptimizer.swift */; };
 		DEDFEE006916925B555E2B4B /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = 8487E72F1EA1F00D45807C2E /* FirebasePerformance */; };
 		DF4650EB5C9304755F4BBA2E /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 4DBBEF2CB8A893ECDE5EC232 /* Sentry */; };
-		E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */; };
 		E5C09F2370311EFB88A3B531 /* 03_DESCRIPTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 13E38A95C451FCF33797A6B3 /* 03_DESCRIPTIONS.md */; };
 		E6F70C49A6661548BE26C74C /* SubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35957E4CE6A88F70F4DA8B68 /* SubscriptionView.swift */; };
 		E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A9173255FA94111E92D982 /* BotState.swift */; };
 		E7C1D69DE360E5DCC481BC04 /* ErrorTrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18A48CBE23FA2DEC61721B55 /* ErrorTrackingService.swift */; };
 		E837124E741A9FD1B400A0C7 /* NetworkError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95A81FE2806D257B404AC07 /* NetworkError.swift */; };
+		E8C191FD0376CC7814A61A7E /* StudyRoomViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67746C85BD9E06249F52EE1B /* StudyRoomViewModel.swift */; };
 		E96952AEFC4FAA71B27D2250 /* GradientButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A288E1BE13D06E96CE94FF6D /* GradientButton.swift */; };
 		EA58351997B8ED2284223DF3 /* FEATURE_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 4F4E66007915CB679B0D854A /* FEATURE_SUMMARY.md */; };
 		EBFD3960C794CF822E229BCB /* StudyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68F37AB5F65F10E72B896D3 /* StudyService.swift */; };
 		EC466E49F263CD40FD64AF64 /* 00_QUICK_REFERENCE.md in Resources */ = {isa = PBXBuildFile; fileRef = EEE20836B94CBDB57919AAF5 /* 00_QUICK_REFERENCE.md */; };
 		EC81BD99165359BD11F1FF4A /* AuthInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495BFB391CA424F7B8C384F3 /* AuthInterceptor.swift */; };
 		ED190586991EC93888CEF399 /* UserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F633E388510A7A3298A5E5 /* UserService.swift */; };
-		EEE9758863DF1CBBB885B258 /* Pods_TRIX3DCompanion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */; };
 		EF2038C987A9363D9DC5A596 /* SSLPinningManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513F73FF6F148B0ABD671443 /* SSLPinningManager.swift */; };
 		F1BBBEBB6B3B97F1E0F0F8C6 /* SecurityHeadersValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A22E6E33DC64F7B7FB50EA0 /* SecurityHeadersValidator.swift */; };
 		F3E6B5910B7EB454E3810253 /* CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07AF70444DC04A4B1E242CA1 /* CameraViewModel.swift */; };
@@ -268,16 +281,6 @@
 		F7B5B4440481CDF9A982CCD3 /* ProductViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7B0C46BA06D8F5D23F30712 /* ProductViewModel.swift */; };
 		FCB69D318A67807494CE6B1B /* AuthenticationFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D75B12AE9BBA873EF3445C /* AuthenticationFlowTests.swift */; };
 		FE2F256CCE5F1B4C6083B1BC /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = ACBE9E7C7D14CC27C51419EF /* CodeScanner */; };
-		CC0011AABB11223344556678 /* MapSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0011AABB11223344556677 /* MapSearchService.swift */; };
-		CC0011AABB11223344556679 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F58F9B58F31B01BA8A41D5 /* ChatService.swift */; };
-		CC0011AABB1122334455667A /* TTSViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F1D83EEE0F941E481597BC /* TTSViewModel.swift */; };
-		CC0011AABB1122334455667B /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9988A9EFABA8980C69C164 /* CameraView.swift */; };
-		CC0011AABB1122334455667C /* MapModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F405DE5F0761B2FF54EA47E /* MapModels.swift */; };
-		CC0011AABB1122334455667D /* PointsHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E734D45EC4001AD14E1AABE /* PointsHistoryViewModel.swift */; };
-		CC0011AABB1122334455667E /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A392BF599E2030352431EA /* ProfileViewModel.swift */; };
-		CC0011AABB1122334455667F /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C71499D4B26E0E1551C247 /* AnalyticsService.swift */; };
-		CC0011AABB11223344556670 /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */; };
-		CC0011AABB11223344556671 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51723EBCF04AA0CDF55380F /* Typography.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -360,7 +363,6 @@
 		3D5249DD4B88D159F023A8F7 /* FocusStartAnimationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusStartAnimationView.swift; sourceTree = "<group>"; };
 		3DE40571BBD4FCA8A401F881 /* MallServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MallServiceProtocol.swift; sourceTree = "<group>"; };
 		42E66413B632F4A389B7927C /* 01_ICON_SPECS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = 01_ICON_SPECS.md; sourceTree = "<group>"; };
-		431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TRIX3DCompanion.debug.xcconfig"; path = "Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion.debug.xcconfig"; sourceTree = "<group>"; };
 		44D90B5BAC450714FD74548A /* RequestRetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestRetryManager.swift; sourceTree = "<group>"; };
 		455A2EA572AA68D40A9155F3 /* MessageCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCell.swift; sourceTree = "<group>"; };
 		4671ECB430B367281FF2886F /* Todo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Todo.swift; sourceTree = "<group>"; };
@@ -374,7 +376,6 @@
 		4FD61F3AC5583F1D702B3C42 /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		51292AD923DEA82151D9D658 /* WardrobeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WardrobeService.swift; sourceTree = "<group>"; };
 		513F73FF6F148B0ABD671443 /* SSLPinningManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSLPinningManager.swift; sourceTree = "<group>"; };
-		5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TRIX3DCompanion.release.xcconfig"; path = "Target Support Files/Pods-TRIX3DCompanion/Pods-TRIX3DCompanion.release.xcconfig"; sourceTree = "<group>"; };
 		53F522686A2C9909962FBB2B /* TodoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoViewModel.swift; sourceTree = "<group>"; };
 		54563FA17CCB35C310FBA8E3 /* DiagnosticView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticView.swift; sourceTree = "<group>"; };
 		548F3FFB312DA57B1B1F9B18 /* Localizable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localizable.swift; sourceTree = "<group>"; };
@@ -404,6 +405,7 @@
 		63DE9EDB9E59B7050D9BBF05 /* TTSServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSServiceProtocol.swift; sourceTree = "<group>"; };
 		6537F20DC9F0A7CEF8900FE4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6640DD3BB115F7C0A5BDC0A8 /* OAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthManager.swift; sourceTree = "<group>"; };
+		67746C85BD9E06249F52EE1B /* StudyRoomViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomViewModel.swift; sourceTree = "<group>"; };
 		6774C1F0DD88E4044F548C41 /* MainAppFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppFlowTests.swift; sourceTree = "<group>"; };
 		69D5F499DC00EC2704E2465B /* ClawbotHistoryServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClawbotHistoryServiceProtocol.swift; sourceTree = "<group>"; };
 		6D9988A9EFABA8980C69C164 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
@@ -412,12 +414,14 @@
 		6FC194C2516330CAFD9E29ED /* PlaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceService.swift; sourceTree = "<group>"; };
 		707BFA46E3F2018019976584 /* UserStatsServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStatsServiceProtocol.swift; sourceTree = "<group>"; };
 		709D423903C2A2D86C329790 /* EmptyMessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyMessageListView.swift; sourceTree = "<group>"; };
+		71AE3F1D209DDAABBB5FB8C0 /* CoordinateConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinateConverter.swift; sourceTree = "<group>"; };
 		73EDBDA324AA8307E746E2DE /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		761D9EF25D1D636664D53A2C /* ConfirmDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmDialog.swift; sourceTree = "<group>"; };
 		7631C5D07D8B69B495BA6103 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		767B9A533CD99856F34FC668 /* ColorGradientExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorGradientExtension.swift; sourceTree = "<group>"; };
 		785BFD9A17B0B3F2B4DFE11E /* DiagnosticViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticViewModel.swift; sourceTree = "<group>"; };
 		79DD671BD98BE0D1CAC286B0 /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
+		7B8A16F52DAFCA8C710A952A /* TrixBotNativeFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrixBotNativeFlowTests.swift; sourceTree = "<group>"; };
 		7BCCE9935E737D4B63FB7440 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
 		7C8D4D80DCEFE655AAD07F08 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
 		7CF52968576D0B437DF510AF /* VideoBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoBackgroundView.swift; sourceTree = "<group>"; };
@@ -441,6 +445,7 @@
 		8CF81BB56B24F5A2F71CD178 /* PointsServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsServiceProtocol.swift; sourceTree = "<group>"; };
 		8DC660C8265C085287E48608 /* SecureLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureLogger.swift; sourceTree = "<group>"; };
 		8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendErrorPresentationSmokeTests.swift; sourceTree = "<group>"; };
+		8F305F8139F43B6D354BFF44 /* MapSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapSearchService.swift; sourceTree = "<group>"; };
 		91E990AAC2F7362CEED4B544 /* MailPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailPanelView.swift; sourceTree = "<group>"; };
 		9347B36B614FC80AE070627F /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 		938AAAA245411ABB1438B144 /* AchievementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementService.swift; sourceTree = "<group>"; };
@@ -504,7 +509,6 @@
 		CAE889838BA8307FE912036F /* 06_LOCALIZATION_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = 06_LOCALIZATION_GUIDE.md; sourceTree = "<group>"; };
 		CB33DF11FCEF99BD76B35D09 /* EmptyNotificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyNotificationView.swift; sourceTree = "<group>"; };
 		CBF6060F79D7F3B2732888CB /* UserDefaultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsManager.swift; sourceTree = "<group>"; };
-		CC0011AABB11223344556677 /* MapSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapSearchService.swift; sourceTree = "<group>"; };
 		CC67902FEC42BCA4550CB622 /* ChatRoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRoom.swift; sourceTree = "<group>"; };
 		CC7F79C30FABA09D75E11759 /* AVAudioPlayer+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AVAudioPlayer+Extensions.swift"; sourceTree = "<group>"; };
 		CCD7A67D170A9DD69F115FA7 /* UITestAccessibilityIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestAccessibilityIdentifiers.swift; sourceTree = "<group>"; };
@@ -527,10 +531,8 @@
 		D7E9164A6BFA1FE90C6288F9 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
 		DBC0D2CB90AF516D7AC88553 /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
 		DC8A04BBC47C886B8D18003E /* UnreadBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnreadBadge.swift; sourceTree = "<group>"; };
-		DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TRIX3DCompanion.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEAB6286B6E8DE8DAE37A463 /* WeChatSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSignInService.swift; sourceTree = "<group>"; };
 		DF3B96EB36A351D1A080BB33 /* EmptyPointsHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyPointsHistoryView.swift; sourceTree = "<group>"; };
-		E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoomViewModel.swift; sourceTree = "<group>"; };
 		E14B42940F473663AB353BD7 /* DataExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportService.swift; sourceTree = "<group>"; };
 		E1E0F5DC6FCD6842374DD43B /* FriendServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendServiceProtocol.swift; sourceTree = "<group>"; };
 		E202D6F872CE396F238336E2 /* AnimatedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCard.swift; sourceTree = "<group>"; };
@@ -577,6 +579,7 @@
 				94778377034D568CE71D9BE8 /* Starscream in Frameworks */,
 				AD6ACEAC0A30BB0EB355B92A /* Kingfisher in Frameworks */,
 				81DCB038B6C7297A544A19A6 /* KeychainAccess in Frameworks */,
+				56621C4825CE2EBDEAB4BE99 /* SQLite in Frameworks */,
 				FE2F256CCE5F1B4C6083B1BC /* CodeScanner in Frameworks */,
 				1B669C23EEB2D1CA90C873AF /* FirebaseAnalytics in Frameworks */,
 				DEDFEE006916925B555E2B4B /* FirebasePerformance in Frameworks */,
@@ -585,7 +588,6 @@
 				4D051DDCDF56E0F49BEB0093 /* PopupView in Frameworks */,
 				C7FC52F178F97EA492D8391D /* WhatsNewKit in Frameworks */,
 				C5DC213B3946C88D95A0BBAA /* ActivityIndicatorView in Frameworks */,
-				EEE9758863DF1CBBB885B258 /* Pods_TRIX3DCompanion.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -634,6 +636,7 @@
 				0EA0E891E1397497C042A763 /* Services */,
 				08F028508C53653A58EEE5BC /* Storage */,
 				FF44EB133C53729C6D70194A /* Utilities */,
+				DE999B0BF972BC6B9EE20BDE /* Utils */,
 				022A1E61D37B6CAD32AD01A3 /* Video */,
 			);
 			path = Core;
@@ -669,8 +672,6 @@
 				0E17DDA25682178CDF056DFC /* Smoke */,
 				4E00016D5D1FF808E9DBB6B4 /* TRIX3DUITests */,
 				A26DEA605FBD99D7E05F55B6 /* Products */,
-				A60CFB166BEDE6EA090172EE /* Pods */,
-				92667F042D66DA6D59FEBB66 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -715,7 +716,7 @@
 				9C6F03578D8022E6E02E001C /* LocationServiceProtocol.swift */,
 				24A0B23E33226F6B429DA2DF /* MallService.swift */,
 				3DE40571BBD4FCA8A401F881 /* MallServiceProtocol.swift */,
-				CC0011AABB11223344556677 /* MapSearchService.swift */,
+				8F305F8139F43B6D354BFF44 /* MapSearchService.swift */,
 				73EDBDA324AA8307E746E2DE /* NetworkMonitor.swift */,
 				D5B91D1222FFF6B1B3844B3D /* NotificationManager.swift */,
 				309D5779B85E2AA0BA5BF26F /* NotificationManagerProtocol.swift */,
@@ -959,6 +960,7 @@
 				6774C1F0DD88E4044F548C41 /* MainAppFlowTests.swift */,
 				894577D1F0DA0F6460759395 /* ProfileSettingsFlowTests.swift */,
 				FB5D93D8E2E332A0424EAB2D /* RealAppTestSupport.swift */,
+				7B8A16F52DAFCA8C710A952A /* TrixBotNativeFlowTests.swift */,
 				B9A11CE5031E7E40928AE812 /* VisualPolishFlowTests.swift */,
 			);
 			name = TRIX3DUITests;
@@ -971,6 +973,14 @@
 				9F405DE5F0761B2FF54EA47E /* MapModels.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		59105207F70197CE3F59BE95 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				67746C85BD9E06249F52EE1B /* StudyRoomViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		5987D14D6769DBFB634952E0 /* Views */ = {
@@ -1109,14 +1119,6 @@
 			path = Chat;
 			sourceTree = "<group>";
 		};
-		92667F042D66DA6D59FEBB66 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				DCE52F7A07A3E868555C4C53 /* Pods_TRIX3DCompanion.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		942398EB45E3B54F09AF8327 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -1180,16 +1182,6 @@
 				02C691BEFC36A1C049C6F115 /* AuthViewModel.swift */,
 			);
 			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		A60CFB166BEDE6EA090172EE /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */,
-				5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		ABE50A980BA1787B49973E75 /* Theme */ = {
@@ -1286,7 +1278,7 @@
 		CAFD09ADBC2E5773A2AA9A7A /* Study */ = {
 			isa = PBXGroup;
 			children = (
-				E129A4D3415B4E4086A89C13 /* ViewModels */,
+				59105207F70197CE3F59BE95 /* ViewModels */,
 				EC309571451FD4EEF1D9CEEA /* Views */,
 			);
 			path = Study;
@@ -1336,12 +1328,12 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		E129A4D3415B4E4086A89C13 /* ViewModels */ = {
+		DE999B0BF972BC6B9EE20BDE /* Utils */ = {
 			isa = PBXGroup;
 			children = (
-				E129A4D3415B4E4086A89C12 /* StudyRoomViewModel.swift */,
+				71AE3F1D209DDAABBB5FB8C0 /* CoordinateConverter.swift */,
 			);
-			path = ViewModels;
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		E33253400BFA63FCB0AD8551 /* Videos */ = {
@@ -1449,7 +1441,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DBA8E2C107082C007F926F5F /* Build configuration list for PBXNativeTarget "TRIX3DCompanion" */;
 			buildPhases = (
-				8D9E9B8246B857B40FABC1E6 /* [CP] Check Pods Manifest.lock */,
 				8C058EF399296F53A7AB459C /* Sources */,
 				0053E62410AE0DD1BE2D08E1 /* Resources */,
 				5E6854121DFC46131F662318 /* Frameworks */,
@@ -1491,6 +1482,8 @@
 				54E64EE070E56DBD97C517E0 /* PBXTargetDependency */,
 			);
 			name = TRIX3DCompanionTests;
+			packageProductDependencies = (
+			);
 			productName = TRIX3DCompanionTests;
 			productReference = D4330490527811D0283EA7A4 /* TRIX3DCompanionTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -1507,6 +1500,8 @@
 				1AED2500116C9EC319BF832D /* PBXTargetDependency */,
 			);
 			name = TRIX3DUITests;
+			packageProductDependencies = (
+			);
 			productName = TRIX3DUITests;
 			productReference = D02C96C1EC6CE3CB1DD4339D /* TRIX3DUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -1560,7 +1555,6 @@
 				8BDA9EDFA1079BBABB57408C /* XCRemoteSwiftPackageReference "WhatsNewKit" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A26DEA605FBD99D7E05F55B6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1586,6 +1580,7 @@
 				968FD97992774A95EFD398BB /* Assets.xcassets in Resources */,
 				8A6FEDE2D6E242CB7CBF8857 /* AvatarHead.png in Resources */,
 				EA58351997B8ED2284223DF3 /* FEATURE_SUMMARY.md in Resources */,
+				522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */,
 				B921DE11E60C4EE3350B4B0A /* Localizable.strings in Resources */,
 				9C1772838A9B6104157EAF0C /* StudyRoomBG.png in Resources */,
 				43FC08B0FFD575A12A93F7E9 /* background.jpg in Resources */,
@@ -1599,31 +1594,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		8D9E9B8246B857B40FABC1E6 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-TRIX3DCompanion-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		4A120D4B98E4E858278DD0AF /* Sources */ = {
@@ -1647,6 +1617,7 @@
 				539CD1EFB750682B30FD1206 /* MainAppFlowTests.swift in Sources */,
 				3D3C066C0019752A329A2F64 /* ProfileSettingsFlowTests.swift in Sources */,
 				0881246CAA58D11BD3EDBA0E /* RealAppTestSupport.swift in Sources */,
+				628AD47105460F46EA69CFAA /* TrixBotNativeFlowTests.swift in Sources */,
 				BF6A35E6C2BFE01F417D96C5 /* VisualPolishFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1664,6 +1635,7 @@
 				BECDE9C8332DBADCD6381BEB /* Accessibility.swift in Sources */,
 				49CB71D877A63A2EF2ED355B /* AchievementService.swift in Sources */,
 				85AF7332B1ADBC29946C1DBE /* AchievementServiceProtocol.swift in Sources */,
+				5AAFCCB014C1FC4F22091098 /* AnalyticsService.swift in Sources */,
 				2AE0F1E16C859DF02B7D6C9F /* AnimatedCard.swift in Sources */,
 				4F3E95D64E8E945E24E6E561 /* AnimatedQRDisplay.swift in Sources */,
 				F57BD940264E5A5CBCC99783 /* AnimatedSplashView.swift in Sources */,
@@ -1685,6 +1657,7 @@
 				E71FF221F4A1F94B91D59393 /* BotState.swift in Sources */,
 				DAB62424CF3545BB4F951116 /* CameraService.swift in Sources */,
 				92A0DF506C2043FC47A8D9AF /* CameraServiceProtocol.swift in Sources */,
+				600DAC467985C80B397EDAD4 /* CameraView.swift in Sources */,
 				F3E6B5910B7EB454E3810253 /* CameraViewModel.swift in Sources */,
 				AC9A5B26AA956CE797467B3B /* CelebrationAnimationView.swift in Sources */,
 				C208ACA5D39BBF595C1CCE72 /* ChatDetailView.swift in Sources */,
@@ -1694,6 +1667,7 @@
 				BF9A1D10031AE7756CF5D1EB /* ChatListViewModel.swift in Sources */,
 				0B68424D4B581E42F93F8741 /* ChatModels.swift in Sources */,
 				2C9AA755E2A92FE3BDB944D3 /* ChatRoom.swift in Sources */,
+				56F44B909527D6D078539374 /* ChatService.swift in Sources */,
 				BC2D43D07EC5266756BA5293 /* ClawbotChannelService.swift in Sources */,
 				D58CCD07E89520101F4B39EA /* ClawbotChannelViewModel.swift in Sources */,
 				CDCDE804EACE625F8FDAEA5E /* ClawbotHistoryService.swift in Sources */,
@@ -1702,6 +1676,7 @@
 				297CBB192B3E64A66701FAAA /* Colors.swift in Sources */,
 				B74881CF46DE704D11E19AEB /* ConfirmDialog.swift in Sources */,
 				55235E42B80C90BFDF6C6731 /* ContentView.swift in Sources */,
+				9D3433556066AB9E811554B8 /* CoordinateConverter.swift in Sources */,
 				CEF3D7D4741BCD977542E182 /* DataExportService.swift in Sources */,
 				07E9B2D5D0AD54856B94FC2A /* DataSyncService.swift in Sources */,
 				20274084BFBF285814C9D063 /* DatabaseManager.swift in Sources */,
@@ -1752,6 +1727,8 @@
 				9F71D88A7F9A4EAF184D90E4 /* MainTabView.swift in Sources */,
 				F6AE353C80711170558570EF /* MallService.swift in Sources */,
 				8854107D2ED0A552FD398833 /* MallServiceProtocol.swift in Sources */,
+				6042B541E3D1413B0354A1AE /* MapModels.swift in Sources */,
+				5CEE6EC102E5113C872A8E7E /* MapSearchService.swift in Sources */,
 				0835CED47C56C2531A670BD5 /* MapView.swift in Sources */,
 				F5D132CCF955BCEEE001EE53 /* MapViewModel.swift in Sources */,
 				BFED6CD8774197EADD03BF75 /* MemoryLeakDetector.swift in Sources */,
@@ -1779,6 +1756,7 @@
 				1616E8E0B28A3DCB3199C324 /* PerformanceMonitoringService.swift in Sources */,
 				733C56FE824422DED341124D /* PlaceService.swift in Sources */,
 				155E50E7053C94301A31859F /* PointsHistoryScreen.swift in Sources */,
+				57C6AC6141BFB35C87312DF8 /* PointsHistoryViewModel.swift in Sources */,
 				69E2D6A1345DB200A8A24A87 /* PointsPurchaseView.swift in Sources */,
 				39139776E7EC9FBB99357FCE /* PointsService.swift in Sources */,
 				A4E07A88BD347BC9C95703D1 /* PointsServiceProtocol.swift in Sources */,
@@ -1789,6 +1767,7 @@
 				93EBCD0409797A1108419CCE /* ProfileInfoCard.swift in Sources */,
 				C93D745E0C346A42DA748164 /* ProfileScreen.swift in Sources */,
 				BA7DA6E520635ADBD232BB20 /* ProfileView.swift in Sources */,
+				5F5FBAF1BF9FDFE102EF3170 /* ProfileViewModel.swift in Sources */,
 				CD1CF7EC3B3D8C3E49343664 /* ProgressView.swift in Sources */,
 				634CE41D25D6B41840D4BC20 /* PushNotificationService.swift in Sources */,
 				0F80887A0B431AADED5EB8BD /* PushNotificationServiceProtocol.swift in Sources */,
@@ -1809,6 +1788,7 @@
 				C9F9788343C2C971B70D9773 /* SettingsScreen.swift in Sources */,
 				52653C3A84CF4A2DECF3AFD6 /* SettingsViewModel.swift in Sources */,
 				129D1BBF0DD484D245BE45DA /* ShimmerEffect.swift in Sources */,
+				5EBED8F76EF44563DD123B24 /* SkeletonView.swift in Sources */,
 				6A82B8A3779470BC14E58E5C /* Snapshot.swift in Sources */,
 				70FD5A5918CE80FEFC241A71 /* SnapshotAnalysisView.swift in Sources */,
 				09D59CCE7EA624F510162846 /* SnapshotListView.swift in Sources */,
@@ -1824,7 +1804,7 @@
 				1112EC9A3564FB186E0666EB /* StudyListView.swift in Sources */,
 				12479FA5539F8D8F1B782FC7 /* StudyRoom.swift in Sources */,
 				72F22938E6AF3C776C0497CD /* StudyRoomView.swift in Sources */,
-				E129A4D3415B4E4086A89C11 /* StudyRoomViewModel.swift in Sources */,
+				E8C191FD0376CC7814A61A7E /* StudyRoomViewModel.swift in Sources */,
 				EBFD3960C794CF822E229BCB /* StudyService.swift in Sources */,
 				CD4148BE376CDBA80BD81BB7 /* StudyStatsView.swift in Sources */,
 				D2D67DD2F48D04D811A6F2D5 /* StudyTimerView.swift in Sources */,
@@ -1835,6 +1815,7 @@
 				C69B0795F84EEAC01EEDF123 /* TTSControlView.swift in Sources */,
 				C80EB135E0987A6B6420AB13 /* TTSService.swift in Sources */,
 				C99F4A8EC09FE32FBA138B59 /* TTSServiceProtocol.swift in Sources */,
+				5D9B7C22DAC971179963D69D /* TTSViewModel.swift in Sources */,
 				C9EAB329FDD1F7AD7CF45378 /* Theme.swift in Sources */,
 				6B8109DD978869BFC8B78133 /* ThemePreview.swift in Sources */,
 				C0D4A6070376434104BEB64A /* ToastManager.swift in Sources */,
@@ -1845,6 +1826,7 @@
 				D933C2BA9474A0FF7C158D12 /* TodoViewModel.swift in Sources */,
 				BC6B333B70BA8E259605BBFE /* TrixBotChatView.swift in Sources */,
 				C0054DB0811796D25BA07CF0 /* TypingIndicatorView.swift in Sources */,
+				5C80890EC9A2133CF7EE0CC3 /* Typography.swift in Sources */,
 				046450A8860DFF095FE94582 /* UIRenderingOptimizer.swift in Sources */,
 				914E9EAB2777696A90C61337 /* UITestAccessibilityIdentifiers.swift in Sources */,
 				73AA6D02A2A73BC1F9B4E8EC /* UnreadBadge.swift in Sources */,
@@ -1872,16 +1854,6 @@
 				7C9585509E4500DEBCB903AB /* WorkbenchCard.swift in Sources */,
 				BBAF67BFF6F1AC64B89337BA /* WorkbenchSheet.swift in Sources */,
 				730F7E9779547FC0FB22FD36 /* WorkbenchView.swift in Sources */,
-				CC0011AABB11223344556678 /* MapSearchService.swift in Sources */,
-				CC0011AABB11223344556679 /* ChatService.swift in Sources */,
-				CC0011AABB1122334455667A /* TTSViewModel.swift in Sources */,
-				CC0011AABB1122334455667B /* CameraView.swift in Sources */,
-				CC0011AABB1122334455667C /* MapModels.swift in Sources */,
-				CC0011AABB1122334455667D /* PointsHistoryViewModel.swift in Sources */,
-				CC0011AABB1122334455667E /* ProfileViewModel.swift in Sources */,
-				CC0011AABB1122334455667F /* AnalyticsService.swift in Sources */,
-				CC0011AABB11223344556670 /* SkeletonView.swift in Sources */,
-				CC0011AABB11223344556671 /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2082,7 +2054,6 @@
 		};
 		B094AD076D15B304FBA10BD4 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5262B26FF69A939AEF035F49 /* Pods-TRIX3DCompanion.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -2091,10 +2062,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.trix3d.companion;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -2106,7 +2074,6 @@
 		};
 		B7AC38280CDFA927CD317C7B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 431290D1E1448F263B310087 /* Pods-TRIX3DCompanion.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -2115,10 +2082,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.trix3d.companion;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;

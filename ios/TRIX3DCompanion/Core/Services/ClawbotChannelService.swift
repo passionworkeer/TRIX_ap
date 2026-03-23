@@ -190,7 +190,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
 
         // RESTful 风格的配对端点
-        post("/api/pairings/\(code.uppercased())/claim", body: body) { result in
+        post("/api/pairings/\(code.uppercased())/claim", body: body, headers: authHeaders()) { result in
             switch result {
             case .success(let data):
                 do {
@@ -229,6 +229,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         clientToken: String,
         text: String,
         uploadedAttachmentIds: [String] = [],
+        localId: String = UUID().uuidString,
         completion: @escaping (Result<MessageResponse, Error>) -> Void
     ) {
         let body: [String: Any] = [
@@ -236,7 +237,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
             "clientToken": clientToken,
             "text": text,
             "uploadedAttachmentIds": uploadedAttachmentIds,
-            "localId": UUID().uuidString
+            "localId": localId
         ]
 
         post("/api/messages", body: body) { result in
@@ -284,6 +285,33 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
     }
 
+    func restorePairingSession(
+        accountId: String?,
+        clientId: String,
+        deviceName: String,
+        completion: @escaping (Result<PairingClaimResponse, Error>) -> Void
+    ) {
+        let body: [String: Any] = [
+            "accountId": accountId ?? "default",
+            "clientId": clientId,
+            "deviceName": deviceName
+        ]
+
+        post("/api/client/session/restore", body: body, headers: authHeaders()) { result in
+            switch result {
+            case .success(let data):
+                do {
+                    let response = try JSONDecoder().decode(PairingClaimResponse.self, from: data)
+                    completion(.success(response))
+                } catch {
+                    completion(.failure(error))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
     // MARK: - Private
 
     private var baseURL: String {
@@ -292,9 +320,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
         #if DEBUG
         let raw = UserDefaults.standard.string(forKey: "clawbot.channel.url") ?? ""
-        return raw.isEmpty ? "http://TRIX_SERVER_HOST:8788" : normalizeBaseURL(raw)
+        return raw.isEmpty ? "https://trix.love" : normalizeBaseURL(raw)
         #else
-        return "https://api.trix3d.com"
+        return "https://trix.love"
         #endif
     }
 
@@ -308,7 +336,7 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         return result
     }
 
-    private func post(_ path: String, body: [String: Any], completion: @escaping (Result<Data, Error>) -> Void) {
+    private func post(_ path: String, body: [String: Any], headers: [String: String] = [:], completion: @escaping (Result<Data, Error>) -> Void) {
         guard let url = URL(string: baseURL + path) else {
             completion(.failure(ClawbotError.invalidResponse))
             return
@@ -317,6 +345,9 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -340,6 +371,13 @@ private final class ChannelHTTPClient: @unchecked Sendable {
                 }
             }.resume()
         }
+    }
+
+    private func authHeaders() -> [String: String] {
+        guard let accessToken = KeychainManager.shared.getAccessToken(), !accessToken.isEmpty else {
+            return [:]
+        }
+        return ["Authorization": "Bearer \(accessToken)"]
     }
 
     private func get(_ path: String, completion: @escaping (Result<Data, Error>) -> Void) {
@@ -678,8 +716,8 @@ protocol ClawbotChannelServiceProtocol {
     func unpair()
 
     // Messages
-    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?) async throws
-    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, completion: @escaping (Result<String, Error>) -> Void) async throws
+    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) async throws
+    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?, completion: @escaping (Result<String, Error>) -> Void) async throws
 
     // Study Room
     func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> StudyRoomState
@@ -743,6 +781,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private var serverUrl: String?
     private var accountId: String?
     private var userId: String?
+    private var pairedAppUserId: String?
     private(set) var deviceId: String?
 
     // Reconnect
@@ -757,10 +796,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // Pending message callbacks
     private var pendingMessageCompletions: [String: (Result<String, Error>) -> Void] = [:]
     private let messageCompletionLock = NSLock()
+    private var pendingReplyKeys = Set<String>()
+    private var replyAliasMap: [String: String] = [:]
+    private var isTtsSpeaking = false
+    private let connectStateLock = NSLock()
+    private var isConnectInFlight = false
 
     // Event handlers storage
     private var eventHandlers: [String: [(Any) -> Void]] = [:]
     private let handlerLock = NSLock()
+    private var cancellables = Set<AnyCancellable>()
 
     // TTS
     @Published var ttsEnabled: Bool = true
@@ -811,6 +856,9 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         deviceId = getOrCreateDeviceId()
         loadPersistedState()
         setupWebSocketHandler()
+        Task { @MainActor [weak self] in
+            self?.observeTtsState()
+        }
     }
 
     // MARK: - Computed Properties
@@ -825,11 +873,31 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // MARK: - Public Methods
 
     func connect() async throws {
+        guard beginConnectIfNeeded() else {
+            NSLog("[TRIX-UI] service connect skipped state=%{public}@ active=%{public}@",
+                  describeConnectionState(connectionState),
+                  String(isConnectionActive))
+            return
+        }
+        defer { endConnectAttempt() }
+
         guard let resolvedUserId = await resolveChannelUserId() else {
             throw ClawbotError.userNotLoggedIn
         }
 
         self.userId = resolvedUserId
+
+        if let pairedAppUserId, !pairedAppUserId.isEmpty, pairedAppUserId != resolvedUserId {
+            conversationId = nil
+            clientToken = nil
+            websocketUrl = nil
+            serverUrl = nil
+            accountId = "default"
+            await MainActor.run {
+                self.isPaired = false
+            }
+            clearPersistedPairingState()
+        }
 
         await MainActor.run {
             connectionState = .connecting
@@ -839,9 +907,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         if let convId = conversationId, let token = clientToken, let wsUrl = websocketUrl {
             await connectWebSocket(wsUrl: wsUrl, conversationId: convId, token: token)
         } else {
-            // 需要先配对
-            await MainActor.run {
-                connectionState = .disconnected
+            let restored = await restorePairingSessionIfNeeded(for: resolvedUserId)
+            if !restored {
+                await MainActor.run {
+                    connectionState = .disconnected
+                }
             }
         }
     }
@@ -857,6 +927,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             self.isBotOnline = false
             self.isConnectionActive = false
             self.pendingMessages.removeAll()
+            self.pendingReplyKeys.removeAll()
+            self.replyAliasMap.removeAll()
             self.messageCompletionLock.lock()
             self.pendingMessageCompletions.removeAll()
             self.messageCompletionLock.unlock()
@@ -1062,6 +1134,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             self.websocketUrl = nil
             self.serverUrl = nil
             self.accountId = nil
+            self.pairedAppUserId = nil
             self.httpClient.overrideBaseURL = nil
             self.deviceId = nil
             self.setBotBehaviorState(.idle)
@@ -1070,33 +1143,66 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     // MARK: - Messages
 
-    func sendMessage(_ content: String, contentType: ClawbotMessageContentType = .text, mediaUrl: String? = nil, mediaMimeType: String? = nil) async throws {
+    func sendMessage(
+        _ content: String,
+        contentType: ClawbotMessageContentType = .text,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil,
+        mediaData: Data? = nil,
+        mediaFileName: String? = nil
+    ) async throws {
         guard let conversationId = conversationId, let clientToken = clientToken else {
+            NSLog("[TRIX-UI] service send blocked not paired text=%{public}@", content)
             throw ClawbotError.notPaired
         }
 
-        let messageId = generateMessageId()
+        let localMessageId = generateMessageId()
+        NSLog("[TRIX-UI] service send begin conv=%{public}@ localId=%{public}@ text=%{public}@",
+              conversationId,
+              localMessageId,
+              content)
+        let uploadedAttachmentIds = try await uploadAttachmentIdsIfNeeded(
+            mediaData: mediaData,
+            mediaMimeType: mediaMimeType,
+            mediaFileName: mediaFileName,
+            conversationId: conversationId,
+            clientToken: clientToken
+        )
 
         await MainActor.run {
-            self.setBotBehaviorState(.thinking)
-            self.pendingMessages[messageId] = .pending
+            self.pendingMessages[localMessageId] = .pending
+            self.registerPendingReplyKey(localMessageId)
+            self.syncBotBehaviorState()
         }
 
         return try await withCheckedThrowingContinuation { continuation in
             httpClient.sendMessage(
                 conversationId: conversationId,
                 clientToken: clientToken,
-                text: content
+                text: content,
+                uploadedAttachmentIds: uploadedAttachmentIds,
+                localId: localMessageId
             ) { [weak self] result in
                 switch result {
-                case .success:
+                case .success(let response):
+                    NSLog("[TRIX-UI] service send http ok localId=%{public}@ serverId=%{public}@",
+                          localMessageId,
+                          response.messageId ?? "")
                     DispatchQueue.main.async {
-                        self?.pendingMessages[messageId] = .sent
+                        self?.pendingMessages[localMessageId] = .sent
+                        if let serverMessageId = response.messageId {
+                            self?.attachPendingReplyAlias(alias: serverMessageId, canonicalKey: localMessageId)
+                        }
                     }
                     continuation.resume()
                 case .failure(let error):
+                    NSLog("[TRIX-UI] service send http failed localId=%{public}@ error=%{public}@",
+                          localMessageId,
+                          error.localizedDescription)
                     DispatchQueue.main.async {
-                        self?.pendingMessages[messageId] = .failed
+                        self?.pendingMessages[localMessageId] = .failed
+                        self?.clearPendingReplyKey(localMessageId)
+                        self?.syncBotBehaviorState()
                     }
                     continuation.resume(throwing: ClawbotError.messageFailed(error.localizedDescription))
                 }
@@ -1109,6 +1215,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         contentType: ClawbotMessageContentType = .text,
         mediaUrl: String? = nil,
         mediaMimeType: String? = nil,
+        mediaData: Data? = nil,
+        mediaFileName: String? = nil,
         completion: @escaping (Result<String, Error>) -> Void
     ) async throws {
         guard let conversationId = conversationId, let clientToken = clientToken else {
@@ -1116,34 +1224,47 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             throw ClawbotError.notPaired
         }
 
-        let messageId = generateMessageId()
+        let localMessageId = generateMessageId()
+        let uploadedAttachmentIds = try await uploadAttachmentIdsIfNeeded(
+            mediaData: mediaData,
+            mediaMimeType: mediaMimeType,
+            mediaFileName: mediaFileName,
+            conversationId: conversationId,
+            clientToken: clientToken
+        )
 
         await MainActor.run {
-            self.setBotBehaviorState(.thinking)
-            self.pendingMessages[messageId] = .pending
+            self.pendingMessages[localMessageId] = .pending
+            self.registerPendingReplyKey(localMessageId)
+            self.syncBotBehaviorState()
         }
 
-        pendingMessageCompletions[messageId] = completion
+        pendingMessageCompletions[localMessageId] = completion
 
         httpClient.sendMessage(
             conversationId: conversationId,
             clientToken: clientToken,
-            text: content
+            text: content,
+            uploadedAttachmentIds: uploadedAttachmentIds,
+            localId: localMessageId
         ) { [weak self] result in
             switch result {
-            case .success(let response):
+                case .success(let response):
                 DispatchQueue.main.async {
-                    self?.pendingMessages[messageId] = .sent
+                    self?.pendingMessages[localMessageId] = .sent
                     if let msgId = response.messageId {
-                        self?.pendingMessageCompletions.removeValue(forKey: messageId)?(.success(msgId))
+                        self?.attachPendingReplyAlias(alias: msgId, canonicalKey: localMessageId)
+                        self?.pendingMessageCompletions.removeValue(forKey: localMessageId)?(.success(msgId))
                     } else {
-                        self?.pendingMessageCompletions.removeValue(forKey: messageId)?(.success(messageId))
+                        self?.pendingMessageCompletions.removeValue(forKey: localMessageId)?(.success(localMessageId))
                     }
                 }
             case .failure(let error):
                 DispatchQueue.main.async {
-                    self?.pendingMessages[messageId] = .failed
-                    self?.pendingMessageCompletions.removeValue(forKey: messageId)?(.failure(ClawbotError.messageFailed(error.localizedDescription)))
+                    self?.pendingMessages[localMessageId] = .failed
+                    self?.clearPendingReplyKey(localMessageId)
+                    self?.syncBotBehaviorState()
+                    self?.pendingMessageCompletions.removeValue(forKey: localMessageId)?(.failure(ClawbotError.messageFailed(error.localizedDescription)))
                 }
             }
         }
@@ -1266,6 +1387,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         self.clientToken = response.clientToken
         self.websocketUrl = response.resolvedWebSocketURL
         self.serverUrl = response.serverUrl
+        self.pairedAppUserId = userId
         self.httpClient.overrideBaseURL = response.serverUrl
 
         DispatchQueue.main.async {
@@ -1372,9 +1494,11 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         // 解析 JSON envelope: { type: string, payload: any }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let eventType = json["type"] as? String else {
+            NSLog("[TRIX-UI] ws message parse failed bytes=%{public}d", data.count)
             return
         }
 
+        NSLog("[TRIX-UI] ws event type=%{public}@ bytes=%{public}d", eventType, data.count)
         let payload = json["payload"] as? [String: Any] ?? [:]
 
         switch eventType {
@@ -1430,6 +1554,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         let messageId = messagePayload["id"] as? String ?? generateMessageId()
         let content = messagePayload["text"] as? String ?? messagePayload["content"] as? String ?? ""
         let senderRaw = messagePayload["sender"] as? String ?? messagePayload["senderId"] as? String ?? ""
+        let replyToMessageId = messagePayload["replyToMessageId"] as? String
         let timestampMs = messagePayload["createdAt"] as? Int ?? messagePayload["timestamp"] as? Int
         let timestamp = timestampMs.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) } ?? Date()
 
@@ -1439,8 +1564,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                        senderRaw.lowercased().hasPrefix("openclaw:") ||
                        senderRaw != (userId ?? "")
 
+        NSLog("[TRIX-UI] ws message.created id=%{public}@ sender=%{public}@ userId=%{public}@ fromBot=%{public}@ text=%{public}@",
+              messageId,
+              senderRaw,
+              userId ?? "",
+              String(isFromBot),
+              String(content.prefix(80)))
+
         if !isFromBot {
             // 忽略自己发送的消息
+            NSLog("[TRIX-UI] ws ignored self-authored message id=%{public}@", messageId)
             return
         }
 
@@ -1458,34 +1591,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         )
 
         DispatchQueue.main.async {
+            self.clearPendingReplyKey(replyToMessageId)
             self.lastMessage = message
-            self.setBotBehaviorState(.idle)
+            self.syncBotBehaviorState()
+            NSLog("[TRIX-UI] ws accepted bot message id=%{public}@ replyTo=%{public}@",
+                  messageId,
+                  replyToMessageId ?? "")
         }
 
-        // TTS
         if ttsEnabled && !content.isEmpty {
             DispatchQueue.main.async {
-                self.setBotBehaviorState(.thinking)
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if self.botBehaviorState == .thinking {
-                        self.setBotBehaviorState(.speaking)
-                    }
-                }
-
-                let contentLength = content.count
-                let baseMs: Double = 800
-                let perCharMs: Double = 45
-                let minMs: Double = 1200
-                let maxMs: Double = 12000
-                let speakingDuration = min(max(baseMs + Double(contentLength) * perCharMs, minMs), maxMs)
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + (speakingDuration / 1000)) {
-                    if self.botBehaviorState == .speaking {
-                        self.setBotBehaviorState(.idle)
-                    }
-                }
-
                 Task {
                     await self.speakBotMessage(content)
                 }
@@ -1507,10 +1622,163 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
     }
 
+    @MainActor
+    private func observeTtsState() {
+        TTSService.shared.$isSpeaking
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isSpeaking in
+                self?.isTtsSpeaking = isSpeaking
+                self?.syncBotBehaviorState()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func syncBotBehaviorState() {
+        if isTtsSpeaking {
+            setBotBehaviorState(.speaking)
+            return
+        }
+
+        if !pendingReplyKeys.isEmpty {
+            setBotBehaviorState(.thinking)
+            return
+        }
+
+        setBotBehaviorState(.idle)
+    }
+
+    private func registerPendingReplyKey(_ canonicalKey: String) {
+        pendingReplyKeys.insert(canonicalKey)
+        replyAliasMap[canonicalKey] = canonicalKey
+    }
+
+    private func attachPendingReplyAlias(alias: String?, canonicalKey: String) {
+        guard let alias, !alias.isEmpty else {
+            return
+        }
+        replyAliasMap[alias] = canonicalKey
+    }
+
+    private func clearPendingReplyKey(_ alias: String?) {
+        guard let alias, !alias.isEmpty else {
+            return
+        }
+
+        let canonicalKey = replyAliasMap[alias] ?? alias
+        pendingReplyKeys.remove(canonicalKey)
+        replyAliasMap = replyAliasMap.filter { key, value in
+            key != canonicalKey && value != canonicalKey
+        }
+    }
+
+    private func uploadAttachmentIdsIfNeeded(
+        mediaData: Data?,
+        mediaMimeType: String?,
+        mediaFileName: String?,
+        conversationId: String,
+        clientToken: String
+    ) async throws -> [String] {
+        guard let mediaData, !mediaData.isEmpty else {
+            return []
+        }
+
+        let fileName = mediaFileName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? mediaFileName!
+            : "attachment-\(Int(Date().timeIntervalSince1970)).jpg"
+        let mimeType = mediaMimeType?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? mediaMimeType!
+            : "image/jpeg"
+
+        return try await withCheckedThrowingContinuation { continuation in
+            httpClient.uploadMedia(
+                data: mediaData,
+                mimeType: mimeType,
+                filename: fileName,
+                conversationId: conversationId,
+                clientToken: clientToken
+            ) { result in
+                switch result {
+                case .success(let response):
+                    continuation.resume(returning: [response.id])
+                case .failure(let error):
+                    continuation.resume(throwing: ClawbotError.messageFailed(error.localizedDescription))
+                }
+            }
+        }
+    }
+
+    private func restorePairingSessionIfNeeded(for userId: String) async -> Bool {
+        let clientIdValue = deviceId ?? getOrCreateDeviceId()
+        let resolvedAccountId = accountId ?? "default"
+
+        return await withCheckedContinuation { continuation in
+            httpClient.restorePairingSession(
+                accountId: resolvedAccountId,
+                clientId: clientIdValue,
+                deviceName: deviceName
+            ) { [weak self] result in
+                switch result {
+                case .success(let response):
+                    guard let self else {
+                        continuation.resume(returning: false)
+                        return
+                    }
+                    self.userId = userId
+                    self.handlePairingSuccess(response)
+                    continuation.resume(returning: true)
+                case .failure:
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+
     /// Helper method to set bot behavior state and sync with backward compatible botState
     private func setBotBehaviorState(_ state: BotBehaviorState) {
         botBehaviorState = state
         botState = state
+    }
+
+    private func beginConnectIfNeeded() -> Bool {
+        connectStateLock.lock()
+        defer { connectStateLock.unlock() }
+
+        if isConnectInFlight {
+            return false
+        }
+
+        switch connectionState {
+        case .connected where isConnectionActive:
+            return false
+        case .connecting, .reconnecting:
+            return false
+        default:
+            break
+        }
+
+        isConnectInFlight = true
+        return true
+    }
+
+    private func endConnectAttempt() {
+        connectStateLock.lock()
+        isConnectInFlight = false
+        connectStateLock.unlock()
+    }
+
+    private func describeConnectionState(_ state: ClawbotConnectionState) -> String {
+        switch state {
+        case .disconnected:
+            return "disconnected"
+        case .connecting:
+            return "connecting"
+        case .connected:
+            return "connected"
+        case .reconnecting(let attempt):
+            return "reconnecting(\(attempt))"
+        case .error(let message):
+            return "error(\(message))"
+        }
     }
 
     // MARK: - Study Room Helpers
@@ -1706,10 +1974,12 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         defaults.set(deviceId, forKey: "clawbot_device_id")
         defaults.set(resolvedAccountId, forKey: "clawbot_active_account_id")
         defaults.set(resolvedAccountId, forKey: "clawbot_account_id")
+        defaults.set(userId, forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
         defaults.set(conversationId, forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
         defaults.set(clientToken, forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
         defaults.set(websocketUrl, forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
         defaults.set(serverUrl, forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+        defaults.set(userId, forKey: "clawbot_app_user_id")
         defaults.set(conversationId, forKey: "clawbot_conversation_id")
         defaults.set(clientToken, forKey: "clawbot_client_token")
         defaults.set(websocketUrl, forKey: "clawbot_websocket_url")
@@ -1724,6 +1994,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             ?? defaults.string(forKey: "clawbot_account_id")
             ?? "default"
         accountId = resolvedAccountId
+        pairedAppUserId = defaults.string(forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
+            ?? defaults.string(forKey: "clawbot_app_user_id")
         conversationId = defaults.string(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
             ?? defaults.string(forKey: "clawbot_conversation_id")
         clientToken = defaults.string(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
@@ -1752,6 +2024,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         UserDefaults.standard.removeObject(forKey: "clawbot_server_url")
         UserDefaults.standard.removeObject(forKey: "clawbot_account_id")
         UserDefaults.standard.removeObject(forKey: "clawbot_active_account_id")
+        UserDefaults.standard.removeObject(forKey: "clawbot_app_user_id")
     }
 
     private func clearPersistedPairingState() {
@@ -1761,6 +2034,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
         defaults.removeObject(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
         defaults.removeObject(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
         clearPersistedState()
     }
 

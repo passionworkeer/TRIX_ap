@@ -131,6 +131,12 @@ struct CoordinateConverter {
         return CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
 
+    /// Convert WGS-84 coordinate to BD-09
+    static func wgs84ToBD09(_ coordinate: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
+        let (lat, lon) = wgs84ToBD09(lat: coordinate.latitude, lon: coordinate.longitude)
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
     /// Convert BD-09 coordinate to WGS-84
     static func bd09ToWGS84(_ coordinate: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
         let (lat, lon) = bd09ToWGS84(lat: coordinate.latitude, lon: coordinate.longitude)

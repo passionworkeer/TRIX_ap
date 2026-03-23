@@ -41,9 +41,18 @@ enum MainTab: String, CaseIterable {
     }
 }
 
-enum PendingCompanionRoute: Equatable {
+enum PendingCompanionRoute: Hashable, Identifiable {
     case trixBot
     case pairing
+
+    var id: String {
+        switch self {
+        case .trixBot:
+            return "trixBot"
+        case .pairing:
+            return "pairing"
+        }
+    }
 }
 
 /// Supported in-app languages
@@ -205,6 +214,30 @@ final class AppState: ObservableObject {
         // Check initial login state (fast path)
         self.isLoggedIn = self.authService.isLoggedIn
         self.currentUser = self.authService.currentUser
+    }
+
+    // MARK: - Companion Routing
+
+    func presentCompanion(_ route: PendingCompanionRoute) {
+        UITestEventLogger.log("presentCompanion -> \(route.id)")
+        if route == .trixBot {
+            selectedTab = .chat
+        }
+        if pendingCompanionRoute == route {
+            pendingCompanionRoute = nil
+            DispatchQueue.main.async { [weak self] in
+                UITestEventLogger.log("presentCompanion re-emit -> \(route.id)")
+                self?.pendingCompanionRoute = route
+            }
+            return
+        }
+
+        pendingCompanionRoute = route
+    }
+
+    func clearPendingCompanionRoute() {
+        UITestEventLogger.log("clearPendingCompanionRoute")
+        pendingCompanionRoute = nil
     }
 
     // MARK: - Setup

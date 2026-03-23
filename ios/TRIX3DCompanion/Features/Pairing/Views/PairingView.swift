@@ -92,6 +92,7 @@ struct PairingView: View {
             Color.clear
                 .frame(height: 12)
         }
+        .uiTestMarker(PairingAccessibilityIdentifiers.screen)
         .onAppear {
             UITestEventLogger.log("PairingView onAppear")
         }

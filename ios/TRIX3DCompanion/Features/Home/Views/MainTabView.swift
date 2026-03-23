@@ -11,7 +11,6 @@ import SwiftUI
 
 /// Bottom tab navigation with GlassDock floating style
 struct MainTabView: View {
-
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
@@ -20,6 +19,7 @@ struct MainTabView: View {
 
     @State private var isWorkbenchPresented = false
     @State private var navigationPath = NavigationPath()
+    @State private var presentedCompanionRoute: PendingCompanionRoute?
 
     // MARK: - Body
 
@@ -45,6 +45,21 @@ struct MainTabView: View {
                 }
             }
         }
+        .fullScreenCover(item: $presentedCompanionRoute, onDismiss: {
+            if appState.pendingCompanionRoute != nil {
+                appState.clearPendingCompanionRoute()
+            }
+        }) { route in
+            NavigationStack {
+                switch route {
+                case .pairing:
+                    PairingView()
+                        .environmentObject(ClawbotChannelViewModel.shared)
+                case .trixBot:
+                    Color.clear
+                }
+            }
+        }
         .ignoresSafeArea(.keyboard)
         .safeAreaInset(edge: .top) {
             Color.clear.frame(height: 0)
@@ -54,6 +69,13 @@ struct MainTabView: View {
         .onChange(of: appState.selectedTab) { newTab in
             UITestEventLogger.log("MainTabView observed selectedTab -> \(newTab.rawValue)")
             handleTabChange(to: newTab)
+        }
+        .onChange(of: appState.pendingCompanionRoute) { route in
+            UITestEventLogger.log("MainTabView mirrored companion route -> \(route?.id ?? "nil")")
+            presentedCompanionRoute = route == .pairing ? route : nil
+        }
+        .onAppear {
+            presentedCompanionRoute = appState.pendingCompanionRoute
         }
         .animation(.easeInOut(duration: 0.24), value: shouldShowTabBar)
     }

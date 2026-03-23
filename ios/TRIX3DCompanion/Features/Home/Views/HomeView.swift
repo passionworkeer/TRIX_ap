@@ -106,12 +106,9 @@ struct HomeView: View {
                             botName: "TRIX",
                             botAvatar: "sparkles"
                         ) {
-                            let destination: PendingCompanionRoute = clawbotChannel.isPaired ? .trixBot : .pairing
-                            UITestEventLogger.log(
-                                "Home bot bubble tapped -> \(destination == .trixBot ? "chat" : "pairing")"
-                            )
-                            appState.pendingCompanionRoute = destination
+                            UITestEventLogger.log("Home bot bubble tapped -> chat")
                             appState.selectTab(.chat)
+                            appState.presentCompanion(.trixBot)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -168,6 +165,7 @@ struct HomeView: View {
                     initialAttachedImageURL: pendingSnapshotImageURL
                 )
                 .environmentObject(clawbotChannel)
+                .environmentObject(ChatService.shared)
             }
         }
         .photosPicker(

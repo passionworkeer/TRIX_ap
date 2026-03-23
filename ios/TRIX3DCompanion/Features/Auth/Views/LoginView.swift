@@ -30,6 +30,7 @@ struct LoginView: View {
 
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var hasAttemptedUITestAutoLogin = false
 
     @FocusState private var focusedField: Field?
 
@@ -96,6 +97,10 @@ struct LoginView: View {
                 showingError = true
             }
         }
+        .task {
+            await performUITestAutoLoginIfNeeded()
+        }
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginScene)
     }
 
     // MARK: - Background
@@ -175,6 +180,7 @@ struct LoginView: View {
                     .onSubmit {
                         focusedField = .password
                     }
+                    .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginEmailField)
             }
             .padding(16)
             .background(Color(.secondarySystemBackground))
@@ -198,6 +204,7 @@ struct LoginView: View {
                         focusedField = nil
                         Task { await handleLogin() }
                     }
+                    .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginPasswordField)
             }
             .padding(16)
             .background(Color(.secondarySystemBackground))
@@ -233,6 +240,7 @@ struct LoginView: View {
         }
         .disabled(isSubmitDisabled)
         .opacity(isSubmitDisabled ? 0.6 : 1)
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSubmitButton)
     }
 
     // MARK: - OAuth Divider
@@ -303,6 +311,7 @@ struct LoginView: View {
                 onSwitchToRegister()
             }
             .fontWeight(.semibold)
+            .accessibilityIdentifier(AuthAccessibilityIdentifiers.loginSwitchToRegisterButton)
         }
         .font(.subheadline)
         .padding(.top, 8)
@@ -332,7 +341,38 @@ struct LoginView: View {
         showsDebugLoadingPreview
     }
 
+    private var uiAutoLoginCredentials: (email: String, password: String)? {
+        let info = ProcessInfo.processInfo
+        guard info.arguments.contains("--ui-auto-login") else { return nil }
+
+        let environment = info.environment
+        guard let email = environment["TRIX_TEST_EMAIL"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let password = environment["TRIX_TEST_PASSWORD"],
+              !email.isEmpty,
+              !password.isEmpty else {
+            return nil
+        }
+
+        return (email, password)
+    }
+
     // MARK: - Actions
+
+    @MainActor
+    private func performUITestAutoLoginIfNeeded() async {
+        guard !hasAttemptedUITestAutoLogin,
+              let credentials = uiAutoLoginCredentials else {
+            return
+        }
+
+        hasAttemptedUITestAutoLogin = true
+        email = credentials.email
+        password = credentials.password
+
+        // Give SwiftUI one render pass so the auth scene is fully mounted before starting login.
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        await handleLogin()
+    }
 
     private func handleLogin() async {
         focusedField = nil

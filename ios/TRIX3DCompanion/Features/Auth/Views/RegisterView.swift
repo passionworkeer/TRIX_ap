@@ -105,6 +105,7 @@ struct RegisterView: View {
                 showingSuccess = true
             }
         }
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerScene)
     }
 
     // MARK: - Background
@@ -239,6 +240,7 @@ struct RegisterView: View {
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .accessibilityIdentifier(textFieldAccessibilityIdentifier(for: placeholder))
         }
         .padding(16)
         .background(Color(.secondarySystemBackground))
@@ -271,6 +273,7 @@ struct RegisterView: View {
 
             SecureField(placeholder, text: text)
                 .textContentType(.newPassword)
+                .accessibilityIdentifier(secureFieldAccessibilityIdentifier(for: placeholder))
         }
         .padding(16)
         .background(Color(.secondarySystemBackground))
@@ -300,6 +303,7 @@ struct RegisterView: View {
         }
         .disabled(isSubmitDisabled)
         .opacity(isSubmitDisabled ? 0.6 : 1)
+        .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerSubmitButton)
     }
 
     // MARK: - Switch to Login
@@ -313,9 +317,32 @@ struct RegisterView: View {
                 onSwitchToLogin()
             }
             .fontWeight(.semibold)
+            .accessibilityIdentifier(AuthAccessibilityIdentifiers.registerSwitchToLoginButton)
         }
         .font(.subheadline)
         .padding(.top, 8)
+    }
+
+    private func textFieldAccessibilityIdentifier(for placeholder: String) -> String {
+        switch placeholder {
+        case L("auth.username.placeholder"):
+            return AuthAccessibilityIdentifiers.registerUsernameField
+        case L("auth.email.placeholder"):
+            return AuthAccessibilityIdentifiers.registerEmailField
+        default:
+            return ""
+        }
+    }
+
+    private func secureFieldAccessibilityIdentifier(for placeholder: String) -> String {
+        switch placeholder {
+        case L("auth.password.placeholder"):
+            return AuthAccessibilityIdentifiers.registerPasswordField
+        case L("auth.confirm.password"):
+            return AuthAccessibilityIdentifiers.registerConfirmPasswordField
+        default:
+            return ""
+        }
     }
 
     // MARK: - Loading Overlay

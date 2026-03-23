@@ -21,6 +21,12 @@ enum ChatAccessibilityIdentifiers {
     static let reloadButton = "chat.reload.button"
 }
 
+private enum ChatSheetRoute: String, Identifiable {
+    case createChat
+
+    var id: String { rawValue }
+}
+
 // MARK: - Chat List View
 
 /// Main chat screen showing all conversations with native iOS design
@@ -29,7 +35,6 @@ struct ChatListView: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var chatService: ChatService
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
 
     // MARK: - Callbacks
@@ -38,16 +43,18 @@ struct ChatListView: View {
 
     // MARK: - State
 
-    init(onNavigateToChat: ((ChatConversation) -> Void)? = nil) {
+    init(
+        onNavigateToChat: ((ChatConversation) -> Void)? = nil
+    ) {
         self.onNavigateToChat = onNavigateToChat
     }
 
     @StateObject private var friendService = FriendService.shared
     @State private var searchText = ""
     @State private var selectedConversation: ChatConversation?
-    @State private var showingCreateChat = false
-    @State private var showingPairing = false
-    @State private var showingTrixBotChat = false
+    @State private var activeSheet: ChatSheetRoute?
+    @State private var activeCompanionRoute: PendingCompanionRoute?
+    @State private var isShowingTrixBotChat = false
     @State private var newChatName = ""
     @State private var isCreatingChat = false
     @State private var conversations: [ChatConversation] = []
@@ -57,6 +64,7 @@ struct ChatListView: View {
     @State private var friendActionError: String?
     @State private var friendLoadNote: String?
     @State private var isLoading = true
+    @State private var didAutoOpenTrixBotForUITest = false
 
     // MARK: - Body
 
@@ -86,13 +94,16 @@ struct ChatListView: View {
                 }
                 .padding(.bottom, 20)
             }
+
         }
         .navigationTitle(L("chat.title"))
         .navigationBarTitleDisplayMode(.large)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.screen)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: createNewChat) {
+                Button {
+                    activeSheet = .createChat
+                } label: {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color.brandPurple)
@@ -106,27 +117,51 @@ struct ChatListView: View {
                 .buttonStyle(.plain)
             }
         }
-        .sheet(isPresented: $showingCreateChat) { createChatSheet }
-        .sheet(isPresented: $showingPairing) {
-            NavigationStack {
-                PairingView()
-                    .environmentObject(clawbotChannel)
+        .sheet(item: $activeSheet) { route in
+            switch route {
+            case .createChat:
+                createChatSheet
             }
         }
+        .navigationDestination(isPresented: $isShowingTrixBotChat) {
+            TrixBotChatView()
+                .environmentObject(ClawbotChannelViewModel.shared)
+                .environmentObject(ChatService.shared)
+        }
+        .fullScreenCover(item: $activeCompanionRoute) { route in
+            NavigationStack {
+                switch route {
+                case .trixBot:
+                    TrixBotChatView()
+                        .environmentObject(ClawbotChannelViewModel.shared)
+                        .environmentObject(ChatService.shared)
+                case .pairing:
+                    PairingView()
+                        .environmentObject(ClawbotChannelViewModel.shared)
+                }
+            }
+        }
+        .onChange(of: appState.pendingCompanionRoute) { route in
+            guard let route else { return }
+            switch route {
+            case .trixBot:
+                isShowingTrixBotChat = true
+            case .pairing:
+                activeCompanionRoute = .pairing
+            }
+            appState.clearPendingCompanionRoute()
+        }
         .onAppear {
+            if !didAutoOpenTrixBotForUITest,
+               ProcessInfo.processInfo.arguments.contains("--ui-open-trixbot") {
+                didAutoOpenTrixBotForUITest = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    isShowingTrixBotChat = true
+                }
+            }
             Task {
                 await loadFriends()
             }
-            consumePendingCompanionRouteIfNeeded()
-        }
-        .sheet(isPresented: $showingTrixBotChat) {
-            NavigationStack {
-                TrixBotChatView()
-                    .environmentObject(clawbotChannel)
-            }
-        }
-        .onChange(of: appState.pendingCompanionRoute) { _ in
-            consumePendingCompanionRouteIfNeeded()
         }
         .alert(L("error.operation.failed"), isPresented: Binding(
             get: { friendActionError != nil },
@@ -281,91 +316,92 @@ struct ChatListView: View {
     // MARK: - TRIX Bot Entry
 
     private var trixBotEntry: some View {
-        Button {
-            if clawbotChannel.isPaired {
-                showingTrixBotChat = true
-            } else {
-                showingPairing = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                // Avatar with status
-                ZStack(alignment: .bottomTrailing) {
-                    Image("AvatarHead")
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 56, height: 56)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.textPrimary.opacity(0.7), lineWidth: 2)
-                        )
-
-                    Circle()
-                        .fill(clawbotChannel.isPaired ? .success : .warning)
-                        .frame(width: 14, height: 14)
-                        .overlay(Circle().stroke(.white, lineWidth: 2.5))
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Text(L("chat.trixbot.name"))
-                            .font(.headline)
-                            .fontWeight(.bold)
-
-                        if clawbotChannel.isPaired {
-                            Text(L("pairing.online"))
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.success)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.success.opacity(0.15))
-                                .clipShape(Capsule())
-                        }
-                    }
-
-                    Text(clawbotChannel.isPaired ? L("chat.trixbot.action.ready") : L("chat.trixbot.action.pair.first"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Text(clawbotChannel.isPaired ? L("chat.trixbot.status.ready") : L("chat.trixbot.instruction.pair.first"))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.up.right.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.brandPurple, Color.brandPink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            .padding(18)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(.secondarySystemGroupedBackground),
-                        Color(.systemBackground).opacity(0.96)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.textPrimary.opacity(0.8), lineWidth: 1)
-            )
-            .shadow(color: .overlay.opacity(0.05), radius: 12, x: 0, y: 8)
+        trixBotCardContent
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .onTapGesture {
+            isShowingTrixBotChat = true
         }
-        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
+    }
+
+    private var trixBotCardContent: some View {
+        HStack(spacing: 12) {
+            ZStack(alignment: .bottomTrailing) {
+                Image("AvatarHead")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 56, height: 56)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.textPrimary.opacity(0.7), lineWidth: 2)
+                    )
+
+                Circle()
+                    .fill(clawbotChannel.isPaired ? .success : .warning)
+                    .frame(width: 14, height: 14)
+                    .overlay(Circle().stroke(.white, lineWidth: 2.5))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text(L("chat.trixbot.name"))
+                        .font(.headline)
+                        .fontWeight(.bold)
+
+                    if clawbotChannel.isPaired {
+                        Text(L("pairing.online"))
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.success)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.success.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                Text(clawbotChannel.isPaired ? L("chat.trixbot.action.ready") : L("chat.trixbot.action.pair.first"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(clawbotChannel.isPaired ? L("chat.trixbot.status.ready") : L("chat.trixbot.instruction.pair.first"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+
+            Image(systemName: "arrow.up.right.circle.fill")
+                .font(.title3)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.brandPurple, Color.brandPink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(.secondarySystemGroupedBackground),
+                    Color(.systemBackground).opacity(0.96)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.textPrimary.opacity(0.8), lineWidth: 1)
+        )
+        .shadow(color: .overlay.opacity(0.05), radius: 12, x: 0, y: 8)
     }
 
     // MARK: - Quick Add Section - Redesigned to match list style
@@ -469,7 +505,7 @@ struct ChatListView: View {
                 .foregroundStyle(.tertiary)
 
             Button(L("chat.create.conversation")) {
-                showingCreateChat = true
+                activeSheet = .createChat
             }
             .buttonStyle(.borderedProminent)
         }
@@ -500,12 +536,11 @@ struct ChatListView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Button(clawbotChannel.isPaired ? L("chat.trixbot.action.start") : L("chat.trixbot.action.pair")) {
-                if clawbotChannel.isPaired {
-                    showingTrixBotChat = true
-                } else {
-                    showingPairing = true
-                }
+            Button {
+                isShowingTrixBotChat = true
+            } label: {
+                Text(clawbotChannel.isPaired ? L("chat.trixbot.action.start") : L("chat.trixbot.action.pair"))
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
 
@@ -569,19 +604,6 @@ struct ChatListView: View {
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 
-    private func consumePendingCompanionRouteIfNeeded() {
-        guard let route = appState.pendingCompanionRoute else { return }
-
-        switch route {
-        case .trixBot:
-            showingTrixBotChat = true
-        case .pairing:
-            showingPairing = true
-        }
-
-        appState.pendingCompanionRoute = nil
-    }
-
     private func addUser(_ user: RecommendedUser) async {
         do {
             try await friendService.addFriend(friendId: user.id)
@@ -612,7 +634,7 @@ struct ChatListView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L("action.cancel")) {
                         newChatName = ""
-                        showingCreateChat = false
+                        activeSheet = nil
                     }
                 }
             }
@@ -646,7 +668,7 @@ struct ChatListView: View {
                 await MainActor.run {
                     conversations.insert(newConversation, at: 0)
                     newChatName = ""
-                    showingCreateChat = false
+                    activeSheet = nil
                     isCreatingChat = false
                 }
             } catch {

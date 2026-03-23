@@ -88,9 +88,12 @@ enum AppUIIdentifiers {
     static let pairingCodeField = "pairing.code.field"
     static let pairingVerifyButton = "pairing.verify.button"
     static let trixBotScreen = "trixbot.screen"
+    static let trixBotPairedBanner = "trixbot.banner.paired"
+    static let trixBotUnpairedBanner = "trixbot.banner.unpaired"
     static let trixBotInputField = "trixbot.input.field"
     static let trixBotSendButton = "trixbot.send.button"
     static let trixBotCloseButton = "trixbot.close.button"
+    static let trixBotAttachmentPreview = "trixbot.attachment.preview"
 }
 
 class RealAppUITestCase: XCTestCase {
@@ -108,14 +111,25 @@ class RealAppUITestCase: XCTestCase {
 
     func launchLoggedOut(initialTab: String? = nil) {
         app.launchArguments = baseLaunchArguments(forceLoggedOut: true, initialTab: initialTab)
+        app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
     }
 
-    func launchAuthenticated(initialTab: String? = nil, expectedIdentifier: String) throws {
-        app.launchArguments = baseLaunchArguments(forceLoggedOut: true, initialTab: initialTab)
+    func launchAuthenticated(
+        initialTab: String? = nil,
+        expectedIdentifier: String,
+        extraArguments: [String] = []
+    ) throws {
+        app.launchArguments = baseLaunchArguments(forceLoggedOut: true, initialTab: initialTab) + extraArguments
+        app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
 
         if element(withIdentifier: expectedIdentifier).waitForExistence(timeout: 5) {
+            return
+        }
+
+        if extraArguments.contains("--ui-auto-login"),
+           element(withIdentifier: expectedIdentifier).waitForExistence(timeout: 20) {
             return
         }
 
@@ -254,6 +268,24 @@ class RealAppUITestCase: XCTestCase {
         _ = tapReliably(element, timeout: timeout)
     }
 
+    func tapAbsoluteCenter(of element: XCUIElement, timeout: TimeInterval = 5) {
+        XCTAssertTrue(element.waitForExistence(timeout: timeout))
+
+        let frame = element.frame
+        let appFrame = app.frame
+        guard appFrame.width > 0, appFrame.height > 0 else {
+            XCTFail("App frame is invalid for absolute tap.")
+            return
+        }
+
+        let normalized = CGVector(
+            dx: min(max(frame.midX / appFrame.width, 0.01), 0.99),
+            dy: min(max(frame.midY / appFrame.height, 0.01), 0.99)
+        )
+
+        app.coordinate(withNormalizedOffset: normalized).tap()
+    }
+
     func tapCenterOfApp() {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
@@ -357,6 +389,24 @@ class RealAppUITestCase: XCTestCase {
         }
 
         return arguments
+    }
+
+    private func baseLaunchEnvironment() -> [String: String] {
+        var environment: [String: String] = [:]
+
+        if let email = config.email, !email.isEmpty {
+            environment["TRIX_TEST_EMAIL"] = email
+        }
+
+        if let password = config.password, !password.isEmpty {
+            environment["TRIX_TEST_PASSWORD"] = password
+        }
+
+        if let screenshotDirectory = config.screenshotDirectory, !screenshotDirectory.isEmpty {
+            environment["TRIX_UI_SCREENSHOT_DIR"] = screenshotDirectory
+        }
+
+        return environment
     }
 
     private func requiredCredential(
