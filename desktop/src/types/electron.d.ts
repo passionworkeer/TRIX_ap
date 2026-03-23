@@ -124,7 +124,9 @@ export interface ElectronAPI {
   sendMessage: (conversationId: string, content: string) => Promise<ApiResult<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>;
   sendReaction: (messageId: string, emoji: string) => Promise<ApiResult<void>>;
 
-  // Native Channel Pairing
+  // === System ===
+  getAutostart: () => Promise<ApiResult<{ enabled: boolean }>>;
+  setAutostart: (enabled: boolean) => Promise<ApiResult<void>>;
   createQrCode: (label?: string) => Promise<PairingQrResult>;
   createPairingQr: (label?: string) => Promise<PairingQrResult>; // alias for createQrCode
   pollPairingStatus: (code: string) => Promise<PairingStatusResult>;

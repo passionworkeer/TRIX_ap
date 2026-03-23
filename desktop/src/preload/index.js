@@ -112,6 +112,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSystemInfo: () => ipcRenderer.invoke('system:info'),
   getDiskInfo: () => ipcRenderer.invoke('system:disk'),
   checkPackages: () => ipcRenderer.invoke('system:check-packages'),
+  getAutostart: () => ipcRenderer.invoke('system:autostart-get'),
+  setAutostart: (enabled: boolean) => ipcRenderer.invoke('system:autostart-set', enabled),
 
   // === Third-party Channels ===
   channelsConfigure: (channel, config) => ipcRenderer.invoke('channels:configure', channel, config),

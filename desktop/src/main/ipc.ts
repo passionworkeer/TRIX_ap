@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import log from 'electron-log/main';
 import https from 'https';
 import http from 'http';
@@ -1727,6 +1727,25 @@ export function setupIpcHandlers(): void {
       if (!job) return { success: false, error: `Job '${safeId}' not found` };
       job.enabled = enabled;
       await fs.promises.writeFile(cronPath, JSON.stringify(jobs, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('system:autostart-get', async () => {
+    try {
+      const loginItemSettings = app.getLoginItemSettings();
+      return { success: true, data: { enabled: loginItemSettings.openAtLogin } };
+    } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('system:autostart-set', async (_event, enabled: unknown) => {
+    try {
+      if (typeof enabled !== 'boolean') return { success: false, error: 'Expected boolean' };
+      app.setLoginItem({ openAtLogin: enabled, path: process.execPath });
       return { success: true };
     } catch (err: unknown) {
       return { success: false, error: String(err) };
