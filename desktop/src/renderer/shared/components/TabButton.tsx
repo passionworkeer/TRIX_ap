@@ -1,20 +1,23 @@
-import React from 'react';
+import type { ComponentType } from 'react';
+import { Info, Bot, Zap, FolderOpen, Link, Server, User, Cpu, Clock } from 'lucide-react';
 
-export type SettingsTab = 'overview' | 'agents' | 'skills' | 'backups' | 'pairing' | 'gateway' | 'account';
+export type SettingsTab = 'overview' | 'agents' | 'models' | 'cron' | 'skills' | 'backups' | 'pairing' | 'gateway' | 'account';
 
 interface TabConfig {
   label: string;
-  icon: React.ElementType;
+  icon: ComponentType<{ size?: number }>;
 }
 
 export const SETTINGS_TAB_LABELS: Record<SettingsTab, TabConfig> = {
-  overview: { label: '概览', icon: require('lucide-react').Info },
-  agents: { label: 'Agents', icon: require('lucide-react').Bot },
-  skills: { label: 'Skills', icon: require('lucide-react').Zap },
-  backups: { label: '备份', icon: require('lucide-react').FolderOpen },
-  pairing: { label: '配对码', icon: require('lucide-react').Link },
-  gateway: { label: 'Gateway', icon: require('lucide-react').Server },
-  account: { label: '账户', icon: require('lucide-react').User },
+  overview: { label: '概览', icon: Info },
+  agents: { label: 'Agents', icon: Bot },
+  models: { label: 'Models', icon: Cpu },
+  cron: { label: '定时任务', icon: Clock },
+  skills: { label: 'Skills', icon: Zap },
+  backups: { label: '备份', icon: FolderOpen },
+  pairing: { label: '配对码', icon: Link },
+  gateway: { label: 'Gateway', icon: Server },
+  account: { label: '账户', icon: User },
 };
 
 interface TabButtonProps {
@@ -25,7 +28,7 @@ interface TabButtonProps {
 
 export const TabButton = ({ tab, active, onClick }: TabButtonProps) => {
   const cfg = SETTINGS_TAB_LABELS[tab];
-  const Icon = cfg.icon as React.ComponentType<{ size?: number }>;
+  const Icon = cfg.icon as ComponentType<{ size?: number }>;
   return (
     <button
       onClick={onClick}

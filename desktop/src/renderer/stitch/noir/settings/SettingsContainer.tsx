@@ -10,6 +10,9 @@ import { SettingsBackups } from './SettingsBackups';
 import { SettingsPairing } from './SettingsPairing';
 import { SettingsGateway } from './SettingsGateway';
 import { SettingsAccount } from './SettingsAccount';
+import { SettingsModels } from './SettingsModels';
+import { SettingsCron } from './SettingsCron';
+import { StartupCheckDialog } from '../../../shared/components/StartupCheckDialog';
 
 export interface SettingsSharedState {
   activeTab: SettingsTab;
@@ -42,6 +45,7 @@ export default function SettingsContainer() {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [runningCommand, setRunningCommand] = useState(false);
   const [gatewayLogLines, setGatewayLogLines] = useState<string[]>([]);
+  const [showStartupCheck, setShowStartupCheck] = useState(false);
 
   const addLog = useCallback((entry: LogEntry) => {
     setLogEntries((prev) => [...prev.slice(-99), entry]);
@@ -181,6 +185,18 @@ export default function SettingsContainer() {
     return () => { unsubProgress?.(); };
   }, [loadStatus, addLog]);
 
+  // Auto-run startup environment check on mount
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+    api.checkPackages().then(result => {
+      if (result.success && result.data) {
+        const missing = result.data.filter((p: { installed?: boolean }) => !p.installed);
+        if (missing.length > 0) setShowStartupCheck(true);
+      }
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'gateway') loadGatewayLogs();
   }, [activeTab, gatewayStatus, loadGatewayLogs]);
@@ -222,8 +238,8 @@ export default function SettingsContainer() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2 }}>
           {(Object.keys({
-            overview: true, agents: true, skills: true, backups: true,
-            pairing: true, gateway: true, account: true,
+            overview: true, agents: true, models: true, cron: true,
+            skills: true, backups: true, pairing: true, gateway: true, account: true,
           }) as SettingsTab[]).map((tab) => (
             <TabButton key={tab} tab={tab} active={activeTab === tab} onClick={() => setActiveTab(tab)} />
           ))}
@@ -234,6 +250,8 @@ export default function SettingsContainer() {
       <div style={{ padding: '20px 28px 28px' }}>
         {activeTab === 'overview' && <SettingsOverview {...shared} />}
         {activeTab === 'agents' && <SettingsAgents {...shared} />}
+        {activeTab === 'models' && <SettingsModels {...shared} />}
+        {activeTab === 'cron' && <SettingsCron {...shared} />}
         {activeTab === 'skills' && <SettingsSkills {...shared} />}
         {activeTab === 'backups' && <SettingsBackups {...shared} />}
         {activeTab === 'pairing' && <SettingsPairing {...shared} />}
@@ -245,6 +263,11 @@ export default function SettingsContainer() {
           <DarkTerminal entries={logEntries} autoScroll maxEntries={200} />
         </div>
       </div>
+
+      {/* Startup Environment Check Dialog */}
+      {showStartupCheck && (
+        <StartupCheckDialog onClose={() => setShowStartupCheck(false)} />
+      )}
     </div>
   );
 }
