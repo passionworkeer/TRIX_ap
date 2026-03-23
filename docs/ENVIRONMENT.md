@@ -1,7 +1,7 @@
 # 环境变量参考文档
 
 > 本文档详细列出 TRIX 3D Companion 项目中使用的所有环境变量
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-03-23
 
 ---
 
@@ -12,8 +12,11 @@
 3. [Legacy Clawbot (兼容)](#3-legacy-clawbot-兼容)
 4. [阿里云 OSS](#4-阿里云-oss)
 5. [日志配置](#5-日志配置)
-6. [其他配置](#6-其他配置)
-7. [服务器端变量](#7-服务器端变量)
+6. [地图配置](#6-地图配置)
+7. [其他配置](#7-其他配置)
+8. [服务器端变量](#8-服务器端变量)
+9. [各端 .env 文件](#9-各端-env-文件)
+10. [快速配置](#10-快速配置)
 
 ---
 
@@ -104,7 +107,15 @@ VITE_ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 
 ---
 
-## 6. 其他配置
+## 6. 地图配置
+
+| 变量名 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `VITE_BAIDU_MAP_AK` | string | - | 百度地图 API Key（Map/SnapMapScreen 使用） |
+
+---
+
+## 7. 其他配置
 
 | 变量名 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
@@ -113,9 +124,7 @@ VITE_ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 
 ---
 
-## 7. 服务器端变量
-
-这些变量用于 TRIX Native Server (端口 8788)。
+## 8. 服务器端变量
 
 ### 服务器运行
 
@@ -142,19 +151,50 @@ VITE_ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 
 ---
 
-## 环境文件优先级
+## 9. 各端 .env 文件
 
-项目使用以下环境文件（优先级从高到低）:
+### Web 前端
 
-1. `.env.production` - 生产环境
-2. `.env` - 本地开发
-3. `.env.example` - 模板文件
+```bash
+cp .env.example .env
+```
+
+Vite 环境文件优先级（从高到低）：
+
+1. `.env.local` - 本地覆盖（勿提交）
+2. `.env.[mode]` - 如 `.env.production`（Vite 会在对应模式自动加载）
+3. `.env` - 所有模式共享
+4. `.env.example` - 模板文件（勿包含敏感信息）
 
 **注意**: 前端环境变量必须以 `VITE_` 开头，否则无法在浏览器中使用。
 
+### Desktop（Electron）
+
+Desktop 独立使用 `desktop/.env.example`：
+
+| 变量名 | 说明 |
+|--------|------|
+| `SUPABASE_URL` | Supabase URL（主进程 IPC 暴露给渲染进程） |
+| `SUPABASE_ANON_KEY` | Supabase Anon Key |
+
+```bash
+cp desktop/.env.example desktop/.env.local
+```
+
+### iOS
+
+iOS 独立使用 `ios/TRIX3DCompanion/.env.example`：
+
+| 变量名 | 说明 |
+|--------|------|
+| `WECHAT_APP_ID` | 微信 App ID |
+| `WECHAT_APP_SECRET` | 微信 App Secret |
+| `DEMO_EMAIL` | Demo 账号邮箱 |
+| `DEMO_PASSWORD` | Demo 账号密码 |
+
 ---
 
-## 快速配置
+## 10. 快速配置
 
 ### 开发环境
 
@@ -168,9 +208,11 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_TRIX_NATIVE_SERVER_URL=http://localhost:8788
 ```
 
-### 生产环境 (.env.production)
+### 生产构建
 
 ```bash
+# Vite 在构建时自动加载 .env.production（如有自定义生产变量，直接编辑 .env.production）
+# 本地覆盖用 .env.production.local（勿提交）
 VITE_SUPABASE_URL=https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 VITE_TRIX_NATIVE_SERVER_URL=http://TRIX_SERVER_HOST:8788
@@ -195,4 +237,4 @@ VITE_TRIX_NATIVE_PUBLIC_URL=http://TRIX_SERVER_HOST:8788
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23

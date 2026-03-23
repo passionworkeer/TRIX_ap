@@ -102,10 +102,10 @@ window.electronAPI = {
   getGatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
 
   // === Supabase Auth ===
-  getAuthSession: () => Promise<AuthSession>,
-  signIn: (email: string, password: string) => Promise<AuthUser>,
-  signUp: (email: string, password: string) => Promise<AuthUser>,
-  signOut: () => Promise<void>,
+  authGetSession: () => Promise<AuthSession>,
+  authSignIn: (email: string, password: string) => Promise<AuthUser>,
+  authSignUp: (email: string, password: string) => Promise<AuthUser>,
+  authSignOut: () => Promise<void>,
 
   // === Study Data ===
   listTodos: () => Promise<Todo[]>,
@@ -304,7 +304,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 // Bot State（1）
 'bot-state:push'           → 推送 Bot 状态（Renderer → Main）
 
-// OpenClaw（14）
+// OpenClaw（12）
 'openclaw:check'           → 检查安装状态
 'openclaw:install'         → 安装 OpenClaw
 'openclaw:status'          → 运行 openclaw status 命令
@@ -371,13 +371,13 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **OpenClaw 命令白名单**（`ipc.ts`）：
 ```typescript
 const ALLOWED_COMMANDS = [
-  { cmd: 'status', args: undefined },
-  { cmd: 'doctor', args: undefined },
-  { cmd: 'agents', args: ['list'] },
-  { cmd: 'skills', args: ['list'] },
-  { cmd: 'pairing', args: ['create'] },
-  { cmd: 'backup', args: ['list'] },
-  { cmd: 'backup', args: ['restore'] },  // ← 已实现
+  { cmd: 'status', description: 'OpenClaw status' },
+  { cmd: 'doctor', description: 'Health check' },
+  { cmd: 'agents', args: ['list'], description: 'List agents' },
+  { cmd: 'skills', args: ['list'], description: 'List skills' },
+  { cmd: 'pairing', args: ['create'], description: 'Create pairing code' },
+  { cmd: 'backup', args: ['list'], description: 'List backups' },
+  { cmd: 'backup', args: ['create'], description: 'Create a new backup' },
 ];
 ```
 

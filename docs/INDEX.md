@@ -165,8 +165,8 @@ requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 📖 操作指南 (guides/) | 5（含 iOS 测试部署指南） |
 | 🗂️ 归档 (.archive/) | 1 |
 
-**总计**: 30 个活跃文档（归档 1 个） + screenshots/（截图资产目录）
+**总计**: 32 个活跃文档（不含 .archive/，不含 screens/）+ screenshots/（截图资产目录）
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23

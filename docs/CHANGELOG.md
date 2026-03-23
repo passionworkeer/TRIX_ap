@@ -959,4 +959,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23
