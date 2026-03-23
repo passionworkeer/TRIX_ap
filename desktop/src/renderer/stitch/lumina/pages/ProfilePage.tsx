@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   User, Edit, Share2, Shield, Key, Smartphone,
   Monitor, ChevronRight, Plus, Twitter, Github,
   MessageCircle, CheckCircle, Lock, Award, Calendar,
-  MapPin, CreditCard, Wifi,
+  MapPin, CreditCard, Wifi, X,
 } from 'lucide-react';
 import { LuminaButton } from '../components/buttons';
 import { SurfaceCard } from '../components/cards';
+import { LuminaInput } from '../components/inputs';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ interface Achievement {
   id: string;
   icon: React.ReactNode;
   label: string;
+  description: string;
   earned: boolean;
   lockedLabel?: string;
 }
@@ -62,15 +64,15 @@ const C = {
 // ── Demo fallback data ────────────────────────────────────────────────────────
 
 const DEMO_ACHIEVEMENTS: Achievement[] = [
-  { id: '1', icon: <User size={20} />, label: '首次配对', earned: true },
-  { id: '2', icon: <Award size={20} />, label: '7天连续活跃', earned: true },
-  { id: '3', icon: <MessageCircle size={20} />, label: 'AI 对话大师', earned: true },
-  { id: '4', icon: <Share2 size={20} />, label: '首次分享', earned: true },
-  { id: '5', icon: <Shield size={20} />, label: '安全先锋', earned: true },
-  { id: '6', icon: <Key size={20} />, label: 'API 探索者', earned: true },
-  { id: '7', icon: <Wifi size={20} />, label: '跨端互联', earned: false },
-  { id: '8', icon: <CreditCard size={20} />, label: '付费用户', earned: false },
-  { id: '9', icon: <Calendar size={20} />, label: '一周年纪念', earned: false },
+  { id: '1', icon: <User size={20} />, label: '首次配对', description: '成功完成首次设备配对，开启跨端同步体验', earned: true },
+  { id: '2', icon: <Award size={20} />, label: '7天连续活跃', description: '连续 7 天使用 TRIX，累计超过 10 小时专注时间', earned: true },
+  { id: '3', icon: <MessageCircle size={20} />, label: 'AI 对话大师', description: '与 TRIX 进行超过 100 次深度对话', earned: true },
+  { id: '4', icon: <Share2 size={20} />, label: '首次分享', description: '首次将 TRIX 推荐给好友', earned: true },
+  { id: '5', icon: <Shield size={20} />, label: '安全先锋', description: '启用双重验证，全面保护账户安全', earned: true },
+  { id: '6', icon: <Key size={20} />, label: 'API 探索者', description: '使用 TRIX API 完成首次自动化集成', earned: true },
+  { id: '7', icon: <Wifi size={20} />, label: '跨端互联', description: '同时连接 Web + iOS + 桌面三端', earned: false },
+  { id: '8', icon: <CreditCard size={20} />, label: '付费用户', description: '升级至高级账户，解锁全部功能', earned: false },
+  { id: '9', icon: <Calendar size={20} />, label: '一周年纪念', description: '与 TRIX 共同成长满一年', earned: false },
 ];
 
 const MOCK_SECURITY_ITEMS: SecurityItem[] = [
@@ -302,16 +304,29 @@ export default function ProfilePage() {
     level: number;
   }>({ displayName: 'TRIX 用户', points: 0, streak: 0, level: 1 });
 
+  // Avatar upload
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Edit profile modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editNickname, setEditNickname] = useState('Lang Wang');
+  const [editLocation, setEditLocation] = useState('北京市');
+
+  // Achievement detail
+  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+
   // Load achievements + profile stats from IPC (Supabase via main process)
   useEffect(() => {
     if (!api) return;
 
-    api.getAchievements().then((result: { success: boolean; data?: Achievement[] }) => {
+    api.getAchievements().then((result) => {
       if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-        setAchievements(result.data.map((a: Achievement) => ({
+        setAchievements(result.data.map((a) => ({
           id: a.id,
           icon: typeof a.icon === 'string' ? <span style={{ fontSize: 22 }}>{a.icon}</span> : a.icon,
           label: a.label,
+          description: '已解锁此成就徽章',
           earned: a.earned,
         })));
       }
@@ -325,6 +340,26 @@ export default function ProfilePage() {
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarUrl(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function openEditModal() {
+    setEditNickname('Lang Wang');
+    setEditLocation('北京市');
+    setEditModalOpen(true);
+  }
+
+  function saveProfile() {
+    setProfileStats((prev) => ({ ...prev, displayName: editNickname }));
+    setEditModalOpen(false);
+  }
 
   const handleConnect = (id: string) => {
     setSocialAccounts((prev) =>
@@ -360,27 +395,49 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}>
             {/* Avatar */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: C.onPrimary,
-                  letterSpacing: '0.02em',
-                  boxShadow: `0 4px 20px ${C.primary}30`,
-                }}
-              >
-                LW
-              </div>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="头像"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    boxShadow: `0 4px 20px ${C.primary}30`,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 26,
+                    fontWeight: 700,
+                    color: C.onPrimary,
+                    letterSpacing: '0.02em',
+                    boxShadow: `0 4px 20px ${C.primary}30`,
+                  }}
+                >
+                  LW
+                </div>
+              )}
+              {/* Hidden file input */}
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+              />
               {/* Edit overlay */}
               <button
-                onClick={() => {}}
+                onClick={() => avatarInputRef.current?.click()}
                 title="更换头像"
                 style={{
                   position: 'absolute',
@@ -469,7 +526,7 @@ export default function ProfilePage() {
                   size="md"
                   icon={<Edit size={13} />}
                   label="编辑资料"
-                  onClick={() => {}}
+                  onClick={openEditModal}
                 />
                 <LuminaButton
                   variant="outline"
@@ -535,6 +592,7 @@ export default function ProfilePage() {
                       (e.currentTarget as HTMLDivElement).style.background = `${C.primary}06`;
                     }
                   }}
+                  onClick={() => { if (achievement.earned) setSelectedAchievement(achievement); }}
                 >
                   <div
                     style={{
@@ -692,6 +750,163 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      {/* ── Edit Profile Modal ─────────────────────────────────────────── */}
+      {editModalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditModalOpen(false); }}
+        >
+          <div style={{
+            background: C.surfaceLowest,
+            borderRadius: 20,
+            padding: '28px 28px 24px',
+            width: 380,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: C.onSurface, margin: 0 }}>
+                编辑资料
+              </h2>
+              <button
+                onClick={() => setEditModalOpen(false)}
+                style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: 'none', background: C.surfaceLow, color: C.onSurfaceVariant,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', padding: 0,
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {/* Nickname */}
+            <div style={{ marginBottom: 16 }}>
+              <LuminaInput
+                label="昵称"
+                placeholder="输入你的昵称"
+                value={editNickname}
+                onChange={setEditNickname}
+              />
+            </div>
+            {/* Location */}
+            <div style={{ marginBottom: 28 }}>
+              <LuminaInput
+                label="所在地"
+                placeholder="输入你的城市"
+                value={editLocation}
+                onChange={setEditLocation}
+              />
+            </div>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setEditModalOpen(false)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10,
+                  border: `1px solid ${C.outlineVariant}`,
+                  background: 'transparent', color: C.onSurfaceVariant,
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={saveProfile}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10,
+                  border: 'none',
+                  background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                  color: C.onPrimary,
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  boxShadow: `0 4px 16px ${C.primary}40`,
+                }}
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Achievement Detail Modal ───────────────────────────────────── */}
+      {selectedAchievement && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedAchievement(null); }}
+        >
+          <div style={{
+            background: C.surfaceLowest,
+            borderRadius: 20,
+            padding: '32px 28px 24px',
+            width: 340,
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+          }}>
+            {/* Badge icon */}
+            <div style={{
+              width: 72, height: 72, borderRadius: 20,
+              background: `${C.primary}14`,
+              border: `2px solid ${C.primary}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+              color: C.primary,
+            }}>
+              {selectedAchievement.icon}
+            </div>
+            {/* Title */}
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: C.onSurface, margin: '0 0 8px' }}>
+              {selectedAchievement.label}
+            </h2>
+            {/* Status badge */}
+            <span style={{
+              display: 'inline-block',
+              padding: '3px 12px',
+              borderRadius: 999,
+              background: `${C.success}14`,
+              color: C.success,
+              fontSize: 11, fontWeight: 700,
+              marginBottom: 14,
+            }}>
+              已解锁
+            </span>
+            {/* Description */}
+            <p style={{
+              fontSize: 13.5, color: C.onSurfaceVariant,
+              lineHeight: 1.6, margin: '0 0 24px',
+            }}>
+              {selectedAchievement.description}
+            </p>
+            {/* Close button */}
+            <button
+              onClick={() => setSelectedAchievement(null)}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 10,
+                border: 'none',
+                background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                color: C.onPrimary,
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                boxShadow: `0 4px 16px ${C.primary}40`,
+              }}
+            >
+              知道了
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         ::-webkit-scrollbar { width: 4px; }

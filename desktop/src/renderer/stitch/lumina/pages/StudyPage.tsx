@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { LuminaTabBar } from '../../shared/components/LuminaTabBar';
+import { LuminaTabBar } from '../../../shared/components/LuminaTabBar';
 import {
   Play, Pause, SkipForward, Clock, CheckSquare, Plus,
   Circle, Shield, Wifi, Cpu, Activity, CheckCircle,
-  BookOpen, Zap, BarChart2,
+  BookOpen, Zap,
 } from 'lucide-react';
 
 // ── Design Tokens ───────────────────────────────────────────────────────────
@@ -1035,7 +1035,7 @@ export default function StudyPage() {
           </div>
         </div>
 
-        <LuminaTabBar tabs={tabs} activeTab={activeTab} onChange={(key) => setActiveTab(key as typeof activeTab)} />
+        <LuminaTabBar tabs={tabs} activeTab={activeTab} onChange={(key: string) => setActiveTab(key as typeof activeTab)} />
       </header>
 
       {/* ── Main Content ─────────────────────────────────────────────────────── */}

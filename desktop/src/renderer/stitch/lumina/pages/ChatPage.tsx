@@ -350,6 +350,14 @@ export default function ChatPage() {
   const [, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [showEmoji, setShowEmoji] = useState(false);
 
   // Load conversations on mount
   useEffect(() => {
@@ -491,6 +499,75 @@ export default function ChatPage() {
       handleSend();
     }
   };
+
+  const EMOJIS = ['😊', '👍', '🎯', '💡', '🔥', '🚀', '✅', '⭐', '🎉', '💪'];
+
+  function formatRecordingTime(secs: number) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function handleMicClick() {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+      setIsRecording(false);
+      setRecordingTime(0);
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((t) => t + 1);
+      }, 1000);
+    }).catch(() => { /* permission denied */ });
+  }
+
+  function handleImageClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !activeSession) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const imageUrl = ev.target?.result as string;
+      const newMsg: ChatMessage = {
+        id: `img-${Date.now()}`,
+        role: 'user',
+        content: '',
+        timestamp: new Date(),
+        imageUrl,
+      };
+      setSessions((prev) =>
+        prev.map((s) => s.id === activeSession!.id ? { ...s, messages: [...s.messages, newMsg] } : s),
+      );
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function handleEmojiClick(emoji: string) {
+    setInputValue((prev) => prev + emoji);
+    setShowEmoji(false);
+    inputRef.current?.focus();
+  }
+
+  function handleNewChat() {
+    if (!activeSession) return;
+    setSessions((prev) =>
+      prev.map((s) => s.id === activeSession!.id ? { ...s, messages: [] } : s),
+    );
+    setShowNewChatHint(true);
+  }
 
   // Group messages by date
   const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
@@ -983,38 +1060,77 @@ export default function ChatPage() {
             >
               {/* Left toolbar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {[
-                  { icon: Paperclip, label: '附件' },
-                  { icon: Smile, label: '表情' },
-                  { icon: Image, label: '图片' },
-                  { icon: Mic, label: '语音' },
-                ].map(({ icon: Icon, label }) => (
-                  <button
-                    key={label}
-                    title={label}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 8,
-                      border: 'none',
-                      background: 'transparent',
-                      color: C.onSurfaceVariant,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                    }}
-                  >
-                    <Icon size={16} />
-                  </button>
-                ))}
+                {/* Paperclip */}
+                <button
+                  title="附件"
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: 'none',
+                    background: 'transparent', color: C.onSurfaceVariant,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  <Paperclip size={16} />
+                </button>
+                {/* Smile — emoji picker */}
+                <button
+                  title="表情"
+                  onClick={() => setShowEmoji((p) => !p)}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: 'none',
+                    background: showEmoji ? C.surfaceHigh : 'transparent',
+                    color: showEmoji ? C.primary : C.onSurfaceVariant,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
+                  onMouseLeave={(e) => { if (!showEmoji) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  <Smile size={16} />
+                </button>
+                {/* Image */}
+                <button
+                  title="图片"
+                  onClick={handleImageClick}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: 'none',
+                    background: 'transparent', color: C.onSurfaceVariant,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  <Image size={16} />
+                </button>
+                {/* Mic */}
+                <button
+                  title={isRecording ? '停止录音' : '语音'}
+                  onClick={handleMicClick}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: 'none',
+                    background: isRecording ? '#fee2e2' : 'transparent',
+                    color: isRecording ? '#dc2626' : C.onSurfaceVariant,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', transition: 'all 0.15s',
+                  }}
+                >
+                  {isRecording ? (
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>■</span>
+                  ) : (
+                    <Mic size={16} />
+                  )}
+                </button>
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
               </div>
 
               {/* Send button */}
@@ -1029,6 +1145,94 @@ export default function ChatPage() {
               />
             </div>
           </div>
+          {/* Emoji picker overlay */}
+          {showEmoji && (
+            <div style={{
+              position: 'absolute',
+              bottom: '80px',
+              left: '28px',
+              background: C.surfaceLowest,
+              borderRadius: '12px',
+              border: `1px solid ${C.outlineVariant}`,
+              padding: '10px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              display: 'flex',
+              gap: '4px',
+              flexWrap: 'wrap',
+              maxWidth: '280px',
+              zIndex: 50,
+            }}>
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => handleEmojiClick(e)}
+                  style={{ fontSize: '20px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', borderRadius: '6px', transition: 'background 0.1s' }}
+                  onMouseEnter={(ev) => (ev.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh}
+                  onMouseLeave={(ev) => (ev.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Recording indicator + New Chat FAB */}
+          <div style={{ position: 'absolute', bottom: 80, right: 28, zIndex: 50 }}>
+            {isRecording ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: C.surfaceLowest,
+                borderRadius: 999,
+                border: `1px solid #dc262640`,
+                padding: '8px 16px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#dc2626',
+                  animation: 'pulse-rec 1s infinite',
+                  flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', fontFamily: 'system-ui' }}>
+                  {formatRecordingTime(recordingTime)}
+                </span>
+                <button
+                  onClick={handleMicClick}
+                  title="停止录音"
+                  style={{
+                    border: 'none', background: '#dc2626', color: '#fff',
+                    borderRadius: '50%', width: 22, height: 22,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', flexShrink: 0, padding: 0,
+                  }}
+                >
+                  <span style={{ fontSize: 9, lineHeight: 1 }}>■</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleNewChat}
+                title="新建对话"
+                style={{
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                  color: C.onPrimary,
+                  border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 4px 16px ${C.primary}50`,
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={20} />
+              </button>
+            )}
+          </div>
+          <style>{`
+            @keyframes spin { to { transform: rotate(360deg); } }
+            @keyframes pulse-rec {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.5; transform: scale(0.8); }
+            }
+          `}</style>
           <p
             style={{
               textAlign: 'center',
