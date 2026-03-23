@@ -32,9 +32,12 @@ const LuminaSnapshot = lazy(() =>
 const LuminaProfile = lazy(() =>
   import('../lumina/pages/ProfilePage').catch(() => ({ default: LuminaPlaceholder }))
 );
+const LuminaMap = lazy(() =>
+  import('../lumina/pages/MapPage').catch(() => ({ default: LuminaPlaceholder }))
+);
 
 type DesktopRoute =
-  | 'chat' | 'study' | 'snapshot' | 'profile'
+  | 'chat' | 'study' | 'snapshot' | 'profile' | 'map'
   | 'dashboard' | 'agents' | 'channels' | 'backups' | 'settings'
   | 'skills';
 
@@ -204,6 +207,14 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
           <PageErrorBoundary>
             <Suspense fallback={<RouteLoading />}>
               <LuminaProfile />
+            </Suspense>
+          </PageErrorBoundary>
+        );
+      case 'map':
+        return (
+          <PageErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <LuminaMap />
             </Suspense>
           </PageErrorBoundary>
         );

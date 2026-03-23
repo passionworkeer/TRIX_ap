@@ -11,10 +11,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Map,
 } from 'lucide-react';
 
 export type SidebarRoute =
-  | 'chat' | 'study' | 'snapshot' | 'profile'
+  | 'chat' | 'study' | 'snapshot' | 'profile' | 'map'
   | 'dashboard' | 'agents' | 'channels' | 'backups' | 'settings'
   | 'skills';
 
@@ -29,6 +30,7 @@ const LUMINA_ITEMS: NavItem[] = [
   { id: 'chat', icon: MessageSquare, label: '聊天' },
   { id: 'study', icon: BookOpen, label: '学习' },
   { id: 'snapshot', icon: Camera, label: '快照' },
+  { id: 'map', icon: Map, label: '地图' },
   { id: 'profile', icon: User, label: '个人资料' },
 ];
 
