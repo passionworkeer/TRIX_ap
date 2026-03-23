@@ -1,8 +1,8 @@
 # 数据库设计文档
 
 > 📚 TRIX 3D Companion 数据库架构
-> 🎯 基于 Supabase (PostgreSQL)
-> **最后更新**: 2026-03-22（内容已审阅；user_points_overview 视图、points_transactions 命名说明已验证）
+> 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server）
+> **最后更新**: 2026-03-23（内容已修订：修正 study_rooms 列名、friends 状态值、chat_messages receiver_id；新增 7 个缺失表/视图）
 
 ---
 
@@ -183,10 +183,7 @@ CREATE TABLE friends (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   friend_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  avatar_url TEXT,
-  status TEXT NOT NULL CHECK (status IN ('online', 'offline', 'busy', 'away')) DEFAULT 'offline',
-  bio TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
   study_time INTEGER DEFAULT 0,
   is_studying BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -197,7 +194,7 @@ CREATE TABLE friends (
 -- 索引
 CREATE INDEX idx_friends_user_id ON friends(user_id);
 CREATE INDEX idx_friends_friend_id ON friends(friend_id);
-CREATE INDEX idx_friends_status ON friends(status);
+CREATE INDEX idx_friends_status ON friends(status) WHERE status = 'pending';
 ```
 
 **字段说明**:
@@ -205,11 +202,9 @@ CREATE INDEX idx_friends_status ON friends(status);
 |------|------|------|
 | user_id | UUID | 当前用户 ID |
 | friend_id | UUID | 好友用户 ID |
-| name | TEXT | 好友显示名称 |
-| avatar_url | TEXT | 好友头像 |
-| status | TEXT | 在线状态 |
+| status | TEXT | 好友关系状态（pending/accepted/rejected） |
 | study_time | INTEGER | 好友学习时长 |
-| is_studying | BOOLEAN | 是否正在学习 |
+| is_studying | BOOLEAN | 好友是否正在学习 |
 
 ---
 
@@ -220,13 +215,15 @@ CREATE TABLE chat_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id TEXT NOT NULL,
   sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  receiver_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  receiver_id UUID REFERENCES profiles(id),
   text TEXT NOT NULL,
-  message_type TEXT DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'video', 'mixed')),
+  message_type TEXT DEFAULT 'text',
   media_uri TEXT,
   media_type TEXT,
-  media_size INTEGER,
+  media_size BIGINT,
   media_metadata JSONB,
+  voice_url TEXT,
+  voice_duration INTEGER,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -243,7 +240,7 @@ CREATE INDEX idx_messages_created ON chat_messages(created_at DESC);
 |------|------|------|
 | conversation_id | TEXT | 对话 ID (格式: userId_friendId) |
 | sender_id | UUID | 发送者 ID |
-| receiver_id | UUID | 接收者 ID |
+| receiver_id | UUID | 接收者 ID（可为 NULL，支持群组消息） |
 | text | TEXT | 消息内容 |
 | message_type | TEXT | 消息类型 |
 | media_uri | TEXT | 媒体文件 URL |
@@ -308,15 +305,32 @@ CREATE INDEX idx_study_started ON study_sessions(started_at DESC);
 ```sql
 CREATE TABLE study_rooms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  host_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT true,
+  description TEXT,
+  capacity INTEGER DEFAULT 10,
+  current_members INTEGER DEFAULT 0,
+  is_public BOOLEAN DEFAULT true,
+  created_by UUID REFERENCES profiles(id),
+  room_code TEXT UNIQUE,
+  session_state JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_rooms_host ON study_rooms(host_id);
-CREATE INDEX idx_rooms_active ON study_rooms(is_active) WHERE is_active = true;
+CREATE INDEX idx_rooms_code ON study_rooms(room_code);
+CREATE INDEX idx_rooms_public ON study_rooms(is_public) WHERE is_public = true;
 ```
+
+**字段说明**:
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | TEXT | 房间名称 |
+| description | TEXT | 房间描述 |
+| capacity | INTEGER | 容纳人数上限 |
+| current_members | INTEGER | 当前成员数 |
+| is_public | BOOLEAN | 是否公开 |
+| created_by | UUID | 创建者 ID（关联 profiles） |
+| room_code | TEXT | 房间码（唯一，用于加入） |
+| session_state | JSONB | 学习会话状态 |
 
 ---
 
@@ -327,8 +341,12 @@ CREATE TABLE study_room_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id UUID NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  status TEXT DEFAULT 'studying' CHECK (status IN ('studying', 'paused', 'left')),
+  display_name TEXT,
+  avatar_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  status TEXT DEFAULT 'joined',
   joined_at TIMESTAMPTZ DEFAULT NOW(),
+  last_active_at TIMESTAMPTZ,
   UNIQUE(room_id, user_id)
 );
 

@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-03-23（内容已修订：修正 Nginx WebSocket proxy_pass 路径前缀问题）
 
 ---
 
@@ -219,8 +219,11 @@ server {
     }
 
     # WebSocket 支持
-    location /ws/ {
-        proxy_pass http://127.0.0.1:8788;
+    # ⚠️ 注意: proxy_pass 必须包含 /ws 前缀，否则 Nginx 会将 /ws/phone 转发为 /phone（剥离 /ws/）
+    # 正确写法 1: proxy_pass http://127.0.0.1:8788/ws;  (推荐，保留路径)
+    # 正确写法 2: proxy_pass http://127.0.0.1:8788; + rewrite ^/ws/(.*) /$1 break;
+    location /ws {
+        proxy_pass http://127.0.0.1:8788/ws;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -476,4 +479,4 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23（内容已修订：修正 Nginx WebSocket proxy_pass 路径前缀问题）

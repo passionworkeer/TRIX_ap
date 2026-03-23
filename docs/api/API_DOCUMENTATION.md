@@ -22,9 +22,11 @@
 
 本 API 为 TRIX3D 应用提供后端服务，支持用户管理、社交、学习、商城等功能。
 
-> ⚠️ **版本说明**：本文档 v1.3.0 中的 **API 端点列表**（第 4 节起）描述的是 **Supabase v2 目标架构**（三端合一计划），约 85% 的端点尚未在生产代码中实现。
+> ⚠️ **版本说明 (v1.3.1)**：本文档第 4-21 节（用户、好友、日程、待办、成就、商城等）描述的是 **Supabase v2 目标架构**（三端合一计划），**~85% 的端点尚未在生产代码中实现**（服务器 `TrixNativeServer.ts` 中不存在这些路由）。
 >
-> **当前生产环境唯一权威文档**：[`../TRIX_NATIVE_CHANNEL.md`](../TRIX_NATIVE_CHANNEL.md) — TRIX Native Server（端口 8788），包含配对、消息、Study Room、TTS、WebSocket 等已实现的全部端点。
+> **当前生产环境唯一权威文档**：[`../TRIX_NATIVE_CHANNEL.md`](../TRIX_NATIVE_CHANNEL.md) — TRIX Native Server（端口 8788），包含配对、消息、Study Room、TTS、WebSocket 等**已实现**的全部端点。
+>
+> **⚠️ 第 4-21 节为规划文档，非生产 API 规范。**
 
 ### 服务端口
 
@@ -86,7 +88,9 @@ Token 通过 Supabase Auth 获取。
 
 ## API 端点列表
 
-### 1. 用户模块 `/user`
+> ⚠️ **以下第 1-21 节均为规划文档（未在生产代码中实现）**
+
+### 1. 用户模块 `/user` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -136,7 +140,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 2. 好友模块 `/friends`
+### 2. 好友模块 `/friends` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -149,7 +153,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 3. 日程模块 `/schedules`
+### 3. 日程模块 `/schedules` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -162,7 +166,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 4. 待办模块 `/todos`
+### 4. 待办模块 `/todos` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -174,7 +178,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 5. 成就模块 `/achievements`
+### 5. 成就模块 `/achievements` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -184,7 +188,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 6. 商城模块 `/mall`
+### 6. 商城模块 `/mall` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -195,7 +199,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 7. 衣柜模块 `/wardrobe`
+### 7. 衣柜模块 `/wardrobe` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -205,7 +209,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 8. 学习历史模块 `/study/history`
+### 8. 学习历史模块 `/study/history` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -215,7 +219,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 9. 学习记录模块 `/study/sessions`
+### 9. 学习记录模块 `/study/sessions` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -228,7 +232,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 10. 学习房间模块 `/study/room`
+### 10. 学习房间模块 `/study/room` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -238,7 +242,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 11. 聊天模块 `/chat`
+### 11. 聊天模块 `/chat` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -251,7 +255,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 12. 配对模块 `/pairing`
+### 12. 配对模块 `/pairing` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -263,7 +267,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 13. 地点模块 `/places`
+### 13. 地点模块 `/places` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -276,7 +280,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 14. 位置模块 `/locations`
+### 14. 位置模块 `/locations` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -286,7 +290,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 15. 积分模块 `/points`
+### 15. 积分模块 `/points` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -297,7 +301,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 16. 快照模块 `/snapshots`
+### 16. 快照模块 `/snapshots` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -308,7 +312,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 17. 通知模块 `/notifications`
+### 17. 通知模块 `/notifications` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -323,7 +327,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 18. 上传模块 `/upload`
+### 18. 上传模块 `/upload` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -332,7 +336,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 19. 未读计数模块 `/unread`
+### 19. 未读计数模块 `/unread` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -343,7 +347,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 20. AI 对话模块 `/clawbot`
+### 20. AI 对话模块 `/clawbot` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|
@@ -355,7 +359,7 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 
 ---
 
-### 21. 学习目标模块 `/study/goals`
+### 21. 学习目标模块 `/study/goals` ⚠️ 未实现
 
 | 方法 | 端点 | 认证 | 描述 |
 |------|------|------|------|

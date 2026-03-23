@@ -1,8 +1,8 @@
 # 后端架构文档
 
 > 📚 TRIX 3D Companion 后端服务架构
-> 🎯 基于 Node.js + Express + 原生 WebSocket
-> **最后更新**: 2026-03-22
+> 🎯 基于 Node.js 原生 HTTP + WebSocket + Supabase
+> **最后更新**: 2026-03-23（内容已修订：移除 Express，替换为 http.createServer）
 
 ---
 
@@ -21,8 +21,10 @@
 │         └───────────────────┼───────────────────┼───────────────────┘
 │                             ▼                                       │
 │                    ┌──────────────┐                              │
-│                    │   Express     │                              │
-│                    │ Server (:8788)│                              │
+│                    ┌──────────────┐                              │
+│                    │  Node.js     │                              │
+│                    │  HTTP Server │                              │
+│                    │  (:8788)      │                              │
 │                    └──────┬───────┘                              │
 │                           │                                       │
 │         ┌─────────────────┼─────────────────┐                     │
@@ -72,8 +74,8 @@ TRIX Native Server (端口 8788) 提供 iOS 设备与 Web 前端的双向消息�
 │         └───────────────────┼───────────────────┘                         │
 │                             ▼                                           │
 │                    ┌──────────────┐                                    │
-│                    │   Express    │                                    │
-│                    │   Server     │                                    │
+│                    │   Node.js   │                                    │
+│                    │ HTTP Server  │                                    │
 │                    └──────┬───────┘                                    │
 │                           │                                             │
 │         ┌─────────────────┼─────────────────┐                          │
@@ -127,11 +129,11 @@ wss://trix.love/api/service/ws?accountId=xxx&serviceToken=xxx               # Se
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
 | 运行时 | Node.js | 18+ |
-| 框架 | Express | 4.18+ |
-| WebSocket | 原生 WebSocket（`ws` 库） | 8.x |
-| 数据库 | SQLite | 3.x |
+| 框架 | **原生 `http.createServer`**（无 Express） | - |
+| WebSocket | `ws` 库（服务器端 + 客户端） | 8.x |
+| 数据库 | SQLite → **JSON 文件存储** (`JsonStateStore`) | - |
 | 远程数据库 | Supabase (PostgreSQL) | - |
-| 文件存储 | OSS（可选） | - |
+| 文件存储 | OSS（阿里云，可选） | - |
 | 语音合成 | Edge TTS（`node-edge-tts`） | - |
 | 部署 | PM2 | - |
 
@@ -173,7 +175,9 @@ packages/trix-openclaw-native/          # TRIX Native Channel 插件
 ├── test/
 │   ├── pairing.test.ts               # 配对服务测试
 │   ├── server.test.ts                # 服务器测试
-│   └── attachments.test.ts           # 附件测试
+│   ├── attachments.test.ts           # 附件测试
+│   ├── channel-plugin.test.ts        # Channel 插件测试
+│   └── monitor.test.ts              # Monitor 测试
 ├── openclaw.plugin.json              # OpenClaw 插件声明
 └── package.json                       # 依赖配置（含 openclaw peerDependency）
 ```
@@ -343,18 +347,15 @@ WebSocket 原生心跳（`ws` 库）：
 1. 用户发送消息
       │
       ▼
-2. WebSocket 接收
+2. HTTP POST 接收
       │
       ▼
 3. 验证消息 (去重 + 权限)
       │
-      ├──▶ 4a. 存储到 SQLite
+      ├──▶ 4a. 存储到 JSON 文件（JsonStateStore）
       │         │
       │         ▼
-      │     5a. 存储到 Supabase
-      │         │
-      │         ▼
-      │     6a. 广播给接收者
+      │     5a. 广播给 WebSocket 连接者
       │
       ▼
 4b. 转发给配对的机器人
@@ -514,21 +515,19 @@ curl http://TRIX_SERVER_HOST:8788/health
 ```json
 {
   "dependencies": {
-    "express": "^4.18.2",
     "ws": "^8.19.0",
-    "qrcode": "^1.5.4",
-    "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1",
-    "express-rate-limit": "^7.1.5",
+    "node-edge-tts": "^3.1.0",
     "dotenv": "^16.3.1",
     "ali-oss": "^6.20.0",
-    "axios": "^1.6.2",
-    "node-edge-tts": "^3.1.0"
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "pm2": "^5.3.0"
   }
 }
+```
+
+> ⚠️ 本项目**不使用 Express**。所有 HTTP 路由通过 `http.createServer` + pathname 匹配实现。速率限制使用自定义 `MemoryRateLimiter`，不依赖 `express-rate-limit`。
 ```
 
 ---
@@ -537,11 +536,11 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 | 安全措施 | 实现 |
 |---------|------|
-| CORS 白名单 | 环境变量配置 |
-| 速率限制 | express-rate-limit |
+| CORS 白名单 | `parseCorsOrigins()` 自定义函数（无 cors 包） |
+| 速率限制 | 自定义 `MemoryRateLimiter`（无 express-rate-limit） |
 | 消息去重 | 内存缓存 (10s TTL) |
-| SQL 参数化 | better-sqlite3 预处理 |
-| Token 验证 | WebSocket 认证 |
+| SQL 参数化 | 不直接操作数据库，通过 Supabase SDK |
+| Token 验证 | WebSocket 认证 + clientToken 校验 |
 | 配对码过期 | 1 小时有效期 |
 
 ---
@@ -557,5 +556,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-22
-**版本**: 3.2
+**最后更新**: 2026-03-23
+**版本**: 3.3
