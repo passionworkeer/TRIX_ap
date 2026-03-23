@@ -11,6 +11,8 @@ import {
   Activity,
   AlertCircle,
   Calendar,
+  X,
+  Trash2,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -330,6 +332,9 @@ interface CardProps {
   onRequestRestore: () => void;
   onConfirmRestore: () => void;
   onCancelRestore: () => void;
+  onDelete: () => void;
+  onViewDetail: () => void;
+  isDeleting?: boolean;
 }
 
 function SnapshotCard(props: CardProps) {
@@ -526,23 +531,50 @@ function SnapshotCard(props: CardProps) {
               }}
               onMouseEnter={() => setHoveredBtn('detail')}
               onMouseLeave={() => setHoveredBtn(null)}
+              onClick={props.onViewDetail}
             >
               查看详情
               <ChevronRight size={14} />
             </button>
           ) : (
-            <button
-              style={{
-                ...btnBase,
-                ...(hoveredBtn === `restore-${snapshot.id}` ? btnRestoreHovered : {}),
-              }}
-              onMouseEnter={() => setHoveredBtn(`restore-${snapshot.id}`)}
-              onMouseLeave={() => setHoveredBtn(null)}
-              onClick={props.onRequestRestore}
-            >
-              <RotateCcw size={13} />
-              还原快照
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                style={{
+                  ...btnBase,
+                  ...(hoveredBtn === `restore-${snapshot.id}` ? btnRestoreHovered : {}),
+                }}
+                onMouseEnter={() => setHoveredBtn(`restore-${snapshot.id}`)}
+                onMouseLeave={() => setHoveredBtn(null)}
+                onClick={props.onRequestRestore}
+              >
+                <RotateCcw size={13} />
+                还原
+              </button>
+              <button
+                style={{
+                  ...btnBase,
+                  borderColor: props.isDeleting ? C.error : hoveredBtn === `delete-${snapshot.id}` ? C.error : `${C.outlineVariant}`,
+                  color: props.isDeleting ? C.error : hoveredBtn === `delete-${snapshot.id}` ? C.error : C.onSurfaceVariant,
+                  ...(hoveredBtn === `delete-${snapshot.id}` ? { background: C.errorLight, transform: 'translateY(-1px)' } : {}),
+                }}
+                onMouseEnter={() => setHoveredBtn(`delete-${snapshot.id}`)}
+                onMouseLeave={() => setHoveredBtn(null)}
+                onClick={props.isDeleting ? undefined : props.onDelete}
+                disabled={props.isDeleting}
+              >
+                {props.isDeleting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
+                    删除中
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Trash2 size={13} />
+                    删除
+                  </span>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -646,6 +678,11 @@ export default function SnapshotPage() {
   const [showConfirm, setShowConfirm] = useState<string | null>(null);
   const [hoveredFilter, setHoveredFilter] = useState(false);
   const [hoveredCreate, setHoveredCreate] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterDate, setFilterDate] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'warning' | 'error'>('all');
+  const [detailSnapshot, setDetailSnapshot] = useState<Snapshot | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const api = window.electronAPI;
 
@@ -673,8 +710,8 @@ export default function SnapshotPage() {
     setToastMsg(msg);
   }
 
-  function handleFilter() {
-    showToast('快照筛选功能开发中...');
+  function handleFilterToggle() {
+    setFilterOpen((p) => !p);
   }
 
   async function handleCreate() {
@@ -716,6 +753,36 @@ export default function SnapshotPage() {
       showToast(`还原失败: ${String(err)}`);
     }
   }
+
+  async function handleDelete(snapshotId: string) {
+    if (!api) return;
+    setDeletingId(snapshotId);
+    try {
+      const result: CommandResult = await api.runOpenClawCommand(`backup delete ${snapshotId}`);
+      if (result.success) {
+        showToast('快照已删除');
+        setSnapshots((prev) => prev.filter((s) => s.id !== snapshotId));
+      } else {
+        showToast(`删除失败: ${result.stderr || result.error || '未知错误'}`);
+      }
+    } catch (err) {
+      showToast(`删除失败: ${String(err)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // Filtered snapshots based on active filters
+  const displaySnapshots = snapshots.filter((s) => {
+    const now = new Date();
+    const age = now.getTime() - s.timestamp.getTime();
+    const dayMs = 86400000;
+    if (filterDate === 'today' && age > dayMs) return false;
+    if (filterDate === 'week' && age > 7 * dayMs) return false;
+    if (filterDate === 'month' && age > 30 * dayMs) return false;
+    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
+    return true;
+  });
 
   const btnFilterStyle: React.CSSProperties = {
     display: 'flex',
@@ -836,7 +903,7 @@ export default function SnapshotPage() {
                 style={btnFilterStyle}
                 onMouseEnter={() => setHoveredFilter(true)}
                 onMouseLeave={() => setHoveredFilter(false)}
-                onClick={handleFilter}
+                onClick={handleFilterToggle}
               >
                 <Filter size={14} />
                 筛选
@@ -870,7 +937,7 @@ export default function SnapshotPage() {
                 <SpinnerIcon />
                 <span style={{ fontSize: '14px', color: C.onSurfaceVariant }}>正在加载快照...</span>
               </div>
-            ) : snapshots.length === 0 ? (
+            ) : displaySnapshots.length === 0 ? (
               <div
                 style={{
                   display: 'flex',
@@ -899,7 +966,7 @@ export default function SnapshotPage() {
                 </p>
               </div>
             ) : (
-              snapshots.map((snapshot) => (
+              displaySnapshots.map((snapshot) => (
                 <SnapshotCard
                   key={snapshot.id}
                   snapshot={snapshot}
@@ -907,10 +974,103 @@ export default function SnapshotPage() {
                   onRequestRestore={() => handleRestore(snapshot.id)}
                   onConfirmRestore={handleConfirmRestore}
                   onCancelRestore={() => setShowConfirm(null)}
+                  onDelete={() => handleDelete(snapshot.id)}
+                  onViewDetail={() => setDetailSnapshot(snapshot)}
+                  isDeleting={deletingId === snapshot.id}
                 />
               ))
             )}
           </div>
+
+          {/* Filter Panel */}
+          {filterOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '130px',
+              left: '24px',
+              zIndex: 100,
+              background: C.surfaceLowest,
+              borderRadius: '12px',
+              border: `1px solid ${C.outlineVariant}`,
+              padding: '16px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: '220px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: C.onSurface, marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                筛选条件
+                <button onClick={() => setFilterOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.onSurfaceVariant, padding: 0 }}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: C.onSurfaceVariant, marginBottom: '8px' }}>按日期</div>
+              {(['all', 'today', 'week', 'month'] as const).map((opt) => (
+                <button key={opt} onClick={() => setFilterDate(opt)} style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                  borderRadius: '6px', border: 'none', background: filterDate === opt ? `${C.primary}10` : 'transparent',
+                  color: filterDate === opt ? C.primary : C.onSurfaceVariant,
+                  fontSize: '12px', fontWeight: filterDate === opt ? 600 : 400, cursor: 'pointer', marginBottom: '3px',
+                }}>
+                  {{ all: '全部', today: '今天', week: '最近 7 天', month: '最近 30 天' }[opt]}
+                </button>
+              ))}
+              <div style={{ fontSize: '11px', fontWeight: 700, color: C.onSurfaceVariant, marginBottom: '8px', marginTop: '12px' }}>按状态</div>
+              {(['all', 'success', 'warning', 'error'] as const).map((opt) => (
+                <button key={opt} onClick={() => setFilterStatus(opt)} style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                  borderRadius: '6px', border: 'none', background: filterStatus === opt ? `${C.primary}10` : 'transparent',
+                  color: filterStatus === opt ? C.primary : C.onSurfaceVariant,
+                  fontSize: '12px', fontWeight: filterStatus === opt ? 600 : 400, cursor: 'pointer', marginBottom: '3px',
+                }}>
+                  {{ all: '全部', success: '正常', warning: '部分异常', error: '失败' }[opt]}
+                </button>
+              ))}
+              <button onClick={() => { setFilterDate('all'); setFilterStatus('all'); }}
+                style={{ marginTop: '12px', width: '100%', padding: '6px', borderRadius: '6px', border: `1px solid ${C.outlineVariant}`, background: 'transparent', color: C.onSurfaceVariant, fontSize: '12px', cursor: 'pointer' }}>
+                重置筛选
+              </button>
+            </div>
+          )}
+
+          {/* Detail Panel */}
+          {detailSnapshot && (
+            <div style={{
+              background: C.surfaceLowest,
+              borderRadius: '14px',
+              border: `1px solid ${C.primary}30`,
+              padding: '20px 24px',
+              marginBottom: '16px',
+              boxShadow: `0 4px 16px ${C.primary}08`,
+              position: 'relative',
+              zIndex: 1,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: C.onSurface }}>快照详情 — {detailSnapshot.version}</div>
+                <button onClick={() => setDetailSnapshot(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.onSurfaceVariant }}>
+                  <X size={16} />
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {[
+                  { label: '创建时间', value: detailSnapshot.timestamp.toLocaleString('zh-CN') },
+                  { label: '系统健康', value: `${detailSnapshot.health}%` },
+                  { label: '内存占用', value: `${detailSnapshot.memoryUsage} / ${detailSnapshot.memoryTotal} GB` },
+                  { label: '存储使用', value: `${detailSnapshot.storageUsage}%` },
+                  { label: '系统状态', value: detailSnapshot.status === 'success' ? '正常' : detailSnapshot.status === 'warning' ? '部分异常' : '失败' },
+                  { label: '快照ID', value: detailSnapshot.id },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: C.surfaceLow, borderRadius: '8px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '10px', color: C.onSurfaceVariant, marginBottom: '2px' }}>{label}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: C.onSurface, wordBreak: 'break-all' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '14px', padding: '12px', background: C.surfaceLow, borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: C.onSurfaceVariant, marginBottom: '6px' }}>描述</div>
+                <div style={{ fontSize: '13px', color: C.onSurface }}>{detailSnapshot.description}</div>
+              </div>
+            </div>
+          )}
 
           {/* Empty State */}
           <div

@@ -15,6 +15,18 @@ const TEST_USER = {
 };
 
 /**
+ * Set i18next locale to Chinese before the page loads.
+ * Must be called BEFORE page.goto() — the addInitScript runs before any page script,
+ * ensuring i18next-browser-languagedetector picks up the locale immediately.
+ */
+export async function waitForI18n(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('language', 'zh');
+    localStorage.setItem('i18nextLng', 'zh');
+  });
+}
+
+/**
  * 使用真实 Supabase 登录
  * 测试前先尝试登录，失败则尝试注册
  * 注意：注册后需要邮箱确认才能登录
@@ -23,10 +35,10 @@ export async function loginWithSupabase(page: Page) {
   console.log('Using REAL Supabase authentication...');
   console.log('Test user:', TEST_USER.email);
 
-  // 导航到登录页面
+  // Set i18n locale BEFORE navigating so the detector picks it up on page load
+  await waitForI18n(page);
   await page.goto('/#/login');
   await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(2000);
 
   // 尝试登录
   await page.fill('#email-input', TEST_USER.email);
@@ -48,15 +60,14 @@ export async function loginWithSupabase(page: Page) {
     // 尝试注册
     await page.goto('/#/register');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
-    // 填写注册表单
+    // 填写注册表单 (注册页面无 #email-input，用 placeholder 定位)
     const usernameInput = page.locator('input[placeholder="用户名"]');
     if (await usernameInput.isVisible()) {
       await usernameInput.fill(TEST_USER.username);
     }
-    await page.fill('#email-input', TEST_USER.email);
-    await page.fill('#password-input', TEST_USER.password);
+    await page.locator('input[placeholder="邮箱地址"]').fill(TEST_USER.email);
+    await page.locator('input[placeholder="密码"]').fill(TEST_USER.password);
     await page.click('button:has-text("立即注册")');
 
     // 等待注册结果

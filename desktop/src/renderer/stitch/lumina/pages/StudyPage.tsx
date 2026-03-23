@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { LuminaTabBar } from '../../shared/components/LuminaTabBar';
 import {
   Play, Pause, SkipForward, Clock, CheckSquare, Plus,
   Circle, Shield, Wifi, Cpu, Activity, CheckCircle,
-  BookOpen, Zap,
+  BookOpen, Zap, BarChart2,
 } from 'lucide-react';
 
 // ── Design Tokens ───────────────────────────────────────────────────────────
@@ -712,6 +713,204 @@ const SecurityCTA = () => (
   </div>
 );
 
+// ── Courses Tab Content ──────────────────────────────────────────────────────
+
+interface CourseItem {
+  id: string;
+  title: string;
+  teacher: string;
+  progress: number;
+  totalLessons: number;
+  completedLessons: number;
+  nextAction: string;
+  coverColor: string;
+}
+
+const DEMO_COURSES: CourseItem[] = [
+  { id: 'c1', title: '高等数学精讲', teacher: '李明教授', progress: 72, totalLessons: 40, completedLessons: 29, nextAction: '继续学习', coverColor: '#630ed4' },
+  { id: 'c2', title: '线性代数基础', teacher: '王芳讲师', progress: 45, totalLessons: 30, completedLessons: 14, nextAction: '完成作业', coverColor: '#7c3aed' },
+  { id: 'c3', title: '量子计算入门', teacher: '张强博士', progress: 88, totalLessons: 25, completedLessons: 22, nextAction: '复习冲刺', coverColor: '#6a4fa0' },
+  { id: 'c4', title: '机器学习实战', teacher: '陈薇教授', progress: 20, totalLessons: 60, completedLessons: 12, nextAction: '观看视频', coverColor: '#0369a1' },
+];
+
+const CoursesTabContent: React.FC = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    {DEMO_COURSES.map((course) => (
+      <div
+        key={course.id}
+        style={{
+          background: C.surfaceLowest,
+          borderRadius: 12,
+          border: `1px solid ${C.outlineVariant}40`,
+          padding: '18px 20px',
+          display: 'flex',
+          gap: 16,
+          boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.borderColor = `${C.primary}40`;
+          el.style.boxShadow = `0 4px 16px ${C.primary}12`;
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.borderColor = `${C.outlineVariant}40`;
+          el.style.boxShadow = '0 1px 4px rgba(25,28,30,0.05)';
+        }}
+      >
+        <div style={{
+          width: 6,
+          borderRadius: 4,
+          background: course.coverColor,
+          flexShrink: 0,
+          alignSelf: 'stretch',
+        }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.onSurface, marginBottom: 2 }}>{course.title}</div>
+              <div style={{ fontSize: 11, color: C.onSurfaceVariant }}>{course.teacher} · {course.completedLessons}/{course.totalLessons} 课时</div>
+            </div>
+            <button
+              style={{
+                padding: '5px 14px',
+                borderRadius: 8,
+                background: course.coverColor,
+                color: '#fff',
+                border: 'none',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
+              {course.nextAction}
+            </button>
+          </div>
+          <ProgressBar value={course.progress} color={course.coverColor} animated height={5} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ fontSize: 10, color: C.onSurfaceVariant }}>{course.progress}% 完成</span>
+            <span style={{ fontSize: 10, color: C.onSurfaceVariant }}>{course.totalLessons - course.completedLessons} 课时待学</span>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// ── Stats Tab Content ────────────────────────────────────────────────────────
+
+interface WeeklyDataPoint { label: string; hours: number; }
+
+const WEEKLY_DATA: WeeklyDataPoint[] = [
+  { label: '周一', hours: 3.5 },
+  { label: '周二', hours: 2.8 },
+  { label: '周三', hours: 4.2 },
+  { label: '周四', hours: 1.5 },
+  { label: '周五', hours: 3.0 },
+  { label: '周六', hours: 5.5 },
+  { label: '周日', hours: 4.0 },
+];
+
+const StatCardItem: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  color: string;
+  bg: string;
+}> = ({ icon, label, value, color, bg }) => (
+  <div style={{
+    background: C.surfaceLowest,
+    borderRadius: 12,
+    border: `1px solid ${C.outlineVariant}40`,
+    padding: '16px',
+    display: 'flex',
+    gap: 12,
+    boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
+  }}>
+    <div style={{
+      width: 36,
+      height: 36,
+      borderRadius: 9,
+      background: bg,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <span style={{ color }}>{icon}</span>
+    </div>
+    <div>
+      <div style={{ fontSize: 10, color: C.onSurfaceVariant, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: C.onSurface }}>{value}</div>
+    </div>
+  </div>
+);
+
+const StatsTabContent: React.FC = () => {
+  const maxDisplayH = 6;
+  const CHART_H = 160;
+  const BAR_W = 32;
+  const GAP = 20;
+  const totalW = WEEKLY_DATA.length * (BAR_W + GAP);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <StatCardItem icon={<Clock size={16} />} label="累计学习时长" value="128h 40m" color={C.primary} bg={`${C.primary}10`} />
+        <StatCardItem icon={<CheckCircle size={16} />} label="完成任务数" value="42 个" color="#16a34a" bg="#16a34a10" />
+        <StatCardItem icon={<Activity size={16} />} label="连续学习天数" value="12 天" color="#0369a1" bg="#0369a115" />
+        <StatCardItem icon={<Zap size={16} />} label="完成番茄钟" value="96 个" color="#d97706" bg="#d9770610" />
+      </div>
+
+      <div style={{
+        background: C.surfaceLowest,
+        borderRadius: 12,
+        border: `1px solid ${C.outlineVariant}40`,
+        padding: '20px',
+        boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.onSurface, marginBottom: 16 }}>本周学习时长（小时）</div>
+        <svg
+          width="100%"
+          viewBox={`0 0 ${totalW + 40} ${CHART_H + 40}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {[0, 2, 4, 6].map((tick) => {
+            const y = CHART_H - (tick / maxDisplayH) * CHART_H + 10;
+            return (
+              <g key={tick}>
+                <line x1="30" y1={y} x2={totalW + 30} y2={y} stroke={C.outlineVariant} strokeWidth="0.5" strokeDasharray="4,4" />
+                <text x="26" y={y + 4} textAnchor="end" fontSize="10" fill={C.onSurfaceVariant}>{tick}h</text>
+              </g>
+            );
+          })}
+          {WEEKLY_DATA.map((d, i) => {
+            const barH = Math.max(4, (d.hours / maxDisplayH) * CHART_H);
+            const x = 35 + i * (BAR_W + GAP);
+            const y = CHART_H - barH + 10;
+            return (
+              <g key={d.label}>
+                <defs>
+                  <linearGradient id={`bar-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.primary} />
+                    <stop offset="100%" stopColor={C.primaryContainer} />
+                  </linearGradient>
+                </defs>
+                <rect x={x} y={y} width={BAR_W} height={barH} rx="6" fill={`url(#bar-grad-${i})`} />
+                <text x={x + BAR_W / 2} y={CHART_H + 28} textAnchor="middle" fontSize="10" fill={C.onSurfaceVariant}>{d.label}</text>
+                <text x={x + BAR_W / 2} y={y - 6} textAnchor="middle" fontSize="10" fontWeight="600" fill={C.primary}>{d.hours}h</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
 // ── Main StudyPage Component ─────────────────────────────────────────────────
 
 export default function StudyPage() {
@@ -836,30 +1035,7 @@ export default function StudyPage() {
           </div>
         </div>
 
-        {/* Sub-nav tabs */}
-        <nav style={{ display: 'flex', gap: 2 }}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '7px 16px',
-                borderRadius: '8px 8px 0 0',
-                border: 'none',
-                borderBottom: `2px solid ${activeTab === tab.key ? C.primary : 'transparent'}`,
-                background: activeTab === tab.key ? C.surfaceLowest : 'transparent',
-                color: activeTab === tab.key ? C.primary : C.onSurfaceVariant,
-                fontSize: 13,
-                fontWeight: activeTab === tab.key ? 600 : 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+        <LuminaTabBar tabs={tabs} activeTab={activeTab} onChange={(key) => setActiveTab(key as typeof activeTab)} />
       </header>
 
       {/* ── Main Content ─────────────────────────────────────────────────────── */}
@@ -883,6 +1059,9 @@ export default function StudyPage() {
             paddingRight: 4,
           }}
         >
+          {/* Focus tab content */}
+          {activeTab === 'focus' && (
+          <>
           {/* Editorial Quote */}
           <div
             style={{
@@ -1223,6 +1402,10 @@ export default function StudyPage() {
               添加任务
             </button>
           </div>
+          </>
+          )}
+          {activeTab === 'courses' && <CoursesTabContent />}
+          {activeTab === 'stats' && <StatsTabContent />}
         </div>
 
         {/* ── Right Column (5 cols / ~42%) ───────────────────────────────────── */}
