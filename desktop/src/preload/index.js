@@ -2,6 +2,14 @@
 const electron = require('electron');
 const { contextBridge, ipcRenderer, app } = electron;
 
+// Playwright E2E compatibility: required by playwright's electron.launch() CDP protocol
+// Without this, electron.launch() times out waiting for __playwright_run() to return
+globalThis.__playwright_run = async () => {
+  if (!app.isReady()) {
+    await new Promise((resolve) => { app.once('ready', resolve); });
+  }
+};
+
 // Video path helper — works in both dev and packaged modes
 function getVideoBaseUrl() {
   if (app.isPackaged) {

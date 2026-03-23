@@ -3,12 +3,21 @@ import log from 'electron-log/main';
 import { config as dotenvConfig } from 'dotenv';
 import { setupIpcHandlers } from './ipc';
 import path from 'path';
+import fs from 'fs';
 
 // Load .env.local from desktop/ directory (dev + packaged fallback)
 dotenvConfig({ path: path.join(app.getAppPath(), 'desktop', '.env.local') });
 // In dev mode app.getAppPath() is the project root; in packaged mode it's the asar root.
 // Always also try project-root relative path as a fallback.
 dotenvConfig({ path: path.join(process.cwd(), 'desktop', '.env.local') });
+
+// Playwright E2E: required for electron.launch() CDP protocol
+// Without this, Runtime.evaluate("__playwright_run()") hangs forever in the packaged app
+// Use app.whenReady() which resolves immediately if already ready
+globalThis.__playwright_run = async () => {
+  await app.whenReady();
+};
+
 import { checkOpenClaw } from './openclaw';
 import { startGateway, stopGateway } from './gateway';
 import { createTray } from './tray';
@@ -16,13 +25,28 @@ import { createFloatWindow } from './float-window';
 import { getPreloadPath, getMainUrl, getFloatUrl, setMainWindow, showMainWindow } from './window-state';
 import { destroyTray } from './tray';
 
-// Configure logging — initialize first so file transport is ready
-log.initialize();
-log.transports.file.level = 'info';
-log.transports.console.level = 'debug';
+// FIRST: Write a marker file to prove the bundle is running
+try {
+  fs.writeFileSync(path.join(app.getPath('temp'), 'trix-startup.txt'),
+    `TRIX Companion bundle loaded at ${new Date().toISOString()}\n`, 'utf8');
+} catch (e) {}
 
-log.info('=== TRIX Companion Desktop Starting ===');
-log.info(`Electron: ${process.versions.electron}, Node: ${process.versions.node}, Chrome: ${process.versions.chrome}`);
+// Configure logging
+// NOTE: full electron-log initialization disabled — use console writes in packaged mode
+try {
+  log.transports.file.setAppName('TRIX Companion');
+  log.initialize({ preload: false });
+  log.transports.file.level = 'info';
+  log.transports.console.level = 'debug';
+  log.info('=== TRIX Companion Desktop Starting ===');
+  log.info(`Electron: ${process.versions.electron}, Node: ${process.versions.node}, Chrome: ${process.versions.chrome}`);
+  log.info('App path:', app.getAppPath());
+  log.info('User data:', app.getPath('userData'));
+  log.info('Preload:', getPreloadPath());
+  log.info('Main URL:', getMainUrl());
+} catch (err) {
+  console.error('[ELECTRON-LOG ERROR]', err);
+}
 
 const isDev = !app.isPackaged;
 
@@ -46,7 +70,10 @@ export function createMainWindow(): void {
     show: false,
   });
 
-  mainWindow.loadFile(getMainUrl());
+  mainWindow.loadFile(getMainUrl()).catch((err) => {
+    console.error('[LOAD FILE ERROR]', err);
+    log.error('loadFile failed:', err);
+  });
   log.info('Main window URL:', getMainUrl());
 
   mainWindow.webContents.on('did-finish-load', () => {

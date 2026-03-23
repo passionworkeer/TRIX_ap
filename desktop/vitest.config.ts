@@ -16,7 +16,7 @@ export default defineConfig({
     ],
     // Fallback: node
     environment: 'node',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: [path.resolve(__dirname, 'src/test/setup.ts')],
     include: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
     exclude: ['node_modules/**'],
     coverage: {

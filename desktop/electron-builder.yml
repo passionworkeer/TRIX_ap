@@ -2,15 +2,17 @@ appId: com.trixapp.companion
 productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
 directories:
-  output: C:/Users/wang/Desktop/TRIX Companion 3
+  output: C:/Users/wang/Desktop/TRIX Companion
   buildResources: build
 asar: true
 compression: maximum
 files:
+  - package.json
   - dist-desktop/main/**/*
   - dist-desktop/preload/**/*
   - dist-desktop/renderer/assets/**/*
   - dist-desktop/renderer/*.html
+  - dist-desktop/renderer/desktop/src/renderer/*.html
   - '!**/3d/**'
   - '!**/companion-check.html'
   - '!**/env-check.html'
