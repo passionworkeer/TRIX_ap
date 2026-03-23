@@ -41,8 +41,8 @@ docs/
 ├── 🎨 UI 文档 (ui/)
 │   ├── COMPONENTS.md               # 组件文档
 │   ├── UI_DOCUMENTATION.md         # UI 完整文档
-│   ├── DESIGN.md                   # Lumina/Desktop 设计系统
-│   └── ARCHITECTURE_DIAGRAM.md     # iOS 架构图
+│   ├── DESIGN.md                   # Monolith Noir 设计系统
+│   └── LUMINA_DESIGN.md          # Lumina 浅色设计系统（Desktop Sprint 4）
 │
 ├── 🌐 架构文档 (architecture/)
 │   ├── WEB_ARCHITECTURE.md          # Web 端架构
