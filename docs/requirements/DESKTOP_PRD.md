@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
 > **文档版本**: 1.2
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-03-23
 > **产品**: TRIX Companion Desktop
 > **平台**: Windows (Electron 33.4.0)
 > **类型**: 桌面客户端
@@ -107,7 +107,7 @@
 | | 状态视频动画背景 | ✅ 已实现 |
 | | 主窗口到 Float 的状态 IPC 推送 | ✅ 已实现 |
 | | 视频路径 `videos/role1/{state}.mp4` | ✅ 已实现（修正路径） |
-| **设置页面** | Overview / Agents / Skills / Backups / Pairing / Gateway Tab | ✅ 已实现 |
+| **设置页面** | Overview / Agents / Skills / Backups / Pairing / Gateway Tab | ✅ 已实现（**真实 IPC**，732 行）|
 
 ### 3.2 核心功能详述
 
@@ -367,6 +367,8 @@ Float 窗口 (renderer/float.tsx)
 
 ### 5.2 IPC 通信矩阵
 
+共 **51 个** IPC handler，分为 8 大类别。
+
 | IPC 通道 | 方向 | 类型 | 描述 |
 |---------|------|------|------|
 | `window:show-main` | Renderer → Main | invoke | 显示主窗口 |
@@ -374,6 +376,7 @@ Float 窗口 (renderer/float.tsx)
 | `window:minimize-to-tray` | Renderer → Main | invoke | 最小化到托盘 |
 | `bot-state:push` | Renderer → Main | send | 推送 Bot 状态 |
 | `bot-state:changed` | Main → Renderer | send | Bot 状态变更通知 |
+| **OpenClaw（14 个）** | | | |
 | `openclaw:check` | Renderer → Main | invoke | 检查 OpenClaw 安装状态 |
 | `openclaw:install` | Renderer → Main | invoke | 安装 OpenClaw |
 | `openclaw:install-progress` | Main → Renderer | send | 安装进度事件 |
@@ -387,11 +390,48 @@ Float 窗口 (renderer/float.tsx)
 | `openclaw:backup-list` | Renderer → Main | invoke | 列出 Backups |
 | `openclaw:backup-restore` | Renderer → Main | invoke | 恢复 Backup |
 | `openclaw:pairing-create` | Renderer → Main | invoke | 创建配对码 |
-| `pairing:createQr` | Renderer → Main | invoke | 生成 QR 码 |
+| **Supabase Auth（4 个）** | | | |
+| `auth:get-session` | Renderer → Main | invoke | 获取当前会话 |
+| `auth:sign-in` | Renderer → Main | invoke | 邮箱密码登录 |
+| `auth:sign-up` | Renderer → Main | invoke | 邮箱注册 |
+| `auth:sign-out` | Renderer → Main | invoke | 登出 |
+| **Study Data（6 个）** | | | |
+| `study:list-todos` | Renderer → Main | invoke | 列出学习待办 |
+| `study:create-todo` | Renderer → Main | invoke | 创建待办 |
+| `study:toggle-todo` | Renderer → Main | invoke | 切换完成状态 |
+| `study:delete-todo` | Renderer → Main | invoke | 删除待办 |
+| `study:get-achievements` | Renderer → Main | invoke | 获取成就列表 |
+| `profile:get-stats` | Renderer → Main | invoke | 获取用户统计 |
+| **TRIX Native（4 个）** | | | |
+| `trixnative:conversations` | Renderer → Main | invoke | 获取会话列表 |
+| `trixnative:messages` | Renderer → Main | invoke | 获取消息历史 |
+| `trixnative:send-message` | Renderer → Main | invoke | 发送消息 |
+| `trixnative:send-reaction` | Renderer → Main | invoke | 发送表情反应 |
+| **Channel Pairing（4 个）** | | | |
+| `pairing:createQr` | Renderer → Main | invoke | 生成配对 QR 码 |
 | `pairing:pollStatus` | Renderer → Main | invoke | 轮询配对状态 |
-| `gateway:status` | Renderer → Main | invoke | 获取 Gateway 状态 |
+| `pairing:generate` | Renderer → Main | invoke | 生成配对码 |
+| `pairing:list` | Renderer → Main | invoke | 列出已有配对 |
+| `pairing:revoke` | Renderer → Main | invoke | 撤销配对码 |
+| **Gateway（5 个）** | | | |
+| `gateway:status` | Renderer → Main | invoke | 获取 Gateway 运行状态 |
+| `gateway:start` | Renderer → Main | invoke | 启动 Gateway |
+| `gateway:stop` | Renderer → Main | invoke | 停止 Gateway |
 | `gateway:restart` | Renderer → Main | invoke | 重启 Gateway |
-| `app:info` | Renderer → Main | invoke | 获取 App 信息 |
+| `gateway:logs` | Renderer → Main | invoke | 获取 Gateway 日志 |
+| **System Info（3 个）** | | | |
+| `system:info` | Renderer → Main | invoke | 获取系统信息（CPU/内存/OS）|
+| `system:disk` | Renderer → Main | invoke | 获取磁盘列表 |
+| `system:check-packages` | Renderer → Main | invoke | 检查全局 npm 包 |
+| **Third-party Channels（7 个）** | | | |
+| `channels:configure` | Renderer → Main | invoke | 配置 Channel 凭证 |
+| `channels:list` | Renderer → Main | invoke | 列出所有 Channel |
+| `channels:delete` | Renderer → Main | invoke | 删除 Channel |
+| `channels:test` | Renderer → Main | invoke | 测试 Channel 连接 |
+| `channels:start-listening` | Renderer → Main | invoke | 开始监听 Channel |
+| `channels:stop-listening` | Renderer → Main | invoke | 停止监听 Channel |
+| `channels:get-messages` | Renderer → Main | invoke | 获取 Channel 消息 |
+| `channels:send-message` | Renderer → Main | invoke | 通过 Channel 发送消息 |
 
 ### 5.3 技术栈
 
@@ -492,11 +532,16 @@ npm run build:desktop:dir # 仅构建 unpacked 目录
 **打包输出**：
 ```
 C:/Users/wang/Desktop/TRIX Companion 3/
-├── TRIX Companion Setup.exe    # NSIS 安装程序（中文）
-├── TRIX Companion-*-win-msi.zip # MSI 安装包
-└── win-unpacked/                # 便携版（无需安装）
+├── TRIX Companion-Setup-1.0.0.exe  # NSIS 安装程序（compression: maximum）
+├── TRIX Companion-Setup-1.0.0.msi   # MSI 安装包
+└── win-unpacked/                    # 便携版（无需安装）
     └── TRIX Companion.exe
 ```
+
+**v1.3 构建优化**：
+- `compression: maximum` — 最大压缩率
+- 显式 `files` 过滤 — 排除 `3d/`（Three.js 32MB）和 `videos/`
+- `shortcutName: TRIX Companion` — 快捷方式名称精确化
 
 ---
 
@@ -538,7 +583,7 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 - [x] 系统托盘（程序生成图标、菜单、事件处理）
 - [x] 主窗口关闭隐藏到托盘（不退出应用）
 - [x] 可折叠侧边栏导航
-- [x] contextBridge 安全 IPC 通信（22 handlers + 2 events）
+- [x] contextBridge 安全 IPC 通信（51 handlers + 2 events）
 - [x] 命令白名单安全机制
 - [x] `loadFile()` 替代 `loadURL()` 解决 asar 兼容
 - [x] React RenderErrorBoundary 错误边界
@@ -577,4 +622,4 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 ---
 
 **文档维护**: TRIX 开发团队
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23

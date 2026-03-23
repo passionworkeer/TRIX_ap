@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-22（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+> **最后更新**: 2026-03-23（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -42,7 +42,7 @@ React App
 | `#/study/timer` | StudyTimer | 学习计时器 |
 | `#/chat` | Chat | 聊天列表 |
 | `#/chat/:friendId` | ChatDetail | 聊天详情 |
-| `#/profile` | Profile | 个人资料 |
+| `#/profile` | Profile | 个人资料 + **AchievementsPanel 成就面板** |
 | `#/profile/:userId` | ProfileOther | 查看他人资料 |
 | `#/pairing` | Pairing | 设备配对 |
 | `#/qr-pairing` | QrPairing | QR 码配对 |
@@ -105,6 +105,7 @@ React App
 ### 3.3 组件
 
 - `src/components/` — 60+ 组件（含子目录 `chat/`、`map/` 等）
+- `src/components/AchievementsPanel.tsx` — ★ 成就面板（v1.3 新增，283 行，集成 Profile 页面）
 - `src/screens/` — 17 个页面组件
 - `src/hooks/` — 11 个自定义 hooks
 - `src/three/` — Three.js 3D/WebGL 组件（使用 Zustand）
@@ -250,4 +251,4 @@ src/
 
 ---
 
-**最后更新**: 2026-03-22（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+**最后更新**: 2026-03-23（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）

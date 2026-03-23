@@ -2,8 +2,8 @@
 
 > 本文档列出所有前端 React 组件
 > 版本: 1.3.0
-> **最后更新**: 2026-03-22
-> 组件总数: 60+
+> **最后更新**: 2026-03-23
+> 组件总数: 60+（含 **AchievementsPanel** v1.3）
 
 ---
 
@@ -65,6 +65,27 @@ interface GlassDockProps {
 ```
 
 **位置**: `src/components/GlassDock.tsx`
+
+---
+
+### AchievementsPanel ★ v1.3 新增
+
+用户成就面板，展示已解锁/待解锁成就，含稀有度分级着色和动画进度条。
+
+```typescript
+interface AchievementsPanelProps {
+  userId: string;
+  onClose?: () => void;
+}
+```
+
+**特性**：
+- 调用 `achievementService.getUserAchievements(userId)` 获取成就列表
+- 稀有度分级着色：Common（灰）/ Rare（蓝）/ Epic（紫）/ Legendary（金）
+- 动画进度条：显示成就完成百分比
+- 集成 Profile 页面（`src/screens/Profile.tsx`）
+
+**位置**: `src/components/AchievementsPanel.tsx`（283 行）
 
 ---
 

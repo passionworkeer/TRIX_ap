@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-03-23
 > **测试框架**: Vitest + Node.js Test Runner
 
 ---
@@ -87,6 +87,8 @@ trix-3d-companion/
 │       ├── app.test.ts
 │       └── all-changes.test.ts
 │
+└── desktop-e2e.cjs                     # ★ Desktop E2E Runner（v1.3 新增）
+│
 └── packages/trix-openclaw-native/test/
     ├── pairing.test.ts                  # 配对服务测试
     ├── server.test.ts                   # 服务器测试
@@ -156,6 +158,14 @@ npm run test:e2e:ui
 | **Features** `src/features/` | ~1 | chat/useChatMessages |
 | **Library** `src/lib/` | ~1 | validation |
 
+### Desktop 单元测试（Vitest）
+
+| 模块 | 文件 | 覆盖内容 |
+|------|------|---------|
+| **IPC Handlers** | `desktop/src/main/*.test.ts` | ipc.test.ts, gateway.test.ts, openclaw.test.ts, window-state.test.ts |
+| **Desktop UI** | `desktop/src/renderer/stitch/**/*.test.tsx` | LuminaLayout, DarkCard, DarkButton 等 |
+| **Build Scripts** | `desktop/scripts/clean-stale.cjs` | 打包前清理 stale artifacts（v1.3 新增） |
+
 ### TRIX Native Server 测试
 
 | 模块 | 文件 | 覆盖内容 |
@@ -171,6 +181,7 @@ npm run test:e2e:ui
 | `tests/e2e/app.test.ts` | 应用核心流程 |
 | `tests/e2e/all-changes.test.ts` | 完整变更测试 |
 | `tests/smoke/mvp-smoke.test.mjs` | MVP 冒烟测试 |
+| `desktop-e2e.cjs` | Desktop E2E（8 核心测试：Gateway/Supabase Auth/Float/Settings/Channels 等） |
 
 ---
 
@@ -185,6 +196,7 @@ npm run test:e2e:ui
 | `npm run test:smoke` | 冒烟测试 |
 | `npm run test:e2e` | E2E 测试 |
 | `npm run test:e2e:ui` | E2E 测试（UI 模式） |
+| `npm run test:e2e -- desktop-e2e.cjs` | Desktop E2E 测试 |
 | `npm run test:all` | 运行全部测试 |
 
 ---

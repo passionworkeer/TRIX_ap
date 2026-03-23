@@ -4,6 +4,42 @@
 
 ---
 
+## 📅 2026-03-23 - Sprint 文档同步
+
+### 完成内容
+
+1. **DESKTOP_ARCHITECTURE.md v1.3**：
+   - IPC handlers **21→51**（新增 auth / study / system info / TRIX Native / channels / gateway 全部接入）
+   - Float Window 新增：快捷回复、表情反应、通知预览
+   - electron-builder 配置更新：`productName: TRIX Companion`，`sidebar.bmp`，`compression: maximum`
+   - preload API 补充所有新通道
+   - 新增 `scripts/` + `desktop.css` 到目录结构
+
+2. **DESKTOP_PRD.md v1.3**：
+   - IPC 矩阵扩展至 51 handlers，8 大类别
+   - SettingsPage 标注为「真实 IPC 接入，732 行」
+   - 构建输出：`compression: maximum` 优化
+
+3. **TESTING.md**：
+   - 补充 `desktop-e2e.cjs` Desktop E2E runner
+   - 补充 `desktop/src/main/*.test.ts` Desktop vitest 测试
+   - 补充 `scripts/clean-stale.cjs` 打包清理工具
+
+4. **ui/COMPONENTS.md**：
+   - 补充 **AchievementsPanel**（283 行，稀有度分级着色，动画进度条）
+
+5. **WEB_ARCHITECTURE.md**：
+   - Profile 页面标注含 AchievementsPanel 集成
+   - Profile 页面含 `AchievementService` 成就解锁功能
+
+6. **CHANGELOG.md**：
+   - 新增 5 个 2026-03-23 commits
+
+7. **INDEX.md**：
+   - `最后更新` → 2026-03-23
+
+---
+
 ## 📅 2026-03-22 - 工作区清理
 
 ### 完成内容

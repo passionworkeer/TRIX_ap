@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.2
-> **最后更新**: 2026-03-22
+> **版本**: 1.3
+> **最后更新**: 2026-03-23
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,8 +21,8 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (21 handlers)             │  │   │
-│  │  │  pairing:createQr · gateway:status · openclaw:*         │  │   │
+│  │  │                    IPC Handlers (51 handlers)             │  │   │
+│  │  │  pairing · gateway · openclaw · auth · study · system*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                    │                                     │
@@ -97,6 +97,44 @@ window.electronAPI = {
   // === Gateway ===
   getGatewayStatus: () => Promise<GatewayStatus>,
   restartGateway: () => Promise<void>,
+  startGateway: () => Promise<void>,
+  stopGateway: () => Promise<void>,
+  getGatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
+
+  // === Supabase Auth ===
+  getAuthSession: () => Promise<AuthSession>,
+  signIn: (email: string, password: string) => Promise<AuthUser>,
+  signUp: (email: string, password: string) => Promise<AuthUser>,
+  signOut: () => Promise<void>,
+
+  // === Study Data ===
+  listTodos: () => Promise<Todo[]>,
+  createTodo: (title: string, priority?: string) => Promise<Todo>,
+  toggleTodo: (id: string, completed: boolean) => Promise<void>,
+  deleteTodo: (id: string) => Promise<void>,
+  getAchievements: () => Promise<Achievement[]>,
+  getProfileStats: () => Promise<ProfileStats>,
+
+  // === TRIX Native ===
+  getTrixConversations: () => Promise<Conversation[]>,
+  getTrixMessages: (conversationId: string) => Promise<Message[]>,
+  sendTrixMessage: (conversationId: string, content: string) => Promise<Message>,
+  sendTrixReaction: (messageId: string, emoji: string) => Promise<void>,
+
+  // === Channels (Telegram / Feishu / Discord / Slack / WhatsApp / WeCom) ===
+  configureChannel: (channelId: string, config: ChannelConfig) => Promise<void>,
+  listChannels: () => Promise<ChannelInfo[]>,
+  deleteChannel: (channelId: string) => Promise<void>,
+  testChannel: (channelId: string, config: ChannelConfig) => Promise<TestResult>,
+  startListening: (channelId: string) => Promise<void>,
+  stopListening: (channelId: string) => Promise<void>,
+  getChannelMessages: (channelId: string, opts?: { limit?: number }) => Promise<Message[]>,
+  sendChannelMessage: (channelId: string, text: string) => Promise<void>,
+
+  // === System Info ===
+  getSystemInfo: () => Promise<SystemInfo>,
+  getSystemDisk: () => Promise<DiskInfo[]>,
+  checkPackages: (packages: string[]) => Promise<PackageInfo[]>,
 
   // === App Info ===
   getAppInfo: () => Promise<AppInfo>,
@@ -247,7 +285,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **21 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。
+**概况**：共 **51 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 8 大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -256,40 +294,78 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 21 个 ipcMain.handle
+// 全部 51 个 ipcMain.handle（8 大类别）
 
-// Window Management
-'window:show-main'       → 显示主窗口
-'window:hide-main'      → 隐藏主窗口
+// Window Management（3）
+'window:show-main'         → 显示主窗口
+'window:hide-main'        → 隐藏主窗口
 'window:minimize-to-tray' → 最小化到托盘
 
-// Bot State
-'bot-state:push'         → 推送 Bot 状态（Renderer → Main）
+// Bot State（1）
+'bot-state:push'           → 推送 Bot 状态（Renderer → Main）
 
-// OpenClaw
-'openclaw:check'         → 检查安装状态
-'openclaw:install'       → 安装 OpenClaw
-'openclaw:status'        → 运行 openclaw status 命令
-'openclaw:doctor'        → 健康检查
-'openclaw:run-command'   → 执行白名单命令
-'openclaw:agents-list'  → 列出 Agents
-'openclaw:skills-list'  → 列出 Skills
-'openclaw:skills-install' → 安装 Skill
+// OpenClaw（14）
+'openclaw:check'           → 检查安装状态
+'openclaw:install'         → 安装 OpenClaw
+'openclaw:status'          → 运行 openclaw status 命令
+'openclaw:doctor'          → 健康检查
+'openclaw:run-command'     → 执行白名单命令
+'openclaw:agents-list'     → 列出 Agents
+'openclaw:skills-list'     → 列出 Skills
+'openclaw:skills-install'  → 安装 Skill
 'openclaw:skills-uninstall' → 卸载 Skill
-'openclaw:backup-list'  → 列出 Backups
-'openclaw:backup-restore' → 恢复 Backup
-'openclaw:pairing-create' → 创建配对码
+'openclaw:backup-list'     → 列出 Backups
+'openclaw:backup-restore'  → 恢复 Backup
+'openclaw:pairing-create'  → 创建配对码
 
-// Native Channel Pairing
-'pairing:createQr'       → 生成 QR 码
-'pairing:pollStatus'     → 轮询配对状态
+// Supabase Auth（4）
+'auth:get-session'         → 获取当前会话
+'auth:sign-in'             → 邮箱密码登录
+'auth:sign-up'             → 邮箱注册
+'auth:sign-out'            → 登出
 
-// Gateway
-'gateway:status'         → 获取 Gateway 状态
-'gateway:restart'        → 重启 Gateway
+// Study Data（6）
+'study:list-todos'          → 列出学习待办
+'study:create-todo'         → 创建待办
+'study:toggle-todo'        → 切换完成状态
+'study:delete-todo'        → 删除待办
+'study:get-achievements'   → 获取成就列表
+'profile:get-stats'        → 获取用户统计
 
-// App
-'app:info'               → 获取 App 信息
+// TRIX Native（4）
+'trixnative:conversations'  → 获取会话列表
+'trixnative:messages'       → 获取消息历史
+'trixnative:send-message'   → 发送消息
+'trixnative:send-reaction'  → 发送表情反应
+
+// Native Channel Pairing（4）
+'pairing:createQr'          → 生成配对 QR 码
+'pairing:pollStatus'        → 轮询配对状态
+'pairing:generate'          → 生成配对码
+'pairing:list'              → 列出已有配对
+'pairing:revoke'            → 撤销配对码
+
+// Gateway（5）
+'gateway:status'            → 获取 Gateway 运行状态
+'gateway:start'             → 启动 Gateway
+'gateway:stop'              → 停止 Gateway
+'gateway:restart'           → 重启 Gateway
+'gateway:logs'              → 获取 Gateway 日志
+
+// System Info（3）
+'system:info'               → 获取系统信息（CPU/内存/OS）
+'system:disk'               → 获取磁盘列表
+'system:check-packages'     → 检查全局 npm 包
+
+// Third-party Channels（7）
+'channels:configure'        → 配置 Channel 凭证
+'channels:list'             → 列出所有 Channel
+'channels:delete'           → 删除 Channel
+'channels:test'             → 测试 Channel 连接
+'channels:start-listening'  → 开始监听 Channel
+'channels:stop-listening'   → 停止监听 Channel
+'channels:get-messages'     → 获取 Channel 消息
+'channels:send-message'     → 通过 Channel 发送消息
 ```
 
 **OpenClaw 命令白名单**（`ipc.ts`）：
@@ -305,22 +381,35 @@ const ALLOWED_COMMANDS = [
 ];
 ```
 
-### 3.6 Float UI (`float.tsx`)
+### 3.6 Float Window (`float.tsx`)
+
+**功能描述**：
+220×320 的小型透明窗口，始终置顶于屏幕右下角，支持配对 + 实时 Bot 状态可视化。
 
 ```
 ┌────────────────────────────┐
-│  [×]  配对 QR              │  ← 标题栏（可拖拽）
+│  [×]  TRIX Companion       │  ← 标题栏（可拖拽）
 ├────────────────────────────┤
 │  ┌──────────────────────┐ │
 │  │                      │ │
-│  │      [QR Code]      │ │  ← base64 PNG
+│  │      [QR Code]      │ │  ← base64 PNG 配对码
 │  │                      │ │
 │  └──────────────────────┘ │
-│                            │
 │  配对码: JJ3JSW7Z         │  ← 8位大写字母
 │  ○ pending...              │  ← 轮询状态指示
+│                            │
+│  ┌──────────────────────┐ │
+│  │  [Bot 状态动画]      │ │  ← IDLE/THINKING/SPEAKING/BORING
+│  └──────────────────────┘ │
+│                            │
+│  💬 快捷回复  🔔 通知预览 │  ← 新增（v1.3）
 └────────────────────────────┘
 ```
+
+**v1.3 新增功能**（`b1e3032`）：
+- **快捷回复**：预设快速回复按钮，点击直接发送
+- **表情反应**：消息气泡支持发送 emoji 反应
+- **通知预览**：实时推送通知内容预览
 
 **Bot 状态动画**（`FloatHeroBackground.tsx`）：
 - 四种状态：`IDLE` | `THINKING` | `SPEAKING` | `BORING`（低电量时）
@@ -338,9 +427,34 @@ const ALLOWED_COMMANDS = [
 ## 4. 打包配置 (`electron-builder.yml`)
 
 ```yaml
-appId: com.trixapp.desktop
-productName: TRIX Desktop
+appId: com.trixapp.companion
+productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
+directories:
+  output: C:/Users/wang/Desktop/TRIX Companion 3   # ← 打包输出目录
+  buildResources: build
+asar: true
+compression: maximum                          # ← 最大压缩（v1.3 新增）
+
+files:                                        # ← v1.3 新增文件过滤
+  - dist-desktop/main/**/*
+  - dist-desktop/preload/**/*
+  - dist-desktop/renderer/assets/**/*
+  - dist-desktop/renderer/*.html
+  - '!**/3d/**'                             # 排除 Three.js 源码
+  - '!**/companion-check.html'
+  - '!**/env-check.html'
+  - '!**/pairing.html'
+  - '!**/manifest.json'
+  - '!**/sw.js'
+  - '!**/videos/**'
+  - '!**/dist/**'
+  - '!**/node_modules/**'
+
+extraResources:                                # ← v1.3 新增
+  - from: ../public/videos
+    to: videos
+    filter: ['**/*']
 
 win:
   target:
@@ -349,31 +463,37 @@ win:
     - target: msi
       arch: [x64]
   icon: build/icon.ico
-  artifactName: ${productName}-${version}-win-${arch}.${ext}
+  artifactName: ${productName}-Setup-${version}.${ext}
 
 nsis:
   oneClick: false
-  perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  language: 2052                    # 中文 NSIS ← 新增
-  installerSidebar: build/sidebar.png  # 侧边栏 ← 新增
-  uninstallerSidebar: build/sidebar.png
-  installerHeaderBitmap: build/header.png
+  shortcutName: TRIX Companion              # ← v1.3 新增
   include: build/installer.nsh
-  license: build/EULA.txt           # EULA ← 新增
-  installerIcon: build/icon.ico
-  uninstallerIcon: build/icon.ico
-
-# MSI 配置 ← 新增
-msi:
   language: 2052
+  installerSidebar: build/sidebar.bmp        # ← sidebar.bmp（修正）
+  uninstallerSidebar: build/sidebar.bmp
+  installerHeaderIcon: build/icon.ico
+  license: build/eula.txt                   # ← eula.txt（修正）
+  uninstallerIcon: build/icon.ico
+  runAfterFinish: true                      # ← v1.3 新增
 
-# Electron mirror
+msi:
+  oneClick: false
+
+electronDist: ../node_modules/electron/dist  # ← v1.3 新增
+electronVersion: 33.4.0
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
+publish: null
 ```
+
+**v1.3 构建优化**（`55c8605`）：
+- `compression: maximum` — 最大压缩率，减少安装包体积
+- 显式 `files` 过滤 — 排除 `3d/`（Three.js 源码 32MB）、`videos/`（由 extraResources 单独打包）
+- `shortcutName` 精确指定 — 避免快捷方式名称不一致
 
 ---
 
@@ -381,8 +501,9 @@ electronDownload:
 
 ```
 desktop/
-├── electron-builder.yml        # 打包配置（NSIS + MSI，中文）
+├── electron-builder.yml        # 打包配置（NSIS + MSI，compression: maximum）
 ├── package.json               # 依赖 + electron ^33.4.0
+├── scripts/                    # 打包工具（clean-stale.cjs 等）
 ├── vite.config.desktop.ts    # Vite 配置（主窗口 + Float 窗口，dev port: 5174）
 ├── tsconfig.desktop.json      # TS 配置
 │
@@ -397,7 +518,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘
     │   ├── gateway.ts         # Gateway 子进程
     │   ├── openclaw.ts        # OpenClaw CLI 封装
-    │   ├── ipc.ts             # IPC Handler（21 个 ipcMain.handle）
+    │   ├── ipc.ts             # IPC Handler（51 个 ipcMain.handle）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -519,4 +640,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23
