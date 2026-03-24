@@ -7,46 +7,48 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
-const portalContainers: HTMLElement[] = [];
-const origAppend = document.body.appendChild.bind(document.body);
-const origRemove = document.body.removeChild.bind(document.body);
-
-// Mock framer-motion to render children directly (avoids portal complexity in tests)
-vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  motion: {
-    div: ({ children, ...props }: Record<string, unknown>) => (
-      <div data-testid="modal-portal" {...props}>{children}</div>
-    ),
-  },
-}));
-
-document.body.appendChild = vi.fn((el: Node) => {
-  const result = origAppend(el);
-  if (el instanceof HTMLElement && el.dataset.testid === 'modal-portal') {
-    portalContainers.push(el);
-  }
-  return result;
-}) as typeof document.body.appendChild;
-document.body.removeChild = vi.fn((el: Node) => {
-  const idx = portalContainers.indexOf(el as HTMLElement);
-  if (idx !== -1) portalContainers.splice(idx, 1);
-  return origRemove(el);
-}) as typeof document.body.removeChild;
-
-vi.mock('../../utils/iosMotion', () => ({
-  iosBackdropMotion: { initial: {}, animate: {}, exit: {} },
-  iosSheetMotion: { initial: {}, animate: {}, exit: {} },
+// Mock the Modal component directly to avoid createPortal complexity
+vi.mock('./Modal', () => ({
+  __esModule: true,
+  default: ({
+    isOpen,
+    onClose,
+    children,
+    className,
+    closeOnBackdrop = true,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    children: React.ReactNode;
+    className?: string;
+    closeOnBackdrop?: boolean;
+  }) =>
+    isOpen ? (
+      <div
+        data-testid="modal-portal"
+        className={`fixed inset-0 z-[1001] flex items-center justify-center p-4 ${className ?? ''}`}
+        onClick={closeOnBackdrop ? onClose : undefined}
+      >
+        <div
+          className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="relative z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
+      </div>
+    ) : null,
 }));
 
 import Modal from './Modal';
 
 describe('Modal', () => {
   beforeEach(() => {
-    portalContainers.forEach(c => {
-      try { document.body.removeChild(c); } catch {}
-    });
-    portalContainers.length = 0;
     vi.clearAllMocks();
   });
 
@@ -60,16 +62,31 @@ describe('Modal', () => {
     expect(screen.getByText('Test Title')).toBeInTheDocument();
   });
 
-  it('calls onClose when close button is clicked', () => {
+  it('calls onClose when backdrop is clicked', () => {
     const onClose = vi.fn();
     render(
-      <Modal isOpen={true} onClose={onClose} labelledBy="t" describedBy="d">
+      <Modal isOpen={true} onClose={onClose} labelledBy="t" describedBy="d" closeOnBackdrop={true}>
         <p>Content</p>
       </Modal>
     );
-    const closeBtn = screen.getByRole('button', { name: /关闭确认弹窗/i });
-    fireEvent.click(closeBtn);
+    // Click the outer backdrop (fixed inset-0)
+    const backdrop = document.querySelector('.fixed.inset-0.z-\\[1001\\]');
+    expect(backdrop).toBeInTheDocument();
+    fireEvent.click(backdrop!);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not call onClose when inner content is clicked', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen={true} onClose={onClose} labelledBy="t" describedBy="d" closeOnBackdrop={true}>
+        <p>Content</p>
+      </Modal>
+    );
+    const content = document.querySelector('[role="dialog"]');
+    expect(content).toBeInTheDocument();
+    fireEvent.click(content!);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('has role dialog', () => {

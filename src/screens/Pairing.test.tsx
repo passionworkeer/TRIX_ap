@@ -6,8 +6,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { I18nextProvider } from 'react-i18next';
-import i18n from '../i18n';
 import React from 'react';
 
 // Track mock state for context
@@ -101,11 +99,7 @@ vi.mock('lucide-react', () => ({
 }));
 
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <MemoryRouter>
-    <I18nextProvider i18n={i18n}>
-      {children}
-    </I18nextProvider>
-  </MemoryRouter>
+  <MemoryRouter>{children}</MemoryRouter>
 );
 
 describe('Pairing', () => {
@@ -127,7 +121,6 @@ describe('Pairing', () => {
       botOnline: false,
       lastError: null,
     };
-    vi.useFakeTimers();
   });
 
   it('renders without crashing', async () => {
@@ -137,10 +130,6 @@ describe('Pairing', () => {
         <Pairing />
       </TestWrapper>
     );
-
-    await act(async () => {
-      vi.advanceTimersByTime(100);
-    });
 
     await waitFor(() => {
       expect(screen.getByText(/配对 TRIX Native/i)).toBeInTheDocument();
@@ -155,10 +144,6 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(100);
-    });
-
     await waitFor(() => {
       expect(screen.getByText(/配对 TRIX Native/i)).toBeInTheDocument();
     });
@@ -172,10 +157,6 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
     await waitFor(() => {
       expect(document.getElementById('qr-reader')).toBeInTheDocument();
     });
@@ -188,10 +169,6 @@ describe('Pairing', () => {
         <Pairing />
       </TestWrapper>
     );
-
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
 
     await waitFor(() => {
       expect(screen.getByText(/手动输入配对码/i)).toBeInTheDocument();
@@ -212,8 +189,8 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
+    await waitFor(() => {
+      expect(screen.getByText(/手动输入配对码/i)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByText(/手动输入配对码/i));
@@ -232,8 +209,8 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
+    await waitFor(() => {
+      expect(screen.getByText(/手动输入配对码/i)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByText(/手动输入配对码/i));
@@ -253,18 +230,25 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
+    await waitFor(() => {
+      expect(screen.getByText(/手动输入配对码/i)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByText(/手动输入配对码/i));
 
     await waitFor(() => {
-      const input = screen.getByPlaceholderText('AB12CD') as HTMLInputElement;
-      fireEvent.change(input, { target: { value: 'ABCDEF' } });
+      expect(screen.getByPlaceholderText('AB12CD')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/验证配对/i));
+    // Type the code
+    const input = screen.getByPlaceholderText('AB12CD') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'ABCDEF' } });
+
+    // Click the submit button (验证配对 is inside a span inside the button)
+    await waitFor(() => {
+      expect(screen.getByText('验证配对')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('验证配对'));
 
     await waitFor(() => {
       expect(mockChannelState.pairWithCode).toHaveBeenCalledWith('ABCDEF');
@@ -280,10 +264,6 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
-
     await waitFor(() => {
       expect(screen.getByText(/解除绑定/i)).toBeInTheDocument();
     });
@@ -298,13 +278,11 @@ describe('Pairing', () => {
       </TestWrapper>
     );
 
-    await act(async () => {
-      vi.advanceTimersByTime(200);
+    await waitFor(() => {
+      expect(screen.getByText(/解除绑定/i)).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      fireEvent.click(screen.getByText(/解除绑定/i));
-    });
+    fireEvent.click(screen.getByText(/解除绑定/i));
 
     await waitFor(() => {
       expect(mockChannelState.unpair).toHaveBeenCalled();
