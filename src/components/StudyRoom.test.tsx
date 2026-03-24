@@ -124,8 +124,8 @@ describe('StudyRoom', () => {
     const StudyRoom = (await import('./StudyRoom')).default;
     render(<StudyRoom isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: '房间号加入' }));
-    fireEvent.click(await screen.findByRole('button', { name: '创建' }));
+    fireEvent.click(await screen.findByText('房间号加入'));
+    fireEvent.click(await screen.findByText('创建'));
 
     await waitFor(() => {
       expect(mocks.createStudyRoom).toHaveBeenCalled();

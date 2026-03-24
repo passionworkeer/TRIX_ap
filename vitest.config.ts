@@ -16,8 +16,7 @@ export default defineConfig({
       'archive/**',
       'openclaw-skills/**',
       'src/e2e/**',
-      // Temporarily skip Study tests due to canvas mock issues
-      'src/screens/Study.test.tsx',
+
       // Desktop tests are handled by desktop/vitest.config.ts
       'desktop/**',
     ],

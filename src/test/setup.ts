@@ -7,6 +7,30 @@ afterEach(() => {
   cleanup()
 })
 
+// Mock HTMLCanvasElement.getContext and requestAnimationFrame for happy-dom
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    value: vi.fn(() => ({
+      clearRect: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      fillStyle: '',
+      globalAlpha: 1,
+    })),
+    writable: true,
+  })
+}
+
+// Mock requestAnimationFrame
+globalThis.requestAnimationFrame = vi.fn((cb: FrameRequestCallback) => {
+  return setTimeout(() => cb(Date.now()), 16) as unknown as number
+})
+globalThis.cancelAnimationFrame = vi.fn((id: number) => {
+  clearTimeout(id as unknown as ReturnType<typeof setTimeout>)
+})
+
 // Mock Supabase
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({

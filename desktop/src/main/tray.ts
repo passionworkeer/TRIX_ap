@@ -139,6 +139,7 @@ export async function updateTrayMenu(): Promise<void> {
     },
   ]);
 
+  if (!tray) return;
   tray.setContextMenu(contextMenu);
 }
 
