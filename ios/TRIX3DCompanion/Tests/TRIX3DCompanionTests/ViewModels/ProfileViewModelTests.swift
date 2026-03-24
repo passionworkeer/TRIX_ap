@@ -542,12 +542,3 @@ extension ProfileViewModelTests {
         )
     }
 }
-
-// MARK: - Mock User Stats
-
-struct UserStats: Decodable {
-    let totalDuration: TimeInterval
-    let todayDuration: TimeInterval
-    let streakDays: Int
-    let sessionCount: Int
-}

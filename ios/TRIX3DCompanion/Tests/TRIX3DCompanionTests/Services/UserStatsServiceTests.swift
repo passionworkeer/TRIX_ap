@@ -17,7 +17,7 @@ import Combine
 // MARK: - Mock API Client for UserStatsService
 
 @MainActor
-final class MockAPIClientForUserStats: ObservableObject {
+final class MockAPIClientForUserStats: ObservableObject, APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockUserStats: UserStats?
@@ -25,28 +25,67 @@ final class MockAPIClientForUserStats: ObservableObject {
     var lastRequestedUserId: String?
     var lastRequestedPeriod: String?
 
-    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]? = nil) async throws -> T {
-        lastRequestedUserId = parameters?["userId"] as? String
-        lastRequestedPeriod = parameters?["period"] as? String
-
+    func get<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
         if shouldFailRequests {
-            throw mockError ?? NetworkError.custom("Request failed")
+            throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
-        // Return appropriate mock data based on endpoint
         if endpoint == .userStats {
             guard let stats = mockUserStats as? T else {
-                throw NetworkError.custom("Invalid mock data for user stats")
+                throw NetworkError.custom(message: "Invalid mock data for user stats")
             }
             return stats
         } else if endpoint == .studyStats || endpoint == .weeklyStudyData {
             guard let stats = mockStudyStats as? T else {
-                throw NetworkError.custom("Invalid mock data for study stats")
+                throw NetworkError.custom(message: "Invalid mock data for study stats")
             }
             return stats
         }
 
-        throw NetworkError.custom("Unknown endpoint")
+        throw NetworkError.custom(message: "Unknown endpoint")
+    }
+
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]?) async throws -> T {
+        lastRequestedUserId = parameters?["userId"] as? String
+        lastRequestedPeriod = parameters?["period"] as? String
+
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.custom(message: "Request failed")
+        }
+
+        if endpoint == .userStats {
+            guard let stats = mockUserStats as? T else {
+                throw NetworkError.custom(message: "Invalid mock data for user stats")
+            }
+            return stats
+        } else if endpoint == .studyStats || endpoint == .weeklyStudyData {
+            guard let stats = mockStudyStats as? T else {
+                throw NetworkError.custom(message: "Invalid mock data for study stats")
+            }
+            return stats
+        }
+
+        throw NetworkError.custom(message: "Unknown endpoint")
+    }
+
+    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.custom(message: "Not implemented")
     }
 }
 
@@ -66,13 +105,22 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
             username: "test_user",
             email: "test@example.com",
             avatarUrl: nil,
+            avatarConfig: nil,
             fullName: nil,
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 0,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         ) : nil
@@ -80,6 +128,30 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
 
     var isLoading: Bool = false
     var lastError: AuthError?
+
+    func login(email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func logout() async -> AuthResult<Void> {
+        isLoggedIn = false
+        return .success(())
+    }
+
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func fetchCurrentUser() async -> AuthResult<User> {
+        if let user = currentUser {
+            return .success(user)
+        }
+        return .failure(.invalidCredentials)
+    }
 }
 
 // MARK: - UserStatsService Tests
@@ -102,8 +174,8 @@ final class UserStatsServiceTests: XCTestCase {
         mockAPIClient.mockStudyStats = createMockStudyStats()
 
         sut = UserStatsService(
-            apiClient: mockAPIClient as! APIClient,
-            authService: mockAuthService as! AuthService
+            apiClient: mockAPIClient,
+            authService: mockAuthService
         )
     }
 

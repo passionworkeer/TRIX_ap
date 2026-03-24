@@ -107,6 +107,8 @@ enum CacheType: String, CaseIterable {
 // MARK: - Offline Cache Service Protocol
 
 protocol OfflineCacheServiceProtocol {
+    var totalCacheSize: Int64 { get }
+
     func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws
     func retrieve<T: Codable>(key: String, type: CacheType) async throws -> T
     func remove(key: String, type: CacheType) async throws
@@ -115,6 +117,7 @@ protocol OfflineCacheServiceProtocol {
     func getStatistics(type: CacheType) async throws -> CacheStatistics
     func cleanExpired() async throws
     func getCurrentSize(type: CacheType) async throws -> Int64
+    func cacheUserProfile(_ user: User) async throws
 }
 
 // MARK: - Offline Cache Service

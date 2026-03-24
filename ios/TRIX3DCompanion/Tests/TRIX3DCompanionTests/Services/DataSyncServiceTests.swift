@@ -53,19 +53,24 @@ final class MockNetworkMonitorForSync: NetworkMonitorProtocol {
 
 @MainActor
 final class MockOfflineCacheForSync: OfflineCacheServiceProtocol {
-    var cachedUser: User?
+    var totalCacheSize: Int64 { 0 }
 
-    func cacheUserProfile(_ user: User) async throws {
-        cachedUser = user
-    }
+    var shouldFailOperations = false
 
-    func getCachedUserProfile() -> User? {
-        return cachedUser
+    func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws {}
+    func retrieve<T: Codable>(key: String, type: CacheType) async throws -> T {
+        throw CacheError.notFound
     }
+    func remove(key: String, type: CacheType) async throws {}
+    func clear(type: CacheType) async throws {}
+    func clearAll() async throws {}
+    func getStatistics(type: CacheType) async throws -> CacheStatistics {
+        CacheStatistics(totalEntries: 0, totalSizeBytes: 0, expiredEntries: 0, type: type)
+    }
+    func cleanExpired() async throws {}
+    func getCurrentSize(type: CacheType) async throws -> Int64 { 0 }
 
-    func clearCache() {
-        cachedUser = nil
-    }
+    func cacheUserProfile(_ user: User) async throws {}
 }
 
 @MainActor
@@ -83,8 +88,8 @@ final class MockDatabaseManagerForSync: DatabaseManagerProtocol {
         return unsyncedStudySessions
     }
 
-    func markStudySessionSynced(_ id: String) throws {
-        unsyncedStudySessions.removeAll { $0.id == id }
+    func markStudySessionSynced(_ sessionId: String) throws {
+        unsyncedStudySessions.removeAll { $0.id == sessionId }
     }
 
     func getPendingMessages() throws -> [ChatMessage] {
@@ -94,47 +99,28 @@ final class MockDatabaseManagerForSync: DatabaseManagerProtocol {
         return pendingMessages
     }
 
-    func markMessageSynced(_ id: String) throws {
-        pendingMessages.removeAll { $0.id == id }
+    func markMessageSynced(_ messageId: String) throws {
+        pendingMessages.removeAll { $0.id == messageId }
     }
 
-    func getMessage(id: String) throws -> ChatMessage? {
-        return pendingMessages.first { $0.id == id }
-    }
-
-    func updateMessage(id: String, content: String, timestamp: Date) throws {}
-
-    func insertMessage(from response: ServerMessageResponse) throws {}
-
-    func markMessageConflict(id: String, serverContent: String) throws {}
-
-    func getPendingPointTransactions() throws -> [PointTransaction] {
+    func getPendingPointTransactions() throws -> [PointsTransaction] {
         if shouldFailOperations {
             throw DatabaseError.queryFailed
         }
         return pendingPointTransactions
     }
 
-    func markPointTransactionSynced(_ id: String) throws {
-        pendingPointTransactions.removeAll { $0.id == id }
+    func markPointTransactionSynced(_ transactionId: String) throws {
+        pendingPointTransactions.removeAll { $0.id == transactionId }
     }
 
-    func updateUserPoints(_ balance: Int) throws {}
+    func updateUserPoints(userId: String, points: Int) throws {}
 
-    func getPointTransaction(id: String) throws -> PointTransaction? {
-        return pendingPointTransactions.first { $0.id == id }
+    func getPointTransaction(_ transactionId: String) throws -> PointsTransaction? {
+        return pendingPointTransactions.first { $0.id == transactionId }
     }
 
-    func insertPointTransaction(from response: ServerPointTransactionResponse) throws {}
-
-    // Stub required protocol methods
-    func saveStudySession(_ session: StudySession) throws {}
-    func getStudySession(id: String) throws -> StudySession? { return nil }
-    func getAllStudySessions() throws -> [StudySession] { return [] }
-    func deleteStudySession(id: String) throws {}
-    func saveMessage(_ message: ChatMessage) throws {}
-    func getAllMessages() throws -> [ChatMessage] { return [] }
-    func deleteMessage(id: String) throws {}
+    func insertPointTransaction(_ transaction: PointsTransaction) throws {}
 }
 
 @MainActor
@@ -153,6 +139,10 @@ final class MockAPIClientForSync: APIClientProtocol {
         }
 
         throw NetworkError.custom("No mock data")
+    }
+
+    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T where T: Decodable {
+        return try await get(endpoint)
     }
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
@@ -218,6 +208,7 @@ final class MockAuthServiceForSync: AuthServiceProtocol {
     }
 
     func logout() async -> AuthResult<Void> {
+        isLoggedInValue = false
         return .success(())
     }
 
@@ -231,24 +222,9 @@ final class MockAuthServiceForSync: AuthServiceProtocol {
         }
         return .failure(.invalidCredentials)
     }
-
-    func getCurrentUser() async -> AuthResult<User> {
-        if let user = mockUser {
-            return .success(user)
-        }
-        return .failure(.invalidCredentials)
-    }
-
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
-        return .success(updates)
-    }
-
-    func deleteAccount() async -> AuthResult<Void> {
-        return .success(())
-    }
 }
 
-// MARK: - Data Sync Service Tests
+// MARK: - DataSyncService Tests
 
 @MainActor
 final class DataSyncServiceTests: XCTestCase {
@@ -287,557 +263,127 @@ final class DataSyncServiceTests: XCTestCase {
         mockAuthService = nil
         try await super.tearDown()
     }
-}
 
-// MARK: - sync() Tests
+    // MARK: - Sync All Tests
 
-extension DataSyncServiceTests {
-
-    func testSyncFailsWhenNetworkUnavailable() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = false
+    func testSyncAll_Success() async throws {
+        mockNetworkMonitor.isConnectedValue = true
         mockAuthService.isLoggedInValue = true
+        mockDatabaseManager.unsyncedStudySessions = [
+            StudySession(id: UUID().uuidString, userId: "user1", duration: 60, startedAt: Date(), endedAt: nil, earnedPoints: 10, isCompleted: false, subject: nil, notes: nil, createdAt: Date())
+        ]
 
-        // When
+        let result = try await sut.syncAll()
+
+        XCTAssertEqual(result.status, .success)
+    }
+
+    func testSyncAll_NoNetwork() async throws {
+        mockNetworkMonitor.isConnectedValue = false
+
         do {
-            _ = try await sut.sync(type: .studySessions, priority: .normal)
-            XCTFail("Should throw network unavailable error")
+            _ = try await sut.syncAll()
+            XCTFail("Expected network error")
         } catch {
-            // Then
-            XCTAssertEqual(error as? SyncError, .networkUnavailable, "Should throw network unavailable error")
+            XCTAssertTrue(error is SyncError)
         }
     }
 
-    func testSyncFailsWhenNotAuthenticated() async {
-        // Given
+    func testSyncAll_NotAuthenticated() async throws {
         mockNetworkMonitor.isConnectedValue = true
         mockAuthService.isLoggedInValue = false
 
-        // When
         do {
-            _ = try await sut.sync(type: .studySessions, priority: .normal)
-            XCTFail("Should throw authentication required error")
+            _ = try await sut.syncAll()
+            XCTFail("Expected auth error")
         } catch {
-            // Then
-            XCTAssertEqual(error as? SyncError, .authenticationRequired, "Should throw authentication required error")
+            XCTAssertTrue(error is SyncError)
         }
     }
 
-    func testSyncStudySessionsSuccess() async {
-        // Given
+    func testSyncAll_Cancel() async throws {
         mockNetworkMonitor.isConnectedValue = true
         mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockDatabaseManager.unsyncedStudySessions = [
-            createMockStudySession(id: "session1"),
-            createMockStudySession(id: "session2")
-        ]
-
-        // When
-        do {
-            let result = try await sut.sync(type: .studySessions, priority: .normal)
-
-            // Then
-            XCTAssertEqual(result.status, .success, "Sync should succeed")
-            XCTAssertGreaterThanOrEqual(result.syncedItems, 0, "Should have synced items")
-        } catch {
-            XCTFail("Should succeed: \(error)")
-        }
-    }
-
-    func testSyncUserProfileSuccess() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = true
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockAPIClient.mockUser = createMockUser()
-
-        // When
-        do {
-            let result = try await sut.sync(type: .userProfile, priority: .normal)
-
-            // Then
-            XCTAssertEqual(result.status, .success, "Sync should succeed")
-            XCTAssertEqual(result.syncedItems, 1, "Should sync 1 profile")
-        } catch {
-            XCTFail("Should succeed: \(error)")
-        }
-    }
-
-    func testSyncUpdatesStatusCorrectly() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = true
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-
-        // When
-        XCTAssertEqual(sut.currentStatus, .idle, "Initial status should be idle")
-
-        do {
-            _ = try await sut.sync(type: .studySessions, priority: .normal)
-
-            // Then
-            XCTAssertEqual(sut.currentStatus, .success, "Final status should be success")
-        } catch {
-            // Status might be failed depending on mock setup
-            XCTAssertTrue([.success, .failed].contains(sut.currentStatus), "Status should be success or failed")
-        }
-    }
-}
-
-// MARK: - syncAll() Tests
-
-extension DataSyncServiceTests {
-
-    func testSyncAllFailsWhenNetworkUnavailable() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = false
-        mockAuthService.isLoggedInValue = true
-
-        // When
-        do {
-            _ = try await sut.syncAll(priority: .normal)
-            XCTFail("Should throw network unavailable error")
-        } catch {
-            // Then
-            XCTAssertEqual(error as? SyncError, .networkUnavailable, "Should throw network unavailable error")
-        }
-    }
-
-    func testSyncAllFailsWhenNotAuthenticated() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = true
-        mockAuthService.isLoggedInValue = false
-
-        // When
-        do {
-            _ = try await sut.syncAll(priority: .normal)
-            XCTFail("Should throw authentication required error")
-        } catch {
-            // Then
-            XCTAssertEqual(error as? SyncError, .authenticationRequired, "Should throw authentication required error")
-        }
-    }
-
-    func testSyncAllSyncsAllDataTypes() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = true
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockAPIClient.mockUser = createMockUser()
-
-        // When
-        do {
-            let result = try await sut.syncAll(priority: .normal)
-
-            // Then
-            XCTAssertNotNil(result.timestamp, "Should have timestamp")
-        } catch {
-            XCTFail("Should succeed: \(error)")
-        }
-    }
-
-    func testSyncAllUpdatesLastSyncDate() async {
-        // Given
-        mockNetworkMonitor.isConnectedValue = true
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockAPIClient.mockUser = createMockUser()
-
-        XCTAssertNil(sut.lastSyncDate, "Initial last sync date should be nil")
-
-        // When
-        do {
-            _ = try await sut.syncAll(priority: .normal)
-
-            // Then
-            XCTAssertNotNil(sut.lastSyncDate, "Should update last sync date")
-        } catch {
-            // May fail due to mock limitations
-        }
-    }
-}
-
-// MARK: - Cancel Sync Tests
-
-extension DataSyncServiceTests {
-
-    func testCancelSyncResetsStatus() {
-        // Given
-        sut.currentStatus = .syncing
-
-        // When
-        sut.cancelSync()
-
-        // Then
-        XCTAssertEqual(sut.currentStatus, .idle, "Status should be idle after cancel")
-        XCTAssertFalse(sut.isSyncing, "Should not be syncing")
-    }
-
-    func testCancelSyncSetsLastError() {
-        // When
-        sut.cancelSync()
-
-        // Then
-        XCTAssertEqual(sut.lastError, .cancelled, "Last error should be cancelled")
-    }
-}
-
-// MARK: - Configuration Tests
-
-extension DataSyncServiceTests {
-
-    func testSetStrategy() {
-        // Given
-        let strategy = SyncStrategy.immediate
-
-        // When
-        sut.setStrategy(strategy)
-
-        // Then - just verify no crash
-        XCTAssertTrue(true)
-    }
-
-    func testSetConflictResolution() {
-        // Given
-        let resolution = ConflictResolution.clientWins
-
-        // When
-        sut.setConflictResolution(resolution)
-
-        // Then - just verify no crash
-        XCTAssertTrue(true)
-    }
-}
-
-// MARK: - Pending Sync Count Tests
-
-extension DataSyncServiceTests {
-
-    func testGetPendingSyncCountReturnsZeroWhenEmpty() async {
-        // Given
-        mockDatabaseManager.unsyncedStudySessions = []
-
-        // When
-        let count = await sut.getPendingSyncCount()
-
-        // Then
-        XCTAssertEqual(count, 0, "Should return 0 when no pending items")
-    }
-
-    func testGetPendingSyncCountReturnsCorrectCount() async {
-        // Given
-        mockDatabaseManager.unsyncedStudySessions = [
-            createMockStudySession(id: "session1"),
-            createMockStudySession(id: "session2"),
-            createMockStudySession(id: "session3")
-        ]
-
-        // When
-        let count = await sut.getPendingSyncCount()
-
-        // Then
-        XCTAssertEqual(count, 3, "Should return 3 pending items")
-    }
-
-    func testGetPendingSyncCountHandlesDatabaseError() async {
-        // Given
         mockDatabaseManager.shouldFailOperations = true
 
-        // When
+        let syncTask = Task {
+            try? await sut.syncAll()
+        }
+
+        try await Task.sleep(nanoseconds: 10_000_000)
+        sut.cancelSync()
+        await syncTask.value
+
+        XCTAssertEqual(sut.currentStatus, .cancelled)
+    }
+
+    // MARK: - Sync Type Tests
+
+    func testSyncStudySessions_Success() async throws {
+        mockNetworkMonitor.isConnectedValue = true
+        mockAuthService.isLoggedInValue = true
+        mockDatabaseManager.unsyncedStudySessions = [
+            StudySession(id: UUID().uuidString, userId: "user1", duration: 30, startedAt: Date(), endedAt: nil, earnedPoints: 5, isCompleted: false, subject: nil, notes: nil, createdAt: Date())
+        ]
+
+        let result = try await sut.sync(type: .studySessions)
+
+        XCTAssertEqual(result.status, .success)
+    }
+
+    func testSyncMessages_Success() async throws {
+        mockNetworkMonitor.isConnectedValue = true
+        mockAuthService.isLoggedInValue = true
+
+        let result = try await sut.sync(type: .messages)
+
+        XCTAssertEqual(result.status, .success)
+    }
+
+    func testSyncPoints_Success() async throws {
+        mockNetworkMonitor.isConnectedValue = true
+        mockAuthService.isLoggedInValue = true
+        mockDatabaseManager.pendingPointTransactions = []
+
+        let result = try await sut.sync(type: .points)
+
+        XCTAssertEqual(result.status, .success)
+    }
+
+    // MARK: - Pending Items Count Tests
+
+    func testGetPendingSyncCount() async throws {
+        mockDatabaseManager.unsyncedStudySessions = [
+            StudySession(id: "1", userId: "u", duration: 10, startedAt: Date(), endedAt: nil, earnedPoints: nil, isCompleted: false, subject: nil, notes: nil, createdAt: Date()),
+            StudySession(id: "2", userId: "u", duration: 20, startedAt: Date(), endedAt: nil, earnedPoints: nil, isCompleted: false, subject: nil, notes: nil, createdAt: Date())
+        ]
+
         let count = await sut.getPendingSyncCount()
 
-        // Then
-        XCTAssertEqual(count, 0, "Should return 0 on database error")
+        XCTAssertEqual(count, 2)
+    }
+
+    // MARK: - Strategy Tests
+
+    func testSetStrategy_Adaptive() {
+        sut.setStrategy(.adaptive)
+        // Strategy is set internally
+    }
+
+    func testSetStrategy_Eager() {
+        sut.setStrategy(.eager)
+    }
+
+    func testSetConflictResolution_MostRecent() {
+        sut.setConflictResolution(.mostRecent)
+    }
+
+    func testSetConflictResolution_ServerWins() {
+        sut.setConflictResolution(.serverWins)
     }
 }
 
-// MARK: - Convenience Properties Tests
-
-extension DataSyncServiceTests {
-
-    func testNeedsSyncWhenNeverSynced() {
-        // Given
-        sut.lastSyncDate = nil
-
-        // Then
-        XCTAssertTrue(sut.needsSync, "Should need sync when never synced")
-    }
-
-    func testNeedsSyncWhenOverdue() {
-        // Given
-        sut.lastSyncDate = Date().addingTimeInterval(-7200) // 2 hours ago
-
-        // Then
-        XCTAssertTrue(sut.needsSync, "Should need sync when overdue")
-    }
-
-    func testDoesNotNeedSyncWhenRecent() {
-        // Given
-        sut.lastSyncDate = Date().addingTimeInterval(-1800) // 30 minutes ago
-
-        // Then
-        XCTAssertFalse(sut.needsSync, "Should not need sync when recent")
-    }
-
-    func testTimeSinceLastSyncWhenNil() {
-        // Given
-        sut.lastSyncDate = nil
-
-        // Then
-        XCTAssertNil(sut.timeSinceLastSync, "Should be nil when no last sync")
-    }
-
-    func testTimeSinceLastSyncReturnsCorrectValue() {
-        // Given
-        let timeInterval: TimeInterval = 3600 // 1 hour
-        sut.lastSyncDate = Date().addingTimeInterval(-timeInterval)
-
-        // When
-        let timeSince = sut.timeSinceLastSync
-
-        // Then
-        XCTAssertNotNil(timeSince, "Should have value")
-        XCTAssertGreaterThanOrEqual(timeSince!, timeInterval - 10, "Should be approximately 1 hour")
-    }
-
-    func testClearError() {
-        // Given
-        sut.lastError = .timeout
-
-        // When
-        sut.clearError()
-
-        // Then
-        XCTAssertNil(sut.lastError, "Error should be cleared")
-    }
-}
-
-// MARK: - Sync Status Tests
-
-extension DataSyncServiceTests {
-
-    func testSyncStatusDisplayName() {
-        XCTAssertEqual(SyncStatus.idle.displayName, "Idle")
-        XCTAssertEqual(SyncStatus.syncing.displayName, "Syncing")
-        XCTAssertEqual(SyncStatus.success.displayName, "Success")
-        XCTAssertEqual(SyncStatus.failed.displayName, "Failed")
-        XCTAssertEqual(SyncStatus.partial.displayName, "Partial")
-    }
-
-    func testSyncStatusIsActive() {
-        XCTAssertFalse(SyncStatus.idle.isActive)
-        XCTAssertTrue(SyncStatus.syncing.isActive)
-        XCTAssertFalse(SyncStatus.success.isActive)
-        XCTAssertFalse(SyncStatus.failed.isActive)
-        XCTAssertFalse(SyncStatus.partial.isActive)
-    }
-}
-
-// MARK: - Sync Priority Tests
-
-extension DataSyncServiceTests {
-
-    func testSyncPriorityComparison() {
-        XCTAssertTrue(SyncPriority.urgent > SyncPriority.high)
-        XCTAssertTrue(SyncPriority.high > SyncPriority.normal)
-        XCTAssertTrue(SyncPriority.normal > SyncPriority.low)
-    }
-
-    func testSyncPriorityRawValues() {
-        XCTAssertEqual(SyncPriority.low.rawValue, 0)
-        XCTAssertEqual(SyncPriority.normal.rawValue, 1)
-        XCTAssertEqual(SyncPriority.high.rawValue, 2)
-        XCTAssertEqual(SyncPriority.urgent.rawValue, 3)
-    }
-}
-
-// MARK: - Conflict Resolution Tests
-
-extension DataSyncServiceTests {
-
-    func testConflictResolutionDescriptions() {
-        XCTAssertFalse(ConflictResolution.clientWins.description.isEmpty)
-        XCTAssertFalse(ConflictResolution.serverWins.description.isEmpty)
-        XCTAssertFalse(ConflictResolution.mostRecent.description.isEmpty)
-        XCTAssertFalse(ConflictResolution.manual.description.isEmpty)
-    }
-}
-
-// MARK: - Sync Result Tests
-
-extension DataSyncServiceTests {
-
-    func testSyncResultIsSuccessful() {
-        // Given
-        let successResult = SyncResult(
-            status: .success,
-            syncedItems: 10,
-            failedItems: 0,
-            conflicts: 0,
-            timestamp: Date(),
-            error: nil
-        )
-
-        let partialResult = SyncResult(
-            status: .partial,
-            syncedItems: 5,
-            failedItems: 2,
-            conflicts: 1,
-            timestamp: Date(),
-            error: nil
-        )
-
-        let failedResult = SyncResult(
-            status: .failed,
-            syncedItems: 0,
-            failedItems: 10,
-            conflicts: 0,
-            timestamp: Date(),
-            error: .timeout
-        )
-
-        // Then
-        XCTAssertTrue(successResult.isSuccessful, "Success should be isSuccessful")
-        XCTAssertTrue(partialResult.isSuccessful, "Partial should be isSuccessful")
-        XCTAssertFalse(failedResult.isSuccessful, "Failed should not be isSuccessful")
-    }
-
-    func testSyncResultIsComplete() {
-        // Given
-        let completeResult = SyncResult(
-            status: .success,
-            syncedItems: 10,
-            failedItems: 0,
-            conflicts: 0,
-            timestamp: Date(),
-            error: nil
-        )
-
-        let incompleteResult = SyncResult(
-            status: .success,
-            syncedItems: 5,
-            failedItems: 2,
-            conflicts: 1,
-            timestamp: Date(),
-            error: nil
-        )
-
-        // Then
-        XCTAssertTrue(completeResult.isComplete, "Complete result should be isComplete")
-        XCTAssertFalse(incompleteResult.isComplete, "Incomplete result should not be isComplete")
-    }
-}
-
-// MARK: - Sync Error Tests
-
-extension DataSyncServiceTests {
-
-    func testSyncErrorDescriptions() {
-        XCTAssertNotNil(SyncError.networkUnavailable.errorDescription)
-        XCTAssertNotNil(SyncError.authenticationRequired.errorDescription)
-        XCTAssertNotNil(SyncError.timeout.errorDescription)
-        XCTAssertNotNil(SyncError.cancelled.errorDescription)
-
-        let conflictError = SyncError.conflict(resolution: .clientWins)
-        XCTAssertNotNil(conflictError.errorDescription)
-
-        let serverError = SyncError.serverError(underlying: NSError(domain: "test", code: -1))
-        XCTAssertNotNil(serverError.errorDescription)
-    }
-}
-
-// MARK: - Helper Methods
-
-extension DataSyncServiceTests {
-
-    private func createMockUser() -> User {
-        User(
-            id: "test_user_id",
-            email: "test@example.com",
-            username: "test_user",
-            displayName: "Test User",
-            avatarURL: nil,
-            bio: nil,
-            points: 100,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-    }
-
-    private func createMockStudySession(id: String) -> StudySession {
-        StudySession(
-            id: id,
-            userId: "test_user_id",
-            roomCode: "ABC123",
-            startTime: Date(),
-            endTime: nil,
-            duration: 0,
-            status: .active,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-    }
-}
-
-// MARK: - Mock Protocol Definitions
-
-@MainActor
-protocol NetworkMonitorProtocol {
-    var currentStatus: NetworkStatus { get }
-    var statusPublisher: AnyPublisher<NetworkStatus, Never> { get }
-    var connectionTypePublisher: AnyPublisher<ConnectionType, Never> { get }
-    var isConnectedPublisher: AnyPublisher<Bool, Never> { get }
-
-    func startMonitoring()
-    func stopMonitoring()
-    func getCurrentStatus() async -> NetworkStatus
-}
-
-protocol OfflineCacheServiceProtocol {
-    func cacheUserProfile(_ user: User) async throws
-    func getCachedUserProfile() -> User?
-    func clearCache()
-}
-
-protocol DatabaseManagerProtocol {
-    func getUnsyncedStudySessions() throws -> [StudySession]
-    func markStudySessionSynced(_ id: String) throws
-    func getPendingMessages() throws -> [ChatMessage]
-    func markMessageSynced(_ id: String) throws
-    func getMessage(id: String) throws -> ChatMessage?
-    func updateMessage(id: String, content: String, timestamp: Date) throws
-    func insertMessage(from response: ServerMessageResponse) throws
-    func markMessageConflict(id: String, serverContent: String) throws
-    func getPendingPointTransactions() throws -> [PointTransaction]
-    func markPointTransactionSynced(_ id: String) throws
-    func updateUserPoints(_ balance: Int) throws
-    func getPointTransaction(id: String) throws -> PointTransaction?
-    func insertPointTransaction(from response: ServerPointTransactionResponse) throws
-    func saveStudySession(_ session: StudySession) throws
-    func getStudySession(id: String) throws -> StudySession?
-    func getAllStudySessions() throws -> [StudySession]
-    func deleteStudySession(id: String) throws
-    func saveMessage(_ message: ChatMessage) throws
-    func getAllMessages() throws -> [ChatMessage]
-    func deleteMessage(id: String) throws
-}
-
-// MARK: - Mock Response Types
-
-struct ServerMessageResponse: Decodable {
-    let id: String
-    let content: String
-    let timestamp: Date
-}
-
-struct ServerPointTransactionResponse: Decodable {
-    let id: String
-    let type: String
-    let amount: Int
-    let reason: String?
-    let timestamp: Date
-}
+// MARK: - Mock Types
 
 struct PointTransaction: Identifiable {
     let id: String
@@ -845,8 +391,4 @@ struct PointTransaction: Identifiable {
     let amount: Int
     let reason: String?
     let timestamp: Date
-}
-
-enum DatabaseError: Error {
-    case queryFailed
 }

@@ -320,11 +320,11 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let networkMonitor: NetworkMonitor
-    private let offlineCache: OfflineCacheService
-    private let databaseManager: DatabaseManager
-    private let apiClient: APIClient
-    private let authService: AuthService
+    private let networkMonitor: NetworkMonitorProtocol
+    private let offlineCache: OfflineCacheServiceProtocol
+    private let databaseManager: DatabaseManagerProtocol
+    private let apiClient: APIClientProtocol
+    private let authService: AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -349,17 +349,17 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     // MARK: - Initialization
 
     init(
-        networkMonitor: NetworkMonitor? = nil,
-        offlineCache: OfflineCacheService? = nil,
-        databaseManager: DatabaseManager = .shared,
-        apiClient: APIClient = .shared,
-        authService: AuthService? = nil
+        networkMonitor: NetworkMonitorProtocol? = nil,
+        offlineCache: OfflineCacheServiceProtocol? = nil,
+        databaseManager: DatabaseManagerProtocol? = nil,
+        apiClient: APIClientProtocol? = nil,
+        authService: AuthServiceProtocol? = nil
     ) {
-        self.networkMonitor = networkMonitor ?? .shared
-        self.offlineCache = offlineCache ?? .shared
-        self.databaseManager = databaseManager
-        self.apiClient = apiClient
-        self.authService = authService ?? .shared
+        self.networkMonitor = networkMonitor ?? NetworkMonitor.shared
+        self.offlineCache = offlineCache ?? OfflineCacheService.shared
+        self.databaseManager = databaseManager ?? DatabaseManager.shared
+        self.apiClient = apiClient ?? APIClient.shared
+        self.authService = authService ?? AuthService.shared
 
         setupNetworkMonitoring()
     }
@@ -373,7 +373,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     /// - Returns: Sync result
     func sync(type: SyncType, priority: SyncPriority = .normal) async throws -> SyncResult {
         // Check network availability
-        guard networkMonitor.isConnected else {
+        guard networkMonitor.currentStatus.isConnected else {
             throw SyncError.networkUnavailable
         }
 
@@ -424,7 +424,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     /// - Parameter priority: Priority of sync operation
     /// - Returns: Overall sync result
     func syncAll(priority: SyncPriority = .normal) async throws -> SyncResult {
-        guard networkMonitor.isConnected else {
+        guard networkMonitor.currentStatus.isConnected else {
             throw SyncError.networkUnavailable
         }
 

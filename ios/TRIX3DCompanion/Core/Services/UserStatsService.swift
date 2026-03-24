@@ -65,8 +65,8 @@ final class UserStatsService: ObservableObject, UserStatsServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let authService: AuthService
+    private let apiClient: APIClientProtocol
+    private let authService: AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -97,11 +97,11 @@ final class UserStatsService: ObservableObject, UserStatsServiceProtocol {
     ///   - apiClient: API client instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient = .shared,
-        authService: AuthService? = nil
+        apiClient: APIClientProtocol? = nil,
+        authService: AuthServiceProtocol? = nil
     ) {
-        self.apiClient = apiClient
-        self.authService = authService ?? .shared
+        self.apiClient = apiClient ?? APIClient.shared
+        self.authService = authService ?? AuthService.shared
     }
 
     // MARK: - Public Methods

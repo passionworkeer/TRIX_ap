@@ -65,9 +65,9 @@ final class ClawbotHistoryService: ObservableObject, ClawbotHistoryServiceProtoc
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
+    private let apiClient: APIClientProtocol
     private let offlineCacheService: OfflineCacheServiceProtocol
-    private let authService: AuthService
+    private let authService: AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -85,13 +85,13 @@ final class ClawbotHistoryService: ObservableObject, ClawbotHistoryServiceProtoc
     ///   - offlineCacheService: Cache service instance (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
     init(
-        apiClient: APIClient? = nil,
+        apiClient: APIClientProtocol? = nil,
         offlineCacheService: OfflineCacheServiceProtocol? = nil,
-        authService: AuthService? = nil
+        authService: AuthServiceProtocol? = nil
     ) {
-        self.apiClient = apiClient ?? .shared
+        self.apiClient = apiClient ?? APIClient.shared
         self.offlineCacheService = offlineCacheService ?? OfflineCacheService.shared
-        self.authService = authService ?? .shared
+        self.authService = authService ?? AuthService.shared
     }
 
     // MARK: - Public Methods

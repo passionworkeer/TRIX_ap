@@ -17,7 +17,7 @@ import Combine
 // MARK: - Mock API Client for ClawbotHistoryService
 
 @MainActor
-final class MockAPIClientForClawbotHistory: ObservableObject {
+final class MockAPIClientForClawbotHistory: ObservableObject, APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockMessages: [ChatMessage] = []
@@ -25,20 +25,52 @@ final class MockAPIClientForClawbotHistory: ObservableObject {
     var lastRequestedLimit: Int?
     var lastRequestedOffset: Int?
 
-    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]? = nil) async throws -> T {
+    func get<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.custom(message: "Request failed")
+        }
+
+        guard let messages = mockMessages as? T else {
+            throw NetworkError.custom(message: "Invalid mock data")
+        }
+
+        return messages
+    }
+
+    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]?) async throws -> T where T: Decodable {
         lastRequestedRoomId = endpoint.path.replacingOccurrences(of: "/clawbot/history/", with: "")
         lastRequestedLimit = parameters?["limit"] as? Int
         lastRequestedOffset = parameters?["offset"] as? Int
 
         if shouldFailRequests {
-            throw mockError ?? NetworkError.custom("Request failed")
+            throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
         guard let messages = mockMessages as? T else {
-            throw NetworkError.custom("Invalid mock data")
+            throw NetworkError.custom(message: "Invalid mock data")
         }
 
         return messages
+    }
+
+    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
+        throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.custom(message: "Not implemented")
     }
 }
 
@@ -52,6 +84,8 @@ final class MockOfflineCacheServiceForClawbotHistory: OfflineCacheServiceProtoco
     var mockCacheError: CacheError?
     var lastCachedKey: String?
     var lastCachedType: CacheType?
+
+    var totalCacheSize: Int64 { 0 }
 
     func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws {
         if shouldFailCache {
@@ -106,6 +140,9 @@ final class MockOfflineCacheServiceForClawbotHistory: OfflineCacheServiceProtoco
     func getCurrentSize(type: CacheType) async throws -> Int64 {
         return 0
     }
+
+    func cacheUserProfile(_ user: User) async throws {
+    }
 }
 
 // MARK: - Mock Auth Service for ClawbotHistoryService
@@ -135,6 +172,30 @@ final class MockAuthServiceForClawbotHistory: AuthServiceProtocol {
     var isLoading: Bool = false
 
     var lastError: AuthError?
+
+    func login(email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+        return .failure(.invalidCredentials)
+    }
+
+    func logout() async -> AuthResult<Void> {
+        isLoggedIn = false
+        return .success(())
+    }
+
+    func refreshTokenIfNeeded() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func fetchCurrentUser() async -> AuthResult<User> {
+        if isLoggedIn {
+            return .success(currentUser!)
+        }
+        return .failure(.invalidCredentials)
+    }
 }
 
 // MARK: - ClawbotHistoryService Tests
@@ -158,9 +219,9 @@ final class ClawbotHistoryServiceTests: XCTestCase {
         mockAPIClient.mockMessages = createMockMessages()
 
         sut = ClawbotHistoryService(
-            apiClient: mockAPIClient as! APIClient,
+            apiClient: mockAPIClient,
             offlineCacheService: mockCacheService,
-            authService: mockAuthService as! AuthService
+            authService: mockAuthService
         )
     }
 

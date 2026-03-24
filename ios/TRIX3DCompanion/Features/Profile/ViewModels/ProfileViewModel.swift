@@ -43,8 +43,8 @@ final class ProfileViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let imageUploadService: ImageUploadService
+    private let apiClient: APIClientProtocol
+    private let imageUploadService: ImageUploadServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -54,11 +54,11 @@ final class ProfileViewModel: ObservableObject {
     ///   - apiClient: API client dependency
     ///   - imageUploadService: Image upload service dependency
     init(
-        apiClient: APIClient? = nil,
-        imageUploadService: ImageUploadService? = nil
+        apiClient: APIClientProtocol? = nil,
+        imageUploadService: ImageUploadServiceProtocol? = nil
     ) {
-        self.apiClient = apiClient ?? .shared
-        self.imageUploadService = imageUploadService ?? .shared
+        self.apiClient = apiClient ?? APIClient.shared
+        self.imageUploadService = imageUploadService ?? ImageUploadService.shared
     }
 
     // MARK: - Public Methods
@@ -165,7 +165,7 @@ final class ProfileViewModel: ObservableObject {
                 return
             }
 
-            let uploadResponse = await imageUploadService.uploadImage(image)
+            let uploadResponse = await imageUploadService.uploadImage(image, quality: nil)
 
             // Extract URL from Result
             let avatarUrl: String

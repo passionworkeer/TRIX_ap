@@ -97,8 +97,8 @@ final class SettingsViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let cacheService: OfflineCacheService
-    private let exportService: DataExportService
+    private let cacheService: OfflineCacheServiceProtocol
+    private let exportService: DataExportServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -108,11 +108,11 @@ final class SettingsViewModel: ObservableObject {
     ///   - cacheService: Cache service dependency
     ///   - exportService: Export service dependency
     init(
-        cacheService: OfflineCacheService? = nil,
-        exportService: DataExportService? = nil
+        cacheService: OfflineCacheServiceProtocol? = nil,
+        exportService: DataExportServiceProtocol? = nil
     ) {
-        self.cacheService = cacheService ?? .shared
-        self.exportService = exportService ?? .shared
+        self.cacheService = cacheService ?? OfflineCacheService.shared
+        self.exportService = exportService ?? DataExportService.shared
 
         // Load saved preferences from ThemeManager (which syncs with UserDefaults)
         self.selectedTheme = ThemeManager.shared.currentTheme
@@ -155,7 +155,7 @@ final class SettingsViewModel: ObservableObject {
 
         do {
             // Subscribe to progress updates
-            exportService.$currentProgress
+            exportService.progressPublisher
                 .receive(on: DispatchQueue.main)
                 .sink { progress in
                     if let progress = progress {

@@ -69,106 +69,106 @@ final class MockAPIClientForChat: APIClientProtocol {
     func download(from url: String) async throws -> Data {
         throw NetworkError.custom("Not implemented")
     }
+
+    // MARK: - Chat-specific methods
+
+    func getChatRooms() async throws -> [ChatRoom] {
+        return mockChatRooms
+    }
+
+    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] {
+        return mockMessages
+    }
+
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+        return mockMessages
+    }
+
+    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage {
+        return ChatMessage(
+            id: UUID().uuidString,
+            roomId: roomId,
+            senderId: "user",
+            sender: .user,
+            content: content,
+            messageType: contentType,
+            mediaUrl: mediaUrl,
+            mediaMimeType: mediaMimeType,
+            mediaDuration: nil,
+            mediaSize: nil,
+            mediaMetadata: nil,
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: true,
+            createdAt: Date()
+        )
+    }
+
+    func markMessageAsRead(roomId: String, messageId: String) async throws { }
 }
 
 @MainActor
-final class MockWebSocketManagerForChat: WebSocketManagerProtocol {
+final class MockWebSocketManagerForChat: ClawbotChannelServiceProtocol {
     var isConnectedValue = false
     var shouldFailConnection = false
-    var mockError: WebSocketError?
+    var mockError: Error?
+    @Published var connectionState: ClawbotConnectionState = .disconnected
+    @Published var isPaired: Bool = false
+    @Published var lastMessage: ClawbotMessage?
+    @Published var botBehaviorState: BotBehaviorState = .idle
+    @Published var botConnectionState: BotConnectionState = .unknown
+    @Published var isBotOnline: Bool = false
+    @Published var deviceId: String?
+    @Published var ttsEnabled: Bool = true
+    @Published var ttsLanguage: TTSLanguage = .chinese
+    @Published var botState: BotBehaviorState = .idle
 
-    func isConnected() -> Bool {
-        return isConnectedValue
-    }
+    var isConnected: Bool { isConnectedValue }
 
-    func connect(userId: String) async throws {
+    func connect() async throws {
         if shouldFailConnection {
-            throw mockError ?? WebSocketError(message: "Connection failed")
+            throw mockError ?? NSError(domain: "Mock", code: -1)
         }
         isConnectedValue = true
+        connectionState = .connected
     }
 
     func disconnect() {
         isConnectedValue = false
+        connectionState = .disconnected
     }
 
-    func sendMessage(content: String, contentType: BotMessage.MessageContentType, mediaUrl: String?, mediaMimeType: String?) {}
+    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) async throws {}
 
-    func on(_ event: String, handler: @escaping (Any) -> Void) -> String { return "handler_1" }
-
-    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?, completion: @escaping (Result<String, Error>) -> Void) async throws {
+        completion(.success(content))
     }
 
-    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    func checkPairingStatus() async throws -> ClawbotPairingStatus {
+        ClawbotPairingStatus(isPaired: false, pairedAt: nil, deviceId: nil, deviceName: nil)
     }
 
-    func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
-    }
-
-    func getStudyRoomState(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
-    }
-
-    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
-    }
-
-    func pairWithCode(_ code: String) {}
-
-    func pairWithQR(_ qrData: String) {}
-
+    func pairWithCode(_ code: String) async throws -> Bool { false }
+    func pairWithQR(_ qrData: String) async throws -> Bool { false }
     func unpair() {}
 
-    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(message: "Not implemented in mock")))
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> StudyRoomState {
+        throw NSError(domain: "Mock", code: -1)
+    }
+
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?) async throws -> StudyRoomState {
+        throw NSError(domain: "Mock", code: -1)
+    }
+
+    func leaveStudyRoom(roomCode: String?) async throws {}
+    func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> StudyRoomState {
+        throw NSError(domain: "Mock", code: -1)
     }
 }
 
-@MainActor
-final class MockAuthServiceForChat: AuthServiceProtocol {
-    var isLoggedInValue = false
-    var isLoadingValue = false
-    var mockUser: User?
-
-    var isLoggedIn: Bool {
-        return isLoggedInValue
-    }
-
-    var currentUser: User? {
-        return mockUser
-    }
-
-    var isLoading: Bool {
-        return isLoadingValue
-    }
-
-    func login(email: String, password: String) async -> AuthResult<User> {
-        return .failure(.invalidCredentials)
-    }
-
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
-        return .failure(.invalidCredentials)
-    }
-
-    func logout() async -> AuthResult<Void> {
-        isLoggedInValue = false
-        return .success(())
-    }
-
-    func refreshTokenIfNeeded() async -> AuthResult<Void> {
-        return .success(())
-    }
-
-    func fetchCurrentUser() async -> AuthResult<User> {
-        if let user = mockUser {
-            return .success(user)
-        }
-        return .failure(.invalidCredentials)
-    }
-}
+// (MockAuthServiceForChat removed - use the one from Chat/MockChatServices.swift instead)
 
 // MARK: - Chat Service Tests
 
@@ -408,17 +408,21 @@ extension ChatServiceTests {
         ChatMessage(
             id: id,
             roomId: roomId,
-            friendId: nil,
-            sender: .user,
             senderId: "user123",
-            text: "Test message",
-            timestamp: Date(),
+            sender: .user,
+            content: "Test message",
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            mediaDuration: nil,
             mediaSize: nil,
             mediaMetadata: nil,
-            isRead: isRead
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: isRead,
+            createdAt: Date()
         )
     }
 }

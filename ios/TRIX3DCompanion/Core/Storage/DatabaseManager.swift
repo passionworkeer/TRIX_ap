@@ -2,10 +2,25 @@ import Foundation
 import SQLite
 import CommonCrypto
 
+// MARK: - Database Manager Protocol
+
+/// Protocol for database operations used by DataSyncService
+protocol DatabaseManagerProtocol {
+    func getUnsyncedStudySessions() throws -> [StudySession]
+    func getPendingMessages() throws -> [ChatMessage]
+    func markMessageSynced(_ messageId: String) throws
+    func markStudySessionSynced(_ sessionId: String) throws
+    func getPendingPointTransactions() throws -> [PointsTransaction]
+    func updateUserPoints(userId: String, points: Int) throws
+    func getPointTransaction(_ transactionId: String) throws -> PointsTransaction?
+    func insertPointTransaction(_ transaction: PointsTransaction) throws
+    func markPointTransactionSynced(_ transactionId: String) throws
+}
+
 /// 数据库管理器 - SQLite 封装，用于离线数据缓存
 /// 使用 SQLite.swift 库提供类型安全的数据库操作
 /// 包含敏感数据加密、并发安全和损坏恢复功能
-final class DatabaseManager {
+final class DatabaseManager: DatabaseManagerProtocol {
 
     // MARK: - Singleton
 

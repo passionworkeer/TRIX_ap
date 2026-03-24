@@ -103,11 +103,21 @@ struct ImageUploadStatus: Identifiable {
     }
 }
 
+// MARK: - Image Upload Service Protocol
+
+/// Protocol for image upload service
+@MainActor
+protocol ImageUploadServiceProtocol {
+    var isUploading: Bool { get }
+    var uploadProgress: Double { get }
+    func uploadImage(_ image: UIImage, quality: CGFloat?) async -> UploadResult
+}
+
 // MARK: - Image Upload Service
 
 /// 图片上传服务
 @MainActor
-final class ImageUploadService: ObservableObject {
+final class ImageUploadService: ObservableObject, ImageUploadServiceProtocol {
 
     // MARK: - Singleton
 
