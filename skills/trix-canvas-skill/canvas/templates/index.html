@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRIX Canvas — AI 分镜画布</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litegraph.js@0.7.9/css/litegraph.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- 顶部工具栏 -->
+<div id="toolbar">
+  <span class="logo">🎨 TRIX Canvas</span>
+  <select id="project-select">
+    <option value="">— 选择项目 —</option>
+  </select>
+  <button id="btn-new-project">+ 新建项目</button>
+  <button id="btn-reload" class="btn-icon" title="刷新">⟳</button>
+  <div class="toolbar-right">
+    <button id="btn-export-video" class="btn-secondary" disabled>导出视频</button>
+    <button id="btn-export-subtitle" class="btn-secondary" disabled>导出字幕</button>
+  </div>
+</div>
+
+<!-- 画布区域 -->
+<div id="canvas-wrap">
+  <canvas id="mycanvas"></canvas>
+</div>
+
+<!-- 右键菜单 -->
+<div id="context-menu" class="hidden">
+  <div class="ctx-item" data-action="preview">🔍 查看大图</div>
+  <div class="ctx-item" data-action="copy-prompt">📋 复制提示词</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item" data-action="regenerate">🔄 重新生成</div>
+  <div class="ctx-item danger" data-action="delete">🗑️ 删除节点</div>
+</div>
+
+<!-- 大图预览弹窗 -->
+<div id="preview-modal" class="hidden">
+  <div class="preview-backdrop"></div>
+  <div class="preview-content">
+    <img id="preview-img" src="" alt="">
+    <div id="preview-info"></div>
+    <button id="preview-close">✕</button>
+  </div>
+</div>
+
+<!-- 状态栏 -->
+<div id="statusbar">
+  <span id="status-text">就绪</span>
+  <span id="node-count"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/litegraph.js@0.7.9/build/litegraph.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
