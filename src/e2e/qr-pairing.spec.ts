@@ -37,7 +37,7 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
 
     // Verify heading text contains expected content
     const headingText = await page.locator('h1').textContent();
-    expect(headingText).toContain('Clawbot');
+    expect(headingText).toContain('TRIX Native');
     expect(headingText).toContain('配对');
 
     // Check main container is present - use simpler selector
@@ -54,7 +54,7 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
     // Check for connection instruction text - look for key elements
     const pageContent = await page.locator('body').textContent();
     expect(pageContent).toContain('连接');
-    expect(pageContent).toContain('Clawbot');
+    expect(pageContent).toContain('TRIX');
 
     // Check for device name input if present
     const deviceNameInput = page.locator('input[placeholder*="留空"]').first();
