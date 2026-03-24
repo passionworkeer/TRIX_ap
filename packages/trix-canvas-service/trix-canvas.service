@@ -1,0 +1,28 @@
+# TRIX Canvas Systemd 服务配置
+# 保存到: /etc/systemd/system/trix-canvas.service
+#
+# 使用方法:
+#   sudo cp trix-canvas.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable trix-canvas
+#   sudo systemctl start trix-canvas
+#   sudo systemctl status trix-canvas
+
+[Unit]
+Description=TRIX Canvas Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/canvas
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /var/www/canvas/server.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/trix-canvas.log
+StandardError=append:/var/log/trix-canvas-error.log
+
+[Install]
+WantedBy=multi-user.target

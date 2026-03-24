@@ -3,25 +3,39 @@ name: 自动部署到服务器
 on:
   push:
     branches:
-      - feature/nanobot-integration  # 推送到此分支时触发
+      - feature/nanobot-integration
       - main
+    paths:
+      - 'src/**'
+      - 'packages/trix-openclaw-native/src/**'
+      - 'desktop/**'
+      - 'supabase/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/trix-canvas-service/**'
+      - 'skills/trix-gen-skill/**'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  # ---------- Web 前端部署 ----------
+  deploy-web:
     runs-on: ubuntu-latest
+    if: "contains(join(github.event.head_commit.modified, ''), 'src/') || contains(join(github.event.head_commit.modified, ''), 'desktop/') || contains(join(github.event.head_commit.modified, ''), 'package.json') || contains(join(github.event.head_commit.modified, ''), 'packages/trix-openclaw-native/src')"
 
     steps:
-      # 1. 检出代码
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js
       - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # 3. 安装依赖并构建
       - name: 安装依赖
         run: npm ci
 
@@ -31,15 +45,13 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # 4. 打包构建产物
       - name: 打包构建产物
         run: |
           cd dist
           tar -czf ../trix-build.tar.gz .
 
-      # 5. 部署到服务器
       - name: 部署到服务器
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -47,55 +59,27 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            echo "=== 开始部署到服务器 ==="
-
-            # 备份当前版本
+            echo "=== 部署 Web 前端 ==="
             if [ -d "/var/www/html" ] && [ "$(ls -A /var/www/html)" ]; then
-              echo "备份当前版本..."
               rm -rf /var/www/html-backup
               cp -r /var/www/html /var/www/html-backup
-              echo "✓ 备份完成"
             fi
-
-            # 清空部署目录
-            echo "清空部署目录..."
             rm -rf /var/www/html/*
-            echo "✓ 目录已清空"
-
-            # 解压新版本
-            echo "部署新版本..."
             tar -xzf /tmp/trix-build.tar.gz -C /var/www/html/
-            echo "✓ 文件已解压"
-
-            # 设置权限
-            echo "设置权限..."
             chown -R www-data:www-data /var/www/html/
             chmod -R 755 /var/www/html/
-            echo "✓ 权限已设置"
+            nginx -t && systemctl reload nginx
+            echo "=== Web 前端部署完成 ==="
 
-            # 测试 Nginx 配置
-            echo "测试 Nginx 配置..."
-            nginx -t
-            echo "✓ Nginx 配置正确"
-
-            # 重启 Nginx
-            echo "重启 Nginx..."
-            systemctl reload nginx
-            echo "✓ Nginx 已重启"
-
-            echo "=== 部署完成！==="
-            echo "网站地址: http://TRIX_SERVER_HOST"
-
-      # 6. 上传构建产物到服务器
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifact
+          name: trix-build
           path: trix-build.tar.gz
+          retention-days: 1
 
-      # 7. 使用 scp 上传到服务器
       - name: 复制文件到服务器
-        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -104,14 +88,142 @@ jobs:
           source: "trix-build.tar.gz"
           target: "/tmp/"
 
-      # 8. 部署通知
       - name: 部署通知
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ 部署成功！"
-            echo "📱 访问地址: http://TRIX_SERVER_HOST"
+            echo "✅ Web 前端部署成功！访问地址: http://TRIX_SERVER_HOST"
           else
-            echo "❌ 部署失败！"
-            echo "请检查 GitHub Actions 日志"
+            echo "❌ Web 前端部署失败！"
+          fi
+
+  # ---------- Canvas Service 部署 ----------
+  deploy-canvas:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 打包 Canvas 服务
+        run: |
+          cd packages/trix-canvas-service
+          tar -czf ../../trix-canvas.tar.gz .
+
+      - name: 部署 Canvas Service 到服务器
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            echo "=== 部署 TRIX Canvas Service ==="
+
+            # 创建目录
+            mkdir -p /var/www/canvas/data/sessions
+            mkdir -p /var/www/canvas/outputs
+
+            # 备份配置（保留 .env）
+            if [ -f /var/www/canvas/.env ]; then
+              cp /var/www/canvas/.env /tmp/canvas-env-backup
+              echo "✓ .env 已备份"
+            fi
+
+            # 解压新版本
+            rm -rf /var/www/canvas/public
+            rm -f /var/www/canvas/server.js
+            rm -f /var/www/canvas/package.json
+            tar -xzf /tmp/trix-canvas.tar.gz -C /var/www/canvas/
+
+            # 恢复 .env
+            if [ -f /tmp/canvas-env-backup ]; then
+              cp /tmp/canvas-env-backup /var/www/canvas/.env
+              echo "✓ .env 已恢复"
+            fi
+
+            # 设置权限
+            chown -R www-data:www-data /var/www/canvas/
+            chmod -R 755 /var/www/canvas/
+
+            # 安装依赖
+            cd /var/www/canvas && npm install --production 2>&1 | tail -3
+
+            # 重启服务
+            if systemctl is-active trix-canvas &>/dev/null; then
+              systemctl restart trix-canvas
+              echo "✓ trix-canvas 服务已重启"
+            else
+              echo "⚠️  trix-canvas 服务未注册，先手动启动："
+              echo "   sudo cp /var/www/canvas/trix-canvas.service /etc/systemd/system/"
+              echo "   sudo systemctl daemon-reload && sudo systemctl enable trix-canvas"
+              echo "   sudo systemctl start trix-canvas"
+              # 直接启动（临时）
+              cd /var/www/canvas && sudo -u www-data node server.js &
+              sleep 2 && echo "✓ Canvas 服务已临时启动"
+            fi
+
+            # 更新 Nginx 配置（代理到 8789）
+            echo "更新 Nginx 配置..."
+            cat > /tmp/trix-canvas-nginx.conf << 'NGINX'
+server {
+    listen 8789;
+    server_name _;
+    root /var/www/canvas/public;
+    index canvas.html;
+
+    # API 代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:8789/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 画布页面
+    location / {
+        try_files $uri $uri/ /canvas.html;
+    }
+}
+NGINX
+            # 检查是否已配置，无则追加
+            if ! grep -q "listen 8789" /etc/nginx/sites-enabled/trix-canvas 2>/dev/null; then
+              echo "请手动将上述配置添加到 Nginx，或运行："
+              echo "  sudo cp /tmp/trix-canvas-nginx.conf /etc/nginx/sites-enabled/"
+              echo "  sudo nginx -t && sudo systemctl reload nginx"
+            fi
+
+            echo "=== Canvas Service 部署完成 ==="
+            echo "   访问地址: http://TRIX_SERVER_HOST:8789/canvas"
+
+      - name: 上传 Canvas 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: trix-canvas-build
+          path: packages/trix-canvas-service/trix-canvas.tar.gz
+          retention-days: 1
+
+      - name: 复制 Canvas 到服务器
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "packages/trix-canvas-service/trix-canvas.tar.gz"
+          target: "/tmp/"
+
+      - name: Canvas 部署通知
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Canvas Service 部署成功！访问地址: http://TRIX_SERVER_HOST:8789/canvas"
+          else
+            echo "❌ Canvas Service 部署失败！"
           fi
