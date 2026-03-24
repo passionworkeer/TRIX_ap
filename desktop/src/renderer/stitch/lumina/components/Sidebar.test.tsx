@@ -17,6 +17,7 @@ vi.mock('lucide-react', () => ({
   Settings: vi.fn(() => <span data-testid="icon-Settings" aria-hidden="true" />),
   ChevronLeft: vi.fn(() => <span data-testid="icon-ChevronLeft" aria-hidden="true" />),
   ChevronRight: vi.fn(() => <span data-testid="icon-ChevronRight" aria-hidden="true" />),
+  Map: vi.fn(() => <span data-testid="icon-Map" aria-hidden="true" />),
 }));
 
 import { LuminaSidebar } from './Sidebar';
