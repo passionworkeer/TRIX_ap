@@ -1,6 +1,6 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.3
+> **版本**: 1.4
 > **最后更新**: 2026-03-23
 > **平台**: Windows (Electron 33.4.0)
 
@@ -572,13 +572,60 @@ desktop/
 
 ---
 
-## 6. 关键技术决策
+## 6. stitch 设计系统
 
-### 6.1 为什么用 `loadFile()` 而非 `loadURL()`？
+Desktop 应用使用 **stitch** 双主题设计系统，通过 `LuminaLayout` 统一管理。所有页面路由分为两个主题域：
+
+| 主题 | 背景色 | 页面路由 |
+|------|--------|---------|
+| **Lumina**（浅色） | `#f7f9fb` | chat / study / snapshot / profile |
+| **Monolith Noir**（深色） | `#131313` | dashboard / agents / channels / backups / settings / skills |
+
+### 6.1 Lumina 浅色主题
+
+**Token**: `desktop/src/renderer/stitch/lumina/tokens.ts`
+
+| Token | 值 | 用途 |
+|-------|----|------|
+| `primary` | `#630ed4` | 主色（紫色） |
+| `primaryForeground` | `#ffffff` | 主色文字 |
+| `background` | `#f7f9fb` | 页面背景 |
+| `foreground` | `#1a1a2e` | 正文 |
+| `muted` | `#e8eaf0` | 次级背景 |
+| `border` | `#d4d7e0` | 边框 |
+
+**组件**：`LuminaButton`（primary/secondary/ghost/outline 四变体）、`SurfaceCard`（low/mid/high 三层级）、`LuminaInput`（底部线条）、`TitleBar`、`Sidebar`（240px 可折叠）
+
+### 6.2 Monolith Noir 深色主题
+
+**Token**: `desktop/src/renderer/stitch/noir/tokens.ts`
+
+| Token | 值 | 用途 |
+|-------|----|------|
+| `primary` | `#8b5cf6` | 主色（浅紫） |
+| `background` | `#131313` | 页面背景 |
+| `surface` | `#1e1e1e` | 卡片背景 |
+| `border` | `#2d2d2d` | 边框 |
+
+**组件**：`DarkCard`（玻璃态深色卡片）、`DarkButton`、`DarkTerminal`（终端面板，用于 Dashboard/Agents/Channels/Settings/Backups 页面）
+
+### 6.3 共用工具
+
+- `desktop/src/renderer/stitch/shared/cn.ts` — `classMerge()` 工具（整合 `clsx` + `twMerge`）
+
+### 6.4 主题切换
+
+`LuminaLayout` 通过 `useState` 管理 `activeRoute`，`LuminaSidebar` 点击触发 `onNavigate`，页面通过 `React.lazy` + `Suspense` 懒加载。无需 URL 路由，纯内存状态管理。
+
+---
+
+## 7. 关键技术决策
+
+### 7.1 为什么用 `loadFile()` 而非 `loadURL()`？
 
 打包后 `app.getAppPath()` 返回 `.asar` 路径（如 `app.asar/dist-desktop/...`）。Electron 的 `loadURL(file://asar内部路径)` 不支持 asar 内部路径。`loadFile()` 由 Electron 内部处理 asar 路径。
 
-### 6.2 Float 窗口为什么无边框？
+### 7.2 Float 窗口为什么无边框？
 
 Float 窗口是悬浮在右下角的配对工具，需要：
 - 固定尺寸（220×320）
@@ -587,19 +634,19 @@ Float 窗口是悬浮在右下角的配对工具，需要：
 
 无边框窗口的标题栏区域通过 CSS `-webkit-app-region: drag` 实现可拖拽。
 
-### 6.3 为什么用子进程而非直接调用？
+### 7.3 为什么用子进程而非直接调用？
 
 Gateway 需要长期运行，且支持插件热加载。子进程模型让 Gateway 独立管理其生命周期，主进程只负责监督和通信。
 
-### 6.4 托盘图标为什么程序生成而非文件加载？
+### 7.4 托盘图标为什么程序生成而非文件加载？
 
 避免打包时丢失资源文件，且无需维护额外的图标资源文件。
 
 ---
 
-## 7. 调试
+## 8. 调试
 
-### 7.1 主进程调试
+### 8.1 主进程调试
 
 ```bash
 # 开发模式
@@ -610,7 +657,7 @@ cd desktop && pnpm dev
 # 路径: C:/Users/<user>/AppData/Roaming/trix-companion-desktop/logs/main.log
 ```
 
-### 7.2 渲染进程调试
+### 8.2 渲染进程调试
 
 ```bash
 # Float 窗口 DevTools
@@ -618,7 +665,7 @@ cd desktop && pnpm dev
 # 打包模式加 --remote-debugging-port=9222 用 Playwright CDP 连接
 ```
 
-### 7.3 Gateway 调试
+### 8.3 Gateway 调试
 
 ```bash
 # 手动启动 Gateway
@@ -628,7 +675,7 @@ openclaw gateway start --port 18789
 openclaw logs --follow
 ```
 
-### 7.4 常见问题
+### 8.4 常见问题
 
 | 问题 | 检查 |
 |------|------|

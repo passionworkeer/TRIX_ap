@@ -1,6 +1,6 @@
 # 项目启动说明
 
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-03-23
 
 ---
 
@@ -131,8 +131,8 @@ trix-3d-companion/
 │   ├── src/renderer/        # 渲染进程（React）
 │   └── src/preload/         # 预加载脚本
 │
-├── ios/TRIX3DCompanion/      # iOS 端（SwiftUI, 328 Swift 文件）
-│   ├── Core/Services/       # 60+ 服务
+├── ios/TRIX3DCompanion/      # iOS 端（SwiftUI, 988 Swift 文件）
+│   ├── Core/Services/       # 71 个服务文件
 │   ├── Features/            # 14 个功能模块
 │   └── project.yml          # XcodeGen 配置
 │
@@ -153,4 +153,4 @@ trix-3d-companion/
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23

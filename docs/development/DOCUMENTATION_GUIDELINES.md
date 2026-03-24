@@ -11,9 +11,9 @@
 ```
 /
 ├── CLAUDE.md              # Claude 协作协议（已有）
-├── architecture/WEB_ARCHITECTURE.md        # 核心架构文档（已创建）
+├── docs/architecture/WEB_ARCHITECTURE.md   # 核心架构文档（已创建）
 ├── README.md              # 项目介绍（已有）
-├── CONTRIBUTING.md        # 贡献指南（待创建）
+├── CONTRIBUTING.md        # 贡献指南（已有）
 └── CHANGELOG.md           # 变更日志（待创建）
 ```
 
@@ -97,7 +97,7 @@ src/components/            # ❌ UI 组件，Props 类型即文档
 | 新增独立服务 | README | 服务根目录 |
 | API 变更 | API 文档 | `docs/api/` |
 | 部署流程变更 | 部署指南 | `docs/guides/` |
-| 技术选型决策 | 架构文档 | `architecture/WEB_ARCHITECTURE.md` |
+| 技术选型决策 | 架构文档 | `docs/architecture/WEB_ARCHITECTURE.md` |
 | 用户偏好变化 | Memory MCP | 实体记录 |
 
 ### 不需要创建文档的场景
@@ -113,7 +113,7 @@ src/components/            # ❌ UI 组件，Props 类型即文档
 
 ## 🎨 文档编写规范
 
-### 1. architecture/WEB_ARCHITECTURE.md 更新规范
+### 1. docs/architecture/WEB_ARCHITECTURE.md 更新规范
 
 **何时更新**：
 - 技术栈变更（添加/移除依赖）
@@ -198,7 +198,7 @@ something();
 ## 相关文档
 
 - [API 文档](../../docs/api/xxx.md)
-- [架构说明](../../architecture/WEB_ARCHITECTURE.md#xxx)
+- [架构说明](../../docs/architecture/WEB_ARCHITECTURE.md#xxx)
 ```
 
 ---
@@ -258,11 +258,11 @@ something();
 ```
 1. 开始前
    ├─ 查询 Memory MCP（相关决策）
-   ├─ 读取 architecture/WEB_ARCHITECTURE.md（整体架构）
+   ├─ 读取 docs/architecture/WEB_ARCHITECTURE.md（整体架构）
    └─ 确认是否需要新建文档
 
 2. 开发中
-   ├─ 如果涉及架构变更 → 更新 architecture/WEB_ARCHITECTURE.md
+   ├─ 如果涉及架构变更 → 更新 docs/architecture/WEB_ARCHITECTURE.md
    ├─ 如果是重大决策 → 创建 ADR
    └─ 如果是新模块 → 决定是否需要 README
 
@@ -310,7 +310,7 @@ something();
 ### 完成文档后
 
 - [ ] 是否同步到 Memory MCP（如果需要）？
-- [ ] 是否更新了 architecture/WEB_ARCHITECTURE.md（如果涉及架构）？
+- [ ] 是否更新了 docs/architecture/WEB_ARCHITECTURE.md（如果涉及架构）？
 - [ ] 是否通知了相关开发者？
 
 ---
@@ -321,7 +321,7 @@ something();
 
 | 类型 | ROI | 原因 |
 |------|-----|------|
-| architecture/WEB_ARCHITECTURE.md | ⭐⭐⭐⭐⭐ | 每个新会话都会读取 |
+| docs/architecture/WEB_ARCHITECTURE.md | ⭐⭐⭐⭐⭐ | 每个新会话都会读取 |
 | ADR | ⭐⭐⭐⭐⭐ | 避免重复讨论已决策事项 |
 | Memory MCP | ⭐⭐⭐⭐⭐ | 跨会话永久记忆 |
 | API 文档 | ⭐⭐⭐⭐ | 团队协作必需 |
@@ -340,7 +340,7 @@ something();
 
 ```
 需要文档吗？
-├─ 是，项目级别 → 根目录 CLAUDE.md / architecture/WEB_ARCHITECTURE.md
+├─ 是，项目级别 → 根目录 CLAUDE.md / docs/architecture/WEB_ARCHITECTURE.md
 ├─ 是，专题级别 → docs/ 目录
 ├─ 是，模块级别 → 模块是否独立且复杂？
 │   ├─ 是 → 创建模块 README
@@ -351,6 +351,6 @@ something();
 
 ---
 
-**最后更新**：2026-03-22
+**最后更新**：2026-03-23
 **维护者**：Claude + 用户协作
 **版本**：1.0

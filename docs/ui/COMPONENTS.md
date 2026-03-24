@@ -1,9 +1,9 @@
 # TRIX3D 组件文档
 
 > 本文档列出所有前端 React 组件
-> 版本: 1.3.0
+> 版本: 1.3.1
 > **最后更新**: 2026-03-23
-> 组件总数: 60+（含 **AchievementsPanel** v1.3）
+> 组件总数: 64+（含 **OpenClawControlPanel / VoiceRecorder / VirtualizedList / LazyImage** v1.3）
 
 ---
 
@@ -589,6 +589,97 @@ interface WorkbenchCardProps {
 
 ---
 
+### OpenClawControlPanel ★ v1.3 新增
+
+OpenClaw 控制面板，展示 Gateway 状态、配对信息和实时消息。
+
+```typescript
+interface OpenClawControlPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+```
+
+**特性**：
+- 集成 `useClawbotChannel()` 获取 Gateway 状态
+- 显示连接状态、配对状态、Bot 在线状态
+- 实时消息预览
+- 配对码生成和撤销
+
+**位置**: `src/components/OpenClawControlPanel.tsx`
+
+---
+
+### VoiceRecorder ★ v1.3 新增
+
+微信风格语音录制模态框。
+
+```typescript
+interface VoiceRecorderProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onComplete: (blob: Blob, duration: number) => void;
+}
+```
+
+**特性**：
+- 微信风格的录制界面
+- 录音时长显示
+- 上滑取消手势支持
+
+**位置**: `src/components/VoiceRecorder.tsx`
+
+---
+
+### VirtualizedList ★ v1.3 新增
+
+虚拟化列表组件，用于高效渲染大量消息/数据。
+
+```typescript
+interface VirtualizedListProps<T> {
+  data: T[];
+  renderItem: (item: T, index: number) => React.ReactNode;
+  itemContent?: (index: number, item: T) => React.ReactNode;
+  // ... 更多配置
+}
+
+interface VirtualizedMessageListProps<T> {
+  messages: T[];
+  renderMessage: (message: T, index: number) => React.ReactNode;
+  keyExtractor: (message: T, index: number) => string | number;
+}
+```
+
+**特性**：
+- 基于 `@tanstack/react-virtual` 的虚拟化渲染
+- 支持任意类型数据的列表展示
+- `VirtualizedMessageList` 专用于聊天消息列表
+
+**位置**: `src/components/VirtualizedList.tsx`
+
+---
+
+### LazyImage ★ v1.3 新增
+
+懒加载图片组件。
+
+```typescript
+interface LazyImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+}
+```
+
+**特性**：
+- Intersection Observer 实现懒加载
+- 支持占位符
+- 加载失败显示兜底图
+
+**位置**: `src/components/LazyImage.tsx`
+
+---
+
 ## 性能监控组件
 
 ### PerformanceDashboard
@@ -648,4 +739,4 @@ function DeleteButton() {
 
 ---
 
-*文档生成时间: 2026-03-21*
+*文档生成时间: 2026-03-23*

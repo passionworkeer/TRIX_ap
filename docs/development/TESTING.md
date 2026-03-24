@@ -92,12 +92,11 @@ trix-3d-companion/
 └── packages/trix-openclaw-native/test/
     ├── pairing.test.ts                  # 配对服务测试
     ├── server.test.ts                   # 服务器测试
-    └── attachments.test.ts              # 附件测试
-```
+    ├── attachments.test.ts               # 附件测试
+    ├── channel-plugin.test.ts            # Channel 插件测试
+    └── monitor.test.ts                   # Monitor 测试
 
----
-
-## 快速开始
+desktop-e2e.cjs                           # ★ Desktop E2E Runner（v1.3 新增）
 
 ### 安装依赖
 
@@ -173,6 +172,8 @@ npm run test:e2e:ui
 | **配对服务** | `pairing.test.ts` | 配对码生成、认领、状态管理 |
 | **服务器** | `server.test.ts` | API 端点、健康检查 |
 | **附件** | `attachments.test.ts` | 附件存储和检索 |
+| **Channel 插件** | `channel-plugin.test.ts` | Channel 插件接口 |
+| **Monitor** | `monitor.test.ts` | Monitor 抽象 |
 
 ### E2E 测试（Playwright）
 
@@ -189,7 +190,7 @@ npm run test:e2e:ui
 
 | 命令 | 描述 |
 |------|------|
-| `npm run test` | 运行所有测试 |
+| `npm run test` | 运行单元 + 冒烟 + 服务器测试（unit / smoke / server） |
 | `npm run test:unit` | 前端单元测试 |
 | `npm run test:unit:watch` | 前端单元测试（监听模式） |
 | `npm run test:unit:coverage` | 前端单元测试 + 覆盖率 |

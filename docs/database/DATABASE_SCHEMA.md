@@ -385,7 +385,7 @@ CREATE TABLE point_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   amount INTEGER NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('study', 'purchase', 'bonus', 'reward', 'refund')),
+  type TEXT NOT NULL CHECK (type IN ('earn', 'spend', 'bonus', 'adjust')),
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -422,14 +422,15 @@ CREATE TABLE mall_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  price INTEGER NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('avatar_frame', 'theme', 'badge', 'effect')),
   image_url TEXT,
+  price INTEGER DEFAULT 0,
+  category TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_mall_active ON mall_items(is_active) WHERE is_active = true;
+CREATE INDEX idx_mall_items_category ON mall_items(category);
+CREATE INDEX idx_mall_items_active ON mall_items(is_active) WHERE is_active = true;
 ```
 
 ---
@@ -461,14 +462,17 @@ CREATE TABLE todos (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
-  is_completed BOOLEAN DEFAULT false,
   due_date TIMESTAMPTZ,
+  completed BOOLEAN DEFAULT false,
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+  tags TEXT[],
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_todos_user ON todos(user_id);
-CREATE INDEX idx_todos_completed ON todos(is_completed) WHERE is_completed = false;
+CREATE INDEX idx_todos_due_date ON todos(due_date) WHERE due_date IS NOT NULL;
+CREATE INDEX idx_todos_completed ON todos(completed) WHERE completed = false;
 ```
 
 ---
@@ -483,19 +487,159 @@ CREATE TABLE schedules (
   description TEXT,
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ,
+  all_day BOOLEAN DEFAULT false,
+  location TEXT,
+  reminder_minutes INTEGER,
+  repeat_type TEXT,
+  color TEXT,
   is_completed BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_schedules_user ON schedules(user_id);
-CREATE INDEX idx_schedules_time ON schedules(start_time);
+CREATE INDEX idx_schedules_time ON schedules(start_time, end_time);
+```
+
+### 3.15 用户设置表 (user_settings)
+
+```sql
+CREATE TABLE user_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  allow_stranger_search BOOLEAN DEFAULT true,
+  show_online_status BOOLEAN DEFAULT true,
+  allow_study_invites BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_settings_user ON user_settings(user_id);
 ```
 
 ---
 
-## 4. RLS 策略 (Row Level Security)
+## 4. 缺失表（代码引用但 SQL 未创建）
 
-### 4.1 profiles 表
+> 以下 7 个表在代码中被引用，但尚未在 `schema-complete.sql` 中定义。需手动执行 SQL 创建。
+
+### 4.1 地点表 (places)
+
+```sql
+-- 代码引用：locationService.ts
+CREATE TABLE IF NOT EXISTS places (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  category TEXT,
+  address TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_places_location ON places(latitude, longitude);
+CREATE INDEX idx_places_category ON places(category);
+```
+
+### 4.2 地点收藏表 (user_favorite_places)
+
+```sql
+CREATE TABLE IF NOT EXISTS user_favorite_places (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  place_id UUID NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, place_id)
+);
+```
+
+### 4.3 用户位置表 (user_locations)
+
+```sql
+CREATE TABLE IF NOT EXISTS user_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  accuracy DOUBLE PRECISION,
+  recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_locations_user ON user_locations(user_id);
+CREATE INDEX idx_user_locations_time ON user_locations(recorded_at DESC);
+```
+
+### 4.4 用户位置设置表 (user_location_settings)
+
+```sql
+CREATE TABLE IF NOT EXISTS user_location_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  share_with_friends BOOLEAN DEFAULT false,
+  share_exact_location BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 4.5 用户会话表 (user_sessions)
+
+```sql
+-- 注意：Supabase Auth 自带 sessions 管理，此表为应用层设备会话
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  device_id TEXT,
+  platform TEXT CHECK (platform IN ('ios', 'web', 'desktop')),
+  is_active BOOLEAN DEFAULT true,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_active ON user_sessions(is_active) WHERE is_active = true;
+```
+
+---
+
+## 5. 视图（Views）
+
+### friend_latest_messages
+
+获取每个好友的最新一条消息，用于聊天列表展示。
+
+```sql
+-- 存在于 init.sql，friendService.ts 中使用
+CREATE VIEW friend_latest_messages AS ...
+```
+
+### user_points_overview
+
+用户积分概览视图，`pointsService.ts` 中使用。
+
+```sql
+-- 需在 Supabase 中手动执行创建
+CREATE OR REPLACE VIEW user_points_overview AS
+SELECT
+  p.id AS user_id,
+  p.username,
+  up.total_points,
+  up.level,
+  up.total_earned,
+  up.total_spent,
+  COALESCE(SUM(pt.amount), 0) FILTER (WHERE pt.type IN ('earn', 'bonus')) AS total_study_points,
+  COALESCE(SUM(ABS(pt.amount)), 0) FILTER (WHERE pt.type = 'spend') AS total_spent_points
+FROM profiles p
+LEFT JOIN user_points up ON up.user_id = p.id
+LEFT JOIN point_transactions pt ON pt.user_id = p.id
+GROUP BY p.id, p.username, up.total_points, up.level, up.total_earned, up.total_spent;
+```
+
+---
+
+## 6. RLS 策略 (Row Level Security)
+
+### 6.1 profiles 表
 
 ```sql
 -- 用户只能查看和修改自己的资料
@@ -508,7 +652,7 @@ ON profiles FOR UPDATE
 USING (auth.uid() = id);
 ```
 
-### 4.2 friends 表
+### 6.2 friends 表
 
 ```sql
 -- 用户只能查看自己的好友
@@ -521,7 +665,7 @@ ON friends FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 ```
 
-### 4.3 chat_messages 表
+### 6.3 chat_messages 表
 
 ```sql
 -- 用户只能查看自己的消息
@@ -532,7 +676,7 @@ USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
 ---
 
-## 5. 数据库关系图
+## 7. 数据库关系图
 
 ```
 ┌─────────────┐
@@ -566,7 +710,7 @@ USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
 ---
 
-## 6. Supabase Realtime
+## 8. Supabase Realtime
 
 ### 6.1 订阅消息变化
 
@@ -602,7 +746,7 @@ supabase
 
 ---
 
-## 7. 性能优化
+## 9. 性能优化
 
 ### 7.1 索引
 
@@ -626,7 +770,7 @@ LIMIT 20 OFFSET 0;
 
 ---
 
-## 8. 数据迁移脚本
+## 10. 数据迁移脚本
 
 ### 8.1 添加累计学习时长
 
@@ -654,7 +798,7 @@ WHERE points > 0;
 
 ---
 
-## 9. TRIX Native Server 本地状态存储
+## 11. TRIX Native Server 本地状态存储
 
 TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本地持久化，不使用 SQLite。
 
@@ -739,4 +883,4 @@ interface MessageRecord {
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-23
