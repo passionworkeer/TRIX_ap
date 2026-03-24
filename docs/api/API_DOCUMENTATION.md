@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
-> 版本: 1.3.0
-> **最后更新**: 2026-03-22（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
+> 版本: 1.4.0
+> **最后更新**: 2026-03-24（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
 
 ---
 
@@ -580,6 +580,11 @@ const socket = new WebSocket('https://trix.love/ws?role=user&conversationId=...&
 ---
 
 ## 更新日志
+
+### 2026-03-24
+
+- 更新版本号至 1.4.0
+- 同步最后更新日期
 
 ### 2026-03-03
 

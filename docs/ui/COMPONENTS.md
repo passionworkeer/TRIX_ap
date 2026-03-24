@@ -1,8 +1,8 @@
 # TRIX3D 组件文档
 
 > 本文档列出所有前端 React 组件
-> 版本: 1.3.1
-> **最后更新**: 2026-03-23
+> 版本: 1.4.0
+> **最后更新**: 2026-03-24
 > 组件总数: 64+（含 **OpenClawControlPanel / VoiceRecorder / VirtualizedList / LazyImage** v1.3）
 
 ---

@@ -2,7 +2,7 @@
 
 > 当前唯一正式文档。旧 relay / 旧 Gateway 直连方案已废弃。
 >
-> **最后更新**: 2026-03-23（全面更新：新增 Study Room、TTS、Session Management、Rate Limiting）
+> **最后更新**: 2026-03-24
 
 ---
 

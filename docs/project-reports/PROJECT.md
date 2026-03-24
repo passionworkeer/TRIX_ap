@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-03-23
+> **最后更新**: 2026-03-24
 > **版本**: v1.0
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Supabase + SwiftUI
 

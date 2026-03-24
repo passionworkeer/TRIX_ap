@@ -1,8 +1,8 @@
 # TRIX3D API TypeScript 类型定义
 
 > 本文档为 AI 提供完整的 TypeScript 类型定义，方便理解和调用 API
-> 版本: 1.3.0
-> **最后更新**: 2026-03-22
+> 版本: 1.4.0
+> **最后更新**: 2026-03-24
 
 ---
 
@@ -1368,5 +1368,5 @@ type EventCallback<TPayload> = (payload: TPayload) => void;
 
 ---
 
-*文档生成时间: 2026-03-21*
-*适用于 TRIX3D API v1.2.0*
+*文档生成时间: 2026-03-24*
+*适用于 TRIX3D API v1.4.0*

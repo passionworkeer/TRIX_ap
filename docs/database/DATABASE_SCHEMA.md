@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架构
 > 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server）
-> **最后更新**: 2026-03-23（内容已修订：修正 study_rooms 列名、friends 状态值、chat_messages receiver_id；新增 7 个缺失表/视图）
+> **最后更新**: 2026-03-24
 
 ---
 
@@ -883,4 +883,4 @@ interface MessageRecord {
 
 ---
 
-**最后更新**: 2026-03-23
+**最后更新**: 2026-03-24

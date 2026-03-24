@@ -2,7 +2,7 @@
 
 > 📱 TRIX 3D Companion iOS 端技术架构
 > 🎯 基于 SwiftUI + Combine
-> **最后更新**: 2026-03-04
+> **最后更新**: 2026-03-24
 
 ---
 

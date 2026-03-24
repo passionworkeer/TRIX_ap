@@ -1,5 +1,7 @@
 # 配对指南
 
+> **最后更新**: 2026-03-24
+
 ## 现在只保留的正式方式
 
 1. 本机运行 OpenClaw Gateway，并启用 `trix-native` channel。
