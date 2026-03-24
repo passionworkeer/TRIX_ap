@@ -1,9 +1,9 @@
 # TRIX3D 组件文档
 
-> 本文档列出所有前端 React 组件
+> 本文档列出所有前�?React 组件
 > 版本: 1.4.0
-> **最后更新**: 2026-03-24
-> 组件总数: 64+（含 **OpenClawControlPanel / VoiceRecorder / VirtualizedList / LazyImage** v1.3）
+> **最后更�?*: 2026-03-24
+> 组件总数: 64+（含 **OpenClawControlPanel / VoiceRecorder / VirtualizedList / LazyImage** v1.3�?
 
 ---
 
@@ -12,7 +12,7 @@
 1. [核心组件](#核心组件)
 2. [UI 组件](#ui-组件)
 3. [地图组件](#地图组件)
-4. [对话框组件](#对话框组件)
+4. [对话框组件](#对话框组�?
 
 ---
 
@@ -20,7 +20,7 @@
 
 ### Avatar
 
-用户头像组件，支持配置化头像。
+用户头像组件，支持配置化头像�?
 
 ```typescript
 interface AvatarProps {
@@ -38,7 +38,7 @@ interface AvatarProps {
 
 ### GlassPanel
 
-玻璃拟态面板组件，提供半透明背景效果。
+玻璃拟态面板组件，提供半透明背景效果�?
 
 ```typescript
 interface GlassPanelProps {
@@ -55,7 +55,7 @@ interface GlassPanelProps {
 
 ### GlassDock
 
-底部导航Dock栏，玻璃拟态设计。
+底部导航Dock栏，玻璃拟态设计�?
 
 ```typescript
 interface GlassDockProps {
@@ -68,9 +68,9 @@ interface GlassDockProps {
 
 ---
 
-### AchievementsPanel ★ v1.3 新增
+### AchievementsPanel �?v1.3 新增
 
-用户成就面板，展示已解锁/待解锁成就，含稀有度分级着色和动画进度条。
+用户成就面板，展示已解锁/待解锁成就，含稀有度分级着色和动画进度条�?
 
 ```typescript
 interface AchievementsPanelProps {
@@ -79,19 +79,19 @@ interface AchievementsPanelProps {
 }
 ```
 
-**特性**：
+**特�?*�?
 - 调用 `achievementService.getUserAchievements(userId)` 获取成就列表
-- 稀有度分级着色：Common（灰）/ Rare（蓝）/ Epic（紫）/ Legendary（金）
-- 动画进度条：显示成就完成百分比
-- 集成 Profile 页面（`src/screens/Profile.tsx`）
+- 稀有度分级着色：Common（灰�? Rare（蓝�? Epic（紫�? Legendary（金�?
+- 动画进度条：显示成就完成百分�?
+- 集成 Profile 页面（`src/screens/Profile.tsx`�?
 
-**位置**: `src/components/AchievementsPanel.tsx`（283 行）
+**位置**: `src/components/AchievementsPanel.tsx`�?83 行）
 
 ---
 
 ### HeroBackground
 
-动态背景组件，提供沉浸式视觉效果。
+动态背景组件，提供沉浸式视觉效果�?
 
 ```typescript
 interface HeroBackgroundProps {
@@ -106,7 +106,7 @@ interface HeroBackgroundProps {
 
 ### LoadingSpinner
 
-加载动画组件。
+加载动画组件�?
 
 ```typescript
 interface LoadingSpinnerProps {
@@ -121,7 +121,7 @@ interface LoadingSpinnerProps {
 
 ### DynamicBackground
 
-动态渐变背景组件。
+动态渐变背景组件�?
 
 ```typescript
 interface DynamicBackgroundProps {
@@ -137,7 +137,7 @@ interface DynamicBackgroundProps {
 
 ### Modal
 
-通用模态框组件。
+通用模态框组件�?
 
 ```typescript
 interface ModalProps {
@@ -155,7 +155,7 @@ interface ModalProps {
 
 ### ConfirmModal
 
-确认对话框组件。
+确认对话框组件�?
 
 ```typescript
 interface ConfirmModalProps {
@@ -176,7 +176,7 @@ interface ConfirmModalProps {
 
 ### ErrorBoundary
 
-错误边界组件，捕获子组件错误。
+错误边界组件，捕获子组件错误�?
 
 ```typescript
 interface ErrorBoundaryProps {
@@ -191,7 +191,7 @@ interface ErrorBoundaryProps {
 
 ### FilePicker
 
-文件选择器组件。
+文件选择器组件�?
 
 ```typescript
 interface FilePickerProps {
@@ -207,7 +207,7 @@ interface FilePickerProps {
 
 ### QRScanner
 
-二维码扫描组件。
+二维码扫描组件�?
 
 ```typescript
 interface QRScannerProps {
@@ -224,7 +224,7 @@ interface QRScannerProps {
 
 ### FriendPopupContent
 
-地图上好友位置的弹出内容。
+地图上好友位置的弹出内容�?
 
 ```typescript
 interface FriendPopupContentProps {
@@ -240,7 +240,7 @@ interface FriendPopupContentProps {
 
 ### PlacePopupContent
 
-地图上地点的弹出内容。
+地图上地点的弹出内容�?
 
 ```typescript
 interface PlacePopupContentProps {
@@ -254,11 +254,11 @@ interface PlacePopupContentProps {
 
 ---
 
-## 对话框组件
+## 对话框组�?
 
 ### AboutDialog
 
-关于对话框，显示应用信息。
+关于对话框，显示应用信息�?
 
 ```typescript
 interface AboutDialogProps {
@@ -273,7 +273,7 @@ interface AboutDialogProps {
 
 ### AddFriendModal
 
-添加好友模态框。
+添加好友模态框�?
 
 ```typescript
 interface AddFriendModalProps {
@@ -289,7 +289,7 @@ interface AddFriendModalProps {
 
 ### AIActionModal
 
-AI 动作选择模态框。
+AI 动作选择模态框�?
 
 ```typescript
 interface AIActionModalProps {
@@ -305,7 +305,7 @@ interface AIActionModalProps {
 
 ### AIActionSelector
 
-AI 动作选择器。
+AI 动作选择器�?
 
 ```typescript
 interface AIActionSelectorProps {
@@ -319,7 +319,7 @@ interface AIActionSelectorProps {
 
 ### ConfirmDialog
 
-确认对话框组件。
+确认对话框组件�?
 
 ```typescript
 interface ConfirmDialogProps {
@@ -337,7 +337,7 @@ interface ConfirmDialogProps {
 
 ### NotificationPanel
 
-通知面板组件。
+通知面板组件�?
 
 ```typescript
 interface NotificationPanelProps {
@@ -352,7 +352,7 @@ interface NotificationPanelProps {
 
 ### PointsHistory
 
-积分历史组件。
+积分历史组件�?
 
 ```typescript
 interface PointsHistoryProps {
@@ -367,7 +367,7 @@ interface PointsHistoryProps {
 
 ### PrivacySettings
 
-隐私设置组件。
+隐私设置组件�?
 
 ```typescript
 interface PrivacySettingsProps {
@@ -383,7 +383,7 @@ interface PrivacySettingsProps {
 
 ### SnapshotModal
 
-快照模态框。
+快照模态框�?
 
 ```typescript
 interface SnapshotModalProps {
@@ -399,7 +399,7 @@ interface SnapshotModalProps {
 
 ### StatsDetailDialog
 
-统计数据详情对话框。
+统计数据详情对话框�?
 
 ```typescript
 interface StatsDetailDialogProps {
@@ -415,7 +415,7 @@ interface StatsDetailDialogProps {
 
 ### WorkbenchModal
 
-工作台模态框。
+工作台模态框�?
 
 ```typescript
 interface WorkbenchModalProps {
@@ -433,7 +433,7 @@ interface WorkbenchModalProps {
 
 ### HomeBotBubble
 
-首页 AI 助手气泡组件。
+首页 AI 助手气泡组件�?
 
 ```typescript
 interface HomeBotBubbleProps {
@@ -449,7 +449,7 @@ interface HomeBotBubbleProps {
 
 ### MailPanel
 
-邮件/消息面板。
+邮件/消息面板�?
 
 ```typescript
 interface MailPanelProps {
@@ -464,7 +464,7 @@ interface MailPanelProps {
 
 ### MediaMessage
 
-媒体消息组件。
+媒体消息组件�?
 
 ```typescript
 interface MediaMessageProps {
@@ -480,7 +480,7 @@ interface MediaMessageProps {
 
 ### OutfitCard
 
-装扮卡片组件。
+装扮卡片组件�?
 
 ```typescript
 interface OutfitCardProps {
@@ -498,7 +498,7 @@ interface OutfitCardProps {
 
 ### OutfitPreview
 
-装扮预览组件。
+装扮预览组件�?
 
 ```typescript
 interface OutfitPreviewProps {
@@ -513,7 +513,7 @@ interface OutfitPreviewProps {
 
 ### ProjectProgress
 
-项目进度组件。
+项目进度组件�?
 
 ```typescript
 interface ProjectProgressProps {
@@ -528,7 +528,7 @@ interface ProjectProgressProps {
 
 ### StudyBuddiesList
 
-学习伙伴列表组件。
+学习伙伴列表组件�?
 
 ```typescript
 interface StudyBuddiesListProps {
@@ -543,7 +543,7 @@ interface StudyBuddiesListProps {
 
 ### StudyRoom
 
-学习房间组件。
+学习房间组件�?
 
 ```typescript
 interface StudyRoomProps {
@@ -559,7 +559,7 @@ interface StudyRoomProps {
 
 ### UserSwitcher
 
-用户切换组件（开发调试用）。
+用户切换组件（开发调试用）�?
 
 ```typescript
 interface UserSwitcherProps {
@@ -574,7 +574,7 @@ interface UserSwitcherProps {
 
 ### WorkbenchCard
 
-工作台卡片组件。
+工作台卡片组件�?
 
 ```typescript
 interface WorkbenchCardProps {
@@ -589,9 +589,9 @@ interface WorkbenchCardProps {
 
 ---
 
-### OpenClawControlPanel ★ v1.3 新增
+### OpenClawControlPanel �?v1.3 新增
 
-OpenClaw 控制面板，展示 Gateway 状态、配对信息和实时消息。
+OpenClaw 控制面板，展�?Gateway 状态、配对信息和实时消息�?
 
 ```typescript
 interface OpenClawControlPanelProps {
@@ -600,9 +600,9 @@ interface OpenClawControlPanelProps {
 }
 ```
 
-**特性**：
-- 集成 `useClawbotChannel()` 获取 Gateway 状态
-- 显示连接状态、配对状态、Bot 在线状态
+**特�?*�?
+- 集成 `useClawbotChannel()` 获取 Gateway 状�?
+- 显示连接状态、配对状态、Bot 在线状�?
 - 实时消息预览
 - 配对码生成和撤销
 
@@ -610,9 +610,9 @@ interface OpenClawControlPanelProps {
 
 ---
 
-### VoiceRecorder ★ v1.3 新增
+### VoiceRecorder �?v1.3 新增
 
-微信风格语音录制模态框。
+微信风格语音录制模态框�?
 
 ```typescript
 interface VoiceRecorderProps {
@@ -622,8 +622,8 @@ interface VoiceRecorderProps {
 }
 ```
 
-**特性**：
-- 微信风格的录制界面
+**特�?*�?
+- 微信风格的录制界�?
 - 录音时长显示
 - 上滑取消手势支持
 
@@ -631,9 +631,9 @@ interface VoiceRecorderProps {
 
 ---
 
-### VirtualizedList ★ v1.3 新增
+### VirtualizedList �?v1.3 新增
 
-虚拟化列表组件，用于高效渲染大量消息/数据。
+虚拟化列表组件，用于高效渲染大量消息/数据�?
 
 ```typescript
 interface VirtualizedListProps<T> {
@@ -650,18 +650,18 @@ interface VirtualizedMessageListProps<T> {
 }
 ```
 
-**特性**：
+**特�?*�?
 - 基于 `@tanstack/react-virtual` 的虚拟化渲染
-- 支持任意类型数据的列表展示
-- `VirtualizedMessageList` 专用于聊天消息列表
+- 支持任意类型数据的列表展�?
+- `VirtualizedMessageList` 专用于聊天消息列�?
 
 **位置**: `src/components/VirtualizedList.tsx`
 
 ---
 
-### LazyImage ★ v1.3 新增
+### LazyImage �?v1.3 新增
 
-懒加载图片组件。
+懒加载图片组件�?
 
 ```typescript
 interface LazyImageProps {
@@ -671,10 +671,10 @@ interface LazyImageProps {
 }
 ```
 
-**特性**：
-- Intersection Observer 实现懒加载
-- 支持占位符
-- 加载失败显示兜底图
+**特�?*�?
+- Intersection Observer 实现懒加�?
+- 支持占位�?
+- 加载失败显示兜底�?
 
 **位置**: `src/components/LazyImage.tsx`
 
@@ -684,7 +684,7 @@ interface LazyImageProps {
 
 ### PerformanceDashboard
 
-性能监控面板（仅开发模式显示）。
+性能监控面板（仅开发模式显示）�?
 
 ```typescript
 interface PerformanceDashboardProps {
@@ -715,7 +715,7 @@ function App() {
 }
 ```
 
-### 带回调
+### 带回�?
 
 ```tsx
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -729,7 +729,7 @@ function DeleteButton() {
     <ConfirmDialog
       isOpen={isOpen}
       title="确认删除"
-      message="确定要删除这个项目吗？此操作无法撤销。"
+      message="确定要删除这个项目吗？此操作无法撤销�?
       onConfirm={handleConfirm}
       onCancel={() => setIsOpen(false)}
     />
@@ -739,4 +739,4 @@ function DeleteButton() {
 
 ---
 
-*文档生成时间: 2026-03-23*
+*文档生成时间: 2026-03-24*

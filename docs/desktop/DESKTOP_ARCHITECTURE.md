@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.5
-> **最后更新**: 2026-03-24
+> **版本**: 1.6
+> **最后更新**: 2026-03-24（代码扫描同步：IPC 51→62，补充 config/cron/autostart handlers，设置面板 1→14，新增 MapPage）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -61,7 +61,7 @@ Electron 应用的主入口，运行在 Node.js 环境中。
 
 通过 `contextBridge` 安全地将主进程 API 暴露给渲染进程。
 
-**暴露 API**（`desktop/src/preload/index.js`）：
+**暴露 API**（`desktop/src/preload/index.js`，共 62 个属性/方法）：
 ```typescript
 window.electronAPI = {
   // === Platform ===
@@ -90,16 +90,19 @@ window.electronAPI = {
   createPairingCode: () => Promise<{ code: string }>,
 
   // === Native Channel Pairing ===
-  createQrCode: (label?: string) => Promise<PairingQrData>,   // ← 推荐名称
-  createPairingQr: (label?: string) => Promise<PairingQrData>, // ← 兼容别名
+  createQrCode: (label?: string) => Promise<PairingQrData>,
+  createPairingQr: (label?: string) => Promise<PairingQrData>,  // 兼容别名
   pollPairingStatus: (code: string) => Promise<PairingStatus>,
+  pairingGenerate: () => Promise<PairingResult>,
+  pairingList: () => Promise<PairingRecord[]>,
+  pairingRevoke: (id: string) => Promise<void>,
 
   // === Gateway ===
   getGatewayStatus: () => Promise<GatewayStatus>,
   restartGateway: () => Promise<void>,
   startGateway: () => Promise<void>,
   stopGateway: () => Promise<void>,
-  getGatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
+  gatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
 
   // === Supabase Auth ===
   authGetSession: () => Promise<AuthSession>,
@@ -116,25 +119,40 @@ window.electronAPI = {
   getProfileStats: () => Promise<ProfileStats>,
 
   // === TRIX Native ===
-  getTrixConversations: () => Promise<Conversation[]>,
-  getTrixMessages: (conversationId: string) => Promise<Message[]>,
-  sendTrixMessage: (conversationId: string, content: string) => Promise<Message>,
-  sendTrixReaction: (messageId: string, emoji: string) => Promise<void>,
+  listConversations: () => Promise<Conversation[]>,
+  fetchMessages: (conversationId: string) => Promise<Message[]>,
+  sendMessage: (conversationId: string, content: string) => Promise<Message>,
+  sendReaction: (messageId: string, emoji: string) => Promise<void>,
 
   // === Channels (Telegram / Feishu / Discord / Slack / WhatsApp / WeCom) ===
-  configureChannel: (channelId: string, config: ChannelConfig) => Promise<void>,
-  listChannels: () => Promise<ChannelInfo[]>,
-  deleteChannel: (channelId: string) => Promise<void>,
-  testChannel: (channelId: string, config: ChannelConfig) => Promise<TestResult>,
-  startListening: (channelId: string) => Promise<void>,
-  stopListening: (channelId: string) => Promise<void>,
-  getChannelMessages: (channelId: string, opts?: { limit?: number }) => Promise<Message[]>,
-  sendChannelMessage: (channelId: string, text: string) => Promise<void>,
+  channelsConfigure: (channelId: string, config: ChannelConfig) => Promise<void>,
+  channelsList: () => Promise<ChannelInfo[]>,
+  channelsDelete: (channelId: string) => Promise<void>,
+  channelsTest: (channelId: string, config: ChannelConfig) => Promise<TestResult>,
+  channelsStartListening: (channelId: string) => Promise<void>,
+  channelsStopListening: (channelId: string) => Promise<void>,
+  channelsGetMessages: (channelId: string, opts?: { limit?: number }) => Promise<Message[]>,
+  channelsSendMessage: (channelId: string, text: string) => Promise<void>,
+
+  // === Config (openclaw.json) ===
+  configRead: () => Promise<object>,
+  configWrite: (data: object) => Promise<void>,
+  configReadSection: (section: string) => Promise<object>,
+  configWriteSection: (section: string, data: object) => Promise<void>,
+
+  // === Cron Jobs ===
+  cronList: () => Promise<CronJob[]>,
+  cronCreate: (job: CronJobInput) => Promise<CronJob>,
+  cronUpdate: (id: string, job: CronJobInput) => Promise<CronJob>,
+  cronDelete: (id: string) => Promise<void>,
+  cronToggle: (id: string, enabled: boolean) => Promise<void>,
 
   // === System Info ===
   getSystemInfo: () => Promise<SystemInfo>,
   getSystemDisk: () => Promise<DiskInfo[]>,
-  checkPackages: (packages: string[]) => Promise<PackageInfo[]>,
+  checkPackages: () => Promise<PackageInfo[]>,
+  getAutostart: () => Promise<boolean>,
+  setAutostart: (enabled: boolean) => Promise<void>,
 
   // === App Info ===
   getAppInfo: () => Promise<AppInfo>,
@@ -143,13 +161,13 @@ window.electronAPI = {
   getVideoBaseUrl: () => string,
   getVideoUrl: (filename: string) => string,
 
-  // === Utilities ===
-  openExternal: (url: string) => void,
-  getResourcesPath: () => string,
-
   // === Event Listeners（返回取消函数）===
   onBotStateChange: (callback: (state: string) => void) => () => void,
+  onTrixMessage: (callback: (msg: Message) => void) => () => void,
+  onChannelMessage: (callback: (msg: Message) => void) => () => void,
+  onChannelStatusUpdate: (callback: (status: ChannelStatus) => void) => () => void,
   onInstallProgress: (callback: (msg: string) => void) => () => void,
+  onGatewayLog: (callback: (line: string) => void) => () => void,
 }
 ```
 
@@ -174,12 +192,15 @@ window.electronAPI = {
 | `study` | StudyPage | Lumina 浅色 | 学习页 |
 | `snapshot` | SnapshotPage | Lumina 浅色 | 快照页 |
 | `profile` | ProfilePage | Lumina 浅色 | 个人资料 |
+| `map` | MapPage | Lumina 浅色 | 地图页 |
 | `dashboard` | DashboardPage | Noir 深色 | OpenClaw 控制台 |
 | `agents` | AgentsPage | Noir 深色 | Agent 管理 |
 | `channels` | ChannelsPage | Noir 深色 | 渠道配置 |
-| `backups` | BackupsPage | Noir 深色 | 数据备份（真实 API）|
-| `settings` | SettingsPage | Noir 深色 | 系统设置 |
+| `backups` | BackupsPage | Noir 深色 | 数据备份 |
+| `settings` | SettingsContainer | Noir 深色 | 系统设置（含 14 个子面板） |
 | `skills` | SkillsPlaceholder | Noir 深色 | 引导至 Settings |
+
+**Settings 子面板**（14 个）：SettingsAccount、SettingsAgents、SettingsBackups、SettingsBrowser、SettingsChannels、SettingsCron、SettingsGateway、SettingsModels、SettingsOverview、SettingsPairing、SettingsPlugins、SettingsSkills、SettingsSystem
 
 **路由分发逻辑**：`LuminaLayout` 使用 React `useState` 管理 `activeRoute`，`LuminaSidebar` 点击触发 `onNavigate`，页面通过 `React.lazy` + `Suspense` 懒加载。
 
@@ -285,7 +306,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **51 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 8 大类别：
+**概况**：共 **62 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 11 大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -294,7 +315,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 51 个 ipcMain.handle（8 大类别）
+// 全部 62 个 ipcMain.handle（11 大类别）
 
 // Window Management（3）
 'window:show-main'         → 显示主窗口
@@ -324,12 +345,14 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'auth:sign-up'             → 邮箱注册
 'auth:sign-out'            → 登出
 
-// Study Data（6）
+// Study Data（5）
 'study:list-todos'          → 列出学习待办
 'study:create-todo'         → 创建待办
 'study:toggle-todo'        → 切换完成状态
 'study:delete-todo'        → 删除待办
 'study:get-achievements'   → 获取成就列表
+
+// Profile（1）
 'profile:get-stats'        → 获取用户统计
 
 // TRIX Native（4）
@@ -338,7 +361,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'trixnative:send-message'   → 发送消息
 'trixnative:send-reaction'  → 发送表情反应
 
-// Native Channel Pairing（4）
+// Native Channel Pairing（5）
 'pairing:createQr'          → 生成配对 QR 码
 'pairing:pollStatus'        → 轮询配对状态
 'pairing:generate'          → 生成配对码
@@ -352,12 +375,14 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'gateway:restart'           → 重启 Gateway
 'gateway:logs'              → 获取 Gateway 日志
 
-// System Info（3）
+// System Info（5）
 'system:info'               → 获取系统信息（CPU/内存/OS）
 'system:disk'               → 获取磁盘列表
 'system:check-packages'     → 检查全局 npm 包
+'system:autostart-get'      → 获取开机自启设置
+'system:autostart-set'      → 设置开机自启
 
-// Third-party Channels（7）
+// Third-party Channels（8）
 'channels:configure'        → 配置 Channel 凭证
 'channels:list'             → 列出所有 Channel
 'channels:delete'           → 删除 Channel
@@ -366,6 +391,19 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'channels:stop-listening'   → 停止监听 Channel
 'channels:get-messages'     → 获取 Channel 消息
 'channels:send-message'     → 通过 Channel 发送消息
+
+// Config（4）
+'config:read'               → 读取 openclaw.json
+'config:write'              → 写入 openclaw.json
+'config:read-section'       → 读取配置段落
+'config:write-section'      → 写入配置段落
+
+// Cron Jobs（5）
+'cron:list'                 → 列出定时任务
+'cron:create'               → 创建定时任务
+'cron:update'               → 更新定时任务
+'cron:delete'               → 删除定时任务
+'cron:toggle'               → 启用/禁用定时任务
 ```
 
 **OpenClaw 命令白名单**（`ipc.ts`）：
@@ -539,32 +577,47 @@ desktop/
     │       │   │                         # 路由：dashboard / agents / channels / backups / settings / skills（深色）
     │       │   └── cn.ts                # classMerge 工具（clsx + twMerge）
     │       │
-    │       ├── lumina/        # Lumina 浅色主题（#f7f9fb 背景）
-    │       │   ├── tokens.ts    # 颜色 token（primary #630ed4 等）
-    │       │   ├── components/
-    │       │   │   ├── TitleBar.tsx      # 36px 标题栏
-    │       │   │   ├── Sidebar.tsx        # 可折叠 240px 侧边栏
-    │       │   │   ├── buttons.tsx        # LuminaButton（primary/secondary/ghost/outline）
-    │       │   │   ├── cards.tsx          # SurfaceCard（low/mid/high 三层级）
-    │       │   │   └── inputs.tsx        # LuminaInput（底部线条输入框）
-    │       │   └── pages/
-    │       │       ├── ChatPage.tsx       # 聊天页（双栏：对话列表 + 聊天窗口）
-    │       │       ├── StudyPage.tsx       # 学习页
-    │       │       ├── SnapshotPage.tsx   # 快照页
-    │       │       └── ProfilePage.tsx    # 个人资料页
-    │       │
-    │       └── noir/           # Monolith Noir 深色主题（#131313 背景）
-    │           ├── tokens.ts    # 深色 token
-    │           ├── components/
-    │           │   ├── DarkCard.tsx       # 玻璃态深色卡片
-    │           │   ├── DarkButton.tsx     # 深色按钮
-    │           │   └── DarkTerminal.tsx   # 深色终端面板
-    │           └── pages/
-    │               ├── DashboardPage.tsx   # Dashboard（OpenClaw 控制台）
-    │               ├── AgentsPage.tsx     # Agent 管理
-    │               ├── ChannelsPage.tsx    # Channel 配置
-    │               ├── SettingsPage.tsx    # 设置页
-    │               └── BackupsPage.tsx     # 备份管理（真实 API）
+│       ├── lumina/        # Lumina 浅色主题（#f7f9fb 背景）
+│       │   ├── tokens.ts    # 颜色 token（primary #630ed4 等）
+│       │   ├── components/
+│       │   │   ├── TitleBar.tsx      # 36px 标题栏
+│       │   │   ├── Sidebar.tsx        # 可折叠 240px 侧边栏
+│       │   │   ├── buttons.tsx        # LuminaButton（primary/secondary/ghost/outline）
+│       │   │   ├── cards.tsx          # SurfaceCard（low/mid/high 三层级）
+│       │   │   └── inputs.tsx        # LuminaInput（底部线条输入框）
+│       │   └── pages/
+│       │       ├── ChatPage.tsx       # 聊天页（双栏：对话列表 + 聊天窗口）
+│       │       ├── StudyPage.tsx       # 学习页
+│       │       ├── SnapshotPage.tsx   # 快照页
+│       │       ├── ProfilePage.tsx    # 个人资料页
+│       │       └── MapPage.tsx        # 地图页
+│       │
+│       └── noir/           # Monolith Noir 深色主题（#131313 背景）
+│           ├── tokens.ts    # 深色 token
+│           ├── components/
+│           │   ├── DarkCard.tsx       # 玻璃态深色卡片
+│           │   ├── DarkButton.tsx     # 深色按钮
+│           │   └── DarkTerminal.tsx   # 深色终端面板
+│           ├── pages/
+│           │   ├── DashboardPage.tsx   # Dashboard（OpenClaw 控制台）
+│           │   ├── AgentsPage.tsx     # Agent 管理
+│           │   ├── ChannelsPage.tsx    # Channel 配置
+│           │   └── BackupsPage.tsx     # 备份管理
+│           └── settings/              # 14 个设置子面板
+│               ├── SettingsContainer.tsx   # 设置容器 + Tab 导航
+│               ├── SettingsOverview.tsx    # 概览
+│               ├── SettingsAccount.tsx     # 账户
+│               ├── SettingsAgents.tsx      # Agents
+│               ├── SettingsBackups.tsx     # 备份
+│               ├── SettingsBrowser.tsx     # 浏览器
+│               ├── SettingsChannels.tsx    # 渠道
+│               ├── SettingsCron.tsx        # 定时任务
+│               ├── SettingsGateway.tsx     # Gateway
+│               ├── SettingsModels.tsx      # 模型
+│               ├── SettingsPairing.tsx     # 配对码
+│               ├── SettingsPlugins.tsx     # 插件
+│               ├── SettingsSkills.tsx      # Skills
+│               └── SettingsSystem.tsx      # 系统
     │
     └── types/
         └── electron.d.ts      # electronAPI TypeScript 声明
@@ -687,4 +740,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-23
+**最后更新**: 2026-03-24（代码扫描同步：IPC 51→62，设置面板 1→14，新增 MapPage/Cron/Config handlers）

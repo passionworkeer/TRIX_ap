@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-23（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+> **最后更新**: 2026-03-24（代码扫描同步，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -61,7 +61,7 @@ React App
 
 | 文件 | 描述 | 行数 |
 |------|------|------|
-| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1327 行 | 1327 |
+| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1347 行 | 1347 |
 | `chatService.ts` | 聊天功能 | — |
 | `friendService.ts` | 好友管理 | — |
 | `uploadService.ts` | 文件上传 | — |
@@ -104,11 +104,61 @@ React App
 
 ### 3.3 组件
 
-- `src/components/` — 60+ 组件（含子目录 `chat/`、`map/` 等）
-- `src/components/AchievementsPanel.tsx` — ★ 成就面板（v1.3 新增，283 行，集成 Profile 页面）
-- `src/screens/` — 17 个页面组件
-- `src/hooks/` — 11 个自定义 hooks
+- `src/components/` — 60+ 组件（含子目录 `chat/`、`map/`、`ui/`）
+- `src/components/AchievementsPanel.tsx` — ★ 成就面板（v1.3 新增，集成 Profile 页面）
+- `src/screens/` — 14 个页面组件
+- `src/hooks/` — 12 个自定义 hooks（含 `useConfirmModal`）
 - `src/three/` — Three.js 3D/WebGL 组件（使用 Zustand）
+
+### 3.4 Feature 模块
+
+| 模块 | 目录 | 内容 |
+|------|------|------|
+| chat | `src/features/chat/` | `useChatMessages` hook、`aiPrompt` 工具、MediaPreview/MessageInput/MessageList |
+| location | `src/features/location/` | `LocationPicker` 组件 |
+| schedule | `src/features/schedule/` | `ScheduleForm`/`ScheduleList` 组件、`scheduleStore`（Provider）、`useScheduleNotification` hook |
+| study | `src/features/study/` | 9 个组件（AchievementModal、DurationSelector、FocusStartAnimation 等）、`useStudyTimer`/`useCompanionSync`/`useStudySession` hooks |
+| todo | `src/features/todo/` | `TodoForm`/`TodoList` 组件、`todoStore`（Provider） |
+
+### 3.5 错误处理系统 (`src/lib/`)
+
+| 文件 | 描述 |
+|------|------|
+| `errors.ts` (724行) | `ErrorCode` 枚举(50+ codes)、`AppError` 类、`ERROR_MESSAGES`、`ApiResponse`/`ApiError` 类型 |
+| `error-boundary.tsx` | `ErrorBoundary` 组件、`withErrorBoundary` HOC、`to()` safe await |
+| `error-hooks.ts` | `useErrorHandler`、`useApi`、`useApiAction`、`useServiceResponse` |
+| `error-interceptor.ts` | `initGlobalErrorHandler`、`safeAsync`、`withRetry`、`createErrorReporter` |
+| `validation.ts` (486行) | 12 组验证规则（AUTH/CHAT/FRIEND/STUDY/TODO/SCHEDULE/LOCATION/NOTIFICATION/PAIRING/MALL/WARDROBE）、`sanitizeString`、`validateObject` |
+
+### 3.6 国际化 (`src/i18n/`)
+
+使用 `i18next` + `react-i18next` + `i18next-browser-languagedetector`。
+
+| 语言 | 文件 |
+|------|------|
+| 中文简体（默认） | `locales/zh.json` |
+| 中文繁体 | `locales/zh-TW.json` |
+| 英语 | `locales/en.json` |
+| 日语 | `locales/ja.json` |
+
+检测顺序：localStorage → navigator，回退语言：`zh`
+
+### 3.7 E2E 测试 (`src/e2e/`)
+
+17 个 Playwright 测试文件覆盖：Auth、Chat、Diagnostic、Home、Login、Map、Pairing、PointsMall、Profile、QR Pairing、Snapshot、Social、StudyRoom、Wardrobe。
+
+### 3.8 类型定义 (`src/types/`)
+
+| 文件 | 内容 |
+|------|------|
+| `achievement.ts` | `Achievement` 接口、`ACHIEVEMENTS` 预定义列表 |
+| `clawbotChannel.ts` | `ClawbotChannelMessage`、`ClawbotChannelAttachment` |
+| `location.ts` | `UserLocation`、`LocationShareSettings`、`FriendLocation` |
+| `mall.ts` | `MallItem`、`PointsBalance`、`PurchaseHistoryItem` |
+| `place.ts` | `Place`、`PlaceSearchRequest` |
+| `studyRoom.ts` | `StudyRoomState`、`StudyRoomMember`、`StudyRoomTimerState` |
+| `wardrobe.ts` | `Outfit`、`OutfitCategory`（hat/cape/wand/background） |
+| `workbench.ts` | `Todo`、`Schedule`、`WorkbenchItem` |
 
 ---
 
@@ -230,7 +280,9 @@ src/
 ├── types.ts             # AppRoutes enum + 全局类型
 │
 ├── config/
-│   └── supabase.ts      # Supabase 客户端配置
+│   ├── supabase.ts      # Supabase 客户端配置
+│   ├── clawbotEndpoints.ts  # Native Server URL 解析
+│   └── metadata.json    # 应用元数据
 │
 ├── contexts/            # 4 个 React Context
 │   ├── AuthContext.tsx
@@ -238,17 +290,29 @@ src/
 │   ├── VoiceSettingsContext.tsx
 │   └── ThemeContext.tsx
 │
-├── services/            # 27 个服务文件
-│   └── TrixNativeChannelClient.ts  # 主要通信层
+├── services/            # 27 个服务文件（9,200+ 行）
+│   ├── TrixNativeChannelClient.ts  # 主要通信层（1,347 行）
+│   ├── chatService.ts / friendService.ts / ...
+│   └── databaseService.ts          # barrel re-export
 │
-├── components/          # 60+ 组件（含 chat/, map/ 子目录）
-├── screens/             # 17 个页面组件
-├── hooks/                # 11 个自定义 hooks
-├── utils/               # 工具函数
+├── components/          # 40+ 组件（含 chat/, map/, ui/ 子目录）
+├── screens/             # 14 个页面组件
+├── hooks/               # 12 个自定义 hooks
+├── features/            # 5 个 feature 模块
+│   ├── chat/            # 消息功能
+│   ├── location/        # 位置功能
+│   ├── schedule/        # 日程功能（含 store）
+│   ├── study/           # 学习功能（含 9 组件 + 3 hooks）
+│   └── todo/            # 待办功能（含 store）
+├── lib/                 # 错误处理系统（errors, validation, boundary）
+├── types/               # 8 个类型定义文件
+├── utils/               # 9 个工具文件
+├── i18n/                # 4 语言国际化
 ├── three/               # Three.js 3D 组件（Zustand store）
+├── e2e/                 # 17 个 Playwright 测试
 └── index.html
 ```
 
 ---
 
-**最后更新**: 2026-03-23（内容已审阅，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+**最后更新**: 2026-03-24（代码扫描同步，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）

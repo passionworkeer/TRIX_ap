@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js 原生 HTTP + WebSocket + Supabase
-> **最后更新**: 2026-03-23（内容已修订：移除 Express，替换为 http.createServer）
+> **最后更新**: 2026-03-24（代码扫描同步：依赖版本修正，补充缺失模块）
 
 ---
 
@@ -150,11 +150,15 @@ packages/trix-openclaw-native/          # TRIX Native Channel 插件
 │   │   ├── plugin.ts                   # 插件主入口（含 startAccount）
 │   │   ├── accounts.ts                 # 账号管理
 │   │   ├── inbound.ts                 # 消息入站（startInboundMonitor）
-│   │   └── outbound.ts                # 消息出站（postReply）
+│   │   ├── outbound.ts                # 消息出站（postReply）
+│   │   └── sdk.ts                     # SDK 辅助工具
 │   ├── server/                        # TRIX Native Server
-│   │   └── TrixNativeServer.ts        # HTTP/WebSocket 服务器主入口
+│   │   ├── TrixNativeServer.ts        # HTTP/WebSocket 服务器主入口 (2142 行)
+│   │   └── accessControl.ts           # Token 鉴权中间件
 │   ├── pairing/                       # 配对服务
 │   │   └── PairingService.ts         # 配对码生成、认领、状态管理
+│   ├── attachments/                   # 附件存储
+│   │   └── AttachmentStore.ts         # 磁盘级附件持久化
 │   ├── storage/                       # 存储服务
 │   │   └── JsonStateStore.ts          # JSON 状态持久化
 │   ├── utils/                         # 工具函数
@@ -164,14 +168,17 @@ packages/trix-openclaw-native/          # TRIX Native Channel 插件
 │   ├── account.ts                    # 账号抽象
 │   ├── bindings.ts                    # 绑定管理
 │   ├── channel.ts                     # Channel 抽象
-│   ├── monitor.ts                     # Monitor 抽象
+│   ├── monitor.ts                     # Monitor 抽象（758 行）
 │   ├── normalize.ts                   # 消息标准化
+│   ├── outbound.ts                    # 出站消息发送
 │   ├── probe.ts                       # 健康检查
 │   ├── setup.ts                      # 配置初始化
-│   ├── types.ts                       # 类型定义
+│   ├── types.ts                       # 类型定义（349 行）
 │   ├── cli.ts                         # CLI 入口
 │   ├── index.ts                       # npm 包主入口
-│   └── entry-compat.ts               # 兼容入口
+│   ├── entry-compat.ts               # 兼容入口
+│   ├── openclaw-entry.ts             # OpenClaw 扩展入口
+│   └── setup-entry.ts               # Setup 入口
 ├── test/
 │   ├── pairing.test.ts               # 配对服务测试
 │   ├── server.test.ts                # 服务器测试
@@ -516,13 +523,19 @@ curl http://TRIX_SERVER_HOST:8788/health
 {
   "dependencies": {
     "ws": "^8.19.0",
-    "node-edge-tts": "^3.1.0",
-    "dotenv": "^16.3.1",
-    "ali-oss": "^6.20.0",
-    "axios": "^1.6.2"
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "node-edge-tts": "^1.2.10"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.8"
   },
   "devDependencies": {
-    "pm2": "^5.3.0"
+    "@types/node": "...",
+    "@types/qrcode": "...",
+    "@types/qrcode-terminal": "...",
+    "typescript": "^5.8.2",
+    "vitest": "^1.3.1"
   }
 }
 ```
@@ -556,5 +569,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-23
-**版本**: 3.3
+**最后更新**: 2026-03-24
+**版本**: 3.4

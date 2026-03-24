@@ -4,6 +4,36 @@
 
 ---
 
+## 📅 2026-03-24 - 全面文档扫描与同步
+
+### 完成内容
+
+1. **代码结构扫描**（3 并行 subagent）：
+   - Web 前端：27 服务 / 40+ 组件 / 14 页面 / 12 hooks / 5 feature 模块 / 4 Contexts
+   - Desktop：62 IPC handlers / 62 preload APIs / 23 路由组件（9 页面 + 14 设置面板）
+   - iOS：43 services（18 个有 Protocol） / 13 feature 模块 / 49 单元测试
+   - TRIX Native：22 源文件 / 5 测试文件 / 5,369 行
+
+2. **WEB_ARCHITECTURE.md** 更新：
+   - 补充 features/（5 模块）、lib/（错误处理系统）、i18n（4 语言）、e2e/、types/ 文档
+   - hook 数量 11→12，screen 17→14，TrixNativeChannelClient 1327→1347 行
+
+3. **BACKEND_ARCHITECTURE.md** 更新：
+   - 修正依赖版本：node-edge-tts ^3.1.0→^1.2.10，新增 qrcode/qrcode-terminal
+   - 补充缺失模块：attachments/AttachmentStore.ts、server/accessControl.ts
+   - 补充缺失源文件：entry-compat.ts、openclaw-entry.ts、setup-entry.ts、plugin/sdk.ts
+
+4. **DESKTOP_ARCHITECTURE.md** v1.6 更新：
+   - IPC handlers 51→62（新增 config 4 + cron 5 + autostart 2）
+   - preload API 同步为 62 个方法
+   - 设置面板 1→14（SettingsContainer + 13 个子面板）
+   - 新增 MapPage 到 Lumina 页面列表
+   - 目录结构完整更新（settings/ 子目录 14 文件）
+
+5. **日期同步**：所有文档日期统一为 2026-03-24
+
+---
+
 ## 📅 2026-03-23 - Sprint 文档同步
 
 ### 完成内容
