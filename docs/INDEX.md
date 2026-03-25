@@ -1,205 +1,190 @@
-# TRIX 3D Companion - 文档索引
+# TRIX 3D Companion — 文档索引
 
-> **最后更新**: 2026-03-24
+> **版本**: v2.0（2026-03-25 重构）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
 
-## 📁 文档结构
+## 文档结构
 
 ```
 docs/
-├── INDEX.md                          # 文档索引（本文档）
-├── CHANGELOG.md                     # 开发迭代日志
-├── ENVIRONMENT.md                   # 环境变量参考
-├── INSTALLATION_GUIDE.md            # trix-openclaw-native 安装指南
-├── TRIX_NATIVE_CHANNEL.md           # ⭐ Native Channel 唯一权威文档
+├── INDEX.md                    # 本文档 — 文档索引
+├── CHANGELOG.md               # 开发迭代日志
+├── CLAUDE.md                  # 项目规范（位于根目录）
+├── README.md                  # 项目总览（位于根目录）
+├── TRIX_NATIVE_CHANNEL.md    # ⭐ Native Channel 唯一权威文档
+├── INSTALLATION_GUIDE.md     # trix-openclaw-native 安装指南
 │
-├── 📦 需求规格 (requirements/)
-│   ├── PRD.md                       # 产品需求文档（三端合一）
-│   ├── DESKTOP_PRD.md              # Desktop 产品需求文档
-│   └── DESKTOP_PHASE2_PLAN.md      # Desktop Phase 2 计划
+├── 📋 需求规格 (requirements/)
+│   ├── PRD.md                # 产品需求文档（三端合一）
+│   ├── DESKTOP_PRD.md       # Desktop 产品需求文档
+│   └── DESKTOP_PHASE2_PLAN.md  # Desktop Phase 2 计划
 │
 ├── 📊 项目报告 (project-reports/)
-│   ├── PROJECT.md                   # 项目总览
-│   ├── NEXT_FEATURES_PLAN.md        # 下一步功能计划
-│   ├── LONGCODE_PLAN.md            # Longcode 执行计划
-│   ├── PHASE7_LAUNCH_PLAN.md      # iOS Phase 7 上线计划
-│   ├── MVP_TEST_CHECKLIST.md       # MVP 测试清单
-│   ├── P1-3_Performance_Benchmark_Report.md
-│   ├── P2-4_Documentation_Update_Report.md
-│   ├── P3_Completion_Report_20260227.md
-│   ├── PROJECT_TASKS.md            # trix-openclaw-native 项目任务
-│   └── 任务完成度报告_20260227.md
+│   ├── PROJECT.md            # 项目总览
+│   └── PROJECT_TASKS.md      # 活跃任务追踪（TASK-007/008 进行中）
 │
 ├── 🔧 开发文档 (development/)
-│   ├── TESTING.md                  # 测试指南
-│   ├── DOCUMENTATION_GUIDELINES.md # 文档规范
-│   ├── STATE-TEMPLATE.md           # 状态模板
-│   └── TDD-EXAMPLES.md             # TDD 示例
+│   ├── TESTING.md           # 测试指南（命令 + 覆盖率）
+│   └── DOCUMENTATION_GUIDELINES.md  # 文档规范
 │
 ├── 🎨 UI 文档 (ui/)
-│   ├── COMPONENTS.md               # 组件文档
-│   ├── UI_DOCUMENTATION.md         # UI 完整文档
-│   ├── DESIGN.md                   # Monolith Noir 设计系统
-│   └── LUMINA_DESIGN.md          # Lumina 浅色设计系统（Desktop Sprint 4）
+│   ├── COMPONENTS.md         # Web 组件文档（38 组件 + 12 hooks）
+│   ├── LUMINA_DESIGN.md     # Lumina 浅色主题
+│   └── DESIGN.md            # Monolith Noir 暗色主题
 │
 ├── 🌐 架构文档 (architecture/)
-│   ├── WEB_ARCHITECTURE.md          # Web 端架构
-│   └── BACKEND_ARCHITECTURE.md     # 后端架构
+│   ├── WEB_ARCHITECTURE.md  # Web 端架构（19 路由 + 12 hooks + 27 服务）
+│   └── BACKEND_ARCHITECTURE.md  # 后端架构
 │
 ├── 🗄️ 数据库 (database/)
-│   ├── DATABASE_SCHEMA.md           # 数据库 Schema
+│   ├── DATABASE_SCHEMA.md    # 数据库 Schema
 │   ├── database-consistency-report.md
-│   └── README.md                   # 数据库快速开始
+│   └── README.md            # 数据库快速开始
 │
 ├── 📡 API 文档 (api/)
-│   ├── API_DOCUMENTATION.md        # API 完整文档
-│   └── API_TYPES.md                # API 类型定义
+│   ├── API_DOCUMENTATION.md # API 完整文档
+│   └── API_TYPES.md         # API 类型定义
 │
 ├── 🍎 iOS 文档 (ios/)
-│   ├── IOS_ARCHITECTURE.md         # iOS 架构
-│   ├── IOS_API_REFERENCE.md        # iOS API 参考
-│   ├── IOS_ISSUES.md              # iOS 问题记录
-│   ├── IOS_SECURITY_HARDENING.md  # iOS 安全加固
-│   ├── SECURITY_AUDIT*.md          # 安全审计报告（P0-1/P0-2/P0-8）
-│   ├── SECURITY_CONFIGURATION.md   # 安全配置
-│   ├── P1-2.1-remove-hardcoded-credentials.md
+│   ├── IOS_ARCHITECTURE.md  # iOS 架构（43 服务 + 9 Feature 模块）
+│   ├── IOS_API_REFERENCE.md # iOS API 参考
+│   ├── TESTING_REPORT.md    # 测试报告（361 测试）
+│   ├── checklist.md        # AppStore 上架清单
+│   ├── QUICK_REFERENCE.md  # APNs 快速参考
+│   ├── INTEGRATION_GUIDE.md # 主题集成指南
+│   ├── ARCHITECTURE_DIAGRAM.md  # 语音消息架构图
+│   ├── TESTING.md          # iOS 推送通知测试
+│   ├── SECURITY_AUDIT.md   # 安全审计（评级 B+）
+│   ├── SECURITY_AUDIT_P0-1.md   # 子审计：StoreKit
+│   ├── SECURITY_AUDIT_P0-2.md   # 子审计：支付 API
+│   ├── SECURITY_AUDIT_P0-8_M003.md  # 子审计：SSL Pinning（评级 A）
+│   ├── IOS_SECURITY_HARDENING.md  # 安全加固
+│   ├── SECURITY_CONFIGURATION.md  # 微信配置指南
 │   ├── P1-2.3-sql-injection-audit.md
 │   ├── P1-2.4-data-flow-analysis.md
-│   ├── INTEGRATION_GUIDE.md        # 主题集成指南
-│   ├── IOS_BACKEND_COMPLETION_REPORT.md
-│   ├── IOS_QUALITY_FIXES_20260309.md
-│   ├── IOS_REIMPLEMENTATION_PLAN.md
-│   ├── IOS_RESCAN_AUDIT_20260308.md
-│   ├── DOCUMENTATION_COVERAGE_REPORT.md
-│   ├── QUICK_REFERENCE.md          # Push Notifications 快速参考
-│   ├── TESTING.md / TESTING_REPORT*.md  # 测试报告
-│   ├── checklist.md                # AppStore 上架清单
-│   └── README.md                  # Push Notifications 说明
+│   └── README.md           # iOS 项目说明
 │
 ├── 🚀 入门指南 (getting-started/)
-│   ├── SETUP.md                   # 环境配置指南
-│   └── QUICK_START_GUIDE.md       # 快速开始指南
+│   ├── SETUP.md            # 环境配置指南
+│   └── QUICK_START_GUIDE.md  # 快速开始
 │
-├── 💻 桌面应用文档 (desktop/)
-│   └── DESKTOP_ARCHITECTURE.md    # 桌面端架构文档
+├── 💻 Desktop 文档 (desktop/)
+│   └── DESKTOP_ARCHITECTURE.md  # Electron 架构（66 IPC + 71 preload API）
 │
 ├── 📖 操作指南 (guides/)
-│   ├── DEPLOYMENT.md              # 生产部署指南
-│   ├── PAIRING.md                 # ⭐ 配对指南（Web/iOS/桌面）
-│   ├── SSH-SETUP.md              # SSH 配置
-│   ├── SERVER_GUIDE.md            # 服务器运维
+│   ├── PAIRING.md         # ⭐ 三端配对指南
+│   ├── DEPLOYMENT.md      # 生产部署指南
+│   ├── SERVER_GUIDE.md    # 服务器运维
 │   ├── IOS_TEST_DEPLOY_GUIDE.md  # iOS 测试部署
-│   └── MACOS_LAUNCHD.md          # macOS launchd 模板
+│   └── MACOS_LAUNCHD.md  # macOS launchd 模板
 │
-├── 📷 截图资产 (screenshots/)
-│   └── *.png                     # 工作区截图 · 标准存放目录
+├── 🗂️ 问题追踪 (issues/)
+│   └── DESKTOP_TEST_REPORT.md  # Desktop 测试状态报告
+│
+├── 💡 功能设计 (plans/)
+│   └── 2026-03-24-trix-canvas-skill-design.md  # TRIX Canvas Skill 设计
 │
 └── 🗂️ 归档 (.archive/)
-    └── (历史文档，已废弃)
+    └── DATABASE_MIGRATION_GUIDE.md  # 历史迁移文档
 ```
 
 ---
 
-## 📚 核心文档导航
+## 核心文档导航
 
-### 🌟 必读文档
+### 🌟 必读
 
 | 文档 | 描述 |
 |------|------|
 | [TRIX_NATIVE_CHANNEL.md](./TRIX_NATIVE_CHANNEL.md) | Native Channel 完整协议 · **配对文档唯一来源** |
 | [guides/PAIRING.md](./guides/PAIRING.md) | 三端配对 · 解绑 · 故障排查 |
-| [ENVIRONMENT.md](./ENVIRONMENT.md) | 环境变量参考 |
-| [guides/DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
+| [guides/DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南（trix.love） |
+| [CLAUDE.md](../CLAUDE.md) | 项目规范 · Git 工作流 · 架构约束 |
 
-### 💻 桌面应用
+### 三端架构
 
-| 文档 | 描述 |
-|------|------|
-| [desktop/DESKTOP_ARCHITECTURE.md](./desktop/DESKTOP_ARCHITECTURE.md) | Electron 架构 · IPC · Gateway · LuminaLayout 路由 |
-| [requirements/DESKTOP_PRD.md](./requirements/DESKTOP_PRD.md) | Desktop 产品需求文档 |
+| 端 | 架构文档 | 关键数据 |
+|----|---------|---------|
+| Web | `architecture/WEB_ARCHITECTURE.md` | 19 路由 · 27 服务 · 38 组件 · 12 hooks |
+| iOS | `ios/IOS_ARCHITECTURE.md` | 43 服务 · 9 Feature 模块 · SwiftUI + MVVM |
+| Desktop | `desktop/DESKTOP_ARCHITECTURE.md` | 66 IPC handlers · 71 preload API · LuminaLayout |
 
-**Desktop 页面**（stitch/ 设计系统）：浅色 chat · study · snapshot · profile | 深色 dashboard · agents · channels · backups · settings |
-
-### 🚀 用户指南
-
-| 文档 | 描述 |
-|------|------|
-| [guides/PAIRING.md](./guides/PAIRING.md) | 配对 · 解绑 · 常见问题 |
-| [guides/SSH-SETUP.md](./guides/SSH-SETUP.md) | SSH 免密登录配置 |
-
-### 🔧 开发参考
+### 安全
 
 | 文档 | 描述 |
 |------|------|
-| [TESTING.md](./development/TESTING.md) | 测试框架和命令 |
-| [API_DOCUMENTATION.md](./api/API_DOCUMENTATION.md) | API 文档 |
-| [CHANGELOG.md](./CHANGELOG.md) | 开发日志和架构决策 |
-| [DEPLOYMENT.md](./guides/DEPLOYMENT.md) | 生产部署指南 |
-
-### 📷 截图资产
-
-| 目录 | 描述 |
-|------|------|
-| [screenshots/](./screenshots/) | 工作区截图标准存放目录 · 散乱 PNG 已归档于此 |
+| `ios/SECURITY_AUDIT.md` | 主安全审计（评级 B+）|
+| `ios/SECURITY_AUDIT_P0-8_M003.md` | SSL Pinning 专项（评级 A）|
+| `ios/P1-2.3-sql-injection-audit.md` | SQL 注入审计 |
+| `ios/P1-2.4-data-flow-analysis.md` | 数据流分析 |
 
 ---
 
-## 🗺️ 推荐阅读路径
+## 推荐阅读路径
 
-### 新人入门 (20 分钟)
+### 新人入门（20 分钟）
 
 ```
-README.md → PROJECT.md → guides/PAIRING.md → ENVIRONMENT.md
+CLAUDE.md → README.md → getting-started/SETUP.md → guides/PAIRING.md
 ```
 
-### 配对功能开发 (30 分钟)
+### 配对功能开发（30 分钟）
 
 ```
 TRIX_NATIVE_CHANNEL.md → guides/PAIRING.md
 ```
 
-### 桌面端开发 (30 分钟)
+### Desktop 开发（30 分钟）
 
 ```
-requirements/PRD.md → desktop/DESKTOP_ARCHITECTURE.md
+requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 ```
 
 ---
 
-## ❓ 常见问题
+## 文档统计
 
-### Q: 配对文档在哪里？
-
-唯一权威文档：[TRIX_NATIVE_CHANNEL.md](./TRIX_NATIVE_CHANNEL.md) + [guides/PAIRING.md](./guides/PAIRING.md)
-
-### Q: 历史文档在哪里？
-
-已归档到 [docs/.archive/](./.archive/) 目录，包含过往执行日志和审计报告。
-
----
-
-## 📊 文档统计
-
-| 目录 | 文档数量 |
-|------|----------|
-| 根目录 | 5（不含归档） |
+| 目录 | 文档数 |
+|------|--------|
+| 根目录 | 4（含 CLAUDE.md / README.md） |
 | 需求规格 (requirements/) | 3 |
-| 项目报告 (project-reports/) | 9 |
-| 🔧 开发文档 (development/) | 4 |
-| 🎨 UI 文档 (ui/) | 4（含 Lumina/Noir 设计文档） |
-| 🌐 架构文档 (architecture/) | 2 |
-| 🗄️ 数据库 (database/) | 3 |
-| 📡 API 文档 (api/) | 2 |
-| 🍎 iOS 文档 (ios/) | 17（架构/安全/测试/质量报告） |
-| 🚀 入门指南 (getting-started/) | 2 |
-| 💻 桌面应用 (desktop/) | 1 |
-| 📖 操作指南 (guides/) | 6（含 MACOS_LAUNCHD） |
-| 🗂️ 归档 (.archive/) | 1 |
+| 项目报告 (project-reports/) | 2 |
+| 开发文档 (development/) | 2 |
+| UI 文档 (ui/) | 3 |
+| 架构文档 (architecture/) | 2 |
+| 数据库 (database/) | 3 |
+| API 文档 (api/) | 2 |
+| iOS 文档 (ios/) | 17 |
+| 入门指南 (getting-started/) | 2 |
+| Desktop 文档 (desktop/) | 1 |
+| 操作指南 (guides/) | 5 |
+| 问题追踪 (issues/) | 1 |
+| 功能设计 (plans/) | 1 |
+| 归档 (.archive/) | 1 |
 
-**总计**: 50+ 个活跃文档（不含 .archive/，不含 screenshots/）
+**活跃文档总计**: 48 个（不含 .archive/）
+
+**较上次清理**: 删除 26 个历史完成报告 / 冗余文档
 
 ---
 
-**最后更新**: 2026-03-23
+## 删除的历史文档（参考）
+
+以下文档因历史完成或内容冗余已被删除：
+- `project-reports/P3_Completion_Report_20260227.md` — Phase P3 完成报告
+- `project-reports/任务完成度报告_20260227.md` — 同上中文版
+- `project-reports/PHASE7_LAUNCH_PLAN.md` — Phase 7 已完成
+- `project-reports/LONGCODE_PLAN.md` — 所有 15 项已执行
+- `project-reports/NEXT_FEATURES_PLAN.md` — 架构已变更
+- `project-reports/MVP_TEST_CHECKLIST.md` — 历史测试清单
+- `ios/IOS_BACKEND_COMPLETION_REPORT.md` 等 12 个 iOS 历史完成报告
+- `docs/TESTING.md`（根目录重复）→ 使用 `development/TESTING.md`
+- `docs/ENVIRONMENT.md`（重复 .env.example）→ 使用 `.env.example`
+- `docs/guides/SSH-SETUP.md` → 内容已包含在 `SERVER_GUIDE.md`
+- `docs/ui/UI_DOCUMENTATION.md` → 内容已包含在 DESIGN.md + LUMINA_DESIGN.md + COMPONENTS.md
+
+---
+
+**最后更新**: 2026-03-25

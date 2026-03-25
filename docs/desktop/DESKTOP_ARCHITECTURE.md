@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.6
-> **最后更新**: 2026-03-24（代码扫描同步：IPC 51→62，补充 config/cron/autostart handlers，设置面板 1→14，新增 MapPage）
+> **版本**: 1.7
+> **最后更新**: 2026-03-25（代码扫描同步：IPC 62→66，preload API 62→71，新增 ClawHub 4 handlers，修正 LuminaRoutes 表缺失 map）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,7 +21,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (51 handlers)             │  │   │
+│  │  │                    IPC Handlers (66 handlers)              │  │   │
 │  │  │  pairing · gateway · openclaw · auth · study · system*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -61,7 +61,7 @@ Electron 应用的主入口，运行在 Node.js 环境中。
 
 通过 `contextBridge` 安全地将主进程 API 暴露给渲染进程。
 
-**暴露 API**（`desktop/src/preload/index.js`，共 62 个属性/方法）：
+**暴露 API**（`desktop/src/preload/index.js`，共 **71 个**属性/方法，不含重复项）：
 ```typescript
 window.electronAPI = {
   // === Platform ===
@@ -85,6 +85,11 @@ window.electronAPI = {
   listSkills: () => Promise<Skill[]>,
   installSkill: (name: string) => Promise<void>,
   uninstallSkill: (name: string) => Promise<void>,
+  // Skill Marketplace (ClawHub) — 新增
+  skillsListFull: () => Promise<Skill[]>,
+  skillsSearch: (query: string) => Promise<Skill[]>,
+  skillsExplore: () => Promise<Skill[]>,
+  skillsClawhubInstall: (slug: string) => Promise<void>,
   listBackups: () => Promise<Backup[]>,
   restoreBackup: (id: string) => Promise<void>,
   createPairingCode: () => Promise<{ code: string }>,
@@ -99,8 +104,8 @@ window.electronAPI = {
 
   // === Gateway ===
   getGatewayStatus: () => Promise<GatewayStatus>,
+  gatewayStart: () => Promise<void>,        // 启动 Gateway（非 restart）
   restartGateway: () => Promise<void>,
-  startGateway: () => Promise<void>,
   stopGateway: () => Promise<void>,
   gatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
 
@@ -149,7 +154,7 @@ window.electronAPI = {
 
   // === System Info ===
   getSystemInfo: () => Promise<SystemInfo>,
-  getSystemDisk: () => Promise<DiskInfo[]>,
+  getDiskInfo: () => Promise<DiskInfo[]>,
   checkPackages: () => Promise<PackageInfo[]>,
   getAutostart: () => Promise<boolean>,
   setAutostart: (enabled: boolean) => Promise<void>,
@@ -306,7 +311,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **62 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 11 大类别：
+**概况**：共 **66 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 13 大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -315,7 +320,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 62 个 ipcMain.handle（11 大类别）
+// 全部 66 个 ipcMain.handle（13 大类别 + 4 ClawHub）
 
 // Window Management（3）
 'window:show-main'         → 显示主窗口
@@ -325,7 +330,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 // Bot State（1）
 'bot-state:push'           → 推送 Bot 状态（Renderer → Main）
 
-// OpenClaw（12）
+// OpenClaw（16）— 含 4 个 ClawHub marketplace
 'openclaw:check'           → 检查安装状态
 'openclaw:install'         → 安装 OpenClaw
 'openclaw:status'          → 运行 openclaw status 命令
@@ -335,6 +340,10 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'openclaw:skills-list'     → 列出 Skills
 'openclaw:skills-install'  → 安装 Skill
 'openclaw:skills-uninstall' → 卸载 Skill
+'openclaw:skills-list-full' → ClawHub 完整列表（新增）
+'openclaw:skills-search'   → ClawHub 搜索（新增）
+'openclaw:skills-explore'  → ClawHub 发现（新增）
+'openclaw:skills-clawhub-install' → ClawHub 安装（新增）
 'openclaw:backup-list'     → 列出 Backups
 'openclaw:backup-restore'  → 恢复 Backup
 'openclaw:pairing-create'  → 创建配对码
@@ -370,17 +379,17 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 // Gateway（5）
 'gateway:status'            → 获取 Gateway 运行状态
-'gateway:start'             → 启动 Gateway
-'gateway:stop'              → 停止 Gateway
-'gateway:restart'           → 重启 Gateway
-'gateway:logs'              → 获取 Gateway 日志
+'gateway:start'              → 启动 Gateway
+'gateway:stop'               → 停止 Gateway
+'gateway:restart'            → 重启 Gateway
+'gateway:logs'               → 获取 Gateway 日志
 
 // System Info（5）
 'system:info'               → 获取系统信息（CPU/内存/OS）
 'system:disk'               → 获取磁盘列表
 'system:check-packages'     → 检查全局 npm 包
-'system:autostart-get'      → 获取开机自启设置
-'system:autostart-set'      → 设置开机自启
+'system:autostart-get'     → 获取开机自启状态
+'system:autostart-set'     → 设置开机自启
 
 // Third-party Channels（8）
 'channels:configure'        → 配置 Channel 凭证
@@ -389,21 +398,21 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'channels:test'             → 测试 Channel 连接
 'channels:start-listening'  → 开始监听 Channel
 'channels:stop-listening'   → 停止监听 Channel
-'channels:get-messages'     → 获取 Channel 消息
-'channels:send-message'     → 通过 Channel 发送消息
+'channels:get-messages'    → 获取 Channel 消息
+'channels:send-message'    → 通过 Channel 发送消息
 
 // Config（4）
-'config:read'               → 读取 openclaw.json
-'config:write'              → 写入 openclaw.json
-'config:read-section'       → 读取配置段落
-'config:write-section'      → 写入配置段落
+'config:read'              → 读取 openclaw.json 完整内容
+'config:write'             → 写入 openclaw.json 完整内容
+'config:read-section'      → 读取 openclaw.json 指定 section
+'config:write-section'     → 写入 openclaw.json 指定 section（深度合并）
 
-// Cron Jobs（5）
-'cron:list'                 → 列出定时任务
-'cron:create'               → 创建定时任务
-'cron:update'               → 更新定时任务
-'cron:delete'               → 删除定时任务
-'cron:toggle'               → 启用/禁用定时任务
+// Cron（5）
+'cron:list'               → 列出所有 Cron 任务
+'cron:create'             → 创建新 Cron 任务
+'cron:update'             → 更新指定 ID 的 Cron 任务
+'cron:delete'             → 删除指定 ID 的 Cron 任务
+'cron:toggle'             → 启用/禁用指定 ID 的 Cron 任务
 ```
 
 **OpenClaw 命令白名单**（`ipc.ts`）：
@@ -556,7 +565,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘
     │   ├── gateway.ts         # Gateway 子进程
     │   ├── openclaw.ts        # OpenClaw CLI 封装
-    │   ├── ipc.ts             # IPC Handler（51 个 ipcMain.handle）
+    │   ├── ipc.ts             # IPC Handler（66 个 ipcMain.handle）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -573,7 +582,7 @@ desktop/
     │   └── stitch/            # ★ stitch 设计系统（2026-03-22 重构）
     │       ├── shared/
     │       │   ├── LuminaLayout.tsx   # ★ 主布局（LuminaLayout）
-    │       │   │                         # 路由：chat / study / snapshot / profile（浅色）
+    │       │   │                         # 路由：chat / study / snapshot / profile / map（浅色）
     │       │   │                         # 路由：dashboard / agents / channels / backups / settings / skills（深色）
     │       │   └── cn.ts                # classMerge 工具（clsx + twMerge）
     │       │
@@ -631,7 +640,7 @@ Desktop 应用使用 **stitch** 双主题设计系统，通过 `LuminaLayout` �
 
 | 主题 | 背景色 | 页面路由 |
 |------|--------|---------|
-| **Lumina**（浅色） | `#f7f9fb` | chat / study / snapshot / profile |
+| **Lumina**（浅色） | `#f7f9fb` | chat / study / snapshot / profile / map |
 | **Monolith Noir**（深色） | `#131313` | dashboard / agents / channels / backups / settings / skills |
 
 ### 6.1 Lumina 浅色主题
@@ -740,4 +749,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-24（代码扫描同步：IPC 51→62，设置面板 1→14，新增 MapPage/Cron/Config handlers）
+**最后更新**: 2026-03-25（代码扫描同步：IPC 62→66，preload API 62→71，新增 ClawHub 4 handlers，修正 LuminaRoutes Lumina 表缺失 map，更正 preload 方法名 getSystemDisk→getDiskInfo/gatewayStart）

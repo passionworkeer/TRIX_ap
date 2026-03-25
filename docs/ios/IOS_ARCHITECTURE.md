@@ -1,369 +1,366 @@
-# TRIX3DCompanion iOS 架构文档
+# TRIX3DCompanion iOS Architecture Document
 
-> 📱 TRIX 3D Companion iOS 端技术架�?
-> 🎯 基于 SwiftUI + Combine
-> **最后更�?*: 2026-03-24
+> iOS TRIX 3D Companion Technical Architecture
+> Based on SwiftUI + Combine
+> **Last Updated**: 2026-03-25
+> **Version**: 1.2
 
 ---
 
-## 1. 架构概览
+## Accuracy Notes (as of 2026-03-25)
+
+**Known discrepancies from prior version (v1.1):**
+- `AppDelegate.swift` does not exist — lifecycle managed by `TRIX3DCompanionApp.swift`
+- `PairingService.swift` does not exist — pairing implemented in `ClawbotChannelService`
+- `WebSocketManager` does not exist — real-time uses `ClawbotChannelService` (TRIX Native Channel protocol)
+- Missing 17 services: `AudioPlayerService`, `AudioSessionManager`, `ClawbotChannelService`, `ClawbotHistoryService`, `FriendService`, `MallService`, `MapSearchService`, `PlaceService`, `ScheduleService`, `SessionService`, `SpeechRecognitionService`, `StudyHistoryService`, `ToastManager`, `UserService`, `UserStatsService`, `WardrobeService`, `WeChatSignInService`
+- `SupabaseService` is listed but app uses `AuthService` + Supabase client directly
+
+---
+
+## 1. Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────�?
-�?                     iOS Architecture                                      �?
-├─────────────────────────────────────────────────────────────────────────�?
-�?                                                                         �?
-�? ┌─────────────────────────────────────────────────────────────────�?  �?
-�? �?                     Views (UI Layer)                            �?  �?
-�? �?  HomeView  �? ChatView  �? StudyView  �? ProfileView  ...   �?  �?
-�? └─────────────────────────────────────────────────────────────────�?  �?
-�?                                   �?                                     �?
-�?                                   �?                                     �?
-�? ┌─────────────────────────────────────────────────────────────────�?  �?
-�? �?                  ViewModels (Business Logic)                    �?  �?
-�? �?  HomeViewModel  �? ChatViewModel  �? StudyViewModel  ...   �?  �?
-�? └─────────────────────────────────────────────────────────────────�?  �?
-�?                                   �?                                     �?
-�?                                   �?                                     �?
-�? ┌─────────────────────────────────────────────────────────────────�?  �?
-�? �?                     Services (Data Layer)                       �?  �?
-�? �?  AuthService  �? ChatService  �? StudyService  �? ...       �?  �?
-�? └─────────────────────────────────────────────────────────────────�?  �?
-�?                                   �?                                     �?
-�?         ┌─────────────────────────┼─────────────────────────�?        �?
-�?         �?                        �?                        �?        �?
-�? ┌─────────────�?         ┌─────────────�?         ┌─────────────�? �?
-�? �?  Network   �?         �?  Storage   �?         �?  External  �? �?
-�? �?  (HTTP/WS) �?         �?Keychain/DB)�?         �?Supabase/OS)�? �?
-�? └─────────────�?         └─────────────�?         └─────────────�? �?
-�?                                                                         �?
-└─────────────────────────────────────────────────────────────────────────�?
+iOS Architecture
+=================================================================
+Views (UI Layer)
+  HomeView  ChatView  StudyView  ProfileView  MapView  StoreView  ...
+
+  ViewModels (Business Logic)
+    HomeViewModel  ChatViewModel  StudyViewModel  ProfileViewModel  ...
+
+    Services (Data Layer)
+      AuthService  ChatService  StudyService  ClawbotChannelService  ...
+
+        Network Layer              Storage Layer             External
+        (APIClient/Alamofire)     (Keychain/SQLite)        (Supabase/iOS)
+        + SSLPinningManager       + UserDefaults
+        + RequestRetryManager
+        + RequestDeduplicator
+        + SecurityHeadersValidator
+=================================================================
 ```
 
 ---
 
-## 2. 技术栈
+## 2. Technology Stack
 
-| 类别 | 技�?| 版本 |
-|-----|------|-----|
-| 语言 | Swift | 5.9+ |
-| UI 框架 | SwiftUI | iOS 16+ |
-| 状态管�?| Combine | 内置 |
-| 网络 | Alamofire + Starscream | 最�?|
-| 本地存储 | SQLite (GRDB) + Keychain | - |
-| 支付 | StoreKit 2 | - |
-| 地图 | MapKit | 内置 |
-| 相机 | AVFoundation | 内置 |
-| 推�?| APNs | - |
-| 测试 | XCTest | - |
+| Category | Technology | Notes |
+|---------|-----------|-------|
+| Language | Swift | 5.9+ |
+| UI Framework | SwiftUI | iOS 16+ |
+| State Management | Combine | Built-in |
+| Networking | Alamofire + Starscream | Latest via SPM |
+| Realtime Messaging | ClawbotChannelService | TRIX Native Channel protocol |
+| Local Storage | SQLite (SQLite.swift) + Keychain | - |
+| Payments | StoreKit 2 | - |
+| Maps | MapKit + Baidu Map SDK | - |
+| Camera | AVFoundation | Built-in |
+| Push | APNs | - |
+| Testing | XCTest | - |
+| Dependency Manager | Swift Package Manager | Package.swift |
 
 ---
 
-## 3. 目录结构
+## 3. Directory Structure
 
 ```
 ios/TRIX3DCompanion/
-├── App/
-�?  ├── TRIX3DCompanionApp.swift    # App 入口
-�?  ├── AppDelegate.swift            # 生命周期
-�?  ├── AppState.swift              # 全局状�?
-�?  └── ContentView.swift            # 根视�?
-�?
-├── Core/
-�?  ├── Network/
-�?  �?  ├── APIClient.swift         # HTTP 客户�?
-�?  �?  ├── APIEndpoints.swift      # API 定义
-�?  �?  ├── AuthInterceptor.swift    # 认证拦截�?
-�?  �?  ├── WebSocketManager.swift   # WebSocket 管理
-�?  �?  ├── SSLPinningManager.swift   # SSL 证书固定
-�?  �?  ├── RequestRetryManager.swift # 请求重试
-�?  �?  ├── RequestDeduplicator.swift # 请求去重
-�?  �?  ├── NetworkRequestCache.swift  # 请求缓存
-�?  �?  ├── NetworkError.swift       # 网络错误
-�?  �?  └── SecurityHeadersValidator.swift # 安全头验�?
-�?  �?
-�?  ├── Storage/
-�?  �?  ├── KeychainManager.swift    # Keychain 封装
-�?  �?  ├── DatabaseManager.swift    # SQLite 封装
-�?  �?  ├── UserDefaultsManager.swift # UserDefaults 封装
-�?  �?  ├── JailbreakDetector.swift  # 越狱检�?
-�?  �?  └── KeychainSecurityValidator.swift # Keychain 安全验证
-�?  �?
-�?  ├── Services/
-�?  �?  ├── AuthService.swift        # 认证服务
-�?  �?  ├── OAuthManager.swift       # OAuth 管理
-�?  �?  ├── AppleSignInService.swift # Apple 登录
-�?  �?  ├── WeChatSignInService.swift # 微信登录
-�?  �?  ├── ChatService.swift       # 聊天服务
-�?  �?  ├── StudyService.swift      # 学习服务
-�?  �?  ├── PaymentService.swift    # 支付服务
-�?  �?  ├── StoreKitService.swift    # 内购服务
-�?  �?  ├── LocationService.swift    # 位置服务
-�?  �?  ├── TTSService.swift         # 语音合成
-�?  �?  ├── VoiceRecordingService.swift # 录音
-�?  �?  ├── VoicePlaybackService.swift  # 语音播放
-�?  �?  ├── DataSyncService.swift    # 数据同步
-�?  �?  ├── PairingService.swift     # 配对服务
-�?  �?  ├── ImageUploadService.swift # 图片上传
-�?  �?  ├── CameraService.swift     # 相机服务
-�?  �?  ├── PointsService.swift      # 积分服务
-�?  �?  ├── MallService.swift        # 商城服务
-�?  �?  ├── NotificationManager.swift # 通知管理
-�?  �?  ├── PushNotificationService.swift # 推送服�?
-�?  �?  ├── AchievementService.swift # 成就服务
-�?  �?  ├── ScheduleService.swift    # 日程服务
-�?  �?  ├── TodoService.swift        # 待办服务
-�?  �?  ├── WardrobeService.swift    # 衣柜服务
-�?  �?  ├── FriendService.swift      # 好友服务
-�?  �?  ├── PlaceService.swift       # 地点服务
-�?  �?  ├── StudyHistoryService.swift # 学习历史
-�?  �?  ├── DataExportService.swift   # 数据导出
-�?  �?  └── NetworkMonitor.swift     # 网络监控
-�?  �?
-�?  ├── Analytics/
-�?  �?  ├── AnalyticsService.swift    # 分析服务
-�?  �?  ├── ErrorTrackingService.swift # 错误追踪
-�?  �?  ├── PerformanceMonitoringService.swift # 性能监控
-�?  �?  ├── AppLaunchOptimizer.swift  # 启动优化
-�?  �?  └── MemoryLeakDetector.swift # 内存泄漏检�?
-�?  �?
-�?  ├── Performance/
-�?  �?  ├── BatteryConsumptionOptimizer.swift # 电池优化
-�?  �?  └── UIRenderingOptimizer.swift # UI 渲染优化
-�?  �?
-�?  ├── Cache/
-�?  �?  └── ImageCacheManager.swift  # 图片缓存
-�?  �?
-�?  ├── Config/
-�?  �?  └── SupabaseConfig.swift     # Supabase 配置
-�?  �?
-�?  └── Utilities/
-�?      ├── InputValidator.swift     # 输入验证
-�?      └── SecureLogger.swift        # 安全日志
-�?
-├── Features/
-�?  ├── Auth/
-�?  �?  ├── Views/
-�?  �?  �?  ├── LoginView.swift
-�?  �?  �?  └── RegisterView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Home/
-�?  �?  ├── Views/
-�?  �?  �?  ├── HomeView.swift
-�?  �?  �?  ├── ProfileView.swift
-�?  �?  �?  ├── ChatListView.swift
-�?  �?  �?  ├── StudyListView.swift
-�?  �?  �?  └── ...
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Chat/
-�?  �?  ├── Views/
-�?  �?  �?  ├── ChatDetailView.swift
-�?  �?  �?  ├── MessageBubbleView.swift
-�?  �?  �?  ├── ChatInputBar.swift
-�?  �?  �?  └── ...
-�?  �?  ├── ViewModels/
-�?  �?  └── Models/
-�?  �?
-�?  ├── Study/
-�?  �?  ├── Views/
-�?  �?  �?  ├── StudyTimerView.swift
-�?  �?  �?  ├── StudyRoomView.swift
-�?  �?  �?  ├── CelebrationAnimationView.swift
-�?  �?  �?  └── ...
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Map/
-�?  �?  ├── Views/
-�?  �?  �?  ├── MapView.swift
-�?  �?  �?  └── LocationDetailView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Store/
-�?  �?  ├── Views/
-�?  �?  �?  ├── StoreView.swift
-�?  �?  �?  ├── PointsPurchaseView.swift
-�?  �?  �?  └── ...
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Pairing/
-�?  �?  ├── Views/
-�?  �?  �?  ├── PairingView.swift
-�?  �?  �?  └── QRScannerView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Snapshot/
-�?  �?  ├── Views/
-�?  �?  �?  ├── CameraView.swift
-�?  �?  �?  └── SnapshotListView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Voice/
-�?  �?  ├── Views/
-�?  �?  �?  ├── VoiceRecordingButton.swift
-�?  �?  �?  └── VoiceMessagePlayerView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Workbench/
-�?  �?  ├── Views/
-�?  �?  �?  ├── WorkbenchView.swift
-�?  �?  �?  ├── TodoListView.swift
-�?  �?  �?  └── ScheduleListView.swift
-�?  �?  └── ViewModels/
-�?  �?
-�?  ├── Profile/
-�?  �?  ├── Views/
-�?  �?  �?  ├── SettingsScreen.swift
-�?  �?  �?  ├── PointsHistoryScreen.swift
-�?  �?  �?  └── ...
-�?  �?  └── ViewModels/
-�?  �?
-�?  └── ...
-�?
-├── Shared/
-�?  ├── Components/
-�?  �?  ├── AvatarView.swift
-�?  �?  ├── GlassPanel.swift
-�?  �?  ├── LoadingView.swift
-�?  �?  ├── EmptyStates/
-�?  �?  └── ...
-�?  �?
-�?  ├── Theme/
-�?  �?  ├── Colors.swift
-�?  �?  ├── Typography.swift
-�?  �?  └── ThemePreview.swift
-�?  �?
-�?  ├── Extensions/
-�?  �?  ├── View+Extensions.swift
-�?  �?  ├── String+Extensions.swift
-�?  �?  └── ...
-�?  �?
-�?  └── Models/
-�?      ├── User.swift
-�?      ├── ChatMessage.swift
-�?      ├── StudySession.swift
-�?      └── ...
-�?
-├── Resources/
-�?  ├── Assets.xcassets
-�?  ├── Localizable.strings
-�?  └── Info.plist
-�?
-└── Tests/
-    ├── TRIX3DCompanionTests/
-    �?  ├── Services/
-    �?  ├── ViewModels/
-    �?  └── Performance/
-    └── TRIX3DCompanionE2ETests/
+|
++- App/
+|   +- TRIX3DCompanionApp.swift     # @main entry point
+|   +- AppState.swift                # Global app state (@MainActor)
+|   +- ContentView.swift             # Root view (auth-aware)
+|   +- ClawbotChannelViewModel.swift # TRIX Native Channel pairing
+|   +- AnimatedSplashView.swift     # Splash screen
+|   +- UITestAccessibilityIdentifiers.swift
+|
++- Core/
+|   +- Network/
+|   |   +- APIClient.swift              # HTTP client (Alamofire)
+|   |   +- APIEndpoints.swift            # REST endpoint enum
+|   |   +- AuthInterceptor.swift        # Auto token injection
+|   |   +- SSLPinningManager.swift      # SSL public key pinning
+|   |   +- RequestRetryManager.swift     # Exponential backoff retry
+|   |   +- RequestDeduplicator.swift    # Request deduplication (30s TTL)
+|   |   +- NetworkRequestCache.swift     # HTTP response caching
+|   |   +- NetworkError.swift            # Error enum
+|   |   +- SecurityHeadersValidator.swift # HSTS, CSP, X-Frame validation
+|   |   +- JSONDateDecoding.swift
+|   |   +- NetworkLogger.swift
+|   |
+|   +- Storage/
+|   |   +- KeychainManager.swift     # Secure storage (tokens, device ID)
+|   |   +- DatabaseManager.swift      # SQLite (SQLite.swift), AES-256 encrypted
+|   |   +- UserDefaultsManager.swift  # App settings/preferences
+|   |   +- JailbreakDetector.swift   # Jailbreak detection
+|   |   +- KeychainSecurityValidator.swift
+|   |
+|   +- Services/  (all have matching *Protocol.swift)
+|   |   +- AuthService.swift              # Email + OAuth login/logout
+|   |   +- OAuthManager.swift             # OAuth (Apple Sign-In, WeChat)
+|   |   +- AppleSignInService.swift       # Apple Sign-In
+|   |   +- WeChatSignInService.swift      # WeChat Sign-In
+|   |   +- SessionService.swift          # Session management
+|   |   +- UserService.swift              # User profile CRUD
+|   |   +- UserStatsService.swift         # User statistics
+|   |   +- FriendService.swift            # Friend list + requests
+|   |   +- ChatService.swift              # Chat messaging (REST polling)
+|   |   +- StudyService.swift             # Study rooms + timed sessions
+|   |   +- StudyHistoryService.swift      # Study session history
+|   |   +- PaymentService.swift            # Payment + order management
+|   |   +- StoreKitService.swift           # StoreKit 2 IAP
+|   |   +- PointsService.swift             # Points balance + history
+|   |   +- MallService.swift              # Points mall
+|   |   +- WardrobeService.swift           # Avatar wardrobe
+|   |   +- AchievementService.swift        # Achievements + badges
+|   |   +- ClawbotChannelService.swift     # TRIX Native Channel (real-time + pairing)
+|   |   +- ClawbotHistoryService.swift     # Clawbot chat history
+|   |   +- LocationService.swift          # Location + permission
+|   |   +- MapSearchService.swift         # Map/POI search
+|   |   +- PlaceService.swift            # Place details + check-in
+|   |   +- CameraService.swift            # Photo capture
+|   |   +- TTSService.swift               # Text-to-speech
+|   |   +- VoicePlaybackService.swift      # Voice message playback
+|   |   +- AudioPlayerService.swift        # General audio playback
+|   |   +- AudioSessionManager.swift       # AVAudioSession config
+|   |   +- SpeechRecognitionService.swift  # Speech-to-text
+|   |   +- ScheduleService.swift           # Schedule CRUD
+|   |   +- TodoService.swift              # Todo CRUD
+|   |   +- ImageUploadService.swift        # Image upload
+|   |   +- DataSyncService.swift           # Offline sync
+|   |   +- OfflineCacheService.swift        # Response caching
+|   |   +- PushNotificationService.swift    # APNs registration
+|   |   +- LocalNotificationService.swift   # Local notifications
+|   |   +- NotificationManager.swift        # Unified notification handling
+|   |   +- DataExportService.swift          # GDPR data export
+|   |   +- NetworkMonitor.swift             # Connectivity monitoring
+|   |   +- ToastManager.swift               # Toast/popup overlay
+|   |   +- SupabaseService.swift            # Supabase client wrapper
+|   |
+|   +- Analytics/
+|   |   +- AnalyticsService.swift           # Analytics events
+|   |   +- ErrorTrackingService.swift       # Error tracking
+|   |   +- PerformanceMonitoringService.swift # Performance metrics
+|   |   +- AppLaunchOptimizer.swift         # Cold/hot start optimization
+|   |   +- MemoryLeakDetector.swift         # Memory leak detection
+|   |
+|   +- Performance/
+|   |   +- BatteryConsumptionOptimizer.swift
+|   |   +- UIRenderingOptimizer.swift
+|   |
+|   +- Cache/
+|   |   +- ImageCacheManager.swift          # Image caching (Kingfisher)
+|   |
+|   +- Config/
+|   |   +- SupabaseConfig.swift             # Supabase URL + anon key
+|   |
+|   +- Utilities/
+|   |   +- InputValidator.swift              # Email, password, username validation
+|   |   +- SecureLogger.swift               # Auto-sanitizing logger
+|   |
+|   +- Utils/
+|       +- CoordinateConverter.swift       # Coordinate conversion
+|
++- Features/
+|   +- Auth/
+|   |   +- Views/  LoginView, RegisterView, AuthRootView, AuthSceneComponents
+|   |   +- ViewModels/  AuthViewModel
+|   |
+|   +- Home/
+|   |   +- Views/  HomeView, MainTabView, GlassDockView, ProfileView,
+|   |   |         ChatListView, StudyListView, MailPanelView,
+|   |   |         NotificationPanelView, TrixBotChatView,
+|   |   |         HomeBotBubbleView, HeroBackgroundView,
+|   |   |         RobotHeroBackgroundView, VideoBackgroundView
+|   |   +- ViewModels/  HomeViewModel
+|   |
+|   +- Chat/
+|   |   +- Views/  ChatDetailView, MessageBubbleView, MessageCell,
+|   |   |         ChatInputBar, AIActionSelectorView, ImageMessageView,
+|   |   |         VoiceMessageView, VoiceRecordingButton
+|   |   +- ViewModels/  ChatDetailViewModel, ChatListViewModel
+|   |   +- Components/  OnlineStatusIndicator, TypingIndicatorView, UnreadBadge
+|   |   +- Models/  AIAction
+|   |
+|   +- Study/
+|   |   +- Views/  StudyRoomView, StudyTimerView, StudyStatsView,
+|   |   |         CelebrationAnimationView, DynamicBackgroundView,
+|   |   |         FocusStartAnimationView, MusicButton, MusicSelectorView
+|   |   +- ViewModels/  StudyRoomViewModel
+|   |
+|   +- Map/
+|   |   +- Views/  MapView, BaiduMapView, LocationDetailView, LocationPickerView
+|   |   +- ViewModels/  MapViewModel
+|   |   +- Models/  MapModels
+|   |
+|   +- Store/
+|   |   +- Views/  StoreView, PointsPurchaseView, ProductDetailView,
+|   |   |         SubscriptionView, PaymentResultView
+|   |   +- ViewModels/  StoreViewModel, ProductViewModel, PaymentViewModel
+|   |
+|   +- Pairing/
+|   |   +- Views/  PairingView, QRScannerView
+|   |
+|   +- Snapshot/
+|   |   +- Views/  CameraView, SnapshotListView, SnapshotAnalysisView
+|   |   +- ViewModels/  CameraViewModel, SnapshotListViewModel
+|   |
+|   +- Voice/
+|   |   +- Views/  TTSControlView, VoiceMessagePlayerView,
+|   |   |         VoiceFeatureIntegrationExample
+|   |   +- ViewModels/  TTSViewModel, VoicePlayerViewModel
+|   |
+|   +- Workbench/
+|   |   +- Views/  WorkbenchView, WorkbenchCard, WorkbenchSheet,
+|   |   |         TodoListView, TodoFormView, ScheduleListView, ScheduleFormView
+|   |   +- ViewModels/  TodoViewModel, ScheduleViewModel
+|   |   +- Models/  Todo, Schedule
+|   |
+|   +- Profile/
+|   |   +- Views/  ProfileScreen, SettingsScreen, PrivacySettingsScreen,
+|   |   |         AboutScreen, PointsHistoryScreen, ProfileInfoCard,
+|   |   |         StatsSection, WardrobeView
+|   |   +- ViewModels/  ProfileViewModel, SettingsViewModel,
+|   |               PrivacySettingsViewModel, PointsHistoryViewModel
+|   |
+|   +- Diagnostic/
+|       +- Views/  DiagnosticView, DiagnosticAdvancedView
+|       +- ViewModels/  DiagnosticViewModel
+|       +- Models/  DiagnosticModels
+|
++- Shared/
+|   +- Components/
+|   |   +- AvatarView, GlassPanel, GlassPanelStyles, GradientButton,
+|   |     ConfirmDialog, ErrorView, LoadingView, AnimatedCard,
+|   |     AnimatedQRDisplay, ShimmerEffect,
+|   |     EmptyStates/ (EmptyFriendListView, EmptyMessageListView,
+|   |                   EmptyNotificationView, EmptyPointsHistoryView, NoInternetView),
+|   |     Loading/ (LoadingIndicatorView, ProgressView, SkeletonView)
+|   |
+|   +- Theme/  Colors, Typography, Theme, ThemePreview
+|   +- Extensions/  ColorGradientExtension, Animations, Accessibility,
+|   |               Localizable, AVAudioPlayer+Extensions
+|   +- Models/  User, ChatMessage, ChatRoom, StudyRoom,
+|               Location, Snapshot, Device, BotState
+|
++- Video/
+|   +- VideoPlayerView.swift
+|
++- Tests/
+    +- TRIX3DCompanionTests/
+        +- Auth/, Chat/, Home/, Diagnostic/, Map/, Profile/,
+           Services/, Smoke/, Snapshot/, Store/, UI/, ViewModels/,
+           Voice/, Workbench/, Performance/, Integration/
 ```
 
 ---
 
-## 4. 核心服务
+## 4. Key Services
 
-### 4.1 认证服务 (AuthService)
+### 4.1 Authentication (AuthService)
 
 ```swift
+@MainActor
 final class AuthService: ObservableObject {
     @Published var currentUser: User?
     @Published var isAuthenticated: Bool = false
 
-    func login(email: String, password: String) async throws
-    func register(email: String, password: String, username: String) async throws
+    func login(email: String, password: String) async throws -> User
+    func register(username: String, email: String, password: String) async throws -> User
     func logout() async throws
     func refreshToken() async throws
 }
 ```
 
-### 4.2 网络服务 (APIClient)
+### 4.2 Network (APIClient)
 
 ```swift
 final class APIClient {
-    func request<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T
-    func upload(data: Data, to endpoint: APIEndpoint) async throws -> URL
-    func download(from endpoint: APIEndpoint) async throws -> Data
+    func get<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T
+    func post<T: Decodable>(_ endpoint: APIEndpoint, body: Encodable?) async throws -> T
+    func put<T: Decodable>(_ endpoint: APIEndpoint, body: Encodable?) async throws -> T
+    func delete<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T
 }
 ```
 
-**特�?*:
-- SSL Certificate Pinning
-- 请求重试
-- 请求去重
-- 自动 Token 刷新
-- 安全头验�?
+Features: SSL Pinning (SSLPinningManager), retry with exponential backoff, request deduplication, auto token refresh via AuthInterceptor, security header validation.
 
-### 4.3 WebSocket 管理 (WebSocketManager)
+### 4.3 ClawbotChannelService (TRIX Native Channel — Real-Time)
+
+Replaces the deprecated WebSocket-based approach. Uses TRIX Native Channel protocol (HTTP long-polling) for real-time messaging and device pairing.
 
 ```swift
-final class WebSocketManager: ObservableObject {
+final class ClawbotChannelService: ObservableObject {
     @Published var connectionState: ConnectionState = .disconnected
     @Published var messages: [ChatMessage] = []
 
-    func connect()
+    func connect(host: String, code: String, secret: String) async throws
     func disconnect()
-    func send(_ message: ChatMessage)
-    func on<Message>(_ type: Message.Type, handler: @escaping (Message) -> Void)
+    func send(message: String) async
 }
 ```
 
-### 4.4 本地存储
+**Pairing**: Use `ClawbotChannelViewModel` (in App/) for pairing flow. QR format: `http://host/pair?code=XXX&secret=YYY`.
 
-| 服务 | 用�?|
-|------|------|
-| KeychainManager | Token、敏感信�?|
-| DatabaseManager | 消息、好友、学习记�?|
-| UserDefaultsManager | 设置、偏�?|
+### 4.4 Local Storage
 
----
-
-## 5. 数据�?
-
-```
-用户操作 (View)
-       �?
-       �?
-ViewModel (业务逻辑)
-       �?
-       ├──�?Service (数据处理)
-       �?
-       ├──�?APIClient (网络请求)
-       �?        �?
-       �?        ├──�?请求拦截 (Auth)
-       �?        ├──�?SSL Pinning
-       �?        └──�?重试/去重
-       �?
-       �?
-数据�?/ Keychain (本地存储)
-       �?
-       �?
-ViewModel (更新状�?
-       �?
-       �?
-View (SwiftUI 更新)
-```
+| Service | Purpose |
+|---------|---------|
+| KeychainManager | Tokens, user ID, device ID, OAuth tokens, paired device info |
+| DatabaseManager | Messages, chat rooms, study sessions (AES-256 encrypted content) |
+| UserDefaultsManager | App settings, cached preferences, theme selection |
 
 ---
 
-## 6. 安全架构
+## 5. Data Flow
 
-### 6.1 数据安全
+```
+User action (View)
+       v
+ViewModel (business logic)
+       |
+       +-> Service (data processing)
+       |         |
+       |         +-> APIClient (network)
+       |         |           |
+       |         |           +-> AuthInterceptor (token injection)
+       |         |           +-> SSLPinningManager
+       |         |           +-> RequestRetryManager
+       |         |           +-> SecurityHeadersValidator
+       |         |
+       |         +-> KeychainManager / DatabaseManager (local storage)
+       |
+       v
+ViewModel (state update)
+       v
+View (SwiftUI update)
+```
 
-| 安全措施 | 实现 |
-|---------|------|
-| Keychain 存储 | 加密存储 Token |
-| 数据库加�?| SQLite 加密 |
-| SSL Pinning | 证书固定 |
-| 日志脱敏 | SecureLogger |
+---
 
-### 6.2 网络安全
+## 6. Security Architecture
+
+### 6.1 Data Security
+
+| Measure | Implementation |
+|---------|---------------|
+| Keychain | `whenUnlockedThisDeviceOnly`, no iCloud sync |
+| DB Encryption | AES-256-CBC on message content + transaction descriptions |
+| SSL Pinning | Public key pinning, SHA-256, enforced in production |
+| Logging | SecureLogger auto-sanitizes tokens, emails, coordinates |
+| Jailbreak Detection | `JailbreakDetector.swift` checks for common indicators |
+
+### 6.2 Network Security
 
 ```swift
-// SSL Pinning 配置
-let certificateNames = ["trix3d-api", "trix3d-prod"]
+// SSLPinningManager — production only
+self.enablePinning = (buildMode != .debug)
+self.pinningMode = .publicKey
+self.hashAlgorithm = .sha256
 
-// Keychain 访问控制
-let access = SecAccessControlCreateWithFlags(
+// Keychain access control
+SecAccessControlCreateWithFlags(
     kCFAllocatorDefault,
     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
     .biometryCurrentSet,
@@ -371,128 +368,68 @@ let access = SecAccessControlCreateWithFlags(
 )
 ```
 
-### 6.3 越狱检�?
+---
+
+## 7. Performance Optimization
+
+| Area | Strategy | Target |
+|------|----------|--------|
+| Launch | Lazy service init, async init, resource preload | Cold start < 2s |
+| Memory | Kingfisher LRU cache, weak refs, object pooling | Peak < 200MB |
+| Network | Request deduplication, retry backoff, prefetch | API p95 < 500ms |
+| Battery | Background task limits, location optimization, push over poll | - |
+
+---
+
+## 8. Testing
+
+| Category | Target |
+|---------|--------|
+| Unit tests | 80%+ |
+| Integration tests | Critical paths |
+| UI tests | Core flows |
+| Performance benchmarks | Cold start, memory, network, battery |
+
+---
+
+## 9. Dependencies (Package.swift)
 
 ```swift
-final class JailbreakDetector {
-    static func isJailbroken() -> Bool {
-        // 检测越狱标�?
-        // 检测常见越狱文�?
-        // 检�?Cydia 等应�?
-    }
-}
-```
-
----
-
-## 7. 性能优化
-
-### 7.1 启动优化
-
-- 懒加载服�?
-- 异步初始�?
-- 资源预加�?
-- 目标: 冷启�?< 2s
-
-### 7.2 内存优化
-
-- 图片缓存 (LRU)
-- 对象�?
-- 弱引�?
-- 目标: 峰值内�?< 200MB
-
-### 7.3 网络优化
-
-- 请求合并
-- Gzip 压缩
-- CDN 加�?
-- 预加�?
-
-### 7.4 电池优化
-
-- 后台任务限制
-- 位置服务优化
-- 推送替代轮�?
-
----
-
-## 8. 测试
-
-### 8.1 测试覆盖
-
-| 类别 | 覆盖目标 |
-|------|---------|
-| 单元测试 | 80%+ |
-| 集成测试 | 关键路径 |
-| UI 测试 | 核心流程 |
-
-### 8.2 测试工具
-
-- **XCTest**: 单元测试
-- **XCTestMetrics**: 性能基准
-- **XCUITest**: UI 测试
-
-### 8.3 性能基准
-
-| 指标 | 目标 | 当前 |
-|------|------|------|
-| 冷启�?| < 2s | �?|
-| 热启�?| < 1s | �?|
-| 内存峰�?| < 200MB | �?|
-| API 延迟 (p95) | < 500ms | �?|
-
----
-
-## 9. 依赖管理
-
-### 9.1 Swift Package Manager
-
-```swift
-// Package.swift
 dependencies: [
-    .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.0.0"),
-    .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.0.0"),
+    .package(url: ".../supabase-swift.git", from: "1.0.0"),
+    .package(url: ".../Alamofire.git", from: "5.8.0"),
+    .package(url: ".../Starscream.git", from: "4.0.0"),
+    .package(url: ".../Kingfisher.git", from: "7.10.0"),
+    .package(url: ".../KeychainAccess.git", from: "4.2.0"),
+    .package(url: ".../SQLite.swift.git", from: "0.14.0"),
+    .package(url: ".../CodeScanner.git", from: "2.0.0"),
+    .package(url: ".../socket.io-client-swift.git", from: "16.0.0"),
+    .package(url: ".../PopupView.git", from: "4.1.0"),
+    .package(url: ".../WhatsNewKit.git", from: "1.0.0"),
+    .package(url: ".../ActivityIndicatorView.git", from: "1.1.0"),
 ]
 ```
 
-### 9.2 CocoaPods
+---
 
-```ruby
-# Podfile
-pod 'Starscream', '~> 4.0'
-```
+## 10. Build & Deploy
+
+- **XcodeGen** generates `.xcodeproj` from `project.yml`
+- **GitHub Actions** for CI/CD automated build
+- **Bundle ID**: `com.trix3d.companion`
+- **Min iOS**: 16.0
 
 ---
 
-## 10. 构建与部�?
+## 11. Version History
 
-### 10.1 XcodeGen
-
-项目使用 XcodeGen 生成 `.xcodeproj`:
-
-```yaml
-# project.yml
-name: TRIX3DCompanion
-options:
-  bundleIdPrefix: com.trix3d
-  deploymentTarget:
-    iOS: "16.0"
-```
-
-### 10.2 CI/CD
-
-使用 GitHub Actions 自动构建和发布�?
+| Version | Date | Description |
+|---------|------|-------------|
+| 1.0 | 2026-02 | Initial version |
+| 1.1 | 2026-03 | Performance optimization |
+| 1.2 | 2026-03-25 | Accuracy update: added missing services (17), removed non-existent files |
 
 ---
 
-## 11. 版本信息
-
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| 1.0 | 2026-02 | 初始版本 |
-| 1.1 | 2026-03 | 性能优化 |
-
----
-
-**最后更�?*: 2026-03-04
-**版本**: 1.1
+**Last Updated**: 2026-03-25
+**Version**: 1.2

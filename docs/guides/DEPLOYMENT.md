@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-24
+> **最后更新**: 2026-03-25（生产域名已迁移至 trix.love；TRIX_NATIVE_PUBLIC_BASE_URL 更新为 https://trix.love）
 
 ---
 
@@ -175,7 +175,7 @@ pm2 start /root/trix-3d-companion/packages/trix-openclaw-native/dist/server/Trix
   --env PORT=8788 \
   --env NODE_ENV=production \
   --env TRIX_NATIVE_ADMIN_TOKEN=your-secure-token \
-  --env TRIX_NATIVE_PUBLIC_BASE_URL=http://TRIX_SERVER_HOST:8788
+  --env TRIX_NATIVE_PUBLIC_BASE_URL=https://trix.love
 ```
 
 ---
@@ -196,7 +196,7 @@ apt-get install -y nginx
 ```nginx
 server {
     listen 80;
-    server_name trix-3d.com www.trix-3d.com TRIX_SERVER_HOST;
+    server_name trix.love;
 
     # 前端静态文件
     root /var/www/html;
@@ -305,7 +305,7 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 8788,
       TRIX_NATIVE_ADMIN_TOKEN: 'your-secure-token',
-      TRIX_NATIVE_PUBLIC_BASE_URL: 'http://TRIX_SERVER_HOST:8788'
+      TRIX_NATIVE_PUBLIC_BASE_URL: 'https://trix.love'
     },
     error_file: './logs/error.log',
     out_file: './logs/out.log',
@@ -336,7 +336,7 @@ pm2 save
 ### 8.1 配置域名
 
 1. 在域名服务商处添加 A 记录:
-   - `trix-3d.com` → `TRIX_SERVER_HOST`
+   - `trix.love` → `TRIX_SERVER_HOST`
 2. 或使用 IP 直接访问
 
 ### 8.2 配置 SSL (Let's Encrypt)
@@ -346,7 +346,7 @@ pm2 save
 apt-get install -y certbot python3-certbot-nginx
 
 # 获取证书
-certbot --nginx -d trix-3d.com -d www.trix-3d.com
+certbot --nginx -d trix.love
 
 # 自动续期
 certbot renew --dry-run
@@ -360,13 +360,13 @@ certbot renew --dry-run
 
 ```bash
 # 检查前端
-curl http://TRIX_SERVER_HOST/
+curl https://trix.love/
 
-# 检查 TRIX Native Server
-curl http://TRIX_SERVER_HOST:8788/health
+# 检查 TRIX Native Server（通过 Nginx 反向代理）
+curl https://trix.love/api/health
 
 # 检查 WebSocket
-wscat -c ws://TRIX_SERVER_HOST:8788/ws/phone?code=test
+wscat -c wss://trix.love/ws/phone?code=test
 ```
 
 ### 9.2 日志管理
@@ -429,7 +429,7 @@ pm2 logs trix-native
 netstat -tlnp | grep 8788
 
 # 测试 WebSocket 连接（TRIX Native Server）
-wscat -c ws://TRIX_SERVER_HOST:8788
+wscat -c wss://trix.love/ws
 ```
 
 ### 10.4 文件上传失败
@@ -465,7 +465,7 @@ pm2 save
 # (上传) scp -r ./dist/* root@TRIX_SERVER_HOST:/var/www/html/
 
 # 5. 验证
-curl http://TRIX_SERVER_HOST:8788/health
+curl https://trix.love/api/health
 ```
 
 ---
@@ -479,4 +479,4 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-23（内容已修订：修正 Nginx WebSocket proxy_pass 路径前缀问题）
+**最后更新**: 2026-03-25（生产域名迁移至 trix.love；Nginx server_name、certbot、健康检查全部更新）

@@ -104,8 +104,8 @@ React App
 
 ### 3.3 组件
 
-- `src/components/` — 60+ 组件（含子目录 `chat/`、`map/`、`ui/`）
-- `src/components/AchievementsPanel.tsx` — ★ 成就面板（v1.3 新增，集成 Profile 页面）
+- `src/components/` — 45 组件（含子目录 `chat/`、`map/`、`ui/`）
+- `src/components/AchievementsPanel.tsx` — ★ 成就面板（集成 Profile 页面）
 - `src/screens/` — 14 个页面组件
 - `src/hooks/` — 12 个自定义 hooks（含 `useConfirmModal`）
 - `src/three/` — Three.js 3D/WebGL 组件（使用 Zustand）
@@ -295,7 +295,7 @@ src/
 │   ├── chatService.ts / friendService.ts / ...
 │   └── databaseService.ts          # barrel re-export
 │
-├── components/          # 40+ 组件（含 chat/, map/, ui/ 子目录）
+├── components/          # 45 组件（含 chat/, map/, ui/ 子目录）
 ├── screens/             # 14 个页面组件
 ├── hooks/               # 12 个自定义 hooks
 ├── features/            # 5 个 feature 模块

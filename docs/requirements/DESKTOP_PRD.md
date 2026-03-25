@@ -328,7 +328,7 @@ Float 窗口 (renderer/float.tsx)
 │  │          └────────────────────┼─────────────────────┘            │  │
 │  │                               ▼                                  │  │
 │  │              ┌────────────────────────────────────┐             │  │
-│  │              │         IPC Handler (22 handlers)   │             │  │
+│  │              │         IPC Handler (62 handlers)   │             │  │
 │  │              │  · pairing:createQr  · gateway:*    │             │  │
 │  │              │  · openclaw:*      · bot-state:*    │             │  │
 │  │              └────────────────────────────────────┘             │  │
@@ -367,7 +367,7 @@ Float 窗口 (renderer/float.tsx)
 
 ### 5.2 IPC 通信矩阵
 
-共 **51 个** IPC handler，分为 8 大类别。
+共 **62 个** IPC handler，分为 13 大类别。
 
 | IPC 通道 | 方向 | 类型 | 描述 |
 |---------|------|------|------|
@@ -419,11 +419,13 @@ Float 窗口 (renderer/float.tsx)
 | `gateway:stop` | Renderer → Main | invoke | 停止 Gateway |
 | `gateway:restart` | Renderer → Main | invoke | 重启 Gateway |
 | `gateway:logs` | Renderer → Main | invoke | 获取 Gateway 日志 |
-| **System Info（3 个）** | | | |
+| **System Info（5 个）** | | | |
 | `system:info` | Renderer → Main | invoke | 获取系统信息（CPU/内存/OS）|
 | `system:disk` | Renderer → Main | invoke | 获取磁盘列表 |
 | `system:check-packages` | Renderer → Main | invoke | 检查全局 npm 包 |
-| **Third-party Channels（7 个）** | | | |
+| `system:autostart-get` | Renderer → Main | invoke | 获取开机自启状态 |
+| `system:autostart-set` | Renderer → Main | invoke | 设置开机自启 |
+| **Third-party Channels（8 个）** | | | |
 | `channels:configure` | Renderer → Main | invoke | 配置 Channel 凭证 |
 | `channels:list` | Renderer → Main | invoke | 列出所有 Channel |
 | `channels:delete` | Renderer → Main | invoke | 删除 Channel |
@@ -432,6 +434,17 @@ Float 窗口 (renderer/float.tsx)
 | `channels:stop-listening` | Renderer → Main | invoke | 停止监听 Channel |
 | `channels:get-messages` | Renderer → Main | invoke | 获取 Channel 消息 |
 | `channels:send-message` | Renderer → Main | invoke | 通过 Channel 发送消息 |
+| **Config（4 个）** | | | |
+| `config:read` | Renderer → Main | invoke | 读取 openclaw.json |
+| `config:write` | Renderer → Main | invoke | 写入 openclaw.json |
+| `config:read-section` | Renderer → Main | invoke | 读取指定 section |
+| `config:write-section` | Renderer → Main | invoke | 写入指定 section（深度合并）|
+| **Cron（5 个）** | | | |
+| `cron:list` | Renderer → Main | invoke | 列出所有 Cron 任务 |
+| `cron:create` | Renderer → Main | invoke | 创建 Cron 任务 |
+| `cron:update` | Renderer → Main | invoke | 更新指定 ID 的 Cron 任务 |
+| `cron:delete` | Renderer → Main | invoke | 删除指定 ID 的 Cron 任务 |
+| `cron:toggle` | Renderer → Main | invoke | 启用/禁用 Cron 任务 |
 
 ### 5.3 技术栈
 
@@ -469,7 +482,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘（程序生成图标）
     │   ├── gateway.ts         # Gateway 子进程管理
     │   ├── openclaw.ts        # OpenClaw CLI 封装（本地优先）
-    │   ├── ipc.ts             # IPC Handler（22 handlers + 2 events）
+    │   ├── ipc.ts             # IPC Handler（62 handlers + 2 events）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -583,7 +596,7 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 - [x] 系统托盘（程序生成图标、菜单、事件处理）
 - [x] 主窗口关闭隐藏到托盘（不退出应用）
 - [x] 可折叠侧边栏导航
-- [x] contextBridge 安全 IPC 通信（51 handlers + 2 events）
+- [x] contextBridge 安全 IPC 通信（62 handlers + 2 events）
 - [x] 命令白名单安全机制
 - [x] `loadFile()` 替代 `loadURL()` 解决 asar 兼容
 - [x] React RenderErrorBoundary 错误边界

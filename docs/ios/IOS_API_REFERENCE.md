@@ -1,9 +1,9 @@
 # TRIX3DCompanion API Reference
 
 > Generated: 2026-02-27
-> Version: 1.1
+> Version: 1.2
 > Project: TRIX3DCompanion iOS App
-> Last Updated: 2026-02-27
+> Last Updated: 2026-03-25
 
 ---
 
@@ -171,41 +171,63 @@ func delete<T: Codable>(
 
 ---
 
-### WebSocketManager
+### ClawbotChannelService
 
-Real-time WebSocket communication manager.
+TRIX Native Channel real-time messaging and device pairing (HTTP long-polling, replaces WebSocket-based approach).
+
+**Note**: `WebSocketManager` and `PairingService` do not exist in the codebase. Real-time messaging and device pairing are both handled by `ClawbotChannelService`.
 
 ```swift
-final class WebSocketManager
+final class ClawbotChannelService: ObservableObject
 ```
+
+#### Properties
+
+##### connectionState
+```swift
+var connectionState: ConnectionState { get }
+```
+- Returns `.disconnected`, `.connecting`, `.connected`, or `.error`
+
+##### messages
+```swift
+var messages: [ChatMessage] { get }
+```
+- Current channel messages
 
 #### Methods
 
-##### connect(userId:)
+##### connect(host:code:secret:)
 ```swift
-func connect(userId: String) async throws
+func connect(host: String, code: String, secret: String) async throws
 ```
-- Connects to WebSocket server with authentication
+- Connects to TRIX Native Channel relay server using pairing credentials
+- QR code format: `http://host/pair?code=XXX&secret=YYY`
+- Pairing UI: `ClawbotChannelViewModel` (in App/)
 
 ##### disconnect()
 ```swift
 func disconnect()
 ```
-- Gracefully disconnects WebSocket connection
+- Gracefully disconnects from channel
 
 ##### send(message:)
 ```swift
-func send(message: WebSocketMessage) throws
+func send(message: String) async
 ```
-- **Parameters**:
-  - `message`: Message to send
-- **Throws**: `WebSocketError` if not connected
+- Sends a message through the channel
 
-##### subscribe(to:)
+##### getPairedDevices()
 ```swift
-func subscribe(to channel: WebSocketChannel) throws
+func getPairedDevices() async throws -> [PairedDevice]
 ```
-- Subscribes to a WebSocket channel
+- Returns list of paired devices
+
+##### unpairDevice(_:)
+```swift
+func unpairDevice(_ deviceId: String) async throws
+```
+- Removes device pairing
 
 ---
 
@@ -439,7 +461,7 @@ func cancelOrder(_ orderId: String) async throws
 
 ### ChatService
 
-Real-time messaging with WebSocket support.
+Chat messaging via REST polling (real-time device messaging uses ClawbotChannelService).
 
 ```swift
 final class ChatService
@@ -819,43 +841,6 @@ func setUserProperties(_ properties: [String: Any])
 
 ## Additional Services
 
-### PairingService
-
-Manages device pairing and connections.
-
-```swift
-final class PairingService
-```
-
-#### Methods
-
-##### generatePairingCode()
-```swift
-func generatePairingCode() async throws -> PairingCode
-```
-- **Returns**: Time-limited pairing code
-- **Throws**: `PairingError` on failure
-
-##### confirmPairing(code:)
-```swift
-func confirmPairing(code: String) async throws -> PairedDevice
-```
-- **Parameters**:
-  - `code`: Pairing code to confirm
-- **Returns**: Paired device information
-
-##### getPairedDevices()
-```swift
-func getPairedDevices() async throws -> [PairedDevice]
-```
-- **Returns**: List of paired devices
-
-##### unpairDevice(_:)
-```swift
-func unpairDevice(_ deviceId: String) async throws
-```
-- Removes device pairing
-
 ### ImageUploadService
 
 Handles image upload and management.
@@ -1055,6 +1040,7 @@ enum LocationError: Error {
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2 | 2026-03-25 | Removed non-existent WebSocketManager and PairingService; replaced with ClawbotChannelService; updated ChatService description |
 | 1.1 | 2026-02-27 | Updated test coverage (89%), added BatteryPerformanceBenchmark, updated API endpoints |
 | 1.0 | 2026-02-27 | Initial API Reference |
 
@@ -1091,5 +1077,5 @@ enum LocationError: Error {
 
 ---
 
-**Last Updated**: 2026-02-27
+**Last Updated**: 2026-03-25
 **Maintained By**: Claude

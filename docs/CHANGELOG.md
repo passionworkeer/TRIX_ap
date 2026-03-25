@@ -39,14 +39,14 @@
 ### 完成内容
 
 1. **DESKTOP_ARCHITECTURE.md v1.3**：
-   - IPC handlers **21→51**（新增 auth / study / system info / TRIX Native / channels / gateway 全部接入）
+   - IPC handlers **21→62**（新增 auth / study / system info / TRIX Native / channels / gateway / config / cron 全部接入）
    - Float Window 新增：快捷回复、表情反应、通知预览
    - electron-builder 配置更新：`productName: TRIX Companion`，`sidebar.bmp`，`compression: maximum`
    - preload API 补充所有新通道
    - 新增 `scripts/` + `desktop.css` 到目录结构
 
 2. **DESKTOP_PRD.md v1.3**：
-   - IPC 矩阵扩展至 51 handlers，8 大类别
+   - IPC 矩阵扩展至 62 handlers，13 大类别
    - SettingsPage 标注为「真实 IPC 接入，732 行」
    - 构建输出：`compression: maximum` 优化
 
@@ -259,7 +259,7 @@
 
 4. **architecture/WEB_ARCHITECTURE.md（全面重写）**：
    - 补充完整技术栈：React **19.2.4** + TypeScript **5.8.2** + Vite **6.2.0** + Tailwind CSS **4.2.0**
-   - 全部 **19 条路由**（HashRouter）
+   - 全部 **18 条路由**（HashRouter）
    - 全部 **27 个服务文件**
    - 4 个 Context + Zustand（仅 three/）
    - 移除不存在的 `useClawbotMessages` hook
