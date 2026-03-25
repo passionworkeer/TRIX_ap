@@ -18,6 +18,13 @@
   <button id="btn-new-project">+ 新建项目</button>
   <button id="btn-reload" class="btn-icon" title="刷新">⟳</button>
   <div class="toolbar-right">
+    <select id="aspect-select" title="视频尺寸">
+      <option value="origin">原始</option>
+      <option value="16:9">横屏 16:9</option>
+      <option value="9:16">竖屏 9:16</option>
+      <option value="1:1">方屏 1:1</option>
+      <option value="4:3">标准 4:3</option>
+    </select>
     <button id="btn-export-video" class="btn-secondary" disabled>导出视频</button>
     <button id="btn-export-subtitle" class="btn-secondary" disabled>导出字幕</button>
   </div>
@@ -54,6 +61,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/litegraph.js@0.7.9/build/litegraph.js"></script>
-<script src="/static/app.js?v=4"></script>
+<script src="/static/app.js?v=5"></script>
 </body>
 </html>

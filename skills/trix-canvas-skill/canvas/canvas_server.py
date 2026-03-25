@@ -1,6 +1,7 @@
 """Canvas 服务主入口：FastAPI"""
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -66,6 +67,14 @@ app.add_middleware(
 
 BASE_DIR = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+# ---------- Health ----------
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 # ---------- Static Serving ----------
@@ -296,10 +305,21 @@ async def serve_media(path: str):
 
 
 @app.get("/api/projects/{project_id}/export/video")
-async def api_export_video(project_id: int):
-    """用 ffmpeg 按分镜顺序拼接视频片段，返回拼接后的文件路径"""
-    import json
+async def api_export_video(
+    project_id: int,
+    aspect: str = Query("origin", regex="^(9:16|16:9|1:1|4:3|origin)$"),
+):
+    """
+    用 ffmpeg 按分镜顺序拼接视频片段，返回拼接后的文件路径。
 
+    Query 参数:
+        aspect: 尺寸预设
+            - 9:16  → 竖屏 (1080x1920)
+            - 16:9  → 横屏 (1920x1080)
+            - 1:1   → 方屏 (1080x1080)
+            - 4:3   → 标准 (1440x1080)
+            - origin→ 保持原始尺寸
+    """
     project = get_project(project_id)
     if not project:
         raise HTTPException(404, "项目不存在")
@@ -312,15 +332,42 @@ async def api_export_video(project_id: int):
     if not video_nodes:
         raise HTTPException(400, "项目中没有视频节点")
 
-    # 生成 ffmpeg concat 文件
-    concat_dir = CANVAS_DIR / "exports" / str(project_id)
-    concat_dir.mkdir(parents=True, exist_ok=True)
-    concat_file = concat_dir / "concat.txt"
-    output_file = concat_dir / "output.mp4"
+    import tempfile, subprocess, os, json
+    from storage import get_file_path
 
-    with open(concat_file, "w", encoding="utf-8") as f:
-        for n in video_nodes:
-            if not n["file_id"]:
+    tmp_dir = tempfile.mkdtemp(prefix="trix_export_")
+    try:
+        concat_file = os.path.join(tmp_dir, "concat.txt")
+        out_path = os.path.join(tmp_dir, f"project_{project_id}_merged.mp4")
+
+        # 尺寸预设
+        presets = {
+            "9:16":  (1080, 1920),
+            "16:9":  (1920, 1080),
+            "1:1":   (1080, 1080),
+            "4:3":   (1440, 1080),
+            "origin":(None, None),
+        }
+        target_w, target_h = presets.get(aspect, (None, None))
+
+        # 读取每个视频的时长
+        def get_duration(path):
+            try:
+                r = subprocess.run(
+                    ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", path],
+                    capture_output=True, text=True, timeout=20,
+                )
+                if r.returncode == 0:
+                    d = json.loads(r.stdout)
+                    return float(d.get("format", {}).get("duration", 0)) or 3.0
+            except Exception:
+                pass
+            return 3.0
+
+        # 逐个转码 + 收集 concat
+        scaled_clips = []
+        for i, n in enumerate(video_nodes):
+            if not n.get("file_id"):
                 continue
             file_info = get_file(n["file_id"])
             if not file_info:
@@ -328,49 +375,99 @@ async def api_export_video(project_id: int):
             abs_path = get_file_path(file_info["filepath"])
             if not os.path.exists(abs_path):
                 continue
-            # ffmpeg concat 需要绝对路径
-            f.write(f"file '{abs_path}'\n")
 
-    if concat_file.stat().st_size == 0:
-        raise HTTPException(400, "无有效视频文件可拼接")
+            dur = get_duration(abs_path)
+            seg_path = os.path.join(tmp_dir, f"seg_{i:03d}.mp4")
 
-    # 执行拼接
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(concat_file),
-                "-c",
-                "copy",
-                str(output_file),
-            ],
-            capture_output=True,
-            timeout=300,
+            cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "warning", "-i", abs_path]
+            if target_w and target_h:
+                vf = f"scale={target_w}:{target_h}:force_original_aspect_ratio=decrease,pad={target_w}:{target_h}:(ow-iw)/2:(oh-ih)/2:black,fps=30"
+                cmd += ["-vf", vf]
+            cmd += [
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                "-t", str(dur),
+                seg_path,
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            if r.returncode == 0 and os.path.exists(seg_path):
+                scaled_clips.append(seg_path)
+                with open(concat_file, "a", encoding="utf-8") as cf:
+                    cf.write(f"file '{seg_path}'\n")
+
+        if not scaled_clips:
+            raise HTTPException(400, "无有效视频文件")
+
+        # 拼接
+        concat_cmd = [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "warning",
+            "-f", "concat", "-safe", "0", "-i", concat_file,
+            "-c:v", "copy", "-c:a", "aac", out_path,
+        ]
+        r = subprocess.run(concat_cmd, capture_output=True, text=True, timeout=600)
+        if r.returncode != 0:
+            raise HTTPException(500, f"拼接失败: {r.stderr[:200]}")
+
+        if not os.path.exists(out_path):
+            raise HTTPException(500, "视频拼接失败")
+
+        # 把输出移到永久目录（安全：过滤 project name 防止路径穿越）
+        safe_name = re.sub(r"[^\w\-_.]", "_", project["name"])[:100]
+        export_dir = CANVAS_DIR / "exports" / str(project_id)
+        export_dir.mkdir(parents=True, exist_ok=True)
+        final_path = export_dir / f"{safe_name}_{aspect.replace(':', 'x')}.mp4"
+        shutil.copy2(out_path, final_path)
+
+        return FileResponse(
+            str(final_path),
+            media_type="video/mp4",
+            filename=f"{safe_name}.mp4",
         )
-    except FileNotFoundError:
-        raise HTTPException(500, "ffmpeg 未安装，请运行: pip install imageio[ffmpeg]")
-    except subprocess.TimeoutExpired:
-        raise HTTPException(500, "视频拼接超时")
+    finally:
+        # 清理临时目录
+        try:
+            shutil.rmtree(tmp_dir)
+        except Exception:
+            pass
 
-    if not output_file.exists():
-        raise HTTPException(500, "视频拼接失败")
 
-    return FileResponse(
-        str(output_file),
-        media_type="video/mp4",
-        filename=f"{project['name']}.mp4",
-    )
+def _format_srt_time(seconds: float) -> str:
+    """秒数 -> SRT 时间格式 HH:MM:SS,mmm。使用 Decimal 避免浮点陷阱"""
+    from decimal import Decimal, ROUND_HALF_UP
+    secs = Decimal(str(seconds))
+    h = int(secs // 3600)
+    m = int((secs % 3600) // 60)
+    s = int(secs % 60)
+    ms = int((secs % 1).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP) * 1000)
+    if ms >= 1000:
+        ms -= 1000
+        s += 1
+        if s >= 60:
+            s -= 60
+            m += 1
+            if m >= 60:
+                m -= 60
+                h += 1
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _get_video_duration(filepath: str) -> float:
+    try:
+        import json as _json
+        r = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", filepath],
+            capture_output=True, text=True, timeout=20,
+        )
+        if r.returncode == 0:
+            return float(_json.loads(r.stdout).get("format", {}).get("duration", 0)) or 3.0
+    except Exception:
+        pass
+    return 3.0
 
 
 @app.get("/api/projects/{project_id}/export/subtitle")
 async def api_export_subtitle(project_id: int):
-    """导出 .srt 字幕 + 台词文档"""
+    """导出 .srt 字幕 + 台词文档（真实视频时长）"""
     project = get_project(project_id)
     if not project:
         raise HTTPException(404, "项目不存在")
@@ -384,30 +481,48 @@ async def api_export_subtitle(project_id: int):
     export_dir = CANVAS_DIR / "exports" / str(project_id)
     export_dir.mkdir(parents=True, exist_ok=True)
 
+    # 读取每个镜头的真实时长
+    current_time = 0.0
+    scene_entries = []  # (start, dur, node)
+    for n in nodes:
+        dur = 3.0
+        fid = n.get("file_id")
+        if fid:
+            f = get_file(fid)
+            if f:
+                abs_p = get_file_path(f["filepath"])
+                if os.path.exists(abs_p) and n["media_type"] == "video":
+                    dur = _get_video_duration(abs_p)
+        scene_entries.append((current_time, dur, n))
+        current_time += dur
+
     # 生成 .srt
     srt_path = export_dir / f"{project['name']}.srt"
     with open(srt_path, "w", encoding="utf-8") as f:
-        for i, n in enumerate(nodes, 1):
-            start = f"00:0{i - 1}:00,000"
-            end = f"00:0{i}:00,000"
+        for i, (start, dur, n) in enumerate(scene_entries, 1):
+            end = start + dur
             text = n["prompt"] or f"镜头 {n.get('scene_id', i)}"
-            f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
+            if len(text) > 100:
+                text = text[:97] + "..."
+            f.write(f"{i}\n{_format_srt_time(start)} --> {_format_srt_time(end)}\n{text}\n\n")
 
     # 生成台词文档
     script_path = export_dir / f"{project['name']}_script.md"
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(f"# {project['name']}\n\n")
-        for i, n in enumerate(nodes, 1):
+        f.write(f"## 总时长: {_format_srt_time(current_time)}\n\n")
+        for i, (start, dur, n) in enumerate(scene_entries, 1):
             scene = n.get("scene_id", i)
             media = "🎬 视频" if n["media_type"] == "video" else "🖼️ 图片"
-            f.write(f"## {media} 镜头 {scene}\n{n['prompt'] or '(无描述)'}\n\n")
+            prompt = n["prompt"] or "(无描述)"
+            f.write(f"## {media} 镜头 {scene} [{_format_srt_time(dur)}]\n{prompt}\n\n")
 
-    return JSONResponse(
-        {
-            "srt": str(srt_path.relative_to(CANVAS_DIR)),
-            "script": str(script_path.relative_to(CANVAS_DIR)),
-        }
-    )
+    return JSONResponse({
+        "srt": str(srt_path.relative_to(CANVAS_DIR)),
+        "script": str(script_path.relative_to(CANVAS_DIR)),
+        "total_duration": round(current_time, 2),
+        "scenes": len(scene_entries),
+    })
 
 
 # ---------- Run ----------

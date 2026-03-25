@@ -455,7 +455,8 @@ function enableExportButtons(enabled) {
 
 function exportVideo() {
   if (!currentProject) return;
-  window.open(API + "/api/projects/" + currentProject.id + "/export/video", "_blank");
+  var aspect = (document.getElementById("aspect-select") || {}).value || "origin";
+  window.open(API + "/api/projects/" + currentProject.id + "/export/video?aspect=" + aspect, "_blank");
 }
 
 function exportSubtitle() {

@@ -216,7 +216,10 @@ def update_node(nid: int, **fields) -> Optional[dict]:
     vals = list(fields.values()) + [nid]
     with get_cursor() as cur:
         cur.execute(f"UPDATE nodes SET {sets} WHERE id = ?", vals)
-        return get_node(nid)
+        # 在同一连接内读取，避免新连接读到旧快照
+        cur.execute("SELECT * FROM nodes WHERE id = ?", (nid,))
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def delete_node(nid: int) -> bool:
