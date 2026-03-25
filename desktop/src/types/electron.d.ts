@@ -100,6 +100,11 @@ export interface ElectronAPI {
   listSkills: () => Promise<OpenClawCommandResult>;
   installSkill: (name: string) => Promise<OpenClawCommandResult>;
   uninstallSkill: (name: string) => Promise<OpenClawCommandResult>;
+  // Skill Marketplace (ClawHub)
+  skillsListFull: () => Promise<SkillsListResult>;
+  skillsSearch: (query: string) => Promise<ClawHubSearchResult>;
+  skillsExplore: () => Promise<ClawHubExploreResult>;
+  skillsClawhubInstall: (slug: string) => Promise<{ success: boolean; stdout: string; stderr: string }>;
   listBackups: () => Promise<OpenClawCommandResult>;
   restoreBackup: (backupId: string) => Promise<OpenClawCommandResult>;
   createPairingCode: () => Promise<OpenClawCommandResult>;
@@ -296,6 +301,42 @@ export interface AuthResult {
 export interface PkgCheckResult {
   success: boolean;
   data?: PkgStatus[];
+  error?: string;
+}
+
+// ── Skill Marketplace ─────────────────────────────────────────────────────────
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  source: string;
+  bundled: boolean;    // true = built-in, cannot uninstall
+  installed: boolean;  // true = user-installed (non-bundled)
+  missing: boolean;    // true = missing dependencies
+}
+
+export interface ClawHubSkill {
+  slug: string;
+  name: string;
+  description?: string;
+  score?: number;
+}
+
+export interface SkillsListResult {
+  success: boolean;
+  data?: SkillInfo[];
+  error?: string;
+}
+
+export interface ClawHubSearchResult {
+  success: boolean;
+  data?: ClawHubSkill[];
+  error?: string;
+}
+
+export interface ClawHubExploreResult {
+  success: boolean;
+  data?: ClawHubSkill[];
   error?: string;
 }
 

@@ -120,7 +120,7 @@ export async function installOpenClaw(
       if (msg) onProgress(msg);
     });
 
-    proc.on('close', (code) => {
+    proc.on('close', (_code) => {
       if (code === 0) {
         onProgress('安装完成!');
         log.info('OpenClaw installed to', installPath);
@@ -179,7 +179,7 @@ export async function runCommand(cmd: string): Promise<{
         resolve(124);
       }, COMMAND_TIMEOUT);
 
-      proc.on('close', (code) => {
+      proc.on('close', (_code) => {
         clearTimeout(timer);
         resolve(timedOut ? 124 : (code ?? 0));
       });
@@ -218,4 +218,174 @@ export async function runOpenClawCommand(cmd: string): Promise<{
 
 export function getOpenClawPath(): string {
   return getOpenClawBin();
+}
+
+// ── Skill Registry (via openclaw skills list --json) ─────────────────────────
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  source: string;
+  bundled: boolean;
+  installed: boolean;   // true if non-bundled (user-installed)
+  missing: boolean;     // true if ready deps are missing
+}
+
+function parseSkillsJson(raw: string): SkillInfo[] {
+  // Strip ANSI color codes
+  const clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
+  const start = clean.indexOf('{"workspaceDir"');
+  if (start === -1) return [];
+  const jsonEnd = clean.lastIndexOf('}');
+  if (jsonEnd <= start) return [];
+  interface RawSkill {
+    name: string; description?: string; source?: string;
+    bundled?: boolean;
+    missing?: { bins?: unknown[]; anyBins?: unknown[]; env?: unknown[]; config?: unknown[]; os?: unknown[] };
+  }
+  try {
+    const j = JSON.parse(clean.substring(start, jsonEnd + 1));
+    const skills: RawSkill[] = j.skills ?? [];
+    return skills.map(s => {
+      const m = s.missing ?? {};
+      const missing = !!(m.bins?.length || m.anyBins?.length || m.env?.length || m.config?.length || m.os?.length);
+      const bundled = s.bundled === true || s.source === 'openclaw-bundled';
+      const installed = !!(!bundled && (s.source === 'openclaw-managed' || s.source === 'openclaw-workspace' || s.source === 'agents-skills-personal'));
+      return {
+        name: s.name,
+        description: (s.description ?? '').split('\n')[0],
+        source: s.source ?? 'unknown',
+        bundled,
+        installed,
+        missing,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function skillsList(): Promise<{ success: boolean; data: SkillInfo[]; error?: string }> {
+  try {
+    const { stdout } = await execAsync('openclaw skills list --json', { timeout: 15_000 });
+    const skills = parseSkillsJson(stdout);
+    return { success: true, data: skills };
+  } catch (err) {
+    log.warn('skillsList error:', err);
+    return { success: false, data: [], error: String(err) };
+  }
+}
+
+// ── ClawHub registry search/explore ──────────────────────────────────────────
+
+export interface ClawHubSkill {
+  slug: string;
+  name: string;
+  description?: string;
+  score?: number;
+}
+
+function parseClawHubSearch(stdout: string): ClawHubSkill[] {
+  // Format: "slug  Name  (score)" per line
+  const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
+  return lines
+    .filter(l => !l.startsWith('-') && !l.startsWith('No skills'))
+    .map(l => {
+      // "slug  Name  (score)" or just "slug  Name"
+      const scoreMatch = l.match(/^(.+?)\s{2,}(.+?)\s+\((\d+\.\d+)\)\s*$/);
+      if (scoreMatch && scoreMatch[1] && scoreMatch[2] && scoreMatch[3]) {
+        return { slug: scoreMatch[1].trim(), name: scoreMatch[2].trim(), score: parseFloat(scoreMatch[3]) };
+      }
+      const parts = l.split(/\s{2,}/);
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        return { slug: parts[0].trim(), name: parts[1].trim() };
+      }
+      return null;
+    })
+    .filter((s): s is ClawHubSkill => s !== null);
+}
+
+function parseClawHubExplore(stdout: string): ClawHubSkill[] {
+  // Format: similar to search, lines with slug and name
+  const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
+  return lines
+    .filter(l => !l.startsWith('-') && !l.startsWith('No skills') && !l.startsWith('Fetching'))
+    .map(l => {
+      const parts = l.split(/\s{2,}/);
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        return { slug: parts[0].trim(), name: parts[1].trim() };
+      }
+      return null;
+    })
+    .filter((s): s is ClawHubSkill => s !== null);
+}
+
+function execClawhub(args: string[]): Promise<{ stdout: string; stderr: string; timedOut?: boolean }> {
+  return new Promise((resolve) => {
+    const proc = spawn('npx', ['clawhub@latest', ...args], {
+      shell: true,
+      env: { ...process.env },
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      proc.kill();
+      resolve({ stdout: stdout.trim(), stderr: '命令超时 (120s)', timedOut: true });
+    }, 120_000);
+    proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+    proc.on('close', (_code) => {
+      clearTimeout(timer);
+      resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+    });
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      resolve({ stdout: '', stderr: String(err) });
+    });
+  });
+}
+
+export async function clawhubSearch(query: string): Promise<{ success: boolean; data: ClawHubSkill[]; error?: string }> {
+  try {
+    const { stdout, stderr } = await execClawhub(['search', query, '--limit', '20']);
+    if (stderr.includes('Rate limit')) {
+      return { success: false, data: [], error: '访问频率限制，请稍后再试' };
+    }
+    return { success: true, data: parseClawHubSearch(stdout) };
+  } catch (err) {
+    log.warn('clawhubSearch error:', err);
+    return { success: false, data: [], error: String(err) };
+  }
+}
+
+export async function clawhubExplore(): Promise<{ success: boolean; data: ClawHubSkill[]; error?: string }> {
+  try {
+    const { stdout, stderr } = await execClawhub(['explore']);
+    if (stderr.includes('Rate limit')) {
+      return { success: false, data: [], error: '访问频率限制，请稍后再试' };
+    }
+    return { success: true, data: parseClawHubExplore(stdout) };
+  } catch (err) {
+    log.warn('clawhubExplore error:', err);
+    return { success: false, data: [], error: String(err) };
+  }
+}
+
+export async function clawhubInstall(slug: string): Promise<{ success: boolean; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn('npx', ['clawhub@latest', 'install', slug], {
+      shell: true,
+      env: { ...process.env },
+    });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+    proc.on('close', (code: number) => {
+      resolve({ success: code === 0, stdout: stdout.trim(), stderr: stderr.trim() });
+    });
+    proc.on('error', (err: Error) => {
+      resolve({ success: false, stdout: '', stderr: String(err) });
+    });
+  });
 }

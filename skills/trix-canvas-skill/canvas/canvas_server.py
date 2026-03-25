@@ -1,4 +1,5 @@
 """Canvas 服务主入口：FastAPI"""
+
 import os
 import shutil
 import subprocess
@@ -12,20 +13,44 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from models import (
-    ProjectCreate, ProjectResponse, ProjectDetail,
-    FileUpdate, FileResponse as FileResp,
-    NodeCreate, NodeResponse, NodeUpdate, NodeRegenerate,
-    EdgeCreate, EdgeResponse,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectDetail,
+    FileUpdate,
+    FileResponse as FileResp,
+    NodeCreate,
+    NodeResponse,
+    NodeUpdate,
+    NodeRegenerate,
+    EdgeCreate,
+    EdgeResponse,
 )
 from database import (
-    create_project, list_projects, get_project, delete_project,
-    create_file, get_file, update_file, delete_file, list_project_files,
-    create_node, get_node, update_node, delete_node, list_project_nodes,
-    create_edge, delete_edge, list_project_edges,
+    create_project,
+    list_projects,
+    get_project,
+    delete_project,
+    create_file,
+    get_file,
+    update_file,
+    delete_file,
+    list_project_files,
+    create_node,
+    get_node,
+    update_node,
+    delete_node,
+    list_project_nodes,
+    create_edge,
+    delete_edge,
+    list_project_edges,
 )
 from storage import (
-    CANVAS_DIR, get_project_dir, save_uploaded_file,
-    delete_project_files, delete_file_by_path, get_file_path,
+    CANVAS_DIR,
+    get_project_dir,
+    save_uploaded_file,
+    delete_project_files,
+    delete_file_by_path,
+    get_file_path,
 )
 from thumbnail import make_thumbnail, extract_video_thumbnail
 
@@ -45,12 +70,14 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 # ---------- Static Serving ----------
 
+
 @app.get("/")
 async def index():
     return FileResponse(str(BASE_DIR / "templates" / "index.html"))
 
 
 # ---------- Projects ----------
+
 
 @app.get("/api/projects", response_model=list[ProjectResponse])
 async def api_list_projects():
@@ -63,7 +90,7 @@ async def api_create_project(body: ProjectCreate):
     return project
 
 
-@app.get("/api/projects/{project_id}", response_model=ProjectDetail)
+@app.get("/api/projects/{project_id}")
 async def api_get_project(project_id: int):
     project = get_project(project_id)
     if not project:
@@ -74,8 +101,9 @@ async def api_get_project(project_id: int):
     # 附上文件信息给节点
     file_map = {f["id"]: f for f in files}
     for n in nodes:
-        if n["file_id"] and n["file_id"] in file_map:
-            n["_file"] = file_map[n["file_id"]]
+        fid = n.get("file_id")
+        if fid and fid in file_map:
+            n["_file"] = file_map[fid]
     return {**project, "nodes": nodes, "edges": edges}
 
 
@@ -91,6 +119,7 @@ async def api_delete_project(project_id: int):
 
 # ---------- Files (upload) ----------
 
+
 @app.post("/api/upload", response_model=FileResp)
 async def api_upload(
     file: UploadFile = File(...),
@@ -105,7 +134,9 @@ async def api_upload(
 
     contents = await file.read()
     rel_path, abs_path = save_uploaded_file(
-        project_id, contents, file.filename or "file",
+        project_id,
+        contents,
+        file.filename or "file",
         file.content_type or "application/octet-stream",
     )
 
@@ -140,7 +171,9 @@ async def api_get_file(file_id: int):
 
 @app.patch("/api/files/{file_id}", response_model=FileResp)
 async def api_update_file(file_id: int, body: FileUpdate):
-    f = update_file(file_id, **{k: v for k, v in body.model_dump().items() if v is not None})
+    f = update_file(
+        file_id, **{k: v for k, v in body.model_dump().items() if v is not None}
+    )
     if not f:
         raise HTTPException(404, "文件不存在")
     return f
@@ -161,6 +194,7 @@ async def api_delete_file(file_id: int):
 
 # ---------- Nodes ----------
 
+
 @app.post("/api/nodes", response_model=NodeResponse, status_code=201)
 async def api_create_node(body: NodeCreate):
     project = get_project(body.project_id)
@@ -171,7 +205,8 @@ async def api_create_node(body: NodeCreate):
         file_id=body.file_id,
         scene_id=body.scene_id,
         media_type=body.media_type,
-        x=body.x, y=body.y,
+        x=body.x,
+        y=body.y,
         prompt=body.prompt,
         status=body.status,
         task_id=body.task_id,
@@ -189,7 +224,9 @@ async def api_get_node(node_id: int):
 
 @app.patch("/api/nodes/{node_id}", response_model=NodeResponse)
 async def api_update_node(node_id: int, body: NodeUpdate):
-    n = update_node(node_id, **{k: v for k, v in body.model_dump().items() if v is not None})
+    n = update_node(
+        node_id, **{k: v for k, v in body.model_dump().items() if v is not None}
+    )
     if not n:
         raise HTTPException(404, "节点不存在")
     return n
@@ -220,6 +257,7 @@ async def api_regenerate_node(node_id: int, body: Optional[NodeRegenerate] = Non
 
 # ---------- Edges ----------
 
+
 @app.post("/api/edges", response_model=EdgeResponse, status_code=201)
 async def api_create_edge(body: EdgeCreate):
     # 验证节点存在
@@ -244,6 +282,7 @@ async def api_delete_edge(edge_id: int):
 
 # ---------- Media Serving ----------
 
+
 @app.get("/media/{path:path}")
 async def serve_media(path: str):
     """提供媒体文件访问（图片/视频/缩略图）"""
@@ -254,6 +293,7 @@ async def serve_media(path: str):
 
 
 # ---------- Export ----------
+
 
 @app.get("/api/projects/{project_id}/export/video")
 async def api_export_video(project_id: int):
@@ -297,9 +337,21 @@ async def api_export_video(project_id: int):
     # 执行拼接
     try:
         subprocess.run(
-            ["ffmpeg", "-y", "-f", "concat", "-safe", "0",
-             "-i", str(concat_file), "-c", "copy", str(output_file)],
-            capture_output=True, timeout=300,
+            [
+                "ffmpeg",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(concat_file),
+                "-c",
+                "copy",
+                str(output_file),
+            ],
+            capture_output=True,
+            timeout=300,
         )
     except FileNotFoundError:
         raise HTTPException(500, "ffmpeg 未安装，请运行: pip install imageio[ffmpeg]")
@@ -336,7 +388,7 @@ async def api_export_subtitle(project_id: int):
     srt_path = export_dir / f"{project['name']}.srt"
     with open(srt_path, "w", encoding="utf-8") as f:
         for i, n in enumerate(nodes, 1):
-            start = f"00:0{i-1}:00,000"
+            start = f"00:0{i - 1}:00,000"
             end = f"00:0{i}:00,000"
             text = n["prompt"] or f"镜头 {n.get('scene_id', i)}"
             f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
@@ -350,13 +402,16 @@ async def api_export_subtitle(project_id: int):
             media = "🎬 视频" if n["media_type"] == "video" else "🖼️ 图片"
             f.write(f"## {media} 镜头 {scene}\n{n['prompt'] or '(无描述)'}\n\n")
 
-    return JSONResponse({
-        "srt": str(srt_path.relative_to(CANVAS_DIR)),
-        "script": str(script_path.relative_to(CANVAS_DIR)),
-    })
+    return JSONResponse(
+        {
+            "srt": str(srt_path.relative_to(CANVAS_DIR)),
+            "script": str(script_path.relative_to(CANVAS_DIR)),
+        }
+    )
 
 
 # ---------- Run ----------
+
 
 def run(port: int = 8789, host: str = "127.0.0.1"):
     uvicorn.run(app, host=host, port=port, log_level="info")

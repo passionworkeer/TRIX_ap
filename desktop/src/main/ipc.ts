@@ -15,7 +15,7 @@ import {
   pushBotState,
   getMainWindow,
 } from './window-state';
-import { checkOpenClaw, installOpenClaw, runCommand } from './openclaw';
+import { checkOpenClaw, installOpenClaw, runCommand, skillsList, clawhubSearch, clawhubExplore, clawhubInstall } from './openclaw';
 import { getGatewayStatus, restartGateway, startGateway, stopGateway, getGatewayLogs } from './gateway';
 
 // === Input Validation Helpers ===
@@ -179,6 +179,45 @@ export function setupIpcHandlers(): void {
       return await runCommand(`skills uninstall ${name}`);
     } catch (err) {
       return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Skill Marketplace (ClawHub) ───────────────────────────────────────────
+
+  ipcMain.handle('openclaw:skills-list-full', async () => {
+    try {
+      return await skillsList();
+    } catch (err) {
+      log.error('skills-list-full error:', err);
+      return { success: false, data: [], error: String(err) };
+    }
+  });
+
+  ipcMain.handle('openclaw:skills-search', async (_event, query: string) => {
+    try {
+      const q = isSafeString(query, 128);
+      if (!q.trim()) return { success: true, data: [] };
+      return await clawhubSearch(q);
+    } catch (err) {
+      return { success: false, data: [], error: String(err) };
+    }
+  });
+
+  ipcMain.handle('openclaw:skills-explore', async () => {
+    try {
+      return await clawhubExplore();
+    } catch (err) {
+      return { success: false, data: [], error: String(err) };
+    }
+  });
+
+  ipcMain.handle('openclaw:skills-clawhub-install', async (_event, slug: string) => {
+    try {
+      const s = isSafeString(slug, 128);
+      if (!/^[a-zA-Z0-9_-]+$/.test(s)) return { success: false, stdout: '', stderr: 'Invalid slug' };
+      return await clawhubInstall(s);
+    } catch (err) {
+      return { success: false, stdout: '', stderr: String(err) };
     }
   });
 

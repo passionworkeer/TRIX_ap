@@ -48,6 +48,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listSkills: () => ipcRenderer.invoke('openclaw:skills-list'),
   installSkill: (name) => ipcRenderer.invoke('openclaw:skills-install', name),
   uninstallSkill: (name) => ipcRenderer.invoke('openclaw:skills-uninstall', name),
+  // Skill Marketplace (ClawHub)
+  skillsListFull: () => ipcRenderer.invoke('openclaw:skills-list-full'),
+  skillsSearch: (query) => ipcRenderer.invoke('openclaw:skills-search', query),
+  skillsExplore: () => ipcRenderer.invoke('openclaw:skills-explore'),
+  skillsClawhubInstall: (slug) => ipcRenderer.invoke('openclaw:skills-clawhub-install', slug),
   listBackups: () => ipcRenderer.invoke('openclaw:backup-list'),
   restoreBackup: (id) => ipcRenderer.invoke('openclaw:backup-restore', id),
   createPairingCode: () => ipcRenderer.invoke('openclaw:pairing-create'),
