@@ -7,52 +7,55 @@ afterEach(() => {
   cleanup()
 })
 
-// Mock HTMLCanvasElement.getContext and requestAnimationFrame for happy-dom
-if (typeof HTMLCanvasElement !== 'undefined') {
-  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-    value: vi.fn(() => ({
-      clearRect: vi.fn(),
-      beginPath: vi.fn(),
-      arc: vi.fn(),
-      fill: vi.fn(),
-      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-      fillStyle: '',
-      globalAlpha: 1,
-    })),
-    writable: true,
-  })
+// Build a self-referential query chain mock that supports all Supabase operations
+function makeChain() {
+  const chain: Record<string, unknown> = {};
+  const chainMethods: Record<string, unknown> = {
+    select: vi.fn(() => chain),
+    insert: vi.fn(() => chain),
+    upsert: vi.fn(() => chain),
+    update: vi.fn(() => chain),
+    delete: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    neq: vi.fn(() => chain),
+    gt: vi.fn(() => chain),
+    gte: vi.fn(() => chain),
+    lte: vi.fn(() => chain),
+    like: vi.fn(() => chain),
+    ilike: vi.fn(() => chain),
+    in: vi.fn(() => chain),
+    is: vi.fn(() => chain),
+    order: vi.fn(() => chain),
+    range: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+    then: vi.fn((resolve: unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve as Parameters<PromiseLike<unknown>['then']>[0])
+    ),
+  };
+  Object.assign(chain, chainMethods);
+  return chain;
 }
-
-// Mock requestAnimationFrame
-globalThis.requestAnimationFrame = vi.fn((cb: FrameRequestCallback) => {
-  return setTimeout(() => cb(Date.now()), 16) as unknown as number
-})
-globalThis.cancelAnimationFrame = vi.fn((id: number) => {
-  clearTimeout(id as unknown as ReturnType<typeof setTimeout>)
-})
 
 // Mock Supabase
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     auth: {
-      signInWithPassword: vi.fn(),
-      signUp: vi.fn(),
-      signOut: vi.fn(),
-      getUser: vi.fn(),
-      session: () => ({ data: { session: null } })
+      signInWithPassword: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      signUp: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+      getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+      getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      session: vi.fn(() => ({ data: { session: null } })),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } }))
     },
-    from: vi.fn(() => ({
-      select: vi.fn(),
-      insert: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      eq: vi.fn()
-    })),
+    from: vi.fn(() => makeChain()),
     channel: vi.fn(() => ({
       on: vi.fn(() => ({ subscribe: vi.fn() })),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn()
-    }))
+      subscribe: vi.fn(() => Promise.resolve('subscribed')),
+      unsubscribe: vi.fn(() => Promise.resolve('unsubscribed'))
+    })),
+    removeChannel: vi.fn()
   }))
 }))
 

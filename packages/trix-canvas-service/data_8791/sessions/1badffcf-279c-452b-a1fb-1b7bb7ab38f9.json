@@ -1,0 +1,28 @@
+{
+  "id": "1badffcf-279c-452b-a1fb-1b7bb7ab38f9",
+  "projectId": "9af2f998-a9f1-4087-947d-a824744acb2d",
+  "messages": [
+    {
+      "role": "user",
+      "content": "[日式动漫] Japanese anime, lightning-fast katana draw, fate moment",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成中: video_cd3b5912-543d-4585-8ade-986c079a66f3",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成完成: http://localhost:8788/outputs/video_08.mp4",
+      "timestamp": "2026-03-24T02:15:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/video_08.mp4"
+  ],
+  "status": "completed",
+  "taskId": "video_cd3b5912-543d-4585-8ade-986c079a66f3",
+  "parentId": "a08875a2-7322-4df3-8f22-3bbd6b2edb70",
+  "createdAt": "2026-03-24T02:10:00.000Z"
+}

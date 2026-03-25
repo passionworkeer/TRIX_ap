@@ -32,7 +32,7 @@ final class BatteryPerformanceBenchmark: XCTestCase {
     // MARK: - Setup
 
     override func setUpWithError() throws {
-        super.setUpWithError()
+        try super.setUpWithError()
         batteryDrainResults.removeAll()
     }
 
@@ -244,8 +244,7 @@ final class BatteryPerformanceBenchmark: XCTestCase {
             expectation.fulfill()
         }
 
-        // Trigger battery state change (simulated)
-        UIDevice.current.batteryState = .charging
+        // batteryState is read-only on UIDevice; notification cannot be triggered in tests
 
         waitForExpectations(timeout: 1.0)
 

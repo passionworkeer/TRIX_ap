@@ -96,10 +96,9 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
             return .cancelled
         }
 
-        // Create mock transaction
-        let mockTransaction = createMockTransaction(productId: productId)
+        // Purchase succeeds with pending (Transaction cannot be constructed in tests)
         isPurchasing = false
-        return .success(transaction: mockTransaction)
+        return .pending
     }
 
     func restorePurchases() async -> Result<[TransactionInfo], AppStoreKitError> {
@@ -160,15 +159,6 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
             let type = StoreProductConfiguration.productType(for: id) ?? .points
             let points = StoreProductConfiguration.pointsForProduct(id)
 
-            // Create a mock StoreKit.Product
-            let mockProduct = MockProductData(
-                id: id,
-                displayName: "Mock Product \(id)",
-                description: "Mock description for \(id)",
-                displayPrice: "¥9.99",
-                type: .autoRenewable
-            )
-
             return AppStoreProduct(
                 id: id,
                 name: "Mock Product \(id)",
@@ -178,38 +168,10 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
                 type: type,
                 points: points,
                 subscriptionPeriod: type == .subscription ? SubscriptionPeriod(value: 1, unit: .month) : nil,
-                product: AnyProduct(mockProduct)
+                product: nil
             )
         }
     }
-
-    private func createMockTransaction(productId: String) -> Transaction {
-        return Transaction(productID: productID, transactionID: 123456789, purchaseDate: Date())
-    }
-}
-
-// MARK: - Mock Transaction Data (simple struct for testing)
-
-struct MockTransactionData {
-    let productID: String
-    let transactionID: UInt64 = 123456789
-    let purchaseDate: Date = Date()
-}
-
-// MARK: - Mock Product Data (simple struct, not inheriting)
-
-struct MockProductData {
-    let id: String
-    let displayName: String
-    let description: String
-    let displayPrice: String
-    let type: ProductType
-}
-
-enum ProductType: String, Codable {
-    case consumable
-    case nonConsumable
-    case subscription
 }
 
 // MARK: - StoreKitService Tests

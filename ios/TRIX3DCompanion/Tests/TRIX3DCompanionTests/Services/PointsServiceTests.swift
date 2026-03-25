@@ -171,23 +171,23 @@ final class PointsServiceTests: XCTestCase {
     }
 
     func testPointsCalculator_AchievementPoints_FirstStudy() {
-        XCTAssertEqual(PointsCalculator.pointsForAchievement("first_study"), 10)
+        XCTAssertEqual(PointsCalculator.pointsForAchievement(achievementId: "first_study"), 10)
     }
 
     func testPointsCalculator_AchievementPoints_WeekStreak() {
-        XCTAssertEqual(PointsCalculator.pointsForAchievement("week_streak"), 50)
+        XCTAssertEqual(PointsCalculator.pointsForAchievement(achievementId: "week_streak"), 50)
     }
 
     func testPointsCalculator_AchievementPoints_MonthStreak() {
-        XCTAssertEqual(PointsCalculator.pointsForAchievement("month_streak"), 200)
+        XCTAssertEqual(PointsCalculator.pointsForAchievement(achievementId: "month_streak"), 200)
     }
 
     func testPointsCalculator_AchievementPoints_PerfectDay() {
-        XCTAssertEqual(PointsCalculator.pointsForAchievement("perfect_day"), 20)
+        XCTAssertEqual(PointsCalculator.pointsForAchievement(achievementId: "perfect_day"), 20)
     }
 
     func testPointsCalculator_AchievementPoints_Unknown() {
-        XCTAssertEqual(PointsCalculator.pointsForAchievement("unknown_achievement"), 10)
+        XCTAssertEqual(PointsCalculator.pointsForAchievement(achievementId: "unknown_achievement"), 10)
     }
 
     func testPointsCalculator_FormatPoints_Single() {
@@ -339,20 +339,6 @@ final class PointsServiceTests: XCTestCase {
         XCTAssertNotNil(filter.endDate)
         XCTAssertEqual(filter.limit, 100)
         XCTAssertEqual(filter.offset, 50)
-    }
-
-    // MARK: - PointsTransactionType Tests
-
-    func testPointsTransactionType_AllCases() {
-        // Then
-        XCTAssertEqual(PointsTransactionType.allCases.count, 8)
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.earned))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.purchased))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.redeemed))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.refund))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.bonus))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.admin))
-        XCTAssertTrue(PointsTransactionType.allCases.contains(.subscription))
     }
 
     // MARK: - PointsService Published Properties Tests

@@ -53,7 +53,7 @@ final class MockNetworkMonitorForSync: NetworkMonitorProtocol {
 
 @MainActor
 final class MockOfflineCacheForSync: OfflineCacheServiceProtocol {
-    var totalCacheSize: Int64 { 0 }
+    var totalCacheSize: Int64 = 0
 
     var shouldFailOperations = false
 
@@ -77,13 +77,13 @@ final class MockOfflineCacheForSync: OfflineCacheServiceProtocol {
 final class MockDatabaseManagerForSync: DatabaseManagerProtocol {
     var unsyncedStudySessions: [StudySession] = []
     var pendingMessages: [ChatMessage] = []
-    var pendingPointTransactions: [PointTransaction] = []
+    var pendingPointTransactions: [PointsTransaction] = []
 
     var shouldFailOperations = false
 
     func getUnsyncedStudySessions() throws -> [StudySession] {
         if shouldFailOperations {
-            throw DatabaseError.queryFailed
+            throw DatabaseError.queryFailed("Query failed")
         }
         return unsyncedStudySessions
     }
@@ -94,7 +94,7 @@ final class MockDatabaseManagerForSync: DatabaseManagerProtocol {
 
     func getPendingMessages() throws -> [ChatMessage] {
         if shouldFailOperations {
-            throw DatabaseError.queryFailed
+            throw DatabaseError.queryFailed("Query failed")
         }
         return pendingMessages
     }
@@ -105,7 +105,7 @@ final class MockDatabaseManagerForSync: DatabaseManagerProtocol {
 
     func getPendingPointTransactions() throws -> [PointsTransaction] {
         if shouldFailOperations {
-            throw DatabaseError.queryFailed
+            throw DatabaseError.queryFailed("Query failed")
         }
         return pendingPointTransactions
     }
@@ -138,7 +138,7 @@ final class MockAPIClientForSync: APIClientProtocol {
             return user as! T
         }
 
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message: "No mock data")
     }
 
     func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T where T: Decodable {
@@ -155,29 +155,29 @@ final class MockAPIClientForSync: APIClientProtocol {
             return EmptyResponse() as! T
         }
 
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func download(from url: String) async throws -> Data {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 }
 
@@ -222,6 +222,21 @@ final class MockAuthServiceForSync: AuthServiceProtocol {
         }
         return .failure(.invalidCredentials)
     }
+
+    func clearError() {}
+
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func updateCurrentUser(_ user: User?) {}
+
+    func updateLoginStatus(_ loggedIn: Bool) {}
+
 }
 
 // MARK: - DataSyncService Tests
@@ -314,7 +329,7 @@ final class DataSyncServiceTests: XCTestCase {
         sut.cancelSync()
         await syncTask.value
 
-        XCTAssertEqual(sut.currentStatus, .cancelled)
+        XCTAssertEqual(sut.currentStatus, .idle)
     }
 
     // MARK: - Sync Type Tests
@@ -371,7 +386,7 @@ final class DataSyncServiceTests: XCTestCase {
     }
 
     func testSetStrategy_Eager() {
-        sut.setStrategy(.eager)
+        sut.setStrategy(.immediate)
     }
 
     func testSetConflictResolution_MostRecent() {
@@ -385,10 +400,11 @@ final class DataSyncServiceTests: XCTestCase {
 
 // MARK: - Mock Types
 
-struct PointTransaction: Identifiable {
+struct MockPointTransaction: Identifiable {
     let id: String
-    let type: String
-    let amount: Int
-    let reason: String?
-    let timestamp: Date
+    let pointsChange: Int
+    let type: TransactionType
+    let description: String
+    let balanceAfter: Int
+    let createdAt: Date
 }

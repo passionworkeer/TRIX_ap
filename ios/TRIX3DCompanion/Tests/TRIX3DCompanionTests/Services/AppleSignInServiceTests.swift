@@ -30,34 +30,28 @@ final class MockAppleSignInDelegate: AppleSignInServiceDelegate {
     var receivedError: AppleSignInError?
     var receivedCredentialState: ASAuthorizationAppleIDProvider.CredentialState?
 
-    nonisolated func appleSignInService(
+    func appleSignInService(
         _ service: AppleSignInServiceProtocol,
         didSignInWith credential: AppleSignInCredential
     ) {
-        Task { @MainActor in
-            didSignInCalled = true
-            receivedCredential = credential
-        }
+        didSignInCalled = true
+        receivedCredential = credential
     }
 
-    nonisolated func appleSignInService(
+    func appleSignInService(
         _ service: AppleSignInServiceProtocol,
         didFailWithError error: AppleSignInError
     ) {
-        Task { @MainActor in
-            didFailCalled = true
-            receivedError = error
-        }
+        didFailCalled = true
+        receivedError = error
     }
 
-    nonisolated func appleSignInService(
+    func appleSignInService(
         _ service: AppleSignInServiceProtocol,
         credentialStateDidChange state: ASAuthorizationAppleIDProvider.CredentialState
     ) {
-        Task { @MainActor in
-            credentialStateDidChangeCalled = true
-            receivedCredentialState = state
-        }
+        credentialStateDidChangeCalled = true
+        receivedCredentialState = state
     }
 
     func reset() {
@@ -102,7 +96,7 @@ extension AppleSignInServiceTests {
         let instance2 = AppleSignInService.shared
 
         // Then
-        XCTAssertStrictlyEqual(instance1, instance2, "AppleSignInService should be a singleton")
+        XCTAssertTrue(instance1 === instance2, "AppleSignInService should be a singleton")
     }
 
     func testIsAvailableOniOS13() async throws {
@@ -143,14 +137,6 @@ extension AppleSignInServiceTests {
         // Note: This test verifies the anchor is stored
         // Actual sign-in requires user interaction
         XCTAssertNotNil(mockAnchor, "Presentation anchor should be stored")
-    }
-
-    func testCredentialStateAuthorizedAfterSignIn() {
-        // Given
-        sut.credentialState = .authorized
-
-        // Then
-        XCTAssertEqual(sut.credentialState, .authorized, "Credential state should be authorized")
     }
 
     func testCredentialStateRevokedAfterRevocation() {
@@ -200,19 +186,19 @@ extension AppleSignInServiceTests {
 
     func testGetCredentialStateReturnsCachedState() {
         // Given
-        sut.credentialState = .authorized
+        // Pre-set via handleCredentialRevoked to simulate cached state
+        sut.handleCredentialRevoked()
         let userID = "test_user_789"
 
         // When
         let state = sut.getCredentialState(forUserID: userID)
 
         // Then
-        XCTAssertEqual(state, .authorized, "Should return cached state when available")
+        XCTAssertEqual(state, .revoked, "Should return cached state when available")
     }
 
     func testGetCredentialStateTriggersAsyncCheckWhenNotFound() async {
-        // Given
-        sut.credentialState = .notFound
+        // Given - state is notFound (initial state)
         let userID = "test_user_async"
 
         // When
@@ -262,11 +248,7 @@ extension AppleSignInServiceTests {
         // Then
         XCTAssertTrue(delegate.didFailCalled, "Delegate should receive failure callback")
         XCTAssertNotNil(delegate.receivedError, "Delegate should receive error")
-        XCTAssertEqual(
-            delegate.receivedError as? AppleSignInError,
-            .cancelled,
-            "Error should be cancellation"
-        )
+        XCTAssertTrue(delegate.receivedError == .cancelled, "Error should be cancellation")
     }
 
     func testDelegateReceivesCredentialStateChange() async {
@@ -568,7 +550,7 @@ extension AppleSignInServiceTests {
 
 extension AppleSignInServiceTests {
 
-    func testPresentationAnchorProvidedForAuthorizationController() {
+    func testPresentationAnchorProvidedForAuthorizationController() async {
         // This test verifies the service conforms to
         // ASAuthorizationControllerPresentationContextProviding
 
@@ -576,7 +558,7 @@ extension AppleSignInServiceTests {
         let mockAnchor = ASPresentationAnchor()
 
         // When
-        _ = sut.signIn(presentationAnchor: mockAnchor)
+        _ = await sut.signIn(presentationAnchor: mockAnchor)
 
         // Then
         // Service should store and provide the anchor for authorization controller

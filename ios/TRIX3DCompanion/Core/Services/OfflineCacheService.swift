@@ -37,7 +37,7 @@ struct CacheEntry<T: Codable>: Codable {
 
 // MARK: - Cache Error
 
-enum CacheError: Error, LocalizedError {
+enum CacheError: Error, LocalizedError, Equatable {
     case notFound
     case expired
     case storageError(underlying: Error)
@@ -45,6 +45,22 @@ enum CacheError: Error, LocalizedError {
     case invalidData
     case encodingFailed
     case decodingFailed
+
+    static func == (lhs: CacheError, rhs: CacheError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notFound, .notFound),
+             (.expired, .expired),
+             (.sizeLimitExceeded, .sizeLimitExceeded),
+             (.invalidData, .invalidData),
+             (.encodingFailed, .encodingFailed),
+             (.decodingFailed, .decodingFailed):
+            return true
+        case (.storageError, .storageError):
+            return true
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -107,7 +123,7 @@ enum CacheType: String, CaseIterable {
 // MARK: - Offline Cache Service Protocol
 
 protocol OfflineCacheServiceProtocol {
-    var totalCacheSize: Int64 { get }
+    var totalCacheSize: Int64 { get set }
 
     func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws
     func retrieve<T: Codable>(key: String, type: CacheType) async throws -> T
@@ -118,6 +134,13 @@ protocol OfflineCacheServiceProtocol {
     func cleanExpired() async throws
     func getCurrentSize(type: CacheType) async throws -> Int64
     func cacheUserProfile(_ user: User) async throws
+}
+
+// MARK: - Clear Cache Tracking Protocol
+
+/// Protocol for tracking which DiagnosticCacheType was passed to clearCache
+protocol ClearCacheTracking: AnyObject {
+    func setOriginalClearType(_ type: DiagnosticCacheType)
 }
 
 // MARK: - Offline Cache Service
@@ -132,7 +155,7 @@ final class OfflineCacheService: ObservableObject, OfflineCacheServiceProtocol {
 
     // MARK: - Published Properties
 
-    @Published private(set) var totalCacheSize: Int64 = 0
+    @Published var totalCacheSize: Int64 = 0
 
     @Published private(set) var isCleaning: Bool = false
 

@@ -65,6 +65,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAchievements: () => ipcRenderer.invoke('study:get-achievements'),
   getProfileStats: () => ipcRenderer.invoke('profile:get-stats'),
 
+  // === Study Sessions (Supabase — requires login) ===
+  createStudySession: (subject) => ipcRenderer.invoke('study:create-session', subject),
+  updateStudySession: (sessionId, duration) => ipcRenderer.invoke('study:update-session', sessionId, duration),
+  getStudyStats: () => ipcRenderer.invoke('study:get-stats'),
+
   // === Supabase Auth ===
   authGetSession: () => ipcRenderer.invoke('auth:get-session'),
   authSignIn: (email, password) => ipcRenderer.invoke('auth:sign-in', email, password),

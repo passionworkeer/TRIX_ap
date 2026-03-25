@@ -692,14 +692,21 @@ enum MessageSendStatus: String {
 
 // MARK: - Protocol
 
-protocol ClawbotChannelServiceProtocol {
+protocol ClawbotChannelServiceProtocol: ObservableObject {
     var connectionState: ClawbotConnectionState { get }
     var isConnected: Bool { get }
     var isPaired: Bool { get }
     var isBotOnline: Bool { get }
     var botConnectionState: BotConnectionState { get }
     var botBehaviorState: BotBehaviorState { get }
+    var botState: BotBehaviorState { get }
+    var lastMessage: ClawbotMessage? { get }
     var deviceId: String? { get }
+
+    // Publishers for Combine bindings
+    var connectionStatePublisher: AnyPublisher<ClawbotConnectionState, Never> { get }
+    var lastMessagePublisher: AnyPublisher<ClawbotMessage?, Never> { get }
+    var botStatePublisher: AnyPublisher<BotBehaviorState, Never> { get }
 
     // TTS
     var ttsEnabled: Bool { get set }
@@ -726,7 +733,6 @@ protocol ClawbotChannelServiceProtocol {
     func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> StudyRoomState
 }
 
-// MARK: - Study Room State
 
 struct ClawbotStudyRoomState: Codable {
     let roomCode: String
@@ -810,6 +816,20 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     // TTS
     @Published var ttsEnabled: Bool = true
     @Published var ttsLanguage: TTSLanguage = .chinese
+
+    // MARK: - Protocol Publishers
+
+    var connectionStatePublisher: AnyPublisher<ClawbotConnectionState, Never> {
+        $connectionState.eraseToAnyPublisher()
+    }
+
+    var lastMessagePublisher: AnyPublisher<ClawbotMessage?, Never> {
+        $lastMessage.eraseToAnyPublisher()
+    }
+
+    var botStatePublisher: AnyPublisher<BotBehaviorState, Never> {
+        $botState.eraseToAnyPublisher()
+    }
 
     // MARK: - Configuration
 

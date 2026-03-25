@@ -53,7 +53,7 @@ final class SnapshotListViewModel: ObservableObject {
     private var totalCount: Int = 0
 
     /// API client
-    private let apiClient: APIClient
+    private let apiClient: any APIClientProtocol
 
     /// Cancellables
     private var cancellables = Set<AnyCancellable>()
@@ -62,8 +62,8 @@ final class SnapshotListViewModel: ObservableObject {
 
     /// Initialize SnapshotListViewModel
     /// - Parameter apiClient: API client dependency
-    init(apiClient: APIClient = .shared) {
-        self.apiClient = apiClient
+    init(apiClient: (any APIClientProtocol)? = nil) {
+        self.apiClient = apiClient ?? APIClient.shared
 
         // Setup search debounce
         setupSearchBinding()

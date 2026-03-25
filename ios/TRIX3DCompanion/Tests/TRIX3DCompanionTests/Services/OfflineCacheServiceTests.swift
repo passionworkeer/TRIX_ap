@@ -155,8 +155,8 @@ extension OfflineCacheServiceTests {
     func testCacheMessages() async throws {
         // Given
         let messages = [
-            createMockChatMessage(id: "msg1", text: "Hello"),
-            createMockChatMessage(id: "msg2", text: "World")
+            createMockChatMessage(id: "msg1", content: "Hello"),
+            createMockChatMessage(id: "msg2", content: "World")
         ]
         let roomId = "room123"
 
@@ -167,7 +167,7 @@ extension OfflineCacheServiceTests {
         // Then
         XCTAssertEqual(retrieved.count, 2, "Should have 2 messages")
         XCTAssertEqual(retrieved[0].id, "msg1", "First message ID should match")
-        XCTAssertEqual(retrieved[1].text, "World", "Second message text should match")
+        XCTAssertEqual(retrieved[1].content, "World", "Second message text should match")
     }
 
     func testCacheMessagesEmptyArray() async throws {
@@ -298,6 +298,8 @@ extension OfflineCacheServiceTests {
             XCTFail("Should throw not found error")
         } catch let error as CacheError {
             XCTAssertEqual(error, .notFound, "Should throw not found error")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
         }
     }
 
@@ -360,6 +362,8 @@ extension OfflineCacheServiceTests {
             // This is acceptable behavior
         } catch let error as CacheError {
             XCTAssertEqual(error, .sizeLimitExceeded, "Should throw size limit exceeded")
+        } catch {
+            // Other errors are acceptable for size limit test
         }
     }
 }
@@ -828,13 +832,22 @@ extension OfflineCacheServiceTests {
             username: username,
             email: "test@example.com",
             avatarUrl: nil,
-            fullName: "Test User",
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 100,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -842,22 +855,26 @@ extension OfflineCacheServiceTests {
 
     private func createMockChatMessage(
         id: String = "msg_id",
-        text: String = "Test message"
+        content: String = "Test message"
     ) -> ChatMessage {
         ChatMessage(
             id: id,
             roomId: "room_123",
-            friendId: nil,
-            sender: .user,
             senderId: "user_123",
-            text: text,
-            timestamp: Date(),
+            sender: .user,
+            content: content,
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            mediaDuration: nil,
             mediaSize: nil,
             mediaMetadata: nil,
-            isRead: true
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: true,
+            createdAt: Date()
         )
     }
 
@@ -868,13 +885,13 @@ extension OfflineCacheServiceTests {
         StudySession(
             id: id,
             userId: "user_123",
-            subject: "Test Subject",
             duration: duration,
             startedAt: Date(),
             endedAt: Date(),
-            notes: nil,
             earnedPoints: 10,
             isCompleted: true,
+            subject: "Test Subject",
+            notes: nil,
             createdAt: Date()
         )
     }

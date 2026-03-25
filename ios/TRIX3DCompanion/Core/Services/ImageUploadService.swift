@@ -107,9 +107,11 @@ struct ImageUploadStatus: Identifiable {
 
 /// Protocol for image upload service
 @MainActor
-protocol ImageUploadServiceProtocol {
+protocol ImageUploadServiceProtocol: ObservableObject {
     var isUploading: Bool { get }
     var uploadProgress: Double { get }
+    var isUploadingPublisher: Published<Bool>.Publisher { get }
+    var uploadProgressPublisher: Published<Double>.Publisher { get }
     func uploadImage(_ image: UIImage, quality: CGFloat?) async -> UploadResult
 }
 
@@ -136,6 +138,11 @@ final class ImageUploadService: ObservableObject, ImageUploadServiceProtocol {
 
     /// 每个图片的上传状态
     @Published private(set) var uploadStatuses: [ImageUploadStatus] = []
+
+    // MARK: - Protocol Publishers
+
+    var isUploadingPublisher: Published<Bool>.Publisher { $isUploading }
+    var uploadProgressPublisher: Published<Double>.Publisher { $uploadProgress }
 
     // MARK: - Configuration
 

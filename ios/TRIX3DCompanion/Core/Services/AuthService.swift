@@ -87,12 +87,25 @@ protocol AuthServiceProtocol {
     var isLoggedIn: Bool { get }
     var currentUser: User? { get }
     var isLoading: Bool { get }
+    /// Supabase client for realtime features (nil for mocks in tests)
+    var supabase: SupabaseClient? { get }
 
     func login(email: String, password: String) async -> AuthResult<User>
     func register(username: String, email: String, password: String) async -> AuthResult<User>
     func logout() async -> AuthResult<Void>
     func refreshTokenIfNeeded() async -> AuthResult<Void>
     func fetchCurrentUser() async -> AuthResult<User>
+    func updateProfile(_ updates: User) async -> AuthResult<User>
+    func deleteAccount() async -> AuthResult<Void>
+    func updateCurrentUser(_ user: User?)
+    func updateLoginStatus(_ loggedIn: Bool)
+    func clearError()
+}
+
+// MARK: - Default supabase for protocol extension (returns nil - override in AuthService)
+
+extension AuthServiceProtocol {
+    var supabase: SupabaseClient? { nil }
 }
 
 // MARK: - Auth Service
@@ -419,6 +432,43 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             }
 
             return .failure(authError)
+        } catch {
+            return .failure(.unknown(underlying: error))
+        }
+    }
+
+    /// Update user profile
+    /// - Parameter updates: The updated user data
+    /// - Returns: AuthResult containing the updated user
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        guard isLoggedIn else {
+            return .failure(.invalidCredentials)
+        }
+
+        do {
+            let updatedUser: User = try await apiClient.put(.userUpdateProfile, body: updates)
+            currentUser = updatedUser
+            return .success(updatedUser)
+        } catch let error as NetworkError {
+            return .failure(mapNetworkError(error))
+        } catch {
+            return .failure(.unknown(underlying: error))
+        }
+    }
+
+    /// Delete user account
+    /// - Returns: AuthResult indicating success or failure
+    func deleteAccount() async -> AuthResult<Void> {
+        guard isLoggedIn else {
+            return .failure(.invalidCredentials)
+        }
+
+        do {
+            let _: EmptyResponse = try await apiClient.delete(.userProfile)
+            clearSession()
+            return .success(())
+        } catch let error as NetworkError {
+            return .failure(mapNetworkError(error))
         } catch {
             return .failure(.unknown(underlying: error))
         }

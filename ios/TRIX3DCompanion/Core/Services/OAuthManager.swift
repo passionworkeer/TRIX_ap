@@ -53,8 +53,8 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
 
     // MARK: - Dependencies
 
-    private let authService: AuthService
-    private let apiClient: APIClient
+    private let authService: AuthServiceProtocol
+    private let apiClient: APIClientProtocol
     private let keychainManager: KeychainManager
 
     // MARK: - Private Properties
@@ -78,12 +78,12 @@ final class OAuthManager: NSObject, OAuthManagerProtocol, ObservableObject {
     ///   - apiClient: API client
     ///   - keychainManager: Keychain manager
     init(
-        authService: AuthService? = nil,
-        apiClient: APIClient? = nil,
+        authService: AuthServiceProtocol? = nil,
+        apiClient: APIClientProtocol? = nil,
         keychainManager: KeychainManager? = nil
     ) {
-        self.authService = authService ?? .shared
-        self.apiClient = apiClient ?? .shared
+        self.authService = authService ?? AuthService.shared
+        self.apiClient = apiClient ?? APIClient.shared
         self.keychainManager = keychainManager ?? .shared
 
         super.init()

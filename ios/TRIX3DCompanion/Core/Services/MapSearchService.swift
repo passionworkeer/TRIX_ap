@@ -13,7 +13,7 @@ import CoreLocation
 // MARK: - POI Result
 
 /// POI search result (MapKit version)
-struct POIResult: Identifiable {
+struct POIResult: Identifiable, Equatable {
     let id = UUID()
     let name: String
     let address: String
@@ -46,7 +46,7 @@ struct POIResult: Identifiable {
 // MARK: - Route Result
 
 /// Route planning result (MapKit version)
-struct RouteResult {
+struct RouteResult: Equatable {
     let distance: Double       // meters
     let duration: TimeInterval // seconds
     let coordinates: [CLLocationCoordinate2D]
@@ -73,11 +73,21 @@ struct RouteResult {
     }
 }
 
-// MARK: - Search Service
+// MARK: - Search Service Protocol
+
+/// Protocol for map search service dependency injection in tests
+protocol MapSearchServiceProtocol: AnyObject {
+    var isAvailable: Bool { get }
+    func initialize(completion: @escaping (Bool) -> Void)
+    func searchPOI(keyword: String, city: String, completion: @escaping ([POIResult]) -> Void)
+    func searchNearby(latitude: Double, longitude: Double, radius: Int, keyword: String, completion: @escaping ([POIResult]) -> Void)
+    func routePlan(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, completion: @escaping (RouteResult?) -> Void)
+    func openNavigation(toLatitude: Double, toLongitude: Double, toName: String, fromLatitude: Double?, fromLongitude: Double?)
+}
 
 /// Map search service using MapKit
 /// Provides POI search, geocoding, and route planning
-final class MapSearchService: NSObject {
+final class MapSearchService: NSObject, MapSearchServiceProtocol {
 
     static let shared = MapSearchService()
 

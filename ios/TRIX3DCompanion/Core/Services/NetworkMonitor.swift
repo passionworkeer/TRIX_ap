@@ -133,7 +133,7 @@ protocol NetworkMonitorProtocol {
 
 /// Main network monitoring service using NWPathMonitor
 @MainActor
-final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
+class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
 
     // MARK: - Singleton
 
@@ -141,7 +141,7 @@ final class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
 
     // MARK: - Published Properties
 
-    @Published private(set) var currentStatus: NetworkStatus = .disconnected
+    @Published var currentStatus: NetworkStatus = .disconnected
 
     @Published private(set) var isMonitoring: Bool = false
 

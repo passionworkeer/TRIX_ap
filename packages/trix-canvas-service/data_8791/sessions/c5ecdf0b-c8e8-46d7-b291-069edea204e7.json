@@ -1,0 +1,22 @@
+{
+  "id": "c5ecdf0b-c8e8-46d7-b291-069edea204e7",
+  "projectId": "3eb1b938-47ff-4270-b584-0dd586133844",
+  "messages": [
+    {
+      "role": "user",
+      "content": "苍刃拔刀术发动，弧形刀光划破夜空，气势惊人",
+      "timestamp": "2026-03-24T03:00:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "图片生成完成: http://localhost:8788/outputs/story_03.png",
+      "timestamp": "2026-03-24T03:10:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/story_03.png"
+  ],
+  "status": "completed",
+  "parentId": "e7a8c92f-0a9d-46c4-87b5-a8151fb6af49",
+  "createdAt": "2026-03-24T03:00:02.000Z"
+}

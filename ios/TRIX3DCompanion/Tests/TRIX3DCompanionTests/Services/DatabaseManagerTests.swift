@@ -238,17 +238,21 @@ final class DatabaseManagerTests: XCTestCase {
         ChatMessage(
             id: id,
             roomId: roomId,
-            friendId: nil,
-            sender: .user,
             senderId: "test_user_\(id)",
-            text: "Test message content \(id)",
-            timestamp: Date(),
+            sender: .user,
+            content: "Test message content \(id)",
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            mediaDuration: nil,
             mediaSize: nil,
             mediaMetadata: nil,
-            isRead: isRead
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: isRead,
+            createdAt: Date()
         )
     }
 
@@ -257,7 +261,7 @@ final class DatabaseManagerTests: XCTestCase {
             id: id,
             name: name,
             type: .ai,
-            participants: nil,
+            participants: [],
             lastMessage: nil,
             unreadCount: 0,
             createdAt: Date(),
@@ -269,13 +273,13 @@ final class DatabaseManagerTests: XCTestCase {
         StudySession(
             id: id,
             userId: userId,
-            subject: "Test Subject",
             duration: 60,
             startedAt: Date(),
             endedAt: Date(),
-            notes: "Test notes",
             earnedPoints: 10,
             isCompleted: true,
+            subject: "Test Subject",
+            notes: "Test notes",
             createdAt: Date()
         )
     }
@@ -376,7 +380,7 @@ extension DatabaseManagerTests {
         // When
         let firstPage = try sut.getMessages(roomId: "room_pagination", limit: 3)
         let lastMessage = firstPage.last
-        let secondPage = try sut.getMessages(roomId: "room_pagination", limit: 3, before: lastMessage?.timestamp)
+        let secondPage = try sut.getMessages(roomId: "room_pagination", limit: 3, before: lastMessage?.createdAt)
 
         // Then
         XCTAssertEqual(firstPage.count, 3, "First page should have 3 messages")
@@ -497,7 +501,7 @@ extension DatabaseManagerTests {
             id: "update_room",
             name: "Updated Name",
             type: .group,
-            participants: nil,
+            participants: [],
             lastMessage: nil,
             unreadCount: 5,
             createdAt: Date(),
@@ -568,13 +572,13 @@ extension DatabaseManagerTests {
         let incompleteSession = StudySession(
             id: "incomplete_session",
             userId: "user1",
-            subject: "Test",
             duration: 30,
             startedAt: Date(),
             endedAt: nil,
-            notes: nil,
             earnedPoints: nil,
             isCompleted: false,
+            subject: "Test",
+            notes: nil,
             createdAt: Date()
         )
 
@@ -606,25 +610,25 @@ extension DatabaseManagerTests {
         let session1 = StudySession(
             id: "stats_session_1",
             userId: "stats_user",
-            subject: "Math",
             duration: 60,
             startedAt: Date(),
             endedAt: Date(),
-            notes: nil,
             earnedPoints: 10,
             isCompleted: true,
+            subject: "Math",
+            notes: nil,
             createdAt: Date()
         )
         let session2 = StudySession(
             id: "stats_session_2",
             userId: "stats_user",
-            subject: "English",
             duration: 30,
             startedAt: Date(),
             endedAt: Date(),
-            notes: nil,
             earnedPoints: 5,
             isCompleted: true,
+            subject: "English",
+            notes: nil,
             createdAt: Date()
         )
         try sut.saveStudySession(session1)
@@ -870,7 +874,7 @@ extension DatabaseManagerTests {
         let messages = try sut.getMessages(roomId: "encrypt_room")
 
         // Then - content should be decrypted and match original
-        XCTAssertEqual(messages.first?.text, sensitiveMessage.text, "Message content should be decrypted correctly")
+        XCTAssertEqual(messages.first?.content, sensitiveMessage.content, "Message content should be decrypted correctly")
     }
 
     func testPointsDescriptionIsEncrypted() throws {
@@ -1070,17 +1074,21 @@ extension DatabaseManagerTests {
         let message = ChatMessage(
             id: "long_text_msg",
             roomId: "long_text_room",
-            friendId: nil,
-            sender: .user,
             senderId: "user",
-            text: longText,
-            timestamp: Date(),
+            sender: .user,
+            content: longText,
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            mediaDuration: nil,
             mediaSize: nil,
             mediaMetadata: nil,
-            isRead: false
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: false,
+            createdAt: Date()
         )
 
         // When
@@ -1088,7 +1096,7 @@ extension DatabaseManagerTests {
 
         // Then
         let messages = try sut.getMessages(roomId: "long_text_room")
-        XCTAssertEqual(messages.first?.text.count, longText.count, "Long text should be stored correctly")
+        XCTAssertEqual(messages.first?.content.count, longText.count, "Long text should be stored correctly")
     }
 
     func testSpecialCharactersInContent() throws {
@@ -1098,17 +1106,21 @@ extension DatabaseManagerTests {
         let modifiedMessage = ChatMessage(
             id: message.id,
             roomId: message.roomId,
-            friendId: message.friendId,
-            sender: message.sender,
             senderId: message.senderId,
-            text: specialText,
-            timestamp: message.timestamp,
+            sender: message.sender,
+            content: specialText,
             messageType: message.messageType,
-            mediaUri: message.mediaUri,
-            mediaType: message.mediaType,
+            mediaUrl: message.mediaUrl,
+            mediaMimeType: message.mediaMimeType,
+            mediaDuration: message.mediaDuration,
             mediaSize: message.mediaSize,
             mediaMetadata: message.mediaMetadata,
-            isRead: message.isRead
+            voiceUrl: message.voiceUrl,
+            voiceDuration: message.voiceDuration,
+            voiceTranscript: message.voiceTranscript,
+            voiceMimeType: message.voiceMimeType,
+            isRead: message.isRead,
+            createdAt: message.createdAt
         )
 
         // When
@@ -1116,6 +1128,6 @@ extension DatabaseManagerTests {
 
         // Then
         let messages = try sut.getMessages(roomId: "special_room")
-        XCTAssertEqual(messages.first?.text, specialText, "Special characters should be handled correctly")
+        XCTAssertEqual(messages.first?.content, specialText, "Special characters should be handled correctly")
     }
 }

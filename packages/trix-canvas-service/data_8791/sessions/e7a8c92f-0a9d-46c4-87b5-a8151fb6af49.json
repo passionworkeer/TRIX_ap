@@ -1,0 +1,22 @@
+{
+  "id": "e7a8c92f-0a9d-46c4-87b5-a8151fb6af49",
+  "projectId": "3eb1b938-47ff-4270-b584-0dd586133844",
+  "messages": [
+    {
+      "role": "user",
+      "content": "焰鬼拔刀双苦无，交叉格挡苍刃拔刀斩，火花四溅",
+      "timestamp": "2026-03-24T03:00:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "图片生成完成: http://localhost:8788/outputs/story_02.png",
+      "timestamp": "2026-03-24T03:10:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/story_02.png"
+  ],
+  "status": "completed",
+  "parentId": "10beacc4-2847-49e7-9632-376d02191723",
+  "createdAt": "2026-03-24T03:00:01.000Z"
+}

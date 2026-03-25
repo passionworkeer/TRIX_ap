@@ -40,7 +40,7 @@ final class NetworkPerformanceBenchmark: XCTestCase {
     // MARK: - Setup
 
     override func setUpWithError() throws {
-        super.setUpWithError()
+        try super.setUpWithError()
         latencyResults.removeAll()
         throughputResults.removeAll()
     }

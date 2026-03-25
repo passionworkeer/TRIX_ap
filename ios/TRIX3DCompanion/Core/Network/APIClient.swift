@@ -46,6 +46,10 @@ extension APIClientProtocol {
     func updateUserProfile(_ update: ProfileUpdate) async throws -> User { throw NetworkError.custom(message: "Not implemented") }
     func getPoints() async throws -> PointsResponse { throw NetworkError.custom(message: "Not implemented") }
     func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] { throw NetworkError.custom(message: "Not implemented") }
+    func getSnapshots() async throws -> [Snapshot] { throw NetworkError.custom(message: "Not implemented") }
+    func getSnapshot(id: String) async throws -> Snapshot { throw NetworkError.custom(message: "Not implemented") }
+    func createSnapshot(_ snapshot: CreateSnapshotRequest) async throws -> Snapshot { throw NetworkError.custom(message: "Not implemented") }
+    func deleteSnapshot(id: String) async throws { throw NetworkError.custom(message: "Not implemented") }
 }
 
 /// API Client for making HTTP requests

@@ -52,7 +52,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
         }
 
         guard let response = mockAuthResponse else {
-            throw NetworkError.custom("No mock response configured")
+            throw NetworkError.custom(message: "No mock response configured")
         }
 
         return response
@@ -64,11 +64,11 @@ final class MockAuthAPIClient: AuthAPIProtocol {
         lastRegisterPassword = password
 
         if shouldFailRequests {
-            throw mockError ?? NetworkError.custom("Registration failed")
+            throw mockError ?? NetworkError.custom(message: "Registration failed")
         }
 
         guard let user = mockUser else {
-            throw NetworkError.custom("No mock user configured")
+            throw NetworkError.custom(message: "No mock user configured")
         }
 
         return user
@@ -77,7 +77,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
     func logout() async throws {
         logoutCalled = true
         if shouldFailRequests {
-            throw mockError ?? NetworkError.custom("Logout failed")
+            throw mockError ?? NetworkError.custom(message: "Logout failed")
         }
     }
 
@@ -87,7 +87,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
         }
 
         guard let user = mockUser else {
-            throw NetworkError.custom("No mock user configured")
+            throw NetworkError.custom(message: "No mock user configured")
         }
 
         return user
@@ -95,14 +95,14 @@ final class MockAuthAPIClient: AuthAPIProtocol {
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
-            throw mockError ?? NetworkError.custom("Request failed")
+            throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
         if T.self == AuthResponse.self, let authResponse = mockAuthResponse {
             return authResponse as! T
         }
 
-        throw NetworkError.custom("Unknown endpoint")
+        throw NetworkError.custom(message: "Unknown endpoint")
     }
 }
 
@@ -233,6 +233,16 @@ final class TestableAuthService: AuthServiceProtocol {
         isLoggedIn = loggedIn
     }
 
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        currentUser = updates
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        clearSession()
+        return .success(())
+    }
+
     // MARK: - Public Methods
 
     func login(email: String, password: String) async -> AuthResult<User> {
@@ -256,7 +266,7 @@ final class TestableAuthService: AuthServiceProtocol {
             let response = try await authAPI.login(email: email, password: password)
 
             // Save session tokens
-            try saveSession(response.session)
+            try saveSession(response.session!)
 
             // Set current user
             currentUser = response.user
@@ -457,7 +467,7 @@ final class TestableAuthService: AuthServiceProtocol {
             )
 
             // Save new tokens
-            try saveSession(response.session)
+            try saveSession(response.session!)
 
             // Update current user
             currentUser = response.user
@@ -748,7 +758,7 @@ extension AuthServiceTests {
     func testRegisterWithEmailAlreadyExists() async {
         // Given
         mockAuthAPI.shouldFailRequests = true
-        mockAuthAPI.mockError = .custom("Email already exists")
+        mockAuthAPI.mockError = .custom(message: "Email already exists")
 
         // When
         let result = await sut.register(username: "newuser", email: "existing@example.com", password: "password123")
@@ -881,6 +891,11 @@ extension AuthServiceTests {
 
         // Mock a new auth response for refresh
         let newAuthResponse = AuthResponse(
+            accessToken: "new_access_token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+            expiresAt: nil,
+            refreshToken: "new_refresh_token",
             user: createMockUser(),
             session: UserSession(
                 id: "new_session_id",
@@ -1080,18 +1095,32 @@ extension AuthServiceTests {
             username: "test",
             email: "test@example.com",
             avatarUrl: nil,
+            avatarConfig: nil,
             fullName: nil,
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 0,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
         mockAuthAPI.mockUser = userWithNoPoints
         mockAuthAPI.mockAuthResponse = AuthResponse(
+            accessToken: "test_access_token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+            expiresAt: nil,
+            refreshToken: "test_refresh_token",
             user: userWithNoPoints,
             session: createMockSession()
         )
@@ -1128,13 +1157,22 @@ extension AuthServiceTests {
             username: "test_user",
             email: "test@example.com",
             avatarUrl: nil,
+            avatarConfig: nil,
             fullName: nil,
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 100,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -1152,6 +1190,11 @@ extension AuthServiceTests {
 
     private func createMockAuthResponse() -> AuthResponse {
         AuthResponse(
+            accessToken: "test_access_token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+            expiresAt: nil,
+            refreshToken: "test_refresh_token",
             user: createMockUser(),
             session: createMockSession()
         )

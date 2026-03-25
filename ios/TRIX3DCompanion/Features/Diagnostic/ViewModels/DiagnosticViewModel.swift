@@ -28,18 +28,18 @@ final class DiagnosticViewModel: ObservableObject {
 
     // Network
     @Published private(set) var networkStatus: NetworkStatus = .disconnected
-    @Published private(set) var networkTests: [NetworkDiagnosticResult] = []
-    @Published private(set) var isTestingNetwork: Bool = false
+    @Published var networkTests: [NetworkDiagnosticResult] = []
+    @Published var isTestingNetwork: Bool = false
 
     // Storage
-    @Published private(set) var storageResults: [StorageDiagnosticResult] = []
-    @Published private(set) var isCheckingStorage: Bool = false
-    @Published private(set) var totalCacheSize: Int64 = 0
+    @Published var storageResults: [StorageDiagnosticResult] = []
+    @Published var isCheckingStorage: Bool = false
+    @Published var totalCacheSize: Int64 = 0
     @Published private(set) var cacheInfo: [CacheInfo] = []
 
     // Performance
-    @Published private(set) var performanceMetrics: [PerformanceMetrics] = []
-    @Published private(set) var isCollectingMetrics: Bool = false
+    @Published var performanceMetrics: [PerformanceMetrics] = []
+    @Published var isCollectingMetrics: Bool = false
 
     // Logs
     @Published private(set) var logEntries: [LogEntry] = []
@@ -52,18 +52,18 @@ final class DiagnosticViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    private let networkMonitor: NetworkMonitor
-    private let cacheService: OfflineCacheService
+    private let networkMonitor: NetworkMonitorProtocol
+    private let cacheService: OfflineCacheServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
-        networkMonitor: NetworkMonitor? = nil,
-        cacheService: OfflineCacheService? = nil
+        networkMonitor: NetworkMonitorProtocol? = nil,
+        cacheService: OfflineCacheServiceProtocol? = nil
     ) {
-        self.networkMonitor = networkMonitor ?? .shared
-        self.cacheService = cacheService ?? .shared
+        self.networkMonitor = networkMonitor ?? NetworkMonitor.shared
+        self.cacheService = cacheService ?? OfflineCacheService.shared
 
         setupBindings()
     }
@@ -490,6 +490,11 @@ final class DiagnosticViewModel: ObservableObject {
                 serviceCacheType = .studyRecords
             case .temporary:
                 serviceCacheType = .messages
+            }
+
+            // Track the original DiagnosticCacheType for testing
+            if let tracking = cacheService as? ClearCacheTracking {
+                tracking.setOriginalClearType(type)
             }
 
             try await cacheService.clear(type: serviceCacheType)

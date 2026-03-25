@@ -70,7 +70,7 @@ final class MapViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let locationService: any LocationServiceProtocol
-    private let mapSearchService: MapSearchService
+    private let mapSearchService: any MapSearchServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - POI Search State
@@ -108,7 +108,7 @@ final class MapViewModel: ObservableObject {
 
     /// Initialize MapViewModel
     /// - Parameter locationService: Location service dependency
-    init(locationService: (any LocationServiceProtocol)? = nil, mapSearchService: MapSearchService? = nil) {
+    init(locationService: (any LocationServiceProtocol)? = nil, mapSearchService: (any MapSearchServiceProtocol)? = nil) {
         self.locationService = locationService ?? LocationService.shared
         self.mapSearchService = mapSearchService ?? MapSearchService.shared
 

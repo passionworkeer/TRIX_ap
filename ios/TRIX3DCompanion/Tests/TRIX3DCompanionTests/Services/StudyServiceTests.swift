@@ -2,17 +2,19 @@
 //  StudyServiceTests.swift
 //  TRIX3DCompanionTests
 //
-//  Complete test suite for StudyService API calls
+//  Complete test suite for StudyService
 //
 //  Test Coverage:
 //  - fetchStudyRooms() success and error handling
-//  - createStudyRoom() validation and WebSocket integration
+//  - createStudyRoom() validation and study room creation
 //  - joinStudyRoom() room code validation
 //  - leaveStudyRoom() cleanup logic
 //  - startStudySession() state management
 //  - endStudySession() timer and API sync
 //  - fetchStudyStats() data retrieval
 //  - syncOfflineSessions() offline storage handling
+//  - Timer control (pause/resume)
+//  - Convenience computed properties
 //
 
 import XCTest
@@ -21,193 +23,210 @@ import Combine
 
 // MARK: - Mock Study Service Dependencies
 
+/// Mock ClawbotChannelService for StudyService tests - standalone implementation
+@MainActor
+final class MockClawbotChannelServiceForStudy: ObservableObject, ClawbotChannelServiceProtocol {
+
+    // MARK: - Published Properties (all required by protocol)
+
+    @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
+    @Published private(set) var isPaired: Bool = false
+    @Published private(set) var isBotOnline: Bool = false
+    @Published private(set) var botConnectionState: BotConnectionState = .unknown
+    @Published private(set) var botBehaviorState: BotBehaviorState = .idle
+    @Published private(set) var botState: BotBehaviorState = .idle
+    @Published private(set) var lastMessage: ClawbotMessage?
+    @Published private(set) var deviceId: String?
+
+    var connectionStatePublisher: AnyPublisher<ClawbotConnectionState, Never> { $connectionState.eraseToAnyPublisher() }
+    var lastMessagePublisher: AnyPublisher<ClawbotMessage?, Never> { $lastMessage.eraseToAnyPublisher() }
+    var botStatePublisher: AnyPublisher<BotBehaviorState, Never> { $botState.eraseToAnyPublisher() }
+
+    var ttsEnabled: Bool = true
+    var ttsLanguage: TTSLanguage = .chinese
+
+    // MARK: - Study room mock control
+
+    var shouldCreateRoomFail = false
+    var shouldJoinRoomFail = false
+    var shouldLeaveRoomFail = false
+    var shouldHostActionFail = false
+    var mockStudyRoomState: StudyRoomState?
+    var mockError: Error = NSError(domain: "MockStudy", code: -1, userInfo: nil)
+
+    var isConnected: Bool { connectionState == .connected }
+
+    // MARK: - Connection
+
+    func connect() async throws {}
+    func disconnect() { connectionState = .disconnected }
+
+    // MARK: - Pairing
+
+    func checkPairingStatus() async throws -> ClawbotPairingStatus {
+        ClawbotPairingStatus(paired: false, deviceId: nil, deviceName: nil, botOnline: nil, pairedAt: nil)
+    }
+
+    func pairWithCode(_ code: String) async throws -> Bool { false }
+    func pairWithQR(_ qrData: String) async throws -> Bool { false }
+    func unpair() {}
+
+    // MARK: - Messages
+
+    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) async throws {}
+    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?, completion: @escaping (Result<String, Error>) -> Void) async throws {
+        completion(.success(content))
+    }
+
+    // MARK: - Study Room
+
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> StudyRoomState {
+        if shouldCreateRoomFail { throw mockError }
+        return mockStudyRoomState ?? Self.makeMockRoomState(roomCode: "ABC123", hostUserId: "user_123")
+    }
+
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?) async throws -> StudyRoomState {
+        if shouldJoinRoomFail { throw mockError }
+        return mockStudyRoomState ?? Self.makeMockRoomState(roomCode: roomCode, hostUserId: "other_user")
+    }
+
+    func leaveStudyRoom(roomCode: String?) async throws {
+        if shouldLeaveRoomFail { throw mockError }
+    }
+
+    func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> StudyRoomState {
+        if shouldHostActionFail { throw mockError }
+        return mockStudyRoomState ?? Self.makeMockRoomState(roomCode: roomCode, hostUserId: "user_123")
+    }
+
+    static func makeMockRoomState(roomCode: String, hostUserId: String) -> StudyRoomState {
+        StudyRoomState(
+            roomCode: roomCode,
+            hostUserId: hostUserId,
+            sessionState: .idle,
+            members: [],
+            maxMembers: 4,
+            version: 1,
+            createdAt: Date(),
+            updatedAt: Date(),
+            timer: nil
+        )
+    }
+
+    func resetStudyRoomState() {
+        shouldCreateRoomFail = false
+        shouldJoinRoomFail = false
+        shouldLeaveRoomFail = false
+        shouldHostActionFail = false
+        mockStudyRoomState = nil
+        mockError = NSError(domain: "MockStudy", code: -1, userInfo: nil)
+    }
+}
+
+/// Mock Supabase service for StudyService tests
+@MainActor
+final class MockStudySupabaseService: StudySupabaseProtocol {
+    nonisolated(unsafe) var shouldFail = false
+    nonisolated(unsafe) var mockError: NetworkError = .unauthorized
+    nonisolated(unsafe) var mockSessionId: String = "session_123"
+
+    nonisolated func createStudySession(subject: String) async throws -> String {
+        if shouldFail { throw mockError }
+        return mockSessionId
+    }
+
+    nonisolated func updateStudySession(sessionId: String, duration: Int) async throws {
+        if shouldFail { throw mockError }
+    }
+}
+
+/// Mock API client for StudyService tests
 @MainActor
 final class MockAPIClientForStudy: APIClientProtocol {
-    var shouldFailRequests = false
-    var mockError: NetworkError?
-    var mockStudyRooms: [StudyRoom] = []
-    var mockStudySession: StudySession?
-    var mockStudyStats: StudyStats?
+    nonisolated(unsafe) var shouldFailRequests = false
+    nonisolated(unsafe) var mockError: NetworkError = .unauthorized
+    nonisolated(unsafe) var mockStudyRooms: [StudyRoom] = []
+    nonisolated(unsafe) var mockStudySession: StudySession?
+    nonisolated(unsafe) var mockStudyStats: StudyStats?
 
-    func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
-        if shouldFailRequests {
-            throw mockError ?? NetworkError.unauthorized
-        }
-
-        if T.self == [StudyRoom].self {
-            return mockStudyRooms as! T
-        }
-
-        if T.self == StudyStats.self {
-            return mockStudyStats as! T
-        }
-
-        throw NetworkError.custom(message: "No mock data")
+    nonisolated func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
+        if shouldFailRequests { throw mockError }
+        if T.self == [StudyRoom].self { return mockStudyRooms as! T }
+        if T.self == StudyStats.self { return mockStudyStats as! T }
+        if T.self == WeeklyStudyDataResponse.self { return WeeklyStudyDataResponse(success: true, data: []) as! T }
+        if T.self == [DailyStudyData].self { return [] as! T }
+        throw NetworkError.custom(message: "No mock data for \(T.self)")
     }
 
-    func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+    nonisolated func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
-            throw mockError ?? NetworkError.unauthorized
+            throw mockError
         }
-
         if T.self == StudySession.self {
-            let session = mockStudySession ?? createMockSession()
+            let session: StudySession = mockStudySession ?? Self.createMockSession()
             return session as! T
         }
-
-        throw NetworkError.custom(message: "Not implemented")
+        if T.self == EmptyResponse.self { return EmptyResponse() as! T }
+        throw NetworkError.custom(message: "No mock data for \(T.self)")
     }
 
-    func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
-        if shouldFailRequests {
-            throw mockError ?? NetworkError.unauthorized
-        }
-
+    nonisolated func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
+        if shouldFailRequests { throw mockError }
         if T.self == StudySession.self {
-            let session = mockStudySession ?? createMockSession()
+            let session: StudySession = mockStudySession ?? Self.createMockSession()
             return session as! T
         }
+        throw NetworkError.custom(message: "No mock data for \(T.self)")
+    }
 
+    nonisolated func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         throw NetworkError.custom(message: "Not implemented")
     }
 
-    func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
-        if shouldFailRequests {
-            throw mockError ?? NetworkError.unauthorized
-        }
+    nonisolated func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
         throw NetworkError.custom(message: "Not implemented")
     }
 
-    func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
+    nonisolated func download(from url: String) async throws -> Data {
         throw NetworkError.custom(message: "Not implemented")
     }
 
-    func download(from url: String) async throws -> Data {
-        throw NetworkError.custom(message: "Not implemented")
-    }
-
-    private func createMockSession() -> StudySession {
+    private static nonisolated func createMockSession() -> StudySession {
         StudySession(
             id: "session_123",
             userId: "user_123",
-            durationMinutes: 0,
+            duration: 0,
             startedAt: Date(),
-            completedAt: nil,
+            endedAt: nil,
             earnedPoints: nil,
-            isCompleted: false
+            isCompleted: false,
+            subject: nil,
+            notes: nil,
+            createdAt: nil
         )
+    }
+
+    func reset() {
+        shouldFailRequests = false
+        mockError = .unauthorized
+        mockStudyRooms = []
+        mockStudySession = nil
+        mockStudyStats = nil
     }
 }
 
-@MainActor
-final class MockWebSocketManagerForStudy: WebSocketManagerProtocol {
-    var isConnectedValue = false
-    var shouldFailConnection = false
-    var mockError: WebSocketError?
-    var shouldFailRoomCreation = false
-
-    func isConnected() -> Bool {
-        return isConnectedValue
-    }
-
-    func connect(userId: String) async throws {
-        if shouldFailConnection {
-            throw mockError ?? WebSocketError(code: nil, message: "Connection failed")
-        }
-        isConnectedValue = true
-    }
-
-    func disconnect() {
-        isConnectedValue = false
-    }
-
-    func sendMessage(content: String, contentType: BotMessage.MessageContentType, mediaUrl: String?, mediaMimeType: String?) {}
-
-    func on(_ event: String, handler: @escaping (Any) -> Void) -> String { return "handler_1" }
-
-    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        if shouldFailRoomCreation {
-            completion(.failure(WebSocketError(code: nil, message: "Failed to create room")))
-        } else {
-            let payload = StudyRoomAckPayload(
-                success: true,
-                code: "ABC123",
-                error: nil,
-                roomCode: "ABC123",
-                room: StudyRoomState(
-                    roomCode: "ABC123",
-                    hostUserId: "user_123",
-                    sessionState: .idle,
-                    members: [],
-                    maxMembers: maxMembers ?? 4,
-                    version: 1,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    timer: nil
-                )
-            )
-            completion(.success(payload))
-        }
-    }
-
-    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(code: nil, message: "Not implemented in mock")))
-    }
-
-    func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        let payload = StudyRoomAckPayload(
-            success: true,
-            code: nil,
-            error: nil,
-            roomCode: nil,
-            room: nil
-        )
-        completion(.success(payload))
-    }
-
-    func getStudyRoomState(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(code: nil, message: "Not implemented in mock")))
-    }
-
-    func hostActionStudyRoom(roomCode: String, action: String, completion: @escaping (Result<StudyRoomAckPayload, WebSocketError>) -> Void) {
-        let payload = StudyRoomAckPayload(
-            success: true,
-            code: nil,
-            error: nil,
-            roomCode: nil,
-            room: nil
-        )
-        completion(.success(payload))
-    }
-
-    func pairWithCode(_ code: String) {}
-
-    func pairWithQR(_ qrData: String) {}
-
-    func unpair() {}
-
-    func checkPairingStatus(completion: @escaping (Result<SocketResponse, WebSocketError>) -> Void) {
-        completion(.failure(WebSocketError(code: nil, message: "Not implemented in mock")))
-    }
-}
-
+/// Mock Auth service for StudyService tests
 @MainActor
 final class MockAuthServiceForStudy: AuthServiceProtocol {
     var isLoggedInValue = false
     var mockUser: User?
     var isLoadingValue = false
 
-    var isLoggedIn: Bool {
-        return isLoggedInValue
-    }
+    var isLoggedIn: Bool { isLoggedInValue }
 
-    var currentUser: User? {
-        return mockUser
-    }
+    var currentUser: User? { mockUser }
 
-    var isLoading: Bool {
-        return isLoadingValue
-    }
+    var isLoading: Bool { isLoadingValue }
 
     func login(email: String, password: String) async -> AuthResult<User> {
         return .failure(.invalidCredentials)
@@ -232,6 +251,53 @@ final class MockAuthServiceForStudy: AuthServiceProtocol {
         }
         return .failure(.invalidCredentials)
     }
+
+    func setLoggedIn(_ loggedIn: Bool) {
+        isLoggedInValue = loggedIn
+        mockUser = loggedIn ? Self.createMockUser() : nil
+    }
+
+    private static func createMockUser() -> User {
+        User(
+            id: "test_user_id",
+            username: "test_user",
+            email: "test@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: "Test User",
+            displayName: "Test User",
+            bio: nil,
+            website: nil,
+            points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    func clearError() {}
+
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func updateCurrentUser(_ user: User?) {}
+
+    func updateLoginStatus(_ loggedIn: Bool) {}
+
 }
 
 // MARK: - Study Service Tests
@@ -241,28 +307,34 @@ final class StudyServiceTests: XCTestCase {
 
     var sut: StudyService!
     var mockAPIClient: MockAPIClientForStudy!
-    var mockWebSocketManager: MockWebSocketManagerForStudy!
+    var mockClawbotChannel: MockClawbotChannelServiceForStudy!
     var mockAuthService: MockAuthServiceForStudy!
+    var mockSupabase: MockStudySupabaseService!
 
     override func setUp() async throws {
         try await super.setUp()
 
+        mockSupabase = MockStudySupabaseService()
         mockAPIClient = MockAPIClientForStudy()
-        mockWebSocketManager = MockWebSocketManagerForStudy()
+        mockAPIClient.reset()
+        mockClawbotChannel = MockClawbotChannelServiceForStudy()
+        mockClawbotChannel.resetStudyRoomState()
         mockAuthService = MockAuthServiceForStudy()
+        mockAuthService.setLoggedIn(false)
 
-        // Initialize with actual instances that wrap the mocks
         sut = StudyService(
             apiClient: mockAPIClient,
-            webSocketManager: mockWebSocketManager,
-            authService: mockAuthService
+            clawbotChannelService: mockClawbotChannel,
+            authService: mockAuthService,
+            studySupabase: mockSupabase
         )
     }
 
     override func tearDown() async throws {
         sut = nil
+        mockSupabase = nil
         mockAPIClient = nil
-        mockWebSocketManager = nil
+        mockClawbotChannel = nil
         mockAuthService = nil
         try await super.tearDown()
     }
@@ -274,11 +346,10 @@ extension StudyServiceTests {
 
     func testFetchStudyRoomsSuccess() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
         mockAPIClient.mockStudyRooms = [
-            createMockStudyRoom(id: "room1", name: "Math Study"),
-            createMockStudyRoom(id: "room2", name: "Physics Study")
+            makeMockStudyRoom(id: "room1", name: "Math Study"),
+            makeMockStudyRoom(id: "room2", name: "Physics Study")
         ]
 
         // When
@@ -296,7 +367,7 @@ extension StudyServiceTests {
 
     func testFetchStudyRoomsFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.fetchStudyRooms()
@@ -312,8 +383,7 @@ extension StudyServiceTests {
 
     func testFetchStudyRoomsHandlesNetworkError() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
         mockAPIClient.shouldFailRequests = true
         mockAPIClient.mockError = .timeout
 
@@ -340,7 +410,7 @@ extension StudyServiceTests {
 
     func testCreateStudyRoomFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.createStudyRoom(name: "Test Room", maxMembers: 4)
@@ -356,9 +426,9 @@ extension StudyServiceTests {
 
     func testCreateStudyRoomSuccess() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockWebSocketManager.isConnectedValue = true
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "test_user_id")
+        mockClawbotChannel.mockStudyRoomState = roomState
 
         // When
         let result = await sut.createStudyRoom(name: "Test Room", maxMembers: 4)
@@ -368,16 +438,16 @@ extension StudyServiceTests {
         case .success(let room):
             XCTAssertEqual(room.maxMembers, 4, "Should have correct max members")
             XCTAssertNotNil(sut.currentRoomState, "Should set current room state")
+            XCTAssertEqual(sut.currentRoomState?.roomCode, "ABC123")
         case .failure(let error):
             XCTFail("Should succeed: \(error)")
         }
     }
 
-    func testCreateStudyRoomWebSocketFailure() async {
+    func testCreateStudyRoomClawbotFailure() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockWebSocketManager.shouldFailRoomCreation = true
+        mockAuthService.setLoggedIn(true)
+        mockClawbotChannel.shouldCreateRoomFail = true
 
         // When
         let result = await sut.createStudyRoom(name: "Test Room", maxMembers: 4)
@@ -385,10 +455,9 @@ extension StudyServiceTests {
         // Then
         switch result {
         case .failure:
-            // Should fail with WebSocket error
-            XCTAssertTrue(true, "Should fail when WebSocket fails")
+            XCTAssertTrue(true, "Should fail when Clawbot fails")
         case .success:
-            XCTFail("Should fail when WebSocket fails")
+            XCTFail("Should fail when Clawbot fails")
         }
     }
 }
@@ -399,7 +468,7 @@ extension StudyServiceTests {
 
     func testJoinStudyRoomFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.joinStudyRoom(roomCode: "ABC123")
@@ -415,8 +484,7 @@ extension StudyServiceTests {
 
     func testJoinStudyRoomValidatesRoomCode() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
 
         // When - invalid room code (too short)
         let result = await sut.joinStudyRoom(roomCode: "ABC")
@@ -430,22 +498,40 @@ extension StudyServiceTests {
         }
     }
 
+    func testJoinStudyRoomSuccess() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "XYZ789", hostUserId: "other")
+        mockClawbotChannel.mockStudyRoomState = roomState
+
+        // When
+        let result = await sut.joinStudyRoom(roomCode: "XYZ789")
+
+        // Then
+        switch result {
+        case .success(let room):
+            XCTAssertEqual(room.roomCode, "XYZ789")
+            XCTAssertNotNil(sut.currentRoomState, "Should set current room state")
+        case .failure(let error):
+            XCTFail("Should succeed: \(error)")
+        }
+    }
+
     func testJoinStudyRoomTrimsWhitespace() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "other")
+        mockClawbotChannel.mockStudyRoomState = roomState
 
         // When - room code with whitespace
         let result = await sut.joinStudyRoom(roomCode: "  abc123  ")
 
-        // Then - should trim and uppercase
-        // Will fail because WebSocket mock isn't configured, but room code validation should pass
+        // Then
         switch result {
+        case .success(let room):
+            XCTAssertEqual(room.roomCode, "ABC123", "Should uppercase and trim")
         case .failure:
-            // Expected to fail at WebSocket level
-            XCTAssertTrue(true)
-        case .success:
-            XCTFail("Should fail at WebSocket level")
+            XCTFail("Should succeed with trimmed code")
         }
     }
 }
@@ -456,7 +542,7 @@ extension StudyServiceTests {
 
     func testLeaveStudyRoomFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.leaveStudyRoom()
@@ -472,31 +558,19 @@ extension StudyServiceTests {
 
     func testLeaveStudyRoomClearsState() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
+        // First join a room
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "test_user_id")
+        mockClawbotChannel.mockStudyRoomState = roomState
+        _ = await sut.joinStudyRoom(roomCode: "ABC123")
+        XCTAssertNotNil(sut.currentRoomState, "Should have room state before leaving")
 
-        // Create a mock room state
-        let roomState = StudyRoomState(
-            roomCode: "ABC123",
-            hostUserId: "user_123",
-            sessionState: .idle,
-            members: [],
-            maxMembers: 4,
-            version: 1,
-            createdAt: Date(),
-            updatedAt: Date(),
-            timer: nil
-        )
-
-        // Note: Can't directly set currentRoomState as it's private,
-        // but we can test the leave functionality
         // When
         let result = await sut.leaveStudyRoom()
 
         // Then
         switch result {
         case .success:
-            // Room state should be cleared
             XCTAssertNil(sut.currentRoomState, "Should clear room state")
         case .failure(let error):
             XCTFail("Should succeed: \(error)")
@@ -510,7 +584,7 @@ extension StudyServiceTests {
 
     func testStartStudySessionFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.startStudySession(roomCode: "ABC123")
@@ -526,31 +600,28 @@ extension StudyServiceTests {
 
     func testStartStudySessionFailsWhenSessionAlreadyActive() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
 
         // Start a session first
-        let startResult = await sut.startStudySession(roomCode: "ABC123")
+        _ = await sut.startStudySession(roomCode: "ABC123")
 
-        // When
+        // When - try to start again
         let result = await sut.startStudySession(roomCode: "ABC123")
 
         // Then
-        if sut.isActiveSession {
-            switch result {
-            case .failure(let error):
-                XCTAssertEqual(error, .sessionAlreadyActive, "Should return session already active error")
-            case .success:
-                XCTFail("Should fail when session already active")
-            }
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .sessionAlreadyActive, "Should return session already active error")
+        case .success:
+            XCTFail("Should fail when session already active")
         }
     }
 
     func testStartStudySessionSuccess() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        mockAPIClient.mockStudySession = createMockSession()
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
 
         // When
         let result = await sut.startStudySession(roomCode: "ABC123")
@@ -565,6 +636,28 @@ extension StudyServiceTests {
             XCTFail("Should succeed: \(error)")
         }
     }
+
+    func testStartStudySessionNetworkError() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockSupabase.shouldFail = true
+        mockSupabase.mockError = .timeout
+
+        // When
+        let result = await sut.startStudySession(roomCode: "ABC123")
+
+        // Then
+        switch result {
+        case .failure(let error):
+            if case .networkError = error {
+                XCTAssertTrue(true, "Should return network error")
+            } else {
+                XCTFail("Wrong error type: \(error)")
+            }
+        case .success:
+            XCTFail("Should fail with network error")
+        }
+    }
 }
 
 // MARK: - endStudySession Tests
@@ -573,7 +666,7 @@ extension StudyServiceTests {
 
     func testEndStudySessionFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.endStudySession()
@@ -589,7 +682,7 @@ extension StudyServiceTests {
 
     func testEndStudySessionFailsWhenNoActiveSession() async {
         // Given
-        mockAuthService.isLoggedInValue = true
+        mockAuthService.setLoggedIn(true)
 
         // When
         let result = await sut.endStudySession()
@@ -605,14 +698,12 @@ extension StudyServiceTests {
 
     func testEndStudySessionSuccess() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        let session = createMockSession()
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
 
         // Start a session first
         _ = await sut.startStudySession(roomCode: "ABC123")
-
-        mockAPIClient.mockStudySession = session
+        XCTAssertTrue(sut.isActiveSession, "Should have active session")
 
         // When
         let result = await sut.endStudySession()
@@ -626,6 +717,32 @@ extension StudyServiceTests {
             XCTFail("Should succeed: \(error)")
         }
     }
+
+    func testEndStudySessionNetworkErrorSavesOffline() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockSupabase.mockSessionId = "session_123"
+
+        // Start a session first
+        _ = await sut.startStudySession(roomCode: "ABC123")
+
+        // Make Supabase fail on end
+        mockSupabase.shouldFail = true
+        mockSupabase.mockError = .timeout
+
+        // When
+        let result = await sut.endStudySession()
+
+        // Then
+        switch result {
+        case .failure(let error):
+            // Should fail but still clear local state
+            XCTAssertFalse(sut.isActiveSession, "Should clear active session even on API error")
+            XCTAssertEqual(error, .networkError(underlying: mockSupabase.mockError))
+        case .success:
+            XCTFail("Should fail when network error occurs")
+        }
+    }
 }
 
 // MARK: - fetchStudyStats Tests
@@ -634,8 +751,7 @@ extension StudyServiceTests {
 
     func testFetchStudyStatsSuccess() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
         mockAPIClient.mockStudyStats = StudyStats(
             totalDuration: 3600,
             sessionCount: 10,
@@ -660,7 +776,7 @@ extension StudyServiceTests {
 
     func testFetchStudyStatsFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.fetchStudyStats()
@@ -681,7 +797,7 @@ extension StudyServiceTests {
 
     func testSyncOfflineSessionsFailsWhenNotAuthenticated() async {
         // Given
-        mockAuthService.isLoggedInValue = false
+        mockAuthService.setLoggedIn(false)
 
         // When
         let result = await sut.syncOfflineSessions()
@@ -697,8 +813,7 @@ extension StudyServiceTests {
 
     func testSyncOfflineSessionsReturnsZeroWhenNoPending() async {
         // Given
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        mockAuthService.setLoggedIn(true)
 
         // When
         let result = await sut.syncOfflineSessions()
@@ -717,10 +832,21 @@ extension StudyServiceTests {
 
 extension StudyServiceTests {
 
-    func testPauseSession() async {
-        // Given - Start a session first
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+    func testPauseSessionNoActiveSession() async {
+        // Given - no active session
+        mockAuthService.setLoggedIn(true)
+
+        // When
+        sut.pauseSession()
+
+        // Then - should be no-op
+        XCTAssertEqual(sut.sessionState, .idle, "Should remain idle")
+    }
+
+    func testPauseSessionActive() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
         _ = await sut.startStudySession(roomCode: "ABC123")
 
         // When
@@ -730,10 +856,10 @@ extension StudyServiceTests {
         XCTAssertEqual(sut.sessionState, .paused, "Should set session state to paused")
     }
 
-    func testResumeSession() async {
-        // Given - Start and pause a session first
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+    func testResumeSessionActive() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
         _ = await sut.startStudySession(roomCode: "ABC123")
         sut.pauseSession()
 
@@ -743,60 +869,137 @@ extension StudyServiceTests {
         // Then
         XCTAssertEqual(sut.sessionState, .focusing, "Should set session state to focusing")
     }
+
+    func testResumeSessionNoActiveSession() async {
+        // Given - no active session
+        mockAuthService.setLoggedIn(true)
+
+        // When
+        sut.resumeSession()
+
+        // Then - should be no-op
+        XCTAssertEqual(sut.sessionState, .idle, "Should remain idle")
+    }
 }
 
 // MARK: - Convenience Properties Tests
 
 extension StudyServiceTests {
 
-    func testFormattedFocusTime() async {
-        // Given - Start a session which will track time
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
-        _ = await sut.startStudySession(roomCode: "ABC123")
-
-        // Then - Just verify the service starts properly
-        XCTAssertTrue(sut.isActiveSession, "Should have active session")
-    }
-
     func testFormattedFocusTimeUnderOneHour() async {
-        // Given - Start a session
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
         _ = await sut.startStudySession(roomCode: "ABC123")
 
-        // Then - Session should be active
-        XCTAssertEqual(sut.sessionState, .focusing, "Should be focusing")
+        // Then
+        XCTAssertFalse(sut.formattedFocusTime.isEmpty, "Should have formatted time")
     }
 
     func testFocusTimeInMinutes() async {
-        // Given - Start a session
-        mockAuthService.isLoggedInValue = true
-        mockAuthService.mockUser = createMockUser()
+        // Given
+        mockAuthService.setLoggedIn(true)
+        mockAPIClient.mockStudySession = makeMockSession()
         _ = await sut.startStudySession(roomCode: "ABC123")
 
-        // Then - Session should have started
-        XCTAssertNotNil(sut.currentSession, "Should have current session")
+        // Then
+        XCTAssertTrue(sut.focusTimeInMinutes >= 0, "Should return focus time in minutes")
+    }
+
+    func testClearError() async {
+        // Given
+        mockAuthService.setLoggedIn(false)
+        _ = await sut.fetchStudyRooms() // This sets lastError
+
+        // When
+        sut.clearError()
+
+        // Then
+        XCTAssertNil(sut.lastError, "Should clear error")
+    }
+}
+
+// MARK: - Convenience Extensions Tests
+
+extension StudyServiceTests {
+
+    func testIsRoomHostTrue() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "test_user_id")
+        mockClawbotChannel.mockStudyRoomState = roomState
+        _ = await sut.joinStudyRoom(roomCode: "ABC123")
+
+        // Then
+        XCTAssertTrue(sut.isRoomHost, "Should be room host when user is host")
+    }
+
+    func testIsRoomHostFalse() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "other_user")
+        mockClawbotChannel.mockStudyRoomState = roomState
+        _ = await sut.joinStudyRoom(roomCode: "ABC123")
+
+        // Then
+        XCTAssertFalse(sut.isRoomHost, "Should not be room host when user is not host")
+    }
+
+    func testCurrentRoomMemberCount() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "test_user_id")
+        mockClawbotChannel.mockStudyRoomState = roomState
+        _ = await sut.joinStudyRoom(roomCode: "ABC123")
+
+        // Then
+        XCTAssertEqual(sut.currentRoomMemberCount, 0, "Should return member count")
+    }
+
+    func testRefreshRoomState() async {
+        // Given
+        mockAuthService.setLoggedIn(true)
+        let roomState = MockClawbotChannelServiceForStudy.makeMockRoomState(roomCode: "ABC123", hostUserId: "test_user_id")
+        mockClawbotChannel.mockStudyRoomState = roomState
+        _ = await sut.joinStudyRoom(roomCode: "ABC123")
+
+        // When
+        let result = await sut.refreshRoomState()
+
+        // Then
+        switch result {
+        case .success:
+            XCTAssertNotNil(sut.currentRoomState, "Should refresh room state")
+        case .failure(let error):
+            XCTFail("Should succeed: \(error)")
+        }
     }
 }
 
 // MARK: - Helper Methods
 
-extension StudyServiceTests {
+private extension StudyServiceTests {
 
-    private func createMockUser() -> User {
+    func makeMockUser() -> User {
         User(
             id: "test_user_id",
             username: "test_user",
             email: "test@example.com",
             avatarUrl: nil,
+            avatarConfig: nil,
             fullName: "Test User",
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 100,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
             school: nil,
             grade: nil,
             createdAt: Date(),
@@ -804,7 +1007,7 @@ extension StudyServiceTests {
         )
     }
 
-    private func createMockStudyRoom(id: String, name: String) -> StudyRoom {
+    func makeMockStudyRoom(id: String, name: String) -> StudyRoom {
         StudyRoom(
             id: id,
             roomCode: "ABC123",
@@ -818,15 +1021,18 @@ extension StudyServiceTests {
         )
     }
 
-    private func createMockSession() -> StudySession {
+    func makeMockSession() -> StudySession {
         StudySession(
             id: "session_123",
             userId: "user_123",
-            durationMinutes: 0,
+            duration: 0,
             startedAt: Date(),
-            completedAt: nil,
+            endedAt: nil,
             earnedPoints: nil,
-            isCompleted: false
+            isCompleted: false,
+            subject: nil,
+            notes: nil,
+            createdAt: nil
         )
     }
 }

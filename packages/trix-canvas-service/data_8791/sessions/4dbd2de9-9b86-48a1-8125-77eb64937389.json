@@ -1,0 +1,22 @@
+{
+  "id": "4dbd2de9-9b86-48a1-8125-77eb64937389",
+  "projectId": "3eb1b938-47ff-4270-b584-0dd586133844",
+  "messages": [
+    {
+      "role": "user",
+      "content": "断崖日出，苍刃收刀入鞘，英雄落幕",
+      "timestamp": "2026-03-24T03:00:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "图片生成完成: http://localhost:8788/outputs/story_10.png",
+      "timestamp": "2026-03-24T03:10:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/story_10.png"
+  ],
+  "status": "completed",
+  "parentId": "b5aaa19b-e1d7-4010-9a79-96acf093f130",
+  "createdAt": "2026-03-24T03:00:09.000Z"
+}

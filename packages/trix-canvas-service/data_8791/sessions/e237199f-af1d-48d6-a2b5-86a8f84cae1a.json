@@ -1,0 +1,28 @@
+{
+  "id": "e237199f-af1d-48d6-a2b5-86a8f84cae1a",
+  "projectId": "9af2f998-a9f1-4087-947d-a824744acb2d",
+  "messages": [
+    {
+      "role": "user",
+      "content": "[日式动漫] Japanese anime, ninja leaping across rooftops, moonlit silhouettes",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成中: video_1d27b8c7-9090-44eb-b92a-b31e15b482fc",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成完成: http://localhost:8788/outputs/video_05.mp4",
+      "timestamp": "2026-03-24T02:15:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/video_05.mp4"
+  ],
+  "status": "completed",
+  "taskId": "video_1d27b8c7-9090-44eb-b92a-b31e15b482fc",
+  "parentId": "be768caf-f93b-40f5-9da4-8560a8b1307b",
+  "createdAt": "2026-03-24T02:10:00.000Z"
+}

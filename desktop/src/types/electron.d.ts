@@ -123,6 +123,11 @@ export interface ElectronAPI {
   getAchievements: () => Promise<ApiResult<Array<{ id: string; label: string; icon: string; earned: boolean; earnedAt?: string }>>>;
   getProfileStats: () => Promise<ApiResult<{ displayName: string; points: number; streak: number; level: number; totalStudyMinutes: number }>>;
 
+  // Study Sessions (Supabase — requires login)
+  createStudySession: (subject?: string) => Promise<ApiResult<{ id: string }>>;
+  updateStudySession: (sessionId: string, duration: number) => Promise<ApiResult<void>>;
+  getStudyStats: () => Promise<ApiResult<{ todayMinutes: number; weekMinutes: number; totalMinutes: number; sessionCount: number }>>;
+
   // TrixNativeServer Chat API
   listConversations: () => Promise<ApiResult<Array<{ id: string; title: string; updatedAt?: string }>>>;
   fetchMessages: (conversationId: string) => Promise<ApiResult<Array<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>>;

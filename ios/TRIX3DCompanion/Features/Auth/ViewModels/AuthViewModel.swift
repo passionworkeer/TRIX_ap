@@ -13,7 +13,7 @@ import Combine
 // MARK: - Validation Error
 
 /// Validation errors for auth forms
-enum AuthValidationError: Error, LocalizedError {
+enum AuthValidationError: Error, LocalizedError, Equatable {
     case emailRequired
     case emailInvalid
     case passwordRequired
@@ -23,6 +23,21 @@ enum AuthValidationError: Error, LocalizedError {
     case confirmPasswordRequired
     case passwordMismatch
     case presentationAnchorRequired
+
+    static func == (lhs: AuthValidationError, rhs: AuthValidationError) -> Bool {
+        switch (lhs, rhs) {
+        case (.emailRequired, .emailRequired): return true
+        case (.emailInvalid, .emailInvalid): return true
+        case (.passwordRequired, .passwordRequired): return true
+        case (.passwordTooShort(let l), .passwordTooShort(let r)): return l == r
+        case (.usernameRequired, .usernameRequired): return true
+        case (.usernameTooShort(let l), .usernameTooShort(let r)): return l == r
+        case (.confirmPasswordRequired, .confirmPasswordRequired): return true
+        case (.passwordMismatch, .passwordMismatch): return true
+        case (.presentationAnchorRequired, .presentationAnchorRequired): return true
+        default: return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -58,8 +73,8 @@ final class AuthViewModel {
 
     // MARK: - Dependencies
 
-    private let authService: AuthService
-    private let oauthManager: OAuthManager
+    private let authService: AuthServiceProtocol
+    private let oauthManager: OAuthManagerProtocol
 
     // MARK: - Login State
 
@@ -110,11 +125,11 @@ final class AuthViewModel {
     // MARK: - Initialization
 
     init(
-        authService: AuthService = .shared,
-        oauthManager: OAuthManager = .shared
+        authService: AuthServiceProtocol? = nil,
+        oauthManager: OAuthManagerProtocol? = nil
     ) {
-        self.authService = authService
-        self.oauthManager = oauthManager
+        self.authService = authService ?? AuthService.shared
+        self.oauthManager = oauthManager ?? OAuthManager.shared
     }
 
     // MARK: - Login Methods

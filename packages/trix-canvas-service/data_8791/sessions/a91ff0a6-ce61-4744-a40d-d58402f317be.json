@@ -1,0 +1,27 @@
+{
+  "id": "a91ff0a6-ce61-4744-a40d-d58402f317be",
+  "projectId": "7c98835b-7a5c-44bc-9ccd-ea8455d57cae",
+  "messages": [
+    {
+      "role": "user",
+      "content": "日式动漫风格的黑发忍者站在月夜古寺庭院，银色护额，左脸旧伤疤，拔刀姿态",
+      "timestamp": "2026-03-24T01:15:27.559Z"
+    },
+    {
+      "role": "assistant",
+      "content": "任务已提交: t_h29dokbpgtfmn3xao60",
+      "timestamp": "2026-03-24T01:15:27.559Z"
+    },
+    {
+      "role": "assistant",
+      "content": "生成完成: http://localhost:8788/outputs/t_h29dokbpgtfmn3xao60.png",
+      "timestamp": "2026-03-24T01:16:28.571Z"
+    }
+  ],
+  "status": "completed",
+  "taskId": "t_h29dokbpgtfmn3xao60",
+  "createdAt": "2026-03-24T01:15:27.559Z",
+  "resultUrls": [
+    "http://localhost:8788/outputs/t_h29dokbpgtfmn3xao60.png"
+  ]
+}

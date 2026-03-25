@@ -38,36 +38,36 @@ final class MockAPIClientForChat: APIClientProtocol {
             return mockMessages as! T
         }
 
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message:"No mock data")
     }
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message:"Not implemented")
     }
 
     func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message:"Not implemented")
     }
 
     func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message:"Not implemented")
     }
 
     func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message:"Not implemented")
     }
 
     func download(from url: String) async throws -> Data {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message:"Not implemented")
     }
 
     // MARK: - Chat-specific methods
@@ -106,7 +106,11 @@ final class MockAPIClientForChat: APIClientProtocol {
         )
     }
 
-    func markMessageAsRead(roomId: String, messageId: String) async throws { }
+    func markMessageAsRead(roomId: String, messageId: String) async throws {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+    }
 }
 
 @MainActor
@@ -124,6 +128,10 @@ final class MockWebSocketManagerForChat: ClawbotChannelServiceProtocol {
     @Published var ttsEnabled: Bool = true
     @Published var ttsLanguage: TTSLanguage = .chinese
     @Published var botState: BotBehaviorState = .idle
+
+    var connectionStatePublisher: AnyPublisher<ClawbotConnectionState, Never> { $connectionState.eraseToAnyPublisher() }
+    var lastMessagePublisher: AnyPublisher<ClawbotMessage?, Never> { $lastMessage.eraseToAnyPublisher() }
+    var botStatePublisher: AnyPublisher<BotBehaviorState, Never> { $botState.eraseToAnyPublisher() }
 
     var isConnected: Bool { isConnectedValue }
 
@@ -147,7 +155,7 @@ final class MockWebSocketManagerForChat: ClawbotChannelServiceProtocol {
     }
 
     func checkPairingStatus() async throws -> ClawbotPairingStatus {
-        ClawbotPairingStatus(isPaired: false, pairedAt: nil, deviceId: nil, deviceName: nil)
+        ClawbotPairingStatus(paired: false, deviceId: nil, deviceName: nil, botOnline: nil, pairedAt: nil)
     }
 
     func pairWithCode(_ code: String) async throws -> Bool { false }
@@ -189,7 +197,7 @@ final class ChatServiceTests: XCTestCase {
 
         sut = ChatService(
             apiClient: mockAPIClient,
-            webSocketManager: mockWebSocketManager,
+            clawbotChannelService: mockWebSocketManager,
             authService: mockAuthService
         )
     }
@@ -288,7 +296,7 @@ extension ChatServiceTests {
         switch result {
         case .failure(let error):
             // Local cache should still be updated even if API fails
-            XCTAssertEqual(error, .networkError(underlying: mockAPIClient.mockError))
+            XCTAssertEqual(error, .networkError(underlying: mockAPIClient.mockError!))
         case .success:
             XCTFail("Should fail with network error")
         }
@@ -393,12 +401,25 @@ extension ChatServiceTests {
     private func createMockUser() -> User {
         User(
             id: "test_user_id",
-            email: "test@example.com",
             username: "test_user",
+            email: "test@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Test User",
-            avatarURL: nil,
             bio: nil,
+            website: nil,
             points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )

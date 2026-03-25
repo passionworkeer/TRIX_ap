@@ -1,7 +1,7 @@
 import Foundation
 
 /// 快照/拍照模型
-struct Snapshot: Codable, Identifiable {
+struct Snapshot: Codable, Identifiable, Equatable {
     let id: String
     let userId: String
     let imageUrl: String

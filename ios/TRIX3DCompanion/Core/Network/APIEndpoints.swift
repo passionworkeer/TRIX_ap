@@ -766,6 +766,26 @@ struct AuthResponse: Codable {
         user = try container.decode(User.self, forKey: .user)
         session = nil // Will be created from token
     }
+
+    // MARK: - Memberwise Initializer (for testing)
+
+    init(
+        accessToken: String,
+        tokenType: String,
+        expiresIn: Int,
+        expiresAt: Int? = nil,
+        refreshToken: String,
+        user: User,
+        session: UserSession? = nil
+    ) {
+        self.accessToken = accessToken
+        self.tokenType = tokenType
+        self.expiresIn = expiresIn
+        self.expiresAt = expiresAt
+        self.refreshToken = refreshToken
+        self.user = user
+        self.session = session
+    }
 }
 
 // MARK: - User

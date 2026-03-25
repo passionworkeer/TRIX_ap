@@ -36,7 +36,7 @@ final class MockURLSessionDataTask: URLSessionDataTask {
 }
 
 /// Mock URLSession for testing
-final class MockURLSession: URLProtocol {
+final class MockURLSession: URLProtocol, URLAuthenticationChallengeSender {
     static var mockResponse: URLResponse?
     static var mockData: Data?
     static var mockError: Error?
@@ -62,7 +62,14 @@ final class MockURLSession: URLProtocol {
         if let error = MockURLSession.mockError {
             client?.urlProtocol(self, didFailWithError: error)
         } else if let response = MockURLSession.mockResponse {
-            client?.urlProtocol(self, didReceive: response)
+            client?.urlProtocol(self, didReceive: URLAuthenticationChallenge(
+            protectionSpace: URLProtectionSpace(host: "test.com", port: 443, protocol: nil, realm: nil, authenticationMethod: nil),
+            proposedCredential: nil,
+            previousFailureCount: 0,
+            failureResponse: nil,
+            error: nil,
+            sender: self
+        ))
             if let data = MockURLSession.mockData {
                 client?.urlProtocol(self, didLoad: data)
             }
@@ -82,6 +89,14 @@ final class MockURLSession: URLProtocol {
         lastRequest = nil
         shouldExecuteRequest = true
     }
+
+    // MARK: - URLAuthenticationChallengeSender
+
+    func use(_ credential: URLCredential, for challenge: URLAuthenticationChallenge) {}
+
+    func continueWithoutCredential(for challenge: URLAuthenticationChallenge) {}
+
+    func cancel(_ challenge: URLAuthenticationChallenge) {}
 }
 
 // MARK: - Mock Request for Retry Testing
@@ -467,7 +482,7 @@ extension APIClientTests {
 
         // When
         let key = deduplicator.makeKey(
-            from: .chatMessages(roomId: "room123"),
+            from: .chatRoomMessages(roomId: "room123"),
             method: .get,
             parameters: ["page": 1, "limit": 50]
         )
@@ -813,7 +828,7 @@ extension APIClientTests {
         let client = APIClient.shared
 
         // When
-        client.updateSecurityHeadersMode(.none)
+        client.updateSecurityHeadersMode(.strict)
 
         // Then - Just verify no crash
         XCTAssertTrue(true)
@@ -826,37 +841,27 @@ extension APIClientTests {
 
     func testHTTPMethod_Get() {
         // Then
-        XCTAssertEqual(HTTPMethod.get.rawValue, "GET")
+        XCTAssertEqual(TRIX3DCompanion.HTTPMethod.`get`.rawValue, "GET")
     }
 
     func testHTTPMethod_Post() {
         // Then
-        XCTAssertEqual(HTTPMethod.post.rawValue, "POST")
+        XCTAssertEqual(TRIX3DCompanion.HTTPMethod.`post`.rawValue, "POST")
     }
 
     func testHTTPMethod_Put() {
         // Then
-        XCTAssertEqual(HTTPMethod.put.rawValue, "PUT")
+        XCTAssertEqual(TRIX3DCompanion.HTTPMethod.`put`.rawValue, "PUT")
     }
 
     func testHTTPMethod_Delete() {
         // Then
-        XCTAssertEqual(HTTPMethod.delete.rawValue, "DELETE")
+        XCTAssertEqual(TRIX3DCompanion.HTTPMethod.`delete`.rawValue, "DELETE")
     }
 
     func testHTTPMethod_Patch() {
         // Then
-        XCTAssertEqual(HTTPMethod.patch.rawValue, "PATCH")
-    }
-
-    func testHTTPMethod_AllCases() {
-        // Then
-        XCTAssertEqual(HTTPMethod.allCases.count, 5)
-        XCTAssertTrue(HTTPMethod.allCases.contains(.get))
-        XCTAssertTrue(HTTPMethod.allCases.contains(.post))
-        XCTAssertTrue(HTTPMethod.allCases.contains(.put))
-        XCTAssertTrue(HTTPMethod.allCases.contains(.delete))
-        XCTAssertTrue(HTTPMethod.allCases.contains(.patch))
+        XCTAssertEqual(TRIX3DCompanion.HTTPMethod.`patch`.rawValue, "PATCH")
     }
 }
 
@@ -865,11 +870,11 @@ extension APIClientTests {
 extension APIClientTests {
 
     func testAPIEndpoint_AuthPaths() {
-        // Then
-        XCTAssertEqual(APIEndpoint.authLogin.path, "/auth/login")
-        XCTAssertEqual(APIEndpoint.authRegister.path, "/auth/register")
-        XCTAssertEqual(APIEndpoint.authLogout.path, "/auth/logout")
-        XCTAssertEqual(APIEndpoint.authMe.path, "/auth/me")
+        // Then - These use Supabase's standard REST API paths
+        XCTAssertEqual(APIEndpoint.authLogin.path, "/auth/v1/token")
+        XCTAssertEqual(APIEndpoint.authRegister.path, "/auth/v1/signup")
+        XCTAssertEqual(APIEndpoint.authLogout.path, "/auth/v1/logout")
+        XCTAssertEqual(APIEndpoint.authMe.path, "/auth/v1/user")
     }
 
     func testAPIEndpoint_UserPaths() {

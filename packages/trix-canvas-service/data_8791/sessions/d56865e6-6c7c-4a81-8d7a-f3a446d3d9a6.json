@@ -1,0 +1,22 @@
+{
+  "id": "d56865e6-6c7c-4a81-8d7a-f3a446d3d9a6",
+  "projectId": "9af2f998-a9f1-4087-947d-a824744acb2d",
+  "messages": [
+    {
+      "role": "user",
+      "content": "月夜古寺庭院，苍刃与焰鬼对峙，银色月光，紧张氛围",
+      "timestamp": "2026-03-24T02:00:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "生成完成: http://localhost:8788/outputs/story_01.png",
+      "timestamp": "2026-03-24T02:00:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/story_01.png"
+  ],
+  "status": "completed",
+  "taskId": "local_story_01",
+  "createdAt": "2026-03-24T02:00:00.000Z"
+}

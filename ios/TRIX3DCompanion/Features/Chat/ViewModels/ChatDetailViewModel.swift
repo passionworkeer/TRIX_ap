@@ -99,28 +99,40 @@ final class ChatDetailViewModel {
     // MARK: - Properties
 
     let conversation: ChatConversation
-    private let chatService: ChatService
-    private let authService: AuthService
+    private let _chatService: ChatService?
+    private let _authService: AuthService?
+    var chatServiceProto: ChatServiceProtocol?
+    var authServiceProto: AuthServiceProtocol?
 
     // UI State
     var uiState = ChatUIState()
 
+    // MARK: - Private Helpers
+
+    private var chatServiceImpl: ChatServiceProtocol? {
+        _chatService ?? chatServiceProto
+    }
+
+    private var authServiceImpl: AuthServiceProtocol? {
+        _authService ?? authServiceProto
+    }
+
     // MARK: - Computed Properties (View-specific)
 
     var messages: [ChatMessage] {
-        chatService.currentMessages
+        chatServiceImpl?.currentMessages ?? []
     }
 
     var isConnected: Bool {
-        chatService.isConnected
+        chatServiceImpl?.isConnected ?? false
     }
 
     var hasMoreMessages: Bool {
-        chatService.hasMoreMessages
+        chatServiceImpl?.hasMoreMessages ?? true
     }
 
     var currentUserId: String? {
-        authService.currentUser?.id
+        authServiceImpl?.currentUser?.id
     }
 
     var isCurrentUserMessage: (ChatMessage) -> Bool {
@@ -137,8 +149,21 @@ final class ChatDetailViewModel {
         authService: AuthService = .shared
     ) {
         self.conversation = conversation
-        self.chatService = chatService
-        self.authService = authService
+        self._chatService = chatService
+        self._authService = authService
+    }
+
+    /// Test-only init accepting protocol conformers
+    init(
+        conversation: ChatConversation,
+        chatServiceProto: ChatServiceProtocol,
+        authServiceProto: AuthServiceProtocol
+    ) {
+        self.conversation = conversation
+        self._chatService = nil
+        self._authService = nil
+        self.chatServiceProto = chatServiceProto
+        self.authServiceProto = authServiceProto
     }
 
     // MARK: - Public Methods - Lifecycle
@@ -152,7 +177,7 @@ final class ChatDetailViewModel {
 
     /// Called when the view disappears
     func onDisappear() {
-        chatService.disconnectWebSocket()
+        chatServiceImpl?.disconnectWebSocket()
     }
 
     // MARK: - Public Methods - Actions
@@ -169,13 +194,18 @@ final class ChatDetailViewModel {
         uiState.pendingMedia = nil
 
         // Send via service
-        let result = await chatService.sendMessage(
-            roomId: conversation.id,
-            content: text,
-            type: media != nil ? .image : .text,
-            mediaUrl: media?.url.absoluteString,
-            mediaMimeType: media?.type == .image ? "image/jpeg" : nil
-        )
+        let result: ChatResult<ChatMessage>
+        if let svc = chatServiceImpl {
+            result = await svc.sendMessage(
+                roomId: conversation.id,
+                content: text,
+                type: media != nil ? .image : .text,
+                mediaUrl: media?.url.absoluteString,
+                mediaMimeType: media?.type == .image ? "image/jpeg" : nil
+            )
+        } else {
+            result = .failure(.networkError(underlying: NSError(domain: "TRIX3DCompanion.ChatService", code: -1)))
+        }
 
         if case .failure(let error) = result {
             uiState.error = error
@@ -189,7 +219,7 @@ final class ChatDetailViewModel {
         uiState.isLoadingMore = true
         defer { uiState.isLoadingMore = false }
 
-        _ = await chatService.fetchMessages(
+        _ = await chatServiceImpl?.fetchMessages(
             roomId: conversation.id,
             before: oldestMessage.createdAt
         )
@@ -197,8 +227,8 @@ final class ChatDetailViewModel {
 
     /// Reconnects the WebSocket
     func reconnect() async {
-        if let userId = authService.currentUser?.id {
-            _ = await chatService.connectWebSocket(userId: userId)
+        if let userId = authServiceImpl?.currentUser?.id {
+            _ = await chatServiceImpl?.connectWebSocket(userId: userId)
         }
     }
 
@@ -245,8 +275,8 @@ final class ChatDetailViewModel {
     // MARK: - Private Methods
 
     private func loadConversation() async {
-        chatService.selectRoom(roomId: conversation.id)
-        _ = await chatService.fetchMessages(roomId: conversation.id, before: nil)
+        chatServiceImpl?.selectRoom(roomId: conversation.id)
+        _ = await chatServiceImpl?.fetchMessages(roomId: conversation.id, before: nil)
         trackMessageCount()
     }
 }

@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import GlassDock from './components/GlassDock';
 import HeroBackground from './components/HeroBackground';
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AppRoutes } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
@@ -44,60 +45,6 @@ const RouteLoading: React.FC = () => (
     </div>
   </div>
 );
-
-const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const { user, loading } = useAuth();
-  const { showWarning } = useNotification();
-  const [shouldRedirect, setShouldRedirect] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!loading && !user && !shouldRedirect) {
-      showWarning('请先登录以访问此页面');
-
-      const timer = setTimeout(() => {
-        setShouldRedirect(true);
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [loading, user, shouldRedirect, showWarning]);
-
-  if (loading) {
-    return (
-      <div
-        className="h-screen w-full flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
-      >
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="font-medium">加载中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    if (shouldRedirect) {
-      return <Navigate to={AppRoutes.LOGIN} replace />;
-    }
-
-    return (
-      <div
-        className="h-screen w-full flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
-      >
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="font-medium">跳转到登录页...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return children;
-};
 
 function AppContent() {
   console.log('[AppContent] rendering');

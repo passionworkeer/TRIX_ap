@@ -455,6 +455,140 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  // ── Study Sessions (Supabase — requires login) ───────────────────────────
+
+  /** Create a study session */
+  ipcMain.handle('study:create-session', async (_event, subject: string = '自习') => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    const userId = (session.user as { id?: string } | undefined)?.id;
+    if (!userId) return { success: false, error: 'not_authenticated' };
+    try {
+      const body = JSON.stringify({
+        user_id: userId,
+        start_time: new Date().toISOString(),
+        duration: 0,
+        subject
+      });
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${SUPABASE_URL}/rest/v1/study_sessions`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=representation',
+        },
+        body,
+      });
+      if (res.statusCode === 201) {
+        const data = JSON.parse(res.body);
+        const item = Array.isArray(data) ? data[0] : data;
+        return { success: true, data: { id: item?.id } };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
+  });
+
+  /** Update a study session (set end_time and duration) */
+  ipcMain.handle('study:update-session', async (_event, sessionId: string, duration: number) => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const body = JSON.stringify({
+        end_time: new Date().toISOString(),
+        duration
+      });
+      const res = await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/study_sessions?id=eq.${encodeURIComponent(sessionId)}`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=minimal',
+        },
+        body,
+      });
+      if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
+  });
+
+  /** Get study stats (today, week, total) */
+  ipcMain.handle('study:get-stats', async () => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated', data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+    const userId = (session.user as { id?: string } | undefined)?.id;
+    if (!userId) return { success: false, error: 'not_authenticated', data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+    try {
+      // Get all sessions for the user
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/study_sessions?user_id=eq.${encodeURIComponent(userId)}&select=duration,start_time&order=start_time.desc`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (res.statusCode === 200) {
+        const sessions = JSON.parse(res.body);
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(todayStart);
+        weekStart.setDate(weekStart.getDate() - 6);
+
+        let todayMinutes = 0;
+        let weekMinutes = 0;
+        let totalMinutes = 0;
+
+        for (const s of sessions) {
+          const startTime = new Date(s.start_time);
+          totalMinutes += s.duration || 0;
+          if (startTime >= todayStart) {
+            todayMinutes += s.duration || 0;
+          }
+          if (startTime >= weekStart) {
+            weekMinutes += s.duration || 0;
+          }
+        }
+
+        return {
+          success: true,
+          data: {
+            todayMinutes,
+            weekMinutes,
+            totalMinutes,
+            sessionCount: sessions.length
+          }
+        };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated', data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}`, data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+    } catch (e: unknown) {
+      return { success: false, error: String(e), data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
+    }
+  });
+
   /** Get user achievements */
   ipcMain.handle('study:get-achievements', async () => {
     if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: [] };

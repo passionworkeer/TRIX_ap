@@ -233,7 +233,6 @@ const LazyImage: React.FC<LazyImageProps> = ({
   );
 };
 
-// 添加 displayName 以便调试
-LazyImage.displayName = 'LazyImage';
-
-export default memo(LazyImage);
+const MemoizedLazyImage = memo(LazyImage);
+(MemoizedLazyImage as unknown as { displayName: string }).displayName = 'LazyImage';
+export default MemoizedLazyImage;

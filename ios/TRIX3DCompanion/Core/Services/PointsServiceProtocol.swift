@@ -88,7 +88,7 @@ enum PointsResult {
 }
 
 /// Points errors
-enum PointsError: Error, LocalizedError {
+enum PointsError: Error, LocalizedError, Equatable {
     case insufficientBalance
     case invalidAmount
     case syncFailed
@@ -96,6 +96,23 @@ enum PointsError: Error, LocalizedError {
     case unauthorized
     case serverError(message: String)
     case unknown(Error?)
+
+    static func == (lhs: PointsError, rhs: PointsError) -> Bool {
+        switch (lhs, rhs) {
+        case (.insufficientBalance, .insufficientBalance),
+             (.invalidAmount, .invalidAmount),
+             (.syncFailed, .syncFailed),
+             (.networkError, .networkError),
+             (.unauthorized, .unauthorized):
+            return true
+        case let (.serverError(lhsMsg), .serverError(rhsMsg)):
+            return lhsMsg == rhsMsg
+        case (.unknown, .unknown):
+            return true
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

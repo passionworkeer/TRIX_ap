@@ -85,7 +85,7 @@ final class MockOfflineCacheServiceForClawbotHistory: OfflineCacheServiceProtoco
     var lastCachedKey: String?
     var lastCachedType: CacheType?
 
-    var totalCacheSize: Int64 { 0 }
+    var totalCacheSize: Int64 = 0
 
     func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws {
         if shouldFailCache {
@@ -157,13 +157,22 @@ final class MockAuthServiceForClawbotHistory: AuthServiceProtocol {
             username: "test_user",
             email: "test@example.com",
             avatarUrl: nil,
+            avatarConfig: nil,
             fullName: nil,
             displayName: "Test User",
             bio: nil,
+            website: nil,
             points: 0,
             isStudying: false,
             companionId: nil,
             totalStudyTime: 0,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         ) : nil
@@ -196,6 +205,21 @@ final class MockAuthServiceForClawbotHistory: AuthServiceProtocol {
         }
         return .failure(.invalidCredentials)
     }
+
+    func clearError() {}
+
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func updateCurrentUser(_ user: User?) {}
+
+    func updateLoginStatus(_ loggedIn: Bool) {}
+
 }
 
 // MARK: - ClawbotHistoryService Tests
@@ -261,7 +285,11 @@ extension ClawbotHistoryServiceTests {
             _ = try await sut.getHistory(roomId: "test_room_1")
             XCTFail("Should throw not authenticated error")
         } catch let error as ClawbotHistoryServiceError {
-            XCTAssertEqual(error, .notAuthenticated, "Should throw not authenticated error")
+            if case .notAuthenticated = error {
+                XCTAssertTrue(true, "Should throw not authenticated error")
+            } else {
+                XCTFail("Wrong error type: \(error)")
+            }
             XCTAssertNotNil(sut.lastError, "Should set last error")
         }
     }
@@ -426,6 +454,12 @@ extension ClawbotHistoryServiceTests {
                 mediaUrl: nil,
                 mediaMimeType: nil,
                 mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
                 isRead: true,
                 createdAt: Date()
             ),
@@ -439,6 +473,12 @@ extension ClawbotHistoryServiceTests {
                 mediaUrl: nil,
                 mediaMimeType: nil,
                 mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
                 isRead: true,
                 createdAt: Date()
             ),
@@ -452,6 +492,12 @@ extension ClawbotHistoryServiceTests {
                 mediaUrl: nil,
                 mediaMimeType: nil,
                 mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
                 isRead: false,
                 createdAt: Date()
             )

@@ -116,13 +116,13 @@ actor SupabaseService {
             .from("study_sessions")
             .select(studySessionSelectColumns)
             .eq("user_id", value: context.userId)
-            .gte("started_at", value: Self.iso8601String(from: weekStart))
-            .order("started_at", ascending: false)
+            .gte("start_time", value: Self.iso8601String(from: weekStart))
+            .order("start_time", ascending: false)
             .execute()
             .value
 
         let todayDuration = recentSessions
-            .filter { $0.startedAt >= todayStart }
+            .filter { $0.startTime >= todayStart }
             .reduce(0) { $0 + $1.duration }
         let weekDuration = recentSessions.reduce(0) { $0 + $1.duration }
 
@@ -160,7 +160,7 @@ actor SupabaseService {
             .from("study_sessions")
             .select(studySessionSelectColumns)
             .eq("user_id", value: context.userId)
-            .order("started_at", ascending: false)
+            .order("start_time", ascending: false)
             .range(from: offset, to: offset + max(limit - 1, 0))
             .execute()
             .value
@@ -170,15 +170,70 @@ actor SupabaseService {
                 id: row.id,
                 userId: row.userId,
                 duration: row.duration,
-                startedAt: row.startedAt,
-                endedAt: row.endedAt,
-                earnedPoints: row.earnedPoints,
-                isCompleted: row.isCompleted,
+                startedAt: row.startTime,
+                endedAt: row.endTime,
+                earnedPoints: row.focusScore,
+                isCompleted: row.endTime != nil,
                 subject: row.subject,
                 notes: row.notes,
                 createdAt: row.createdAt
             )
         }
+    }
+
+    /// 创建学习会话记录
+    func createStudySession(subject: String = "自习") async throws -> String {
+        let context = try await sessionContext()
+        let startTime = Self.iso8601String(from: Date())
+
+        struct InsertPayload: Encodable {
+            let user_id: String
+            let start_time: String
+            let duration: Int
+            let subject: String
+        }
+
+        struct ResponseRow: Decodable {
+            let id: String
+        }
+
+        let payload = InsertPayload(
+            user_id: context.userId,
+            start_time: startTime,
+            duration: 0,
+            subject: subject
+        )
+
+        let response: ResponseRow = try await client.database
+            .from("study_sessions")
+            .insert(payload, returning: .representation)
+            .select("id")
+            .single()
+            .execute()
+            .value
+
+        return response.id
+    }
+
+    /// 更新学习会话记录（设置结束时间和时长）
+    func updateStudySession(sessionId: String, duration: Int) async throws {
+        let endTime = Self.iso8601String(from: Date())
+
+        struct UpdatePayload: Encodable {
+            let end_time: String
+            let duration: Int
+        }
+
+        let payload = UpdatePayload(
+            end_time: endTime,
+            duration: duration
+        )
+
+        try await client.database
+            .from("study_sessions")
+            .update(payload)
+            .eq("id", value: sessionId)
+            .execute()
     }
 
     func fetchPoints() async throws -> PointsResponse {
@@ -1411,15 +1466,15 @@ actor SupabaseService {
         let longestSingleSession = sessions.map(\.duration).max() ?? 0
         let totalSessions = sessions.count
         let earlyBirdCount = sessions.reduce(0) { partialResult, session in
-            let hour = Calendar.current.component(.hour, from: session.startedAt)
+            let hour = Calendar.current.component(.hour, from: session.startTime)
             return partialResult + ((4..<8).contains(hour) ? 1 : 0)
         }
         let nightOwlCount = sessions.reduce(0) { partialResult, session in
-            let hour = Calendar.current.component(.hour, from: session.startedAt)
+            let hour = Calendar.current.component(.hour, from: session.startTime)
             return partialResult + ((hour >= 22 || hour < 3) ? 1 : 0)
         }
         let weekendCount = sessions.reduce(0) { partialResult, session in
-            let weekday = Calendar.current.component(.weekday, from: session.startedAt)
+            let weekday = Calendar.current.component(.weekday, from: session.startTime)
             return partialResult + ((weekday == 1 || weekday == 7) ? 1 : 0)
         }
 
@@ -1628,7 +1683,7 @@ actor SupabaseService {
     """
 
     private let studySessionSelectColumns = """
-    id,user_id,subject,duration,started_at,ended_at,notes,created_at,is_completed,earned_points
+    id,user_id,subject,duration,start_time,end_time,notes,created_at,focus_score
     """
 
     private static let achievementCatalog: [Achievement] = [
@@ -1722,24 +1777,22 @@ private struct SupabaseStudySessionRow: Decodable {
     let userId: String
     let subject: String?
     let duration: Int
-    let startedAt: Date
-    let endedAt: Date?
+    let startTime: Date
+    let endTime: Date?
     let notes: String?
     let createdAt: Date?
-    let isCompleted: Bool
-    let earnedPoints: Int?
+    let focusScore: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
         case subject
         case duration
-        case startedAt = "started_at"
-        case endedAt = "ended_at"
+        case startTime = "start_time"
+        case endTime = "end_time"
         case notes
         case createdAt = "created_at"
-        case isCompleted = "is_completed"
-        case earnedPoints = "earned_points"
+        case focusScore = "focus_score"
     }
 }
 
@@ -1863,11 +1916,11 @@ private struct SupabaseAchievementInsert: Encodable {
 
 private struct SupabaseAchievementSessionRow: Decodable {
     let duration: Int
-    let startedAt: Date
+    let startTime: Date
 
     enum CodingKeys: String, CodingKey {
         case duration
-        case startedAt = "started_at"
+        case startTime = "start_time"
     }
 }
 
@@ -2055,6 +2108,18 @@ private struct SupabaseChatMessageRow: Decodable {
         case voiceDuration = "voice_duration"
         case voiceTranscript = "voice_transcript"
         case voiceMimeType = "voice_mime_type"
+    }
+}
+
+// MARK: - StudySupabaseProtocol Conformance
+
+extension SupabaseService: StudySupabaseProtocol {
+    func createStudySession(subject: String) async throws -> String {
+        try await createStudySession(subject: subject)
+    }
+
+    func updateStudySession(sessionId: String, duration: Int) async throws {
+        try await updateStudySession(sessionId: sessionId, duration: duration)
     }
 }
 

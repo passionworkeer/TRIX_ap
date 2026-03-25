@@ -102,13 +102,29 @@ enum PurchaseResult {
 }
 
 /// StoreKit specific errors
-enum StoreKitError: Error, LocalizedError {
+enum StoreKitError: Error, LocalizedError, Equatable {
     case productNotFound
     case purchaseFailed(underlying: Error?)
     case verificationFailed
     case configurationError
     case userCancelled
     case unknown(Error?)
+
+    static func == (lhs: StoreKitError, rhs: StoreKitError) -> Bool {
+        switch (lhs, rhs) {
+        case (.productNotFound, .productNotFound),
+             (.verificationFailed, .verificationFailed),
+             (.configurationError, .configurationError),
+             (.userCancelled, .userCancelled):
+            return true
+        case (.purchaseFailed(let a), .purchaseFailed(let b)):
+            return (a as NSError?)?.code == (b as NSError?)?.code
+        case (.unknown(let a), .unknown(let b)):
+            return (a as NSError?)?.code == (b as NSError?)?.code
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

@@ -77,6 +77,14 @@ enum StudyError: Error, LocalizedError, Equatable {
     }
 }
 
+// MARK: - Study Supabase Protocol
+
+/// Protocol for Supabase study session operations — enables test mocking
+protocol StudySupabaseProtocol: AnyObject {
+    func createStudySession(subject: String) async throws -> String
+    func updateStudySession(sessionId: String, duration: Int) async throws
+}
+
 // MARK: - Study Result
 
 /// Result type for study operations
@@ -163,6 +171,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     private let apiClient: any APIClientProtocol
     private let clawbotChannelService: any ClawbotChannelServiceProtocol
     private let authService: any AuthServiceProtocol
+    private let studySupabase: StudySupabaseProtocol
 
     // MARK: - Private Properties
 
@@ -171,6 +180,9 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
     /// Timer start date for accurate time tracking
     private var sessionStartDate: Date?
+
+    /// Current session ID (for Supabase updates)
+    private var currentSessionId: String?
 
     /// Current room code if in a room
     private var currentRoomCode: String?
@@ -191,14 +203,17 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     ///   - apiClient: API client instance (defaults to shared)
     ///   - clawbotChannelService: Clawbot Channel service (uses Socket.IO)
     ///   - authService: Auth service instance (defaults to shared)
+    ///   - studySupabase: Supabase study operations (defaults to shared)
     init(
         apiClient: (any APIClientProtocol)? = nil,
         clawbotChannelService: (any ClawbotChannelServiceProtocol)? = nil,
-        authService: (any AuthServiceProtocol)? = nil
+        authService: (any AuthServiceProtocol)? = nil,
+        studySupabase: StudySupabaseProtocol? = nil
     ) {
         self.apiClient = apiClient ?? APIClient.shared
         self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
         self.authService = authService ?? AuthService.shared
+        self.studySupabase = studySupabase ?? SupabaseService.shared
 
         loadPendingOfflineSessions()
     }
@@ -406,11 +421,22 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         lastError = nil
 
         do {
-            // Create session via API
-            let request = CreateStudySessionRequest(duration: 0) // 0 means ongoing
-            let session: StudySession = try await apiClient.post(
-                .studySessions,
-                body: request
+            // Create session via Supabase directly
+            let sessionId = try await studySupabase.createStudySession(subject: "自习")
+            let startDate = Date()
+
+            // Create local session object
+            let session = StudySession(
+                id: sessionId,
+                userId: user.id,
+                duration: 0,
+                startedAt: startDate,
+                endedAt: nil,
+                earnedPoints: nil,
+                isCompleted: false,
+                subject: "自习",
+                notes: nil,
+                createdAt: startDate
             )
 
             // Start timer
@@ -420,7 +446,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             currentSession = session
             isActiveSession = true
             sessionState = .focusing
-            sessionStartDate = Date()
+            sessionStartDate = startDate
 
             // Notify room members if host
             if let roomState = currentRoomState,
@@ -435,12 +461,11 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
             return .success(session)
 
-        } catch let error as NetworkError {
-            let studyError = mapNetworkError(error)
-            lastError = studyError
-            return .failure(studyError)
+        } catch let error as StudyError {
+            lastError = error
+            return .failure(error)
         } catch {
-            let studyError = StudyError.unknown(underlying: error)
+            let studyError = StudyError.networkError(underlying: error)
             lastError = studyError
             return .failure(studyError)
         }
@@ -476,11 +501,28 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
         let duration = Int(currentFocusTime / 60) // Convert to minutes
 
         do {
-            // Update session via API
-            let updateRequest = CreateStudySessionRequest(duration: duration)
-            let updatedSession: StudySession = try await apiClient.put(
-                .updateStudySession(id: session.id),
-                body: updateRequest
+            // Update session via Supabase directly
+            if let sessionId = currentSession?.id {
+                try await studySupabase.updateStudySession(
+                    sessionId: sessionId,
+                    duration: duration
+                )
+            }
+
+            let endDate = Date()
+
+            // Create updated session object
+            let updatedSession = StudySession(
+                id: session.id,
+                userId: session.userId,
+                duration: duration,
+                startedAt: session.startedAt,
+                endedAt: endDate,
+                earnedPoints: nil,
+                isCompleted: true,
+                subject: session.subject,
+                notes: session.notes,
+                createdAt: session.createdAt
             )
 
             // Update state
@@ -505,9 +547,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
             return .success(updatedSession)
 
-        } catch let error as NetworkError {
-            let studyError = mapNetworkError(error)
-
+        } catch let error as StudyError {
             // Even if API fails, save session locally for later sync
             saveOfflineSession(session: session, duration: duration)
 
@@ -518,10 +558,10 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             currentFocusTime = 0
             sessionStartDate = nil
 
-            lastError = studyError
-            return .failure(studyError)
+            lastError = error
+            return .failure(error)
         } catch {
-            let studyError = StudyError.unknown(underlying: error)
+            let studyError = StudyError.networkError(underlying: error)
 
             // Save session locally for later sync
             saveOfflineSession(session: session, duration: duration)

@@ -57,7 +57,7 @@ final class CameraViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let cameraService: any CameraServiceProtocol
-    private let imageUploadService: ImageUploadService
+    private let imageUploadService: any ImageUploadServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -68,10 +68,10 @@ final class CameraViewModel: ObservableObject {
     ///   - imageUploadService: Image upload service dependency
     init(
         cameraService: (any CameraServiceProtocol)? = nil,
-        imageUploadService: ImageUploadService? = nil
+        imageUploadService: (any ImageUploadServiceProtocol)? = nil
     ) {
         self.cameraService = cameraService ?? CameraService.shared
-        self.imageUploadService = imageUploadService ?? .shared
+        self.imageUploadService = imageUploadService ?? ImageUploadService.shared
 
         // Setup bindings
         setupBindings()
@@ -100,11 +100,11 @@ final class CameraViewModel: ObservableObject {
             .assign(to: &$isSessionActive)
 
         // Bind upload progress
-        imageUploadService.$uploadProgress
+        imageUploadService.uploadProgressPublisher
             .assign(to: &$uploadProgress)
 
         // Bind uploading state
-        imageUploadService.$isUploading
+        imageUploadService.isUploadingPublisher
             .assign(to: &$isUploading)
     }
 

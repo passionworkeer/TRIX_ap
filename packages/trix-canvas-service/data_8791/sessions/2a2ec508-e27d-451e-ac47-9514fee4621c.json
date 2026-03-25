@@ -1,0 +1,22 @@
+{
+  "id": "2a2ec508-e27d-451e-ac47-9514fee4621c",
+  "projectId": "3eb1b938-47ff-4270-b584-0dd586133844",
+  "messages": [
+    {
+      "role": "user",
+      "content": "苍刃与焰鬼大雄宝殿顶最终对峙，月光冷冽",
+      "timestamp": "2026-03-24T03:00:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "图片生成完成: http://localhost:8788/outputs/story_07.png",
+      "timestamp": "2026-03-24T03:10:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/story_07.png"
+  ],
+  "status": "completed",
+  "parentId": "d28619a8-6659-4665-ae59-1906a5a8f032",
+  "createdAt": "2026-03-24T03:00:06.000Z"
+}

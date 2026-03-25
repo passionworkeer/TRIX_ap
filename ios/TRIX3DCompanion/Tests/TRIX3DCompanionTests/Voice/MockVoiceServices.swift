@@ -157,11 +157,27 @@ final class MockTTSService: TTSServiceProtocol {
 final class MockVoicePlaybackService: VoicePlaybackServiceProtocol {
 
     // MARK: - Published State
+    // Made settable (non-private(set)) so tests can drive state directly.
+    // didSet observers trigger automatic emission through the publishers.
 
-    @Published private(set) var isPlaying: Bool = false
-    @Published private(set) var currentTime: TimeInterval = 0
-    @Published private(set) var duration: TimeInterval = 0
+    /// Mirrors the current PlaybackState for test-control.
+    /// Setting this emits the value through _playbackStateSubject so ViewModel bindings react.
+    var playbackState: PlaybackState = .idle {
+        didSet { _playbackStateSubject.send(playbackState) }
+    }
+
+    @Published var isPlaying: Bool = false
+    @Published var currentTime: TimeInterval = 0 {
+        didSet { emitProgress() }
+    }
+    @Published var duration: TimeInterval = 0 {
+        didSet { emitProgress() }
+    }
     @Published private(set) var playbackRate: Float = 1.0
+
+    /// Settable progress backing — tests use this to control progress independently
+    /// of the computed currentTime/duration ratio.
+    var progress: Double = 0
 
     // MARK: - Call Tracking
 
@@ -180,8 +196,10 @@ final class MockVoicePlaybackService: VoicePlaybackServiceProtocol {
 
     // MARK: - Publishers
 
-    private let _playbackStateSubject = PassthroughSubject<PlaybackState, Never>()
-    private let _progressSubject = PassthroughSubject<PlaybackProgress, Never>()
+    // Exposed as internal so test code can subscribe directly.
+    // Use emitState(_:) and emitProgress() helpers to send values.
+    let _playbackStateSubject = PassthroughSubject<PlaybackState, Never>()
+    let _progressSubject = PassthroughSubject<PlaybackProgress, Never>()
 
     var playbackStatePublisher: AnyPublisher<PlaybackState, Never> {
         _playbackStateSubject.eraseToAnyPublisher()
@@ -293,8 +311,14 @@ final class MockVoicePlaybackService: VoicePlaybackServiceProtocol {
     }
 
     func emitProgress() {
-        let progress = PlaybackProgress(currentTime: currentTime, duration: duration)
-        _progressSubject.send(progress)
+        let computedRatio = duration > 0 ? currentTime / duration : 0.0
+        let effectiveProgress = progress != 0 ? progress : computedRatio
+        let progressInfo = PlaybackProgress(
+            currentTime: currentTime,
+            duration: duration,
+            progress: effectiveProgress
+        )
+        _progressSubject.send(progressInfo)
     }
 
     func emitState(_ state: PlaybackState) {
@@ -316,6 +340,40 @@ final class MockVoicePlaybackService: VoicePlaybackServiceProtocol {
     func simulateProgressUpdate(currentTime: TimeInterval) {
         self.currentTime = currentTime
         emitProgress()
+    }
+
+    // MARK: - Test Helper Methods
+    // Convenience helpers that update both the state property and emit through
+    // the publisher in one call. Tests use these to drive ViewModel bindings.
+
+    /// Set playbackState and simultaneously emit it through the publisher.
+    /// Updates isPlaying to match the state.
+    func setPlaybackState(_ state: PlaybackState) {
+        playbackState = state
+        switch state {
+        case .playing: isPlaying = true
+        case .paused, .idle, .finished, .loading: isPlaying = false
+        case .error: isPlaying = false
+        }
+    }
+
+    /// Async version: sets state and yields to allow MainActor bindings to propagate.
+    /// Use this when the test has synchronous assertions that must see the updated state.
+    func setPlaybackStateAndYield(_ state: PlaybackState) async {
+        setPlaybackState(state)
+        await Task.yield()
+    }
+
+    /// Directly set isPlaying (does NOT emit through playbackStatePublisher;
+    /// use setPlaybackState() if you need the ViewModel binding to react).
+    func setIsPlaying(_ playing: Bool) {
+        isPlaying = playing
+    }
+
+    /// Async version: sets isPlaying and yields to allow MainActor bindings to propagate.
+    func setIsPlayingAndYield(_ playing: Bool) async {
+        isPlaying = playing
+        await Task.yield()
     }
 }
 

@@ -34,7 +34,7 @@ OpenClaw Gateway (port 18789)
 
 | | Web | iOS | Desktop |
 |-|------|-----|---------|
-| 路由/页面 | 19 路由 | 全页面覆盖 | LuminaLayout |
+| 路由/页面 | 18 路由 | 全页面覆盖 | LuminaLayout |
 | 配对 | 扫码 + 链接 | 扫码 | IPC + Float 窗口 |
 | 特色 | 双主题 + 浮窗 | APNs + StoreKit 2 | 系统托盘 + 进程管理 |
 
@@ -72,22 +72,27 @@ QR 格式：http://host/pair?code=XXX&secret=YYY&accountId=ZZZ
 ### 技术栈
 React 19.2.4 + Vite 6.2 + Tailwind CSS 4.2 + TypeScript 5.8.2 · Supabase（Auth + Realtime + Storage）· React Router 7（HashRouter）· Framer Motion 12 · i18next · electron-store + electron-log
 
-### 页面路由（19 个）
+### 页面路由（18 个）
 
 | 路由 | 页面 | 功能说明 |
 |------|------|---------|
-| `#/login` `#/register` | 登录/注册 | Supabase Auth 认证 |
+| `#/login` | 登录 | Supabase Auth 认证 |
+| `#/register` | 注册 | Supabase Auth 注册 |
 | `#/` | 首页 | Dashboard + AI 气泡 |
 | `#/chat` | 好友列表 | 聊天入口 |
 | `#/chat/:friendId` | 聊天详情 | 消息历史 + 多模态输入 |
 | `#/study` | 自习室 | 计时器 + 学习记录 + 成就 |
-| `#/snapshot` | 拍照快照 | AI 相册 + 截图 |
+| `#/study/timer` | 学习计时 | 专注计时模式 |
+| `#/snapshot` `#/snapshot/result` | 拍照快照 | AI 相册 + 截图 |
 | `#/profile` | 个人主页 | 头像 + 成就面板 + 统计 |
-| `#/pairing` `#/qr-pairing` | 设备配对 | 扫码 + 链接配对 |
+| `#/profile/:userId` | 用户主页 | 查看他人主页 |
+| `#/pairing` | 设备配对 | 配对引导 |
+| `#/qr-pairing` | 二维码配对 | 扫码配对 |
 | `#/map` | 社交地图 | Leaflet 好友打卡地图 |
+| `#/diagnostic` | 诊断工具 | 服务状态调试 |
+| `#/diagnostic-advanced` | 高级诊断 | 深度调试 |
 | `#/points-mall` | 积分商城 | 虚拟货币商店 |
 | `#/wardrobe` | 虚拟衣橱 | Avatar 装扮 |
-| `#/diagnostic` | 诊断工具 | 服务状态调试 |
 
 ### 设计系统 — 双主题
 
@@ -137,7 +142,7 @@ Electron 33.4 + React 19（渲染进程）+ Node.js（主进程）+ electron-bui
 - **Float 浮窗**（220×320）：置顶迷你伴侣，通知预览，快捷回复Reaction
 - **诊断窗口**（可选）：Gateway 日志实时查看
 
-### IPC 系统 — 51 个处理器
+### IPC 系统 — 62 个处理器
 
 | 分类 | 指令 |
 |------|------|
@@ -264,11 +269,14 @@ npm run dev:desktop          # Desktop 开发模式
 ### 项目结构
 
 ```
-src/                    # Web（React 19，19 个路由页面）
-desktop/src/main/       # Electron 主进程（IPC 51 处理器 + tray + float）
+src/                    # Web（React 19，18 个路由页面）
+desktop/src/main/       # Electron 主进程（IPC 62 处理器 + tray + float）
 desktop/src/renderer/   # Electron 渲染进程（Desktop 专属页面）
 ios/TRIX3DCompanion/    # iOS（SwiftUI + MVVM + GRDB）
-packages/trix-openclaw-native/   # ⭐ OpenClaw 原生 Channel 插件
+packages/
+├── trix-openclaw-native/   # ⭐ OpenClaw 原生 Channel 插件
+└── trix-canvas-service/    # TRIX Canvas AI 生成服务
+skills/trix-gen-skill/      # AI Gen Skill（Claude Code Skill）
 database/               # Supabase Schema
 tests/smoke/            # Node.js 冒烟测试
 tests/e2e/              # Playwright E2E（Web + Desktop 双模式）

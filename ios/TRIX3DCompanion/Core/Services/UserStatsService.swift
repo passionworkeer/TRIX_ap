@@ -11,12 +11,27 @@ import Combine
 // MARK: - Error Types
 
 /// User Stats Service error types
-enum UserStatsServiceError: Error, LocalizedError {
+enum UserStatsServiceError: Error, LocalizedError, Equatable {
     case notAuthenticated
     case userNotFound
     case invalidPeriod
     case networkError(underlying: Error)
     case unknown(underlying: Error?)
+
+    static func == (lhs: UserStatsServiceError, rhs: UserStatsServiceError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notAuthenticated, .notAuthenticated),
+             (.userNotFound, .userNotFound),
+             (.invalidPeriod, .invalidPeriod):
+            return true
+        case (.networkError, .networkError):
+            return true
+        case (.unknown, .unknown):
+            return true
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

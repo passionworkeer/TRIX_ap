@@ -1,0 +1,33 @@
+{
+  "id": "74f4d2ad-13aa-4c09-b73e-250fcf7cc391",
+  "projectId": "9af2f998-a9f1-4087-947d-a824744acb2d",
+  "messages": [
+    {
+      "role": "user",
+      "content": "[日式动漫] Japanese anime, victorious ninja at cliff sunrise, hero ending",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成中: video_448e1a3c-c335-463e-a850-13f644003199",
+      "timestamp": "2026-03-24T02:10:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成完成: http://localhost:8788/outputs/video_10.mp4",
+      "timestamp": "2026-03-24T02:15:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "视频生成完成: http://localhost:8788/outputs/video_10.mp4",
+      "timestamp": "2026-03-24T02:15:00.000Z"
+    }
+  ],
+  "resultUrls": [
+    "http://localhost:8788/outputs/video_10.mp4"
+  ],
+  "status": "completed",
+  "taskId": "video_448e1a3c-c335-463e-a850-13f644003199",
+  "parentId": "a1e1566c-0c32-4d44-b1d3-646e04d7f8bb",
+  "createdAt": "2026-03-24T02:10:00.000Z"
+}

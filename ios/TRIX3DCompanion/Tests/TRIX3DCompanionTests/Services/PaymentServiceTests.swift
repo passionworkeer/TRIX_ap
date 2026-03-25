@@ -14,57 +14,23 @@ import Combine
 @MainActor
 final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
-    @Published var pendingOrders: [Order] = []
-    @Published var completedOrders: [Order] = []
+    @Published var pendingOrders: [AppOrder] = []
+    @Published var completedOrders: [AppOrder] = []
     @Published var isProcessing: Bool = false
     @Published var lastError: PaymentError?
 
     // MARK: - PaymentServiceProtocol Required Properties
 
-    var pendingAppOrders: [AppOrder] {
-        pendingOrders.map { order in
-            AppOrder(
-                id: order.id,
-                userId: order.userId,
-                productId: order.productId,
-                productType: order.productType,
-                amount: order.amount,
-                currency: order.currency,
-                status: order.status.toAppPaymentStatus(),
-                paymentMethod: order.paymentMethod,
-                transactionId: order.transactionId,
-                points: order.points,
-                createdAt: order.createdAt,
-                updatedAt: order.updatedAt
-            )
-        }
-    }
+    var pendingAppOrders: [AppOrder] { pendingOrders }
 
-    var completedAppOrders: [AppOrder] {
-        completedOrders.map { order in
-            AppOrder(
-                id: order.id,
-                userId: order.userId,
-                productId: order.productId,
-                productType: order.productType,
-                amount: order.amount,
-                currency: order.currency,
-                status: order.status.toAppPaymentStatus(),
-                paymentMethod: order.paymentMethod,
-                transactionId: order.transactionId,
-                points: order.points,
-                createdAt: order.createdAt,
-                updatedAt: order.updatedAt
-            )
-        }
-    }
+    var completedAppOrders: [AppOrder] { completedOrders }
 
     // Test control properties
     var shouldFailPurchase = false
     var shouldReturnPending = false
     var shouldReturnCancelled = false
     var mockError: PaymentError?
-    var mockOrders: [String: Order] = [:]
+    var mockOrders: [String: AppOrder] = [:]
     var shouldFailVerification = false
     var shouldFailOrderFetch = false
 
@@ -105,7 +71,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
         if shouldReturnPending {
             isProcessing = false
-            let order = createMockOrder(productId: productId, points: points, status: .pending)
+            let order = createMockAppOrder(productId: productId, points: points, status: .pending)
             return .pending(order: order)
         }
 
@@ -116,7 +82,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
         // Create completed order
         isProcessing = false
-        let order = createMockOrder(productId: productId, points: points, status: .completed)
+        let order = createMockAppOrder(productId: productId, points: points, status: .completed)
         return .success(order: order)
     }
 
@@ -135,7 +101,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
         if shouldReturnPending {
             isProcessing = false
-            let order = createMockSubscriptionOrder(productId: productId, status: .pending)
+            let order = createMockSubscriptionAppOrder(productId: productId, status: .pending)
             return .pending(order: order)
         }
 
@@ -146,7 +112,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
         // Create completed order
         isProcessing = false
-        let order = createMockSubscriptionOrder(productId: productId, status: .completed)
+        let order = createMockSubscriptionAppOrder(productId: productId, status: .completed)
         return .success(order: order)
     }
 
@@ -184,26 +150,12 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
             return .failure(error)
         }
 
-        let order = createMockOrder(productId: productId, points: 100, status: .completed)
+        let order = createMockAppOrder(productId: productId, points: 100, status: .completed)
         mockOrders[order.id] = order
-        let appOrder = AppOrder(
-            id: order.id,
-            userId: order.userId,
-            productId: order.productId,
-            productType: order.productType,
-            amount: order.amount,
-            currency: order.currency,
-            status: order.status.toAppPaymentStatus(),
-            paymentMethod: order.paymentMethod,
-            transactionId: order.transactionId,
-            points: order.points,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt
-        )
-        return .success(appOrder)
+        return .success(order)
     }
 
-    func getOrder(orderId: String) async -> Order? {
+    func getAppOrder(orderId: String) async -> AppOrder? {
         getOrderCalled = true
         getOrderCalledWithOrderId = orderId
 
@@ -214,14 +166,14 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
         return mockOrders[orderId]
     }
 
-    func getOrderHistory(limit: Int, offset: Int) async -> [Order] {
+    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder] {
         getOrderHistoryCalled = true
         let orders = Array(mockOrders.values)
             .sorted { $0.createdAt > $1.createdAt }
         return Array(orders.dropFirst(offset).prefix(limit))
     }
 
-    func cancelOrder(orderId: String) async -> Result<Void, PaymentError> {
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
         cancelOrderCalled = true
         cancelOrderCalledWithOrderId = orderId
 
@@ -236,52 +188,6 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
     func clearError() {
         clearErrorCalled = true
         lastError = nil
-    }
-
-    // MARK: - PaymentServiceProtocol Required Methods (AppOrder variants)
-
-    func getAppOrder(orderId: String) async -> AppOrder? {
-        guard let order = mockOrders[orderId] else { return nil }
-        return AppOrder(
-            id: order.id,
-            userId: order.userId,
-            productId: order.productId,
-            productType: order.productType,
-            amount: order.amount,
-            currency: order.currency,
-            status: order.status.toAppPaymentStatus(),
-            paymentMethod: order.paymentMethod,
-            transactionId: order.transactionId,
-            points: order.points,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt
-        )
-    }
-
-    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder] {
-        getOrderHistoryCalled = true
-        let orders = Array(mockOrders.values)
-            .sorted { $0.createdAt > $1.createdAt }
-        return Array(orders.dropFirst(offset).prefix(limit)).map { order in
-            AppOrder(
-                id: order.id,
-                userId: order.userId,
-                productId: order.productId,
-                productType: order.productType,
-                amount: order.amount,
-                currency: order.currency,
-                status: order.status.toAppPaymentStatus(),
-                paymentMethod: order.paymentMethod,
-                transactionId: order.transactionId,
-                points: order.points,
-                createdAt: order.createdAt,
-                updatedAt: order.updatedAt
-            )
-        }
-    }
-
-    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
-        return await cancelOrder(orderId: orderId)
     }
 
     func getSubscription() async -> PaymentSubscriptionStatus {
@@ -314,23 +220,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
             lastError = mockError ?? .verificationFailed
             return .failure(lastError!)
         }
-        let orders = mockOrders.values.map { order in
-            AppOrder(
-                id: order.id,
-                userId: order.userId,
-                productId: order.productId,
-                productType: order.productType,
-                amount: order.amount,
-                currency: order.currency,
-                status: order.status.toAppPaymentStatus(),
-                paymentMethod: order.paymentMethod,
-                transactionId: order.transactionId,
-                points: order.points,
-                createdAt: order.createdAt,
-                updatedAt: order.updatedAt
-            )
-        }
-        return .success(Array(orders))
+        return .success(Array(mockOrders.values))
     }
 
     // MARK: - Subscription Test Control Properties
@@ -349,8 +239,8 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
 
     // MARK: - Helper Methods
 
-    private func createMockOrder(productId: String, points: Int, status: PaymentStatus) -> Order {
-        let order = Order(
+    private func createMockAppOrder(productId: String, points: Int, status: AppPaymentStatus) -> AppOrder {
+        let order = AppOrder(
             id: UUID().uuidString,
             userId: "test-user",
             productId: productId,
@@ -368,8 +258,8 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
         return order
     }
 
-    private func createMockSubscriptionOrder(productId: String, status: PaymentStatus) -> Order {
-        let order = Order(
+    private func createMockSubscriptionAppOrder(productId: String, status: AppPaymentStatus) -> AppOrder {
+        let order = AppOrder(
             id: UUID().uuidString,
             userId: "test-user",
             productId: productId,
@@ -815,7 +705,7 @@ final class PaymentServiceTests: XCTestCase {
     func testGetOrder_Success() async {
         // Given
         let orderId = "order-123"
-        let mockOrder = Order(
+        let mockOrder = AppOrder(
             id: orderId,
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -832,7 +722,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.mockOrders[orderId] = mockOrder
 
         // When
-        let result = await sut.getOrder(orderId: orderId)
+        let result = await sut.getAppOrder(orderId: orderId)
 
         // Then
         XCTAssertTrue(sut.getOrderCalled)
@@ -846,7 +736,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.shouldFailOrderFetch = true
 
         // When
-        let result = await sut.getOrder(orderId: "non-existent")
+        let result = await sut.getAppOrder(orderId: "non-existent")
 
         // Then
         XCTAssertTrue(sut.getOrderCalled)
@@ -855,7 +745,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testGetOrderHistory_Success() async {
         // Given
-        let order1 = Order(
+        let order1 = AppOrder(
             id: "order-1",
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -869,7 +759,7 @@ final class PaymentServiceTests: XCTestCase {
             createdAt: Date(),
             updatedAt: Date()
         )
-        let order2 = Order(
+        let order2 = AppOrder(
             id: "order-2",
             userId: "test-user",
             productId: StoreProductConfiguration.points300,
@@ -887,7 +777,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.mockOrders["order-2"] = order2
 
         // When
-        let history = await sut.getOrderHistory(limit: 10, offset: 0)
+        let history = await sut.getAppOrderHistory(limit: 10, offset: 0)
 
         // Then
         XCTAssertTrue(sut.getOrderHistoryCalled)
@@ -897,7 +787,7 @@ final class PaymentServiceTests: XCTestCase {
     func testGetOrderHistory_Pagination() async {
         // Given
         for i in 1...15 {
-            let order = Order(
+            let order = AppOrder(
                 id: "order-\(i)",
                 userId: "test-user",
                 productId: StoreProductConfiguration.points100,
@@ -915,8 +805,8 @@ final class PaymentServiceTests: XCTestCase {
         }
 
         // When
-        let page1 = await sut.getOrderHistory(limit: 10, offset: 0)
-        let page2 = await sut.getOrderHistory(limit: 10, offset: 10)
+        let page1 = await sut.getAppOrderHistory(limit: 10, offset: 0)
+        let page2 = await sut.getAppOrderHistory(limit: 10, offset: 10)
 
         // Then
         XCTAssertEqual(page1.count, 10)
@@ -926,7 +816,7 @@ final class PaymentServiceTests: XCTestCase {
     func testCancelOrder_Success() async {
         // Given
         let orderId = "order-pending"
-        let order = Order(
+        let order = AppOrder(
             id: orderId,
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -943,7 +833,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.mockOrders[orderId] = order
 
         // When
-        let result = await sut.cancelOrder(orderId: orderId)
+        let result = await sut.cancelAppOrder(orderId: orderId)
 
         // Then
         XCTAssertTrue(sut.cancelOrderCalled)
@@ -959,7 +849,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testCancelOrder_NotFound() async {
         // When
-        let result = await sut.cancelOrder(orderId: "non-existent")
+        let result = await sut.cancelAppOrder(orderId: "non-existent")
 
         // Then
         switch result {
@@ -970,10 +860,10 @@ final class PaymentServiceTests: XCTestCase {
         }
     }
 
-    func testCancelOrder_CompletedOrder() async {
+    func testCancelOrder_CompletedAppOrder() async {
         // Given
         let orderId = "order-completed"
-        let order = Order(
+        let order = AppOrder(
             id: orderId,
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -990,7 +880,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.mockOrders[orderId] = order
 
         // When
-        let result = await sut.cancelOrder(orderId: orderId)
+        let result = await sut.cancelAppOrder(orderId: orderId)
 
         // Then
         switch result {
@@ -1055,7 +945,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testOrderStatus_Completed() {
         // Given
-        let order = Order(
+        let order = AppOrder(
             id: "order-1",
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -1078,7 +968,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testOrderStatus_Pending() {
         // Given
-        let order = Order(
+        let order = AppOrder(
             id: "order-1",
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -1101,7 +991,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testOrderStatus_Processing() {
         // Given
-        let order = Order(
+        let order = AppOrder(
             id: "order-1",
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -1123,10 +1013,10 @@ final class PaymentServiceTests: XCTestCase {
     }
 
     func testOrderStatus_Failed() {
-        let failedStatuses: [PaymentStatus] = [.failed, .cancelled]
+        let failedStatuses: [AppPaymentStatus] = [.failed, .cancelled]
 
         for status in failedStatuses {
-            let order = Order(
+            let order = AppOrder(
                 id: "order-1",
                 userId: "test-user",
                 productId: StoreProductConfiguration.points100,
@@ -1345,7 +1235,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testGetOrderHistory_Empty() async {
         // When
-        let history = await sut.getOrderHistory(limit: 10, offset: 0)
+        let history = await sut.getAppOrderHistory(limit: 10, offset: 0)
 
         // Then
         XCTAssertTrue(history.isEmpty)
@@ -1353,7 +1243,7 @@ final class PaymentServiceTests: XCTestCase {
 
     func testGetOrderHistory_LimitZero() async {
         // Given
-        let order = Order(
+        let order = AppOrder(
             id: "order-1",
             userId: "test-user",
             productId: StoreProductConfiguration.points100,
@@ -1370,7 +1260,7 @@ final class PaymentServiceTests: XCTestCase {
         sut.mockOrders["order-1"] = order
 
         // When
-        let history = await sut.getOrderHistory(limit: 0, offset: 0)
+        let history = await sut.getAppOrderHistory(limit: 0, offset: 0)
 
         // Then
         XCTAssertTrue(history.isEmpty)

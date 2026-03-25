@@ -89,29 +89,32 @@ final class MockNetworkMonitor: NetworkMonitorProtocol, ObservableObject {
 
     @Published private(set) var isMonitoring: Bool = false
 
+    // MARK: - Internal State
+
+    private var _currentStatus: NetworkStatus = .disconnected
+    private let statusSubject = CurrentValueSubject<NetworkStatus, Never>(NetworkStatus.disconnected)
+
     // MARK: - Protocol Conformance
 
     var currentStatus: NetworkStatus {
-        _currentStatus.wrappedValue
+        _currentStatus
     }
-
-    @Published private(set) var _currentStatus: NetworkStatus = .disconnected
 
     // MARK: - Publishers
 
     var statusPublisher: AnyPublisher<NetworkStatus, Never> {
-        $_currentStatus.eraseToAnyPublisher()
+        statusSubject.eraseToAnyPublisher()
     }
 
     var connectionTypePublisher: AnyPublisher<ConnectionType, Never> {
-        $_currentStatus
+        statusSubject
             .map { $0.connectionType }
             .removeDuplicates()
             .eraseToAnyPublisher()
     }
 
     var isConnectedPublisher: AnyPublisher<Bool, Never> {
-        $_currentStatus
+        statusSubject
             .map { $0.isConnected }
             .removeDuplicates()
             .eraseToAnyPublisher()
@@ -157,6 +160,7 @@ final class MockNetworkMonitor: NetworkMonitorProtocol, ObservableObject {
             quality: quality,
             timestamp: Date()
         )
+        statusSubject.send(_currentStatus)
     }
 
     func simulateWifiConnection() {
@@ -662,7 +666,7 @@ final class NetworkMonitorTests: XCTestCase {
         mockMonitor.simulateCellularConnection()
         mockMonitor.simulateEthernetConnection()
         mockMonitor.simulateWifiConnection()
-        mockMonitor.simulateDisconnected()
+        mockMonitor.simulateDisconnection()
 
         // Then - Should handle rapid changes without crashing
         XCTAssertEqual(mockMonitor.currentStatus.connectionType, .none)

@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 
 /// 位置模型
-struct Location: Codable, Identifiable {
+struct Location: Codable, Identifiable, Equatable {
     let id: String
     let userId: String
     let name: String

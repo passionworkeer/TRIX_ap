@@ -1,0 +1,7 @@
+node_modules/
+artifacts/
+build/
+*.log
+.DS_Store
+*.xcstate
+coverage/

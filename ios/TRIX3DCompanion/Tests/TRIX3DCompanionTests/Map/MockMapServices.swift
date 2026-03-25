@@ -79,7 +79,7 @@ final class MockLocationServiceForMap: LocationServiceProtocol {
         lastFetchRadius = radius
 
         if shouldFailFetchNearby {
-            return .failure(.networkError(underlying: NSError(domain: "Test", code: -1)))
+            return .failure(.networkError(NSError(domain: "Test", code: -1)))
         }
 
         return .success(mockNearbyLocations)
@@ -118,7 +118,13 @@ final class MockLocationServiceForMap: LocationServiceProtocol {
 // MARK: - Mock Map Search Service
 
 @MainActor
-final class MockMapSearchService {
+final class MockMapSearchService: MapSearchServiceProtocol {
+    var isAvailable: Bool { true }
+
+    func initialize(completion: @escaping (Bool) -> Void) {
+        completion(true)
+    }
+
     var shouldFailSearchPOI: Bool = false
     var shouldFailRoutePlan: Bool = false
     var mockPOIResults: [POIResult] = []
@@ -174,6 +180,16 @@ final class MockMapSearchService {
         }
 
         completion(mockRouteResult ?? Self.defaultMockRouteResult)
+    }
+
+    func openNavigation(
+        toLatitude: Double,
+        toLongitude: Double,
+        toName: String,
+        fromLatitude: Double? = nil,
+        fromLongitude: Double? = nil
+    ) {
+        // Mock navigation - no-op
     }
 
     func reset() {
@@ -249,7 +265,7 @@ final class MockCameraServiceForSnapshot: CameraServiceProtocol {
         capturePhotoCallCount += 1
 
         if shouldFailCapture {
-            lastErrorValue = .captureFailed(underlying: NSError(domain: "Test", code: -1))
+            lastErrorValue = .captureFailed(NSError(domain: "Test", code: -1))
             return .failure(lastErrorValue!)
         }
 
@@ -330,8 +346,8 @@ final class MockImageUploadServiceForSnapshot: ImageUploadServiceProtocol {
     var uploadCallCount: Int = 0
     var mockUploadedURL: String = "https://example.com/snapshots/test.jpg"
 
-    var uploadProgressValue: Double = 0.0
-    var isUploadingValue: Bool = false
+    @Published var uploadProgressValue: Double = 0.0
+    @Published var isUploadingValue: Bool = false
 
     var uploadProgress: Double {
         uploadProgressValue
@@ -340,6 +356,9 @@ final class MockImageUploadServiceForSnapshot: ImageUploadServiceProtocol {
     var isUploading: Bool {
         isUploadingValue
     }
+
+    var uploadProgressPublisher: Published<Double>.Publisher { $uploadProgressValue }
+    var isUploadingPublisher: Published<Bool>.Publisher { $isUploadingValue }
 
     func uploadImage(_ image: UIImage, quality: CGFloat?) async -> Result<String, UploadError> {
         uploadCallCount += 1

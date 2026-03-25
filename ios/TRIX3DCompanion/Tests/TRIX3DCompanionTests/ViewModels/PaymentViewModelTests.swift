@@ -92,14 +92,8 @@ final class MockStoreKitServiceForPayment: StoreKitServiceProtocol, ObservableOb
         }
 
         isPurchasing = false
-        return .success(transaction: Transaction(verificationResult: .verified(.init(
-            productID: productId,
-            purchaseDate: Date(),
-            expirationDate: nil,
-            quantity: 1,
-            type: .nonConsumable,
-            appAccountToken: nil
-        ))))
+        // Transaction cannot be constructed in tests; use .pending
+        return .pending
     }
 
     func restorePurchases() async -> Result<[TransactionInfo], TRIX3DCompanion.StoreKitError> {
@@ -319,12 +313,12 @@ final class PaymentViewModelTests: XCTestCase {
             type: type,
             points: points,
             subscriptionPeriod: nil,
-            product: Product(identifier: id, metadata: [:])
+            product: nil
         )
     }
 
-    private func createMockOrder(productId: String = "test.product", status: PaymentStatus = .completed) -> Order {
-        Order(
+    private func createMockOrder(productId: String = "test.product", status: AppPaymentStatus = .completed) -> AppOrder {
+        AppOrder(
             id: UUID().uuidString,
             userId: "test-user",
             productId: productId,
@@ -501,7 +495,7 @@ extension PaymentViewModelTests {
             type: .points,
             points: nil, // Invalid - no points
             subscriptionPeriod: nil,
-            product: Product(identifier: StoreProductConfiguration.points100, metadata: [:])
+            product: nil
         )
         sut.startPayment(for: product)
 
@@ -1079,7 +1073,7 @@ extension PaymentViewModelTests {
 
     func testPaymentFlowState_SuccessEquality() {
         // Given
-        let order1 = Order(
+        let order1 = AppOrder(
             id: "order-1",
             userId: "user",
             productId: "product",
@@ -1093,7 +1087,7 @@ extension PaymentViewModelTests {
             createdAt: Date(),
             updatedAt: Date()
         )
-        let order2 = Order(
+        let order2 = AppOrder(
             id: "order-1", // Same ID
             userId: "user2",
             productId: "product2",
@@ -1318,7 +1312,8 @@ extension PaymentViewModelTests {
 
         // Then
         await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(productChanges.first?.id, product.id)
+        XCTAssertFalse(productChanges.isEmpty)
+        XCTAssertEqual(productChanges[0]?.id, product.id)
     }
 
     func testErrorMessage_PublishesOnError() async {
@@ -1378,18 +1373,21 @@ extension PaymentViewModelTests {
         let product2 = createMockStoreProduct(id: StoreProductConfiguration.points300, type: .points, points: 330)
 
         // When - Try concurrent purchases
-        async let result1: () = {
-            sut.startPayment(for: product1)
-            await sut.confirmPurchase()
-        }()
-
-        async let result2: () = {
-            sut.startPayment(for: product2)
-            await sut.confirmPurchase()
-        }()
-
-        await result1
-        await result2
+        await withTaskGroup(of: Void.self) { [self] group in
+            group.addTask { [self] in
+                await MainActor.run {
+                    self.sut.startPayment(for: product1)
+                }
+                await self.sut.confirmPurchase()
+            }
+            group.addTask { [self] in
+                await MainActor.run {
+                    self.sut.startPayment(for: product2)
+                }
+                await self.sut.confirmPurchase()
+            }
+            await group.waitForAll()
+        }
 
         // Then - Should complete without crashing
         XCTAssertTrue(true)

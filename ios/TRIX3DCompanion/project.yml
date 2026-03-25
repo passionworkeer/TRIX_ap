@@ -72,6 +72,20 @@ targets:
     platform: iOS
     sources:
       - path: Tests/TRIX3DCompanionTests/Smoke
+      - path: Tests/TRIX3DCompanionTests/Services
+      - path: Tests/TRIX3DCompanionTests/Performance
+      - path: Tests/TRIX3DCompanionTests/ViewModels
+      - path: Tests/TRIX3DCompanionTests/Workbench
+      - path: Tests/TRIX3DCompanionTests/Diagnostic
+      - path: Tests/TRIX3DCompanionTests/Voice
+      - path: Tests/TRIX3DCompanionTests/Chat
+      - path: Tests/TRIX3DCompanionTests/Home
+      - path: Tests/TRIX3DCompanionTests/Auth
+      - path: Tests/TRIX3DCompanionTests/Profile
+      - path: Tests/TRIX3DCompanionTests/Map
+      - path: Tests/TRIX3DCompanionTests/Snapshot
+      - path: Tests/TRIX3DCompanionTests/UI
+      - path: Tests/TRIX3DCompanionTests/Integration
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.trix3d.companion.tests

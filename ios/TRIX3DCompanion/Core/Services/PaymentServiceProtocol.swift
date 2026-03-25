@@ -86,7 +86,7 @@ enum PaymentResult {
 }
 
 /// Payment errors
-enum PaymentError: Error, LocalizedError {
+enum PaymentError: Error, LocalizedError, Equatable {
     case invalidProduct
     case paymentFailed(underlying: Error?)
     case verificationFailed
@@ -96,6 +96,24 @@ enum PaymentError: Error, LocalizedError {
     case orderNotFound
     case serverError(message: String)
     case unknown(Error?)
+
+    static func == (lhs: PaymentError, rhs: PaymentError) -> Bool {
+        switch (lhs, rhs) {
+        case (.invalidProduct, .invalidProduct),
+             (.verificationFailed, .verificationFailed),
+             (.insufficientBalance, .insufficientBalance),
+             (.networkError, .networkError),
+             (.userCancelled, .userCancelled),
+             (.orderNotFound, .orderNotFound):
+            return true
+        case (.paymentFailed, .paymentFailed),
+             (.serverError, .serverError),
+             (.unknown, .unknown):
+            return true
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

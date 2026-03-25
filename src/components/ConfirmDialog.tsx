@@ -14,6 +14,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: ConfirmModalVariant;
+  isProcessing?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -25,6 +26,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmText,
   cancelText,
   variant = 'warning',
+  isProcessing,
   onConfirm,
   onCancel,
 }) => {
@@ -36,6 +38,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       confirmText={confirmText}
       cancelText={cancelText}
       variant={variant}
+      isProcessing={isProcessing}
       onConfirm={onConfirm}
       onCancel={onCancel}
     />

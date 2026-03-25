@@ -18,13 +18,13 @@ final class ProfileViewModel: ObservableObject {
     // MARK: - Published Properties
 
     /// User profile data
-    @Published private(set) var user: User?
+    @Published var user: User?
 
     /// User statistics
-    @Published private(set) var userStats: UserStats?
+    @Published var userStats: UserStats?
 
     /// Points balance
-    @Published private(set) var points: PointsResponse?
+    @Published var points: PointsResponse?
 
     /// Whether currently loading
     @Published private(set) var isLoading: Bool = false

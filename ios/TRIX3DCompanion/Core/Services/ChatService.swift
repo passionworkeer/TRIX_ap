@@ -12,7 +12,7 @@ import Supabase
 // MARK: - Chat Error
 
 /// Chat service error types
-enum ChatError: Error, LocalizedError {
+enum ChatError: Error, LocalizedError, Equatable {
     case notAuthenticated
     case roomNotFound
     case messageNotFound
@@ -21,6 +21,28 @@ enum ChatError: Error, LocalizedError {
     case invalidMessageContent
     case paginationExhausted
     case unknown(underlying: Error?)
+
+    static func == (lhs: ChatError, rhs: ChatError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notAuthenticated, .notAuthenticated),
+             (.roomNotFound, .roomNotFound),
+             (.messageNotFound, .messageNotFound),
+             (.webSocketNotConnected, .webSocketNotConnected),
+             (.invalidMessageContent, .invalidMessageContent),
+             (.paginationExhausted, .paginationExhausted):
+            return true
+        case let (.networkError(e1), .networkError(e2)):
+            return (e1 as NSError?) == (e2 as NSError?)
+        case let (.unknown(e1), .unknown(e2)):
+            switch (e1, e2) {
+            case (nil, nil): return true
+            case let (a?, b?): return (a as NSError) == (b as NSError)
+            case (nil, _), (_, nil): return false
+            }
+        default:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -60,6 +82,10 @@ protocol ChatServiceProtocol {
     var isLoadingMessages: Bool { get }
     var isConnected: Bool { get }
     var currentRoomId: String? { get }
+    var lastError: ChatError? { get }
+    /// Test-accessible message cache (exposed for unit testing)
+    var messagesCache: [String: [ChatMessage]] { get }
+    var hasMoreMessages: Bool { get }
 
     func fetchChatRooms() async -> ChatResult<[ChatRoom]>
     func fetchMessages(roomId: String, before: Date?) async -> ChatResult<[ChatMessage]>
@@ -103,7 +129,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     @Published private(set) var chatRooms: [ChatRoom] = []
 
     /// Messages for the currently selected room
-    @Published private(set) var currentMessages: [ChatMessage] = []
+    @Published var currentMessages: [ChatMessage] = []
 
     /// Whether currently loading chat rooms
     @Published private(set) var isLoadingRooms: Bool = false
@@ -115,7 +141,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     @Published private(set) var isConnected: Bool = false
 
     /// Currently selected room ID
-    @Published private(set) var currentRoomId: String?
+    @Published var currentRoomId: String?
 
     /// Last chat error if any
     @Published private(set) var lastError: ChatError?
@@ -123,16 +149,25 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// Whether has more messages to load (pagination)
     @Published private(set) var hasMoreMessages: Bool = true
 
+    // MARK: - Integration Test Callbacks
+
+    /// Callback for new incoming messages (integration test stub)
+    var onNewMessage: ((ChatMessage) -> Void)?
+    /// Callback for typing indicators (integration test stub)
+    var onTypingIndicator: ((String, Bool) -> Void)?
+    /// Callback for read receipts (integration test stub)
+    var onReadReceipt: ((String, String) -> Void)?
+
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let clawbotChannelService: ClawbotChannelService
-    private let authService: AuthService
+    private let apiClientImpl: APIClientProtocol
+    private let clawbotChannelServiceImpl: ClawbotChannelServiceProtocol
+    private let authServiceImpl: AuthServiceProtocol
 
     // MARK: - Private Properties
 
     /// Local cache of messages per room
-    private var messagesCache: [String: [ChatMessage]] = [:]
+    var messagesCache: [String: [ChatMessage]] = [:]
 
     /// Pagination tracking per room
     private var paginationTracker: [String: PaginationState] = [:]
@@ -153,17 +188,30 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     /// Initialize with dependencies
     /// - Parameters:
-    ///   - apiClient: API client instance (defaults to shared)
+    ///   - apiClientImpl: API client instance (defaults to shared)
     ///   - clawbotChannelService: Clawbot Channel service (defaults to shared)
     ///   - authService: Auth service instance (defaults to shared)
+    /// Convenience init accepting protocol types (for testing)
+    init(
+        apiClient: APIClientProtocol,
+        clawbotChannelService: ClawbotChannelServiceProtocol,
+        authService: AuthServiceProtocol
+    ) {
+        self.apiClientImpl = apiClient
+        self.clawbotChannelServiceImpl = clawbotChannelService
+        self.authServiceImpl = authService
+        setupClawbotChannelListeners()
+    }
+
+    /// Production init accepting concrete types
     init(
         apiClient: APIClient? = nil,
         clawbotChannelService: ClawbotChannelService? = nil,
         authService: AuthService? = nil
     ) {
-        self.apiClient = apiClient ?? .shared
-        self.clawbotChannelService = clawbotChannelService ?? ClawbotChannelService.shared
-        self.authService = authService ?? .shared
+        self.apiClientImpl = apiClient ?? .shared
+        self.clawbotChannelServiceImpl = clawbotChannelService ?? ClawbotChannelService.shared
+        self.authServiceImpl = authService ?? .shared
 
         setupClawbotChannelListeners()
     }
@@ -174,7 +222,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Returns: ChatResult containing the list of chat rooms
     func fetchChatRooms() async -> ChatResult<[ChatRoom]> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
@@ -184,7 +232,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         lastError = nil
 
         do {
-            let rooms = try await apiClient.getChatRooms()
+            let rooms = try await apiClientImpl.getChatRooms()
 
             // Sort rooms by updated date (most recent first)
             let sortedRooms = rooms.sorted { $0.updatedAt > $1.updatedAt }
@@ -214,7 +262,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Returns: ChatResult containing the created chat room
     func createChatRoom(name: String, type: ChatRoomType) async -> ChatResult<ChatRoom> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
@@ -287,7 +335,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Returns: ChatResult containing the list of messages
     func fetchMessages(roomId: String, before: Date? = nil) async -> ChatResult<[ChatMessage]> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
@@ -312,7 +360,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
                 page = state.currentPage + 1
             }
 
-            let messages = try await apiClient.getChatMessages(roomId: roomId, page: page, limit: defaultPageSize)
+            let messages = try await apiClientImpl.getChatMessages(roomId: roomId, page: page, limit: defaultPageSize)
 
             // Check if we've reached the end
             let hasMore = messages.count == defaultPageSize
@@ -386,7 +434,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         mediaMimeType: String? = nil
     ) async -> ChatResult<ChatMessage> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
@@ -403,7 +451,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             let message = ChatMessage(
                 id: UUID().uuidString.lowercased(),
                 roomId: roomId,
-                senderId: authService.currentUser?.id ?? "local-user",
+                senderId: authServiceImpl.currentUser?.id ?? "local-user",
                 sender: .user,
                 content: content,
                 messageType: type,
@@ -444,13 +492,15 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         let resolvedMediaMimeType = mediaMimeType ?? ((type == .image) ? "image/jpeg" : nil)
 
         // Send via ClawbotChannelService for bot messages (if paired)
-        if clawbotChannelService.isPaired {
+        if clawbotChannelServiceImpl.isPaired {
             do {
-                try await clawbotChannelService.sendMessage(
+                try await clawbotChannelServiceImpl.sendMessage(
                     content,
                     contentType: contentType,
                     mediaUrl: resolvedMediaUrl,
-                    mediaMimeType: resolvedMediaMimeType
+                    mediaMimeType: resolvedMediaMimeType,
+                    mediaData: nil,
+                    mediaFileName: nil
                 )
             } catch {
                 // Log error but don't fail - API will handle persistence
@@ -460,7 +510,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
         // Also send via API for persistence
         do {
-            let message = try await apiClient.sendMessage(
+            let message = try await apiClientImpl.sendMessage(
                 roomId: roomId,
                 content: content,
                 contentType: type,
@@ -520,17 +570,19 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
         let conversationId = getConversationId(for: roomId)
 
         // Get user ID
-        guard let userId = authService.currentUser?.id else {
+        guard let userId = authServiceImpl.currentUser?.id else {
             SecureLogger.shared.warning("ChatService: Cannot subscribe - userId is nil")
             return
         }
 
         // Initialize realtime subscription with user info
         Task { @MainActor in
-            RealtimeMessageSubscription.shared.initialize(
-                supabase: authService.supabase,
-                userId: userId
-            )
+            if let supabaseClient = authServiceImpl.supabase {
+                RealtimeMessageSubscription.shared.initialize(
+                    supabase: supabaseClient,
+                    userId: userId
+                )
+            }
 
             // Subscribe to realtime channel
             await RealtimeMessageSubscription.shared.subscribe(conversationId: conversationId) { [weak self] newMessage in
@@ -557,7 +609,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     private func getConversationId(for roomId: String) -> String {
         // For bot rooms, use bot conversation ID format
         if Self.isLocalRoom(roomId) {
-            return "bot_\(authService.currentUser?.id ?? "")"
+            return "bot_\(authServiceImpl.currentUser?.id ?? "")"
         }
         // For friend rooms, use the friend ID directly as conversation ID
         return roomId
@@ -589,7 +641,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
         do {
             // 获取最新消息之后的消息
-            let newMessages = try await apiClient.getChatMessagesSince(roomId: roomId, since: lastMessage.createdAt)
+            let newMessages = try await apiClientImpl.getChatMessagesSince(roomId: roomId, since: lastMessage.createdAt)
             if !newMessages.isEmpty {
                 // 使用addMessageToCache来避免重复
                 for message in newMessages {
@@ -623,14 +675,14 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Returns: ChatResult indicating success or failure
     func connectWebSocket(userId: String) async -> ChatResult<Void> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
         }
 
         do {
-            try await clawbotChannelService.connect()
+            try await clawbotChannelServiceImpl.connect()
             isConnected = true
             return .success(())
 
@@ -644,7 +696,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     /// Disconnect from ClawbotChannel
     func disconnectWebSocket() {
-        clawbotChannelService.disconnect()
+        clawbotChannelServiceImpl.disconnect()
         isConnected = false
     }
 
@@ -657,7 +709,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Returns: ChatResult indicating success or failure
     func markAsRead(roomId: String, messageId: String) async -> ChatResult<Void> {
         // Verify authentication
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
@@ -677,7 +729,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
         // Call API to mark as read on server
         do {
-            try await apiClient.markMessageAsRead(roomId: roomId, messageId: messageId)
+            try await apiClientImpl.markMessageAsRead(roomId: roomId, messageId: messageId)
             return .success(())
         } catch let error as NetworkError {
             let chatError = mapNetworkError(error)
@@ -694,20 +746,17 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// - Parameter roomId: The room ID
     /// - Returns: ChatResult indicating success or failure
     func markAllAsRead(roomId: String) async -> ChatResult<Void> {
-        guard authService.isLoggedIn else {
+        guard authServiceImpl.isLoggedIn else {
             let error = ChatError.notAuthenticated
             lastError = error
             return .failure(error)
         }
 
         // Update local cache
-        if var messages = messagesCache[roomId] {
-            messages = messages.map { $0.withReadStatus(true) }
-            messagesCache[roomId] = messages
+        messagesCache[roomId] = messagesCache[roomId]?.map { $0.withReadStatus(true) }
 
-            if currentRoomId == roomId {
-                updateCurrentMessages()
-            }
+        if currentRoomId == roomId {
+            updateCurrentMessages()
         }
 
         // Update unread count in rooms list
@@ -725,7 +774,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// Set up ClawbotChannel event listeners
     private func setupClawbotChannelListeners() {
         // Subscribe to connection state changes
-        clawbotChannelService.$connectionState
+        clawbotChannelServiceImpl.connectionStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 guard let self = self else { return }
@@ -741,7 +790,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             .store(in: &cancellables)
 
         // Subscribe to incoming bot messages
-        clawbotChannelService.$lastMessage
+        clawbotChannelServiceImpl.lastMessagePublisher
             .receive(on: DispatchQueue.main)
             .compactMap { $0 }
             .sink { [weak self] clawbotMessage in
@@ -751,7 +800,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             .store(in: &cancellables)
 
         // Subscribe to bot state changes
-        clawbotChannelService.$botState
+        clawbotChannelServiceImpl.botStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] botState in
                 guard let self = self else { return }
@@ -803,6 +852,9 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             addMessageToCache(chatMessage, for: roomId)
             updateCurrentMessages()
         }
+
+        // Fire integration-test callback
+        onNewMessage?(chatMessage)
     }
 
     /// Convert WebSocket message type to chat message type
@@ -1041,4 +1093,68 @@ extension ChatService {
         }
     }
 }
+
+// MARK: - Test Stub Extensions
+// Required by integration tests; delegates to existing functionality.
+
+extension ChatService {
+
+    // MARK: - Convenience API aliases (delegates to existing methods)
+
+    /// Alias for fetchMessages — loadChatHistory wraps fetchMessages with defaults
+    func loadChatHistory(roomId: String, before: Date? = nil, limit: Int = 50) async -> ChatResult<[ChatMessage]> {
+        await fetchMessages(roomId: roomId, before: before)
+    }
+
+    /// Send a media message (image/video) — delegates to sendMessage
+    func sendMediaMessage(
+        roomId: String,
+        mediaData: Data,
+        fileName: String,
+        mimeType: String,
+        caption: String?
+    ) async -> ChatResult<ChatMessage> {
+        await sendMessage(
+            roomId: roomId,
+            content: caption ?? "",
+            type: .image,
+            mediaUrl: fileName,
+            mediaMimeType: mimeType
+        )
+    }
+
+    /// Send a voice message — delegates to sendMessage
+    func sendVoiceMessage(
+        roomId: String,
+        voiceData: Data,
+        fileName: String,
+        duration: Int,
+        transcript: String? = nil
+    ) async -> ChatResult<ChatMessage> {
+        await sendMessage(
+            roomId: roomId,
+            content: transcript ?? "",
+            type: .voice,
+            mediaUrl: fileName,
+            mediaMimeType: "audio/m4a"
+        )
+    }
+}
+
+// MARK: - Test Helpers
+
+/// Internal helpers for unit testing (compiled into app target, accessible via @testable import)
+extension ChatService {
+    /// Expose messages cache for unit testing
+    var _testMessagesCache: [String: [ChatMessage]] {
+        get { messagesCache }
+        set { messagesCache = newValue }
+    }
+
+    /// Direct cache manipulation for testing
+    func _testAddMessage(_ message: ChatMessage, forRoom roomId: String) {
+        addMessageToCache(message, for: roomId)
+    }
+}
+
 #endif

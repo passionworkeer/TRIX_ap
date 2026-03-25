@@ -11,7 +11,7 @@ import AuthenticationServices
 // MARK: - Apple Sign In Error
 
 /// Errors that can occur during Apple Sign In
-enum AppleSignInError: Error, LocalizedError {
+enum AppleSignInError: Error, LocalizedError, Equatable {
     case notAvailable
     case cancelled
     case failed(Error)
@@ -21,6 +21,21 @@ enum AppleSignInError: Error, LocalizedError {
     case noAuthorizationCode
     case credentialRevoked
     case unknown(Error?)
+
+    static func == (lhs: AppleSignInError, rhs: AppleSignInError) -> Bool {
+        switch (lhs, rhs) {
+        case (.notAvailable, .notAvailable): return true
+        case (.cancelled, .cancelled): return true
+        case (.failed, .failed): return true
+        case (.invalidCredential, .invalidCredential): return true
+        case (.authorizationFailed, .authorizationFailed): return true
+        case (.noIdentityToken, .noIdentityToken): return true
+        case (.noAuthorizationCode, .noAuthorizationCode): return true
+        case (.credentialRevoked, .credentialRevoked): return true
+        case (.unknown, .unknown): return true
+        default: return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

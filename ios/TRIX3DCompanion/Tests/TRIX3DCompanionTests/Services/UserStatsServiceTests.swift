@@ -30,19 +30,20 @@ final class MockAPIClientForUserStats: ObservableObject, APIClientProtocol {
             throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
-        if endpoint == .userStats {
+        switch endpoint {
+        case .userStats:
             guard let stats = mockUserStats as? T else {
                 throw NetworkError.custom(message: "Invalid mock data for user stats")
             }
             return stats
-        } else if endpoint == .studyStats || endpoint == .weeklyStudyData {
+        case .studyStats, .weeklyStudyData:
             guard let stats = mockStudyStats as? T else {
                 throw NetworkError.custom(message: "Invalid mock data for study stats")
             }
             return stats
+        default:
+            throw NetworkError.custom(message: "Unknown endpoint")
         }
-
-        throw NetworkError.custom(message: "Unknown endpoint")
     }
 
     func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]?) async throws -> T {
@@ -53,19 +54,20 @@ final class MockAPIClientForUserStats: ObservableObject, APIClientProtocol {
             throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
-        if endpoint == .userStats {
+        switch endpoint {
+        case .userStats:
             guard let stats = mockUserStats as? T else {
                 throw NetworkError.custom(message: "Invalid mock data for user stats")
             }
             return stats
-        } else if endpoint == .studyStats || endpoint == .weeklyStudyData {
+        case .studyStats, .weeklyStudyData:
             guard let stats = mockStudyStats as? T else {
                 throw NetworkError.custom(message: "Invalid mock data for study stats")
             }
             return stats
+        default:
+            throw NetworkError.custom(message: "Unknown endpoint")
         }
-
-        throw NetworkError.custom(message: "Unknown endpoint")
     }
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
@@ -152,6 +154,21 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
         }
         return .failure(.invalidCredentials)
     }
+
+    func clearError() {}
+
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func updateCurrentUser(_ user: User?) {}
+
+    func updateLoginStatus(_ loggedIn: Bool) {}
+
 }
 
 // MARK: - UserStatsService Tests

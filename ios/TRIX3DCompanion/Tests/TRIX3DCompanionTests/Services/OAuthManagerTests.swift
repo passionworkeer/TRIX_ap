@@ -98,6 +98,7 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
     var shouldFailLogin = false
     var shouldFailLogout = false
     var shouldFailRegister = false
+    var shouldFailRefresh = false
 
     func login(email: String, password: String) async -> AuthResult<User> {
         if shouldFailLogin {
@@ -127,6 +128,9 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
     }
 
     func refreshTokenIfNeeded() async -> AuthResult<Void> {
+        if shouldFailRefresh {
+            return .failure(.tokenExpired)
+        }
         return .success(())
     }
 
@@ -137,15 +141,48 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         return .failure(.invalidCredentials)
     }
 
+    func updateProfile(_ updates: User) async -> AuthResult<User> {
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        return .success(())
+    }
+
+    func updateCurrentUser(_ user: User?) {
+        currentUser = user
+    }
+
+    func updateLoginStatus(_ loggedIn: Bool) {
+        isLoggedIn = loggedIn
+    }
+
+    func clearError() {
+        // No-op for mock
+    }
+
     private func createMockUser() -> User {
         User(
             id: "mock_user_id",
-            email: "mock@example.com",
             username: "mock_user",
+            email: "mock@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Mock User",
-            avatarURL: nil,
             bio: nil,
+            website: nil,
             points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -165,7 +202,7 @@ final class MockAPIClientForOAuth: APIClientProtocol {
         if let user = mockUser as? T {
             return user
         }
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message: "No mock data")
     }
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
@@ -176,12 +213,19 @@ final class MockAPIClientForOAuth: APIClientProtocol {
         // Return mock auth response
         if T.self == AuthResponse.self {
             let response = AuthResponse(
-                session: Session(
+                accessToken: "mock_token",
+                tokenType: "bearer",
+                expiresIn: 3600,
+                expiresAt: nil,
+                refreshToken: "mock_refresh",
+                user: mockUser ?? createMockUser(),
+                session: UserSession(
+                    id: UUID().uuidString,
+                    userId: "mock_user_id",
                     accessToken: "mock_token",
                     refreshToken: "mock_refresh",
                     expiresAt: Date().addingTimeInterval(3600)
-                ),
-                user: mockUser ?? createMockUser()
+                )
             )
             return response as! T
         }
@@ -190,14 +234,14 @@ final class MockAPIClientForOAuth: APIClientProtocol {
             return EmptyResponse() as! T
         }
 
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message: "No mock data")
     }
 
     func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
@@ -207,26 +251,39 @@ final class MockAPIClientForOAuth: APIClientProtocol {
         if T.self == EmptyResponse.self {
             return EmptyResponse() as! T
         }
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message: "No mock data")
     }
 
     func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func download(from url: String) async throws -> Data {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     private func createMockUser() -> User {
         User(
             id: "mock_user_id",
-            email: "mock@example.com",
             username: "mock_user",
+            email: "mock@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Mock User",
-            avatarURL: nil,
             bio: nil,
+            website: nil,
             points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 1,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -276,7 +333,7 @@ extension OAuthManagerTests {
         let instance2 = OAuthManager.shared
 
         // Then
-        XCTAssertStrictlyEqual(instance1, instance2, "OAuthManager should be a singleton")
+        XCTAssertTrue(instance1 === instance2, "OAuthManager should be a singleton")
     }
 
     func testInitialLinkedAccountsIsEmpty() {
@@ -907,12 +964,25 @@ extension OAuthManagerTests {
     private func createMockUser() -> User {
         User(
             id: "mock_user_id_123",
-            email: "mock@example.com",
             username: "mock_user",
+            email: "mock@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Mock User",
-            avatarURL: nil,
             bio: nil,
+            website: nil,
             points: 100,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -1107,7 +1177,7 @@ extension OAuthManagerTests {
             providerUserID: "provider_user_id",
             email: "test@example.com",
             displayName: "Test User",
-            avatarURL: URL(string: "https://example.com/avatar.png"),
+            avatarURL: "https://example.com/avatar.png",
             isPrimary: true,
             linkedAt: Date(),
             lastUsedAt: Date()

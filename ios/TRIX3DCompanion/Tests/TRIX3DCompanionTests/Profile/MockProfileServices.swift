@@ -137,8 +137,8 @@ final class MockImageUploadServiceForProfile: ImageUploadServiceProtocol {
     var lastUploadedData: Data?
     var mockUploadedURL: String = "https://example.com/uploaded.jpg"
 
-    var uploadProgressValue: Double = 0.0
-    var isUploadingValue: Bool = false
+    @Published var uploadProgressValue: Double = 0.0
+    @Published var isUploadingValue: Bool = false
 
     var uploadProgress: Double {
         uploadProgressValue
@@ -147,6 +147,9 @@ final class MockImageUploadServiceForProfile: ImageUploadServiceProtocol {
     var isUploading: Bool {
         isUploadingValue
     }
+
+    var uploadProgressPublisher: Published<Double>.Publisher { $uploadProgressValue }
+    var isUploadingPublisher: Published<Bool>.Publisher { $isUploadingValue }
 
     func uploadImage(_ image: UIImage, quality: CGFloat?) async -> Result<String, UploadError> {
         uploadCallCount += 1
@@ -180,7 +183,8 @@ final class MockOfflineCacheServiceForProfile: OfflineCacheServiceProtocol {
     var totalCacheSizeValue: Int64 = 0
 
     var totalCacheSize: Int64 {
-        totalCacheSizeValue
+        get { totalCacheSizeValue }
+        set { totalCacheSizeValue = newValue }
     }
 
     func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws {}
@@ -241,10 +245,13 @@ final class MockDataExportService: DataExportServiceProtocol {
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("export.\(format.fileExtension)")
         return ExportResult(
-            fileURL: tempURL,
+            type: .allData,
             format: format,
-            exportedAt: Date(),
-            itemCount: 10
+            fileURL: tempURL,
+            itemCount: 10,
+            fileSizeBytes: 0,
+            timestamp: Date(),
+            duration: 0
         )
     }
 
@@ -258,10 +265,13 @@ final class MockDataExportService: DataExportServiceProtocol {
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("export.\(format.fileExtension)")
         return ExportResult(
-            fileURL: tempURL,
+            type: .allData,
             format: format,
-            exportedAt: Date(),
-            itemCount: 10
+            fileURL: tempURL,
+            itemCount: 10,
+            fileSizeBytes: 0,
+            timestamp: Date(),
+            duration: 0
         )
     }
 
@@ -300,7 +310,7 @@ extension MockAPIClientForProfileTests {
         id: String = "test_user_id",
         username: String = "test_user",
         email: String = "test@example.com",
-        displayName: String = "Test User",
+        displayName: String? = "Test User",
         points: Int = 100,
         isStudying: Bool = false
     ) -> User {

@@ -87,12 +87,19 @@ enum PlaybackState: Equatable {
 struct PlaybackProgress: Equatable {
     let currentTime: TimeInterval
     let duration: TimeInterval
-    let progress: Double  // 0.0 - 1.0
+    var progress: Double  // 0.0 - 1.0
 
     init(currentTime: TimeInterval, duration: TimeInterval) {
         self.currentTime = currentTime
         self.duration = duration
         self.progress = duration > 0 ? currentTime / duration : 0.0
+    }
+
+    /// Convenience initializer allowing explicit progress value (used by mocks/tests)
+    init(currentTime: TimeInterval, duration: TimeInterval, progress: Double) {
+        self.currentTime = currentTime
+        self.duration = duration
+        self.progress = progress
     }
 }
 

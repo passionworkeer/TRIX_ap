@@ -38,6 +38,8 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
         return isLoadingValue
     }
 
+    // supabase is provided by AuthServiceProtocol extension
+
     func login(email: String, password: String) async -> AuthResult<User> {
         return .failure(.invalidCredentials)
     }
@@ -72,7 +74,19 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
     func deleteAccount() async -> AuthResult<Void> {
         return .success(())
     }
+
+    func updateCurrentUser(_ user: User?) {
+        mockUser = user
+    }
+
+    func updateLoginStatus(_ loggedIn: Bool) {
+        isLoggedInValue = loggedIn
+    }
+
+    func clearError() {}
 }
+
+// MARK: - Mock API Client for Profile
 
 @MainActor
 final class MockAPIClientForProfile: APIClientProtocol {
@@ -94,36 +108,36 @@ final class MockAPIClientForProfile: APIClientProtocol {
             return stats as! T
         }
 
-        throw NetworkError.custom("No mock data")
+        throw NetworkError.custom(message: "No mock data")
     }
 
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func put<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func delete<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func upload<T>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T where T: Decodable {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 
     func download(from url: String) async throws -> Data {
-        throw NetworkError.custom("Not implemented")
+        throw NetworkError.custom(message: "Not implemented")
     }
 }
 
@@ -154,6 +168,8 @@ final class ProfileViewModelTests: XCTestCase {
         cancellables = nil
         try await super.tearDown()
     }
+
+    func clearError() {}
 }
 
 // MARK: - Load Profile Tests
@@ -287,19 +303,32 @@ extension ProfileViewModelTests {
         var mockUser = createMockUser()
         mockUser = User(
             id: mockUser.id,
-            email: mockUser.email,
             username: mockUser.username,
+            email: mockUser.email,
+            avatarUrl: mockUser.avatarUrl,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: mockUser.displayName,
-            avatarURL: mockUser.avatarURL,
             bio: "Old bio",
+            website: nil,
             points: mockUser.points,
+            isStudying: nil,
+            companionId: nil,
+            totalStudyTime: nil,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: mockUser.createdAt,
             updatedAt: mockUser.updatedAt
         )
         mockAuthService.mockUser = mockUser
 
         // When
-        await sut.updateBio(nil)
+        await sut.updateBio("")
 
         // Then - nil bio should be handled
         XCTAssertNil(sut.bio, "Bio should be nil")
@@ -421,7 +450,7 @@ extension ProfileViewModelTests {
         sut.user = mockUser
 
         // Then
-        XCTAssertEqual(sut.avatarURL, mockUser.avatarURL, "Avatar URL should match user's avatar")
+        XCTAssertEqual(sut.avatarURL, mockUser.avatarUrl.flatMap { URL(string: $0) }, "Avatar URL should match user's avatar")
     }
 
     func testEmailReturnsCorrectValue() {
@@ -438,12 +467,25 @@ extension ProfileViewModelTests {
         var mockUser = createMockUser()
         mockUser = User(
             id: mockUser.id,
-            email: mockUser.email,
             username: mockUser.username,
+            email: mockUser.email,
+            avatarUrl: mockUser.avatarUrl,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: mockUser.displayName,
-            avatarURL: mockUser.avatarURL,
-            bio: mockUser.bio,
+            bio: nil,
+            website: nil,
             points: 500,
+            isStudying: nil,
+            companionId: nil,
+            totalStudyTime: nil,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: mockUser.createdAt,
             updatedAt: mockUser.updatedAt
         )
@@ -458,12 +500,25 @@ extension ProfileViewModelTests {
         var mockUser = createMockUser()
         mockUser = User(
             id: mockUser.id,
-            email: mockUser.email,
             username: mockUser.username,
+            email: mockUser.email,
+            avatarUrl: mockUser.avatarUrl,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: mockUser.displayName,
-            avatarURL: mockUser.avatarURL,
-            bio: mockUser.bio,
+            bio: nil,
+            website: nil,
             points: 2500,
+            isStudying: nil,
+            companionId: nil,
+            totalStudyTime: nil,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: mockUser.createdAt,
             updatedAt: mockUser.updatedAt
         )
@@ -531,12 +586,25 @@ extension ProfileViewModelTests {
     private func createMockUser() -> User {
         User(
             id: "test_user_id",
-            email: "test@example.com",
             username: "test_user",
+            email: "test@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
             displayName: "Test User",
-            avatarURL: nil,
             bio: "Test bio",
+            website: nil,
             points: 100,
+            isStudying: nil,
+            companionId: nil,
+            totalStudyTime: nil,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )

@@ -17,6 +17,8 @@ interface UseStudySessionReturn {
   focusStartTime: number | null;
   /** 初始时长（分钟） */
   initialDuration: number;
+  /** 当前会话 ID */
+  currentSessionId: string | null;
   /** 开始专注 */
   startStudy: (duration: number) => Promise<void>;
   /** 停止专注 */
@@ -38,11 +40,13 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
   const [isStudying, setIsStudying] = useState(false);
   const [focusStartTime, setFocusStartTime] = useState<number | null>(null);
   const [initialDuration, setInitialDuration] = useState(25);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Refs 防止闭包问题
   const isStudyingRef = useRef(false);
   const userIdRef = useRef(userId);
   const onSessionCompleteRef = useRef(onSessionComplete);
+  const currentSessionIdRef = useRef<string | null>(null);
 
   // 更新 refs
   useEffect(() => {
@@ -56,6 +60,10 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
   useEffect(() => {
     onSessionCompleteRef.current = onSessionComplete;
   }, [onSessionComplete]);
+
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
 
   /**
    * 浏览器关闭时清理状态
@@ -109,18 +117,42 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
 
     try {
       logger.study.debug('🚀 [useStudySession] 开始自习，更新数据库状态...');
-      const { error } = await supabase
+      
+      // 更新 profiles 表的 is_studying 状态
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ is_studying: true })
         .eq('id', userId);
 
-      if (error) {
-        logger.study.error('❌ [useStudySession] 更新 is_studying 失败:', error);
-      } else {
-        logger.study.debug('✅ [useStudySession] 已更新 is_studying = true');
-        setIsStudying(true);
-        isStudyingRef.current = true;
+      if (profileError) {
+        logger.study.error('❌ [useStudySession] 更新 is_studying 失败:', profileError);
+        return;
       }
+
+      // 创建 study_sessions 记录
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('study_sessions')
+        .insert({
+          user_id: userId,
+          start_time: new Date(startTime).toISOString(),
+          duration: 0, // 初始时长为 0，结束后更新
+          subject: '自习'
+        })
+        .select('id')
+        .single();
+
+      if (sessionError) {
+        logger.study.error('❌ [useStudySession] 创建 study_sessions 记录失败:', sessionError);
+        // 即使创建记录失败，也继续专注流程
+      } else {
+        logger.study.debug('✅ [useStudySession] 已创建 study_sessions 记录, id =', sessionData.id);
+        setCurrentSessionId(sessionData.id);
+        currentSessionIdRef.current = sessionData.id;
+      }
+
+      logger.study.debug('✅ [useStudySession] 已更新 is_studying = true');
+      setIsStudying(true);
+      isStudyingRef.current = true;
     } catch (err) {
       logger.study.error('❌ [useStudySession] 数据库更新异常:', err);
     }
@@ -138,9 +170,10 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
 
     // 计算专注时长
     let studiedMinutes = 0;
+    const endTime = Date.now();
 
     if (focusStartTime && initialDuration) {
-      const elapsedMs = Date.now() - focusStartTime;
+      const elapsedMs = endTime - focusStartTime;
       const elapsedMinutes = Math.floor(elapsedMs / 60000);
       studiedMinutes = Math.min(elapsedMinutes, initialDuration);
       logger.study.debug(`📊 [useStudySession] 本次专注时长: ${studiedMinutes} 分钟`);
@@ -148,6 +181,24 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
 
     try {
       logger.study.debug('🛑 [useStudySession] 停止自习，更新数据库状态...');
+
+      // 更新 study_sessions 记录
+      const sessionId = currentSessionIdRef.current;
+      if (sessionId && studiedMinutes > 0) {
+        const { error: sessionError } = await supabase
+          .from('study_sessions')
+          .update({
+            end_time: new Date(endTime).toISOString(),
+            duration: studiedMinutes
+          })
+          .eq('id', sessionId);
+
+        if (sessionError) {
+          logger.study.error('❌ [useStudySession] 更新 study_sessions 记录失败:', sessionError);
+        } else {
+          logger.study.debug('✅ [useStudySession] 已更新 study_sessions 记录, duration =', studiedMinutes);
+        }
+      }
 
       // 获取当前用户的 companion_id 和 total_study_time
       const { data: myProfile } = await supabase
@@ -205,6 +256,10 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
         }
       }
 
+      // 清除当前会话 ID
+      setCurrentSessionId(null);
+      currentSessionIdRef.current = null;
+
       // 触发完成回调
       if (onSessionCompleteRef.current) {
         onSessionCompleteRef.current(studiedMinutes);
@@ -221,6 +276,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
     isStudying,
     focusStartTime,
     initialDuration,
+    currentSessionId,
     startStudy,
     stopStudy,
     setFocusStartTime,
