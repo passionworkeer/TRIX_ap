@@ -1,61 +1,61 @@
-# TRIX3D 后端 API 文档
+# TRIX3D åç«¯ API ææ¡£
 
-> 版本: 1.4.0
-> **最后更�?*: 2026-03-24（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`�?
+> çæ¬: 1.4.0
+> **æåæ´æ?*: 2026-03-24ï¼åå®¹å·²å®¡éï¼ç²¾ç® TRIX Native Server APIï¼å®æ´ææ¡£è§ `../TRIX_NATIVE_CHANNEL.md`ï¼?
 
 ---
 
-## 目录
+## ç®å½
 
-1. [概述](#概述)
-2. [基础配置](#基础配置)
-3. [认证](#认证)
-4. [API 端点列表](#api-端点列表)
+1. [æ¦è¿°](#æ¦è¿°)
+2. [åºç¡éç½®](#åºç¡éç½®)
+3. [è®¤è¯](#è®¤è¯)
+4. [API ç«¯ç¹åè¡¨](#api-ç«¯ç¹åè¡¨)
 5. [TRIX Native Server API](#trix-native-server-api)
-6. [响应格式](#响应格式)
-7. [错误码](#错误�?
-8. [数据库表结构](#数据库表结构)
+6. [ååºæ ¼å¼](#ååºæ ¼å¼)
+7. [éè¯¯ç ](#éè¯¯ç ?
+8. [æ°æ®åºè¡¨ç»æ](#æ°æ®åºè¡¨ç»æ)
 
 ---
 
-## 概述
+## æ¦è¿°
 
-�?API �?TRIX3D 应用提供后端服务，支持用户管理、社交、学习、商城等功能�?
+æ?API ä¸?TRIX3D åºç¨æä¾åç«¯æå¡ï¼æ¯æç¨æ·ç®¡çãç¤¾äº¤ãå­¦ä¹ ãååç­åè½ã?
 
-> ⚠️ **版本说明 (v1.3.1)**：本文档�?4-21 节（用户、好友、日程、待办、成就、商城等）描述的�?**Supabase v2 目标架构**（三端合一计划），**~85% 的端点尚未在生产代码中实�?*（服务器 `TrixNativeServer.ts` 中不存在这些路由）�?
+> â ï¸ **çæ¬è¯´æ (v1.3.1)**ï¼æ¬ææ¡£ç¬?4-21 èï¼ç¨æ·ãå¥½åãæ¥ç¨ãå¾åãæå°±ãååç­ï¼æè¿°çæ?**Supabase v2 ç®æ æ¶æ**ï¼ä¸ç«¯åä¸è®¡åï¼ï¼**~85% çç«¯ç¹å°æªå¨çäº§ä»£ç ä¸­å®ç?*ï¼æå¡å¨ `TrixNativeServer.ts` ä¸­ä¸å­å¨è¿äºè·¯ç±ï¼ã?
 >
-> **当前生产环境唯一权威文档**：[`../TRIX_NATIVE_CHANNEL.md`](../TRIX_NATIVE_CHANNEL.md) �?TRIX Native Server（端�?8788），包含配对、消息、Study Room、TTS、WebSocket �?*已实�?*的全部端点�?
+> **å½åçäº§ç¯å¢å¯ä¸æå¨ææ¡£**ï¼[`../TRIX_NATIVE_CHANNEL.md`](../TRIX_NATIVE_CHANNEL.md) â?TRIX Native Serverï¼ç«¯å?8788ï¼ï¼åå«éå¯¹ãæ¶æ¯ãStudy RoomãTTSãWebSocket ç­?*å·²å®ç?*çå¨é¨ç«¯ç¹ã?
 >
-> **⚠️ �?4-21 节为规划文档，非生产 API 规范�?*
+> **â ï¸ ç¬?4-21 èä¸ºè§åææ¡£ï¼éçäº§ API è§èã?*
 
-### 服务端口
+### æå¡ç«¯å£
 
-| 服务 | 端口 | 描述 |
+| æå¡ | ç«¯å£ | æè¿° |
 |------|------|------|
-| Clawbot Channel | ~~8765~~ (已废�? | AI 对话服务 |
-| TRIX Native Server | 8788 | iOS-Web 消息同步 (当前唯一) |
+| Clawbot Channel | ~~8765~~ (å·²åºå¼? | AI å¯¹è¯æå¡ |
+| TRIX Native Server | 8788 | iOS-Web æ¶æ¯åæ­¥ (å½åå¯ä¸) |
 
 ### 技术栈
 
-- **运行�?*: Node.js
-- **框架**: Express.js
-- **数据�?*: PostgreSQL (Supabase) + SQLite (本地)
+- **运行时**: Node.js
+- **框架**: Node.js 原生 http.createServer（无 Express）
+- **数据库**: PostgreSQL (Supabase) + SQLite (本地)
 - **实时通信**: WebSocket
 
 ---
 
-## 基础配置
+## åºç¡éç½®
 
-### 基础 URL
+### åºç¡ URL
 
-| 环境 | 服务 | URL |
+| ç¯å¢ | æå¡ | URL |
 |------|------|-----|
-| ~~开发环境~~ | ~~Clawbot Channel~~ | ~~已废弃~~ |
-| ~~生产环境~~ | ~~Clawbot Channel~~ | ~~已废弃~~ |
-| 开发环�?| TRIX Native | `http://TRIX_SERVER_HOST:8788/api` |
-| 生产环境 | TRIX Native | `https://trix-native.trix3d.com/api` |
+| ~~å¼åç¯å¢~~ | ~~Clawbot Channel~~ | ~~å·²åºå¼~~ |
+| ~~çäº§ç¯å¢~~ | ~~Clawbot Channel~~ | ~~å·²åºå¼~~ |
+| å¼åç¯å¢?| TRIX Native | `http://TRIX_SERVER_HOST:8788/api` |
+| çäº§ç¯å¢ | TRIX Native | `https://trix-native.trix3d.com/api` |
 
-### 请求�?
+### è¯·æ±å¤?
 
 ```http
 Content-Type: application/json
@@ -64,21 +64,21 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 认证
+## è®¤è¯
 
-### 认证方式
+### è®¤è¯æ¹å¼
 
-所有需要认证的 API 端点都必须在请求头中携带 JWT Token�?
+ææéè¦è®¤è¯ç API ç«¯ç¹é½å¿é¡»å¨è¯·æ±å¤´ä¸­æºå¸¦ JWT Tokenï¼?
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
-Token 通过 Supabase Auth 获取�?
+Token éè¿ Supabase Auth è·åã?
 
-### 可选认�?
+### å¯éè®¤è¯?
 
-部分端点支持可选认证（�?Token 返回用户专属数据，不带返回公开数据）：
+é¨åç«¯ç¹æ¯æå¯éè®¤è¯ï¼å¸?Token è¿åç¨æ·ä¸å±æ°æ®ï¼ä¸å¸¦è¿åå¬å¼æ°æ®ï¼ï¼
 
 - `GET /mall/items`
 - `GET /places/nearby`
@@ -86,22 +86,22 @@ Token 通过 Supabase Auth 获取�?
 
 ---
 
-## API 端点列表
+## API ç«¯ç¹åè¡¨
 
-> ⚠️ **以下�?1-21 节均为规划文档（未在生产代码中实现）**
+> â ï¸ **ä»¥ä¸ç¬?1-21 èåä¸ºè§åææ¡£ï¼æªå¨çäº§ä»£ç ä¸­å®ç°ï¼**
 
-### 1. 用户模块 `/user` ⚠️ 未实�?
+### 1. ç¨æ·æ¨¡å `/user` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/user/profile` | �?| 获取用户资料 |
-| PUT | `/user/profile` | �?| 更新用户资料 |
-| POST | `/user/avatar` | �?| 更新用户头像 |
-| GET | `/user/stats` | �?| 获取用户统计 |
-| GET | `/user/settings` | �?| 获取用户设置 |
-| PUT | `/user/settings` | �?| 更新用户设置 |
+| GET | `/user/profile` | â?| è·åç¨æ·èµæ |
+| PUT | `/user/profile` | â?| æ´æ°ç¨æ·èµæ |
+| POST | `/user/avatar` | â?| æ´æ°ç¨æ·å¤´å |
+| GET | `/user/stats` | â?| è·åç¨æ·ç»è®¡ |
+| GET | `/user/settings` | â?| è·åç¨æ·è®¾ç½® |
+| PUT | `/user/settings` | â?| æ´æ°ç¨æ·è®¾ç½® |
 
-#### 请求/响应示例
+#### è¯·æ±/ååºç¤ºä¾
 
 **GET /user/profile**
 
@@ -113,12 +113,12 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 ```json
 {
   "success": true,
-  "message": "成功",
+  "message": "æå",
   "data": {
     "id": "uuid",
     "username": "user123",
-    "full_name": "张三",
-    "bio": "你好",
+    "full_name": "å¼ ä¸",
+    "bio": "ä½ å¥½",
     "avatar_url": "https://...",
     "points": 1000,
     "days_active": 30
@@ -131,463 +131,463 @@ curl -X GET http://TRIX_SERVER_HOST:8788/api/user/profile \
 ```json
 {
   "username": "newusername",
-  "full_name": "新名�?,
-  "bio": "新简�?,
-  "school": "清华大学",
-  "grade": "高三"
+  "full_name": "æ°åå­?,
+  "bio": "æ°ç®ä»?,
+  "school": "æ¸åå¤§å­¦",
+  "grade": "é«ä¸"
 }
 ```
 
 ---
 
-### 2. 好友模块 `/friends` ⚠️ 未实�?
+### 2. å¥½åæ¨¡å `/friends` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/friends` | �?| 获取好友列表 |
-| POST | `/friends` | �?| 添加好友 |
-| DELETE | `/friends/:id` | �?| 删除好友 |
-| GET | `/friends/requests` | �?| 获取好友请求 |
-| POST | `/friends/requests/:id/accept` | �?| 接受请求 |
-| POST | `/friends/requests/:id/decline` | �?| 拒绝请求 |
+| GET | `/friends` | â?| è·åå¥½ååè¡¨ |
+| POST | `/friends` | â?| æ·»å å¥½å |
+| DELETE | `/friends/:id` | â?| å é¤å¥½å |
+| GET | `/friends/requests` | â?| è·åå¥½åè¯·æ± |
+| POST | `/friends/requests/:id/accept` | â?| æ¥åè¯·æ± |
+| POST | `/friends/requests/:id/decline` | â?| æç»è¯·æ± |
 
 ---
 
-### 3. 日程模块 `/schedules` ⚠️ 未实�?
+### 3. æ¥ç¨æ¨¡å `/schedules` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/schedules` | �?| 获取日程列表 |
-| POST | `/schedules` | �?| 创建日程 |
-| PUT | `/schedules/:id` | �?| 更新日程 |
-| DELETE | `/schedules/:id` | �?| 删除日程 |
-| GET | `/schedules/range?start=&end=` | �?| 按日期范围查�?|
-| GET | `/schedules/upcoming?minutes=30` | �?| 获取即将到来的日�?|
+| GET | `/schedules` | â?| è·åæ¥ç¨åè¡¨ |
+| POST | `/schedules` | â?| åå»ºæ¥ç¨ |
+| PUT | `/schedules/:id` | â?| æ´æ°æ¥ç¨ |
+| DELETE | `/schedules/:id` | â?| å é¤æ¥ç¨ |
+| GET | `/schedules/range?start=&end=` | â?| ææ¥æèå´æ¥è¯?|
+| GET | `/schedules/upcoming?minutes=30` | â?| è·åå³å°å°æ¥çæ¥ç¨?|
 
 ---
 
-### 4. 待办模块 `/todos` ⚠️ 未实�?
+### 4. å¾åæ¨¡å `/todos` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/todos` | �?| 获取待办列表 |
-| POST | `/todos` | �?| 创建待办 |
-| PUT | `/todos/:id` | �?| 更新待办 |
-| DELETE | `/todos/:id` | �?| 删除待办 |
-| POST | `/todos/:id/toggle` | �?| 切换完成状�?|
+| GET | `/todos` | â?| è·åå¾ååè¡¨ |
+| POST | `/todos` | â?| åå»ºå¾å |
+| PUT | `/todos/:id` | â?| æ´æ°å¾å |
+| DELETE | `/todos/:id` | â?| å é¤å¾å |
+| POST | `/todos/:id/toggle` | â?| åæ¢å®æç¶æ?|
 
 ---
 
-### 5. 成就模块 `/achievements` ⚠️ 未实�?
+### 5. æå°±æ¨¡å `/achievements` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/achievements` | �?| 获取成就列表（含解锁状态）|
-| POST | `/achievements/check` | �?| 检查并解锁成就 |
-| POST | `/achievements/:id/unlock` | �?| 手动解锁成就 |
+| GET | `/achievements` | â?| è·åæå°±åè¡¨ï¼å«è§£éç¶æï¼|
+| POST | `/achievements/check` | â?| æ£æ¥å¹¶è§£éæå°± |
+| POST | `/achievements/:id/unlock` | â?| æå¨è§£éæå°± |
 
 ---
 
-### 6. 商城模块 `/mall` ⚠️ 未实�?
+### 6. ååæ¨¡å `/mall` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/mall/items` | �?| 获取商品列表 |
-| GET | `/mall/items/:id` | �?| 获取单个商品 |
-| POST | `/mall/purchase` | �?| 购买商品 |
-| GET | `/mall/purchase/history` | �?| 获取购买历史 |
+| GET | `/mall/items` | â?| è·ååååè¡¨ |
+| GET | `/mall/items/:id` | â?| è·ååä¸ªåå |
+| POST | `/mall/purchase` | â?| è´­ä¹°åå |
+| GET | `/mall/purchase/history` | â?| è·åè´­ä¹°åå² |
 
 ---
 
-### 7. 衣柜模块 `/wardrobe` ⚠️ 未实�?
+### 7. è¡£ææ¨¡å `/wardrobe` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/wardrobe/outfits` | �?| 获取装扮列表 |
-| POST | `/wardrobe/outfits/:id/equip` | �?| 装备装扮 |
-| POST | `/wardrobe/outfits/:id/unequip` | �?| 卸下装扮 |
+| GET | `/wardrobe/outfits` | â?| è·åè£æ®åè¡¨ |
+| POST | `/wardrobe/outfits/:id/equip` | â?| è£å¤è£æ® |
+| POST | `/wardrobe/outfits/:id/unequip` | â?| å¸ä¸è£æ® |
 
 ---
 
-### 8. 学习历史模块 `/study/history` ⚠️ 未实�?
+### 8. å­¦ä¹ åå²æ¨¡å `/study/history` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/study/history/daily?days=7` | �?| 每日学习汇�?|
-| GET | `/study/history/weekly` | �?| 每周学习汇�?|
-| GET | `/study/history/monthly` | �?| 每月学习汇�?|
+| GET | `/study/history/daily?days=7` | â?| æ¯æ¥å­¦ä¹ æ±æ?|
+| GET | `/study/history/weekly` | â?| æ¯å¨å­¦ä¹ æ±æ?|
+| GET | `/study/history/monthly` | â?| æ¯æå­¦ä¹ æ±æ?|
 
 ---
 
-### 9. 学习记录模块 `/study/sessions` ⚠️ 未实�?
+### 9. å­¦ä¹ è®°å½æ¨¡å `/study/sessions` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/study/sessions` | �?| 获取学习记录 |
-| POST | `/study/sessions` | �?| 创建学习记录 |
-| PUT | `/study/sessions/:id` | �?| 更新学习记录 |
-| DELETE | `/study/sessions/:id` | �?| 删除学习记录 |
-| GET | `/study/stats` | �?| 获取学习统计 |
-| GET | `/study/stats/weekly` | �?| 获取每周学习数据 |
+| GET | `/study/sessions` | â?| è·åå­¦ä¹ è®°å½ |
+| POST | `/study/sessions` | â?| åå»ºå­¦ä¹ è®°å½ |
+| PUT | `/study/sessions/:id` | â?| æ´æ°å­¦ä¹ è®°å½ |
+| DELETE | `/study/sessions/:id` | â?| å é¤å­¦ä¹ è®°å½ |
+| GET | `/study/stats` | â?| è·åå­¦ä¹ ç»è®¡ |
+| GET | `/study/stats/weekly` | â?| è·åæ¯å¨å­¦ä¹ æ°æ® |
 
 ---
 
-### 10. 学习房间模块 `/study/room` ⚠️ 未实�?
+### 10. å­¦ä¹ æ¿é´æ¨¡å `/study/room` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| POST | `/study/room/create` | �?| 创建学习房间 |
-| POST | `/study/room/join` | �?| 加入学习房间 |
-| POST | `/study/room/leave` | �?| 离开学习房间 |
+| POST | `/study/room/create` | â?| åå»ºå­¦ä¹ æ¿é´ |
+| POST | `/study/room/join` | â?| å å¥å­¦ä¹ æ¿é´ |
+| POST | `/study/room/leave` | â?| ç¦»å¼å­¦ä¹ æ¿é´ |
 
 ---
 
-### 11. 聊天模块 `/chat` ⚠️ 未实�?
+### 11. èå¤©æ¨¡å `/chat` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/chat/rooms` | �?| 获取聊天房间列表 |
-| POST | `/chat/rooms` | �?| 创建聊天房间 |
-| GET | `/chat/rooms/:roomId` | �?| 获取聊天房间详情 |
-| GET | `/chat/rooms/:roomId/messages` | �?| 获取消息列表 |
-| POST | `/chat/rooms/:roomId/messages` | �?| 发送消�?|
-| POST | `/chat/rooms/:roomId/messages/read` | �?| 标记已读 |
+| GET | `/chat/rooms` | â?| è·åèå¤©æ¿é´åè¡¨ |
+| POST | `/chat/rooms` | â?| åå»ºèå¤©æ¿é´ |
+| GET | `/chat/rooms/:roomId` | â?| è·åèå¤©æ¿é´è¯¦æ |
+| GET | `/chat/rooms/:roomId/messages` | â?| è·åæ¶æ¯åè¡¨ |
+| POST | `/chat/rooms/:roomId/messages` | â?| åéæ¶æ?|
+| POST | `/chat/rooms/:roomId/messages/read` | â?| æ è®°å·²è¯» |
 
 ---
 
-### 12. 配对模块 `/pairing` ⚠️ 未实�?
+### 12. éå¯¹æ¨¡å `/pairing` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| POST | `/pairing/request` | �?| 创建配对请求 |
-| POST | `/pairing/confirm` | �?| 确认配对 |
-| GET | `/pairing/status/:id` | �?| 查询配对状�?|
-| GET | `/pairing/devices` | �?| 获取已配对设�?|
-| DELETE | `/pairing/devices/:id` | �?| 解除配对 |
+| POST | `/pairing/request` | â?| åå»ºéå¯¹è¯·æ± |
+| POST | `/pairing/confirm` | â?| ç¡®è®¤éå¯¹ |
+| GET | `/pairing/status/:id` | â?| æ¥è¯¢éå¯¹ç¶æ?|
+| GET | `/pairing/devices` | â?| è·åå·²éå¯¹è®¾å¤?|
+| DELETE | `/pairing/devices/:id` | â?| è§£é¤éå¯¹ |
 
 ---
 
-### 13. 地点模块 `/places` ⚠️ 未实�?
+### 13. å°ç¹æ¨¡å `/places` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/places/nearby?latitude=&longitude=&radius=` | �?| 获取附近地点 |
-| GET | `/places/search?q=&category=` | �?| 搜索地点 |
-| GET | `/places/favorites` | �?| 获取收藏地点 |
-| POST | `/places/favorites` | �?| 添加收藏 |
-| DELETE | `/places/favorites/:id` | �?| 删除收藏 |
-| POST | `/places/:placeId/favorite` | �?| 切换收藏状�?|
+| GET | `/places/nearby?latitude=&longitude=&radius=` | â?| è·åéè¿å°ç¹ |
+| GET | `/places/search?q=&category=` | â?| æç´¢å°ç¹ |
+| GET | `/places/favorites` | â?| è·åæ¶èå°ç¹ |
+| POST | `/places/favorites` | â?| æ·»å æ¶è |
+| DELETE | `/places/favorites/:id` | â?| å é¤æ¶è |
+| POST | `/places/:placeId/favorite` | â?| åæ¢æ¶èç¶æ?|
 
 ---
 
-### 14. 位置模块 `/locations` ⚠️ 未实�?
+### 14. ä½ç½®æ¨¡å `/locations` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/locations` | �?| 获取位置列表 |
-| GET | `/locations/:id` | �?| 获取单个位置 |
-| POST | `/locations/share` | �?| 分享位置 |
+| GET | `/locations` | â?| è·åä½ç½®åè¡¨ |
+| GET | `/locations/:id` | â?| è·ååä¸ªä½ç½® |
+| POST | `/locations/share` | â?| åäº«ä½ç½® |
 
 ---
 
-### 15. 积分模块 `/points` ⚠️ 未实�?
+### 15. ç§¯åæ¨¡å `/points` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/points` | �?| 获取用户积分 |
-| GET | `/points/history` | �?| 获取积分历史 |
-| POST | `/points/add` | �?| 增加积分 |
-| POST | `/points/deduct` | �?| 扣除积分 |
+| GET | `/points` | â?| è·åç¨æ·ç§¯å |
+| GET | `/points/history` | â?| è·åç§¯ååå² |
+| POST | `/points/add` | â?| å¢å ç§¯å |
+| POST | `/points/deduct` | â?| æ£é¤ç§¯å |
 
 ---
 
-### 16. 快照模块 `/snapshots` ⚠️ 未实�?
+### 16. å¿«ç§æ¨¡å `/snapshots` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/snapshots` | �?| 获取快照列表 |
-| POST | `/snapshots` | �?| 创建快照 |
-| GET | `/snapshots/:id` | �?| 获取单个快照 |
-| DELETE | `/snapshots/:id` | �?| 删除快照 |
+| GET | `/snapshots` | â?| è·åå¿«ç§åè¡¨ |
+| POST | `/snapshots` | â?| åå»ºå¿«ç§ |
+| GET | `/snapshots/:id` | â?| è·ååä¸ªå¿«ç§ |
+| DELETE | `/snapshots/:id` | â?| å é¤å¿«ç§ |
 
 ---
 
-### 17. 通知模块 `/notifications` ⚠️ 未实�?
+### 17. éç¥æ¨¡å `/notifications` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/notifications` | �?| 获取通知列表 |
-| PUT | `/notifications/:id/read` | �?| 标记已读 |
-| POST | `/notifications/read-all` | �?| 全部标记已读 |
-| POST | `/notifications/device-token` | �?| 保存设备令牌 |
-| GET | `/notifications/settings` | �?| 获取通知设置 |
-| PUT | `/notifications/settings` | �?| 更新通知设置 |
-| GET | `/notifications/preferences` | �?| 获取通知偏好 |
-| PUT | `/notifications/preferences` | �?| 更新通知偏好 |
+| GET | `/notifications` | â?| è·åéç¥åè¡¨ |
+| PUT | `/notifications/:id/read` | â?| æ è®°å·²è¯» |
+| POST | `/notifications/read-all` | â?| å¨é¨æ è®°å·²è¯» |
+| POST | `/notifications/device-token` | â?| ä¿å­è®¾å¤ä»¤ç |
+| GET | `/notifications/settings` | â?| è·åéç¥è®¾ç½® |
+| PUT | `/notifications/settings` | â?| æ´æ°éç¥è®¾ç½® |
+| GET | `/notifications/preferences` | â?| è·åéç¥åå¥½ |
+| PUT | `/notifications/preferences` | â?| æ´æ°éç¥åå¥½ |
 
 ---
 
-### 18. 上传模块 `/upload` ⚠️ 未实�?
+### 18. ä¸ä¼ æ¨¡å `/upload` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| POST | `/upload` | �?| 文件上传 |
-| POST | `/upload/base64` | �?| Base64 上传 |
+| POST | `/upload` | â?| æä»¶ä¸ä¼  |
+| POST | `/upload/base64` | â?| Base64 ä¸ä¼  |
 
 ---
 
-### 19. 未读计数模块 `/unread` ⚠️ 未实�?
+### 19. æªè¯»è®¡æ°æ¨¡å `/unread` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/unread/counts` | �?| 获取所有未读计�?|
-| GET | `/unread/counts/:friendId` | �?| 获取与某好友的未读计�?|
-| PUT | `/unread/counts/:friendId` | �?| 更新未读计数 |
-| POST | `/unread/read-all` | �?| 标记全部已读 |
+| GET | `/unread/counts` | â?| è·åæææªè¯»è®¡æ?|
+| GET | `/unread/counts/:friendId` | â?| è·åä¸æå¥½åçæªè¯»è®¡æ?|
+| PUT | `/unread/counts/:friendId` | â?| æ´æ°æªè¯»è®¡æ° |
+| POST | `/unread/read-all` | â?| æ è®°å¨é¨å·²è¯» |
 
 ---
 
-### 20. AI 对话模块 `/clawbot` ⚠️ 未实�?
+### 20. AI å¯¹è¯æ¨¡å `/clawbot` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/clawbot/conversations` | �?| 获取对话列表 |
-| POST | `/clawbot/conversations` | �?| 创建对话 |
-| GET | `/clawbot/conversations/:id/messages` | �?| 获取对话消息 |
-| POST | `/clawbot/conversations/:id/messages` | �?| 发送消�?|
-| DELETE | `/clawbot/conversations/:id` | �?| 删除对话 |
+| GET | `/clawbot/conversations` | â?| è·åå¯¹è¯åè¡¨ |
+| POST | `/clawbot/conversations` | â?| åå»ºå¯¹è¯ |
+| GET | `/clawbot/conversations/:id/messages` | â?| è·åå¯¹è¯æ¶æ¯ |
+| POST | `/clawbot/conversations/:id/messages` | â?| åéæ¶æ?|
+| DELETE | `/clawbot/conversations/:id` | â?| å é¤å¯¹è¯ |
 
 ---
 
-### 21. 学习目标模块 `/study/goals` ⚠️ 未实�?
+### 21. å­¦ä¹ ç®æ æ¨¡å `/study/goals` â ï¸ æªå®ç?
 
-| 方法 | 端点 | 认证 | 描述 |
+| æ¹æ³ | ç«¯ç¹ | è®¤è¯ | æè¿° |
 |------|------|------|------|
-| GET | `/study/goals` | �?| 获取学习目标列表 |
-| POST | `/study/goals` | �?| 创建学习目标 |
-| PUT | `/study/goals/:id` | �?| 更新学习目标 |
-| DELETE | `/study/goals/:id` | �?| 删除学习目标 |
+| GET | `/study/goals` | â?| è·åå­¦ä¹ ç®æ åè¡¨ |
+| POST | `/study/goals` | â?| åå»ºå­¦ä¹ ç®æ  |
+| PUT | `/study/goals/:id` | â?| æ´æ°å­¦ä¹ ç®æ  |
+| DELETE | `/study/goals/:id` | â?| å é¤å­¦ä¹ ç®æ  |
 
 ---
 
 ## TRIX Native Server API
 
-> ⚠️ **完整文档已移�?`../TRIX_NATIVE_CHANNEL.md`**（唯一权威文档）�?
+> â ï¸ **å®æ´ææ¡£å·²ç§»è?`../TRIX_NATIVE_CHANNEL.md`**ï¼å¯ä¸æå¨ææ¡£ï¼ã?
 >
-> 以下为摘要，详细信息请参阅该文档�?
+> ä»¥ä¸ä¸ºæè¦ï¼è¯¦ç»ä¿¡æ¯è¯·åéè¯¥ææ¡£ã?
 
-### 生产服务
+### çäº§æå¡
 
-| 服务 | URL |
+| æå¡ | URL |
 |------|-----|
-| TRIX Native Server | `https://trix.love`（端�?8788�?|
+| TRIX Native Server | `https://trix.love`ï¼ç«¯å?8788ï¼?|
 
-### 核心端点
+### æ ¸å¿ç«¯ç¹
 
-| 方法 | 路径 | 说明 |
+| æ¹æ³ | è·¯å¾ | è¯´æ |
 |------|------|------|
-| POST | `/api/pairings` | 生成配对�?|
-| GET | `/api/pairings/:code` | 查询配对状�?|
-| POST | `/api/pairings/:code/claim` | 认领配对 |
-| GET | `/health` | 健康检查（�?agentOnline�?|
-| POST | `/api/messages` | 发送消息（clientToken �?body 中） |
-| POST | `/api/uploads` | 上传附件 |
-| GET | `/api/conversations/:id/messages` | 历史消息 |
+| POST | `/api/pairings` | çæéå¯¹ç ?|
+| GET | `/api/pairings/:code` | æ¥è¯¢éå¯¹ç¶æ?|
+| POST | `/api/pairings/:code/claim` | è®¤é¢éå¯¹ |
+| GET | `/health` | å¥åº·æ£æ¥ï¼å?agentOnlineï¼?|
+| POST | `/api/messages` | åéæ¶æ¯ï¼clientToken å?body ä¸­ï¼ |
+| POST | `/api/uploads` | ä¸ä¼ éä»¶ |
+| GET | `/api/conversations/:id/messages` | åå²æ¶æ¯ |
 
 ### Study Room
 
-| 方法 | 路径 | 说明 |
+| æ¹æ³ | è·¯å¾ | è¯´æ |
 |------|------|------|
-| POST | `/api/study-rooms` | 创建房间 |
-| GET | `/api/study-rooms` | 列出房间 |
-| POST | `/api/study-rooms/:roomCode/join` | 加入 |
-| POST | `/api/study-rooms/:roomCode/action` | 主持人操�?|
+| POST | `/api/study-rooms` | åå»ºæ¿é´ |
+| GET | `/api/study-rooms` | ååºæ¿é´ |
+| POST | `/api/study-rooms/:roomCode/join` | å å¥ |
+| POST | `/api/study-rooms/:roomCode/action` | ä¸»æäººæä½?|
 
 ### TTS
 
-| 方法 | 路径 | 说明 |
+| æ¹æ³ | è·¯å¾ | è¯´æ |
 |------|------|------|
-| POST | `/api/tts/synthesize` | Edge TTS 语音合成 |
+| POST | `/api/tts/synthesize` | Edge TTS è¯­é³åæ |
 
 ### WebSocket
 
-| 路径 | 角色 | 说明 |
+| è·¯å¾ | è§è² | è¯´æ |
 |------|------|------|
-| `/ws?role=user&...` | user | 用户实时消息 |
-| `/api/service/ws` | service | Service/Plugin 实时消息 |
+| `/ws?role=user&...` | user | ç¨æ·å®æ¶æ¶æ¯ |
+| `/api/service/ws` | service | Service/Plugin å®æ¶æ¶æ¯ |
 
-### 配对�?
+### éå¯¹ç ?
 
-- **格式**�?-8 位大写字�?
-- **有效�?*�? 小时�?0 分钟�?
-- **轮询间隔**�? 秒，超时 5 分钟
+- **æ ¼å¼**ï¼?-8 ä½å¤§åå­æ¯?
+- **æææ?*ï¼? å°æ¶ï¼?0 åéï¼?
+- **è½®è¯¢é´é**ï¼? ç§ï¼è¶æ¶ 5 åé
 
 ---
 
-## 响应格式
+## ååºæ ¼å¼
 
-### 成功响应
+### æåååº
 
 ```json
 {
   "success": true,
-  "message": "成功",
+  "message": "æå",
   "data": { ... }
 }
 ```
 
-### 错误响应
+### éè¯¯ååº
 
 ```json
 {
   "success": false,
-  "error": "错误信息"
+  "error": "éè¯¯ä¿¡æ¯"
 }
 ```
 
 ---
 
-## 错误�?
+## éè¯¯ç ?
 
-| 状态码 | 说明 |
+| ç¶æç  | è¯´æ |
 |--------|------|
-| 200 | 成功 |
-| 400 | 请求参数错误 |
-| 401 | 未授�?/ Token 无效 |
-| 403 | 权限不足 |
-| 404 | 资源不存�?|
-| 500 | 服务器错�?|
+| 200 | æå |
+| 400 | è¯·æ±åæ°éè¯¯ |
+| 401 | æªææ?/ Token æ æ |
+| 403 | æéä¸è¶³ |
+| 404 | èµæºä¸å­å?|
+| 500 | æå¡å¨éè¯?|
 
 ---
 
-## 数据库表结构
+## æ°æ®åºè¡¨ç»æ
 
-### 核心�?
+### æ ¸å¿è¡?
 
 ```sql
--- 用户资料扩展
-profiles (扩展字段)
-├── points: 积分
-├── days_active: 活跃天数
-├── total_study_time: 总学习时�?
-├── current_streak: 当前连续天数
-├── school: 学校
-├── grade: 年级
-├── avatar_config: 头像配置
-├── is_studying: 是否在学�?
+-- ç¨æ·èµææ©å±
+profiles (æ©å±å­æ®µ)
+âââ points: ç§¯å
+âââ days_active: æ´»è·å¤©æ°
+âââ total_study_time: æ»å­¦ä¹ æ¶é?
+âââ current_streak: å½åè¿ç»­å¤©æ°
+âââ school: å­¦æ ¡
+âââ grade: å¹´çº§
+âââ avatar_config: å¤´åéç½®
+âââ is_studying: æ¯å¦å¨å­¦ä¹?
 ```
 
-### 社交�?
+### ç¤¾äº¤è¡?
 
 ```sql
-friends -- 好友关系
-friend_requests -- 好友请求
+friends -- å¥½åå³ç³»
+friend_requests -- å¥½åè¯·æ±
 
-chat_rooms -- 聊天房间
-chat_room_participants -- 房间参与�?
-chat_messages -- 聊天消息
+chat_rooms -- èå¤©æ¿é´
+chat_room_participants -- æ¿é´åä¸è?
+chat_messages -- èå¤©æ¶æ¯
 ```
 
-### 功能�?
+### åè½è¡?
 
 ```sql
-schedules -- 日程
-todos -- 待办事项
-achievements -- 成就
-user_achievements -- 用户成就
-mall_items -- 商城商品
-user_purchased_items -- 已购商品
-outfits -- 装扮
-user_outfits -- 用户装扮
-user_points -- 用户积分
-point_transactions -- 积分记录
-purchase_history -- 购买历史
+schedules -- æ¥ç¨
+todos -- å¾åäºé¡¹
+achievements -- æå°±
+user_achievements -- ç¨æ·æå°±
+mall_items -- åååå
+user_purchased_items -- å·²è´­åå
+outfits -- è£æ®
+user_outfits -- ç¨æ·è£æ®
+user_points -- ç¨æ·ç§¯å
+point_transactions -- ç§¯åè®°å½
+purchase_history -- è´­ä¹°åå²
 ```
 
-### 学习�?
+### å­¦ä¹ è¡?
 
 ```sql
-study_sessions -- 学习记录
-study_stats -- 学习统计
-study_rooms -- 学习房间
-study_room_participants -- 房间参与�?
+study_sessions -- å­¦ä¹ è®°å½
+study_stats -- å­¦ä¹ ç»è®¡
+study_rooms -- å­¦ä¹ æ¿é´
+study_room_participants -- æ¿é´åä¸è?
 ```
 
-### 位置�?
+### ä½ç½®è¡?
 
 ```sql
-places -- 地点
-user_favorite_places -- 地点收藏
-user_locations -- 用户位置
+places -- å°ç¹
+user_favorite_places -- å°ç¹æ¶è
+user_locations -- ç¨æ·ä½ç½®
 ```
 
-### 其他�?
+### å¶ä»è¡?
 
 ```sql
-pairing_requests -- 配对请求
-paired_devices -- 已配对设�?
-snapshots -- AI 快照
-notifications -- 通知
-device_tokens -- 设备令牌
+pairing_requests -- éå¯¹è¯·æ±
+paired_devices -- å·²éå¯¹è®¾å¤?
+snapshots -- AI å¿«ç§
+notifications -- éç¥
+device_tokens -- è®¾å¤ä»¤ç
 ```
 
 ---
 
-## 常用查询参数
+## å¸¸ç¨æ¥è¯¢åæ°
 
-| 参数 | 类型 | 说明 |
+| åæ° | ç±»å | è¯´æ |
 |------|------|------|
-| `limit` | number | 限制返回数量 |
-| `offset` | number | 偏移�?|
-| `page` | number | 页码 |
-| `days` | number | 天数 |
-| `minutes` | number | 分钟�?|
-| `latitude` | number | 纬度 |
-| `longitude` | number | 经度 |
-| `radius` | number | 半径(�? |
-| `start` | string | 开始时�?|
-| `end` | string | 结束时间 |
-| `category` | string | 分类 |
-| `q` | string | 搜索关键�?|
-| `unread_only` | boolean | 仅未�?|
+| `limit` | number | éå¶è¿åæ°é |
+| `offset` | number | åç§»é?|
+| `page` | number | é¡µç  |
+| `days` | number | å¤©æ° |
+| `minutes` | number | åéæ?|
+| `latitude` | number | çº¬åº¦ |
+| `longitude` | number | ç»åº¦ |
+| `radius` | number | åå¾(ç±? |
+| `start` | string | å¼å§æ¶é?|
+| `end` | string | ç»ææ¶é´ |
+| `category` | string | åç±» |
+| `q` | string | æç´¢å³é®è¯?|
+| `unread_only` | boolean | ä»æªè¯?|
 
 ---
 
-## WebSocket 事件（TRIX Native Channel�?
+## WebSocket äºä»¶ï¼TRIX Native Channelï¼?
 
-### 连接
+### è¿æ¥
 
-WebSocket 连接通过 TRIX Native Server (:8788) 使用原生 WebSocket 协议，不使用 Socket.IO�?
+WebSocket è¿æ¥éè¿ TRIX Native Server (:8788) ä½¿ç¨åç WebSocket åè®®ï¼ä¸ä½¿ç¨ Socket.IOã?
 
 ```javascript
-// 用户�?WebSocket 连接（来�?Web/iOS�?
+// ç¨æ·é?WebSocket è¿æ¥ï¼æ¥è?Web/iOSï¼?
 const socket = new WebSocket('https://trix.love/ws?role=user&conversationId=...&clientId=...&clientToken=...');
 ```
 
-### 事件列表
+### äºä»¶åè¡¨
 
-| 事件 | 方向 | 说明 |
+| äºä»¶ | æ¹å | è¯´æ |
 |------|------|------|
-| `app_register` | 客户�?�?服务�?| 注册用户连接 |
-| `bot_request_pairing` | 客户�?�?服务�?| 机器人请求配�?|
-| `bot_confirm_pairing` | 客户�?�?服务�?| 确认配对 |
-| `study_room_create` | 客户�?�?服务�?| 创建学习房间 |
-| `study_room_join` | 客户�?�?服务�?| 加入学习房间 |
-| `study_room_leave` | 客户�?�?服务�?| 离开学习房间 |
-| `message_sent` | 服务�?�?客户�?| 消息发送成�?|
-| `bot_message` | 服务�?�?客户�?| 机器人消�?|
+| `app_register` | å®¢æ·ç«?â?æå¡ç«?| æ³¨åç¨æ·è¿æ¥ |
+| `bot_request_pairing` | å®¢æ·ç«?â?æå¡ç«?| æºå¨äººè¯·æ±éå¯?|
+| `bot_confirm_pairing` | å®¢æ·ç«?â?æå¡ç«?| ç¡®è®¤éå¯¹ |
+| `study_room_create` | å®¢æ·ç«?â?æå¡ç«?| åå»ºå­¦ä¹ æ¿é´ |
+| `study_room_join` | å®¢æ·ç«?â?æå¡ç«?| å å¥å­¦ä¹ æ¿é´ |
+| `study_room_leave` | å®¢æ·ç«?â?æå¡ç«?| ç¦»å¼å­¦ä¹ æ¿é´ |
+| `message_sent` | æå¡ç«?â?å®¢æ·ç«?| æ¶æ¯åéæå?|
+| `bot_message` | æå¡ç«?â?å®¢æ·ç«?| æºå¨äººæ¶æ?|
 
 ---
 
-## 更新日志
+## æ´æ°æ¥å¿
 
 ### 2026-03-24
 
-- 更新版本号至 1.4.0
-- 同步最后更新日�?
+- æ´æ°çæ¬å·è³ 1.4.0
+- åæ­¥æåæ´æ°æ¥æ?
 
 ### 2026-03-03
 
-- 初始版本
-- 实现所�?MVP + 扩展 API
-- 支持用户、好友、日程、待办、成就、商城、衣柜、学习、聊天、配对、地点、积分、快照、通知等功�?
+- åå§çæ¬
+- å®ç°ææ?MVP + æ©å± API
+- æ¯æç¨æ·ãå¥½åãæ¥ç¨ãå¾åãæå°±ãååãè¡£æãå­¦ä¹ ãèå¤©ãéå¯¹ãå°ç¹ãç§¯åãå¿«ç§ãéç¥ç­åè?

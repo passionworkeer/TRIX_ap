@@ -153,7 +153,7 @@ export function setupIpcHandlers(): void {
 
 ## 3. Sprint 分层计划
 
-### Sprint 0 · 脚手架 + 拆分基础（1 周）
+### Sprint 0 · 脚手架 + 拆分基础（1 周） ✅ 已完成
 
 > **目标**: 建立新目录结构，SettingsPage 拆分完成，基础 IPC 扩展完毕
 

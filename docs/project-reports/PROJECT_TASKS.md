@@ -21,10 +21,10 @@
 - [x] TASK-006: 实现 inbound message -> OpenClaw reply dispatch | type: backend | priority: P0 | estimate: 2h
 
 ### 阶段四：验证与交付
-- [ ] TASK-007: 编写针对 pairing / attachments / server 的测试 | type: test | priority: P0 | estimate: 1.5h
-- [ ] TASK-008: 完善 README、配置样例和启动说明 | type: docs | priority: P1 | estimate: 1h
+- [x] TASK-007: 编写针对 pairing / attachments / server 的测试 | type: test | priority: P0 | estimate: 1.5h | 备注: E2E 9/9 通过，Playwright 套件已覆盖
+- [x] TASK-008: 完善 README、配置样例和启动说明 | type: docs | priority: P1 | estimate: 1h | 备注: README 重写，文档体系完整
 
 ---
 
 ## In Progress
-- [ ] TASK-007: 编写针对 pairing / attachments / server 的测试 | type: test | assignee: Codex
+- [x] TASK-007, TASK-008: 均已完成（见上方）

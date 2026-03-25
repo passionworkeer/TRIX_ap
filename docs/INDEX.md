@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.0（2026-03-25 重构）
+> **版本**: v2.1（2026-03-25 全面扫描同步）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -156,34 +156,27 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 架构文档 (architecture/) | 2 |
 | 数据库 (database/) | 3 |
 | API 文档 (api/) | 2 |
-| iOS 文档 (ios/) | 17 |
+| iOS 文档 (ios/) | 15 |
 | 入门指南 (getting-started/) | 2 |
 | Desktop 文档 (desktop/) | 1 |
 | 操作指南 (guides/) | 5 |
 | 问题追踪 (issues/) | 1 |
-| 功能设计 (plans/) | 1 |
-| 归档 (.archive/) | 1 |
+| 功能设计 (plans/) | 0 |
+| 归档 (.archive/) | 4 |
 
-**活跃文档总计**: 48 个（不含 .archive/）
+**活跃文档总计**: 45 个（不含 .archive/）
 
-**较上次清理**: 删除 26 个历史完成报告 / 冗余文档
+**较上次清理**: 删除 3 个严重过时文档（canvas-skill-design 归档、iOS checklist 重写、iOS testing-report 重写），更新 10+ 份文档时效性
 
 ---
 
 ## 删除的历史文档（参考）
 
-以下文档因历史完成或内容冗余已被删除：
-- `project-reports/P3_Completion_Report_20260227.md` — Phase P3 完成报告
-- `project-reports/任务完成度报告_20260227.md` — 同上中文版
-- `project-reports/PHASE7_LAUNCH_PLAN.md` — Phase 7 已完成
-- `project-reports/LONGCODE_PLAN.md` — 所有 15 项已执行
-- `project-reports/NEXT_FEATURES_PLAN.md` — 架构已变更
-- `project-reports/MVP_TEST_CHECKLIST.md` — 历史测试清单
-- `ios/IOS_BACKEND_COMPLETION_REPORT.md` 等 12 个 iOS 历史完成报告
-- `docs/TESTING.md`（根目录重复）→ 使用 `development/TESTING.md`
-- `docs/ENVIRONMENT.md`（重复 .env.example）→ 使用 `.env.example`
-- `docs/guides/SSH-SETUP.md` → 内容已包含在 `SERVER_GUIDE.md`
-- `docs/ui/UI_DOCUMENTATION.md` → 内容已包含在 DESIGN.md + LUMINA_DESIGN.md + COMPONENTS.md
+以下文档因历史完成、内容冗余或严重过时已被删除/归档：
+- `plans/2026-03-24-trix-canvas-skill-design.md` → `.archive/canvas-skill-design-archived.md`（设计与实现偏离，Python/FastAPI vs Node.js/Express）
+- `ios/checklist.md` → `.archive/ios-checklist-archived.md`（应用描述基于 3D printing，内容需全面重写）
+- `ios/TESTING_REPORT.md` → `.archive/ios-testing-report-archived.md`（测试数 361→71，统计数据完全过时）
+- `project-reports/P3_Completion_Report_20260227.md` 等 26 个历史文档（上次清理）
 
 ---
 

@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.7
-> **最后更新**: 2026-03-25（代码扫描同步：IPC 62→66，preload API 62→71，新增 ClawHub 4 handlers，修正 LuminaRoutes 表缺失 map）
+> **版本**: 1.8
+> **最后更新**: 2026-03-25（代码扫描同步：IPC 62→75，preload API 62→74，新增 study* / study-room* 共 10 handlers）
 > **平台**: Windows (Electron 33.4.0)
 
 ---

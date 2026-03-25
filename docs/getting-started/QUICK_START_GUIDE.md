@@ -90,7 +90,7 @@ ping TRIX_SERVER_HOST
 
 **检查服务器状态**：
 ```bash
-curl http://TRIX_SERVER_HOST:8788/health
+curl https://trix.love/api/health
 ```
 
 ### 消息收不到
@@ -160,7 +160,7 @@ pm2 logs trix-native --lines 100
 ### 1. 连接问题
 ```bash
 # 测试服务器连通性
-curl -I http://TRIX_SERVER_HOST:8788/health
+curl -I https://trix.love/api/health
 
 # 预期：{"status":"ok"}
 ```
@@ -168,7 +168,7 @@ curl -I http://TRIX_SERVER_HOST:8788/health
 ### 2. 配对问题
 ```bash
 # 检查配对状态 API
-curl http://TRIX_SERVER_HOST:8788/api/pairings/{CODE}
+curl https://trix.love/api/pairings/{CODE}
 
 # 预期：{"code":"XXX","status":"paired"}
 ```
@@ -176,7 +176,7 @@ curl http://TRIX_SERVER_HOST:8788/api/pairings/{CODE}
 ### 3. 消息问题
 ```bash
 # 测试消息同步 API
-curl "http://TRIX_SERVER_HOST:8788/api/messages/{CONVERSATION_ID}" \
+curl "https://trix.love/api/messages/{CONVERSATION_ID}" \
   -H "x-trix-client-token: {TOKEN}"
 
 # 预期：{"success":true,"messages":[...]}

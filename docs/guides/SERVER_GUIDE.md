@@ -6,10 +6,10 @@
 
 | 服务 | 地址 | 端口 | 说明 |
 |------|------|------|------|
-| 前端 (Nginx) | http://TRIX_SERVER_HOST | 80 | Web 应用 |
-| TRIX Native Server | http://TRIX_SERVER_HOST | 8788 | iOS-Web 消息同步 |
+| 前端 (Nginx) | https://trix.love | 443 | Web 应用 |
+| TRIX Native Server | https://trix.love | 8788 | iOS-Web 消息同步（经 Nginx 反代 /api/*） |
 | ~~Clawbot Channel~~ | ~~ws://TRIX_SERVER_HOST~~ | ~~8765~~ | ~~WebSocket 消息~~ (已废弃，改用 TRIX Native Server :8788) |
-| Gateway | ws://TRIX_SERVER_HOST | 18789 | 网关服务 |
+| Gateway | wss://trix.love | 18789 | 网关服务 |
 
 ## 连接服务器
 
@@ -63,7 +63,7 @@ scp -i <私钥路径> -r <本地路径> <用户名>@<服务器IP>:<目标路径>
 scp -i C:/Users/wang/.ssh/id_ed25519_server -r ./dist/* root@TRIX_SERVER_HOST:/var/www/html/
 
 # 上传环境变量文件
-scp -i C:/Users/wang/.ssh/id_ed25519_server .env root@TRIX_SERVER_HOST:/root/backend/.env
+scp -i C:/Users/wang/.ssh/id_ed25519_server .env root@TRIX_SERVER_HOST:/root/trix-3d-companion/.env
 ```
 
 ### 3. 重启服务
