@@ -9,6 +9,128 @@
 import XCTest
 @testable import TRIX3DCompanion
 
+// MARK: - User Extension for Testing
+
+extension User {
+    init(
+        id: String,
+        username: String? = nil,
+        email: String? = nil,
+        avatarUrl: String? = nil,
+        avatarConfig: [String: AnyCodable]? = nil,
+        fullName: String? = nil,
+        displayName: String? = nil,
+        bio: String? = nil,
+        website: String? = nil,
+        points: Int? = nil,
+        isStudying: Bool? = nil,
+        companionId: String? = nil,
+        totalStudyTime: Int? = nil,
+        lastActiveAt: Date? = nil,
+        currentStreak: Int? = nil,
+        daysActive: Int? = nil,
+        interactionCount: Int? = nil,
+        showOnlineStatus: Bool? = nil,
+        school: String? = nil,
+        grade: String? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.username = username
+        self.email = email
+        self.avatarUrl = avatarUrl
+        self.avatarConfig = avatarConfig
+        self.fullName = fullName
+        self.displayName = displayName
+        self.bio = bio
+        self.website = website
+        self.points = points
+        self.isStudying = isStudying
+        self.companionId = companionId
+        self.totalStudyTime = totalStudyTime
+        self.lastActiveAt = lastActiveAt
+        self.currentStreak = currentStreak
+        self.daysActive = daysActive
+        self.interactionCount = interactionCount
+        self.showOnlineStatus = showOnlineStatus
+        self.school = school
+        self.grade = grade
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+// MARK: - Snapshot Extension for Testing
+
+extension Snapshot {
+    init(
+        id: String,
+        userId: String,
+        imageUrl: String,
+        thumbnailUrl: String? = nil,
+        locationId: String? = nil,
+        locationName: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        caption: String? = nil,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.userId = userId
+        self.imageUrl = imageUrl
+        self.thumbnailUrl = thumbnailUrl
+        self.locationId = locationId
+        self.locationName = locationName
+        self.latitude = latitude
+        self.longitude = longitude
+        self.caption = caption
+        self.createdAt = createdAt
+    }
+}
+
+// MARK: - ChatMessage Extension for Testing
+
+extension ChatMessage {
+    init(
+        id: String,
+        roomId: String,
+        senderId: String,
+        sender: MessageSender,
+        content: String,
+        messageType: MessageType,
+        mediaUrl: String? = nil,
+        mediaMimeType: String? = nil,
+        mediaDuration: Int? = nil,
+        mediaSize: Int64? = nil,
+        mediaMetadata: [String: AnyCodable]? = nil,
+        voiceUrl: String? = nil,
+        voiceDuration: Int? = nil,
+        voiceTranscript: String? = nil,
+        voiceMimeType: String? = nil,
+        isRead: Bool,
+        createdAt: Date
+    ) {
+        self.id = id
+        self.roomId = roomId
+        self.senderId = senderId
+        self.sender = sender
+        self.content = content
+        self.messageType = messageType
+        self.mediaUrl = mediaUrl
+        self.mediaMimeType = mediaMimeType
+        self.mediaDuration = mediaDuration
+        self.mediaSize = mediaSize
+        self.mediaMetadata = mediaMetadata
+        self.voiceUrl = voiceUrl
+        self.voiceDuration = voiceDuration
+        self.voiceTranscript = voiceTranscript
+        self.voiceMimeType = voiceMimeType
+        self.isRead = isRead
+        self.createdAt = createdAt
+    }
+}
+
 /// Smoke tests for verifying basic app functionality
 final class SmokeTests: XCTestCase {
 
@@ -51,21 +173,16 @@ final class SmokeTests: XCTestCase {
         let message = ChatMessage(
             id: "msg-1",
             roomId: "room-1",
-            friendId: "friend-1",
-            sender: .user,
             senderId: "user-1",
-            text: "Hello",
-            timestamp: Date(),
+            sender: .user,
+            content: "Hello",
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
-            mediaSize: nil,
-            mediaMetadata: nil,
-            isRead: false
+            isRead: false,
+            createdAt: Date()
         )
 
         XCTAssertNotNil(message)
-        XCTAssertEqual(message.text, "Hello")
+        XCTAssertEqual(message.content, "Hello")
     }
 
     func test_snapshotModel_canBeCreated() {

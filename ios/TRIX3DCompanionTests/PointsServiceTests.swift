@@ -9,6 +9,24 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+// MARK: - PointsResponse Extension for Testing
+
+extension PointsResponse {
+    init(
+        totalPoints: Int,
+        level: Int,
+        todayEarned: Int,
+        weekEarned: Int,
+        totalTransactions: Int
+    ) {
+        self.totalPoints = totalPoints
+        self.level = level
+        self.todayEarned = todayEarned
+        self.weekEarned = weekEarned
+        self.totalTransactions = totalTransactions
+    }
+}
+
 /// Comprehensive unit tests for PointsService
 final class PointsServiceTests: XCTestCase {
 

@@ -9,6 +9,38 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+// MARK: - Order Extension for Testing
+
+extension Order {
+    init(
+        id: String,
+        userId: String,
+        productId: String,
+        productType: ProductType,
+        amount: Double,
+        currency: String,
+        status: PaymentStatus,
+        paymentMethod: PaymentMethod,
+        transactionId: String? = nil,
+        points: Int? = nil,
+        createdAt: Date,
+        updatedAt: Date
+    ) {
+        self.id = id
+        self.userId = userId
+        self.productId = productId
+        self.productType = productType
+        self.amount = amount
+        self.currency = currency
+        self.status = status
+        self.paymentMethod = paymentMethod
+        self.transactionId = transactionId
+        self.points = points
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
 /// Comprehensive unit tests for PaymentService
 final class PaymentServiceTests: XCTestCase {
 

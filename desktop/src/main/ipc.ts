@@ -467,7 +467,7 @@ export function setupIpcHandlers(): void {
     try {
       const body = JSON.stringify({
         user_id: userId,
-        start_time: new Date().toISOString(),
+        started_at: new Date().toISOString(),
         duration: 0,
         subject
       });
@@ -497,14 +497,14 @@ export function setupIpcHandlers(): void {
     }
   });
 
-  /** Update a study session (set end_time and duration) */
+  /** Update a study session (set ended_at and duration) */
   ipcMain.handle('study:update-session', async (_event, sessionId: string, duration: number) => {
     if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
     const session = getSession();
     if (!session?.access_token) return { success: false, error: 'not_authenticated' };
     try {
       const body = JSON.stringify({
-        end_time: new Date().toISOString(),
+        ended_at: new Date().toISOString(),
         duration
       });
       const res = await httpRequest({
@@ -540,7 +540,7 @@ export function setupIpcHandlers(): void {
       // Get all sessions for the user
       const res = await httpRequest({
         method: 'GET',
-        url: `${SUPABASE_URL}/rest/v1/study_sessions?user_id=eq.${encodeURIComponent(userId)}&select=duration,start_time&order=start_time.desc`,
+        url: `${SUPABASE_URL}/rest/v1/study_sessions?user_id=eq.${encodeURIComponent(userId)}&select=duration,started_at&order=started_at.desc`,
         headers: {
           'apikey': SUPABASE_ANON_KEY!,
           'Authorization': `Bearer ${session.access_token}`,
@@ -559,7 +559,7 @@ export function setupIpcHandlers(): void {
         let totalMinutes = 0;
 
         for (const s of sessions) {
-          const startTime = new Date(s.start_time);
+          const startTime = new Date(s.started_at);
           totalMinutes += s.duration || 0;
           if (startTime >= todayStart) {
             todayMinutes += s.duration || 0;
@@ -769,6 +769,173 @@ export function setupIpcHandlers(): void {
       }
 
       return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // === Study Room (TrixNativeServer) ===
+
+  /** Create a study room */
+  ipcMain.handle('study-room:create', async (_event, params: { userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/study-rooms`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (res.statusCode === 201) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: data.room };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Join a study room */
+  ipcMain.handle('study-room:join', async (_event, roomCode: string, params: { userId: string; displayName: string; avatarUrl?: string }) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/join`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: data.room };
+      }
+      if (res.statusCode === 404) {
+        return { success: false, error: 'Room not found' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Leave a study room */
+  ipcMain.handle('study-room:leave', async (_event, roomCode: string, userId: string) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/leave`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (res.statusCode === 200) {
+        return { success: true };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Host action (start_focus, pause, end) */
+  ipcMain.handle('study-room:host-action', async (_event, roomCode: string, params: { userId: string; action: 'start_focus' | 'pause' | 'end'; durationMinutes?: number }) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/action`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: data.room };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Get study room state */
+  ipcMain.handle('study-room:get', async (_event, roomCode: string) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}`,
+        headers: {
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: data.room };
+      }
+      if (res.statusCode === 404) {
+        return { success: false, error: 'Room not found' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Lookup study rooms by user IDs */
+  ipcMain.handle('study-room:lookup-by-users', async (_event, userIds: string[]) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/study-rooms/lookup-by-users`,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trix-admin-token': config.deviceToken,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ userIds }),
+      });
+
+      if (res.statusCode === 200) {
+        const data = JSON.parse(res.body);
+        return { success: true, data: data.users };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
     } catch (err) {
       return { success: false, error: String(err) };
     }

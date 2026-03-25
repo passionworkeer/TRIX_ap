@@ -70,6 +70,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateStudySession: (sessionId, duration) => ipcRenderer.invoke('study:update-session', sessionId, duration),
   getStudyStats: () => ipcRenderer.invoke('study:get-stats'),
 
+  // === Study Room (TrixNativeServer) ===
+  createStudyRoom: (params) => ipcRenderer.invoke('study-room:create', params),
+  joinStudyRoom: (roomCode, params) => ipcRenderer.invoke('study-room:join', roomCode, params),
+  leaveStudyRoom: (roomCode, userId) => ipcRenderer.invoke('study-room:leave', roomCode, userId),
+  studyRoomHostAction: (roomCode, params) => ipcRenderer.invoke('study-room:host-action', roomCode, params),
+  getStudyRoom: (roomCode) => ipcRenderer.invoke('study-room:get', roomCode),
+  lookupStudyRoomsByUsers: (userIds) => ipcRenderer.invoke('study-room:lookup-by-users', userIds),
+
   // === Supabase Auth ===
   authGetSession: () => ipcRenderer.invoke('auth:get-session'),
   authSignIn: (email, password) => ipcRenderer.invoke('auth:sign-in', email, password),

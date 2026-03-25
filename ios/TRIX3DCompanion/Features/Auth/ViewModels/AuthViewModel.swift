@@ -155,7 +155,7 @@ final class AuthViewModel {
     /// Validates login password field
     /// - Returns: Validation error if invalid, nil if valid
     func validateLoginPassword() -> AuthValidationError? {
-        let password = loginPassword.trimmingCharacters(in: .newlines)
+        let password = loginPassword.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if password.isEmpty {
             return .passwordRequired

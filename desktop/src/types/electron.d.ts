@@ -26,6 +26,47 @@ export interface ApiResult<T = unknown> {
   error?: string;
 }
 
+// Study Room Types
+export type StudyRoomSessionState = 'idle' | 'focusing' | 'resting';
+export type StudyRoomMemberStatus = 'online' | 'focusing' | 'resting';
+export type StudyRoomHostAction = 'start_focus' | 'pause' | 'end';
+
+export interface StudyRoomMember {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  joinedAt: number;
+  lastActiveAt: number;
+  status: StudyRoomMemberStatus;
+}
+
+export interface StudyRoomTimerState {
+  durationSeconds: number;
+  startedAt: number;
+  endsAt: number;
+  remainingSeconds: number;
+}
+
+export interface StudyRoomState {
+  roomCode: string;
+  hostUserId: string;
+  sessionState: StudyRoomSessionState;
+  members: StudyRoomMember[];
+  maxMembers: number;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  timer: StudyRoomTimerState | null;
+}
+
+export interface StudyRoomLookupResult {
+  userId: string;
+  inRoom: boolean;
+  roomCode?: string;
+  sessionState?: StudyRoomSessionState;
+  memberCount?: number;
+}
+
 export interface GatewayStatus {
   running: boolean;
   port?: number;
@@ -127,6 +168,14 @@ export interface ElectronAPI {
   createStudySession: (subject?: string) => Promise<ApiResult<{ id: string }>>;
   updateStudySession: (sessionId: string, duration: number) => Promise<ApiResult<void>>;
   getStudyStats: () => Promise<ApiResult<{ todayMinutes: number; weekMinutes: number; totalMinutes: number; sessionCount: number }>>;
+
+  // Study Room (TrixNativeServer)
+  createStudyRoom: (params: { userId: string; displayName: string; avatarUrl?: string; maxMembers?: number }) => Promise<ApiResult<StudyRoomState>>;
+  joinStudyRoom: (roomCode: string, params: { userId: string; displayName: string; avatarUrl?: string }) => Promise<ApiResult<StudyRoomState>>;
+  leaveStudyRoom: (roomCode: string, userId: string) => Promise<ApiResult<void>>;
+  studyRoomHostAction: (roomCode: string, params: { userId: string; action: 'start_focus' | 'pause' | 'end'; durationMinutes?: number }) => Promise<ApiResult<StudyRoomState>>;
+  getStudyRoom: (roomCode: string) => Promise<ApiResult<StudyRoomState>>;
+  lookupStudyRoomsByUsers: (userIds: string[]) => Promise<ApiResult<StudyRoomLookupResult[]>>;
 
   // TrixNativeServer Chat API
   listConversations: () => Promise<ApiResult<Array<{ id: string; title: string; updatedAt?: string }>>>;

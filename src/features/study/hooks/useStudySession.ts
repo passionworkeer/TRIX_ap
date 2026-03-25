@@ -134,7 +134,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
         .from('study_sessions')
         .insert({
           user_id: userId,
-          start_time: new Date(startTime).toISOString(),
+          started_at: new Date(startTime).toISOString(),
           duration: 0, // 初始时长为 0，结束后更新
           subject: '自习'
         })
@@ -188,7 +188,7 @@ export function useStudySession(options: UseStudySessionOptions): UseStudySessio
         const { error: sessionError } = await supabase
           .from('study_sessions')
           .update({
-            end_time: new Date(endTime).toISOString(),
+            ended_at: new Date(endTime).toISOString(),
             duration: studiedMinutes
           })
           .eq('id', sessionId);

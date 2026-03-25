@@ -229,13 +229,16 @@ const ProgressBar = (props: ProgressBarProps) => {
 // ── Pomodoro Timer ──────────────────────────────────────────────────────────
 
 const PomodoroTimer = () => {
+  const api = window.electronAPI;
   const [state, setState] = useState<PomodoroState>({
     mode: 'focus',
     timeLeft: MODE_DURATIONS.focus,
     isRunning: false,
-    sessionsCompleted: 3,
+    sessionsCompleted: 0,
   });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentSessionIdRef = useRef<string | null>(null);
+  const sessionStartTimeRef = useRef<number | null>(null);
 
   const totalTime = MODE_DURATIONS[state.mode];
   const progress = 1 - state.timeLeft / totalTime;
@@ -243,16 +246,80 @@ const PomodoroTimer = () => {
   const CIRC = 2 * Math.PI * RADIUS;
   const dashOffset = CIRC * (1 - progress);
 
-  const handleModeSwitch = useCallback((mode: PomodoroMode) => {
+  // Create study session in Supabase
+  const createStudySession = useCallback(async () => {
+    if (!api?.createStudySession) return null;
+    try {
+      const result = await api.createStudySession('自习');
+      if (result.success && result.data?.id) {
+        return result.data.id;
+      }
+    } catch (e) {
+      console.error('Failed to create study session:', e);
+    }
+    return null;
+  }, [api]);
+
+  // Update study session in Supabase
+  const updateStudySession = useCallback(async (sessionId: string, durationMinutes: number) => {
+    if (!api?.updateStudySession) return;
+    try {
+      await api.updateStudySession(sessionId, durationMinutes);
+    } catch (e) {
+      console.error('Failed to update study session:', e);
+    }
+  }, [api]);
+
+  // Handle focus session completion
+  const handleFocusComplete = useCallback(async () => {
+    const sessionId = currentSessionIdRef.current;
+    const startTime = sessionStartTimeRef.current;
+    
+    if (sessionId && startTime) {
+      const elapsedMinutes = Math.floor((Date.now() - startTime) / 60000);
+      const durationMinutes = Math.min(elapsedMinutes, MODE_DURATIONS.focus / 60);
+      await updateStudySession(sessionId, durationMinutes);
+    }
+    
+    currentSessionIdRef.current = null;
+    sessionStartTimeRef.current = null;
+  }, [updateStudySession]);
+
+  const handleModeSwitch = useCallback(async (mode: PomodoroMode) => {
+    // If switching away from focus, save the session
+    if (state.mode === 'focus' && state.isRunning) {
+      await handleFocusComplete();
+    }
+    
     if (intervalRef.current) clearInterval(intervalRef.current);
     setState((prev) => ({ ...prev, mode, timeLeft: MODE_DURATIONS[mode], isRunning: false }));
-  }, []);
+  }, [state.mode, state.isRunning, handleFocusComplete]);
 
-  const toggleTimer = useCallback(() => {
-    setState((prev) => ({ ...prev, isRunning: !prev.isRunning }));
-  }, []);
+  const toggleTimer = useCallback(async () => {
+    if (state.isRunning) {
+      // Pausing - save the session
+      await handleFocusComplete();
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setState((prev) => ({ ...prev, isRunning: false }));
+    } else {
+      // Starting - create a new session if in focus mode
+      if (state.mode === 'focus') {
+        const sessionId = await createStudySession();
+        if (sessionId) {
+          currentSessionIdRef.current = sessionId;
+          sessionStartTimeRef.current = Date.now();
+        }
+      }
+      setState((prev) => ({ ...prev, isRunning: true }));
+    }
+  }, [state.isRunning, state.mode, handleFocusComplete, createStudySession]);
 
-  const skipSession = useCallback(() => {
+  const skipSession = useCallback(async () => {
+    // Save current focus session if running
+    if (state.mode === 'focus' && state.isRunning) {
+      await handleFocusComplete();
+    }
+    
     const nextMode: PomodoroState['mode'] =
       state.mode === 'focus'
         ? state.sessionsCompleted > 0 && (state.sessionsCompleted + 1) % 4 === 0
@@ -268,7 +335,7 @@ const PomodoroTimer = () => {
       isRunning: false,
       sessionsCompleted: newSessions,
     }));
-  }, [state.mode, state.sessionsCompleted]);
+  }, [state.mode, state.sessionsCompleted, state.isRunning, handleFocusComplete]);
 
   // Countdown effect
   useEffect(() => {
@@ -277,6 +344,12 @@ const PomodoroTimer = () => {
         setState((prev) => {
           if (prev.timeLeft <= 1) {
             if (intervalRef.current) clearInterval(intervalRef.current);
+            
+            // Handle focus completion
+            if (prev.mode === 'focus') {
+              handleFocusComplete();
+            }
+            
             // Auto-advance to next session
             const nextMode: PomodoroState['mode'] =
               prev.mode === 'focus'
@@ -285,6 +358,17 @@ const PomodoroTimer = () => {
                   : 'shortBreak'
                 : 'focus';
             const newSessions = prev.mode === 'focus' ? prev.sessionsCompleted + 1 : prev.sessionsCompleted;
+            
+            // Create new session if going to focus mode
+            if (nextMode === 'focus') {
+              createStudySession().then(sessionId => {
+                if (sessionId) {
+                  currentSessionIdRef.current = sessionId;
+                  sessionStartTimeRef.current = Date.now();
+                }
+              });
+            }
+            
             return {
               ...prev,
               mode: nextMode,
@@ -300,7 +384,7 @@ const PomodoroTimer = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [state.isRunning]);
+  }, [state.isRunning, handleFocusComplete, createStudySession]);
 
   const modeColors: Record<PomodoroMode, string> = {
     focus: C.primary,
@@ -911,12 +995,602 @@ const StatsTabContent: React.FC = () => {
   );
 };
 
+// ── Study Room Component ──────────────────────────────────────────────────────
+
+type EntryMode = 'self' | 'friend' | 'room';
+
+interface StudyRoomProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentUserId: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
+interface StudyRoomMember {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  joinedAt: number;
+  lastActiveAt: number;
+  status: 'online' | 'focusing' | 'resting';
+}
+
+interface StudyRoomState {
+  roomCode: string;
+  hostUserId: string;
+  sessionState: 'idle' | 'focusing' | 'resting';
+  members: StudyRoomMember[];
+  maxMembers: number;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  timer: {
+    durationSeconds: number;
+    startedAt: number;
+    endsAt: number;
+    remainingSeconds: number;
+  } | null;
+}
+
+const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose, currentUserId, displayName, avatarUrl }) => {
+  const api = window.electronAPI;
+  const [entryMode, setEntryMode] = useState<EntryMode>('self');
+  const [selectedDuration, setSelectedDuration] = useState(25);
+  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [room, setRoom] = useState<StudyRoomState | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isHost = room?.hostUserId === currentUserId;
+
+  // Refresh room state
+  const refreshRoom = useCallback(async () => {
+    if (!room?.roomCode || !api) return;
+    const result = await api.getStudyRoom(room.roomCode);
+    if (result.success && result.data) {
+      setRoom(result.data);
+    } else {
+      setRoom(null);
+    }
+  }, [api, room?.roomCode]);
+
+  // Poll room state every 5 seconds when in a room
+  useEffect(() => {
+    if (!room || !isOpen) return;
+    const interval = setInterval(refreshRoom, 5000);
+    return () => clearInterval(interval);
+  }, [room, isOpen, refreshRoom]);
+
+  const handleCreateRoom = async () => {
+    if (!api) return;
+    setIsBusy(true);
+    setError(null);
+    const result = await api.createStudyRoom({
+      userId: currentUserId,
+      displayName,
+      avatarUrl,
+      maxMembers: 5
+    });
+    setIsBusy(false);
+    if (result.success && result.data) {
+      setRoom(result.data);
+      setRoomCodeInput(result.data.roomCode);
+    } else {
+      setError(result.error || '创建房间失败');
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (!api) return;
+    const code = roomCodeInput.trim().toUpperCase();
+    if (!code || code.length < 4) {
+      setError('请输入有效的房间号');
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    const result = await api.joinStudyRoom(code, {
+      userId: currentUserId,
+      displayName,
+      avatarUrl
+    });
+    setIsBusy(false);
+    if (result.success && result.data) {
+      setRoom(result.data);
+    } else {
+      setError(result.error || '加入房间失败');
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!room || !api) return;
+    setIsBusy(true);
+    setError(null);
+    await api.leaveStudyRoom(room.roomCode, currentUserId);
+    setIsBusy(false);
+    setRoom(null);
+    setRoomCodeInput('');
+  };
+
+  const handleHostAction = async (action: 'start_focus' | 'pause' | 'end') => {
+    if (!room || !api) return;
+    setIsBusy(true);
+    setError(null);
+    const result = await api.studyRoomHostAction(room.roomCode, {
+      userId: currentUserId,
+      action,
+      durationMinutes: action === 'start_focus' ? selectedDuration : undefined
+    });
+    setIsBusy(false);
+    if (result.success && result.data) {
+      setRoom(result.data);
+    } else {
+      setError(result.error || '操作失败');
+    }
+  };
+
+  const handleStartSelfStudy = () => {
+    onClose();
+    // Trigger self study with selected duration
+    window.dispatchEvent(new CustomEvent('start-self-study', { detail: { duration: selectedDuration } }));
+  };
+
+  if (!isOpen) return null;
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'focusing': return '#16a34a';
+      case 'resting': return '#f59e0b';
+      default: return '#94a3b8';
+    }
+  };
+
+  const getSessionStateText = (state: string) => {
+    switch (state) {
+      case 'focusing': return '专注中';
+      case 'resting': return '休息中';
+      default: return '空闲';
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,0.5)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: C.surfaceLowest,
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 500,
+          width: '90%',
+          maxHeight: '80vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: C.onSurface, margin: 0 }}>自习室</h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 4,
+              color: C.onSurfaceVariant,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div style={{
+            background: '#fee2e2',
+            color: C.error,
+            padding: '8px 12px',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13
+          }}>
+            {error}
+          </div>
+        )}
+
+        {!room ? (
+          <>
+            {/* Entry Mode Selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {[
+                { mode: 'self' as EntryMode, label: '自己自习', icon: '👤' },
+                { mode: 'friend' as EntryMode, label: '加入好友', icon: '👥' },
+                { mode: 'room' as EntryMode, label: '房间号加入', icon: '🔢' },
+              ].map(({ mode, label, icon }) => (
+                <button
+                  key={mode}
+                  onClick={() => setEntryMode(mode)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 8px',
+                    borderRadius: 10,
+                    border: `1px solid ${entryMode === mode ? C.primary : C.outlineVariant}`,
+                    background: entryMode === mode ? `${C.primary}10` : 'transparent',
+                    color: entryMode === mode ? C.primary : C.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: entryMode === mode ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <div>{icon}</div>
+                  <div style={{ marginTop: 4 }}>{label}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Self Study Mode */}
+            {entryMode === 'self' && (
+              <div>
+                <p style={{ fontSize: 12, color: C.onSurfaceVariant, marginBottom: 12 }}>选择本次专注时长</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  {[25, 45, 60].map((minute) => (
+                    <button
+                      key={minute}
+                      onClick={() => setSelectedDuration(minute)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 20,
+                        border: `1px solid ${selectedDuration === minute ? C.primary : C.outlineVariant}`,
+                        background: selectedDuration === minute ? `${C.primary}10` : 'transparent',
+                        color: selectedDuration === minute ? C.primary : C.onSurfaceVariant,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {minute} 分钟
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleStartSelfStudy}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ▶ 开始自己自习
+                </button>
+              </div>
+            )}
+
+            {/* Room Code Mode */}
+            {entryMode === 'room' && (
+              <div>
+                <p style={{ fontSize: 12, color: C.onSurfaceVariant, marginBottom: 12 }}>输入房间号加入，或创建新房间</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <input
+                    value={roomCodeInput}
+                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                    placeholder="输入房间号"
+                    maxLength={8}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: `1px solid ${C.outlineVariant}`,
+                      background: C.surfaceLow,
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={handleCreateRoom}
+                    disabled={isBusy}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: '#06b6d4',
+                      color: '#fff',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: isBusy ? 0.6 : 1,
+                    }}
+                  >
+                    创建
+                  </button>
+                  <button
+                    onClick={handleJoinRoom}
+                    disabled={isBusy || !roomCodeInput}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: C.primary,
+                      color: '#fff',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: (isBusy || !roomCodeInput) ? 0.6 : 1,
+                    }}
+                  >
+                    加入
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Friend Mode (placeholder) */}
+            {entryMode === 'friend' && (
+              <div style={{ textAlign: 'center', padding: 20, color: C.onSurfaceVariant }}>
+                <p>好友列表功能开发中...</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Room Info */}
+            <div style={{
+              background: C.surfaceLow,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Room</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'monospace', color: C.onSurface }}>{room.roomCode}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: C.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Session</div>
+                  <div style={{ fontSize: 14, color: C.onSurface }}>{getSessionStateText(room.sessionState)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: C.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Members</div>
+                  <div style={{ fontSize: 14, color: C.onSurface }}>{room.members.length} / {room.maxMembers}</div>
+                </div>
+              </div>
+
+              {/* Timer */}
+              {room.timer && room.sessionState !== 'idle' && (
+                <div style={{
+                  background: C.surfaceLowest,
+                  borderRadius: 10,
+                  padding: 12,
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 11, color: C.onSurfaceVariant, marginBottom: 4 }}>Remaining</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'monospace', color: C.onSurface }}>
+                    {formatTime(Math.max(0, Math.floor((room.timer.endsAt - Date.now()) / 1000)))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Members */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.onSurface, marginBottom: 8 }}>参与者</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+                {room.members.map((member) => (
+                  <div
+                    key={member.userId}
+                    style={{
+                      background: C.surfaceLow,
+                      borderRadius: 10,
+                      padding: 10,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      background: `${C.primary}20`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 6px',
+                      fontSize: 16,
+                      fontWeight: 600,
+                      color: C.primary,
+                    }}>
+                      {member.displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.onSurface, fontWeight: 500, marginBottom: 2 }}>
+                      {member.displayName}
+                      {member.userId === room.hostUserId && ' 👑'}
+                    </div>
+                    <div style={{ fontSize: 10, color: getStatusColor(member.status) }}>
+                      {member.status}
+                    </div>
+                  </div>
+                ))}
+                {Array.from({ length: room.maxMembers - room.members.length }).map((_, i) => (
+                  <div
+                    key={`empty-${i}`}
+                    style={{
+                      background: C.surfaceLow,
+                      borderRadius: 10,
+                      padding: 10,
+                      textAlign: 'center',
+                      border: `1px dashed ${C.outlineVariant}`,
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: C.onSurfaceVariant, opacity: 0.5 }}>空位</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Host Controls */}
+            {isHost && (
+              <div style={{ marginBottom: 16 }}>
+                {room.sessionState === 'idle' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: C.onSurfaceVariant, marginBottom: 8 }}>Focus Duration</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[25, 45, 60].map((minute) => (
+                        <button
+                          key={minute}
+                          onClick={() => setSelectedDuration(minute)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: 16,
+                            border: `1px solid ${selectedDuration === minute ? C.primary : C.outlineVariant}`,
+                            background: selectedDuration === minute ? `${C.primary}10` : 'transparent',
+                            color: selectedDuration === minute ? C.primary : C.onSurfaceVariant,
+                            fontSize: 12,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {minute} 分钟
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => handleHostAction('start_focus')}
+                    disabled={isBusy || room.sessionState !== 'idle'}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: '#16a34a',
+                      color: '#fff',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: (isBusy || room.sessionState !== 'idle') ? 0.5 : 1,
+                    }}
+                  >
+                    ▶ 开始
+                  </button>
+                  <button
+                    onClick={() => handleHostAction('pause')}
+                    disabled={isBusy || room.sessionState !== 'focusing'}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: '#f59e0b',
+                      color: '#fff',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: (isBusy || room.sessionState !== 'focusing') ? 0.5 : 1,
+                    }}
+                  >
+                    ⏸ 暂停
+                  </button>
+                  <button
+                    onClick={() => handleHostAction('end')}
+                    disabled={isBusy || room.sessionState === 'idle'}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: '#64748b',
+                      color: '#fff',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      opacity: (isBusy || room.sessionState === 'idle') ? 0.5 : 1,
+                    }}
+                  >
+                    ⬛ 结束
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Leave Room */}
+            <button
+              onClick={handleLeaveRoom}
+              disabled={isBusy}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#ef4444',
+                color: '#fff',
+                fontSize: 13,
+                cursor: 'pointer',
+                opacity: isBusy ? 0.6 : 1,
+              }}
+            >
+              🚪 离开房间
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Main StudyPage Component ─────────────────────────────────────────────────
+
+interface StudyStats {
+  todayMinutes: number;
+  weekMinutes: number;
+  totalMinutes: number;
+  sessionCount: number;
+}
 
 export default function StudyPage() {
   const api = window.electronAPI;
   const [activeTab, setActiveTab] = useState<'focus' | 'courses' | 'stats'>('focus');
   const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [studyStats, setStudyStats] = useState<StudyStats>({
+    todayMinutes: 0,
+    weekMinutes: 0,
+    totalMinutes: 0,
+    sessionCount: 0
+  });
+  const [isStudyRoomOpen, setIsStudyRoomOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ id: string; displayName: string; avatarUrl?: string }>({
+    id: '',
+    displayName: 'TRIX 用户'
+  });
+
+  // Load user profile
+  useEffect(() => {
+    if (!api?.getProfileStats) return;
+    api.getProfileStats().then((result) => {
+      if (result.success && result.data) {
+        setUserProfile({
+          id: result.data.displayName, // Using displayName as ID for now
+          displayName: result.data.displayName
+        });
+      }
+    }).catch(() => {});
+  }, [api]);
 
   // Load todos from IPC (Supabase via main process)
   useEffect(() => {
@@ -946,6 +1620,22 @@ export default function StudyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load study stats from IPC (Supabase via main process)
+  useEffect(() => {
+    if (!api?.getStudyStats) return;
+    const loadStats = () => {
+      api.getStudyStats().then((result) => {
+        if (result.success && result.data) {
+          setStudyStats(result.data);
+        }
+      }).catch(() => {});
+    };
+    loadStats();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(loadStats, 30000);
+    return () => clearInterval(interval);
+  }, [api]);
+
   const toggleTodo = useCallback((id: string) => {
     // Optimistic update
     setTodos((prev) =>
@@ -959,6 +1649,16 @@ export default function StudyPage() {
       }
     }
   }, [api, todos]);
+
+  // Format minutes to hours and minutes
+  const formatMinutes = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
 
   const tabs = [
     { key: 'focus' as const, label: '专注模式' },
@@ -1016,6 +1716,24 @@ export default function StudyPage() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setIsStudyRoomOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 999,
+                background: `${C.primary}10`,
+                border: `1px solid ${C.primary}20`,
+                cursor: 'pointer',
+                fontSize: 11,
+                color: C.primary,
+                fontWeight: 600,
+              }}
+            >
+              🏠 自习室
+            </button>
             <div
               style={{
                 display: 'flex',
@@ -1173,7 +1891,7 @@ export default function StudyPage() {
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                4.5
+                {(studyStats.todayMinutes / 60).toFixed(1)}
               </span>
               <span style={{ fontSize: 13, color: C.onSurfaceVariant }}>小时</span>
               <span
@@ -1188,7 +1906,7 @@ export default function StudyPage() {
               </span>
             </div>
             <ProgressBar
-              value={4.5}
+              value={studyStats.todayMinutes / 60}
               max={8}
               gradient={[C.primary, C.primaryContainer]}
               height={7}
@@ -1201,16 +1919,16 @@ export default function StudyPage() {
             <StatCard
               icon={<Clock size={16} />}
               label="今日专注时长"
-              value="4h 32m"
-              sub="较昨日 +18%"
+              value={formatMinutes(studyStats.todayMinutes)}
+              sub={`共 ${studyStats.sessionCount} 次`}
               color={C.primary}
               colorBg={`${C.primary}10`}
             />
             <StatCard
               icon={<CheckCircle size={16} />}
-              label="已完成任务"
-              value="8 / 12"
-              sub="完成率 67%"
+              label="本周专注时长"
+              value={formatMinutes(studyStats.weekMinutes)}
+              sub="累计"
               color="#16a34a"
               colorBg="#16a34a10"
             />
@@ -1453,6 +2171,15 @@ export default function StudyPage() {
           </div>
         </div>
       </div>
+
+      {/* Study Room Modal */}
+      <StudyRoom
+        isOpen={isStudyRoomOpen}
+        onClose={() => setIsStudyRoomOpen(false)}
+        currentUserId={userProfile.id}
+        displayName={userProfile.displayName}
+        avatarUrl={userProfile.avatarUrl}
+      />
 
       <style>{`
         ::-webkit-scrollbar { width: 3px; }

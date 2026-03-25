@@ -9,6 +9,58 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+// MARK: - User Extension for Testing
+
+extension User {
+    init(
+        id: String,
+        username: String? = nil,
+        email: String? = nil,
+        avatarUrl: String? = nil,
+        avatarConfig: [String: AnyCodable]? = nil,
+        fullName: String? = nil,
+        displayName: String? = nil,
+        bio: String? = nil,
+        website: String? = nil,
+        points: Int? = nil,
+        isStudying: Bool? = nil,
+        companionId: String? = nil,
+        totalStudyTime: Int? = nil,
+        lastActiveAt: Date? = nil,
+        currentStreak: Int? = nil,
+        daysActive: Int? = nil,
+        interactionCount: Int? = nil,
+        showOnlineStatus: Bool? = nil,
+        school: String? = nil,
+        grade: String? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.username = username
+        self.email = email
+        self.avatarUrl = avatarUrl
+        self.avatarConfig = avatarConfig
+        self.fullName = fullName
+        self.displayName = displayName
+        self.bio = bio
+        self.website = website
+        self.points = points
+        self.isStudying = isStudying
+        self.companionId = companionId
+        self.totalStudyTime = totalStudyTime
+        self.lastActiveAt = lastActiveAt
+        self.currentStreak = currentStreak
+        self.daysActive = daysActive
+        self.interactionCount = interactionCount
+        self.showOnlineStatus = showOnlineStatus
+        self.school = school
+        self.grade = grade
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
 /// Unit tests for ChatService
 final class ChatServiceTests: XCTestCase {
 
@@ -376,8 +428,8 @@ final class ChatServiceTests: XCTestCase {
 
     // MARK: - Helper Methods
 
-    private func createMockConversation(id: String = "conv-1") -> ChatConversation {
-        ChatConversation(
+    private func createMockConversation(id: String = "conv-1") -> MockChatConversation {
+        MockChatConversation(
             id: id,
             name: "Test Conversation",
             type: .friend,
@@ -437,10 +489,10 @@ class MockAPIClient {
     }
 }
 
-// MARK: - ChatConversation Model
+// MARK: - MockChatConversation Model
 
 /// Chat conversation model for testing
-struct ChatConversation: Identifiable, Equatable {
+struct MockChatConversation: Identifiable, Equatable {
     let id: String
     let name: String
     let type: ConversationType
@@ -456,7 +508,7 @@ struct ChatConversation: Identifiable, Equatable {
         case bot
     }
 
-    static func == (lhs: ChatConversation, rhs: ChatConversation) -> Bool {
+    static func == (lhs: MockChatConversation, rhs: MockChatConversation) -> Bool {
         lhs.id == rhs.id
     }
 }
