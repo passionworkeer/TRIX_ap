@@ -26,6 +26,34 @@ export interface ApiResult<T = unknown> {
   error?: string;
 }
 
+// ── Gateway WebSocket RPC types ─────────────────────────────────────────────
+
+export interface GatewaySession {
+  key: string;
+  label?: string;
+  status?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  messageCount?: number;
+}
+
+export interface GatewayAgent {
+  id: string;
+  name: string;
+  status?: 'online' | 'offline' | 'alert';
+  channel?: string;
+  lastSeen?: number;
+  source?: string;
+  description?: string;
+}
+
+export interface ChatMessage {
+  id?: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: number;
+}
+
 // Study Room Types
 export type StudyRoomSessionState = 'idle' | 'focusing' | 'resting';
 export type StudyRoomMemberStatus = 'online' | 'focusing' | 'resting';

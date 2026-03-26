@@ -29,6 +29,12 @@ import {
   analyzeGatewayLogs,
   recordFixAttempt,
   getKbStats,
+  connectGatewayWs,
+  gatewayRpcCall,
+  getGatewayAgents,
+  getGatewaySessions,
+  getChatHistory,
+  getGatewayLogsWs,
 } from './gateway';
 
 // === Input Validation Helpers ===
@@ -2161,6 +2167,79 @@ export function setupIpcHandlers(): void {
       const loginItemSettings = app.getLoginItemSettings();
       return { success: true, data: { enabled: loginItemSettings.openAtLogin } };
     } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Gateway WebSocket RPC ───────────────────────────────────────────────────
+
+  // Connect WS channel (no-op if already connected)
+  ipcMain.handle('gateway:connect', async () => {
+    try {
+      await connectGatewayWs();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // List agents via WS RPC (CLI fallback)
+  ipcMain.handle('gateway:agents', async () => {
+    try {
+      const data = await getGatewayAgents();
+      return { success: true, data };
+    } catch {
+      // Fallback to CLI
+      try {
+        return await runCommand('agents list');
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    }
+  });
+
+  // List sessions via WS RPC
+  ipcMain.handle('gateway:sessions', async () => {
+    try {
+      const data = await getGatewaySessions();
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Get chat history for a session via WS RPC
+  ipcMain.handle('gateway:chat-history', async (_event, sessionKey: string, limit?: number) => {
+    try {
+      const data = await getChatHistory(sessionKey, limit);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Get gateway logs via WS RPC (CLI/file fallback)
+  ipcMain.handle('gateway:logs', async (_event, tail = 100) => {
+    try {
+      const data = await getGatewayLogsWs(tail);
+      return { success: true, data };
+    } catch {
+      // Fallback: use existing file-based getGatewayLogs
+      try {
+        const lines = await getGatewayLogs();
+        return { success: true, data: lines.slice(-tail) };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    }
+  });
+
+  // Generic RPC call (for advanced usage)
+  ipcMain.handle('gateway:rpc', async (_event, method: string, params?: Record<string, unknown>) => {
+    try {
+      const data = await gatewayRpcCall(method, params);
+      return { success: true, data };
+    } catch (err) {
       return { success: false, error: String(err) };
     }
   });

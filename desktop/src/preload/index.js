@@ -57,6 +57,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreBackup: (id) => ipcRenderer.invoke('openclaw:backup-restore', id),
   createPairingCode: () => ipcRenderer.invoke('openclaw:pairing-create'),
 
+  // === Gateway WebSocket RPC ===
+  gatewayConnect: () => ipcRenderer.invoke('gateway:connect'),
+  gatewayAgents: () => ipcRenderer.invoke('gateway:agents'),
+  gatewaySessions: () => ipcRenderer.invoke('gateway:sessions'),
+  gatewayChatHistory: (sessionKey, limit) => ipcRenderer.invoke('gateway:chat-history', sessionKey, limit),
+  gatewayLogs: (tail) => ipcRenderer.invoke('gateway:logs', tail),
+  gatewayRpc: (method, params) => ipcRenderer.invoke('gateway:rpc', method, params),
+  // Real-time events: returns an unsubscribe function
+  onGatewayEvent: (callback) => {
+    const listener = (_e, event) => callback(event);
+    ipcRenderer.on('gateway:event', listener);
+    return () => ipcRenderer.removeListener('gateway:event', listener);
+  },
+
   // === Study Data (Supabase — requires login) ===
   listTodos: () => ipcRenderer.invoke('study:list-todos'),
   createTodo: (title, priority) => ipcRenderer.invoke('study:create-todo', title, priority),

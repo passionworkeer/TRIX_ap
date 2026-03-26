@@ -633,3 +633,162 @@ export async function restartGateway(): Promise<void> {
   await new Promise((r) => setTimeout(r, 2000));
   await startGateway();
 }
+
+// ─── WebSocket RPC Client (mirrors Mission Control approach) ─────────────────
+
+import WebSocket from 'ws';
+
+const GATEWAY_WS_URL = `ws://127.0.0.1:${GATEWAY_PORT}`;
+
+interface RpcRequest { type: 'req'; id: string; method: string; params?: Record<string, unknown>; }
+interface RpcEvent { type: string; [key: string]: unknown; }
+
+let _ws: WebSocket | null = null;
+let _connectPromise: Promise<void> | null = null;
+const _pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+let _eventHandler: ((event: RpcEvent) => void) | null = null;
+
+/** Internal: dispatch an inbound event to the registered handler. */
+function _dispatchEvent(msg: RpcEvent): void {
+  _eventHandler?.(msg);
+}
+
+/** Connect (or reuse) the WebSocket channel. Idempotent. */
+export function connectGatewayWs(
+  onEvent?: (event: RpcEvent) => void,
+): Promise<void> {
+  if (_ws?.readyState === WebSocket.OPEN) {
+    _eventHandler = onEvent ?? null;
+    return Promise.resolve();
+  }
+  if (_connectPromise) return _connectPromise;
+
+  _eventHandler = onEvent ?? null;
+  _connectPromise = new Promise<void>((resolve, reject) => {
+    try {
+      _ws = new WebSocket(GATEWAY_WS_URL);
+    } catch (err) {
+      _connectPromise = null;
+      reject(err);
+      return;
+    }
+
+    _ws.on('open', () => {
+      log.info('[GatewayWS] Connected to', GATEWAY_WS_URL);
+      resolve();
+    });
+
+    _ws.on('message', (raw) => {
+      try {
+        const msg = JSON.parse(raw.toString()) as RpcEvent;
+        if (msg.type === 'res') {
+          // Response to a pending request
+          const p = _pending.get((msg as unknown as { id: string }).id);
+          if (p) { _pending.delete((msg as unknown as { id: string }).id); p.resolve((msg as unknown as { payload: unknown }).payload); }
+        } else {
+          // Server-side event
+          _dispatchEvent(msg);
+        }
+      } catch { /* ignore parse errors */ }
+    });
+
+    _ws.on('error', (err) => {
+      log.warn('[GatewayWS] Error:', err.message);
+      if (_connectPromise) { const p = _connectPromise; _connectPromise = null; (p as Promise<void>).catch?.(() => {}); }
+      _pending.forEach((cb) => cb.reject(new Error(`WS error: ${err.message}`)));
+      _pending.clear();
+    });
+
+    _ws.on('close', () => {
+      log.info('[GatewayWS] Disconnected');
+      _ws = null;
+      _connectPromise = null;
+      _pending.forEach((cb) => cb.reject(new Error('Gateway disconnected')));
+      _pending.clear();
+    });
+  });
+
+  return _connectPromise;
+}
+
+/** Send a JSON-RPC request over the WS channel. Auto-connects if needed. */
+export async function gatewayRpcCall(
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<unknown> {
+  await connectGatewayWs();
+
+  return new Promise((resolve, reject) => {
+    if (!_ws || _ws.readyState !== WebSocket.OPEN) {
+      reject(new Error('WebSocket not connected'));
+      return;
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const msg: RpcRequest = { type: 'req', id, method, params };
+    _ws.send(JSON.stringify(msg));
+    _pending.set(id, { resolve, reject });
+
+    // Timeout: 10s
+    setTimeout(() => {
+      if (_pending.has(id)) {
+        _pending.delete(id);
+        reject(new Error(`RPC timeout: ${method}`));
+      }
+    }, 10_000);
+  });
+}
+
+// ─── Convenience wrappers ───────────────────────────────────────────────────────
+
+export async function getGatewayAgents(): Promise<unknown[]> {
+  try {
+    const result = await gatewayRpcCall('agents.list');
+    return Array.isArray(result) ? result : [];
+  } catch (err) {
+    log.warn('[GatewayWS] agents.list failed, returning []:', err);
+    return [];
+  }
+}
+
+export async function getGatewaySessions(): Promise<unknown[]> {
+  try {
+    const result = await gatewayRpcCall('sessions.list');
+    return Array.isArray(result) ? result : [];
+  } catch (err) {
+    log.warn('[GatewayWS] sessions.list failed, returning []:', err);
+    return [];
+  }
+}
+
+export async function getChatHistory(
+  sessionKey: string,
+  limit = 50,
+): Promise<unknown[]> {
+  try {
+    const result = await gatewayRpcCall('chat.history', { sessionKey, limit });
+    return Array.isArray(result) ? result : [];
+  } catch (err) {
+    log.warn('[GatewayWS] chat.history failed, returning []:', err);
+    return [];
+  }
+}
+
+export async function getGatewayLogsWs(tail = 100): Promise<string[]> {
+  try {
+    const result = await gatewayRpcCall('logs.tail', { tail });
+    if (typeof result === 'string') return result.split('\n').filter(Boolean);
+    if (Array.isArray(result)) return result.map(String);
+    return [];
+  } catch (err) {
+    log.warn('[GatewayWS] logs.tail failed, returning []:', err);
+    return [];
+  }
+}
+
+/** Register an event handler (e.g. for 'health', 'heartbeat', 'agent' events). */
+export function onGatewayEvent(handler: (event: RpcEvent) => void): void {
+  _eventHandler = handler;
+  if (_ws?.readyState === WebSocket.OPEN) return;
+  // Kick off lazy connection so events start flowing
+  connectGatewayWs(handler).catch(() => {});
+}
