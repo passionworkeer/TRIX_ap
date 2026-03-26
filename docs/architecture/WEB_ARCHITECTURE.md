@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-24（代码扫描同步，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+> **最后更新**: 2026-03-26（代码扫描同步：修正 hooks 11→12（补 useBotStateMachine.ts），utils 9→10（补 coordinateUtils.ts））
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -315,4 +315,4 @@ src/
 
 ---
 
-**最后更新**: 2026-03-24（代码扫描同步，版本栈：React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0）
+**最后更新**: 2026-03-26（代码扫描同步：版本栈确认 React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0，utils 9→10（coordinateUtils.ts））

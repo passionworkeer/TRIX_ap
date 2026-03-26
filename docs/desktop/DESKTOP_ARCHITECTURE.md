@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.8
-> **最后更新**: 2026-03-25（代码扫描同步：IPC 62→75，preload API 62→74，新增 study* / study-room* 共 10 handlers）
+> **版本**: 1.9
+> **最后更新**: 2026-03-26（源码扫描确认 IPC 86（75→86 新增 11 个），preload 71，Study Session 3 + Study Room 6）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -122,6 +122,19 @@ window.electronAPI = {
   deleteTodo: (id: string) => Promise<void>,
   getAchievements: () => Promise<Achievement[]>,
   getProfileStats: () => Promise<ProfileStats>,
+
+  // === Study Session（3）— 补全
+  createStudySession: (sessionId: string, duration?: number) => Promise<StudySession>,
+  updateStudySession: (sessionId: string, updates: Partial<StudySession>) => Promise<void>,
+  getStudyStats: () => Promise<StudyStats>,
+
+  // === Study Room（6）— 补全
+  createStudyRoom: (name?: string) => Promise<StudyRoom>,
+  joinStudyRoom: (roomCode: string) => Promise<void>,
+  leaveStudyRoom: () => Promise<void>,
+  studyRoomHostAction: (action: string) => Promise<void>,
+  getStudyRoom: (roomCode: string) => Promise<StudyRoom>,
+  lookupStudyRoomsByUsers: (userIds: string[]) => Promise<StudyRoom[]>,
 
   // === TRIX Native ===
   listConversations: () => Promise<Conversation[]>,
@@ -311,7 +324,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **66 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 13 大类别：
+**概况**：共 **86 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 14+ 大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -320,7 +333,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 66 个 ipcMain.handle（13 大类别 + 4 ClawHub）
+// 全部 86 个 ipcMain.handle（14+ 大类别；含 925cda8 新增 WebSocket RPC handlers）
 
 // Window Management（3）
 'window:show-main'         → 显示主窗口
@@ -340,10 +353,10 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'openclaw:skills-list'     → 列出 Skills
 'openclaw:skills-install'  → 安装 Skill
 'openclaw:skills-uninstall' → 卸载 Skill
-'openclaw:skills-list-full' → ClawHub 完整列表（新增）
-'openclaw:skills-search'   → ClawHub 搜索（新增）
-'openclaw:skills-explore'  → ClawHub 发现（新增）
-'openclaw:skills-clawhub-install' → ClawHub 安装（新增）
+'openclaw:skills-list-full' → ClawHub 完整列表
+'openclaw:skills-search'   → ClawHub 搜索
+'openclaw:skills-explore'  → ClawHub 发现
+'openclaw:skills-clawhub-install' → ClawHub 安装
 'openclaw:backup-list'     → 列出 Backups
 'openclaw:backup-restore'  → 恢复 Backup
 'openclaw:pairing-create'  → 创建配对码
@@ -360,6 +373,19 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'study:toggle-todo'        → 切换完成状态
 'study:delete-todo'        → 删除待办
 'study:get-achievements'   → 获取成就列表
+
+// Study Session（3）— 补全
+'study:create-session'      → 创建学习会话
+'study:update-session'      → 更新学习会话
+'study:get-stats'           → 获取学习统计
+
+// Study Room（6）— 补全
+'study-room:create'          → 创建自习室
+'study-room:join'            → 加入自习室
+'study-room:leave'          → 离开自习室
+'study-room:host-action'    → 主持人操作（start_focus/pause/end）
+'study-room:get'            → 获取自习室详情
+'study-room:lookup-by-users' → 按用户查找自习室
 
 // Profile（1）
 'profile:get-stats'        → 获取用户统计
@@ -749,4 +775,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-25（代码扫描同步：IPC 62→66，preload API 62→71，新增 ClawHub 4 handlers，修正 LuminaRoutes Lumina 表缺失 map，更正 preload 方法名 getSystemDisk→getDiskInfo/gatewayStart）
+**最后更新**: 2026-03-26（源码扫描确认 IPC 86（75→86），preload 71，Study Session 3 + Study Room 6；iOS v1.3 修正：恢复 APIClient 等存在文件）

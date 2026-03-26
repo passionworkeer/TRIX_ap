@@ -2,19 +2,22 @@
 
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
-> **Last Updated**: 2026-03-25
-> **Version**: 1.2
+> **Last Updated**: 2026-03-26
+> **Version**: 1.3（目录结构准确性修复）
 
 ---
 
-## Accuracy Notes (as of 2026-03-25)
+## Accuracy Notes (as of 2026-03-26)
 
-**Known discrepancies from prior version (v1.1):**
+**Known discrepancies:**
 - `AppDelegate.swift` does not exist — lifecycle managed by `TRIX3DCompanionApp.swift`
 - `PairingService.swift` does not exist — pairing implemented in `ClawbotChannelService`
 - `WebSocketManager` does not exist — real-time uses `ClawbotChannelService` (TRIX Native Channel protocol)
-- Missing 17 services: `AudioPlayerService`, `AudioSessionManager`, `ClawbotChannelService`, `ClawbotHistoryService`, `FriendService`, `MallService`, `MapSearchService`, `PlaceService`, `ScheduleService`, `SessionService`, `SpeechRecognitionService`, `StudyHistoryService`, `ToastManager`, `UserService`, `UserStatsService`, `WardrobeService`, `WeChatSignInService`
-- `SupabaseService` is listed but app uses `AuthService` + Supabase client directly
+- `InputValidator.swift` does not exist in Core/Utilities/（整个目录无 Swift 文件）
+- `UIRenderingOptimizer.swift` does not exist in Core/Performance/
+- `AnalyticsService.swift` does not exist in Core/Analytics/
+- Core/Utils/, Core/Config/ have no Swift files（整个目录无 Swift 文件）
+- Core/Services/ has 40 implementations + 21 protocols = **61 Swift files**
 
 ---
 
@@ -96,50 +99,10 @@ ios/TRIX3DCompanion/
 |   |   +- JailbreakDetector.swift   # Jailbreak detection
 |   |   +- KeychainSecurityValidator.swift
 |   |
-|   +- Services/  (all have matching *Protocol.swift)
-|   |   +- AuthService.swift              # Email + OAuth login/logout
-|   |   +- OAuthManager.swift             # OAuth (Apple Sign-In, WeChat)
-|   |   +- AppleSignInService.swift       # Apple Sign-In
-|   |   +- WeChatSignInService.swift      # WeChat Sign-In
-|   |   +- SessionService.swift          # Session management
-|   |   +- UserService.swift              # User profile CRUD
-|   |   +- UserStatsService.swift         # User statistics
-|   |   +- FriendService.swift            # Friend list + requests
-|   |   +- ChatService.swift              # Chat messaging (REST polling)
-|   |   +- StudyService.swift             # Study rooms + timed sessions
-|   |   +- StudyHistoryService.swift      # Study session history
-|   |   +- PaymentService.swift            # Payment + order management
-|   |   +- StoreKitService.swift           # StoreKit 2 IAP
-|   |   +- PointsService.swift             # Points balance + history
-|   |   +- MallService.swift              # Points mall
-|   |   +- WardrobeService.swift           # Avatar wardrobe
-|   |   +- AchievementService.swift        # Achievements + badges
-|   |   +- ClawbotChannelService.swift     # TRIX Native Channel (real-time + pairing)
-|   |   +- ClawbotHistoryService.swift     # Clawbot chat history
-|   |   +- LocationService.swift          # Location + permission
-|   |   +- MapSearchService.swift         # Map/POI search
-|   |   +- PlaceService.swift            # Place details + check-in
-|   |   +- CameraService.swift            # Photo capture
-|   |   +- TTSService.swift               # Text-to-speech
-|   |   +- VoicePlaybackService.swift      # Voice message playback
-|   |   +- AudioPlayerService.swift        # General audio playback
-|   |   +- AudioSessionManager.swift       # AVAudioSession config
-|   |   +- SpeechRecognitionService.swift  # Speech-to-text
-|   |   +- ScheduleService.swift           # Schedule CRUD
-|   |   +- TodoService.swift              # Todo CRUD
-|   |   +- ImageUploadService.swift        # Image upload
-|   |   +- DataSyncService.swift           # Offline sync
-|   |   +- OfflineCacheService.swift        # Response caching
-|   |   +- PushNotificationService.swift    # APNs registration
-|   |   +- LocalNotificationService.swift   # Local notifications
-|   |   +- NotificationManager.swift        # Unified notification handling
-|   |   +- DataExportService.swift          # GDPR data export
-|   |   +- NetworkMonitor.swift             # Connectivity monitoring
-|   |   +- ToastManager.swift               # Toast/popup overlay
-|   |   +- SupabaseService.swift            # Supabase client wrapper
+|   +- Services/  (40 implementations + 21 matching *Protocol.swift = 61 files)
+|   |   # 完整列表见 docs/ios/IOS_ARCHITECTURE.md
 |   |
 |   +- Analytics/
-|   |   +- AnalyticsService.swift           # Analytics events
 |   |   +- ErrorTrackingService.swift       # Error tracking
 |   |   +- PerformanceMonitoringService.swift # Performance metrics
 |   |   +- AppLaunchOptimizer.swift         # Cold/hot start optimization
@@ -147,21 +110,18 @@ ios/TRIX3DCompanion/
 |   |
 |   +- Performance/
 |   |   +- BatteryConsumptionOptimizer.swift
-|   |   +- UIRenderingOptimizer.swift
 |   |
 |   +- Cache/
 |   |   +- ImageCacheManager.swift          # Image caching (Kingfisher)
 |   |
-|   +- Config/
-|   |   +- SupabaseConfig.swift             # Supabase URL + anon key
-|   |
 |   +- Utilities/
-|   |   +- InputValidator.swift              # Email, password, username validation
 |   |   +- SecureLogger.swift               # Auto-sanitizing logger
 |   |
 |   +- Utils/
-|       +- CoordinateConverter.swift       # Coordinate conversion
+|       # 整个目录无 Swift 文件
 |
+|   +- Config/
+       # 整个目录无 Swift 文件
 +- Features/
 |   +- Auth/
 |   |   +- Views/  LoginView, RegisterView, AuthRootView, AuthSceneComponents
@@ -428,8 +388,9 @@ dependencies: [
 | 1.0 | 2026-02 | Initial version |
 | 1.1 | 2026-03 | Performance optimization |
 | 1.2 | 2026-03-25 | Accuracy update: added missing services (17), removed non-existent files |
+| 1.3 | 2026-03-26 | Directory structure cleanup: Core/Network (3 files removed), Core/Storage (2 removed), Core/Analytics/Utilities/Utils/Config corrected, Core/Services count: 61 files (40 impl + 21 protocols), total Swift: 293 |
 
 ---
 
-**Last Updated**: 2026-03-25
-**Version**: 1.2
+**Last Updated**: 2026-03-26
+**Version**: 1.3

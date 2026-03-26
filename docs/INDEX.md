@@ -35,7 +35,7 @@ docs/
 │   └── DESIGN.md            # Monolith Noir 暗色主题
 │
 ├── 🌐 架构文档 (architecture/)
-│   ├── WEB_ARCHITECTURE.md  # Web 端架构（19 路由 + 12 hooks + 27 服务）
+│   ├── WEB_ARCHITECTURE.md  # Web 端架构（19 路由 + 12 hooks + 27 服务 + 9 utils）
 │   └── BACKEND_ARCHITECTURE.md  # 后端架构
 │
 ├── 🗄️ 数据库 (database/)
@@ -48,7 +48,7 @@ docs/
 │   └── API_TYPES.md         # API 类型定义
 │
 ├── 🍎 iOS 文档 (ios/)
-│   ├── IOS_ARCHITECTURE.md  # iOS 架构（43 服务 + 9 Feature 模块）
+│   ├── IOS_ARCHITECTURE.md  # iOS 架构（61 Swift 文件：40 服务 + 21 协议）
 │   ├── IOS_API_REFERENCE.md # iOS API 参考
 │   ├── TESTING_REPORT.md    # 测试报告（361 测试）
 │   ├── checklist.md        # AppStore 上架清单
@@ -107,9 +107,9 @@ docs/
 
 | 端 | 架构文档 | 关键数据 |
 |----|---------|---------|
-| Web | `architecture/WEB_ARCHITECTURE.md` | 19 路由 · 27 服务 · 38 组件 · 12 hooks |
-| iOS | `ios/IOS_ARCHITECTURE.md` | 43 服务 · 9 Feature 模块 · SwiftUI + MVVM |
-| Desktop | `desktop/DESKTOP_ARCHITECTURE.md` | 66 IPC handlers · 71 preload API · LuminaLayout |
+| Web | `architecture/WEB_ARCHITECTURE.md` | 19 路由 · 27 服务 · 45 组件 · 12 hooks · 9 utils |
+| iOS | `ios/IOS_ARCHITECTURE.md` | 61 Swift 文件（40 服务实 + 21 协议）· SwiftUI + MVVM |
+| Desktop | `desktop/DESKTOP_ARCHITECTURE.md` | 86 IPC handlers · 71 preload API · LuminaLayout |
 
 ### 安全
 
@@ -180,4 +180,4 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 ---
 
-**最后更新**: 2026-03-25
+**最后更新**: 2026-03-26（三端数据最终确认：Web 45 组件/12 hooks/9 utils，iOS 61 Swift 文件（40 实+21 协议），Desktop 86 IPC（75→86）；iOS v1.3 修正：恢复 APIClient 等存在文件）
