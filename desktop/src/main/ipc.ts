@@ -35,6 +35,7 @@ import {
   getGatewaySessions,
   getChatHistory,
   getGatewayLogsWs,
+  onGatewayEvent,
 } from './gateway';
 
 // === Input Validation Helpers ===
@@ -2173,9 +2174,20 @@ export function setupIpcHandlers(): void {
 
   // ── Gateway WebSocket RPC ───────────────────────────────────────────────────
 
-  // Connect WS channel (no-op if already connected)
+  // Connect WS channel (no-op if already connected) + start event forwarding
   ipcMain.handle('gateway:connect', async () => {
     try {
+      // Register event handler to forward WS events to renderer
+      onGatewayEvent((event) => {
+        const mainWin = getMainWindow();
+        if (mainWin && !mainWin.isDestroyed()) {
+          mainWin.webContents.send('gateway:event', event);
+        }
+        const floatWin = getFloatWindow();
+        if (floatWin && !floatWin.isDestroyed()) {
+          floatWin.webContents.send('gateway:event', event);
+        }
+      });
       await connectGatewayWs();
       return { success: true };
     } catch (err) {

@@ -858,8 +858,21 @@ export function getSessionsFromSnapshot(): Array<Record<string, unknown>> {
 
 export async function getGatewayAgents(): Promise<unknown[]> {
   // Fast path: snapshot data (always available after connect)
-  const snapAgents = getAgentsFromSnapshot();
-  if (snapAgents.length > 0) return snapAgents;
+  const rawAgents = getAgentsFromSnapshot();
+  if (rawAgents.length > 0) {
+    // Map snapshot agent shape to GatewayAgent-compatible shape
+    return rawAgents.map((a) => ({
+      id: (a.agentId ?? a.id) as string,
+      name: (a.name ?? '') as string,
+      description: a.description as string | undefined,
+      source: a.source as string | undefined,
+      // heartbeat info → status
+      status: ((a as Record<string, unknown>).heartbeat
+        ? 'online'
+        : 'offline') as 'online' | 'offline' | 'alert',
+      lastSeen: (a as Record<string, unknown>).heartbeat as number | undefined,
+    }));
+  }
 
   // Fallback: try RPC
   try {
@@ -872,8 +885,16 @@ export async function getGatewayAgents(): Promise<unknown[]> {
 }
 
 export async function getGatewaySessions(): Promise<unknown[]> {
-  const snapSessions = getSessionsFromSnapshot();
-  if (snapSessions.length > 0) return snapSessions;
+  const rawSessions = getSessionsFromSnapshot();
+  if (rawSessions.length > 0) {
+    return rawSessions.map((s) => ({
+      key: (s.key ?? '') as string,
+      label: s.label as string | undefined,
+      status: s.status as string | undefined,
+      updatedAt: (s.updatedAt ?? 0) as number,
+      messageCount: (s as Record<string, unknown>).age as number | undefined,
+    }));
+  }
 
   try {
     const result = await gatewayRpcCall('sessions.list');
