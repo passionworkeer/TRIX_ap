@@ -1,5 +1,36 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, Plus, Minus, Crosshair, Layers, X } from 'lucide-react';
+
+// Deterministic position hash — maps agent name to a pseudo-random spot on the map
+function hashPosition(name: string): { x: string; y: string } {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+  const x = 15 + ((Math.abs(h) % 70));
+  const y = 15 + ((Math.abs(h * 31) % 65));
+  return { x: `${x}%`, y: `${y}%` };
+}
+
+function parseAgentsOutput(output: string): AgentMarker[] {
+  try {
+    const parsed = JSON.parse(output);
+    if (Array.isArray(parsed)) return parsed.map((a: { name?: string; id?: string; status?: string; description?: string; source?: string }) => ({ id: a.name || a.id || '', name: a.name || a.id || '', status: agentStatusFrom(a.status), x: hashPosition(a.name || a.id || '').x, y: hashPosition(a.name || a.id || '').y, location: a.description || a.source || '未知' }));
+    if (parsed.agents && Array.isArray(parsed.agents)) return parsed.agents.map((a: { name?: string; id?: string; status?: string; description?: string; source?: string }) => ({ id: a.name || a.id || '', name: a.name || a.id || '', status: agentStatusFrom(a.status), ...hashPosition(a.name || a.id || ''), location: a.description || a.source || '未知' }));
+  } catch { /* fall through */ }
+  const lines = output.split('\n').filter(Boolean);
+  return lines.map((line, i) => {
+    const parts = line.trim().split(/\s+/);
+    const name = parts[0]?.replace(/^[*\-+•]/, '') ?? `Agent-${i}`;
+    return { id: name, name, status: line.toLowerCase().includes('running') || line.toLowerCase().includes('online') ? 'online' : line.toLowerCase().includes('alert') || line.toLowerCase().includes('error') ? 'alert' : 'offline', ...hashPosition(name), location: parts.slice(1).join(' ') || '未知' };
+  });
+}
+
+function agentStatusFrom(s?: string): AgentStatus {
+  if (!s) return 'offline';
+  const l = s.toLowerCase();
+  if (l.includes('run') || l.includes('online') || l.includes('active')) return 'online';
+  if (l.includes('alert') || l.includes('error') || l.includes('warn')) return 'alert';
+  return 'offline';
+}
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 
@@ -45,29 +76,6 @@ interface AgentDetail {
   altitude: number;
   task: string;
 }
-
-// ── Demo data ───────────────────────────────────────────────────────────────
-
-const DEMO_AGENTS: AgentMarker[] = [
-  { id: 'TRIX-0842', name: 'TRIX-0842', status: 'online', x: '45%', y: '40%', location: '黄浦区中心商务街' },
-  { id: 'TRIX-099', name: 'TRIX-099-ALPHA', status: 'online', x: '28%', y: '55%', location: '浦东新区陆家嘴金融区' },
-  { id: 'TRIX-112', name: 'TRIX-112', status: 'offline', x: '62%', y: '30%', location: '静安区南京西路' },
-  { id: 'TRIX-055', name: 'TRIX-055', status: 'alert', x: '73%', y: '62%', location: '徐汇区漕河泾开发区' },
-  { id: 'TRIX-201', name: 'TRIX-201', status: 'online', x: '18%', y: '25%', location: '长宁区虹桥商务区' },
-  { id: 'TRIX-077', name: 'TRIX-077', status: 'offline', x: '55%', y: '72%', location: '杨浦区五角场' },
-];
-
-const DEMO_DETAIL: AgentDetail = {
-  id: 'TRIX-099-ALPHA',
-  name: 'TRIX-099-ALPHA',
-  status: 'online',
-  location: '浦东新区陆家嘴金融区',
-  signal: 98,
-  lat: 31.2304,
-  lng: 121.4737,
-  altitude: 12,
-  task: '巡逻中',
-};
 
 // ── City map SVG background ─────────────────────────────────────────────────
 
@@ -205,10 +213,6 @@ const DetailSidebar = ({ agent, onClose }: DetailSidebarProps) => {
     agent.status === 'online' ? C.success
     : agent.status === 'alert' ? C.error
     : C.warning;
-  const statusLabel =
-    agent.status === 'online' ? '在线'
-    : agent.status === 'alert' ? '警报'
-    : '离线';
 
   return (
     <aside style={{
@@ -335,24 +339,41 @@ const DetailSidebar = ({ agent, onClose }: DetailSidebarProps) => {
 // ── Main MapPage ──────────────────────────────────────────────────────────────
 
 export default function MapPage() {
+  const api = window.electronAPI;
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [agents, setAgents] = useState<AgentMarker[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
 
-  const activeAgent = selectedAgentId
-    ? DEMO_AGENTS.find((a) => a.id === selectedAgentId) ?? null
-    : null;
+  const loadAgents = useCallback(() => {
+    if (!api?.listAgents) { setAgentsLoading(false); return; }
+    api.listAgents().then((result) => {
+      if (result.success && result.stdout) {
+        setAgents(parseAgentsOutput(result.stdout));
+      }
+    }).catch(() => {}).finally(() => setAgentsLoading(false));
+  }, [api]);
 
-  const selectedDetail: AgentDetail = {
-    ...DEMO_DETAIL,
-    id: selectedAgentId ?? DEMO_DETAIL.id,
-    name: selectedAgentId ?? DEMO_DETAIL.name,
-  };
+  useEffect(() => { loadAgents(); }, [loadAgents]);
 
-  const filteredAgents = DEMO_AGENTS.filter(
+  const activeAgent = selectedAgentId ? agents.find((a) => a.id === selectedAgentId) ?? null : null;
+  const selectedDetail: AgentDetail | null = activeAgent ? {
+    id: activeAgent.id,
+    name: activeAgent.name,
+    status: activeAgent.status,
+    location: activeAgent.location,
+    signal: 60 + (activeAgent.name.charCodeAt(0) % 40),
+    lat: 31.0 + (activeAgent.name.charCodeAt(0) % 100) / 1000,
+    lng: 121.3 + (activeAgent.name.charCodeAt(activeAgent.name.length - 1) % 100) / 1000,
+    altitude: 5 + (activeAgent.name.charCodeAt(0) % 20),
+    task: activeAgent.status === 'online' ? '运行中' : activeAgent.status === 'alert' ? '告警中' : '已停止',
+  } : null;
+
+  const filteredAgents = agents.filter(
     (a) =>
       a.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.location.includes(searchQuery)
+      a.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -405,7 +426,7 @@ export default function MapPage() {
             实时更新
           </span>
           <span style={{ fontSize: 12, color: `${C.onSurfaceVariant}99`, fontWeight: 500 }}>
-            当前活跃代理: {DEMO_AGENTS.filter((a) => a.status === 'online').length}
+            当前活跃代理: {agentsLoading ? '—' : agents.filter((a) => a.status === 'online').length}
           </span>
         </div>
       </div>
@@ -504,7 +525,7 @@ export default function MapPage() {
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
                 <span style={{ fontSize: 13, color: C.onSurface, fontWeight: 500 }}>{label}</span>
                 <span style={{ fontSize: 11, color: C.onSurfaceVariant, marginLeft: 'auto' }}>
-                  {DEMO_AGENTS.filter((a) => a.status === status).length} 个
+                  {agentsLoading ? '—' : agents.filter((a) => a.status === status).length} 个
                 </span>
               </div>
             );

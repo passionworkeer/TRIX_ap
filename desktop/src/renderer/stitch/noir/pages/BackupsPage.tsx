@@ -93,6 +93,7 @@ export default function BackupsPage() {
   const [loading, setLoading] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [diskInfo, setDiskInfo] = useState<{ letter: string; total: number; free: number; used: number; usage: number }[]>([]);
 
   const addLog = (entry: LogEntry) =>
     setLogEntries((prev) => [...prev.slice(-99), entry]);
@@ -127,6 +128,22 @@ export default function BackupsPage() {
   useEffect(() => {
     loadBackups();
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Load real disk info ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.getDiskInfo) return;
+    api.getDiskInfo().then((result: { success: boolean; data?: { letter: string; total: number; free: number }[] }) => {
+      if (result.success && result.data) {
+        setDiskInfo(
+          result.data.map((d) => {
+            const used = d.total - d.free;
+            return { ...d, used, usage: d.total > 0 ? Math.round((used / d.total) * 100) : 0 };
+          })
+        );
+      }
+    });
   }, []);
 
   const handleBackupNow = async () => {
@@ -286,20 +303,40 @@ export default function BackupsPage() {
           {/* Storage Usage */}
           <DarkCard elevation="low" style={{ padding: 28 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#e5e2e1', margin: '0 0 24px' }}>存储使用情况</h3>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
-                <div>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: '#e5e2e1' }}>42.8 GB</span>
-                  <span style={{ fontSize: 12, color: '#919191', marginLeft: 4 }}>/ 100 GB</span>
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#630ed4' }}>42%</span>
+            {diskInfo.length > 0 ? (
+              diskInfo.map((disk) => {
+                const fmt = (bytes: number) => {
+                  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(1)} TB`;
+                  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+                  return `${(bytes / 1e6).toFixed(0)} MB`;
+                };
+                return (
+                  <div key={disk.letter} style={{ marginBottom: diskInfo.indexOf(disk) < diskInfo.length - 1 ? 20 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#919191', marginRight: 6 }}>{disk.letter}:</span>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: '#e5e2e1' }}>{fmt(disk.total - disk.free)}</span>
+                        <span style={{ fontSize: 12, color: '#919191', marginLeft: 4 }}>/ {fmt(disk.total)}</span>
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#630ed4' }}>{disk.usage}%</span>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${disk.usage}%`, borderRadius: 5, background: 'linear-gradient(90deg, #630ed4, #7c3aed)', transition: 'width 0.5s ease' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, marginBottom: diskInfo.indexOf(disk) < diskInfo.length - 1 ? 16 : 0 }}>
+                      <span style={{ fontSize: 11, color: '#4ade80' }}>可用 {fmt(disk.free)}</span>
+                      <span style={{ fontSize: 11, color: '#919191' }}>已用 {fmt(disk.used)}</span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginBottom: 8 }}>
+                <div style={{ height: '100%', width: '0%', borderRadius: 5, background: 'rgba(99,14,212,0.3)' }} />
               </div>
-              <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '42%', borderRadius: 5, background: 'linear-gradient(90deg, #630ed4, #7c3aed)', transition: 'width 0.5s ease' }} />
-              </div>
-            </div>
+            )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, marginTop: 8 }}>
               {STORAGE_ITEMS.map((item) => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 12, color: '#919191', display: 'flex', alignItems: 'center', gap: 10 }}>

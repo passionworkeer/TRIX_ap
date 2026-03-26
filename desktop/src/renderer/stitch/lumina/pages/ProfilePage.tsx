@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  User, Edit, Share2, Shield, Key, Smartphone,
-  Monitor, ChevronRight, Plus, Twitter, Github,
-  MessageCircle, CheckCircle, Lock, Award, Calendar,
-  MapPin, CreditCard, Wifi, X,
+  Edit, Share2, Shield,
+  Monitor, ChevronRight, Plus,
+  MessageCircle, CheckCircle, Lock, Award,
+  X, Zap, Activity,
 } from 'lucide-react';
 import { LuminaButton } from '../components/buttons';
 import { SurfaceCard } from '../components/cards';
@@ -20,13 +20,6 @@ interface Achievement {
   lockedLabel?: string;
 }
 
-interface SecurityItem {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  trailing?: React.ReactNode;
-}
 
 interface SocialAccount {
   id: string;
@@ -60,77 +53,6 @@ const C = {
   disabledBg: '#f3f4f6',
   disabledText: '#9ca3af',
 } as const;
-
-// ── Demo fallback data ────────────────────────────────────────────────────────
-
-const DEMO_ACHIEVEMENTS: Achievement[] = [
-  { id: '1', icon: <User size={20} />, label: '首次配对', description: '成功完成首次设备配对，开启跨端同步体验', earned: true },
-  { id: '2', icon: <Award size={20} />, label: '7天连续活跃', description: '连续 7 天使用 TRIX，累计超过 10 小时专注时间', earned: true },
-  { id: '3', icon: <MessageCircle size={20} />, label: 'AI 对话大师', description: '与 TRIX 进行超过 100 次深度对话', earned: true },
-  { id: '4', icon: <Share2 size={20} />, label: '首次分享', description: '首次将 TRIX 推荐给好友', earned: true },
-  { id: '5', icon: <Shield size={20} />, label: '安全先锋', description: '启用双重验证，全面保护账户安全', earned: true },
-  { id: '6', icon: <Key size={20} />, label: 'API 探索者', description: '使用 TRIX API 完成首次自动化集成', earned: true },
-  { id: '7', icon: <Wifi size={20} />, label: '跨端互联', description: '同时连接 Web + iOS + 桌面三端', earned: false },
-  { id: '8', icon: <CreditCard size={20} />, label: '付费用户', description: '升级至高级账户，解锁全部功能', earned: false },
-  { id: '9', icon: <Calendar size={20} />, label: '一周年纪念', description: '与 TRIX 共同成长满一年', earned: false },
-];
-
-const MOCK_SECURITY_ITEMS: SecurityItem[] = [
-  {
-    id: '1',
-    icon: <Shield size={18} />,
-    title: '双重验证',
-    subtitle: '已启用',
-    trailing: (
-      <span style={{
-        padding: '3px 10px',
-        borderRadius: 999,
-        background: C.successBg,
-        color: C.successText,
-        fontSize: 11,
-        fontWeight: 600,
-      }}>
-        已保护
-      </span>
-    ),
-  },
-  {
-    id: '2',
-    icon: <Key size={18} />,
-    title: '修改密码',
-    subtitle: '上次更新于 30 天前',
-  },
-  {
-    id: '3',
-    icon: <Smartphone size={18} />,
-    title: '登录设备管理',
-    subtitle: '2 台设备',
-  },
-];
-
-const MOCK_SOCIAL_ACCOUNTS: SocialAccount[] = [
-  {
-    id: '1',
-    icon: <Twitter size={18} color="#1DA1F2" />,
-    name: 'Twitter',
-    username: '@langwang_dev',
-    connected: true,
-  },
-  {
-    id: '2',
-    icon: <Github size={18} color="#333333" />,
-    name: 'GitHub',
-    username: 'langwang',
-    connected: true,
-  },
-  {
-    id: '3',
-    icon: <MessageCircle size={18} color="#5865F2" />,
-    name: 'Discord',
-    username: '',
-    connected: false,
-  },
-];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -295,9 +217,9 @@ const SocialAccountRow = (props: SocialAccountRowProps) => {
 
 export default function ProfilePage() {
   const api = window.electronAPI;
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
-  const [achievements, setAchievements] = useState<Achievement[]>(DEMO_ACHIEVEMENTS);
-  const [, setProfileStats] = useState<{
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [profileStats, setProfileStats] = useState<{
     displayName: string;
     points: number;
     streak: number;
@@ -310,8 +232,8 @@ export default function ProfilePage() {
 
   // Edit profile modal
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editNickname, setEditNickname] = useState('Lang Wang');
-  const [editLocation, setEditLocation] = useState('北京市');
+  const [editNickname, setEditNickname] = useState(profileStats.displayName);
+  const [editLocation, setEditLocation] = useState('');
 
   // Achievement detail
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
@@ -336,6 +258,7 @@ export default function ProfilePage() {
     api.getProfileStats().then((result: { success: boolean; data?: { displayName: string; points: number; streak: number; level: number } }) => {
       if (result.success && result.data) {
         setProfileStats(result.data);
+        setEditNickname(result.data.displayName);
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -351,8 +274,8 @@ export default function ProfilePage() {
   }
 
   function openEditModal() {
-    setEditNickname('Lang Wang');
-    setEditLocation('北京市');
+    setEditNickname(profileStats.displayName);
+    setEditLocation('');
     setEditModalOpen(true);
   }
 
@@ -472,7 +395,7 @@ export default function ProfilePage() {
             <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.onSurface, margin: 0 }}>
-                  Lang Wang
+                  {profileStats.displayName}
                 </h1>
                 <span
                   style={{
@@ -499,9 +422,9 @@ export default function ProfilePage() {
                 }}
               >
                 {[
-                  { icon: <Calendar size={12} />, text: '注册于 2024-01-15' },
-                  { icon: <MapPin size={12} />, text: '北京市' },
-                  { icon: <CreditCard size={12} />, text: '年付订阅' },
+                  { icon: <Zap size={12} />, text: `${profileStats.points} 积分` },
+                  { icon: <Activity size={12} />, text: `Lv.${profileStats.level}` },
+                  { icon: <Award size={12} />, text: `连续 ${profileStats.streak} 天` },
                 ].map((item, i) => (
                   <div
                     key={i}
@@ -667,16 +590,12 @@ export default function ProfilePage() {
 
             {/* List items */}
             <div style={{ padding: '0 20px 4px' }}>
-              {MOCK_SECURITY_ITEMS.map((item) => (
-                <ListItemRow
-                  key={item.id}
-                  icon={item.icon}
-                  title={item.title}
-                  subtitle={item.subtitle}
-                  trailing={item.trailing}
-                  onClick={() => {}}
-                />
-              ))}
+              <ListItemRow
+                icon={<Shield size={18} />}
+                title="账户安全"
+                subtitle="查看安全设置"
+                onClick={() => {}}
+              />
               {/* Last item — no border */}
               <ListItemRow
                 icon={<Monitor size={18} />}

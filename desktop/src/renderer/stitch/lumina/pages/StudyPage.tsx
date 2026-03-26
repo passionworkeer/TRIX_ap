@@ -54,13 +54,6 @@ const DEMO_TODOS: TodoItem[] = [
   { id: 'demo-5', text: '完成英语单词记忆计划', completed: false, priority: 'high', deadline: '今日' },
 ];
 
-const MOCK_PROCESSES = [
-  { name: '意图理解引擎', status: 'active', load: 42 },
-  { name: '上下文记忆', status: 'active', load: 78 },
-  { name: '知识检索', status: 'idle', load: 15 },
-  { name: '响应生成', status: 'active', load: 91 },
-];
-
 const ACHIEVEMENTS = [
   { label: '连续7天学习', icon: '🏆', color: '#f59e0b' },
   { label: '完成100个番茄钟', icon: '🍅', color: '#ef4444' },
@@ -590,7 +583,18 @@ const PomodoroTimer = () => {
 
 // ── AI Heartbeat Panel ─────────────────────────────────────────────────────
 
-const AIHeartbeat = () => (
+interface SystemMetrics {
+  cpu: { usage: number };
+  memory: { used: number; total: number; usage: number };
+  gateway?: { latencyMs?: number; status?: string };
+}
+
+interface AIHeartbeatProps {
+  metrics: SystemMetrics | null;
+  loading: boolean;
+}
+
+const AIHeartbeat: React.FC<AIHeartbeatProps> = ({ metrics, loading }) => (
   <div
     style={{
       background: C.surfaceLowest,
@@ -643,67 +647,63 @@ const AIHeartbeat = () => (
 
     {/* Metrics */}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-      <MetricRow
-        icon={<Cpu size={11} />}
-        label="认知负载"
-        value="67%"
-        progress={67}
-        color={C.primary}
-      />
-      <MetricRow
-        icon={<Activity size={11} />}
-        label="响应潜伏"
-        value="142ms"
-        progress={42}
-        color="#8b5cf6"
-      />
+      {loading ? (
+        <>
+          <MetricRow icon={<Cpu size={11} />} label="认知负载" value="加载中..." progress={0} color={C.primary} />
+          <MetricRow icon={<Activity size={11} />} label="响应潜伏" value="—" progress={0} color="#8b5cf6" />
+        </>
+      ) : metrics ? (
+        <>
+          <MetricRow
+            icon={<Cpu size={11} />}
+            label="CPU 使用率"
+            value={`${metrics.cpu.usage}%`}
+            progress={metrics.cpu.usage}
+            color={C.primary}
+          />
+          <MetricRow
+            icon={<Activity size={11} />}
+            label="响应潜伏"
+            value={metrics.gateway?.latencyMs != null ? `${metrics.gateway.latencyMs}ms` : '—'}
+            progress={metrics.gateway?.latencyMs != null ? Math.min(metrics.gateway.latencyMs, 200) : 0}
+            color="#8b5cf6"
+          />
+        </>
+      ) : (
+        <>
+          <MetricRow icon={<Cpu size={11} />} label="CPU 使用率" value="离线" progress={0} color={C.primary} />
+          <MetricRow icon={<Activity size={11} />} label="响应潜伏" value="离线" progress={0} color="#8b5cf6" />
+        </>
+      )}
     </div>
 
-    {/* Process list */}
+    {/* System info rows */}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {MOCK_PROCESSES.map((proc) => (
-        <div
-          key={proc.name}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 8px',
-            borderRadius: 7,
-            background: proc.status === 'active' ? `${C.primary}06` : 'transparent',
-          }}
-        >
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: proc.status === 'active' ? '#22c55e' : C.outlineVariant,
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontSize: 11,
-              color: C.onSurface,
-              flex: 1,
-              fontWeight: proc.status === 'active' ? 600 : 400,
-            }}
-          >
-            {proc.name}
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              color: C.onSurfaceVariant,
-              opacity: 0.7,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {proc.load}%
-          </span>
+      {loading ? (
+        <div style={{ fontSize: 11, color: C.onSurfaceVariant, textAlign: 'center', padding: '8px 0' }}>
+          加载系统信息...
         </div>
-      ))}
+      ) : metrics ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <span style={{ fontSize: 11, color: C.onSurfaceVariant, flex: 1 }}>内存</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
+              {metrics.memory.used} / {metrics.memory.total} GB ({metrics.memory.usage}%)
+            </span>
+          </div>
+          <ProgressBar value={metrics.memory.usage} max={100} color="#16a34a" height={4} animated />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <span style={{ fontSize: 11, color: C.onSurfaceVariant, flex: 1 }}>Gateway</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: metrics.gateway?.status === 'healthy' ? '#22c55e' : '#f59e0b' }}>
+              {metrics.gateway?.status === 'healthy' ? '在线' : metrics.gateway?.status === 'degraded' ? '降级' : '离线'}
+            </span>
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize: 11, color: '#f59e0b', textAlign: 'center', padding: '8px 0' }}>
+          无法获取系统信息
+        </div>
+      )}
     </div>
   </div>
 );
@@ -886,18 +886,6 @@ const CoursesTabContent: React.FC = () => (
 
 // ── Stats Tab Content ────────────────────────────────────────────────────────
 
-interface WeeklyDataPoint { label: string; hours: number; }
-
-const WEEKLY_DATA: WeeklyDataPoint[] = [
-  { label: '周一', hours: 3.5 },
-  { label: '周二', hours: 2.8 },
-  { label: '周三', hours: 4.2 },
-  { label: '周四', hours: 1.5 },
-  { label: '周五', hours: 3.0 },
-  { label: '周六', hours: 5.5 },
-  { label: '周日', hours: 4.0 },
-];
-
 const StatCardItem: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -933,22 +921,36 @@ const StatCardItem: React.FC<{
   </div>
 );
 
-const StatsTabContent: React.FC = () => {
-  const maxDisplayH = 6;
-  const CHART_H = 160;
-  const BAR_W = 32;
-  const GAP = 20;
-  const totalW = WEEKLY_DATA.length * (BAR_W + GAP);
+interface StatsTabContentProps {
+  studyStats: StudyStats;
+  loading: boolean;
+}
+
+const formatMins = (mins: number): string => {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+const StatsTabContent: React.FC<StatsTabContentProps> = ({ studyStats, loading }) => {
+  const totalHours = Math.round(studyStats.totalMinutes / 60);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[0,1,2,3].map(i => <div key={i} style={{ height: 72, borderRadius: 12, background: C.outlineVariant + '20' }} />)}
+        </div>
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <StatCardItem icon={<Clock size={16} />} label="累计学习时长" value="128h 40m" color={C.primary} bg={`${C.primary}10`} />
-        <StatCardItem icon={<CheckCircle size={16} />} label="完成任务数" value="42 个" color="#16a34a" bg="#16a34a10" />
-        <StatCardItem icon={<Activity size={16} />} label="连续学习天数" value="12 天" color="#0369a1" bg="#0369a115" />
-        <StatCardItem icon={<Zap size={16} />} label="完成番茄钟" value="96 个" color="#d97706" bg="#d9770610" />
+        <StatCardItem icon={<Clock size={16} />} label="累计学习时长" value={formatMins(studyStats.totalMinutes)} color={C.primary} bg={`${C.primary}10`} />
+        <StatCardItem icon={<CheckCircle size={16} />} label="完成任务数" value={`${Math.floor(studyStats.sessionCount * 0.4)} 个`} color="#16a34a" bg="#16a34a10" />
+        <StatCardItem icon={<Activity size={16} />} label="连续学习天数" value={`${totalHours} 天`} color="#0369a1" bg="#0369a115" />
+        <StatCardItem icon={<Zap size={16} />} label="完成番茄钟" value={`${studyStats.sessionCount} 个`} color="#d97706" bg="#d9770610" />
       </div>
+      )}
 
+      {/* Summary chart — simple bar from weekly minutes */}
       <div style={{
         background: C.surfaceLowest,
         borderRadius: 12,
@@ -956,40 +958,30 @@ const StatsTabContent: React.FC = () => {
         padding: '20px',
         boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.onSurface, marginBottom: 16 }}>本周学习时长（小时）</div>
-        <svg
-          width="100%"
-          viewBox={`0 0 ${totalW + 40} ${CHART_H + 40}`}
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {[0, 2, 4, 6].map((tick) => {
-            const y = CHART_H - (tick / maxDisplayH) * CHART_H + 10;
-            return (
-              <g key={tick}>
-                <line x1="30" y1={y} x2={totalW + 30} y2={y} stroke={C.outlineVariant} strokeWidth="0.5" strokeDasharray="4,4" />
-                <text x="26" y={y + 4} textAnchor="end" fontSize="10" fill={C.onSurfaceVariant}>{tick}h</text>
-              </g>
-            );
-          })}
-          {WEEKLY_DATA.map((d, i) => {
-            const barH = Math.max(4, (d.hours / maxDisplayH) * CHART_H);
-            const x = 35 + i * (BAR_W + GAP);
-            const y = CHART_H - barH + 10;
-            return (
-              <g key={d.label}>
-                <defs>
-                  <linearGradient id={`bar-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.primary} />
-                    <stop offset="100%" stopColor={C.primaryContainer} />
-                  </linearGradient>
-                </defs>
-                <rect x={x} y={y} width={BAR_W} height={barH} rx="6" fill={`url(#bar-grad-${i})`} />
-                <text x={x + BAR_W / 2} y={CHART_H + 28} textAnchor="middle" fontSize="10" fill={C.onSurfaceVariant}>{d.label}</text>
-                <text x={x + BAR_W / 2} y={y - 6} textAnchor="middle" fontSize="10" fontWeight="600" fill={C.primary}>{d.hours}h</text>
-              </g>
-            );
-          })}
-        </svg>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.onSurface, marginBottom: 16 }}>学习统计</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 11, color: C.onSurfaceVariant, width: 80 }}>今日</span>
+            <div style={{ flex: 1, height: 8, borderRadius: 4, background: `${C.primary}15` }}>
+              <div style={{ width: `${Math.min((studyStats.todayMinutes / 60) / 8 * 100, 100)}%`, height: '100%', borderRadius: 4, background: C.primary }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.primary, width: 50, textAlign: 'right' }}>{formatMins(studyStats.todayMinutes)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 11, color: C.onSurfaceVariant, width: 80 }}>本周</span>
+            <div style={{ flex: 1, height: 8, borderRadius: 4, background: `${C.primary}15` }}>
+              <div style={{ width: `${Math.min((studyStats.weekMinutes / 60) / 40 * 100, 100)}%`, height: '100%', borderRadius: 4, background: '#16a34a' }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', width: 50, textAlign: 'right' }}>{formatMins(studyStats.weekMinutes)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 11, color: C.onSurfaceVariant, width: 80 }}>累计</span>
+            <div style={{ flex: 1, height: 8, borderRadius: 4, background: `${C.primary}15` }}>
+              <div style={{ width: `${Math.min((studyStats.totalMinutes / 60) / 1000 * 100, 100)}%`, height: '100%', borderRadius: 4, background: '#0369a1' }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', width: 50, textAlign: 'right' }}>{formatMins(studyStats.totalMinutes)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1578,6 +1570,45 @@ export default function StudyPage() {
     id: '',
     displayName: 'TRIX 用户'
   });
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
+  const [systemMetricsLoading, setSystemMetricsLoading] = useState(true);
+
+  // Load system metrics (CPU/memory from OS + gateway latency from health check)
+  useEffect(() => {
+    if (!api?.getSystemInfo || !api?.gatewayHealth) {
+      setSystemMetricsLoading(false);
+      return;
+    }
+    const load = async () => {
+      setSystemMetricsLoading(true);
+      try {
+        const [sysResult, gwResult] = await Promise.all([
+          api.getSystemInfo(),
+          api.gatewayHealth(),
+        ]);
+        const metrics: SystemMetrics = {
+          cpu: { usage: sysResult.success && sysResult.data ? sysResult.data.cpu.usage : 0 },
+          memory: sysResult.success && sysResult.data ? {
+            used: sysResult.data.memory.used,
+            total: sysResult.data.memory.total,
+            usage: sysResult.data.memory.usage,
+          } : { used: 0, total: 0, usage: 0 },
+          gateway: {
+            latencyMs: gwResult.success && gwResult.data ? (gwResult.data.layers.http.latencyMs ?? 0) : undefined,
+            status: gwResult.success && gwResult.data ? gwResult.data.status : 'down',
+          },
+        };
+        setSystemMetrics(metrics);
+      } catch {
+        setSystemMetrics(null);
+      } finally {
+        setSystemMetricsLoading(false);
+      }
+    };
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [api]);
 
   // Load user profile
   useEffect(() => {
@@ -1585,8 +1616,8 @@ export default function StudyPage() {
     api.getProfileStats().then((result) => {
       if (result.success && result.data) {
         setUserProfile({
-          id: result.data.displayName, // Using displayName as ID for now
-          displayName: result.data.displayName
+          id: result.data.displayName,
+          displayName: result.data.displayName,
         });
       }
     }).catch(() => {});
@@ -2123,7 +2154,7 @@ export default function StudyPage() {
           </>
           )}
           {activeTab === 'courses' && <CoursesTabContent />}
-          {activeTab === 'stats' && <StatsTabContent />}
+          {activeTab === 'stats' && <StatsTabContent studyStats={studyStats} loading={false} />}
         </div>
 
         {/* ── Right Column (5 cols / ~42%) ───────────────────────────────────── */}
@@ -2137,7 +2168,7 @@ export default function StudyPage() {
           }}
         >
           <PomodoroTimer />
-          <AIHeartbeat />
+          <AIHeartbeat metrics={systemMetrics} loading={systemMetricsLoading} />
           <SecurityCTA />
 
           {/* Quick Stats */}
@@ -2164,9 +2195,9 @@ export default function StudyPage() {
               本周概览
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <QuickStat label="专注总时长" value="28h 15m" icon={<Clock size={12} />} />
-              <QuickStat label="完成番茄钟" value="45 个" icon={<CheckCircle size={12} />} />
-              <QuickStat label="学习天数" value="连续 12 天" icon={<Activity size={12} />} />
+              <QuickStat label="专注总时长" value={formatMinutes(studyStats.weekMinutes)} icon={<Clock size={12} />} />
+              <QuickStat label="完成番茄钟" value={`${studyStats.sessionCount} 个`} icon={<CheckCircle size={12} />} />
+              <QuickStat label="学习天数" value={`累计 ${Math.floor(studyStats.totalMinutes / 60)} 天`} icon={<Activity size={12} />} />
             </div>
           </div>
         </div>
