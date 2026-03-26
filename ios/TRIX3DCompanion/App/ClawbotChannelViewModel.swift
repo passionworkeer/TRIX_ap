@@ -111,12 +111,7 @@ final class ClawbotChannelViewModel: ObservableObject {
         mediaData: Data? = nil,
         mediaFileName: String? = nil
     ) async -> Bool {
-        guard isPaired else {
-            NSLog("[TRIX-UI] viewModel send blocked not paired text=%{public}@", content)
-            lastError = NSLocalizedString("error.clawbot.not.paired", comment: "")
-            return false
-        }
-
+        // No pairing gate here — when unpaired, messages flow via cloud service (same as web).
         isSending = true
         lastError = nil
 

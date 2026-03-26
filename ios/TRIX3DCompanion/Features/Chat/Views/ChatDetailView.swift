@@ -42,8 +42,9 @@ struct ChatDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Connection status bar
-            if !chatService.isConnected {
+            // WebSocket connection status bar — only relevant when paired with a TRIX companion.
+            // Without pairing, messages still work via REST API (no real-time features).
+            if chatService.isPaired && !chatService.isConnected {
                 connectionStatusBar
             }
 

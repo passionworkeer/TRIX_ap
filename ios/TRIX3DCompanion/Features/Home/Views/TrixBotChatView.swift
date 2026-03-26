@@ -66,9 +66,6 @@ struct TrixBotChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            modeBanner
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
             messagesList
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -106,9 +103,7 @@ struct TrixBotChatView: View {
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
-                Text(clawbotChannel.isPaired ? L("chat.trixbot.mode.device") : L("chat.trixbot.mode.cloud"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                EmptyView()
             }
         }
         .task {
@@ -135,30 +130,6 @@ struct TrixBotChatView: View {
         } message: {
             Text(localErrorMessage ?? "")
         }
-    }
-
-    // MARK: - Top Banner
-
-    private var modeBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: clawbotChannel.isPaired ? "bolt.horizontal.circle.fill" : "icloud")
-                .foregroundColor(clawbotChannel.isPaired ? .green : .orange)
-
-            Text(clawbotChannel.isPaired ? L("chat.trixbot.banner.paired") : L("chat.trixbot.banner.unpaired"))
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .trixSurfaceCard(cornerRadius: 14, borderOpacity: 0.2, shadowOpacity: 0.05, shadowRadius: 8)
-        .accessibilityElement(children: .combine)
-        .uiTestMarker(
-            clawbotChannel.isPaired
-                ? TrixBotAccessibilityIdentifiers.pairedBanner
-                : TrixBotAccessibilityIdentifiers.unpairedBanner
-        )
     }
 
     // MARK: - Messages

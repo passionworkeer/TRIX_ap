@@ -81,6 +81,8 @@ protocol ChatServiceProtocol {
     var isLoadingRooms: Bool { get }
     var isLoadingMessages: Bool { get }
     var isConnected: Bool { get }
+    /// Whether the device is paired with a TRIX companion (required for WebSocket real-time features)
+    var isPaired: Bool { get }
     var currentRoomId: String? { get }
     var lastError: ChatError? { get }
     /// Test-accessible message cache (exposed for unit testing)
@@ -139,6 +141,11 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     /// WebSocket connection status
     @Published private(set) var isConnected: Bool = false
+
+    /// Whether the device is paired with a TRIX companion (required for WebSocket real-time features)
+    var isPaired: Bool {
+        clawbotChannelServiceImpl.isPaired
+    }
 
     /// Currently selected room ID
     @Published var currentRoomId: String?

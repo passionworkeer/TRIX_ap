@@ -102,14 +102,7 @@ struct HomeView: View {
                 VStack {
                     HStack {
                         Spacer()
-                        HomeBotBubbleView(
-                            botName: "TRIX",
-                            botAvatar: "sparkles"
-                        ) {
-                            UITestEventLogger.log("Home bot bubble tapped -> chat")
-                            appState.selectTab(.chat)
-                            appState.presentCompanion(.trixBot)
-                        }
+                        HomeBotBubbleView()
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, geometry.safeAreaInsets.top + (isWorkbenchPresented ? 86 : 36))
