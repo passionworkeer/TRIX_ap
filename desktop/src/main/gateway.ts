@@ -640,8 +640,40 @@ import WebSocket from 'ws';
 
 const GATEWAY_WS_URL = `ws://127.0.0.1:${GATEWAY_PORT}`;
 
+// Cached snapshot from the connect handshake (contains agents, sessions, health, presence)
+let _cachedSnapshot: Record<string, unknown> | null = null;
+
 interface RpcRequest { type: 'req'; id: string; method: string; params?: Record<string, unknown>; }
-interface RpcEvent { type: string; [key: string]: unknown; }
+interface RpcEvent { type: string; event?: string; [key: string]: unknown; }
+interface ConnectPayload {
+  type: string;
+  protocol?: number;
+  server?: { version: string; connId: string };
+  features?: { methods: string[]; events: string[] };
+  snapshot?: {
+    health?: {
+      ok?: boolean;
+      channels?: Record<string, unknown>;
+      agents?: Array<{
+        agentId: string;
+        name: string;
+        isDefault?: boolean;
+        sessions?: { path: string; count: number; recent: Array<{ key: string; updatedAt: number; age: number }> };
+        heartbeat?: { enabled: boolean; every: string; everyMs: number };
+      }>;
+      sessions?: {
+        path: string;
+        count: number;
+        recent: Array<{ key: string; updatedAt: number; age: number }>;
+      };
+    };
+    presence?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
+  };
+  canvasHostUrl?: string;
+  policy?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 let _ws: WebSocket | null = null;
 let _connectPromise: Promise<void> | null = null;
@@ -653,7 +685,15 @@ function _dispatchEvent(msg: RpcEvent): void {
   _eventHandler?.(msg);
 }
 
-/** Connect (or reuse) the WebSocket channel. Idempotent. */
+/** Get the cached snapshot from the last connect handshake (or null if not connected). */
+export function getCachedSnapshot(): Record<string, unknown> | null {
+  return _cachedSnapshot;
+}
+
+/** Connect (or reuse) the WebSocket channel and perform the auth handshake.
+ *  Idempotent — returns immediately if already connected.
+ *  After connect, _cachedSnapshot contains agents, sessions, health, presence.
+ */
 export function connectGatewayWs(
   onEvent?: (event: RpcEvent) => void,
 ): Promise<void> {
@@ -664,47 +704,107 @@ export function connectGatewayWs(
   if (_connectPromise) return _connectPromise;
 
   _eventHandler = onEvent ?? null;
+
+  // Lazy-load auth token from openclaw.json
+  let authToken: string | null = null;
+  try {
+    const openclawPath = path.join(app.getPath('home'), '.openclaw', 'openclaw.json');
+    if (fs.existsSync(openclawPath)) {
+      const cfg = JSON.parse(fs.readFileSync(openclawPath, 'utf8'));
+      authToken = cfg?.gateway?.auth?.token ?? null;
+    }
+  } catch {
+    // ignore — authToken stays null
+  }
+
   _connectPromise = new Promise<void>((resolve, reject) => {
+    let ws: WebSocket;
     try {
-      _ws = new WebSocket(GATEWAY_WS_URL);
+      ws = new WebSocket(GATEWAY_WS_URL);
     } catch (err) {
       _connectPromise = null;
       reject(err);
       return;
     }
 
-    _ws.on('open', () => {
-      log.info('[GatewayWS] Connected to', GATEWAY_WS_URL);
-      resolve();
-    });
+    // Tracks whether we've already settled this promise (connect or error)
+    let settled = false;
+    const settle = () => { settled = true; };
 
-    _ws.on('message', (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString()) as RpcEvent;
-        if (msg.type === 'res') {
-          // Response to a pending request
-          const p = _pending.get((msg as unknown as { id: string }).id);
-          if (p) { _pending.delete((msg as unknown as { id: string }).id); p.resolve((msg as unknown as { payload: unknown }).payload); }
+    const onSettle = () => { if (!settled) { settle(); _connectPromise = null; } };
+
+    ws.on('error', (err) => {
+      if (!settled) { onSettle(); reject(new Error(`WS error: ${err.message}`)); }
+    });
+    ws.on('close', () => { if (!settled) onSettle(); });
+
+    ws.on('message', (raw: Buffer) => {
+      if (settled) {
+        // Post-connect: dispatch events
+        try {
+          const msg2 = JSON.parse(raw.toString()) as RpcEvent;
+          const msgAny = msg2 as { type?: string; id?: string; payload?: unknown };
+          if (msgAny.type === 'res') {
+            const p = _pending.get(msgAny.id ?? '');
+            if (p) { _pending.delete(msgAny.id ?? ''); p.resolve(msgAny.payload); }
+          } else {
+            _dispatchEvent(msg2);
+          }
+        } catch { /* ignore */ }
+        return;
+      }
+
+      // Not yet settled: look for connect.challenge
+      let msg: RpcEvent;
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      if (msg.event !== 'connect.challenge') return;
+
+      log.info('[GatewayWS] Received connect.challenge, sending connect...');
+
+      // Send connect request
+      const req: RpcRequest = {
+        type: 'req',
+        id: 'ws-connect',
+        method: 'connect',
+        params: {
+          minProtocol: 1,
+          maxProtocol: 10,
+          client: { id: 'desktop', mode: 'desktop', platform: process.platform, version: app.getVersion() },
+          auth: authToken ? { token: authToken } : undefined,
+        },
+      };
+      ws.send(JSON.stringify(req));
+
+      // Wait for connect response (once — consume only the next 'res' message)
+      ws.once('message', (raw2: Buffer) => {
+        if (settled) return;
+        let res: RpcEvent;
+        try { res = JSON.parse(raw2.toString()); } catch { return; }
+        const resAny = res as { type?: string; id?: string; payload?: ConnectPayload; ok?: boolean; error?: { message: string } };
+        if (resAny.type !== 'res') return;
+        if (resAny.id !== 'ws-connect') return;
+
+        settled = true;
+        _ws = ws; // only assign _ws after connect succeeds
+
+        if (resAny.ok && resAny.payload?.snapshot) {
+          _cachedSnapshot = resAny.payload.snapshot as Record<string, unknown>;
+          const agentCount = (_cachedSnapshot.health as { agents?: unknown[] })?.agents?.length ?? 0;
+          log.info(`[GatewayWS] Connect OK, snapshot cached. Agents: ${agentCount}`);
+          _connectPromise = null;
+          resolve();
+        } else if (resAny.error) {
+          _connectPromise = null;
+          reject(new Error(`Connect failed: ${resAny.error.message}`));
         } else {
-          // Server-side event
-          _dispatchEvent(msg);
+          _connectPromise = null;
+          reject(new Error('Connect failed: unknown error'));
         }
-      } catch { /* ignore parse errors */ }
+      });
     });
 
-    _ws.on('error', (err) => {
-      log.warn('[GatewayWS] Error:', err.message);
-      if (_connectPromise) { const p = _connectPromise; _connectPromise = null; (p as Promise<void>).catch?.(() => {}); }
-      _pending.forEach((cb) => cb.reject(new Error(`WS error: ${err.message}`)));
-      _pending.clear();
-    });
-
-    _ws.on('close', () => {
-      log.info('[GatewayWS] Disconnected');
-      _ws = null;
-      _connectPromise = null;
-      _pending.forEach((cb) => cb.reject(new Error('Gateway disconnected')));
-      _pending.clear();
+    ws.on('open', () => {
+      log.info('[GatewayWS] Socket open, waiting for challenge...');
     });
   });
 
@@ -740,7 +840,28 @@ export async function gatewayRpcCall(
 
 // ─── Convenience wrappers ───────────────────────────────────────────────────────
 
+/** Agents from the connect snapshot (no extra RPC needed). */
+export function getAgentsFromSnapshot(): Array<Record<string, unknown>> {
+  const snap = _cachedSnapshot?.health as {
+    agents?: Array<Record<string, unknown>>;
+  } | undefined;
+  return snap?.agents ?? [];
+}
+
+/** Sessions from the connect snapshot (no extra RPC needed). */
+export function getSessionsFromSnapshot(): Array<Record<string, unknown>> {
+  const snap = _cachedSnapshot?.health as {
+    sessions?: { recent?: Array<Record<string, unknown>> };
+  } | undefined;
+  return snap?.sessions?.recent ?? [];
+}
+
 export async function getGatewayAgents(): Promise<unknown[]> {
+  // Fast path: snapshot data (always available after connect)
+  const snapAgents = getAgentsFromSnapshot();
+  if (snapAgents.length > 0) return snapAgents;
+
+  // Fallback: try RPC
   try {
     const result = await gatewayRpcCall('agents.list');
     return Array.isArray(result) ? result : [];
@@ -751,6 +872,9 @@ export async function getGatewayAgents(): Promise<unknown[]> {
 }
 
 export async function getGatewaySessions(): Promise<unknown[]> {
+  const snapSessions = getSessionsFromSnapshot();
+  if (snapSessions.length > 0) return snapSessions;
+
   try {
     const result = await gatewayRpcCall('sessions.list');
     return Array.isArray(result) ? result : [];
