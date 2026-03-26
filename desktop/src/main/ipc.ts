@@ -35,6 +35,7 @@ import {
   getGatewaySessions,
   getChatHistory,
   getGatewayLogsWs,
+  getGatewayHealthRpc,
   onGatewayEvent,
 } from './gateway';
 
@@ -2250,6 +2251,16 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('gateway:rpc', async (_event, method: string, params?: Record<string, unknown>) => {
     try {
       const data = await gatewayRpcCall(method, params);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // Full gateway health via WS RPC (channels, agents, sessions) — gateway token auth
+  ipcMain.handle('gateway:health-rpc', async () => {
+    try {
+      const data = await getGatewayHealthRpc();
       return { success: true, data };
     } catch (err) {
       return { success: false, error: String(err) };

@@ -54,6 +54,35 @@ export interface ChatMessage {
   timestamp?: number;
 }
 
+/** Full gateway health data from WS RPC health method */
+export interface GatewayHealthData {
+  ok: boolean;
+  ts: number;
+  durationMs: number;
+  channels?: Record<string, ChannelHealthStatus>;
+  channelOrder?: string[];
+  channelLabels?: Record<string, string>;
+  heartbeatSeconds?: number;
+  defaultAgentId?: string;
+  agents?: GatewayAgent[];
+  sessions?: { count: number; path?: string; recent?: GatewaySession[] };
+  uptimeMs?: number;
+  authMode?: string;
+}
+
+export interface ChannelHealthStatus {
+  configured: boolean;
+  running: boolean;
+  lastStartAt?: number | null;
+  lastStopAt?: number | null;
+  lastError?: string | null;
+  port?: number | null;
+  accountId?: string;
+  accounts?: Record<string, { configured: boolean; running: boolean; lastError?: string | null; accountId?: string }>;
+  probe?: { ok: boolean; error?: string; appId?: string; botOpenId?: string; lastProbeAt?: number };
+  lastProbeAt?: number;
+}
+
 // Study Room Types
 export type StudyRoomSessionState = 'idle' | 'focusing' | 'resting';
 export type StudyRoomMemberStatus = 'online' | 'focusing' | 'resting';
@@ -291,6 +320,8 @@ export interface ElectronAPI {
   gatewayLogsWs: (tail?: number) => Promise<{ success: boolean; data?: string[]; error?: string }>;
   /** Generic WS RPC call */
   gatewayRpc: (method: string, params?: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>;
+  /** Full gateway health via WS RPC (channels, agents, sessions count) */
+  gatewayHealthRpc: () => Promise<{ success: boolean; data?: GatewayHealthData; error?: string }>;
   /** Subscribe to real-time Gateway WS events (health, heartbeat, agent, chat, etc.) — returns unsubscribe fn */
   onGatewayEvent: (callback: (event: Record<string, unknown>) => void) => () => void;
 

@@ -762,14 +762,17 @@ export function connectGatewayWs(
       log.info('[GatewayWS] Received connect.challenge, sending connect...');
 
       // Send connect request
+      // Valid client IDs: webchat-ui, openclaw-control-ui, webchat, cli, gateway-client,
+      // openclaw-macos, openclaw-ios, openclaw-android, node-host, test, fingerprint, openclaw-probe
+      // Valid client modes: webchat, cli, ui, backend, node, probe, test
       const req: RpcRequest = {
         type: 'req',
         id: 'ws-connect',
         method: 'connect',
         params: {
-          minProtocol: 1,
+          minProtocol: 3,
           maxProtocol: 10,
-          client: { id: 'desktop', mode: 'desktop', platform: process.platform, version: app.getVersion() },
+          client: { id: 'node-host', mode: 'node', platform: process.platform, version: app.getVersion() },
           auth: authToken ? { token: authToken } : undefined,
         },
       };
@@ -902,6 +905,17 @@ export async function getGatewaySessions(): Promise<unknown[]> {
   } catch (err) {
     log.warn('[GatewayWS] sessions.list failed, returning []:', err);
     return [];
+  }
+}
+
+/** Full health from RPC (channels, agents, sessions) — works with gateway token. */
+export async function getGatewayHealthRpc(): Promise<Record<string, unknown>> {
+  try {
+    const result = await gatewayRpcCall('health');
+    return (result ?? {}) as Record<string, unknown>;
+  } catch (err) {
+    log.warn('[GatewayWS] health RPC failed:', err);
+    return {};
   }
 }
 

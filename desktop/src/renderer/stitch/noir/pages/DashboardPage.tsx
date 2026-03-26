@@ -140,6 +140,8 @@ export default function DashboardPage() {
   // WebSocket RPC data
   const [agentCount, setAgentCount] = useState<number>(0);
   const [sessionCount, setSessionCount] = useState<number>(0);
+  // Channel status from gatewayHealthRpc
+  const [channelStatus, setChannelStatus] = useState<Record<string, { running: boolean; configured: boolean; accountId?: string }>>({});
 
   const addLog = (entry: LogEntry) =>
     setLogEntries((prev) => [...prev.slice(-99), entry]);
@@ -163,23 +165,36 @@ export default function DashboardPage() {
       if (disk.success && disk.data) setDiskInfo(disk.data);
       if (pkgs.success && pkgs.data) setPackages(pkgs.data);
 
-      // ── WebSocket RPC: fetch real agents & sessions ──────────────────────
+      // ── WebSocket RPC: fetch real agents, sessions, health ─────────────────
       if (gw?.running) {
         // Connect WS channel first
         api.gatewayConnect?.();
-        const [agentsResult, sessionsResult] = await Promise.all([
-          api.gatewayAgents?.(),
-          api.gatewaySessions?.(),
+        const [healthResult, logsResult] = await Promise.all([
+          api.gatewayHealthRpc?.(),
+          api.gatewayLogsWs?.(80),
         ]);
-        if (agentsResult?.success && Array.isArray(agentsResult.data)) {
-          setAgentCount(agentsResult.data.length);
-        }
-        if (sessionsResult?.success && Array.isArray(sessionsResult.data)) {
-          setSessionCount(sessionsResult.data.length);
+
+        // Extract channel status from health RPC
+        if (healthResult?.success && healthResult.data) {
+          const h = healthResult.data as { channels?: Record<string, { running?: boolean; configured?: boolean; accountId?: string }> };
+          if (h?.channels) {
+            const chans: Record<string, { running: boolean; configured: boolean; accountId?: string }> = {};
+            for (const [key, val] of Object.entries(h.channels)) {
+              if (val && typeof val === 'object') {
+                chans[key] = { running: !!val.running, configured: !!val.configured, accountId: val.accountId };
+              }
+            }
+            setChannelStatus(chans);
+          }
+          // Agent count from health snapshot
+          const agents = (healthResult.data as { agents?: unknown[] })?.agents;
+          if (Array.isArray(agents)) setAgentCount(agents.length);
+          // Session count from health snapshot
+          const sessions = (healthResult.data as { sessions?: { count?: number } })?.sessions;
+          if (sessions) setSessionCount(sessions.count ?? 0);
         }
 
         // Auto-pull gateway logs via WS RPC
-        const logsResult = await api.gatewayLogsWs?.(80);
         if (logsResult?.success && Array.isArray(logsResult.data) && logsResult.data.length > 0) {
           setLogEntries((prev) => {
             const existing = new Set(prev.map((e) => e.text));
@@ -549,6 +564,69 @@ export default function DashboardPage() {
           sub={gatewayStatus?.running ? (sessionCount > 0 ? 'Gateway RPC 实时' : '无活跃 Session') : 'Gateway 未运行'}
         />
       </div>
+
+      {/* Gateway Channel Status (from WS RPC health) */}
+      {gatewayStatus?.running && Object.keys(channelStatus).length > 0 && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 12,
+            padding: '16px 20px',
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Radio size={14} color="#919191" />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase' as const,
+                color: '#919191',
+              }}
+            >
+              Gateway 通道状态（RPC 实时）
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {Object.entries(channelStatus).map(([key, val]) => {
+              const label = key === 'feishu' ? '飞书' : key === 'trix-native' ? 'Trix Native' : key;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: val.running ? 'rgba(74, 222, 128, 0.08)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${val.running ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.08)'}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: val.running ? '#4ade80' : '#666',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: 12, color: val.running ? '#4ade80' : '#919191', fontWeight: 600 }}>
+                    {label}
+                  </span>
+                  {val.accountId && (
+                    <span style={{ fontSize: 11, color: '#666' }}>({val.accountId})</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Installed Packages */}
       {packages.length > 0 && (
