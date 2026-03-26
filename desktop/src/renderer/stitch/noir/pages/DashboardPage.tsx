@@ -179,7 +179,7 @@ export default function DashboardPage() {
         }
 
         // Auto-pull gateway logs via WS RPC
-        const logsResult = await api.gatewayLogs?.(80);
+        const logsResult = await api.gatewayLogsWs?.(80);
         if (logsResult?.success && Array.isArray(logsResult.data) && logsResult.data.length > 0) {
           setLogEntries((prev) => {
             const existing = new Set(prev.map((e) => e.text));
@@ -211,13 +211,14 @@ export default function DashboardPage() {
     const api = window.electronAPI;
     if (!api?.onGatewayEvent) return;
 
-    const unsub = api.onGatewayEvent((event: { type: string; [key: string]: unknown }) => {
+    const unsub = api.onGatewayEvent((event) => {
       // Append real-time events to the log terminal
-      const msg = `[WS ${event.type}] ${JSON.stringify(event).slice(0, 120)}`;
+      const eventType = String(event.type ?? '');
+      const msg = `[WS ${eventType}] ${JSON.stringify(event).slice(0, 120)}`;
       addLog(createLogEntry('output', msg));
 
       // Refresh agent/session counts on relevant events
-      if (['agent', 'presence', 'sessions.list'].includes(event.type)) {
+      if (['agent', 'presence', 'sessions.list'].includes(eventType)) {
         api.gatewayAgents?.().then((r: { success?: boolean; data?: unknown[] }) => {
           if (r?.success && Array.isArray(r.data)) setAgentCount(r.data.length);
         });

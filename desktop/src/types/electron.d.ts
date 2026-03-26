@@ -288,7 +288,7 @@ export interface ElectronAPI {
   /** Get chat history for a session */
   gatewayChatHistory: (sessionKey: string, limit?: number) => Promise<{ success: boolean; data?: ChatMessage[]; error?: string }>;
   /** Get gateway logs via WS RPC */
-  gatewayLogs: (tail?: number) => Promise<{ success: boolean; data?: string[]; error?: string }>;
+  gatewayLogsWs: (tail?: number) => Promise<{ success: boolean; data?: string[]; error?: string }>;
   /** Generic WS RPC call */
   gatewayRpc: (method: string, params?: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>;
   /** Subscribe to real-time Gateway WS events (health, heartbeat, agent, chat, etc.) — returns unsubscribe fn */

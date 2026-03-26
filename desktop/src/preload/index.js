@@ -62,7 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gatewayAgents: () => ipcRenderer.invoke('gateway:agents'),
   gatewaySessions: () => ipcRenderer.invoke('gateway:sessions'),
   gatewayChatHistory: (sessionKey, limit) => ipcRenderer.invoke('gateway:chat-history', sessionKey, limit),
-  gatewayLogs: (tail) => ipcRenderer.invoke('gateway:logs', tail),
+  gatewayLogsWs: (tail) => ipcRenderer.invoke('gateway:logs:ws', tail),
   gatewayRpc: (method, params) => ipcRenderer.invoke('gateway:rpc', method, params),
   // Real-time events: returns an unsubscribe function
   onGatewayEvent: (callback) => {

@@ -2219,7 +2219,7 @@ export function setupIpcHandlers(): void {
   });
 
   // Get gateway logs via WS RPC (CLI/file fallback)
-  ipcMain.handle('gateway:logs', async (_event, tail = 100) => {
+  ipcMain.handle('gateway:logs:ws', async (_event, tail = 100) => {
     try {
       const data = await getGatewayLogsWs(tail);
       return { success: true, data };
