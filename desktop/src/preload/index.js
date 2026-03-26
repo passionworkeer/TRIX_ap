@@ -117,6 +117,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gatewayStop: () => ipcRenderer.invoke('gateway:stop'),
   restartGateway: () => ipcRenderer.invoke('gateway:restart'),
   gatewayLogs: (opts) => ipcRenderer.invoke('gateway:logs', opts),
+  gatewayHealth: () => ipcRenderer.invoke('gateway:health'),
+  gatewayDiagnose: () => ipcRenderer.invoke('gateway:diagnose'),
+  gatewayLogsAnalyze: (opts) => ipcRenderer.invoke('gateway:logs:analyze', opts),
+  gatewayKbStats: () => ipcRenderer.invoke('gateway:kb:stats'),
   onGatewayLog: (callback) => {
     const handler = (_event, log) => callback(log);
     ipcRenderer.on('gateway:log', handler);

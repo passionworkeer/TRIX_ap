@@ -17,12 +17,15 @@ import { SettingsAccount } from './SettingsAccount';
 import { SettingsModels } from './SettingsModels';
 import { SettingsCron } from './SettingsCron';
 import { StartupCheckDialog } from '../../../shared/components/StartupCheckDialog';
+import type { GatewayHealth, GatewayDiagnosis } from '../../../../types/electron';
 
 export interface SettingsSharedState {
   activeTab: SettingsTab;
   setActiveTab: (tab: SettingsTab) => void;
   openClawStatus: { installed: boolean; version?: string; path?: string; error?: string } | null;
   gatewayStatus: { running: boolean; port?: number; pid?: number; url?: string; error?: string } | null;
+  gatewayHealth: GatewayHealth | null;
+  gatewayDiagnosis: GatewayDiagnosis | null;
   appInfo: { version: string; name: string; electron: string; node: string; chrome: string; platform: string; userData: string; isPackaged: boolean } | null;
   installProgress: string | null;
   loading: boolean;
@@ -32,6 +35,7 @@ export interface SettingsSharedState {
   addLog: (entry: LogEntry) => void;
   loadStatus: () => Promise<void>;
   loadGatewayLogs: () => Promise<void>;
+  loadGatewayHealth: () => Promise<void>;
   runCommand: (cmd: string, label: string) => Promise<void>;
   handleInstallOpenClaw: () => Promise<void>;
   handleStartGateway: () => Promise<void>;
@@ -49,6 +53,8 @@ export default function SettingsContainer() {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [runningCommand, setRunningCommand] = useState(false);
   const [gatewayLogLines, setGatewayLogLines] = useState<string[]>([]);
+  const [gatewayHealth, setGatewayHealth] = useState<GatewayHealth | null>(null);
+  const [gatewayDiagnosis, setGatewayDiagnosis] = useState<GatewayDiagnosis | null>(null);
   const [showStartupCheck, setShowStartupCheck] = useState(false);
 
   const addLog = useCallback((entry: LogEntry) => {
@@ -80,6 +86,19 @@ export default function SettingsContainer() {
     try {
       const result = await api.gatewayLogs({ lines: 150 });
       if (result.success && result.data) setGatewayLogLines(result.data);
+    } catch { /* ignore */ }
+  }, []);
+
+  const loadGatewayHealth = useCallback(async () => {
+    const api = window.electronAPI;
+    if (!api) return;
+    try {
+      const [healthRes, diagRes] = await Promise.all([
+        api.gatewayHealth(),
+        api.gatewayDiagnose(),
+      ]);
+      if (healthRes.success && healthRes.data) setGatewayHealth(healthRes.data);
+      if (diagRes.success && diagRes.data) setGatewayDiagnosis(diagRes.data);
     } catch { /* ignore */ }
   }, []);
 
@@ -202,15 +221,18 @@ export default function SettingsContainer() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'gateway') loadGatewayLogs();
-  }, [activeTab, gatewayStatus, loadGatewayLogs]);
+    if (activeTab === 'gateway') {
+      loadGatewayLogs();
+      loadGatewayHealth();
+    }
+  }, [activeTab, gatewayStatus, loadGatewayLogs, loadGatewayHealth]);
 
   const shared: SettingsSharedState = {
     activeTab, setActiveTab,
-    openClawStatus, gatewayStatus, appInfo,
+    openClawStatus, gatewayStatus, gatewayHealth, gatewayDiagnosis, appInfo,
     installProgress, loading,
     logEntries, runningCommand, gatewayLogLines,
-    addLog, loadStatus, loadGatewayLogs,
+    addLog, loadStatus, loadGatewayLogs, loadGatewayHealth,
     runCommand, handleInstallOpenClaw,
     handleStartGateway, handleStopGateway, handleRestartGateway,
   };

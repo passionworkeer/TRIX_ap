@@ -71,6 +71,7 @@ export default defineConfig(async () => {
       alias: {
         '@': path.resolve(projectRoot, 'src'),
       },
+      dedupe: ['react', 'react-dom'],
     },
     plugins: desktopPlugins,
     build: {
@@ -78,14 +79,19 @@ export default defineConfig(async () => {
       emptyOutDir: true,
       rollupOptions: {
         input: {
-          main: path.resolve(projectRoot, 'desktop/src/renderer/main.html'),
-          float: path.resolve(projectRoot, 'desktop/src/renderer/float.html'),
+          main: path.resolve(__dirname, 'src/renderer/main.html'),
+          float: path.resolve(__dirname, 'src/renderer/float.html'),
         },
       },
     },
     server: {
       port: 5174,
       strictPort: true,
+    },
+    optimizeDeps: {
+      // Prevent react-i18next from being pre-bundled with its own React copy
+      // This avoids React's multiple-instances detection breaking hooks in the float window
+      exclude: ['react-i18next'],
     },
   } as any;
 });

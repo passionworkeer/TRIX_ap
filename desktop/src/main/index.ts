@@ -24,6 +24,7 @@ import { createTray } from './tray';
 import { createFloatWindow } from './float-window';
 import { getPreloadPath, getMainUrl, setMainWindow, showMainWindow } from './window-state';
 import { destroyTray } from './tray';
+import { petStateManager } from './pet-state';
 
 // FIRST: Write a marker file to prove the bundle is running
 try {
@@ -125,6 +126,7 @@ app.whenReady().then(async () => {
   createMainWindow();
   createFloatWindow();
   createTray();
+  petStateManager.init();
 
   if (openclawStatus.installed) {
     // Start gateway in background — don't block app startup

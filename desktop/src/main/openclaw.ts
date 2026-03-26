@@ -121,12 +121,12 @@ export async function installOpenClaw(
     });
 
     proc.on('close', (_code) => {
-      if (code === 0) {
+      if (_code === 0) {
         onProgress('安装完成!');
         log.info('OpenClaw installed to', installPath);
         resolve();
       } else {
-        const err = `安装失败，退出码 ${code}: ${stderr}`;
+        const err = `安装失败，退出码 ${_code}: ${stderr}`;
         log.error(err);
         reject(new Error(err));
       }
@@ -181,7 +181,7 @@ export async function runCommand(cmd: string): Promise<{
 
       proc.on('close', (_code) => {
         clearTimeout(timer);
-        resolve(timedOut ? 124 : (code ?? 0));
+        resolve(timedOut ? 124 : (_code ?? 0));
       });
       proc.on('error', () => {
         clearTimeout(timer);

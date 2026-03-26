@@ -81,6 +81,51 @@ export interface GatewayLogsResult {
   error?: string;
 }
 
+export type HealthStatus = 'healthy' | 'degraded' | 'down';
+
+export interface GatewayHealthIssue {
+  type: string;
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  layer?: 'port' | 'http' | 'cli';
+}
+
+export interface GatewayHealthLayers {
+  port: { ok: boolean; pid?: number };
+  http: { ok: boolean; statusCode?: number; latencyMs?: number };
+  cli: { ok: boolean; version?: string; warning?: string };
+}
+
+export interface GatewayHealth {
+  status: HealthStatus;
+  layers: GatewayHealthLayers;
+  timestamp: string;
+  issues: GatewayHealthIssue[];
+}
+
+export interface LogIssue {
+  type: string;
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  file?: string;
+  line?: string;
+  timestamp?: string;
+}
+
+export interface GatewayDiagnosis {
+  type: string;
+  rootCause: string;
+  confidence: number;
+  suggestedActions: string[];
+  issues: GatewayHealthIssue[];
+}
+
+export interface KbStats {
+  totalIssues: number;
+  totalAttempts: number;
+  successRate: number;
+}
+
 export interface PairingCode {
   code: string;
   createdAt: string;
@@ -199,6 +244,10 @@ export interface ElectronAPI {
   gatewayStop: () => Promise<ApiResult<void>>;
   restartGateway: () => Promise<ApiResult<{ port: number; pid?: number }>>;
   gatewayLogs: (opts?: { lines?: number }) => Promise<GatewayLogsResult>;
+  gatewayHealth: () => Promise<ApiResult<GatewayHealth>>;
+  gatewayDiagnose: () => Promise<ApiResult<GatewayDiagnosis>>;
+  gatewayLogsAnalyze: (opts?: { lines?: number }) => Promise<ApiResult<LogIssue[]>>;
+  gatewayKbStats: () => Promise<ApiResult<KbStats>>;
   onGatewayLog: (callback: (log: string) => void) => () => void;
 
   // App Info

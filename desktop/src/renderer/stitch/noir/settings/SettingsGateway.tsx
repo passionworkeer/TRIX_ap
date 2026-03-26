@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Square, RefreshCw, Save, Eye, EyeOff, Copy, AlertTriangle } from 'lucide-react';
+import { Play, Square, RefreshCw, Save, Eye, EyeOff, Copy, AlertTriangle, Activity, Wrench } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
 import { InfoRow } from '../../../shared/components/InfoRow';
@@ -48,8 +48,9 @@ function Field({ label, value, onChange, type = 'text', hint }: FieldProps) {
 }
 
 export function SettingsGateway(props: SettingsSharedState) {
-  const { gatewayStatus, openClawStatus, runningCommand, handleStartGateway,
-    handleStopGateway, handleRestartGateway, loadGatewayLogs, gatewayLogLines } = props;
+  const { gatewayStatus, gatewayHealth, gatewayDiagnosis, openClawStatus, runningCommand,
+    handleStartGateway, handleStopGateway, handleRestartGateway, loadGatewayLogs,
+    gatewayLogLines, loadGatewayHealth } = props;
 
   const [config, setConfig] = useState<GatewayConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,16 @@ export function SettingsGateway(props: SettingsSharedState) {
   const [origins, setOrigins] = useState<string[]>([]);
   const [newOrigin, setNewOrigin] = useState('');
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+
+  const statusColor = gatewayHealth?.status === 'healthy' ? '#4ade80'
+    : gatewayHealth?.status === 'degraded' ? '#f59e0b'
+    : '#ff6b6b';
+  const statusLabel = gatewayHealth?.status === 'healthy' ? '健康'
+    : gatewayHealth?.status === 'degraded' ? '降级'
+    : gatewayHealth?.status === 'down' ? '离线' : '未知';
+  const statusBg = gatewayHealth?.status === 'healthy' ? 'rgba(74,222,128,0.08)'
+    : gatewayHealth?.status === 'degraded' ? 'rgba(245,158,11,0.08)'
+    : 'rgba(255,107,107,0.08)';
 
   const loadConfig = useCallback(async () => {
     const api = window.electronAPI;
@@ -133,24 +144,102 @@ export function SettingsGateway(props: SettingsSharedState) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
       {/* Status card */}
       <DarkCard elevation="low">
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#e5e2e1', marginBottom: 14 }}>Gateway 状态</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
-          {gatewayStatus ? (
-            <>
-              <InfoRow label="状态" value={gatewayStatus.running ? '运行中' : '已停止'} />
-              <InfoRow label="端口" value={String(gatewayStatus.port || 18789)} />
-              {gatewayStatus.pid && <InfoRow label="PID" value={String(gatewayStatus.pid)} />}
-              <InfoRow label="地址" value={gatewayStatus.url || `ws://127.0.0.1:${gatewayStatus.port || 18789}`} />
-              {gatewayStatus.error && (
-                <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.2)', color: '#ff6b6b', fontSize: 12 }}>
-                  错误: {gatewayStatus.error}
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{ color: '#919191', fontSize: 12 }}>加载中...</div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#e5e2e1' }}>Gateway 状态</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {gatewayHealth && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: statusBg, border: `1px solid ${statusColor}30` }}>
+                <Activity size={11} color={statusColor} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: statusColor }}>{statusLabel}</span>
+              </div>
+            )}
+            <DarkButton
+              icon={<RefreshCw size={11} />}
+              label="诊断"
+              onClick={loadGatewayHealth}
+              variant="ghost"
+              size="sm"
+            />
+          </div>
         </div>
+
+        {/* Triple-layer health details */}
+        {gatewayHealth ? (
+          <>
+            {/* Layer indicators */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+              {[
+                { label: '端口检测', ok: gatewayHealth.layers.port.ok, detail: gatewayHealth.layers.port.pid ? `PID ${gatewayHealth.layers.port.pid}` : gatewayHealth.layers.port.ok ? '监听中' : '未监听' },
+                { label: 'HTTP 健康', ok: gatewayHealth.layers.http.ok, detail: gatewayHealth.layers.http.statusCode ? `${gatewayHealth.layers.http.statusCode}${gatewayHealth.layers.http.latencyMs ? ` · ${gatewayHealth.layers.http.latencyMs}ms` : ''}` : '无响应' },
+                { label: 'CLI 工具', ok: gatewayHealth.layers.cli.ok, detail: gatewayHealth.layers.cli.version || (gatewayHealth.layers.cli.warning ? '未安装' : 'OK') },
+              ].map((layer) => (
+                <div key={layer.label} style={{ padding: '8px 10px', borderRadius: 8, background: layer.ok ? 'rgba(74,222,128,0.06)' : 'rgba(255,107,107,0.06)', border: `1px solid ${layer.ok ? 'rgba(74,222,128,0.15)' : 'rgba(255,107,107,0.15)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: layer.ok ? '#4ade80' : '#ff6b6b' }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#919191', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{layer.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: layer.ok ? '#4ade80' : '#ff6b6b', fontFamily: 'monospace' }}>{layer.detail}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Diagnosis panel */}
+            {gatewayDiagnosis && gatewayDiagnosis.type !== 'HEALTHY' && (
+              <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                  <Wrench size={12} color="#f59e0b" />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#f59e0b' }}>诊断结果</span>
+                  <span style={{ fontSize: 10, color: '#919191', marginLeft: 'auto' }}>置信度 {Math.round(gatewayDiagnosis.confidence * 100)}%</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#e5e2e1', marginBottom: 6 }}>{gatewayDiagnosis.rootCause}</div>
+                {gatewayDiagnosis.suggestedActions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {gatewayDiagnosis.suggestedActions.map((action) => (
+                      <span key={action} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', fontFamily: 'monospace' }}>{action}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Issues list */}
+            {gatewayHealth.issues.length > 0 && (
+              <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {gatewayHealth.issues.map((issue, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, background: issue.severity === 'critical' ? 'rgba(255,107,107,0.06)' : 'rgba(245,158,11,0.04)', fontSize: 11, color: issue.severity === 'critical' ? '#ff6b6b' : '#f59e0b' }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: issue.severity === 'critical' ? '#ff6b6b' : '#f59e0b', flexShrink: 0 }} />
+                    {issue.message}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Last check time */}
+            <div style={{ fontSize: 10, color: '#555', marginBottom: 10 }}>
+              最后检查: {new Date(gatewayHealth.timestamp).toLocaleTimeString('zh-CN')}
+              {gatewayHealth.status === 'healthy' && ' · 三层检测全部通过'}
+            </div>
+
+            {/* Basic info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <InfoRow label="端口" value={String(gatewayStatus?.port || 18789)} />
+              {gatewayStatus?.pid && <InfoRow label="PID" value={String(gatewayStatus.pid)} />}
+              <InfoRow label="地址" value={gatewayStatus?.url || `ws://127.0.0.1:${gatewayStatus?.port || 18789}`} />
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <InfoRow label="状态" value={gatewayStatus?.running ? '运行中' : '已停止'} />
+            <InfoRow label="端口" value={String(gatewayStatus?.port || 18789)} />
+            {gatewayStatus?.pid && <InfoRow label="PID" value={String(gatewayStatus.pid)} />}
+            <InfoRow label="地址" value={gatewayStatus?.url || `ws://127.0.0.1:${gatewayStatus?.port || 18789}`} />
+            {gatewayStatus?.error && (
+              <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.2)', color: '#ff6b6b', fontSize: 12 }}>
+                错误: {gatewayStatus.error}
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {gatewayStatus?.running ? (
             <>

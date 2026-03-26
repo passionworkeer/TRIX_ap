@@ -2,7 +2,7 @@ appId: com.trixapp.companion
 productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
 directories:
-  output: C:/Users/wang/Desktop/TRIX Companion
+  output: E:/desktop/TRIX-Setup-v3
   buildResources: build
 asar: true
 compression: maximum
@@ -21,7 +21,21 @@ files:
   - '!**/sw.js'
   - '!**/videos/**'
   - '!**/dist/**'
-  - '!**/node_modules/**'
+  - node_modules/**/*
+  - '!node_modules/@rollup/**/*'
+  - '!node_modules/@esbuild/**/*'
+  - '!node_modules/@types/**/*'
+  - '!node_modules/@babel/**/*'
+  - '!node_modules/@testing-library/**/*'
+  - '!node_modules/@develar/**/*'
+  - '!node_modules/@malept/**/*'
+  - '!node_modules/@npmcli/**/*'
+  - '!node_modules/@pkgjs/**/*'
+  - '!node_modules/@tootallnate/**/*'
+  - '!node_modules/app-builder-lib/**/*'
+  - '!node_modules/app-builder-bin/**/*'
+  - '!node_modules/rollup/**/*'
+  - '!node_modules/esbuild/**/*'
 extraResources:
   - from: ../public/videos
     to: videos

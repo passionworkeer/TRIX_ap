@@ -6,8 +6,8 @@ export function createFloatWindow(): BrowserWindow {
   log.info('Creating float window...');
 
   const floatWindow = new BrowserWindow({
-    width: 220,
-    height: 320,
+    width: 260,
+    height: 280,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

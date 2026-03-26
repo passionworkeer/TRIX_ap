@@ -8,15 +8,28 @@ import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import Store from 'electron-store';
+import { petStateManager } from './pet-state';
 import {
   showMainWindow,
   hideMainWindow,
   minimizeToTray,
   pushBotState,
   getMainWindow,
+  getFloatWindow,
 } from './window-state';
 import { checkOpenClaw, installOpenClaw, runCommand, skillsList, clawhubSearch, clawhubExplore, clawhubInstall } from './openclaw';
-import { getGatewayStatus, restartGateway, startGateway, stopGateway, getGatewayLogs } from './gateway';
+import {
+  getGatewayStatus,
+  restartGateway,
+  startGateway,
+  stopGateway,
+  getGatewayLogs,
+  checkGatewayHealth,
+  diagnoseGateway,
+  analyzeGatewayLogs,
+  recordFixAttempt,
+  getKbStats,
+} from './gateway';
 
 // === Input Validation Helpers ===
 
@@ -1237,6 +1250,64 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  /** Triple-layer health check (port + HTTP + CLI) with 15s TTL cache */
+  ipcMain.handle('gateway:health', async () => {
+    try {
+      const health = await checkGatewayHealth();
+      return { success: true, data: health };
+    } catch (err) {
+      log.error('gateway:health error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Run diagnostic engine against current health + logs */
+  ipcMain.handle('gateway:diagnose', async () => {
+    try {
+      const diagnosis = await diagnoseGateway();
+      return { success: true, data: diagnosis };
+    } catch (err) {
+      log.error('gateway:diagnose error:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Analyze gateway in-memory log buffer for error patterns */
+  ipcMain.handle('gateway:logs:analyze', async (_event, opts?: { lines?: number }) => {
+    try {
+      const issues = analyzeGatewayLogs({ lines: opts?.lines ?? 200 });
+      return { success: true, data: issues };
+    } catch (err) {
+      return { success: false, error: String(err), data: [] };
+    }
+  });
+
+  /** Knowledge base stats */
+  ipcMain.handle('gateway:kb:stats', async () => {
+    try {
+      const stats = getKbStats();
+      return { success: true, data: stats };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Record a fix attempt for learning */
+  ipcMain.handle('gateway:kb:record', async (
+    _event,
+    issueType: string,
+    solution: string,
+    success: boolean,
+    durationMs: number
+  ) => {
+    try {
+      recordFixAttempt(issueType, solution, success, durationMs);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
   // === System Info (CPU / Memory / Disk) ===
   ipcMain.handle('system:info', async () => {
     try {
@@ -1561,9 +1632,21 @@ export function setupIpcHandlers(): void {
   }> = new Map();
 
   function pushToRenderer(_channel: string, msg: ChannelMessage): void {
+    // Update pet state based on message direction
+    if (msg.direction === 'incoming') {
+      petStateManager.onInboundMessage();
+    } else {
+      petStateManager.onAiSpeaking();
+    }
+
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send('channels:message-received', msg);
+    }
+    // Also push to float window
+    const floatWin = getFloatWindow();
+    if (floatWin && !floatWin.isDestroyed()) {
+      floatWin.webContents.send('channels:message-received', msg);
     }
   }
 
