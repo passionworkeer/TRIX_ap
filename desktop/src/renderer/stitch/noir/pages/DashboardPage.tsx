@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Zap, Activity, Server, Bot, Cpu, HardDrive, Package,
-  RefreshCw, Play, Square, Stethoscope, Globe, MemoryStick,
+  RefreshCw, Play, Square, Stethoscope, Globe, MemoryStick, Radio,
 } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -137,6 +137,9 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [, setLogStatus] = useState<StatusType>('idle');
+  // WebSocket RPC data
+  const [agentCount, setAgentCount] = useState<number>(0);
+  const [sessionCount, setSessionCount] = useState<number>(0);
 
   const addLog = (entry: LogEntry) =>
     setLogEntries((prev) => [...prev.slice(-99), entry]);
@@ -159,6 +162,38 @@ export default function DashboardPage() {
       if (sys.success && sys.data) setSystemInfo(sys.data);
       if (disk.success && disk.data) setDiskInfo(disk.data);
       if (pkgs.success && pkgs.data) setPackages(pkgs.data);
+
+      // ── WebSocket RPC: fetch real agents & sessions ──────────────────────
+      if (gw?.running) {
+        // Connect WS channel first
+        api.gatewayConnect?.();
+        const [agentsResult, sessionsResult] = await Promise.all([
+          api.gatewayAgents?.(),
+          api.gatewaySessions?.(),
+        ]);
+        if (agentsResult?.success && Array.isArray(agentsResult.data)) {
+          setAgentCount(agentsResult.data.length);
+        }
+        if (sessionsResult?.success && Array.isArray(sessionsResult.data)) {
+          setSessionCount(sessionsResult.data.length);
+        }
+
+        // Auto-pull gateway logs via WS RPC
+        const logsResult = await api.gatewayLogs?.(80);
+        if (logsResult?.success && Array.isArray(logsResult.data) && logsResult.data.length > 0) {
+          setLogEntries((prev) => {
+            const existing = new Set(prev.map((e) => e.text));
+            const newEntries = (logsResult.data ?? [])
+              .filter((l: string) => l && !existing.has(l))
+              .slice(-80)
+              .map((l: string) => createLogEntry('output', l));
+            if (newEntries.length > 0) {
+              return [...prev.slice(-120), ...newEntries];
+            }
+            return prev;
+          });
+        }
+      }
     } catch (err) {
       addLog(createLogEntry('error', `状态加载失败: ${String(err)}`));
     } finally {
@@ -170,6 +205,33 @@ export default function DashboardPage() {
     loadStatus();
     addLog(createLogEntry('info', 'TRIX Companion 控制台已初始化'));
   }, [loadStatus]);
+
+  // ── Real-time Gateway WS events ─────────────────────────────────────────────
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.onGatewayEvent) return;
+
+    const unsub = api.onGatewayEvent((event: { type: string; [key: string]: unknown }) => {
+      // Append real-time events to the log terminal
+      const msg = `[WS ${event.type}] ${JSON.stringify(event).slice(0, 120)}`;
+      addLog(createLogEntry('output', msg));
+
+      // Refresh agent/session counts on relevant events
+      if (['agent', 'presence', 'sessions.list'].includes(event.type)) {
+        api.gatewayAgents?.().then((r: { success?: boolean; data?: unknown[] }) => {
+          if (r?.success && Array.isArray(r.data)) setAgentCount(r.data.length);
+        });
+        api.gatewaySessions?.().then((r: { success?: boolean; data?: unknown[] }) => {
+          if (r?.success && Array.isArray(r.data)) setSessionCount(r.data.length);
+        });
+      }
+    });
+
+    // Kick off lazy WS connection
+    api.gatewayConnect?.();
+
+    return unsub;
+  }, []);
 
   const runCommand = async (cmd: string, label: string) => {
     const api = window.electronAPI;
@@ -470,6 +532,20 @@ export default function DashboardPage() {
           label="设备名称"
           value={systemInfo?.os.hostname ?? '—'}
           sub={systemInfo ? `${systemInfo.os.version} (${systemInfo.os.arch})` : '加载中…'}
+        />
+        <MetricCard
+          icon={Bot}
+          iconColor="#c084fc"
+          label="活跃 Agent"
+          value={agentCount > 0 ? String(agentCount) : '—'}
+          sub={gatewayStatus?.running ? (agentCount > 0 ? 'Gateway RPC 实时' : '无活跃 Agent') : 'Gateway 未运行'}
+        />
+        <MetricCard
+          icon={Radio}
+          iconColor="#22d3ee"
+          label="活跃 Session"
+          value={sessionCount > 0 ? String(sessionCount) : '—'}
+          sub={gatewayStatus?.running ? (sessionCount > 0 ? 'Gateway RPC 实时' : '无活跃 Session') : 'Gateway 未运行'}
         />
       </div>
 

@@ -278,6 +278,22 @@ export interface ElectronAPI {
   gatewayKbStats: () => Promise<ApiResult<KbStats>>;
   onGatewayLog: (callback: (log: string) => void) => () => void;
 
+  // Gateway WebSocket RPC (mirrors Mission Control approach)
+  /** Connect to the Gateway WebSocket channel (auto-reconnects) */
+  gatewayConnect: () => Promise<{ success: boolean; error?: string }>;
+  /** List agents via WS RPC */
+  gatewayAgents: () => Promise<{ success: boolean; data?: GatewayAgent[]; error?: string }>;
+  /** List active sessions via WS RPC */
+  gatewaySessions: () => Promise<{ success: boolean; data?: GatewaySession[]; error?: string }>;
+  /** Get chat history for a session */
+  gatewayChatHistory: (sessionKey: string, limit?: number) => Promise<{ success: boolean; data?: ChatMessage[]; error?: string }>;
+  /** Get gateway logs via WS RPC */
+  gatewayLogs: (tail?: number) => Promise<{ success: boolean; data?: string[]; error?: string }>;
+  /** Generic WS RPC call */
+  gatewayRpc: (method: string, params?: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>;
+  /** Subscribe to real-time Gateway WS events (health, heartbeat, agent, chat, etc.) — returns unsubscribe fn */
+  onGatewayEvent: (callback: (event: Record<string, unknown>) => void) => () => void;
+
   // App Info
   getAppInfo: () => Promise<AppInfo>;
 
