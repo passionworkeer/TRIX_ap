@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.1（2026-03-25 全面扫描同步）
+> **版本**: v2.2（2026-03-27 文档整理）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -14,16 +14,13 @@ docs/
 ├── CLAUDE.md                  # 项目规范（位于根目录）
 ├── README.md                  # 项目总览（位于根目录）
 ├── TRIX_NATIVE_CHANNEL.md    # ⭐ Native Channel 唯一权威文档
-├── INSTALLATION_GUIDE.md     # trix-openclaw-native 安装指南
 │
 ├── 📋 需求规格 (requirements/)
 │   ├── PRD.md                # 产品需求文档（三端合一）
-│   ├── DESKTOP_PRD.md       # Desktop 产品需求文档
-│   └── DESKTOP_PHASE2_PLAN.md  # Desktop Phase 2 计划
+│   └── DESKTOP_PRD.md       # Desktop 产品需求文档
 │
 ├── 📊 项目报告 (project-reports/)
-│   ├── PROJECT.md            # 项目总览
-│   └── PROJECT_TASKS.md      # 活跃任务追踪（TASK-007/008 进行中）
+│   └── PROJECT.md            # 项目总览
 │
 ├── 🔧 开发文档 (development/)
 │   ├── TESTING.md           # 测试指南（命令 + 覆盖率）
@@ -50,8 +47,6 @@ docs/
 ├── 🍎 iOS 文档 (ios/)
 │   ├── IOS_ARCHITECTURE.md  # iOS 架构（61 Swift 文件：40 服务 + 21 协议）
 │   ├── IOS_API_REFERENCE.md # iOS API 参考
-│   ├── TESTING_REPORT.md    # 测试报告（361 测试）
-│   ├── checklist.md        # AppStore 上架清单
 │   ├── QUICK_REFERENCE.md  # APNs 快速参考
 │   ├── INTEGRATION_GUIDE.md # 主题集成指南
 │   ├── ARCHITECTURE_DIAGRAM.md  # 语音消息架构图
@@ -61,7 +56,7 @@ docs/
 │   ├── SECURITY_AUDIT_P0-2.md   # 子审计：支付 API
 │   ├── SECURITY_AUDIT_P0-8_M003.md  # 子审计：SSL Pinning（评级 A）
 │   ├── IOS_SECURITY_HARDENING.md  # 安全加固
-│   ├── SECURITY_CONFIGURATION.md  # 微信配置指南
+│   ├── SECURITY_CONFIGURATION.md  # 敏感信息配置指南
 │   ├── P1-2.3-sql-injection-audit.md
 │   ├── P1-2.4-data-flow-analysis.md
 │   └── README.md           # iOS 项目说明
@@ -83,11 +78,12 @@ docs/
 ├── 🗂️ 问题追踪 (issues/)
 │   └── DESKTOP_TEST_REPORT.md  # Desktop 测试状态报告
 │
-├── 💡 功能设计 (plans/)
-│   └── 2026-03-24-trix-canvas-skill-design.md  # TRIX Canvas Skill 设计
-│
-└── 🗂️ 归档 (.archive/)
-    └── DATABASE_MIGRATION_GUIDE.md  # 历史迁移文档
+└── 🗂️ 归档 (.archive/)                  # 仅供参考，不含源码树
+    ├── INSTALLATION_GUIDE.md                # trix-openclaw-native 安装（旧版，已被 SETUP.md 覆盖）
+    ├── PROJECT_TASKS.md                      # TRIX Native Channel 任务追踪（已全部完成）
+    └── DESKTOP_PHASE2_PLAN.md               # Desktop Phase 2 计划（执行状态待确认）
+
+> 注：以下历史归档文件已于此前清理中从 git 删除：`canvas-skill-design-archived.md`、`ios-checklist-archived.md`、`ios-testing-report-archived.md`、`DATABASE_MIGRATION_GUIDE.md`
 ```
 
 ---
@@ -149,35 +145,38 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 目录 | 文档数 |
 |------|--------|
 | 根目录 | 4（含 CLAUDE.md / README.md） |
-| 需求规格 (requirements/) | 3 |
-| 项目报告 (project-reports/) | 2 |
+| 需求规格 (requirements/) | 2 |
+| 项目报告 (project-reports/) | 1 |
 | 开发文档 (development/) | 2 |
 | UI 文档 (ui/) | 3 |
 | 架构文档 (architecture/) | 2 |
 | 数据库 (database/) | 3 |
 | API 文档 (api/) | 2 |
-| iOS 文档 (ios/) | 15 |
+| iOS 文档 (ios/) | 13 |
 | 入门指南 (getting-started/) | 2 |
 | Desktop 文档 (desktop/) | 1 |
 | 操作指南 (guides/) | 5 |
 | 问题追踪 (issues/) | 1 |
-| 功能设计 (plans/) | 0 |
-| 归档 (.archive/) | 4 |
+| 归档 (.archive/) | 3 |
 
-**活跃文档总计**: 45 个（不含 .archive/）
+**活跃文档总计**: 40 个（不含 .archive/）
 
-**较上次清理**: 删除 3 个严重过时文档（canvas-skill-design 归档、iOS checklist 重写、iOS testing-report 重写），更新 10+ 份文档时效性
+**较上次清理**: 归档 3 份过时文档（INSTALLATION_GUIDE → SETUP 覆盖、PROJECT_TASKS → 任务全部完成、DESKTOP_PHASE2_PLAN → 执行状态待确认）；INDEX 修正失效引用并重建 .archive 目录
 
 ---
 
 ## 删除的历史文档（参考）
 
-以下文档因历史完成、内容冗余或严重过时已被删除/归档：
-- `plans/2026-03-24-trix-canvas-skill-design.md` → `.archive/canvas-skill-design-archived.md`（设计与实现偏离，Python/FastAPI vs Node.js/Express）
-- `ios/checklist.md` → `.archive/ios-checklist-archived.md`（应用描述基于 3D printing，内容需全面重写）
-- `ios/TESTING_REPORT.md` → `.archive/ios-testing-report-archived.md`（测试数 361→71，统计数据完全过时）
-- `project-reports/P3_Completion_Report_20260227.md` 等 26 个历史文档（上次清理）
+以下文档已于历次清理中从 git 删除，仅供参考：
+
+| 原路径 | 归档原因 |
+|--------|---------|
+| `plans/2026-03-24-trix-canvas-skill-design.md` | 设计与实现偏离，Python/FastAPI vs Node.js/Express |
+| `ios/checklist.md` | 应用描述基于 3D printing，内容需全面重写 |
+| `ios/TESTING_REPORT.md` | 测试数 361→71，统计数据完全过时 |
+| `docs/DATABASE_MIGRATION_GUIDE.md` | 历史迁移文档 |
+| `project-reports/P3_Completion_Report_20260227.md` 等 26 个历史文档 | 项目历史报告 |
 
 ---
 
-**最后更新**: 2026-03-26（三端数据最终确认：Web 45 组件/12 hooks/9 utils，iOS 61 Swift 文件（40 实+21 协议），Desktop 86 IPC（75→86）；iOS v1.3 修正：恢复 APIClient 等存在文件）
+**最后更新**: 2026-03-27（文档整理：v2.1 → v2.2；归档 3 份过时文档；INDEX 修正失效引用并重建 .archive 目录）
