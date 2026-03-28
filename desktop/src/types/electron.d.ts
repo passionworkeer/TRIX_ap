@@ -219,6 +219,21 @@ export interface PairingStatusResult {
   error?: string;
 }
 
+export interface TrixDesktopAttachment {
+  type: 'image' | 'audio' | 'video' | 'file';
+  url: string;
+  name: string;
+  mimeType?: string;
+}
+
+export interface TrixDesktopMessage {
+  id: string;
+  content: string;
+  direction: 'incoming' | 'outgoing';
+  timestamp: string;
+  attachments?: TrixDesktopAttachment[];
+}
+
 export interface ElectronAPI {
   // Platform
   platform: string;
@@ -281,8 +296,22 @@ export interface ElectronAPI {
 
   // TrixNativeServer Chat API
   listConversations: () => Promise<ApiResult<Array<{ id: string; title: string; updatedAt?: string }>>>;
-  fetchMessages: (conversationId: string) => Promise<ApiResult<Array<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>>;
-  sendMessage: (conversationId: string, content: string) => Promise<ApiResult<{ id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string }>>;
+  fetchMessages: (conversationId: string) => Promise<ApiResult<TrixDesktopMessage[]>>;
+  sendMessage: (conversationId: string, content: string) => Promise<ApiResult<TrixDesktopMessage>>;
+  sendImageMessage: (
+    conversationId: string,
+    payload: { fileName?: string; mimeType?: string; contentBase64: string; text?: string },
+  ) => Promise<ApiResult<TrixDesktopMessage>>;
+  sendAttachmentMessage: (
+    conversationId: string,
+    payload: {
+      fileName?: string;
+      mimeType?: string;
+      contentBase64: string;
+      text?: string;
+      kind?: 'image' | 'audio' | 'video' | 'file';
+    },
+  ) => Promise<ApiResult<TrixDesktopMessage>>;
   sendReaction: (messageId: string, emoji: string) => Promise<ApiResult<void>>;
 
   // === System ===

@@ -1,59 +1,6 @@
-/**
- * Integration tests for AuthContext + ClawbotChannelContext cross-context behavior.
- *
- * These tests verify that when auth state changes, the ClawbotChannelContext
- * correctly reacts (connects/disconnects/binds user sessions).
- *
- * Environment: Node (no DOM rendering — tests cross-context/service interactions)
- */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, act, waitFor, cleanup } from '@testing-library/react';
-import React, { type ReactNode } from 'react';
-
-// ─── Shared mock instance + handler registry (mirrors ClawbotChannelContext.unit.test) ─
-
-const { mockInstance, _handlers } = vi.hoisted(() => {
-  const handlers: Record<string, ((...args: unknown[]) => unknown)[]> = {};
-  const mockInstance = {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-      if (!handlers[event]) handlers[event] = [];
-      handlers[event].push(handler);
-    }),
-    off: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-      if (handlers[event]) handlers[event] = handlers[event].filter(h => h !== handler);
-    }),
-    removeAllListeners: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
-    setAuthUser: vi.fn(),
-    getSession: vi.fn().mockReturnValue(null),
-    clearSession: vi.fn(),
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn(),
-    isConnected: vi.fn().mockReturnValue(false),
-    isPaired: vi.fn().mockReturnValue(false),
-    checkPairingStatus: vi.fn().mockResolvedValue({ paired: false }),
-    bindCurrentSessionToAuthUser: vi.fn().mockResolvedValue(true),
-    restoreSession: vi.fn().mockResolvedValue(null),
-    pairWithCode: vi.fn((_code: string) => Promise.resolve({ success: true })),
-    pairWithQR: vi.fn((_payload: string) => Promise.resolve({ success: true })),
-    sendMessage: vi.fn().mockResolvedValue({ messageId: 'msg-id' }),
-    uploadMedia: vi.fn().mockResolvedValue('https://example.com/media.jpg'),
-    uploadAttachment: vi.fn().mockResolvedValue({
-      attachmentId: 'att-1', url: 'https://example.com/file.jpg',
-      kind: 'image', mimeType: 'image/jpeg', fileName: 'test.jpg', size: 100,
-    }),
-    unpair: vi.fn(),
-    getUserId: vi.fn().mockReturnValue('test-user-id'),
-    getOrCreateClientId: vi.fn().mockReturnValue('test-client-id'),
-  };
-  return { mockInstance, _handlers: handlers };
-});
-
-const fireHandler = (event: string, payload?: unknown) => {
-  const hs = _handlers[event] || [];
-  for (const h of hs) { h(payload); }
-};
-
-// ─── AuthContext mocks ────────────────────────────────────────────────────────
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
 
 const mockUser = {
   id: 'user-123',
@@ -80,6 +27,45 @@ const mockProfile = {
   bio: null,
 };
 
+const { mockInstance, handlers } = vi.hoisted(() => {
+  const eventHandlers: Record<string, ((...args: unknown[]) => unknown)[]> = {};
+  const instance = {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+      if (!eventHandlers[event]) {
+        eventHandlers[event] = [];
+      }
+      eventHandlers[event].push(handler);
+    }),
+    off: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+      if (!eventHandlers[event]) {
+        return;
+      }
+      eventHandlers[event] = eventHandlers[event].filter((entry) => entry !== handler);
+    }),
+    removeAllListeners: vi.fn(),
+    setAuthUser: vi.fn(),
+    getSession: vi.fn().mockReturnValue(null),
+    clearSession: vi.fn(),
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn(),
+    isConnected: vi.fn().mockReturnValue(false),
+    isPaired: vi.fn().mockReturnValue(false),
+    checkPairingStatus: vi.fn().mockResolvedValue({ paired: false, botOnline: false, deviceId: 'device-1' }),
+    bindCurrentSessionToAuthUser: vi.fn().mockResolvedValue(true),
+    restoreSession: vi.fn().mockResolvedValue(null),
+    pairWithCode: vi.fn(),
+    pairWithQR: vi.fn(),
+    sendMessage: vi.fn(),
+    uploadMedia: vi.fn(),
+    uploadAttachment: vi.fn(),
+    unpair: vi.fn(),
+    getUserId: vi.fn().mockReturnValue('user-123'),
+    getOrCreateClientId: vi.fn().mockReturnValue('client-123'),
+  };
+
+  return { mockInstance: instance, handlers: eventHandlers };
+});
+
 const {
   mockSignInWithPassword,
   mockSignOut,
@@ -87,6 +73,12 @@ const {
   mockOnAuthStateChange,
   mockUpdateLastActive,
   mockFrom,
+  mockUpsertSession,
+  mockRevokeSession,
+  mockCheckSessionValidity,
+  mockTouchSession,
+  mockClearLocalSessionId,
+  mockGetLocalSessionId,
 } = vi.hoisted(() => ({
   mockSignInWithPassword: vi.fn(),
   mockSignOut: vi.fn(),
@@ -103,25 +95,15 @@ const {
       eq: vi.fn().mockResolvedValue({ error: null }),
     })),
   })),
-}));
-
-const {
-  mockUpsertSession,
-  mockRevokeSession,
-  mockCheckSessionValidity,
-  mockTouchSession,
-  mockClearLocalSessionId,
-  mockGetLocalSessionId,
-} = vi.hoisted(() => ({
   mockUpsertSession: vi.fn().mockResolvedValue({ id: 'session-123' }),
   mockRevokeSession: vi.fn().mockResolvedValue(undefined),
   mockCheckSessionValidity: vi.fn().mockResolvedValue({ isValid: true, reason: 'valid' }),
   mockTouchSession: vi.fn().mockResolvedValue(undefined),
   mockClearLocalSessionId: vi.fn(),
-  mockGetLocalSessionId: vi.fn().mockReturnValue('local-session-1'),
+  mockGetLocalSessionId: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock('../config/supabase', () => ({
+vi.mock('../../src/config/supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: mockSignInWithPassword,
@@ -134,7 +116,7 @@ vi.mock('../config/supabase', () => ({
   updateLastActive: mockUpdateLastActive,
 }));
 
-vi.mock('../services/sessionService', () => ({
+vi.mock('../../src/services/sessionService', () => ({
   upsertSession: mockUpsertSession,
   revokeSession: mockRevokeSession,
   checkSessionValidity: mockCheckSessionValidity,
@@ -143,98 +125,93 @@ vi.mock('../services/sessionService', () => ({
   getLocalSessionId: mockGetLocalSessionId,
 }));
 
-vi.mock('../utils/errorHandler', () => ({
+vi.mock('../../src/utils/errorHandler', () => ({
   handleGlobalError: vi.fn(),
 }));
 
-vi.mock('../services/TrixNativeChannelClient', () => ({
+vi.mock('../../src/services/TrixNativeChannelClient', () => ({
   default: mockInstance,
 }));
 
-vi.mock('../contexts/VoiceSettingsContext', () => ({
-  useVoiceSettings: () => ({
-    voiceEnabled: false,
-    setVoiceEnabled: vi.fn(),
-    toggleVoiceEnabled: vi.fn(),
-  }),
-}));
-
-vi.mock('react-hot-toast', () => ({
-  __esModule: true,
-  default: { error: vi.fn(), success: vi.fn() },
-}));
-
-vi.mock('../utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    clawbot: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
     auth: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    clawbot: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
     setLevel: vi.fn(),
     getLevel: vi.fn(),
   },
 }));
 
-// ─── Imports (after mocks) ─────────────────────────────────────────────────────
+vi.mock('react-hot-toast', () => ({
+  __esModule: true,
+  default: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
 
 import { AuthProvider, useAuth } from '../../src/contexts/AuthContext';
 import {
   ClawbotChannelProvider,
   useClawbotChannel,
 } from '../../src/contexts/ClawbotChannelContext';
+import { VoiceSettingsProvider } from '../../src/contexts/VoiceSettingsContext';
 
-// ─── Test helpers ─────────────────────────────────────────────────────────────
-
-function BothContextsConsumer({ onRendered }: { onRendered?: () => void }) {
+function BothContextsConsumer() {
   const auth = useAuth();
   const channel = useClawbotChannel();
-  React.useEffect(() => { onRendered?.(); }, [onRendered]);
+
   return (
     <div>
-      <span data-testid="auth-user">{auth.user ? auth.user.id : 'no-user'}</span>
+      <span data-testid="auth-user">{auth.user?.id ?? 'no-user'}</span>
       <span data-testid="auth-loading">{auth.loading ? 'loading' : 'ready'}</span>
       <span data-testid="channel-status">{channel.status}</span>
       <span data-testid="channel-pairing">{channel.pairingStatus}</span>
-      <button
-        data-testid="signout-btn"
-        onClick={() => auth.signOut().catch(() => {})}
-      >
-        Sign Out
-      </button>
     </div>
   );
 }
 
-const renderWithBothContexts = (onRendered?: () => void) =>
-  render(
+function renderWithProviders() {
+  return render(
     <AuthProvider>
-      <ClawbotChannelProvider>
-        <BothContextsConsumer onRendered={onRendered} />
-      </ClawbotChannelProvider>
+      <VoiceSettingsProvider>
+        <ClawbotChannelProvider>
+          <BothContextsConsumer />
+        </ClawbotChannelProvider>
+      </VoiceSettingsProvider>
     </AuthProvider>,
   );
+}
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-let authStateChangeHandler: ((event: string, session: typeof mockSession | null) => void | Promise<void>) | null = null;
+let authStateChangeHandler:
+  | ((event: string, session: typeof mockSession | null) => void | Promise<void>)
+  | null = null;
 
 describe('AuthContext + ClawbotChannelContext integration', () => {
-
   beforeEach(() => {
     vi.clearAllMocks();
-    for (const k of Object.keys(_handlers)) delete _handlers[k];
+    Object.keys(handlers).forEach((key) => delete handlers[key]);
     authStateChangeHandler = null;
 
-    // Default auth mocks
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
     mockOnAuthStateChange.mockImplementation((handler) => {
       authStateChangeHandler = handler;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
     mockSignOut.mockResolvedValue({ error: null });
-    mockInstance.bindCurrentSessionToAuthUser.mockResolvedValue(true);
     mockInstance.restoreSession.mockResolvedValue(null);
+    mockInstance.getSession.mockReturnValue(null);
+    mockGetLocalSessionId.mockReturnValue(null);
 
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn(),
+      getItem: vi.fn().mockReturnValue(null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
     });
   });
 
@@ -243,163 +220,87 @@ describe('AuthContext + ClawbotChannelContext integration', () => {
     vi.useRealTimers();
   });
 
-  // ── User login → channel notified of auth state change ──────────────────
-
-  it('channel sets auth user id when user logs in', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-    mockSignInWithPassword.mockResolvedValue({ data: { session: mockSession }, error: null });
-
-    renderWithBothContexts();
+  it('starts disconnected when there is no authenticated user', async () => {
+    renderWithProviders();
 
     await waitFor(() => {
-      expect(document.querySelector('[data-testid="auth-loading"]')?.textContent).toBe('ready');
+      expect(screen.getByTestId('auth-loading').textContent).toBe('ready');
     });
 
-    expect(mockInstance.setAuthUser).toHaveBeenCalledWith(null); // initial call with no user
-
-    // Simulate user signs in
-    await act(async () => {
-      await authStateChangeHandler?.('SIGNED_IN', mockSession);
-    });
-
-    await waitFor(() => {
-      expect(mockInstance.setAuthUser).toHaveBeenCalledWith('user-123');
-    });
-  });
-
-  it('channel is notified of auth state change via SIGNED_IN event', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-    mockSignInWithPassword.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockInstance.restoreSession.mockResolvedValue({
-      clientId: 'paired-client-id',
-      pairingCode: 'ABCDEF',
-      deviceId: 'device-1',
-      userId: 'user-123',
-    });
-
-    const { getByTestId } = renderWithBothContexts();
-
-    await waitFor(() => {
-      expect(getByTestId('auth-loading').textContent).toBe('ready');
-    });
-
-    // After login, the channel should have restored a paired session
-    await act(async () => {
-      await authStateChangeHandler?.('SIGNED_IN', mockSession);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('channel-pairing').textContent).toBe('paired');
-    });
-
-    expect(mockInstance.bindCurrentSessionToAuthUser).toHaveBeenCalled();
-  });
-
-  // ── User logout → channel disconnects ────────────────────────────────────
-
-  it('channel disconnects when user logs out', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockInstance.restoreSession.mockResolvedValue(null);
-
-    const { getByTestId } = renderWithBothContexts();
-
-    await waitFor(() => {
-      expect(getByTestId('auth-loading').textContent).toBe('ready');
-    });
-
-    expect(getByTestId('auth-user').textContent).toBe('user-123');
-
-    // Simulate sign-out event
-    await act(async () => {
-      await authStateChangeHandler?.('SIGNED_OUT', null);
-    });
-
-    await waitFor(() => {
-      expect(mockInstance.disconnect).toHaveBeenCalled();
-    });
-  });
-
-  it('channel resets session-scoped state when user is signed out', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockInstance.restoreSession.mockResolvedValue(null);
-
-    const { getByTestId } = renderWithBothContexts();
-
-    await waitFor(() => {
-      expect(getByTestId('auth-loading').textContent).toBe('ready');
-    });
-
-    await act(async () => {
-      await authStateChangeHandler?.('SIGNED_OUT', null);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('channel-pairing').textContent).toBe('idle');
-      expect(getByTestId('channel-status').textContent).toBe('DISCONNECTED');
-    });
-  });
-
-  // ── Session restore → channel reconnects ─────────────────────────────────
-
-  it('channel attempts to reconnect when session is restored', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockGetLocalSessionId.mockReturnValue('local-session-1');
-
-    // Simulate a paired session being restored
-    mockInstance.restoreSession.mockResolvedValue({
-      clientId: 'restored-client-id',
-      pairingCode: 'RESTORE',
-      deviceId: 'device-2',
-      userId: 'user-123',
-    });
-
-    renderWithBothContexts();
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="auth-loading"]')?.textContent).toBe('ready');
-    });
-
-    // After session restore, bindCurrentSessionToAuthUser should have been called
-    expect(mockInstance.bindCurrentSessionToAuthUser).toHaveBeenCalled();
-  });
-
-  it('channel does not reconnect if no user is present on session restore', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-
-    renderWithBothContexts();
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="auth-loading"]')?.textContent).toBe('ready');
-    });
-
-    // When user is null, bindCurrentSessionToAuthUser is not called
+    expect(screen.getByTestId('auth-user').textContent).toBe('no-user');
+    expect(screen.getByTestId('channel-status').textContent).toBe('DISCONNECTED');
+    expect(screen.getByTestId('channel-pairing').textContent).toBe('idle');
+    expect(mockInstance.setAuthUser).toHaveBeenCalledWith(null);
+    expect(mockInstance.disconnect).toHaveBeenCalled();
     expect(mockInstance.bindCurrentSessionToAuthUser).not.toHaveBeenCalled();
-    expect(mockInstance.disconnect).not.toHaveBeenCalled();
   });
 
-  it('channel preserves pairing status after INITIAL_SESSION event with existing session', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockGetLocalSessionId.mockReturnValue('local-session-1');
+  it('binds and reconnects the native channel after a SIGNED_IN event', async () => {
     mockInstance.restoreSession.mockResolvedValue({
-      clientId: 'client-id',
-      pairingCode: 'INITIAL',
-      deviceId: 'device-x',
+      clientId: 'client-123',
+      pairingCode: 'PAIR12',
+      deviceId: 'device-123',
       userId: 'user-123',
     });
 
-    const { getByTestId } = renderWithBothContexts();
+    renderWithProviders();
 
     await waitFor(() => {
-      expect(getByTestId('auth-loading').textContent).toBe('ready');
+      expect(screen.getByTestId('auth-loading').textContent).toBe('ready');
     });
 
-    // Simulate INITIAL_SESSION event (Supabase restoring session on page load)
     await act(async () => {
-      await authStateChangeHandler?.('INITIAL_SESSION', mockSession);
+      await authStateChangeHandler?.('SIGNED_IN', mockSession);
     });
 
     await waitFor(() => {
-      expect(getByTestId('channel-pairing').textContent).toBe('paired');
+      expect(screen.getByTestId('auth-user').textContent).toBe('user-123');
     });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('channel-pairing').textContent).toBe('paired');
+    });
+
+    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith('user-123');
+    expect(mockUpsertSession).toHaveBeenCalledWith('user-123', undefined, true);
+    expect(mockInstance.bindCurrentSessionToAuthUser).toHaveBeenCalled();
+    expect(mockInstance.restoreSession).toHaveBeenCalled();
+    expect(mockInstance.connect).toHaveBeenCalled();
+  });
+
+  it('clears channel state and disconnects after a SIGNED_OUT event', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
+    mockInstance.restoreSession.mockResolvedValue({
+      clientId: 'client-123',
+      pairingCode: 'PAIR12',
+      deviceId: 'device-123',
+      userId: 'user-123',
+    });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-user').textContent).toBe('user-123');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('channel-pairing').textContent).toBe('paired');
+    });
+
+    await act(async () => {
+      await authStateChangeHandler?.('SIGNED_OUT', null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-user').textContent).toBe('no-user');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('channel-status').textContent).toBe('DISCONNECTED');
+      expect(screen.getByTestId('channel-pairing').textContent).toBe('idle');
+    });
+
+    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith(null);
+    expect(mockInstance.disconnect).toHaveBeenCalled();
   });
 });

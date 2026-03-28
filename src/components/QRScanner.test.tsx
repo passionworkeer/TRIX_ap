@@ -16,13 +16,16 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// Mock html5-qrcode
-vi.mock('html5-qrcode', () => ({
-  Html5Qrcode: vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    clear: vi.fn(),
-  })),
+// Mock browser QR scanner
+const mockScannerInstance = {
+  start: vi.fn().mockResolvedValue(undefined),
+  stop: vi.fn().mockResolvedValue(undefined),
+};
+vi.mock('../utils/browserQrScanner', () => ({
+  BrowserQrScanner: vi.fn(() => mockScannerInstance),
+  toBrowserQrScannerError: vi.fn((error: unknown, fallback: string) => (
+    error instanceof Error ? error : new Error(fallback)
+  )),
 }));
 
 // Mock i18next

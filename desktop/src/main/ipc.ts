@@ -120,6 +120,17 @@ export function setupIpcHandlers(): void {
     return true;
   });
 
+  ipcMain.handle('app:info', () => ({
+    version: app.getVersion(),
+    name: app.getName(),
+    electron: process.versions.electron,
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+    platform: process.platform,
+    userData: app.getPath('userData'),
+    isPackaged: app.isPackaged,
+  }));
+
   // === OpenClaw ===
   ipcMain.handle('openclaw:check', async () => {
     try {
@@ -679,36 +690,378 @@ export function setupIpcHandlers(): void {
     }
   });
 
+  type NativeChannelStateSnapshot = {
+    adminToken?: string;
+    serviceTokens?: Record<string, string>;
+    pairings?: Array<Record<string, unknown>>;
+    conversations?: Array<Record<string, unknown>>;
+    messages?: Array<Record<string, unknown>>;
+    studyRooms?: Array<Record<string, unknown>>;
+  };
+
+  type NativeChannelConfig = {
+    accountId: string;
+    serverUrl: string;
+    serviceUrl: string;
+    serviceToken?: string;
+    adminToken?: string;
+    statePath?: string;
+  };
+
+  function safeReadJsonFile(filePath: string): Record<string, unknown> | null {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return null;
+      }
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+    } catch (error) {
+      log.warn('Failed to read JSON file:', filePath, error);
+      return null;
+    }
+  }
+
+  function toIsoString(value: unknown): string {
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return new Date(value).toISOString();
+    }
+    return new Date().toISOString();
+  }
+
+  function normalizeDesktopMessageDirection(direction: unknown): 'incoming' | 'outgoing' {
+    const normalized = typeof direction === 'string' ? direction.toLowerCase() : '';
+    return normalized === 'inbound' ? 'outgoing' : 'incoming';
+  }
+
+  function normalizeDesktopAttachmentKind(kind: unknown, mimeType: string): 'image' | 'audio' | 'video' | 'file' {
+    const normalizedKind = typeof kind === 'string' ? kind.toLowerCase() : '';
+    if (normalizedKind === 'image' || normalizedKind === 'audio' || normalizedKind === 'video' || normalizedKind === 'file') {
+      return normalizedKind;
+    }
+
+    const normalizedMimeType = mimeType.toLowerCase();
+    if (normalizedMimeType.startsWith('image/')) return 'image';
+    if (normalizedMimeType.startsWith('audio/')) return 'audio';
+    if (normalizedMimeType.startsWith('video/')) return 'video';
+    return 'file';
+  }
+
+  function resolveDesktopAttachmentUrl(attachment: Record<string, unknown>, serverUrl: string): string {
+    if (typeof attachment.url === 'string' && attachment.url.trim()) {
+      return attachment.url;
+    }
+    if (typeof attachment.publicUrl === 'string' && attachment.publicUrl.trim()) {
+      return attachment.publicUrl;
+    }
+    if (typeof attachment.servicePath === 'string' && attachment.servicePath.trim()) {
+      return `${serverUrl.replace(/\/$/, '')}${attachment.servicePath}`;
+    }
+    return '';
+  }
+
+  function normalizeDesktopAttachments(entry: Record<string, unknown>, serverUrl: string) {
+    const rawAttachments = Array.isArray(entry.attachments) ? entry.attachments : [];
+    return rawAttachments
+      .filter((attachment) => attachment && typeof attachment === 'object')
+      .map((attachment) => attachment as Record<string, unknown>)
+      .map((attachment) => {
+        const mimeType = typeof attachment.mimeType === 'string' ? attachment.mimeType : '';
+        const kind = normalizeDesktopAttachmentKind(attachment.kind, mimeType);
+        const url = resolveDesktopAttachmentUrl(attachment, serverUrl);
+        if (!url) {
+          return null;
+        }
+        return {
+          type: kind,
+          url,
+          name: typeof attachment.fileName === 'string' && attachment.fileName.trim()
+            ? attachment.fileName
+            : 'attachment',
+          mimeType: mimeType || undefined,
+        };
+      })
+      .filter((attachment): attachment is {
+        type: 'image' | 'audio' | 'video' | 'file';
+        url: string;
+        name: string;
+        mimeType?: string;
+      } => Boolean(attachment));
+  }
+
+  function normalizeDesktopMessage(entry: Record<string, unknown>, serverUrl: string) {
+    const attachments = normalizeDesktopAttachments(entry, serverUrl);
+    return {
+      id: typeof entry.id === 'string' ? entry.id : `msg-${Date.now()}`,
+      content: typeof entry.text === 'string'
+        ? entry.text
+        : typeof entry.content === 'string'
+          ? entry.content
+          : '',
+      direction: normalizeDesktopMessageDirection(entry.direction),
+      timestamp: toIsoString(entry.createdAt ?? entry.timestamp),
+      attachments,
+    };
+  }
+
+  function writeNativeChannelState(statePath: string, state: NativeChannelStateSnapshot): void {
+    const tempPath = `${statePath}.tmp`;
+    fs.writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}\n`, 'utf-8');
+    fs.renameSync(tempPath, statePath);
+  }
+
+  function getNativeChannelState(config: NativeChannelConfig | null): NativeChannelStateSnapshot | null {
+    if (!config?.statePath) {
+      return null;
+    }
+    return safeReadJsonFile(config.statePath) as NativeChannelStateSnapshot | null;
+  }
+
+  function getNativeConversationClientToken(config: NativeChannelConfig, conversationId: string): string | null {
+    const state = getNativeChannelState(config);
+    if (!state) {
+      return null;
+    }
+
+    const conversations = Array.isArray(state.conversations) ? state.conversations : [];
+    const conversation = conversations
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => entry as Record<string, unknown>)
+      .find((entry) => entry.id === conversationId);
+
+    const pickTokenFromParticipants = (participants: unknown): string | null => {
+      if (!Array.isArray(participants)) {
+        return null;
+      }
+
+      for (const rawParticipant of participants) {
+        if (!rawParticipant || typeof rawParticipant !== 'object') {
+          continue;
+        }
+        const participant = rawParticipant as { role?: unknown; clientToken?: unknown };
+        if (participant.role === 'user' && typeof participant.clientToken === 'string' && participant.clientToken.trim()) {
+          return participant.clientToken.trim();
+        }
+      }
+
+      for (const rawParticipant of participants) {
+        if (!rawParticipant || typeof rawParticipant !== 'object') {
+          continue;
+        }
+        const participant = rawParticipant as { clientToken?: unknown };
+        if (typeof participant.clientToken === 'string' && participant.clientToken.trim()) {
+          return participant.clientToken.trim();
+        }
+      }
+
+      return null;
+    };
+
+    const participantToken = pickTokenFromParticipants(conversation?.participants);
+    if (participantToken) {
+      return participantToken;
+    }
+
+    const pairings = Array.isArray(state.pairings) ? state.pairings : [];
+    const pairing = pairings
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => entry as Record<string, unknown>)
+      .find((entry) => entry.conversationId === conversationId);
+
+    return typeof pairing?.clientToken === 'string' && pairing.clientToken.trim()
+      ? pairing.clientToken.trim()
+      : null;
+  }
+
+  function getNativeServiceHeaders(config: NativeChannelConfig, extra: Record<string, string> = {}): Record<string, string> | null {
+    if (!config.serviceToken) {
+      return null;
+    }
+    return {
+      ...extra,
+      Authorization: `Bearer ${config.serviceToken}`,
+    };
+  }
+
+  function getNativeAdminHeaders(config: NativeChannelConfig, extra: Record<string, string> = {}): Record<string, string> | null {
+    if (!config.adminToken) {
+      return null;
+    }
+    return {
+      ...extra,
+      'x-trix-admin-token': config.adminToken,
+    };
+  }
+
+  function getNativePairingHeaders(config: NativeChannelConfig, extra: Record<string, string> = {}): Record<string, string> | null {
+    return getNativeServiceHeaders(config, extra) ?? getNativeAdminHeaders(config, extra);
+  }
+
+  function buildConversationTitle(conversation: Record<string, unknown>): string {
+    if (typeof conversation.peerDisplayName === 'string' && conversation.peerDisplayName.trim()) {
+      return conversation.peerDisplayName.trim();
+    }
+
+    const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
+    for (const participant of participants) {
+      if (!participant || typeof participant !== 'object') {
+        continue;
+      }
+      const deviceName = (participant as { deviceName?: unknown }).deviceName;
+      if (typeof deviceName === 'string' && deviceName.trim()) {
+        return deviceName.trim();
+      }
+    }
+
+    if (typeof conversation.peerId === 'string' && conversation.peerId.trim()) {
+      return conversation.peerId.trim();
+    }
+    if (typeof conversation.pairingCode === 'string' && conversation.pairingCode.trim()) {
+      return `Pairing ${conversation.pairingCode.trim()}`;
+    }
+    if (typeof conversation.id === 'string' && conversation.id.trim()) {
+      return conversation.id.trim();
+    }
+    return 'Untitled Conversation';
+  }
+
   /**
-   * Get the TRIX Native Server base URL + device token from OpenClaw config.
+   * Get the TRIX Native service config currently used by the desktop app.
    */
-  function getTrixNativeServerConfig(): { serverUrl: string; deviceToken: string } | null {
-    const cfg = getNativeChannelConfig();
-    if (!cfg) return null;
-    return { serverUrl: cfg.serverUrl, deviceToken: cfg.adminToken };
+  function getTrixNativeServerConfig(): NativeChannelConfig | null {
+    return getNativeChannelConfig();
+  }
+
+  async function sendNativeAttachmentMessage(
+    conversationId: string,
+    payload: {
+      fileName?: string;
+      mimeType?: string;
+      contentBase64?: string;
+      text?: string;
+      kind?: 'image' | 'audio' | 'video' | 'file';
+    },
+  ) {
+    const contentBase64 = typeof payload?.contentBase64 === 'string' ? payload.contentBase64.trim() : '';
+    if (!contentBase64) {
+      return { success: false, error: 'Attachment content is required' };
+    }
+
+    const config = getTrixNativeServerConfig();
+    if (!config) {
+      return { success: false, error: 'TRIX Native channel not configured' };
+    }
+
+    const clientToken = getNativeConversationClientToken(config, conversationId);
+    if (!clientToken) {
+      return { success: false, error: 'TRIX Native client token missing for conversation' };
+    }
+
+    const mimeType = typeof payload?.mimeType === 'string' && payload.mimeType.trim()
+      ? payload.mimeType.trim()
+      : 'application/octet-stream';
+    const fileName = typeof payload?.fileName === 'string' && payload.fileName.trim()
+      ? payload.fileName.trim()
+      : 'attachment.bin';
+    const kind = normalizeDesktopAttachmentKind(payload?.kind, mimeType);
+    const text = typeof payload?.text === 'string' ? payload.text : '';
+
+    const res = await httpRequest({
+      method: 'POST',
+      url: `${config.serverUrl}/api/messages`,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        conversationId,
+        clientToken,
+        text,
+        attachments: [
+          {
+            kind,
+            mimeType,
+            fileName,
+            contentBase64,
+          },
+        ],
+      }),
+    });
+
+    if (res.statusCode !== 200 && res.statusCode !== 201) {
+      return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+    }
+
+    const data = JSON.parse(res.body) as { message?: Record<string, unknown> };
+    return { success: true, data: normalizeDesktopMessage(data.message ?? {}, config.serverUrl) };
   }
 
   /** List all conversations for the current device */
   ipcMain.handle('trixnative:conversations', async () => {
     try {
       const config = getTrixNativeServerConfig();
-      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
-
-      const res = await httpRequest({
-        method: 'GET',
-        url: `${config.serverUrl}/api/conversations`,
-        headers: {
-          'x-trix-client-token': config.deviceToken,
-          Accept: 'application/json',
-        },
-      });
-
-      if (res.statusCode !== 200) {
-        return { success: false, error: `Server returned ${res.statusCode}` };
+      if (!config) {
+        return { success: false, error: 'TRIX Native channel not configured' };
       }
 
-      const data = JSON.parse(res.body);
-      return { success: true, data: Array.isArray(data) ? data : [] };
+      const state = getNativeChannelState(config);
+      if (!state) {
+        return { success: false, error: 'TRIX Native state not available' };
+      }
+
+      const conversations = Array.isArray(state.conversations) ? state.conversations : [];
+      const messages = Array.isArray(state.messages) ? state.messages : [];
+      const latestByConversation = new Map<string, Record<string, unknown>>();
+
+      for (const rawMessage of messages) {
+        if (!rawMessage || typeof rawMessage !== 'object') {
+          continue;
+        }
+        const message = rawMessage as Record<string, unknown>;
+        const conversationId = typeof message.conversationId === 'string' ? message.conversationId : '';
+        if (!conversationId) {
+          continue;
+        }
+        const current = latestByConversation.get(conversationId);
+        const currentTs = typeof current?.createdAt === 'number' ? current.createdAt : 0;
+        const nextTs = typeof message.createdAt === 'number' ? message.createdAt : 0;
+        if (!current || nextTs >= currentTs) {
+          latestByConversation.set(conversationId, message);
+        }
+      }
+
+      const data = conversations
+        .filter((rawConversation) => rawConversation && typeof rawConversation === 'object')
+        .map((rawConversation) => rawConversation as Record<string, unknown>)
+        .filter((conversation) => {
+          const conversationAccountId = typeof conversation.accountId === 'string'
+            ? conversation.accountId
+            : config.accountId;
+          return conversationAccountId === config.accountId;
+        })
+        .map((conversation) => {
+          const conversationId = String(conversation.id ?? '');
+          const latestMessage = latestByConversation.get(conversationId);
+          const updatedAt = typeof conversation.updatedAt === 'number'
+            ? conversation.updatedAt
+            : typeof latestMessage?.createdAt === 'number'
+              ? latestMessage.createdAt
+              : typeof conversation.createdAt === 'number'
+                ? conversation.createdAt
+                : Date.now();
+          return {
+            id: conversationId,
+            title: buildConversationTitle(conversation),
+            preview: typeof latestMessage?.text === 'string' ? latestMessage.text : '',
+            updatedAt: toIsoString(updatedAt),
+          };
+        })
+        .filter((conversation) => conversation.id)
+        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+
+      return { success: true, data };
     } catch (err) {
       return { success: false, error: String(err) };
     }
@@ -718,23 +1071,29 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('trixnative:messages', async (_event, conversationId: string) => {
     try {
       const config = getTrixNativeServerConfig();
-      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      if (!config) {
+        return { success: false, error: 'TRIX Native channel not configured' };
+      }
+      const headers = getNativeServiceHeaders(config, { Accept: 'application/json' });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native service token missing' };
+      }
 
       const res = await httpRequest({
         method: 'GET',
-        url: `${config.serverUrl}/api/conversations/${encodeURIComponent(conversationId)}/messages`,
-        headers: {
-          'x-trix-client-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        url: `${config.serverUrl}/api/service/conversations/${encodeURIComponent(conversationId)}`,
+        headers,
       });
 
       if (res.statusCode !== 200) {
         return { success: false, error: `Server returned ${res.statusCode}` };
       }
 
-      const data = JSON.parse(res.body);
-      return { success: true, data: Array.isArray(data) ? data : [] };
+      const data = JSON.parse(res.body) as { messages?: Array<Record<string, unknown>> };
+      const messages = Array.isArray(data.messages)
+        ? data.messages.map((message) => normalizeDesktopMessage(message, config.serverUrl))
+        : [];
+      return { success: true, data: messages };
     } catch (err) {
       return { success: false, error: String(err) };
     }
@@ -743,56 +1102,86 @@ export function setupIpcHandlers(): void {
   /** Send a message to a conversation */
   ipcMain.handle('trixnative:send-message', async (_event, conversationId: string, content: string) => {
     try {
+      const trimmedContent = typeof content === 'string' ? content.trim() : '';
+      if (!trimmedContent) {
+        return { success: false, error: 'Message content is required' };
+      }
+
       const config = getTrixNativeServerConfig();
-      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      if (!config) {
+        return { success: false, error: 'TRIX Native channel not configured' };
+      }
+
+      const clientToken = getNativeConversationClientToken(config, conversationId);
+      if (!clientToken) {
+        return { success: false, error: 'TRIX Native client token missing for conversation' };
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      };
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/messages`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-client-token': config.deviceToken,
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ conversationId, content }),
+        headers,
+        body: JSON.stringify({
+          conversationId,
+          clientToken,
+          text: trimmedContent,
+        }),
       });
 
       if (res.statusCode !== 200 && res.statusCode !== 201) {
-        return { success: false, error: `Server returned ${res.statusCode}` };
+        return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
       }
 
-      const data = JSON.parse(res.body);
-      return { success: true, data };
+      const data = JSON.parse(res.body) as { message?: Record<string, unknown> };
+      return { success: true, data: normalizeDesktopMessage(data.message ?? {}, config.serverUrl) };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Send an inline image message to a conversation */
+  ipcMain.handle('trixnative:send-image-message', async (
+    _event,
+    conversationId: string,
+    payload: { fileName?: string; mimeType?: string; contentBase64?: string; text?: string },
+  ) => {
+    try {
+      return await sendNativeAttachmentMessage(conversationId, {
+        ...payload,
+        kind: 'image',
+      });
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  /** Send any inline attachment message to a conversation */
+  ipcMain.handle('trixnative:send-attachment-message', async (
+    _event,
+    conversationId: string,
+    payload: {
+      fileName?: string;
+      mimeType?: string;
+      contentBase64?: string;
+      text?: string;
+      kind?: 'image' | 'audio' | 'video' | 'file';
+    },
+  ) => {
+    try {
+      return await sendNativeAttachmentMessage(conversationId, payload);
     } catch (err) {
       return { success: false, error: String(err) };
     }
   });
 
   /** Send a reaction emoji to a message */
-  ipcMain.handle('trixnative:send-reaction', async (_event, messageId: string, emoji: string) => {
-    try {
-      const config = getTrixNativeServerConfig();
-      if (!config) return { success: false, error: 'TRIX Native channel not configured' };
-
-      const res = await httpRequest({
-        method: 'POST',
-        url: `${config.serverUrl}/api/messages/${encodeURIComponent(messageId)}/reactions`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-client-token': config.deviceToken,
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ emoji }),
-      });
-
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        return { success: false, error: `Server returned ${res.statusCode}` };
-      }
-
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
+  ipcMain.handle('trixnative:send-reaction', async () => {
+    return { success: false, error: 'Message reactions are not supported by the current TRIX Native server' };
   });
 
   // === Study Room (TrixNativeServer) ===
@@ -802,15 +1191,18 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/study-rooms`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify(params),
       });
 
@@ -829,15 +1221,18 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/join`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify(params),
       });
 
@@ -859,15 +1254,18 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/leave`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify({ userId }),
       });
 
@@ -885,15 +1283,18 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}/action`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify(params),
       });
 
@@ -912,14 +1313,15 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, { Accept: 'application/json' });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'GET',
         url: `${config.serverUrl}/api/study-rooms/${encodeURIComponent(roomCode)}`,
-        headers: {
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
       });
 
       if (res.statusCode === 200) {
@@ -940,15 +1342,18 @@ export function setupIpcHandlers(): void {
     try {
       const config = getTrixNativeServerConfig();
       if (!config) return { success: false, error: 'TRIX Native channel not configured' };
+      const headers = getNativeAdminHeaders(config, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'TRIX Native admin token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
         url: `${config.serverUrl}/api/study-rooms/lookup-by-users`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.deviceToken,
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify({ userIds }),
       });
 
@@ -964,30 +1369,139 @@ export function setupIpcHandlers(): void {
 
   // === Native Channel Pairing (HTTP API) ===
 
+  function resolveNativeStateSnapshot(params: {
+    openclawConfigPath: string;
+    openclawConfig: Record<string, unknown>;
+    accountId: string;
+    account: Record<string, unknown>;
+    serviceToken?: string;
+  }): { statePath: string; state: NativeChannelStateSnapshot } | null {
+    const candidateFiles = new Set<string>();
+    const pushStateFile = (candidate: unknown) => {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        candidateFiles.add(path.resolve(candidate.trim()));
+      }
+    };
+    const pushStorageDir = (candidate: unknown) => {
+      if (typeof candidate !== 'string' || !candidate.trim()) {
+        return;
+      }
+      const resolved = path.resolve(candidate.trim());
+      pushStateFile(path.join(resolved, 'state.json'));
+      pushStateFile(path.join(resolved, 'openclaw', 'state.json'));
+    };
+
+    const pluginInstalls = params.openclawConfig.plugins && typeof params.openclawConfig.plugins === 'object'
+      ? (params.openclawConfig.plugins as { installs?: Record<string, { installPath?: string; sourcePath?: string }> }).installs
+      : undefined;
+    const pluginInstall = pluginInstalls?.['trix-native'];
+    const openclawHome = path.dirname(params.openclawConfigPath);
+
+    pushStorageDir(params.account.storageDir);
+    pushStorageDir(path.join(process.cwd(), 'packages', 'trix-openclaw-native', '.trix-native-channel'));
+    pushStorageDir(path.join(process.cwd(), '.trix-native-channel'));
+    pushStorageDir(path.join(openclawHome, '.trix-native-channel'));
+    pushStorageDir(path.join(openclawHome, 'extensions', 'trix-native', '.trix-native-channel'));
+    pushStorageDir(path.join(openclawHome, 'extensions', 'trix-native'));
+    pushStorageDir(pluginInstall?.installPath);
+    if (typeof pluginInstall?.sourcePath === 'string' && pluginInstall.sourcePath.trim()) {
+      pushStorageDir(path.dirname(pluginInstall.sourcePath));
+    }
+
+    let fallback: { statePath: string; state: NativeChannelStateSnapshot } | null = null;
+
+    for (const statePath of candidateFiles) {
+      const parsed = safeReadJsonFile(statePath) as NativeChannelStateSnapshot | null;
+      if (!parsed) {
+        continue;
+      }
+      const stateToken = parsed.serviceTokens?.[params.accountId] ?? parsed.serviceTokens?.default;
+      if (params.serviceToken && stateToken === params.serviceToken) {
+        return { statePath, state: parsed };
+      }
+      if (!fallback && (parsed.adminToken || stateToken)) {
+        fallback = { statePath, state: parsed };
+      }
+    }
+
+    return fallback;
+  }
+
   /**
-   * Read TRIX Native Channel credentials from the OpenClaw config file.
-   * The config is at ~/.openclaw/openclaw.json and contains:
-   * { channels: { "trix-native": { accounts: { default: { serverUrl, adminToken } } } } }
+   * Resolve the current TRIX Native service credentials from the latest
+   * OpenClaw config shape, while remaining compatible with older installs.
    */
-  function getNativeChannelConfig(): { serverUrl: string; adminToken: string } | null {
+  function getNativeChannelConfig(): NativeChannelConfig | null {
     try {
       const openclawConfigPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-      if (!fs.existsSync(openclawConfigPath)) {
+      const config = safeReadJsonFile(openclawConfigPath);
+      if (!config) {
         log.warn('OpenClaw config not found:', openclawConfigPath);
         return null;
       }
-      const config = JSON.parse(fs.readFileSync(openclawConfigPath, 'utf-8'));
-      const trixChannel = config?.channels?.['trix-native'];
-      if (!trixChannel) {
+
+      const trixChannel = config.channels && typeof config.channels === 'object'
+        ? (config.channels as Record<string, unknown>)['trix-native']
+        : undefined;
+      if (!trixChannel || typeof trixChannel !== 'object') {
         log.warn('trix-native channel not configured in OpenClaw config');
         return null;
       }
-      const account = trixChannel.accounts?.default;
-      if (!account?.serverUrl || !account?.adminToken) {
-        log.warn('trix-native channel missing serverUrl or adminToken');
+
+      const typedChannel = trixChannel as {
+        defaultAccount?: string;
+        accounts?: Record<string, Record<string, unknown>>;
+      };
+      const accountId = typedChannel.defaultAccount ?? 'default';
+      const account = typedChannel.accounts?.[accountId] ?? typedChannel.accounts?.default;
+      if (!account) {
+        log.warn('trix-native channel account not found in OpenClaw config');
         return null;
       }
-      return { serverUrl: account.serverUrl, adminToken: account.adminToken };
+
+      const serviceUrl = (typeof account.serviceUrl === 'string' && account.serviceUrl.trim())
+        ? account.serviceUrl.trim()
+        : (typeof account.serverUrl === 'string' && account.serverUrl.trim())
+          ? account.serverUrl.trim()
+          : '';
+      if (!serviceUrl) {
+        log.warn('trix-native channel missing serviceUrl/serverUrl');
+        return null;
+      }
+
+      const configuredServiceToken = typeof account.serviceToken === 'string' && account.serviceToken.trim()
+        ? account.serviceToken.trim()
+        : undefined;
+      const configuredAdminToken = typeof account.adminToken === 'string' && account.adminToken.trim()
+        ? account.adminToken.trim()
+        : undefined;
+
+      const stateInfo = resolveNativeStateSnapshot({
+        openclawConfigPath,
+        openclawConfig: config,
+        accountId,
+        account,
+        serviceToken: configuredServiceToken,
+      });
+
+      const resolvedServiceToken = configuredServiceToken
+        ?? stateInfo?.state.serviceTokens?.[accountId]
+        ?? stateInfo?.state.serviceTokens?.default;
+      const resolvedAdminToken = configuredAdminToken ?? stateInfo?.state.adminToken;
+
+      if (!resolvedServiceToken && !resolvedAdminToken) {
+        log.warn('trix-native channel missing usable service/admin token');
+        return null;
+      }
+
+      return {
+        accountId,
+        serverUrl: serviceUrl.replace(/\/$/, ''),
+        serviceUrl: serviceUrl.replace(/\/$/, ''),
+        serviceToken: resolvedServiceToken,
+        adminToken: resolvedAdminToken,
+        statePath: stateInfo?.statePath,
+      };
     } catch (err) {
       log.error('Failed to read OpenClaw config:', err);
       return null;
@@ -1030,15 +1544,18 @@ export function setupIpcHandlers(): void {
       if (!config) {
         return { success: false, error: 'Native channel not configured (run: openclaw config)' };
       }
+      const headers = getNativePairingHeaders(config, {
+        'Content-Type': 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'Native channel token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
-        url: `${config.serverUrl}/api/pairings`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.adminToken,
-        },
-        body: JSON.stringify({ label: label ?? 'Desktop Float Window' }),
+        url: `${config.serverUrl}/api/pairings?accountId=${encodeURIComponent(config.accountId)}`,
+        headers,
+        body: JSON.stringify({ accountId: config.accountId, label: label ?? 'Desktop Float Window' }),
       });
 
       if (res.statusCode !== 201) {
@@ -1065,13 +1582,15 @@ export function setupIpcHandlers(): void {
       if (!config) {
         return { success: false, error: 'Native channel not configured' };
       }
+      const headers = getNativePairingHeaders(config);
+      if (!headers) {
+        return { success: false, error: 'Native channel token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'GET',
         url: `${config.serverUrl}/api/pairings/${encodeURIComponent(code)}`,
-        headers: {
-          'x-trix-admin-token': config.adminToken,
-        },
+        headers,
       });
 
       if (res.statusCode !== 200) {
@@ -1100,15 +1619,18 @@ export function setupIpcHandlers(): void {
       if (!config) {
         return { success: false, error: 'Native channel not configured (configure TRIX Native in OpenClaw first)' };
       }
+      const headers = getNativePairingHeaders(config, {
+        'Content-Type': 'application/json',
+      });
+      if (!headers) {
+        return { success: false, error: 'Native channel token unavailable' };
+      }
 
       const res = await httpRequest({
         method: 'POST',
-        url: `${config.serverUrl}/api/pairings`,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-trix-admin-token': config.adminToken,
-        },
-        body: JSON.stringify({ label: label ?? 'Desktop Settings' }),
+        url: `${config.serverUrl}/api/pairings?accountId=${encodeURIComponent(config.accountId)}`,
+        headers,
+        body: JSON.stringify({ accountId: config.accountId, label: label ?? 'Desktop Settings' }),
       });
 
       if (res.statusCode !== 201) {
@@ -1122,8 +1644,8 @@ export function setupIpcHandlers(): void {
         success: true,
         data: {
           code: pairing.code,
-          createdAt: pairing.createdAt ?? new Date().toISOString(),
-          expiresAt: pairing.expiresAt,
+          createdAt: toIsoString(pairing.createdAt),
+          expiresAt: toIsoString(pairing.expiresAt),
           claimed: false,
           qrDataUrl: pairing.qrDataUrl,
         },
@@ -1143,14 +1665,15 @@ export function setupIpcHandlers(): void {
       if (!config) {
         return { success: false, error: 'Native channel not configured', data: [] };
       }
+      const headers = getNativePairingHeaders(config, { Accept: 'application/json' });
+      if (!headers) {
+        return { success: false, error: 'Native channel token unavailable', data: [] };
+      }
 
       const res = await httpRequest({
         method: 'GET',
-        url: `${config.serverUrl}/api/pairings`,
-        headers: {
-          'x-trix-admin-token': config.adminToken,
-          Accept: 'application/json',
-        },
+        url: `${config.serverUrl}/api/pairings?accountId=${encodeURIComponent(config.accountId)}`,
+        headers,
       });
 
       if (res.statusCode !== 200) {
@@ -1159,12 +1682,12 @@ export function setupIpcHandlers(): void {
 
       const data = JSON.parse(res.body);
       const pairings = (Array.isArray(data) ? data : []).map((p: {
-        code?: string; createdAt?: string; expiresAt?: string; status?: string
+        code?: string; createdAt?: string | number; expiresAt?: string | number; status?: string
       }) => ({
         code: p.code,
-        createdAt: p.createdAt ?? '',
-        expiresAt: p.expiresAt ?? '',
-        claimed: p.status === 'claimed',
+        createdAt: toIsoString(p.createdAt),
+        expiresAt: toIsoString(p.expiresAt),
+        claimed: p.status === 'paired',
       }));
       return { success: true, data: pairings };
     } catch (err) {
@@ -1187,17 +1710,69 @@ export function setupIpcHandlers(): void {
         return { success: false, error: 'Invalid code format' };
       }
 
-      const res = await httpRequest({
-        method: 'DELETE',
-        url: `${config.serverUrl}/api/pairings/${encodeURIComponent(code)}`,
-        headers: {
-          'x-trix-admin-token': config.adminToken,
-        },
-      });
-
-      if (res.statusCode !== 200 && res.statusCode !== 204) {
-        return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+      const state = getNativeChannelState(config);
+      if (!state || !config.statePath) {
+        return { success: false, error: 'Native pairing state not available' };
       }
+
+      const normalizedCode = code.toUpperCase();
+      const pairings = Array.isArray(state.pairings) ? state.pairings : [];
+      const pairing = pairings.find((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return false;
+        }
+        const value = (entry as { code?: unknown }).code;
+        return typeof value === 'string' && value.toUpperCase() === normalizedCode;
+      }) as Record<string, unknown> | undefined;
+
+      if (!pairing) {
+        return { success: false, error: 'Pairing code not found' };
+      }
+
+      const pairedClientId = typeof pairing.pairedClientId === 'string' ? pairing.pairedClientId : undefined;
+      const clientToken = typeof pairing.clientToken === 'string' ? pairing.clientToken : undefined;
+
+      if (pairedClientId && clientToken) {
+        const res = await httpRequest({
+          method: 'DELETE',
+          url: `${config.serverUrl}/api/pairings/${encodeURIComponent(pairedClientId)}`,
+          headers: {
+            'x-trix-client-token': clientToken,
+          },
+        });
+        if (res.statusCode !== 200 && res.statusCode !== 204) {
+          return { success: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+        }
+      }
+
+      const messages = Array.isArray(state.messages) ? state.messages : [];
+      const targetConversationId = typeof pairing.conversationId === 'string' ? pairing.conversationId : undefined;
+      const hasConversationMessages = Boolean(targetConversationId && messages.some((message) =>
+        message && typeof message === 'object'
+        && (message as { conversationId?: unknown }).conversationId === targetConversationId,
+      ));
+      const nextState: NativeChannelStateSnapshot = {
+        ...state,
+        pairings: pairings.filter((entry) =>
+          !entry || typeof entry !== 'object'
+          || String((entry as { code?: unknown }).code ?? '').toUpperCase() !== normalizedCode,
+        ),
+        conversations: Array.isArray(state.conversations)
+          ? state.conversations.filter((conversation) => {
+            if (!targetConversationId || !conversation || typeof conversation !== 'object') {
+              return true;
+            }
+            if ((conversation as { id?: unknown }).id !== targetConversationId) {
+              return true;
+            }
+            const participants = Array.isArray((conversation as { participants?: unknown }).participants)
+              ? ((conversation as { participants?: unknown[] }).participants ?? [])
+              : [];
+            return hasConversationMessages || participants.length > 0;
+          })
+          : state.conversations,
+      };
+      writeNativeChannelState(config.statePath, nextState);
 
       log.info('Pairing code revoked:', code.slice(0, 3) + '***');
       return { success: true };

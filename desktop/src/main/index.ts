@@ -49,7 +49,8 @@ try {
   console.error('[ELECTRON-LOG ERROR]', err);
 }
 
-const isDev = !app.isPackaged;
+const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
+let isQuitting = false;
 
 export function createMainWindow(): void {
   log.info('Creating main window...');
@@ -95,6 +96,9 @@ export function createMainWindow(): void {
   });
 
   mainWindow.on('close', (event) => {
+    if (isQuitting) {
+      return;
+    }
     event.preventDefault();
     mainWindow.hide();
     log.info('Main window hidden to tray');
@@ -149,6 +153,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', async () => {
+  isQuitting = true;
   log.info('App quitting...');
   await stopGateway();
   destroyTray();

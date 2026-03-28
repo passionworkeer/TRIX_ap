@@ -1,10 +1,28 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const DEFAULT_OPENCLAW_PATH = 'C:/nodejs_global/node_modules/openclaw';
+const FALLBACK_OPENCLAW_ROOTS = [
+  process.env.OPENCLAW_PACKAGE_PATH,
+  path.join(process.cwd(), 'node_modules', 'openclaw'),
+  path.join(os.homedir(), 'npm-global', 'node_modules', 'openclaw'),
+  path.join(process.env.APPDATA ?? '', 'npm', 'node_modules', 'openclaw'),
+  'C:/nodejs_global/node_modules/openclaw',
+].filter((value): value is string => Boolean(value));
+
+function resolveOpenClawRoot(relativePath: string): string {
+  for (const root of FALLBACK_OPENCLAW_ROOTS) {
+    if (fs.existsSync(path.join(root, relativePath))) {
+      return root;
+    }
+  }
+
+  return FALLBACK_OPENCLAW_ROOTS[0] ?? 'C:/nodejs_global/node_modules/openclaw';
+}
 
 async function importFromOpenClawPath(relativePath: string): Promise<unknown> {
-  const openclawRoot = process.env.OPENCLAW_PACKAGE_PATH ?? DEFAULT_OPENCLAW_PATH;
+  const openclawRoot = resolveOpenClawRoot(relativePath);
   const absolute = path.join(openclawRoot, relativePath);
   return import(pathToFileURL(absolute).href);
 }

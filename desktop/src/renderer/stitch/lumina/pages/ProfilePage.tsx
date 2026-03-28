@@ -217,6 +217,7 @@ const SocialAccountRow = (props: SocialAccountRowProps) => {
 
 export default function ProfilePage() {
   const api = window.electronAPI;
+  const canEditProfile = false;
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [profileStats, setProfileStats] = useState<{
@@ -251,9 +252,12 @@ export default function ProfilePage() {
           description: '已解锁此成就徽章',
           earned: a.earned,
         })));
+      } else {
+        setAchievements([]);
       }
-      // else: keep DEMO_ACHIEVEMENTS
-    }).catch(() => {});
+    }).catch(() => {
+      setAchievements([]);
+    });
 
     api.getProfileStats().then((result: { success: boolean; data?: { displayName: string; points: number; streak: number; level: number } }) => {
       if (result.success && result.data) {
@@ -274,12 +278,17 @@ export default function ProfilePage() {
   }
 
   function openEditModal() {
+    if (!canEditProfile) return;
     setEditNickname(profileStats.displayName);
     setEditLocation('');
     setEditModalOpen(true);
   }
 
   function saveProfile() {
+    if (!canEditProfile) {
+      setEditModalOpen(false);
+      return;
+    }
     setProfileStats((prev) => ({ ...prev, displayName: editNickname }));
     setEditModalOpen(false);
   }
@@ -301,6 +310,13 @@ export default function ProfilePage() {
   };
 
   const earnedCount = achievements.filter((a) => a.earned).length;
+  const profileInitials = profileStats.displayName
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'TR';
 
   return (
     <div
@@ -347,7 +363,7 @@ export default function ProfilePage() {
                     boxShadow: `0 4px 20px ${C.primary}30`,
                   }}
                 >
-                  LW
+                  {profileInitials}
                 </div>
               )}
               {/* Hidden file input */}
@@ -450,6 +466,7 @@ export default function ProfilePage() {
                   icon={<Edit size={13} />}
                   label="编辑资料"
                   onClick={openEditModal}
+                  disabled={!canEditProfile}
                 />
                 <LuminaButton
                   variant="outline"
@@ -457,6 +474,7 @@ export default function ProfilePage() {
                   icon={<Share2 size={13} />}
                   label="分享名片"
                   onClick={() => {}}
+                  disabled
                 />
               </div>
             </div>
@@ -481,72 +499,85 @@ export default function ProfilePage() {
             </span>
           </div>
           <SurfaceCard elevation="low" style={{ padding: 20 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 12,
-              }}
-            >
-              {achievements.map((achievement) => (
-                <div
-                  key={achievement.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '14px 10px',
-                    borderRadius: 12,
-                    background: achievement.earned ? `${C.primary}06` : C.disabledBg,
-                    border: achievement.earned
-                      ? `1px solid ${C.primary}18`
-                      : `1px solid ${C.outlineVariant}20`,
-                    transition: 'all 0.15s',
-                    cursor: 'default',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (achievement.earned) {
-                      (e.currentTarget as HTMLDivElement).style.background = `${C.primary}12`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (achievement.earned) {
-                      (e.currentTarget as HTMLDivElement).style.background = `${C.primary}06`;
-                    }
-                  }}
-                  onClick={() => { if (achievement.earned) setSelectedAchievement(achievement); }}
-                >
+            {achievements.length === 0 ? (
+              <div
+                style={{
+                  padding: '14px 4px',
+                  fontSize: 12,
+                  color: C.onSurfaceVariant,
+                  lineHeight: 1.7,
+                }}
+              >
+                当前账号还没有同步到真实成就数据，页面不再显示演示徽章。
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 12,
+                }}
+              >
+                {achievements.map((achievement) => (
                   <div
+                    key={achievement.id}
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      background: achievement.earned
-                        ? `${C.primary}18`
-                        : `${C.disabledText}20`,
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      color: achievement.earned ? C.primary : C.disabledText,
+                      gap: 8,
+                      padding: '14px 10px',
+                      borderRadius: 12,
+                      background: achievement.earned ? `${C.primary}06` : C.disabledBg,
+                      border: achievement.earned
+                        ? `1px solid ${C.primary}18`
+                        : `1px solid ${C.outlineVariant}20`,
+                      transition: 'all 0.15s',
+                      cursor: 'default',
                     }}
+                    onMouseEnter={(e) => {
+                      if (achievement.earned) {
+                        (e.currentTarget as HTMLDivElement).style.background = `${C.primary}12`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (achievement.earned) {
+                        (e.currentTarget as HTMLDivElement).style.background = `${C.primary}06`;
+                      }
+                    }}
+                    onClick={() => { if (achievement.earned) setSelectedAchievement(achievement); }}
                   >
-                    {achievement.earned ? achievement.icon : <Lock size={16} />}
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        background: achievement.earned
+                          ? `${C.primary}18`
+                          : `${C.disabledText}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: achievement.earned ? C.primary : C.disabledText,
+                      }}
+                    >
+                      {achievement.earned ? achievement.icon : <Lock size={16} />}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: achievement.earned ? 600 : 500,
+                        color: achievement.earned ? C.onSurface : C.disabledText,
+                        textAlign: 'center',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {achievement.label}
+                    </span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: 11.5,
-                      fontWeight: achievement.earned ? 600 : 500,
-                      color: achievement.earned ? C.onSurface : C.disabledText,
-                      textAlign: 'center',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {achievement.earned ? achievement.label : achievement.label}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </SurfaceCard>
         </div>
 
@@ -628,6 +659,7 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => {}}
+                disabled
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -639,31 +671,32 @@ export default function ProfilePage() {
                   color: C.primary,
                   fontSize: 12,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: 'not-allowed',
                   transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}18`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}08`;
+                  opacity: 0.5,
                 }}
               >
                 <Plus size={12} />
-                添加更多
+                暂未接入
               </button>
             </div>
 
             {/* Social account rows */}
             <div style={{ padding: '0 20px 4px' }}>
-              {socialAccounts.map((account) => (
-                <SocialAccountRow
-                  key={account.id}
-                  account={account}
-                  onConnect={handleConnect}
-                  onDisconnect={handleDisconnect}
-                />
-              ))}
+              {socialAccounts.length === 0 ? (
+                <div style={{ padding: '12px 0 16px', fontSize: 12, color: C.onSurfaceVariant, lineHeight: 1.7 }}>
+                  当前桌面端还没有接入真实的社交账号绑定能力，这里不再展示演示账号或本地假连接状态。
+                </div>
+              ) : (
+                socialAccounts.map((account) => (
+                  <SocialAccountRow
+                    key={account.id}
+                    account={account}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
+                  />
+                ))
+              )}
             </div>
           </SurfaceCard>
         </div>

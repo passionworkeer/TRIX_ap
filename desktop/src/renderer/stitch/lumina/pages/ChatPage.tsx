@@ -1,1250 +1,357 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  Search, Send, Paperclip, Smile, Image, Mic,
-  Star, MoreVertical, Plus, Bot, User, Loader2,
-} from 'lucide-react';
-import { LuminaButton } from '../components/buttons';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Bot, Image, Loader2, Mic, Paperclip, RefreshCw, Search, Send, Smile, User } from 'lucide-react';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+type AttachmentType = 'image' | 'audio' | 'video' | 'file';
 
-interface ChatMessage {
+type Attachment = {
+  type: AttachmentType;
+  url: string;
+  name: string;
+  mimeType?: string;
+};
+
+type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  attachments?: { type: 'image' | 'file'; url: string; name: string }[];
-  suggestions?: string[];
-  imageUrl?: string;
-}
+  attachments?: Attachment[];
+};
 
-interface ChatSession {
+type ChatSession = {
   id: string;
   title: string;
   preview: string;
   updatedAt: Date;
   messages: ChatMessage[];
-  isActive: boolean;
-}
+};
 
-// ── TrixNativeServer API response shapes ─────────────────────────────────────
-
-interface TrixConversation {
-  id: string;
-  title: string;
-  updatedAt?: string;
-}
-
-interface TrixMessage {
-  id: string;
-  content: string;
-  direction: 'incoming' | 'outgoing';
-  timestamp: string;
-}
-
-// ── Design Tokens (Lumina) ────────────────────────────────────────────────────
+type TrixConversation = { id: string; title: string; preview?: string; updatedAt?: string };
+type TrixMessage = { id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string; attachments?: Attachment[] };
 
 const C = {
   primary: '#630ed4',
-  primaryContainer: '#7c3aed',
-  onPrimary: '#ffffff',
-  onPrimaryContainer: '#ede0ff',
-  surfaceLowest: '#ffffff',
-  surfaceLow: '#f2f4f6',
-  surfaceHigh: '#e6e8ea',
-  surfaceContainer: '#eceef0',
-  onSurface: '#191c1e',
-  onSurfaceVariant: '#4a4455',
-  outline: '#7b7487',
-  outlineVariant: '#ccc3d8',
-  error: '#ba1a1a',
-} as const;
+  primary2: '#7c3aed',
+  white: '#ffffff',
+  bg: '#ffffff',
+  panel: '#f2f4f6',
+  panel2: '#e6e8ea',
+  text: '#191c1e',
+  muted: '#4a4455',
+  border: '#ccc3d8',
+};
 
-// ── Mock / Demo fallback ─────────────────────────────────────────────────────
+const EMOJIS = ['🙂', '👏', '🔥', '💡', '🚀', '🎯', '✅', '⭐', '🎉', '👍'];
+const AUDIO_MIMES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'] as const;
+const AUDIO_EXT: Record<string, string> = { 'audio/webm;codecs=opus': 'webm', 'audio/webm': 'webm', 'audio/ogg;codecs=opus': 'ogg', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/mpeg': 'mp3' };
+const LABELS: Record<AttachmentType, string> = { image: '图片', audio: '语音', video: '视频', file: '文件' };
 
-const DEMO_SESSIONS: ChatSession[] = [
-  {
-    id: 'demo-1',
-    title: '产品原型设计讨论',
-    preview: '好的，关于那个界面的玻璃拟态效果，我们可以尝试...',
-    updatedAt: new Date(Date.now() - 1000 * 60 * 30),
-    isActive: true,
-    messages: [
-      {
-        id: 'm1',
-        role: 'assistant',
-        content: '你好！我已经准备好协助你进行产品原型设计的讨论了。我们可以从用户流程图开始，或者是先确定核心的功能模块。你目前有什么初步的想法吗？',
-        timestamp: new Date(Date.now() - 1000 * 60 * 35),
-        suggestions: ['查看相关文档', '生成思维导图'],
-      },
-      {
-        id: 'm2',
-        role: 'user',
-        content: '我想重点讨论一下 AI 聊天界面的交互细节。我们需要一种能够体现"高级感"和"编辑感"的视觉风格。',
-        timestamp: new Date(Date.now() - 1000 * 60 * 33),
-      },
-      {
-        id: 'm3',
-        role: 'assistant',
-        content: '这是一个非常出色的切入点。为了实现"编辑感"，我建议采用以下几种设计策略：\n\n**超大间距**：通过非对称布局增加呼吸感\n**色调分层**：弃用描边，改用背景色阶区分空间',
-        timestamp: new Date(Date.now() - 1000 * 60 * 31),
-      },
-      {
-        id: 'm4',
-        role: 'user',
-        content: '具体说说色调分层怎么做？',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      },
-    ],
-  },
-  {
-    id: 'demo-2',
-    title: '量子计算基础',
-    preview: '你能解释一下什么是量子纠缠吗？',
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    isActive: false,
-    messages: [
-      {
-        id: 'm5',
-        role: 'user',
-        content: '你能解释一下什么是量子纠缠吗？',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      },
-      {
-        id: 'm6',
-        role: 'assistant',
-        content: '量子纠缠是量子力学中最神奇的现象之一。当两个粒子处于纠缠态时，无论它们相距多远，对其中一个粒子的测量会瞬间影响另一个粒子的状态。',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60),
-      },
-    ],
-  },
-  {
-    id: 'demo-3',
-    title: '旅行行程规划',
-    preview: '去京都的五天行程推荐有哪些？',
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    isActive: false,
-    messages: [],
-  },
-  {
-    id: 'demo-4',
-    title: 'Python 代码重构',
-    preview: '请帮我审查这段数据清洗的代码逻辑。',
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-    isActive: false,
-    messages: [],
-  },
-];
-
-// ── API helper ────────────────────────────────────────────────────────────────
-
-function parseApiConversations(result: { success: boolean; data?: TrixConversation[] }): ChatSession[] {
-  if (!result.success || !Array.isArray(result.data) || result.data.length === 0) {
-    return DEMO_SESSIONS;
-  }
-  return result.data.map((conv: TrixConversation, idx: number) => ({
-    id: conv.id,
-    title: conv.title || `对话 ${idx + 1}`,
-    preview: '',
-    updatedAt: conv.updatedAt ? new Date(conv.updatedAt) : new Date(),
-    messages: [],
-    isActive: idx === 0,
-  }));
+function inferType(mimeType: string | undefined, fileName: string): AttachmentType {
+  const mime = (mimeType ?? '').toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image';
+  if (ext && ['mp3', 'wav', 'ogg', 'm4a', 'opus', 'aac'].includes(ext)) return 'audio';
+  if (ext && ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'video';
+  return 'file';
 }
 
-function parseApiMessages(result: { success: boolean; data?: TrixMessage[] }): ChatMessage[] {
+function previewOf(message: Pick<ChatMessage, 'content' | 'attachments'>): string {
+  const text = message.content.trim();
+  if (text) return text;
+  const attachment = message.attachments?.[0];
+  return attachment ? `[${LABELS[attachment.type]}] ${attachment.name}` : '';
+}
+
+function asMessages(result: { success: boolean; data?: TrixMessage[] }): ChatMessage[] {
   if (!result.success || !Array.isArray(result.data)) return [];
-  return result.data.map((msg: TrixMessage) => ({
-    id: msg.id,
-    role: msg.direction === 'outgoing' ? 'user' : 'assistant',
-    content: msg.content,
-    timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+  return result.data.map((message) => ({
+    id: message.id,
+    role: message.direction === 'outgoing' ? 'user' : 'assistant',
+    content: message.content,
+    timestamp: message.timestamp ? new Date(message.timestamp) : new Date(),
+    attachments: message.attachments,
   }));
 }
 
-// ── Utilities ────────────────────────────────────────────────────────────────
-
-function formatTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return '刚刚';
-  if (diffMin < 60) return `${diffMin}分钟前`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}小时前`;
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+function asSessions(result: { success: boolean; data?: TrixConversation[] }): ChatSession[] {
+  if (!result.success || !Array.isArray(result.data)) return [];
+  return result.data.map((conversation) => ({
+    id: conversation.id,
+    title: conversation.title || 'TRIX Native',
+    preview: conversation.preview || '',
+    updatedAt: conversation.updatedAt ? new Date(conversation.updatedAt) : new Date(),
+    messages: [],
+  }));
 }
 
-function formatDateSeparator(date: Date): string {
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  if (isToday) return '今天';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return '昨天';
-  return date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+function readBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+    reader.readAsDataURL(blob);
+  });
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-const ChatBubble = ({ message }: { message: ChatMessage }) => {
+function Bubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
+  const attachments = message.attachments ?? [];
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 12,
-        maxWidth: '72%',
-        marginLeft: isUser ? 'auto' : 0,
-        flexDirection: isUser ? 'row-reverse' : 'row',
-      }}
-    >
-      {/* Avatar */}
-      <div
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: isUser ? C.surfaceHigh : `${C.primaryContainer}20`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          overflow: 'hidden',
-        }}
-      >
-        {isUser ? (
-          <User size={14} color={C.onSurfaceVariant} />
-        ) : (
-          <Bot size={14} color={C.primary} />
-        )}
+    <div style={{ display: 'flex', gap: 12, maxWidth: '76%', marginLeft: isUser ? 'auto' : 0, flexDirection: isUser ? 'row-reverse' : 'row' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: isUser ? C.panel2 : 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {isUser ? <User size={14} color={C.muted} /> : <Bot size={14} color={C.primary} />}
       </div>
-
-      {/* Bubble */}
-      <div
-        style={{
-          background: isUser
-            ? `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`
-            : C.surfaceLow,
-          color: isUser ? C.onPrimary : C.onSurface,
-          padding: '16px 20px',
-          borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-          boxShadow: isUser ? `0 4px 16px rgba(99,14,212,0.2)` : '0 1px 4px rgba(25,28,30,0.06)',
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
-        {message.imageUrl && (
-          <div
-            style={{
-              borderRadius: 10,
-              overflow: 'hidden',
-              marginBottom: 10,
-              maxHeight: 200,
-            }}
-          >
-            <img
-              src={message.imageUrl}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
+      <div style={{ flex: 1, minWidth: 0, padding: '14px 16px', borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: isUser ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : C.panel, color: isUser ? C.white : C.text }}>
+        {attachments.map((attachment) => (
+          <div key={`${message.id}-${attachment.url}`} style={{ marginBottom: message.content ? 10 : 0, padding: attachment.type === 'image' ? 0 : 10, borderRadius: 10, overflow: 'hidden', background: attachment.type === 'image' ? 'transparent' : (isUser ? 'rgba(255,255,255,0.15)' : C.bg), border: attachment.type === 'image' ? 'none' : `1px solid ${isUser ? 'rgba(255,255,255,0.15)' : C.border}` }}>
+            {attachment.type === 'image' && <img src={attachment.url} alt={attachment.name} style={{ width: '100%', maxHeight: 220, objectFit: 'cover', display: 'block' }} />}
+            {attachment.type === 'audio' && <audio controls preload="none" src={attachment.url} style={{ width: '100%' }} />}
+            {attachment.type === 'video' && <video controls preload="metadata" src={attachment.url} style={{ width: '100%', maxHeight: 220, display: 'block' }} />}
+            {attachment.type !== 'image' && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: attachment.type === 'file' ? 0 : 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>{LABELS[attachment.type]}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{attachment.name}</div>
+                </div>
+                <a href={attachment.url} target="_blank" rel="noreferrer" download={attachment.name} style={{ color: isUser ? C.white : C.primary, fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>打开</a>
+              </div>
+            )}
           </div>
-        )}
-        <p
-          style={{
-            fontSize: 14,
-            lineHeight: 1.7,
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {message.content}
-        </p>
-
-        {message.suggestions && message.suggestions.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            {message.suggestions.map((s) => (
-              <button
-                key={s}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 20,
-                  border: `1px solid ${C.primary}30`,
-                  background: `${C.primary}08`,
-                  color: C.primary,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}18`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}08`;
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
+        ))}
+        {message.content && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.content}</p>}
       </div>
     </div>
   );
-};
-
-const TypingIndicator = () => (
-  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, maxWidth: '72%' }}>
-    <div
-      style={{
-        width: 32, height: 32, borderRadius: 8,
-        background: `${C.primaryContainer}20`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <Bot size={14} color={C.primary} />
-    </div>
-    <div
-      style={{
-        background: C.surfaceLow,
-        padding: '16px 20px',
-        borderRadius: '16px 16px 16px 4px',
-        display: 'flex', gap: 5, alignItems: 'center',
-        boxShadow: '0 1px 4px rgba(25,28,30,0.06)',
-      }}
-    >
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: C.outlineVariant,
-            animation: `typingBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
-          }}
-        />
-      ))}
-    </div>
-    <style>{`
-      @keyframes typingBounce {
-        0%, 60%, 100% { transform: translateY(0); background: ${C.outlineVariant}; }
-        30% { transform: translateY(-5px); background: ${C.primary}; }
-      }
-    `}</style>
-  </div>
-);
-
-// ── Main Component ────────────────────────────────────────────────────────────
+}
 
 export default function ChatPage() {
   const api = window.electronAPI;
-
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string>('demo-1');
+  const [activeSessionId, setActiveSessionId] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showNewChatHint, setShowNewChatHint] = useState(false);
-  const [, setLoadingConversations] = useState(false);
-  const [, setLoadingMessages] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const [isSending, setIsSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [showEmoji, setShowEmoji] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
 
-  // Load conversations on mount
-  useEffect(() => {
-    if (!api) {
-      setSessions(DEMO_SESSIONS);
-      return;
-    }
-    setLoadingConversations(true);
-    api.listConversations().then((result: { success: boolean; data?: TrixConversation[] }) => {
-      const parsed = parseApiConversations(result);
-      setSessions(parsed);
-      if (parsed.length > 0 && !parsed.find((s) => s.id === activeSessionId)) {
-        setActiveSessionId(parsed[0]!.id);
-      }
-    }).catch(() => {
-      setSessions(DEMO_SESSIONS);
-    }).finally(() => {
-      setLoadingConversations(false);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
+  const composerDisabled = !api || !activeSessionId;
+  const interactionDisabled = composerDisabled || isSending;
+  const canRecord = typeof navigator !== 'undefined' && typeof MediaRecorder !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
+
+  const clearComposer = useCallback(() => {
+    setInputValue('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }, []);
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
-  const filteredSessions = sessions.filter(
-    (s) =>
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.preview.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  // Load messages when switching sessions
-  const loadMessages = useCallback(async (sessionId: string, convId: string) => {
-    if (!api || convId.startsWith('demo-')) return;
-    setLoadingMessages(true);
+  const loadConversations = useCallback(async () => {
+    if (!api) {
+      setSessions([]);
+      setActiveSessionId('');
+      return;
+    }
     try {
-      const result = await api.fetchMessages(convId) as { success: boolean; data?: TrixMessage[] };
-      const messages = parseApiMessages(result);
-      if (messages.length > 0) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? { ...s, messages, preview: messages[messages.length - 1]?.content ?? '' }
-              : s,
-          ),
-        );
-      }
+      const parsed = asSessions(await api.listConversations() as { success: boolean; data?: TrixConversation[] });
+      setSessions(parsed);
+      setActiveSessionId((current) => parsed.find((entry) => entry.id === current)?.id ?? parsed[0]?.id ?? '');
     } catch {
-      // silently ignore — session stays with empty messages
-    } finally {
-      setLoadingMessages(false);
+      setSessions([]);
+      setActiveSessionId('');
     }
   }, [api]);
 
-  // When active session changes, load messages if not yet loaded
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!api || !conversationId) return;
+    try {
+      const messages = asMessages(await api.fetchMessages(conversationId) as { success: boolean; data?: TrixMessage[] });
+      setSessions((current) => current.map((session) => session.id === conversationId ? { ...session, messages, preview: messages.length ? previewOf(messages[messages.length - 1]!) : '' } : session));
+    } catch {}
+  }, [api]);
+
+  const appendMessage = useCallback((conversationId: string, message: ChatMessage) => {
+    setSessions((current) => current.map((session) => session.id === conversationId ? { ...session, messages: [...session.messages, message], preview: previewOf(message) || session.preview, updatedAt: message.timestamp } : session));
+  }, []);
+
+  useEffect(() => { void loadConversations(); }, [loadConversations]);
   useEffect(() => {
-    if (activeSession && activeSession.messages.length === 0) {
-      loadMessages(activeSession.id, activeSession.id);
+    if (!activeSession?.id) return undefined;
+    void loadMessages(activeSession.id);
+    const id = window.setInterval(() => { void loadMessages(activeSession.id); }, 4000);
+    return () => window.clearInterval(id);
+  }, [activeSession?.id, loadMessages]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [activeSession?.messages.length, isSending]);
+  useEffect(() => () => {
+    if (timerRef.current) window.clearInterval(timerRef.current);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  const sendAttachment = useCallback(async (payload: { fileName: string; mimeType: string; contentBase64: string; kind: AttachmentType; text?: string }) => {
+    if (!api || !activeSessionId) return;
+    setIsSending(true);
+    try {
+      const result = await api.sendAttachmentMessage(activeSessionId, payload) as { success: boolean; data?: TrixMessage };
+      if (result.success && result.data) {
+        const message = asMessages({ success: true, data: [result.data] })[0];
+        if (message) appendMessage(activeSessionId, message);
+        if (payload.text?.trim()) clearComposer();
+      } else {
+        await loadMessages(activeSessionId);
+      }
+    } catch {
+      await loadMessages(activeSessionId);
+    } finally {
+      setIsSending(false);
     }
-  }, [activeSessionId, activeSession, loadMessages]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSession?.messages.length, isTyping]);
-
-  // Auto-resize textarea
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    const ta = e.target;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
-  };
+  }, [activeSessionId, api, appendMessage, clearComposer, loadMessages]);
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
-
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSessionId
-          ? { ...s, messages: [...s.messages, userMsg], preview: userMsg.content, updatedAt: new Date() }
-          : s,
-      ),
-    );
-    setInputValue('');
-    if (inputRef.current) inputRef.current.style.height = 'auto';
-    setIsTyping(true);
-
-    const currentId = activeSessionId;
-
-    if (api && !currentId.startsWith('demo-')) {
-      // Real: POST to TrixNativeServer
-      try {
-        const result = await api.sendMessage(currentId, inputValue.trim()) as { success: boolean; data?: TrixMessage };
-        if (result.success && result.data) {
-          const aiMsg: ChatMessage = {
-            id: result.data.id,
-            role: 'assistant',
-            content: result.data.content,
-            timestamp: result.data.timestamp ? new Date(result.data.timestamp) : new Date(),
-          };
-          setIsTyping(false);
-          setSessions((prev) =>
-            prev.map((s) =>
-              s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s,
-            ),
-          );
-          return;
-        }
-      } catch {
-        // fall through to fallback
+    const text = inputValue.trim();
+    if (!text || !api || !activeSessionId) return;
+    setIsSending(true);
+    try {
+      const result = await api.sendMessage(activeSessionId, text) as { success: boolean; data?: TrixMessage };
+      if (result.success && result.data) {
+        const message = asMessages({ success: true, data: [result.data] })[0];
+        if (message) appendMessage(activeSessionId, message);
+        clearComposer();
+      } else {
+        await loadMessages(activeSessionId);
       }
-    }
-
-    // Fallback: simulate AI response after delay
-    await new Promise((r) => setTimeout(r, 1600));
-    const aiMsg: ChatMessage = {
-      id: `ai-${Date.now()}`,
-      role: 'assistant',
-      content: '收到！让我思考一下这个问题。您的需求涉及多个层面，我会从设计、技术和用户体验三个维度来分析这个问题。\n\n从设计角度，建议采用渐进式披露的方式来处理复杂性。',
-      timestamp: new Date(),
-      suggestions: ['展开说说', '举一个例子'],
-    };
-    setIsTyping(false);
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s,
-      ),
-    );
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    } catch {
+      await loadMessages(activeSessionId);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const EMOJIS = ['😊', '👍', '🎯', '💡', '🔥', '🚀', '✅', '⭐', '🎉', '💪'];
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const mimeType = file.type || 'application/octet-stream';
+    await sendAttachment({ fileName: file.name, mimeType, contentBase64: await readBlob(file), kind: inferType(mimeType, file.name), text: inputValue.trim() });
+  };
 
-  function formatRecordingTime(secs: number) {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
-
-  function handleMicClick() {
+  const handleMicClick = () => {
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-      setIsRecording(false);
-      setRecordingTime(0);
+      recorderRef.current?.stop();
       return;
     }
+    if (interactionDisabled || !canRecord) return;
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
+      const mimeType = (typeof MediaRecorder.isTypeSupported === 'function' ? AUDIO_MIMES.find((candidate) => MediaRecorder.isTypeSupported(candidate)) : '') ?? '';
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      streamRef.current = stream;
       chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.ondataavailable = (entry) => { if (entry.data.size > 0) chunksRef.current.push(entry.data); };
+      recorder.onstop = () => {
+        if (timerRef.current) window.clearInterval(timerRef.current);
+        timerRef.current = null;
+        setIsRecording(false);
+        setRecordingTime(0);
+        const type = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type });
+        chunksRef.current = [];
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        recorderRef.current = null;
+        if (!blob.size) return;
+        void readBlob(blob).then((contentBase64) => sendAttachment({ fileName: `voice-${Date.now()}.${AUDIO_EXT[type.toLowerCase()] ?? 'webm'}`, mimeType: type, contentBase64, kind: 'audio', text: inputValue.trim() }));
+      };
       recorder.start();
       setIsRecording(true);
       setRecordingTime(0);
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-    }).catch(() => { /* permission denied */ });
-  }
+      timerRef.current = window.setInterval(() => setRecordingTime((value) => value + 1), 1000);
+    }).catch(() => {});
+  };
 
-  function handleImageClick() {
-    fileInputRef.current?.click();
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !activeSession) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const imageUrl = ev.target?.result as string;
-      const newMsg: ChatMessage = {
-        id: `img-${Date.now()}`,
-        role: 'user',
-        content: '',
-        timestamp: new Date(),
-        imageUrl,
-      };
-      setSessions((prev) =>
-        prev.map((s) => s.id === activeSession!.id ? { ...s, messages: [...s.messages, newMsg] } : s),
-      );
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  }
-
-  function handleEmojiClick(emoji: string) {
-    setInputValue((prev) => prev + emoji);
-    setShowEmoji(false);
-    inputRef.current?.focus();
-  }
-
-  function handleNewChat() {
-    if (!activeSession) return;
-    setSessions((prev) =>
-      prev.map((s) => s.id === activeSession!.id ? { ...s, messages: [] } : s),
-    );
-    setShowNewChatHint(true);
-  }
-
-  // Group messages by date
-  const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
-  activeSession?.messages.forEach((msg) => {
-    const dateKey = formatDateSeparator(msg.timestamp);
-    const last = groupedMessages[groupedMessages.length - 1];
-    if (last && last.date === dateKey) {
-      last.messages.push(msg);
-    } else {
-      groupedMessages.push({ date: dateKey, messages: [msg] });
-    }
-  });
+  const filteredSessions = sessions.filter((session) => session.title.toLowerCase().includes(searchQuery.toLowerCase()) || session.preview.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        overflow: 'hidden',
-        background: C.surfaceLowest,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}
-    >
-      {/* ── Left Sidebar ─────────────────────────────────────────────────── */}
-      <aside
-        style={{
-          width: 280,
-          flexShrink: 0,
-          background: C.surfaceLow,
-          display: 'flex',
-          flexDirection: 'column',
-          borderRight: `1px solid ${C.outlineVariant}20`,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Header */}
-        <div style={{ padding: '20px 16px 12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 14,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.2em',
-                textTransform: 'uppercase',
-                color: C.onSurfaceVariant,
-                opacity: 0.5,
-                margin: 0,
-              }}
-            >
-              最近对话
-            </h2>
-            <button
-              onClick={() => {
-                const newId = `local-${Date.now()}`;
-                const newSession: ChatSession = {
-                  id: newId,
-                  title: '新对话',
-                  preview: '',
-                  updatedAt: new Date(),
-                  isActive: false,
-                  messages: [],
-                };
-                setSessions((prev) => [newSession, ...prev]);
-                setActiveSessionId(newId);
-                setShowNewChatHint(true);
-              }}
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 8,
-                border: 'none',
-                background: `${C.primary}12`,
-                color: C.primary,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}20`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = `${C.primary}12`;
-              }}
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-
-          {/* Search */}
-          <div style={{ position: 'relative' }}>
-            <Search
-              size={13}
-              style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: C.onSurfaceVariant,
-                opacity: 0.5,
-              }}
-            />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索历史消息..."
-              style={{
-                width: '100%',
-                padding: '7px 10px 7px 32px',
-                background: C.surfaceHigh,
-                border: 'none',
-                borderRadius: 999,
-                fontSize: 13,
-                color: C.onSurface,
-                outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'box-shadow 0.15s',
-              }}
-              onFocus={(e) => {
-                (e.currentTarget as HTMLInputElement).style.boxShadow = `0 0 0 2px ${C.primary}40`;
-              }}
-              onBlur={(e) => {
-                (e.currentTarget as HTMLInputElement).style.boxShadow = 'none';
-              }}
-            />
-          </div>
+    <div style={{ height: '100%', display: 'flex', background: C.bg, overflow: 'hidden', fontFamily: 'system-ui, sans-serif' }}>
+      <aside style={{ width: 300, borderRight: `1px solid ${C.border}`, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, background: '#fcfcfd' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div><div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>最近对话</div><div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>真实 TRIX Native 会话</div></div>
+          <button title="刷新真实会话" onClick={() => void loadConversations()} style={{ width: 36, height: 36, borderRadius: 10, border: 'none', background: 'rgba(99,14,212,0.08)', color: C.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw size={16} /></button>
         </div>
-
-        {/* Session List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 8px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.panel, borderRadius: 12, padding: '0 12px', height: 40 }}>
+          <Search size={15} color={C.muted} />
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索会话" style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', color: C.text, fontSize: 13 }} />
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filteredSessions.map((session) => (
-            <div
-              key={session.id}
-              onClick={() => setActiveSessionId(session.id)}
-              style={{
-                padding: '12px 12px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                background: session.id === activeSessionId ? C.surfaceLowest : 'transparent',
-                border:
-                  session.id === activeSessionId
-                    ? `1px solid ${C.outlineVariant}40`
-                    : '1px solid transparent',
-                marginBottom: 2,
-                transition: 'all 0.15s',
-                boxShadow: session.id === activeSessionId ? '0 1px 4px rgba(25,28,30,0.06)' : 'none',
-              }}
-              onMouseEnter={(e) => {
-                if (session.id !== activeSessionId)
-                  (e.currentTarget as HTMLDivElement).style.background = `${C.surfaceHigh}80`;
-              }}
-              onMouseLeave={(e) => {
-                if (session.id !== activeSessionId)
-                  (e.currentTarget as HTMLDivElement).style.background = 'transparent';
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: 3,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: session.id === activeSessionId ? 600 : 500,
-                    color: session.id === activeSessionId ? C.primary : C.onSurface,
-                  }}
-                >
-                  {session.title}
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: C.onSurfaceVariant,
-                    opacity: 0.6,
-                    flexShrink: 0,
-                    marginLeft: 6,
-                  }}
-                >
-                  {formatTime(session.updatedAt)}
-                </span>
+            <button key={session.id} onClick={() => setActiveSessionId(session.id)} style={{ textAlign: 'left', border: 'none', background: session.id === activeSessionId ? 'rgba(99,14,212,0.08)' : C.white, borderRadius: 14, padding: '12px 14px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.title}</div>
+                <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>{session.updatedAt.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}</span>
               </div>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: C.onSurfaceVariant,
-                  opacity: 0.8,
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1.4,
-                }}
-              >
-                {session.preview || '新对话'}
-              </p>
-            </div>
+              <div style={{ marginTop: 6, fontSize: 12, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.preview || '新对话'}</div>
+            </button>
           ))}
         </div>
-
-        <style>{`
-          ::-webkit-scrollbar { width: 3px; }
-          ::-webkit-scrollbar-thumb { background: ${C.outlineVariant}; border-radius: 10px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-        `}</style>
       </aside>
 
-      {/* ── Chat Window ────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          background: C.surfaceLowest,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Header */}
-        <header
-          style={{
-            height: 60,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 28px',
-            borderBottom: `1px solid ${C.outlineVariant}20`,
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: `${C.primaryContainer}20`,
-                border: `1px solid ${C.primaryContainer}30`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Bot size={18} color={C.primary} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.onSurface }}>
-                {activeSession?.title}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: C.primary,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  marginTop: 1,
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: isTyping ? '#fbbf24' : C.primary,
-                    display: 'inline-block',
-                  }}
-                />
-                {isTyping ? 'TRIX 正在输入...' : 'TRIX 智能助手'}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[
-              { icon: Star, label: '收藏' },
-              { icon: MoreVertical, label: '更多' },
-            ].map(({ icon: Icon, label }) => (
-              <button
-                key={label}
-                title={label}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: 'transparent',
-                  color: C.onSurfaceVariant,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = C.surfaceLow;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                }}
-              >
-                <Icon size={16} />
-              </button>
-            ))}
-          </div>
+      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <header style={{ height: 60, padding: '0 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bot size={18} color={C.primary} /></div>
+          <div><div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{activeSession?.title ?? 'TRIX Native'}</div><div style={{ fontSize: 11, color: C.primary }}>{isSending ? 'TRIX 正在发送...' : activeSession ? 'TRIX Native 会话' : '等待真实会话'}</div></div>
         </header>
 
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
-          {groupedMessages.length === 0 && !isTyping && (
-            <div
-              style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 16,
-              }}
-            >
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 18,
-                  background: `${C.primary}10`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Bot size={28} color={C.primary} />
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+          {(activeSession?.messages.length ?? 0) === 0 && !isSending ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, textAlign: 'center' }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>{sessions.length === 0 ? '暂无真实会话' : '向 TRIX 发起真实聊天'}</div>
+                <div style={{ fontSize: 13 }}>{sessions.length === 0 ? '请先完成配对，再点击左上角刷新。' : '文本、图片、文件和语音都走真实 native 通道。'}</div>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <p
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: C.onSurface,
-                    margin: '0 0 6px',
-                  }}
-                >
-                  {showNewChatHint ? '开始新对话' : '与 TRIX 开始对话'}
-                </p>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: C.onSurfaceVariant,
-                    opacity: 0.7,
-                    margin: 0,
-                  }}
-                >
-                  有什么我可以帮你的吗？
-                </p>
-              </div>
-              {/* Quick suggestions */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 480 }}>
-                {['帮我写一段代码', '解释一个概念', '制定计划', '翻译内容'].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => setInputValue(q)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 999,
-                      border: `1px solid ${C.outlineVariant}60`,
-                      background: C.surfaceLow,
-                      color: C.onSurfaceVariant,
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = C.primary;
-                      (e.currentTarget as HTMLButtonElement).style.color = C.primary;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = `${C.outlineVariant}60`;
-                      (e.currentTarget as HTMLButtonElement).style.color = C.onSurfaceVariant;
-                    }}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {(activeSession?.messages ?? []).map((message) => <Bubble key={message.id} message={message} />)}
+              {isSending && <div style={{ color: C.muted, fontSize: 12 }}>正在同步到 TRIX Native...</div>}
+              <div ref={endRef} />
             </div>
           )}
-
-          {groupedMessages.map((group, gi) => (
-            <div key={gi}>
-              {/* Date Separator */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  marginBottom: 20,
-                }}
-              >
-                <span
-                  style={{
-                    padding: '3px 14px',
-                    borderRadius: 999,
-                    background: C.surfaceLow,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: C.onSurfaceVariant,
-                    opacity: 0.6,
-                  }}
-                >
-                  {group.date}
-                </span>
-              </div>
-
-              {/* Messages */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 8 }}>
-                {group.messages.map((msg) => (
-                  <ChatBubble key={msg.id} message={msg} />
-                ))}
-              </div>
-
-              {isTyping && gi === groupedMessages.length - 1 && (
-                <div style={{ marginTop: 8 }}>
-                  <TypingIndicator />
-                </div>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <footer
-          style={{
-            padding: '0 28px 24px',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              background: C.surfaceLow,
-              borderRadius: 16,
-              padding: '12px 16px',
-              borderBottom: `2px solid ${C.outlineVariant}`,
-              transition: 'border-color 0.15s',
-            }}
-            onFocus={() => {}}
-          >
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="向 TRIX 提问或输入指令..."
-              rows={1}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                fontSize: 14,
-                color: C.onSurface,
-                resize: 'none',
-                lineHeight: 1.6,
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-                minHeight: 24,
-                maxHeight: 160,
-                overflowY: 'auto',
-              }}
-            />
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: 8,
-                paddingTop: 8,
-                borderTop: `1px solid ${C.outlineVariant}20`,
-              }}
-            >
-              {/* Left toolbar */}
+        <footer style={{ padding: '0 24px 20px', position: 'relative' }}>
+          <div style={{ background: C.panel, borderRadius: 16, padding: 12, borderBottom: `2px solid ${C.border}` }}>
+            <textarea ref={textareaRef} value={inputValue} onChange={(event) => { setInputValue(event.target.value); event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 160)}px`; }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void handleSend(); } }} disabled={composerDisabled} placeholder={composerDisabled ? '暂无真实会话，请先完成配对后刷新。' : '向 TRIX 提问或输入指令...'} rows={1} style={{ width: '100%', resize: 'none', border: 'none', outline: 'none', background: 'transparent', color: composerDisabled ? `${C.muted}99` : C.text, fontSize: 14, lineHeight: 1.6, minHeight: 24, maxHeight: 160, overflowY: 'auto' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {/* Paperclip */}
-                <button
-                  title="附件"
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: 'none',
-                    background: 'transparent', color: C.onSurfaceVariant,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >
-                  <Paperclip size={16} />
-                </button>
-                {/* Smile — emoji picker */}
-                <button
-                  title="表情"
-                  onClick={() => setShowEmoji((p) => !p)}
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: 'none',
-                    background: showEmoji ? C.surfaceHigh : 'transparent',
-                    color: showEmoji ? C.primary : C.onSurfaceVariant,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
-                  onMouseLeave={(e) => { if (!showEmoji) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >
-                  <Smile size={16} />
-                </button>
-                {/* Image */}
-                <button
-                  title="图片"
-                  onClick={handleImageClick}
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: 'none',
-                    background: 'transparent', color: C.onSurfaceVariant,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >
-                  <Image size={16} />
-                </button>
-                {/* Mic */}
-                <button
-                  title={isRecording ? '停止录音' : '语音'}
-                  onClick={handleMicClick}
-                  style={{
-                    width: 30, height: 30, borderRadius: 8, border: 'none',
-                    background: isRecording ? '#fee2e2' : 'transparent',
-                    color: isRecording ? '#dc2626' : C.onSurfaceVariant,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transition: 'all 0.15s',
-                  }}
-                >
-                  {isRecording ? (
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>■</span>
-                  ) : (
-                    <Mic size={16} />
-                  )}
-                </button>
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleFileChange}
-                />
+                <button title="附件" disabled={interactionDisabled} onClick={() => fileInputRef.current?.click()} style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', color: C.muted, opacity: interactionDisabled ? 0.45 : 1, cursor: interactionDisabled ? 'not-allowed' : 'pointer' }}><Paperclip size={16} /></button>
+                <button title="表情" disabled={interactionDisabled} onClick={() => setShowEmoji((value) => !value)} style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: showEmoji ? C.panel2 : 'transparent', color: showEmoji ? C.primary : C.muted, opacity: interactionDisabled ? 0.45 : 1, cursor: interactionDisabled ? 'not-allowed' : 'pointer' }}><Smile size={16} /></button>
+                <button title="图片" disabled={interactionDisabled} onClick={() => imageInputRef.current?.click()} style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', color: C.muted, opacity: interactionDisabled ? 0.45 : 1, cursor: interactionDisabled ? 'not-allowed' : 'pointer' }}><Image size={16} /></button>
+                <button title={canRecord ? '语音' : '当前环境不支持录音'} disabled={interactionDisabled || !canRecord} onClick={handleMicClick} style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: isRecording ? 'rgba(220,38,38,0.08)' : 'transparent', color: isRecording ? '#dc2626' : C.muted, opacity: interactionDisabled || !canRecord ? 0.45 : 1, cursor: interactionDisabled || !canRecord ? 'not-allowed' : 'pointer' }}><Mic size={16} /></button>
+                <input ref={imageInputRef} data-testid="chat-image-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+                <input ref={fileInputRef} data-testid="chat-attachment-input" type="file" style={{ display: 'none' }} onChange={handleFileChange} />
               </div>
-
-              {/* Send button */}
-              <LuminaButton
-                variant="primary"
-                size="sm"
-                icon={isTyping ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={13} />}
-                label={isTyping ? '发送中' : '发送'}
-                onClick={handleSend}
-                disabled={!inputValue.trim() || isTyping}
-                loading={isTyping}
-              />
-            </div>
-          </div>
-          {/* Emoji picker overlay */}
-          {showEmoji && (
-            <div style={{
-              position: 'absolute',
-              bottom: '80px',
-              left: '28px',
-              background: C.surfaceLowest,
-              borderRadius: '12px',
-              border: `1px solid ${C.outlineVariant}`,
-              padding: '10px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              display: 'flex',
-              gap: '4px',
-              flexWrap: 'wrap',
-              maxWidth: '280px',
-              zIndex: 50,
-            }}>
-              {EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  onClick={() => handleEmojiClick(e)}
-                  style={{ fontSize: '20px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', borderRadius: '6px', transition: 'background 0.1s' }}
-                  onMouseEnter={(ev) => (ev.currentTarget as HTMLButtonElement).style.background = C.surfaceHigh}
-                  onMouseLeave={(ev) => (ev.currentTarget as HTMLButtonElement).style.background = 'transparent'}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Recording indicator + New Chat FAB */}
-          <div style={{ position: 'absolute', bottom: 80, right: 28, zIndex: 50 }}>
-            {isRecording ? (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: C.surfaceLowest,
-                borderRadius: 999,
-                border: `1px solid #dc262640`,
-                padding: '8px 16px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-              }}>
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: '#dc2626',
-                  animation: 'pulse-rec 1s infinite',
-                  flexShrink: 0,
-                }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', fontFamily: 'system-ui' }}>
-                  {formatRecordingTime(recordingTime)}
-                </span>
-                <button
-                  onClick={handleMicClick}
-                  title="停止录音"
-                  style={{
-                    border: 'none', background: '#dc2626', color: '#fff',
-                    borderRadius: '50%', width: 22, height: 22,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', flexShrink: 0, padding: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 9, lineHeight: 1 }}>■</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleNewChat}
-                title="新建对话"
-                style={{
-                  width: 48, height: 48, borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
-                  color: C.onPrimary,
-                  border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 4px 16px ${C.primary}50`,
-                  cursor: 'pointer',
-                }}
-              >
-                <Plus size={20} />
+              <button title="发送" onClick={() => { void handleSend(); }} disabled={composerDisabled || !inputValue.trim() || isSending} style={{ height: 34, minWidth: 82, border: 'none', borderRadius: 10, padding: '0 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: composerDisabled || !inputValue.trim() || isSending ? 'rgba(123,116,135,0.18)' : `linear-gradient(135deg, ${C.primary}, ${C.primary2})`, color: C.white, fontSize: 13, fontWeight: 700, cursor: composerDisabled || !inputValue.trim() || isSending ? 'not-allowed' : 'pointer' }}>
+                {isSending ? <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={14} />}
+                {isSending ? '发送中' : '发送'}
               </button>
-            )}
+            </div>
           </div>
-          <style>{`
-            @keyframes spin { to { transform: rotate(360deg); } }
-            @keyframes pulse-rec {
-              0%, 100% { opacity: 1; transform: scale(1); }
-              50% { opacity: 0.5; transform: scale(0.8); }
-            }
-          `}</style>
-          <p
-            style={{
-              textAlign: 'center',
-              fontSize: 10,
-              color: C.onSurfaceVariant,
-              opacity: 0.4,
-              marginTop: 8,
-            }}
-          >
-            TRIX 可能会产生错误，请仔细核对重要信息
-          </p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+          {showEmoji && !composerDisabled && <div style={{ position: 'absolute', left: 24, bottom: 84, zIndex: 20, maxWidth: 280, padding: 10, borderRadius: 12, background: C.bg, border: `1px solid ${C.border}`, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>{EMOJIS.map((emoji) => <button key={emoji} onClick={() => { setInputValue((value) => value + emoji); setShowEmoji(false); textareaRef.current?.focus(); }} style={{ fontSize: 20, border: 'none', background: 'transparent', cursor: 'pointer', padding: 4, borderRadius: 6 }}>{emoji}</button>)}</div>}
+          <div style={{ position: 'absolute', right: 24, bottom: 76 }}>
+            {isRecording ? <div style={{ padding: '8px 14px', borderRadius: 999, background: C.bg, border: '1px solid rgba(220,38,38,0.18)', color: '#dc2626', fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>{Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}</div> : <button title="刷新真实会话" onClick={() => void loadConversations()} style={{ width: 48, height: 48, borderRadius: '50%', border: 'none', background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`, color: C.white, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(99,14,212,0.28)' }}><RefreshCw size={20} /></button>}
+          </div>
+          <p style={{ textAlign: 'center', fontSize: 10, color: C.muted, opacity: 0.45, marginTop: 8 }}>TRIX 可能会产生错误，请仔细核对重要信息。</p>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </footer>
       </section>
     </div>

@@ -1,5 +1,5 @@
 {
-  "name": "@trix-app/trix-native",
+  "name": "@wangjianjun0531/trix-native",
   "version": "0.1.0",
   "description": "TRIX Service-backed OpenClaw native channel plugin with pairing, QR onboarding, and persistent conversations",
   "type": "module",
@@ -26,8 +26,15 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test"
   },
+  "files": [
+    "dist",
+    "ops",
+    "openclaw.plugin.json"
+  ],
   "keywords": [
     "openclaw",
     "trix",
@@ -49,25 +56,28 @@
   },
   "openclaw": {
     "extensions": [
-      "./index.ts"
+      "./dist/index.js"
     ],
-    "setupEntry": "./setup-entry.ts",
+    "setupEntry": "./dist/setup-entry.js",
     "channel": {
       "id": "trix-native",
       "label": "TRIX Native",
       "selectionLabel": "Trix Native",
       "docsPath": "/channels/trix-native",
       "docsLabel": "trix-native",
-      "blurb": "TRIX IM native channel",
+      "blurb": "TRIX service-backed native channel plugin",
       "aliases": [
         "trix"
       ]
     },
     "install": {
-      "npmSpec": "@trix-app/trix-native",
+      "npmSpec": "@wangjianjun0531/trix-native",
       "localPath": "extensions/trix-native",
       "defaultChoice": "npm"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

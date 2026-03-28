@@ -26,11 +26,11 @@ interface Snapshot {
   description: string;
   isCurrent: boolean;
   status: 'success' | 'warning' | 'error';
-  health: number;
-  memoryUsage: number;
-  memoryTotal: number;
-  storageUsage: number;
-  storageTotal: number;
+  health: number | null;
+  memoryUsage: number | null;
+  memoryTotal: number | null;
+  storageUsage: number | null;
+  storageTotal: number | null;
 }
 
 interface CommandResult {
@@ -43,61 +43,6 @@ interface CommandResult {
 // ─────────────────────────────────────────────
 // OpenClaw backup → Snapshot parser
 // ─────────────────────────────────────────────
-
-const DEMO_SNAPSHOTS: Snapshot[] = [
-  {
-    id: 'demo-1',
-    version: 'v2.4.1',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    description: '系统当前运行状态快照，包含最新配置和通道状态',
-    isCurrent: true,
-    status: 'success',
-    health: 99.8,
-    memoryUsage: 2.4,
-    memoryTotal: 16,
-    storageUsage: 45,
-    storageTotal: 100,
-  },
-  {
-    id: 'demo-2',
-    version: 'v2.4.0',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-    description: 'Gateway 通道配置更新后创建，包含 OpenClaw 插件重载',
-    isCurrent: false,
-    status: 'success',
-    health: 98.2,
-    memoryUsage: 2.1,
-    memoryTotal: 16,
-    storageUsage: 43,
-    storageTotal: 100,
-  },
-  {
-    id: 'demo-3',
-    version: 'v2.3.9',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    description: '日常自动快照，SUPABASE 连接池优化后备份',
-    isCurrent: false,
-    status: 'warning',
-    health: 94.5,
-    memoryUsage: 3.1,
-    memoryTotal: 16,
-    storageUsage: 47,
-    storageTotal: 100,
-  },
-  {
-    id: 'demo-4',
-    version: 'v2.3.8',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-    description: '版本更新前手动快照，包含所有渠道凭证和用户配置',
-    isCurrent: false,
-    status: 'success',
-    health: 99.1,
-    memoryUsage: 1.9,
-    memoryTotal: 16,
-    storageUsage: 41,
-    storageTotal: 100,
-  },
-];
 
 function formatRelativeTime(date: Date): string {
   const now = new Date();
@@ -114,13 +59,29 @@ function formatRelativeTime(date: Date): string {
   return date.toLocaleDateString('zh-CN');
 }
 
+function formatPercentMetric(value: number | null): string {
+  return typeof value === 'number' ? `${value}%` : 'N/A';
+}
+
+function formatMemoryMetric(value: number | null): string {
+  return typeof value === 'number' ? `${value} GB` : 'N/A';
+}
+
+function formatMemorySubMetric(value: number | null, total: number | null): string {
+  if (typeof value !== 'number' || typeof total !== 'number' || total <= 0) {
+    return '备份列表未提供内存元数据';
+  }
+
+  return `${Math.round((value / total) * 100)}% / ${total} GB`;
+}
+
 /**
  * Parse OpenClaw `backup list` stdout into Snapshot[].
  * OpenClaw outputs one backup per line: "ID  DATE  DESCRIPTION"
  * or JSON array [{ id, date, description, size }]
  */
 function parseSnapshotsFromBackup(result: CommandResult): Snapshot[] {
-  if (!result.success || !result.stdout) return DEMO_SNAPSHOTS;
+  if (!result.success || !result.stdout) return [];
 
   try {
     // Try JSON array first
@@ -133,11 +94,19 @@ function parseSnapshotsFromBackup(result: CommandResult): Snapshot[] {
         description: item.description ?? item.note ?? item.label ?? '',
         isCurrent: idx === 0,
         status: item.status === 'failed' ? 'error' as const : 'success' as const,
-        health: item.health ?? (item.status === 'failed' ? 0 : 99),
-        memoryUsage: item.memory ?? item.memoryUsage ?? 0,
-        memoryTotal: item.memoryTotal ?? 16,
-        storageUsage: item.storage ?? item.storageUsage ?? 0,
-        storageTotal: item.storageTotal ?? 100,
+        health: typeof item.health === 'number' ? item.health : null,
+        memoryUsage: typeof item.memory === 'number'
+          ? item.memory
+          : typeof item.memoryUsage === 'number'
+          ? item.memoryUsage
+          : null,
+        memoryTotal: typeof item.memoryTotal === 'number' ? item.memoryTotal : null,
+        storageUsage: typeof item.storage === 'number'
+          ? item.storage
+          : typeof item.storageUsage === 'number'
+          ? item.storageUsage
+          : null,
+        storageTotal: typeof item.storageTotal === 'number' ? item.storageTotal : null,
       }));
     }
   } catch {
@@ -146,7 +115,7 @@ function parseSnapshotsFromBackup(result: CommandResult): Snapshot[] {
 
   // Line-based fallback: "ID  YYYY-MM-DD  DESCRIPTION"
   const lines = result.stdout.split('\n').filter((l) => l.trim());
-  if (lines.length === 0) return DEMO_SNAPSHOTS;
+  if (lines.length === 0) return [];
 
   return lines.map((line, idx) => {
     const parts = line.trim().split(/\s{2,}/);
@@ -158,11 +127,11 @@ function parseSnapshotsFromBackup(result: CommandResult): Snapshot[] {
       description: parts.slice(2).join(' ').trim() || '系统快照',
       isCurrent: idx === 0,
       status: isFailed ? 'warning' as const : 'success' as const,
-      health: isFailed ? 85 : 98 + Math.random() * 2,
-      memoryUsage: 1.5 + Math.random() * 2,
-      memoryTotal: 16,
-      storageUsage: 30 + Math.random() * 20,
-      storageTotal: 100,
+      health: null,
+      memoryUsage: null,
+      memoryTotal: null,
+      storageUsage: null,
+      storageTotal: null,
     } as Snapshot;
   });
 }
@@ -342,7 +311,13 @@ function SnapshotCard(props: CardProps) {
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
 
   const healthColor =
-    snapshot.health >= 98 ? C.success : snapshot.health >= 95 ? C.warning : C.error;
+    typeof snapshot.health !== 'number'
+      ? C.onSurfaceVariant
+      : snapshot.health >= 98
+      ? C.success
+      : snapshot.health >= 95
+      ? C.warning
+      : C.error;
 
   const statusColor =
     snapshot.status === 'success'
@@ -483,23 +458,23 @@ function SnapshotCard(props: CardProps) {
           <MetricCard
             label="系统健康"
             icon={<Activity size={11} />}
-            value={`${snapshot.health}%`}
-            sub="运行正常"
+            value={formatPercentMetric(snapshot.health)}
+            sub={typeof snapshot.health === 'number' ? '来自备份元数据' : '备份列表未提供健康度'}
             valueColor={healthColor}
           />
           <MetricCard
             label="内存占用"
             icon={<HardDrive size={11} />}
-            value={`${snapshot.memoryUsage} GB`}
-            sub={`${Math.round((snapshot.memoryUsage / snapshot.memoryTotal) * 100)}% / ${snapshot.memoryTotal} GB`}
+            value={formatMemoryMetric(snapshot.memoryUsage)}
+            sub={formatMemorySubMetric(snapshot.memoryUsage, snapshot.memoryTotal)}
           />
           <MetricCard
             label="存储使用"
             icon={<HardDrive size={11} />}
-            value={`${snapshot.storageUsage}%`}
-            sub="数据盘已用空间"
+            value={formatPercentMetric(snapshot.storageUsage)}
+            sub={typeof snapshot.storageUsage === 'number' ? '来自备份元数据' : '备份列表未提供存储元数据'}
           />
-          <MetricCard label="运行时长" icon={<Clock size={11} />} value="6.2h" sub="自上次重启" />
+          <MetricCard label="运行时长" icon={<Clock size={11} />} value="N/A" sub="备份列表未提供运行时长" />
         </div>
 
         {/* Divider */}
@@ -688,14 +663,17 @@ export default function SnapshotPage() {
 
   // Load snapshots from OpenClaw backup list on mount
   const loadSnapshots = async () => {
-    if (!api) return;
+    if (!api) {
+      setSnapshots([]);
+      return;
+    }
     setLoading(true);
     try {
       const result: CommandResult = await api.listBackups();
       const parsed = parseSnapshotsFromBackup(result);
-      setSnapshots(parsed.length > 0 ? parsed : DEMO_SNAPSHOTS);
+      setSnapshots(parsed);
     } catch {
-      setSnapshots(DEMO_SNAPSHOTS);
+      setSnapshots([]);
     } finally {
       setLoading(false);
     }
@@ -1053,9 +1031,14 @@ export default function SnapshotPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 {[
                   { label: '创建时间', value: detailSnapshot.timestamp.toLocaleString('zh-CN') },
-                  { label: '系统健康', value: `${detailSnapshot.health}%` },
-                  { label: '内存占用', value: `${detailSnapshot.memoryUsage} / ${detailSnapshot.memoryTotal} GB` },
-                  { label: '存储使用', value: `${detailSnapshot.storageUsage}%` },
+                  { label: '系统健康', value: formatPercentMetric(detailSnapshot.health) },
+                  {
+                    label: '内存占用',
+                    value: detailSnapshot.memoryUsage !== null && detailSnapshot.memoryTotal !== null
+                      ? `${detailSnapshot.memoryUsage} / ${detailSnapshot.memoryTotal} GB`
+                      : 'N/A',
+                  },
+                  { label: '存储使用', value: formatPercentMetric(detailSnapshot.storageUsage) },
                   { label: '系统状态', value: detailSnapshot.status === 'success' ? '正常' : detailSnapshot.status === 'warning' ? '部分异常' : '失败' },
                   { label: '快照ID', value: detailSnapshot.id },
                 ].map(({ label, value }) => (

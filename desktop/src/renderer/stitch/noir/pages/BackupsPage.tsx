@@ -22,23 +22,9 @@ interface CommandResult {
   error?: string;
 }
 
-const MOCK_BACKUPS: BackupEntry[] = [
-  { id: 'BK_001', date: '2024-05-24 14:22', description: '系统自动快照 (v2.4.1)', size: '1.2 GB', status: 'success' },
-  { id: 'BK_002', date: '2024-05-23 23:30', description: '例行每日备份', size: '1.1 GB', status: 'success' },
-  { id: 'BK_003', date: '2024-05-22 23:30', description: '例行每日备份', size: '1.1 GB', status: 'failed' },
-  { id: 'BK_004', date: '2024-05-21 23:30', description: '例行每日备份', size: '1.0 GB', status: 'success' },
-  { id: 'BK_005', date: '2024-05-20 23:30', description: '例行每日备份', size: '1.1 GB', status: 'success' },
-];
-
-const STORAGE_ITEMS = [
-  { label: '聊天历史记录', size: '12.4 GB', color: '#630ed4' },
-  { label: '附件与文档', size: '28.1 GB', color: '#7c3aed' },
-  { label: '系统配置', size: '2.3 GB', color: '#919191' },
-];
-
 function parseBackupsOutput(output: string): BackupEntry[] {
   const lines = output.split('\n').filter((l) => l.trim());
-  if (lines.length === 0) return MOCK_BACKUPS;
+  if (lines.length === 0) return [];
   // Try JSON parse first
   try {
     const parsed = JSON.parse(output);
@@ -89,7 +75,7 @@ export default function BackupsPage() {
   const [autoBackup, setAutoBackup] = useState(true);
   const [backupFreq, setBackupFreq] = useState('每天一次');
   const [retention, setRetention] = useState('保留最近 30 个版本');
-  const [backups, setBackups] = useState<BackupEntry[]>(MOCK_BACKUPS);
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -107,18 +93,18 @@ export default function BackupsPage() {
         const result: CommandResult = await api.listBackups();
         if (result.success && result.stdout) {
           const parsed = parseBackupsOutput(result.stdout);
-          setBackups(parsed.length > 0 ? parsed : MOCK_BACKUPS);
-          addLog(createLogEntry('success', `已加载 ${parsed.length || MOCK_BACKUPS.length} 条备份记录`));
+          setBackups(parsed);
+          addLog(createLogEntry('success', `已加载 ${parsed.length} 条备份记录`));
         } else {
-          setBackups(MOCK_BACKUPS);
-          addLog(createLogEntry('warning', '无法获取真实备份，使用演示数据'));
+          setBackups([]);
+          addLog(createLogEntry('warning', '无法获取真实备份记录'));
         }
       } else {
-        setBackups(MOCK_BACKUPS);
-        addLog(createLogEntry('warning', '桌面 API 不可用，显示演示数据'));
+        setBackups([]);
+        addLog(createLogEntry('warning', '桌面 API 不可用，无法读取真实备份'));
       }
     } catch (err) {
-      setBackups(MOCK_BACKUPS);
+      setBackups([]);
       addLog(createLogEntry('error', `加载失败: ${String(err)}`));
     } finally {
       setLoading(false);
@@ -184,8 +170,7 @@ export default function BackupsPage() {
           addLog(createLogEntry('error', `还原失败: ${result.stderr || result.error}`));
         }
       } else {
-        await new Promise((r) => setTimeout(r, 2000));
-        addLog(createLogEntry('success', `[演示] 备份 ${id} 还原完成`));
+        addLog(createLogEntry('error', '桌面 API 不可用，无法执行真实还原'));
       }
     } catch (err) {
       addLog(createLogEntry('error', `还原失败: ${String(err)}`));
@@ -276,8 +261,8 @@ export default function BackupsPage() {
             <div style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 20, background: 'rgba(99,14,212,0.08)', border: '1px solid rgba(99,14,212,0.2)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <Info size={14} color="#630ed4" style={{ marginTop: 1, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#d2bbff', marginBottom: 2 }}>下次预定备份</div>
-                <div style={{ fontSize: 11, color: '#919191' }}>今天, 23:30 (GMT+8) · 将同步至：iCloud Drive / local_storage</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#d2bbff', marginBottom: 2 }}>自动备份计划</div>
+                <div style={{ fontSize: 11, color: '#919191' }}>当前桌面端只展示真实备份结果，自动计划和目标存储尚未接入本机配置读取。</div>
               </div>
             </div>
 
@@ -336,16 +321,8 @@ export default function BackupsPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, marginTop: 8 }}>
-              {STORAGE_ITEMS.map((item) => (
-                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#919191', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, display: 'inline-block', flexShrink: 0 }} />
-                    {item.label}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#e5e2e1' }}>{item.size}</span>
-                </div>
-              ))}
+            <div style={{ marginTop: 16, fontSize: 12, color: '#919191', lineHeight: 1.7 }}>
+              当前仅展示本机磁盘的真实占用情况。聊天、附件、系统配置等细分空间占比还没有接入原生统计，因此这里不再展示演示拆分数据。
             </div>
 
             <button style={{ marginTop: 24, width: '100%', padding: '11px', background: 'rgba(255,255,255,0.04)', color: '#919191', fontSize: 13, fontWeight: 600, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, cursor: 'pointer', fontFamily: 'system-ui', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -384,6 +361,13 @@ export default function BackupsPage() {
               </tr>
             </thead>
             <tbody>
+              {backups.length === 0 && (
+                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+                  <td colSpan={5} style={{ padding: '24px 28px', fontSize: 13, color: '#919191', textAlign: 'center' }}>
+                    暂无真实备份记录
+                  </td>
+                </tr>
+              )}
               {backups.map((entry) => (
                 <tr key={entry.id} style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}

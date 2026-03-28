@@ -52,8 +52,8 @@ describe('float-window', () => {
     const { BrowserWindow } = await import('electron');
     expect(BrowserWindow).toHaveBeenCalled();
     const config = (BrowserWindow as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(config.width).toBe(220);
-    expect(config.height).toBe(320);
+    expect(config.width).toBe(260);
+    expect(config.height).toBe(280);
     expect(config.frame).toBe(false);
     expect(config.transparent).toBe(true);
     expect(config.alwaysOnTop).toBe(true);

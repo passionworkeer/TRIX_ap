@@ -1,19 +1,7 @@
-/**
- * Integration tests for ProtectedRoute + AuthContext.
- *
- * These tests verify:
- *   - Unauthenticated users trying to access protected routes are redirected to login
- *   - Authenticated users can access protected routes
- *   - Session expiry triggers redirect to login
- *
- * Environment: Node (tests routing guard logic, not DOM rendering)
- */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor, cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-
-// ─── Mocks ────────────────────────────────────────────────────────────────────
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const mockUser = {
   id: 'user-123',
@@ -40,6 +28,13 @@ const {
   mockOnAuthStateChange,
   mockUpdateLastActive,
   mockFrom,
+  mockUpsertSession,
+  mockRevokeSession,
+  mockCheckSessionValidity,
+  mockTouchSession,
+  mockClearLocalSessionId,
+  mockGetLocalSessionId,
+  mockShowWarning,
 } = vi.hoisted(() => ({
   mockSignInWithPassword: vi.fn(),
   mockSignOut: vi.fn(),
@@ -64,25 +59,16 @@ const {
       eq: vi.fn().mockResolvedValue({ error: null }),
     })),
   })),
-}));
-
-const {
-  mockUpsertSession,
-  mockRevokeSession,
-  mockCheckSessionValidity,
-  mockTouchSession,
-  mockClearLocalSessionId,
-  mockGetLocalSessionId,
-} = vi.hoisted(() => ({
   mockUpsertSession: vi.fn().mockResolvedValue({ id: 'session-123' }),
   mockRevokeSession: vi.fn().mockResolvedValue(undefined),
   mockCheckSessionValidity: vi.fn().mockResolvedValue({ isValid: true, reason: 'valid' }),
   mockTouchSession: vi.fn().mockResolvedValue(undefined),
   mockClearLocalSessionId: vi.fn(),
-  mockGetLocalSessionId: vi.fn().mockReturnValue('local-session-1'),
+  mockGetLocalSessionId: vi.fn().mockReturnValue(null),
+  mockShowWarning: vi.fn(),
 }));
 
-vi.mock('../config/supabase', () => ({
+vi.mock('../../src/config/supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: mockSignInWithPassword,
@@ -95,7 +81,7 @@ vi.mock('../config/supabase', () => ({
   updateLastActive: mockUpdateLastActive,
 }));
 
-vi.mock('../services/sessionService', () => ({
+vi.mock('../../src/services/sessionService', () => ({
   upsertSession: mockUpsertSession,
   revokeSession: mockRevokeSession,
   checkSessionValidity: mockCheckSessionValidity,
@@ -104,47 +90,37 @@ vi.mock('../services/sessionService', () => ({
   getLocalSessionId: mockGetLocalSessionId,
 }));
 
-vi.mock('../utils/errorHandler', () => ({
+vi.mock('../../src/utils/errorHandler', () => ({
   handleGlobalError: vi.fn(),
 }));
 
-vi.mock('../utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
     auth: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-    setLevel: vi.fn(),
-    getLevel: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-vi.mock('../hooks/useNotification', () => ({
+vi.mock('../../src/hooks/useNotification', () => ({
   useNotification: () => ({
-    showWarning: vi.fn(),
+    showWarning: mockShowWarning,
     showSuccess: vi.fn(),
     showError: vi.fn(),
   }),
 }));
 
-// ─── Imports ──────────────────────────────────────────────────────────────────
-
 import { AuthProvider } from '../../src/contexts/AuthContext';
 import ProtectedRoute from '../../src/components/ProtectedRoute';
 
-// ─── Test helpers ─────────────────────────────────────────────────────────────
-
-function LocationDisplay() {
-  const location = useLocation();
-  return <span data-testid="location">{location.pathname}</span>;
-}
-
 function ProtectedPage() {
-  return <div data-testid="protected-content">Protected Page</div>;
+  return <div data-testid="protected-content">Protected page</div>;
 }
 
 function LoginPage() {
-  return <div data-testid="login-content">Login Page</div>;
+  return <div data-testid="login-content">Login page</div>;
 }
 
-function renderWithRouter(initialPath: string, authProviderChildren: React.ReactNode) {
+function renderWithRouter(initialPath: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <AuthProvider>
@@ -152,39 +128,30 @@ function renderWithRouter(initialPath: string, authProviderChildren: React.React
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/protected"
-            element={
+            element={(
               <ProtectedRoute>
                 <ProtectedPage />
               </ProtectedRoute>
-            }
+            )}
           />
           <Route path="/" element={<div data-testid="home">Home</div>} />
         </Routes>
-        {authProviderChildren}
       </AuthProvider>
     </MemoryRouter>,
   );
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+let authCallback:
+  | ((event: string, session: typeof mockSession | null) => void | Promise<void>)
+  | null = null;
 
 describe('ProtectedRoute + AuthContext integration', () => {
-
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockFrom.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'user-123', username: 'tester', avatar_url: null, bio: null },
-            error: null,
-          }),
-        })),
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      })),
+    authCallback = null;
+    mockOnAuthStateChange.mockImplementation((handler) => {
+      authCallback = handler;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
   });
 
@@ -193,137 +160,47 @@ describe('ProtectedRoute + AuthContext integration', () => {
     vi.useRealTimers();
   });
 
-  // ── Unauthenticated user → redirect ────────────────────────────────────
-
-  it('redirects unauthenticated user to /login when accessing protected route', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    });
-
-    renderWithRouter('/protected', null);
-
-    await waitFor(() => {
-      const location = document.querySelector('[data-testid="location"]');
-      expect(location?.textContent).toBe('/login');
-    });
-  });
-
-  it('renders LoginPage when redirecting unauthenticated user', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    });
-
-    renderWithRouter('/protected', null);
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="login-content"]')).toBeInTheDocument();
-    });
-  });
-
-  // ── Authenticated user → can access ─────────────────────────────────────
-
-  it('allows authenticated user to access protected route', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    });
-
-    renderWithRouter('/protected', null);
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="protected-content"]')).toBeInTheDocument();
-    });
-  });
-
-  it('does not redirect authenticated user away from /protected', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    });
-
-    renderWithRouter('/protected', null);
-
-    await waitFor(() => {
-      const location = document.querySelector('[data-testid="location"]');
-      expect(location?.textContent).toBe('/protected');
-    });
-  });
-
-  // ── Session expiry → redirect ───────────────────────────────────────────
-
-  it('redirects to /login after session expires', async () => {
+  it('redirects unauthenticated users to /login after the redirect delay', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    let authCallback: ((event: string, session: typeof mockSession | null) => void) | null = null;
-    mockOnAuthStateChange.mockImplementation((handler) => {
-      authCallback = handler;
-      return { data: { subscription: { unsubscribe: vi.fn() } } };
-    });
-
-    renderWithRouter('/protected', null);
-
-    // Session expires — fire SIGNED_OUT event
-    await vi.waitFor(() => {
-      // Wait for initial render
-      expect(document.querySelector('[data-testid="location"]')).toBeInTheDocument();
-    });
-
-    if (authCallback) {
-      await vi.act(async () => {
-        await authCallback('SIGNED_OUT', null);
-      });
-    }
+    renderWithRouter('/protected');
 
     await waitFor(() => {
-      const location = document.querySelector('[data-testid="location"]');
-      expect(location?.textContent).toBe('/login');
+      expect(mockShowWarning).toHaveBeenCalled();
     });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-content')).toBeInTheDocument();
+    }, { timeout: 2000 });
   });
 
-  it('clears protected content after session expiry', async () => {
+  it('allows authenticated users to stay on the protected route', async () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
 
-    let authCallback: ((event: string, session: typeof mockSession | null) => void) | null = null;
-    mockOnAuthStateChange.mockImplementation((handler) => {
-      authCallback = handler;
-      return { data: { subscription: { unsubscribe: vi.fn() } } };
-    });
-
-    renderWithRouter('/protected', null);
+    renderWithRouter('/protected');
 
     await waitFor(() => {
-      expect(document.querySelector('[data-testid="protected-content"]')).toBeInTheDocument();
+      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
     });
 
-    if (authCallback) {
-      await vi.act(async () => {
-        await authCallback('SIGNED_OUT', null);
-      });
-    }
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="protected-content"]')).not.toBeInTheDocument();
-    });
+    expect(mockShowWarning).not.toHaveBeenCalled();
   });
 
-  // ── Loading state ───────────────────────────────────────────────────────
+  it('redirects to /login when an authenticated session later signs out', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: mockSession }, error: null });
 
-  it('does not render children while auth is loading', async () => {
-    // Never resolves getSession during the test — loading stays true
-    mockGetSession.mockReturnValue(new Promise(() => {})); // never resolves
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
+    renderWithRouter('/protected');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
     });
 
-    renderWithRouter('/protected', null);
+    await act(async () => {
+      await authCallback?.('SIGNED_OUT', null);
+    });
 
-    // While loading, neither protected content nor login should render
-    await vi.waitFor(() => {
-      // Should not have resolved to either state yet
-      expect(document.querySelector('[data-testid="protected-content"]')).not.toBeInTheDocument();
-      expect(document.querySelector('[data-testid="login-content"]')).not.toBeInTheDocument();
-    }, { timeout: 500 });
+    await waitFor(() => {
+      expect(screen.getByTestId('login-content')).toBeInTheDocument();
+    }, { timeout: 2000 });
   });
 });

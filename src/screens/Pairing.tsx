@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Camera, Keyboard, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Keyboard, Loader2 } from 'lucide-react';
 import { generatePath, useNavigate } from 'react-router-dom';
-import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
-import { IMAGES } from '../constants';
 import GlassPanel from '../components/GlassPanel';
-import { AppRoutes } from '../types';
+import { IMAGES } from '../constants';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
+import { AppRoutes } from '../types';
 import { PAIRING_REQUIRED_TOAST_ID } from '../utils/pairingToast';
+import { BrowserQrScanner, toBrowserQrScannerError } from '../utils/browserQrScanner';
 import { logger } from '../utils/logger';
 
 const PAIRING_CODE_PATTERN = /^[A-Z0-9]{6}$/;
@@ -25,72 +25,70 @@ const Pairing: React.FC = () => {
   const [mode, setMode] = useState<'scan' | 'input' | 'success'>('scan');
   const [codeInput, setCodeInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scannerActive, setScannerActive] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isScanning = useRef(false);
+  const scannerRef = useRef<BrowserQrScanner | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
 
-  const stopScanner = async (clearDom: boolean = false) => {
+  const stopScanner = async () => {
     if (!scannerRef.current) {
+      setScannerActive(false);
       return;
     }
 
-    if (isScanning.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch (error) {
-        logger.pairing.error('Stop scanner failed:', error);
-      }
-    }
-
-    isScanning.current = false;
-
-    if (clearDom) {
-      try {
-        await scannerRef.current.clear();
-      } catch (error) {
-        logger.pairing.error('Clear scanner failed:', error);
-      } finally {
-        scannerRef.current = null;
-      }
+    try {
+      await scannerRef.current.stop();
+    } catch (error) {
+      logger.pairing.error('Stop scanner failed:', error);
+    } finally {
+      setScannerActive(false);
     }
   };
 
   const startScanner = async () => {
+    if (!videoRef.current) {
+      return;
+    }
+
     try {
       await stopScanner();
-      const scanner = new Html5Qrcode('qr-reader');
-      scannerRef.current = scanner;
+      setScannerError(null);
 
-      await scanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1,
-        },
-        (decodedText: string) => {
+      if (!scannerRef.current) {
+        scannerRef.current = new BrowserQrScanner();
+      }
+
+      await scannerRef.current.start({
+        video: videoRef.current,
+        onDetected: (decodedText) => {
           void handleScanSuccess(decodedText);
         },
-        () => {
-          // Ignore continuous parsing noise.
+        onError: (error) => {
+          logger.pairing.error('Scan loop failed:', error);
+          setScannerError(error.message);
+          setScannerActive(false);
         },
-      );
+      });
 
-      isScanning.current = true;
+      setScannerActive(true);
       toast.success('摄像头已启动');
     } catch (error) {
-      logger.pairing.error('Start scanner failed:', error);
-      toast.error('无法启动摄像头，请检查相机权限');
+      const normalizedError = toBrowserQrScannerError(error, '无法启动摄像头，请检查相机权限。');
+      logger.pairing.error('Start scanner failed:', normalizedError);
+      setScannerError(normalizedError.message);
+      setScannerActive(false);
+      toast.error(normalizedError.message);
     }
   };
 
   const handlePairSuccess = async () => {
-    await stopScanner(true);
-      toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
-      toast.success('配对成功');
-      setMode('success');
-      setTimeout(() => {
+    await stopScanner();
+    toast.dismiss(PAIRING_REQUIRED_TOAST_ID);
+    toast.success('配对成功');
+    setMode('success');
+    window.setTimeout(() => {
       navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: 'clawbot' }), {
         replace: true,
         state: {
@@ -104,7 +102,9 @@ const Pairing: React.FC = () => {
 
   const handleScanSuccess = async (decodedText: string) => {
     await stopScanner();
+    setScannerError(null);
     setLoading(true);
+
     try {
       const success = await pairWithQR(decodedText.trim());
       if (!success) {
@@ -146,17 +146,18 @@ const Pairing: React.FC = () => {
   };
 
   const handleUnpair = () => {
-    void stopScanner(true);
+    void stopScanner();
     unpair();
     setMode('scan');
     setCodeInput('');
-    toast.success('配对成功');
+    setScannerError(null);
+    toast.success('已解除绑定');
   };
 
   useEffect(() => {
     if (isPaired) {
       setMode('success');
-      void stopScanner(true);
+      void stopScanner();
     }
   }, [isPaired]);
 
@@ -164,11 +165,11 @@ const Pairing: React.FC = () => {
     if (mode === 'scan') {
       void startScanner();
     } else {
-      void stopScanner(true);
+      void stopScanner();
     }
 
     return () => {
-      void stopScanner(true);
+      void stopScanner();
     };
   }, [mode]);
 
@@ -181,68 +182,81 @@ const Pairing: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fdf2ff] via-[#f8fbff] to-[#eef8ff] dark:from-slate-950 dark:via-slate-910 dark:to-slate-950">
       <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center px-6 pb-28 pt-8 md:pt-16">
-        
-        {/* Header Section */}
-        <div className="relative flex w-full items-center justify-center mb-8">
+        <div className="mb-8 flex w-full items-center justify-center">
           <button
             type="button"
             onClick={() => {
-              void stopScanner(true);
+              void stopScanner();
               navigate(-1);
             }}
-            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-white/50 backdrop-blur-md border border-slate-200/50 shadow-sm transition-all active:scale-95 dark:bg-slate-800/50 dark:border-slate-700/50"
+            className="absolute left-6 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/50 bg-white/50 shadow-sm backdrop-blur-md transition-all active:scale-95 dark:border-slate-700/50 dark:bg-slate-800/50"
             aria-label="返回"
           >
             <ArrowLeft strokeWidth={2.5} size={20} className="text-slate-700 dark:text-slate-300" />
           </button>
-          
+
           <div className="relative flex h-16 w-16 items-center justify-center rounded-[20px] bg-white/80 shadow-[0_8px_24px_rgba(99,102,241,0.12)] ring-1 ring-white/70 backdrop-blur-xl dark:bg-slate-800/80 dark:ring-slate-700/50">
             <img src={IMAGES.WIZARD_BOY_LOGIN} alt="TRIX" className="h-[52px] w-[52px] object-contain" />
           </div>
         </div>
 
-        <div className="flex flex-col items-center mb-6">
+        <div className="mb-6 flex flex-col items-center">
           <h1 className="text-[26px] font-extrabold tracking-tight text-slate-900 dark:text-slate-50">配对 TRIX Native</h1>
           <p className="mt-2 text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            扫描屏幕上的二维码<br />或输入配对码完成绑定
+            扫描屏幕上的二维码
+            <br />
+            或输入配对码完成绑定
           </p>
         </div>
 
-        {/* Main Content Card */}
-        <GlassPanel className="w-full flex-1 md:flex-none overflow-hidden !rounded-[32px] border border-white/60 bg-white/70 px-5 py-6 shadow-[0_20px_40px_-15px_rgba(79,70,229,0.1)] backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/70 mb-4">
-          
+        <GlassPanel className="mb-4 w-full flex-1 overflow-hidden !rounded-[32px] border border-white/60 bg-white/70 px-5 py-6 shadow-[0_20px_40px_-15px_rgba(79,70,229,0.1)] backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/70 md:flex-none">
           {mode === 'scan' && (
             <div className="flex h-full flex-col">
               <div className="group relative mb-6 overflow-hidden rounded-[24px] bg-slate-950 shadow-inner ring-1 ring-black/5 dark:ring-white/10">
-                <div id="qr-reader" className="min-h-[280px] w-full overflow-hidden bg-black object-cover [&>video]:object-cover" />
+                <div id="qr-reader" className="min-h-[280px] w-full overflow-hidden bg-black">
+                  <video
+                    ref={videoRef}
+                    className="h-[280px] w-full object-cover"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
+                </div>
+
                 {loading && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md">
                     <Loader2 className="mb-3 h-10 w-10 animate-spin text-white" />
                     <span className="text-sm font-medium text-white/90">验证中...</span>
                   </div>
                 )}
-                {/* Custom scanning frame overlay */}
-                {!loading && isScanning.current && (
+
+                {!loading && scannerActive && (
                   <div className="pointer-events-none absolute inset-0 z-10 border-[40px] border-black/40">
-                    <div className="h-full w-full border-2 border-dashed border-white/30 rounded-lg"></div>
+                    <div className="h-full w-full rounded-lg border-2 border-dashed border-white/30" />
                   </div>
                 )}
               </div>
+
+              {scannerError && (
+                <p className="mb-4 text-center text-sm text-amber-600 dark:text-amber-300">
+                  {scannerError}
+                </p>
+              )}
 
               <div className="mt-auto flex flex-col gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setMode('input');
-                    void stopScanner(true);
+                    void stopScanner();
                   }}
                   className="group relative flex w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-5 py-4 font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/50 transition-all hover:bg-slate-50 active:scale-[0.98] dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
                 >
-                  <Keyboard size={18} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                  <Keyboard size={18} className="text-slate-400 transition-colors group-hover:text-indigo-500" />
                   <span>手动输入配对码</span>
                 </button>
 
-                {!isScanning.current && (
+                {!scannerActive && (
                   <button
                     type="button"
                     onClick={() => void startScanner()}
@@ -259,7 +273,9 @@ const Pairing: React.FC = () => {
           {mode === 'input' && (
             <div className="flex h-full flex-col justify-center py-4">
               <div className="mb-8 w-full">
-                <label className="mb-4 block text-center text-sm font-medium text-slate-600 dark:text-slate-400">请输入 TRIX Native 上的 6 位配对码</label>
+                <label className="mb-4 block text-center text-sm font-medium text-slate-600 dark:text-slate-400">
+                  请输入 TRIX Native 上的 6 位配对码
+                </label>
                 <div className="relative">
                   <input
                     ref={codeInputRef}
@@ -297,7 +313,6 @@ const Pairing: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setMode('scan');
-                    void startScanner();
                   }}
                   className="flex w-full items-center justify-center rounded-2xl px-5 py-4 font-medium text-slate-500 transition-colors hover:bg-slate-100/50 hover:text-slate-700 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
                 >
@@ -316,11 +331,12 @@ const Pairing: React.FC = () => {
                   <Check strokeWidth={3} size={36} />
                 </div>
               </div>
+
               <h3 className="mb-3 text-[22px] font-bold text-slate-800 dark:text-slate-100">配对成功</h3>
               <p className="mb-8 max-w-[240px] text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                当前设备已绑定到 TRIX Native，随时可以进行交互互动
+                当前设备已绑定到 TRIX Native，稍后会自动跳转到聊天页。
               </p>
-              
+
               <button
                 type="button"
                 onClick={handleUnpair}

@@ -99,11 +99,10 @@ test.describe('Diagnostic Advanced E2E Tests', () => {
   });
 
   test('T4.2.8: should have proper dark theme styling', async ({ page }) => {
-    // The diagnostic advanced page uses inline dark theme styles
-    const pageContent = await page.content();
+    const root = page.locator('div[style*="font-family: monospace"]').first();
 
-    // Should contain the dark background style
-    expect(pageContent).toContain('background:');
-    expect(pageContent).toContain('#1e1e1e');
+    await expect(root).toBeVisible();
+    await expect(root).toHaveCSS('background-color', 'rgb(30, 30, 30)');
+    await expect(root).toHaveCSS('color', 'rgb(212, 212, 212)');
   });
 });

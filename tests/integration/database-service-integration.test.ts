@@ -1,126 +1,156 @@
-/**
- * Integration tests for database + service layer.
- *
- * Verifies that service functions call Supabase with correct table names.
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  mockGetSession,
+  mockFrom,
+  mockRpc,
+  mockChannel,
+  mockRemoveChannel,
+  mockHandleGlobalError,
+} = vi.hoisted(() => ({
+  mockGetSession: vi.fn(),
+  mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
+  mockChannel: vi.fn(),
+  mockRemoveChannel: vi.fn(),
+  mockHandleGlobalError: vi.fn(),
+}));
+
+vi.mock('../../src/config/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: mockGetSession,
+    },
+    from: mockFrom,
+    rpc: mockRpc,
+    channel: mockChannel,
+    removeChannel: mockRemoveChannel,
+  },
+}));
+
+vi.mock('../../src/utils/errorHandler', () => ({
+  handleGlobalError: mockHandleGlobalError,
+}));
+
+vi.mock('../../src/utils/logger', () => ({
+  logger: {
+    study: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    points: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    chat: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+  },
+}));
+
+type QueryState = {
+  data?: unknown;
+  error?: unknown;
+  count?: number | null;
+};
+
+function createQueryChain(state: QueryState = {}) {
+  const chain: Record<string, unknown> = {
+    data: state.data ?? [],
+    error: state.error ?? null,
+    count: state.count ?? null,
+  };
+
+  for (const method of ['select', 'eq', 'order', 'limit', 'lt', 'gte', 'insert', 'update', 'delete', 'upsert', 'single', 'maybeSingle', 'not']) {
+    chain[method] = vi.fn(() => chain);
+  }
+
+  return chain as {
+    data: unknown;
+    error: unknown;
+    count: number | null;
+    select: ReturnType<typeof vi.fn>;
+    eq: ReturnType<typeof vi.fn>;
+    order: ReturnType<typeof vi.fn>;
+    limit: ReturnType<typeof vi.fn>;
+    lt: ReturnType<typeof vi.fn>;
+    gte: ReturnType<typeof vi.fn>;
+    insert: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
+    single: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
+    not: ReturnType<typeof vi.fn>;
+  };
+}
 
 describe('Database service layer integration', () => {
-
-  describe('studySessionService', () => {
-    it('calls Supabase from("study_sessions") when getting sessions', async () => {
-      const { supabase } = await import('../../src/config/supabase');
-      const fromSpy = vi.spyOn(supabase, 'from');
-      fromSpy.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-        insert: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
-
-      const { getStudySessions } = await import('../../src/services/studySessionService');
-      await getStudySessions();
-
-      expect(fromSpy).toHaveBeenCalledWith('study_sessions');
-    });
-
-    it('handles errors gracefully when getting sessions', async () => {
-      const { supabase } = await import('../../src/config/supabase');
-      const fromSpy = vi.spyOn(supabase, 'from');
-      fromSpy.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockRejectedValue(new Error('Network error')),
-        }),
-        insert: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-      } as any);
-
-      const { getStudySessions } = await import('../../src/services/studySessionService');
-      const result = await getStudySessions();
-
-      expect(result).toEqual([]);
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'user-123' },
+        },
+      },
+      error: null,
     });
   });
 
-  describe('achievementService', () => {
-    it('calls Supabase from("achievements") when getting achievements', async () => {
-      const { supabase } = await import('../../src/config/supabase');
-      const fromSpy = vi.spyOn(supabase, 'from');
-      fromSpy.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-        insert: vi.fn(),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-        delete: vi.fn(),
-      } as any);
-
-      const { getAchievements } = await import('../../src/services/achievementService');
-      await getAchievements();
-
-      expect(fromSpy).toHaveBeenCalledWith('achievements');
+  it('queries study_sessions through getStudySessions with the authenticated user', async () => {
+    const query = createQueryChain({
+      data: [{ id: 'session-1', user_id: 'user-123' }],
     });
+    mockFrom.mockReturnValue(query);
+
+    const { getStudySessions } = await import('../../src/services/studySessionService');
+    const result = await getStudySessions(5);
+
+    expect(mockFrom).toHaveBeenCalledWith('study_sessions');
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(query.order).toHaveBeenCalledWith('started_at', { ascending: false });
+    expect(query.limit).toHaveBeenCalledWith(5);
+    expect(result).toEqual([{ id: 'session-1', user_id: 'user-123' }]);
   });
 
-  describe('pointsService', () => {
-    it('calls Supabase from("points_transactions") when getting history', async () => {
-      const { supabase } = await import('../../src/config/supabase');
-      const fromSpy = vi.spyOn(supabase, 'from');
-      fromSpy.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-        insert: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'tx1', user_id: 'test', amount: 10, type: 'earn' },
-              error: null,
-            }),
-          }),
-        }),
-        update: vi.fn(),
-        delete: vi.fn(),
-      } as any);
-
-      const { getPointsHistory } = await import('../../src/services/pointsService');
-      await getPointsHistory();
-
-      expect(fromSpy).toHaveBeenCalledWith('points_transactions');
+  it('reads unlocked achievements from user_achievements through achievementService', async () => {
+    const query = createQueryChain({
+      data: [{ achievement_id: 'study_starter' }],
     });
+    mockFrom.mockReturnValue(query);
+
+    const { achievementService } = await import('../../src/services/achievementService');
+    const result = await achievementService.getUserAchievements('user-123');
+
+    expect(mockFrom).toHaveBeenCalledWith('user_achievements');
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(result.length).toBeGreaterThan(0);
   });
 
-  describe('Error handling', () => {
-    it('getChatHistory returns empty messages on network error', async () => {
-      const { supabase } = await import('../../src/config/supabase');
-      const fromSpy = vi.spyOn(supabase, 'from');
-      fromSpy.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockRejectedValue(new Error('Network error')),
-        }),
-        insert: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-      } as any);
-
-      const { getChatHistory } = await import('../../src/services/chatService');
-      const result = await getChatHistory('friend-123');
-
-      expect(result.messages).toEqual([]);
-      expect(result.hasMore).toBe(false);
+  it('queries point_transactions through getPointsHistory', async () => {
+    const query = createQueryChain({
+      data: [{ id: 'tx-1', points_change: 10 }],
     });
+    mockFrom.mockReturnValue(query);
+
+    const { getPointsHistory } = await import('../../src/services/pointsService');
+    const result = await getPointsHistory('user-123', 5);
+
+    expect(mockFrom).toHaveBeenCalledWith('point_transactions');
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(query.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(query.limit).toHaveBeenCalledWith(5);
+    expect(result).toEqual([{ id: 'tx-1', points_change: 10 }]);
+  });
+
+  it('returns an empty chat history payload when the chat query fails', async () => {
+    const query = createQueryChain({
+      data: null,
+      error: new Error('Network error'),
+      count: 0,
+    });
+    mockFrom.mockReturnValue(query);
+
+    const { getChatHistory } = await import('../../src/services/chatService');
+    const result = await getChatHistory('friend-123');
+
+    expect(mockFrom).toHaveBeenCalledWith('chat_messages');
+    expect(query.eq).toHaveBeenCalledWith('conversation_id', 'friend-123_user-123');
+    expect(result).toEqual({ messages: [], hasMore: false });
+    expect(mockHandleGlobalError).toHaveBeenCalled();
   });
 });

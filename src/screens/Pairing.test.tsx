@@ -30,14 +30,16 @@ vi.mock('../contexts/ClawbotChannelContext', () => ({
   useClawbotChannel: () => mockChannelState,
 }));
 
-// Mock Html5Qrcode
+// Mock browser QR scanner
 const mockScannerInstance = {
   start: vi.fn().mockResolvedValue(undefined),
   stop: vi.fn().mockResolvedValue(undefined),
-  clear: vi.fn().mockResolvedValue(undefined),
 };
-vi.mock('html5-qrcode', () => ({
-  Html5Qrcode: vi.fn(() => mockScannerInstance),
+vi.mock('../utils/browserQrScanner', () => ({
+  BrowserQrScanner: vi.fn(() => mockScannerInstance),
+  toBrowserQrScannerError: vi.fn((error: unknown, fallback: string) => (
+    error instanceof Error ? error : new Error(fallback)
+  )),
 }));
 
 // Mock logger

@@ -94,7 +94,7 @@ test.describe('Registration E2E Tests', () => {
     await expect(passwordInput).toBeVisible();
 
     // Check email input type
-    await expect(emailInput).toHaveAttribute('type', 'text');
+    await expect(emailInput).toHaveAttribute('type', 'email');
 
     // Check password input type
     await expect(passwordInput).toHaveAttribute('type', 'password');

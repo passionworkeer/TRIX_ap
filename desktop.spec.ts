@@ -1,454 +1,396 @@
-/**
- * desktop.spec.ts — Full desktop Electron app E2E test
- *
- * Tests all 9 Lumina/Noir routes and key interactions:
- * - Sidebar navigation (all 9 routes)
- * - TitleBar window controls
- * - Lumina pages: Chat, Study, Snapshot, Profile
- * - Noir pages: Dashboard, Agents, Channels, Backups, Settings
- * - Interactive elements: toggles, buttons, forms, terminal
- *
- * Usage:
- *   npx playwright test desktop.spec.ts --config playwright-desktop.config.ts
- *
- * Prerequisites:
- *   npm i -D @playwright/test && npx playwright install chromium
- */
-
-import { test, expect, type Page, type ElectronApplication } from '@playwright/test';
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
 import { _electron as electron } from '@playwright/test';
-import { ELECTRON_PATH, CDP_PORT } from './playwright-desktop.config';
+import { DESKTOP_TARGET, ELECTRON_ARGS, ELECTRON_PATH } from './playwright-desktop.config';
 
-let app: ElectronApplication;
-let page: Page;
+type RouteExpectation = {
+  label: string;
+  expectedText: string | string[];
+  timeout?: number;
+};
 
-test.beforeAll(async () => {
-  // Launch Electron with remote debugging enabled
-  app = await electron.launch({
+let app: ElectronApplication | undefined;
+let page: Page | undefined;
+
+const luminaRoutes: RouteExpectation[] = [
+  { label: '学习', expectedText: '学习工作台' },
+  { label: '快照', expectedText: '系统快照存档' },
+  { label: '地图', expectedText: '代理分布图' },
+  { label: '个人资料', expectedText: 'TRIX 用户' },
+];
+
+const managementRoutes: RouteExpectation[] = [
+  { label: '控制台', expectedText: ['管理 Gateway、Agent 与消息渠道', '加载系统状态...'] },
+  { label: '智能体', expectedText: 'Agent 管理' },
+  { label: '渠道配置', expectedText: '管理 TRIX Companion 的第三方消息渠道' },
+  { label: '数据备份', expectedText: '数据备份与恢复' },
+];
+
+async function waitForMainWindow(electronApp: ElectronApplication): Promise<Page> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const candidate = electronApp.windows().find((windowPage) => {
+      const url = windowPage.url();
+      return Boolean(url)
+        && !url.startsWith('devtools://')
+        && !url.includes('float.html')
+        && url.includes('main.html');
+    });
+
+    if (candidate) {
+      await candidate.waitForLoadState('domcontentloaded').catch(() => {});
+      return candidate;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error('Timed out waiting for the desktop main window.');
+}
+
+async function waitForDesktopShell(targetPage: Page): Promise<void> {
+  await expect(targetPage.locator('text=TRIX Companion')).toBeVisible({ timeout: 15_000 });
+  await expect(targetPage.locator('button', { hasText: '聊天' }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(targetPage.locator('button', { hasText: '系统设置' }).first()).toBeVisible({ timeout: 15_000 });
+}
+
+async function launchDesktopApp(): Promise<{ electronApp: ElectronApplication; mainPage: Page }> {
+  const electronApp = await electron.launch({
     executablePath: ELECTRON_PATH,
-    args: [
-      `--remote-debugging-port=${CDP_PORT}`,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-    ],
+    args: [...ELECTRON_ARGS],
     env: {
       ...process.env,
       NODE_ENV: 'production',
+      TRIX_PLAYWRIGHT_E2E: '1',
     },
   });
 
-  // Wait for the app window to appear
-  const window = await app.firstWindow();
-  page = window;
-});
-
-test.afterAll(async () => {
-  await app.close();
-});
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-
-async function waitForRouteReady(label: string) {
-  // Wait for loading spinners to disappear (max 5s)
-  await page.waitForTimeout(500);
-  console.log(`✓ Route ready: ${label}`);
+  const mainPage = await waitForMainWindow(electronApp);
+  await waitForDesktopShell(mainPage);
+  return { electronApp, mainPage };
 }
 
-async function clickSidebarButton(page: Page, label: string) {
-  // The sidebar button text contains the Chinese label
-  const btn = page.locator(`button:has-text("${label}")`).first();
-  await btn.click();
-  await page.waitForTimeout(300);
-}
-
-// ── TitleBar ─────────────────────────────────────────────────────────────────
-
-test.describe('TitleBar', () => {
-  test('renders app title and window controls', async () => {
-    await page.waitForLoadState('domcontentloaded');
-    // App title visible
-    await expect(page.locator('text=TRIX Companion')).toBeVisible();
-    // Minimize button present
-    const minimizeBtn = page.locator('button[title="最小化到托盘"]');
-    await expect(minimizeBtn).toBeVisible();
-    // Close button present
-    const closeBtn = page.locator('button[title="关闭"]');
-    await expect(closeBtn).toBeVisible();
-    console.log('✓ TitleBar: all controls visible');
-  });
-});
-
-// ── Sidebar Navigation ────────────────────────────────────────────────────────
-
-test.describe('Sidebar Navigation', () => {
-  const routes: Array<{ label: string; route: string; dark?: boolean }> = [
-    { label: '聊天',     route: 'chat' },
-    { label: '学习',     route: 'study' },
-    { label: '快照',    route: 'snapshot' },
-    { label: '个人资料', route: 'profile' },
-    { label: '控制台',  route: 'dashboard', dark: true },
-    { label: '智能体',  route: 'agents', dark: true },
-    { label: '渠道配置', route: 'channels', dark: true },
-    { label: '数据备份', route: 'backups', dark: true },
-    { label: '系统设置', route: 'settings', dark: true },
-  ];
-
-  for (const { label, route } of routes) {
-    test(`navigates to ${route} (${label})`, async () => {
-      await clickSidebarButton(page, label);
-      await waitForRouteReady(route);
-      console.log(`✓ Navigated to ${route}`);
-    });
+async function forceQuitApp(electronApp?: ElectronApplication): Promise<void> {
+  if (!electronApp) {
+    return;
   }
 
-  test('sidebar collapse/expand toggle works', async () => {
-    // Navigate to chat first
-    await clickSidebarButton(page, '聊天');
-    await page.waitForTimeout(200);
+  const child = electronApp.process();
+  const exitPromise = child.exitCode !== null
+    ? Promise.resolve()
+    : new Promise<void>((resolve) => {
+        child.once('exit', () => resolve());
+      });
 
-    // Find and click the collapse toggle button (chevron)
-    const toggleBtn = page.locator('button').filter({ has: page.locator('svg') }).last();
-    await toggleBtn.click();
-    await page.waitForTimeout(300);
+  try {
+    await electronApp.evaluate(({ app: electronMainApp }) => {
+      electronMainApp.exit(0);
+    });
+  } catch {
+    // Ignore failures here and fall back to process termination below.
+  }
 
-    // Sidebar should still be visible (just narrower)
-    const sidebar = page.locator('[style*="width"]').first();
-    await expect(sidebar).toBeVisible();
-    console.log('✓ Sidebar collapse toggle works');
-  });
+  await Promise.race([
+    exitPromise,
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+
+  if (child.exitCode === null && !child.killed) {
+    child.kill('SIGTERM');
+    await Promise.race([
+      exitPromise,
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+  }
+}
+
+function currentPage(): Page {
+  if (!page) {
+    throw new Error('Desktop page is not available.');
+  }
+
+  return page;
+}
+
+async function navigateToRoute(route: RouteExpectation): Promise<void> {
+  const targetPage = currentPage();
+  await targetPage.locator('button', { hasText: route.label }).first().click();
+  const expectedTexts = Array.isArray(route.expectedText) ? route.expectedText : [route.expectedText];
+
+  await expect
+    .poll(
+      async () => {
+        const bodyText = await targetPage.locator('body').innerText();
+        return expectedTexts.some((text) => bodyText.includes(text));
+      },
+      { timeout: route.timeout ?? 15_000 },
+    )
+    .toBe(true);
+}
+
+test.skip(
+  DESKTOP_TARGET === 'packaged',
+  'Packaged desktop smoke tests are source-driven. Use the default repo target or rebuild the package first.',
+);
+
+test.beforeEach(async () => {
+  const launched = await launchDesktopApp();
+  app = launched.electronApp;
+  page = launched.mainPage;
 });
 
-// ── Chat Page (Lumina) ─────────────────────────────────────────────────────────
-
-test.describe('Chat Page (Lumina)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '聊天');
-    await page.waitForTimeout(500);
-  });
-
-  test('renders chat layout (sidebar + main area)', async () => {
-    // Left panel with chat sessions
-    await expect(page.locator('text=最近对话').or(page.locator('text=新的对话'))).toBeVisible({ timeout: 5000 });
-    // Right panel with input
-    await expect(page.locator('textarea, [placeholder*="输入"], [placeholder*="chat"]').first()).toBeVisible({ timeout: 5000 });
-    console.log('✓ Chat page layout renders correctly');
-  });
-
-  test('can type in chat input', async () => {
-    const input = page.locator('textarea').first();
-    await input.fill('测试消息');
-    await expect(input).toHaveValue('测试消息');
-    console.log('✓ Chat input accepts text');
-  });
-
-  test('send button is present and clickable', async () => {
-    const sendBtn = page.locator('button').filter({ has: page.locator('svg') }).first();
-    await expect(sendBtn).toBeVisible();
-    console.log('✓ Send button visible');
-  });
+test.afterEach(async () => {
+  await forceQuitApp(app);
+  app = undefined;
+  page = undefined;
 });
 
-// ── Study Page (Lumina) ───────────────────────────────────────────────────────
+test('renders title bar and core navigation', async () => {
+  const targetPage = currentPage();
 
-test.describe('Study Page (Lumina)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '学习');
-    await page.waitForTimeout(500);
-  });
-
-  test('renders study workbench', async () => {
-    // Page title or content visible
-    await expect(
-      page.locator('text=学习').first()
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Study page renders');
-  });
-
-  test('Pomodoro timer controls work', async () => {
-    // Look for play/pause button
-    const playBtn = page.locator('button').filter({ has: page.locator('svg') }).first();
-    await expect(playBtn).toBeVisible();
-    await playBtn.click();
-    await page.waitForTimeout(500);
-    // Click again to pause
-    await playBtn.click();
-    console.log('✓ Pomodoro timer controls respond');
-  });
+  await expect(targetPage.locator('button[title="最小化到托盘"]')).toBeVisible();
+  await expect(targetPage.locator('button[title="关闭"]')).toBeVisible();
+  await expect(targetPage.locator('button[title="收起侧边栏"]')).toBeVisible();
+  await expect(targetPage.locator('body')).toContainText('功能');
+  await expect(targetPage.locator('body')).toContainText('管理');
 });
 
-// ── Snapshot Page (Lumina) ─────────────────────────────────────────────────────
+test('chat route renders composer and conversation list', async () => {
+  const targetPage = currentPage();
 
-test.describe('Snapshot Page (Lumina)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '快照');
-    await page.waitForTimeout(500);
-  });
+  await expect(targetPage.locator('body')).toContainText('最近对话');
+  await expect(targetPage.locator('body')).toContainText('TRIX Native');
 
-  test('renders snapshot list', async () => {
-    await expect(
-      page.locator('text=快照').first()
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Snapshot page renders');
-  });
-
-  test('create snapshot button is present', async () => {
-    const createBtn = page.locator('button:has-text("创建")');
-    await expect(createBtn.first()).toBeVisible();
-    console.log('✓ Create snapshot button visible');
-  });
+  const composer = targetPage.locator('textarea[placeholder*="TRIX"]').first();
+  await composer.fill('桌面端 smoke test');
+  await expect(composer).toHaveValue('桌面端 smoke test');
+  await expect(targetPage.locator('button[title="发送"]').first()).toBeEnabled();
 });
 
-// ── Profile Page (Lumina) ─────────────────────────────────────────────────────
+test('desktop native IPC uses real conversations and real multimodal message sends', async () => {
+  const targetPage = currentPage();
+  const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6pQ2kAAAAASUVORK5CYII=';
+  const wavBase64 = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=';
+  const textFileBase64 = 'ZGVza3RvcCBuYXRpdmUgZmlsZSBjaGVjawo=';
+  const marker = `desktop-native-${Date.now()}`;
 
-test.describe('Profile Page (Lumina)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '个人资料');
-    await page.waitForTimeout(500);
-  });
-
-  test('renders profile page', async () => {
-    // Avatar area or profile name
-    await expect(
-      page.locator('text=个人资料').first()
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Profile page renders');
-  });
-});
-
-// ── Dashboard Page (Noir) ─────────────────────────────────────────────────────
-
-test.describe('Dashboard Page (Noir)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '控制台');
-    await page.waitForTimeout(1000);
-  });
-
-  test('renders dashboard with dark theme', async () => {
-    // Dark background
-    await expect(page.locator('text=控制台').or(page.locator('text=Dashboard')).first())
-      .toBeVisible({ timeout: 8000 });
-    console.log('✓ Dashboard page renders (dark theme)');
-  });
-
-  test('refresh button is present', async () => {
-    const refreshBtn = page.locator('button:has-text("刷新")');
-    await expect(refreshBtn.first()).toBeVisible();
-    console.log('✓ Dashboard refresh button visible');
-  });
-});
-
-// ── Agents Page (Noir) ────────────────────────────────────────────────────────
-
-test.describe('Agents Page (Noir)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '智能体');
-    await page.waitForTimeout(1000);
-  });
-
-  test('renders agents page', async () => {
-    await expect(
-      page.locator('text=智能体').or(page.locator('text=Agent')).first()
-    ).toBeVisible({ timeout: 8000 });
-    console.log('✓ Agents page renders');
-  });
-
-  test('loading state shows and clears', async () => {
-    // Loading indicator should eventually clear
-    await page.waitForTimeout(3000);
-    // May or may not be visible depending on API response time
-    console.log('✓ Agents page loaded (API call completed or timed out)');
-  });
-});
-
-// ── Channels Page (Noir) ─────────────────────────────────────────────────────
-
-test.describe('Channels Page (Noir)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '渠道配置');
-    await page.waitForTimeout(1000);
-  });
-
-  test('renders channels list and config panel', async () => {
-    // Channel list visible
-    await expect(
-      page.locator('text=渠道').first()
-    ).toBeVisible({ timeout: 8000 });
-    // Config panel
-    await expect(
-      page.locator('button:has-text("连接")').first()
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Channels page renders with config panel');
-  });
-
-  test('channel cards are clickable', async () => {
-    // Click second channel card (Telegram after Feishu)
-    const cards = page.locator('button[style*="cursor: pointer"]');
-    const count = await cards.count();
-    if (count > 1) {
-      await cards.nth(1).click();
-      await page.waitForTimeout(300);
+  const initial = await targetPage.evaluate(async () => {
+    const api = (window as unknown as { electronAPI?: any }).electronAPI;
+    if (!api) {
+      return { ok: false, reason: 'missing-electron-api' };
     }
-    console.log('✓ Channel card selection works');
-  });
 
-  test('connect button triggers log output', async () => {
-    const connectBtn = page.locator('button:has-text("连接")');
-    await connectBtn.first().click();
-    await page.waitForTimeout(1500);
-    // Terminal log should have output
-    const terminal = page.locator('text=连接失败').or(page.locator('text=正在建立连接'));
-    await expect(terminal.first()).toBeVisible({ timeout: 5000 });
-    console.log('✓ Connect button triggers terminal log');
-  });
-});
-
-// ── Backups Page (Noir) ──────────────────────────────────────────────────────
-
-test.describe('Backups Page (Noir)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '数据备份');
-    await page.waitForTimeout(1000);
-  });
-
-  test('renders backups page with dark theme', async () => {
-    await expect(
-      page.locator('text=备份').first()
-    ).toBeVisible({ timeout: 8000 });
-    console.log('✓ Backups page renders');
-  });
-
-  test('auto-backup toggle works', async () => {
-    const toggle = page.locator('button').filter({ has: page.locator('div[style*="border-radius: 50%"]') }).first();
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await page.waitForTimeout(200);
-    console.log('✓ Auto-backup toggle responds');
-  });
-
-  test('refresh button triggers API load', async () => {
-    const refreshBtn = page.locator('button:has-text("刷新")');
-    if (await refreshBtn.count() > 0) {
-      await refreshBtn.first().click();
-      await page.waitForTimeout(2000);
+    const conversations = await api.listConversations();
+    if (!conversations?.success || !Array.isArray(conversations.data)) {
+      return { ok: false, reason: 'list-conversations-failed', conversations };
     }
-    console.log('✓ Backups refresh button works');
-  });
 
-  test('backup history table is visible', async () => {
-    await expect(
-      page.locator('th:has-text("备份日期")').or(page.locator('th:has-text("描述")'))
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Backup history table visible');
-  });
-});
+    const realConversation = conversations.data.find((entry: { id?: string }) =>
+      typeof entry?.id === 'string' && entry.id.startsWith('conv_'),
+    );
 
-// ── Settings Page (Noir) ─────────────────────────────────────────────────────
-
-test.describe('Settings Page (Noir)', () => {
-  test.beforeEach(async () => {
-    await clickSidebarButton(page, '系统设置');
-    await page.waitForTimeout(1000);
-  });
-
-  test('renders settings with tab bar', async () => {
-    await expect(
-      page.locator('text=桌面设置').first()
-    ).toBeVisible({ timeout: 8000 });
-    // Tab bar visible
-    await expect(
-      page.locator('button:has-text("概览")')
-    ).toBeVisible();
-    console.log('✓ Settings page renders with tabs');
-  });
-
-  test('all 6 tabs are present', async () => {
-    const tabs = ['概览', 'Agents', 'Skills', '备份', '配对码', 'Gateway'];
-    for (const tab of tabs) {
-      await expect(page.locator(`button:has-text("${tab}")`)).toBeVisible();
+    if (!realConversation) {
+      return { ok: false, reason: 'no-real-conversation', conversations };
     }
-    console.log('✓ All 6 Settings tabs present');
+
+    const messages = await api.fetchMessages(realConversation.id);
+    return {
+      ok: true,
+      conversations,
+      realConversation,
+      messages,
+    };
   });
 
-  test('switching tabs updates content', async () => {
-    // Click Gateway tab
-    await page.locator('button:has-text("Gateway")').click();
-    await page.waitForTimeout(300);
-    // Should show Gateway content
-    await expect(
-      page.locator('text=Gateway').first()
-    ).toBeVisible({ timeout: 3000 });
-    console.log('✓ Settings tab switching works');
+  expect(initial.ok).toBe(true);
+  expect(initial.conversations.data.length).toBeGreaterThan(0);
+  expect(initial.conversations.data.every((entry: { id: string }) => !entry.id.startsWith('demo-') && !entry.id.startsWith('local-'))).toBe(true);
+  expect(initial.realConversation.id.startsWith('conv_')).toBe(true);
+  expect(initial.messages.success).toBe(true);
+  expect(Array.isArray(initial.messages.data)).toBe(true);
+
+  const textSend = await targetPage.evaluate(async ({ conversationId, markerText }) => {
+    const api = (window as unknown as { electronAPI?: any }).electronAPI;
+    return await api.sendMessage(conversationId, markerText);
+  }, {
+    conversationId: initial.realConversation.id,
+    markerText: marker,
   });
 
-  test('Agents tab shows agent list button', async () => {
-    await page.locator('button:has-text("Agents")').click();
-    await page.waitForTimeout(300);
-    await expect(
-      page.locator('button:has-text("列出")').first()
-    ).toBeVisible({ timeout: 3000 });
-    console.log('✓ Agents tab content loads');
+  expect(textSend.success).toBe(true);
+  expect(textSend.data.content).toContain(marker);
+  expect(textSend.data.direction).toBe('outgoing');
+
+  await expect
+    .poll(async () => {
+      const result = await targetPage.evaluate(async (conversationId) => {
+        const api = (window as unknown as { electronAPI?: any }).electronAPI;
+        return await api.fetchMessages(conversationId);
+      }, initial.realConversation.id);
+      if (!result?.success || !Array.isArray(result.data)) {
+        return false;
+      }
+      return result.data.some((entry: { content?: string }) => entry.content?.includes(marker));
+    }, { timeout: 20_000 })
+    .toBe(true);
+
+  const imageMarker = `${marker}-image`;
+  const imageSend = await targetPage.evaluate(async ({ conversationId, nextImageMarker, contentBase64 }) => {
+    const api = (window as unknown as { electronAPI?: any }).electronAPI;
+    return await api.sendImageMessage(conversationId, {
+      fileName: 'desktop-native-check.png',
+      mimeType: 'image/png',
+      contentBase64,
+      text: nextImageMarker,
+    });
+  }, {
+    conversationId: initial.realConversation.id,
+    nextImageMarker: imageMarker,
+    contentBase64: tinyPngBase64,
   });
 
-  test('Pairing tab shows generate button', async () => {
-    await page.locator('button:has-text("配对码")').click();
-    await page.waitForTimeout(300);
-    await expect(
-      page.locator('button:has-text("生成配对码")').or(page.locator('text=配对码'))
-    ).toBeVisible({ timeout: 3000 });
-    console.log('✓ Pairing tab content loads');
+  expect(imageSend.success).toBe(true);
+  expect(imageSend.data.direction).toBe('outgoing');
+  expect(Array.isArray(imageSend.data.attachments)).toBe(true);
+  expect(imageSend.data.attachments[0]?.type).toBe('image');
+
+  await expect
+    .poll(async () => {
+      const result = await targetPage.evaluate(async (conversationId) => {
+        const api = (window as unknown as { electronAPI?: any }).electronAPI;
+        return await api.fetchMessages(conversationId);
+      }, initial.realConversation.id);
+
+      if (!result?.success || !Array.isArray(result.data)) {
+        return false;
+      }
+
+      return result.data.some((entry: {
+        content?: string;
+        attachments?: Array<{ type?: string; url?: string }>;
+      }) => entry.content?.includes(imageMarker)
+        && Array.isArray(entry.attachments)
+        && entry.attachments.some((attachment) =>
+          attachment.type === 'image'
+          && typeof attachment.url === 'string'
+          && (
+            attachment.url.includes('/api/attachments/')
+            || attachment.url.includes('/api/service/attachments/')
+          ),
+        ));
+    }, { timeout: 20_000 })
+    .toBe(true);
+
+  const fileMarker = `${marker}-file`;
+  const fileSend = await targetPage.evaluate(async ({ conversationId, nextFileMarker, contentBase64 }) => {
+    const api = (window as unknown as { electronAPI?: any }).electronAPI;
+    return await api.sendAttachmentMessage(conversationId, {
+      fileName: 'desktop-native-check.txt',
+      mimeType: 'text/plain',
+      contentBase64,
+      kind: 'file',
+      text: nextFileMarker,
+    });
+  }, {
+    conversationId: initial.realConversation.id,
+    nextFileMarker: fileMarker,
+    contentBase64: textFileBase64,
   });
+
+  expect(fileSend.success).toBe(true);
+  expect(fileSend.data.direction).toBe('outgoing');
+  expect(Array.isArray(fileSend.data.attachments)).toBe(true);
+  expect(fileSend.data.attachments[0]?.type).toBe('file');
+
+  await expect
+    .poll(async () => {
+      const result = await targetPage.evaluate(async (conversationId) => {
+        const api = (window as unknown as { electronAPI?: any }).electronAPI;
+        return await api.fetchMessages(conversationId);
+      }, initial.realConversation.id);
+
+      if (!result?.success || !Array.isArray(result.data)) {
+        return false;
+      }
+
+      return result.data.some((entry: {
+        content?: string;
+        attachments?: Array<{ type?: string; url?: string; name?: string }>;
+      }) => entry.content?.includes(fileMarker)
+        && Array.isArray(entry.attachments)
+        && entry.attachments.some((attachment) =>
+          attachment.type === 'file'
+          && attachment.name === 'desktop-native-check.txt'
+          && typeof attachment.url === 'string'
+          && attachment.url.length > 0,
+        ));
+    }, { timeout: 20_000 })
+    .toBe(true);
+
+  const audioMarker = `${marker}-audio`;
+  const audioSend = await targetPage.evaluate(async ({ conversationId, nextAudioMarker, contentBase64 }) => {
+    const api = (window as unknown as { electronAPI?: any }).electronAPI;
+    return await api.sendAttachmentMessage(conversationId, {
+      fileName: 'desktop-native-check.wav',
+      mimeType: 'audio/wav',
+      contentBase64,
+      kind: 'audio',
+      text: nextAudioMarker,
+    });
+  }, {
+    conversationId: initial.realConversation.id,
+    nextAudioMarker: audioMarker,
+    contentBase64: wavBase64,
+  });
+
+  expect(audioSend.success).toBe(true);
+  expect(audioSend.data.direction).toBe('outgoing');
+  expect(Array.isArray(audioSend.data.attachments)).toBe(true);
+  expect(audioSend.data.attachments[0]?.type).toBe('audio');
+
+  await expect
+    .poll(async () => {
+      const result = await targetPage.evaluate(async (conversationId) => {
+        const api = (window as unknown as { electronAPI?: any }).electronAPI;
+        return await api.fetchMessages(conversationId);
+      }, initial.realConversation.id);
+
+      if (!result?.success || !Array.isArray(result.data)) {
+        return false;
+      }
+
+      return result.data.some((entry: {
+        content?: string;
+        attachments?: Array<{ type?: string; url?: string; name?: string }>;
+      }) => entry.content?.includes(audioMarker)
+        && Array.isArray(entry.attachments)
+        && entry.attachments.some((attachment) =>
+          attachment.type === 'audio'
+          && attachment.name === 'desktop-native-check.wav'
+          && typeof attachment.url === 'string'
+          && attachment.url.length > 0,
+        ));
+    }, { timeout: 20_000 })
+    .toBe(true);
 });
 
-// ── Skills Route (redirects to Settings) ─────────────────────────────────────
-
-test.describe('Skills Route', () => {
-  test('skills route shows redirect prompt', async () => {
-    await clickSidebarButton(page, 'Skills');
-    await page.waitForTimeout(500);
-    // Skills page shows "请在桌面设置中使用" message
-    await expect(
-      page.locator('text=桌面设置').or(page.locator('text=Skill'))
-    ).toBeVisible({ timeout: 5000 });
-    console.log('✓ Skills route renders redirect page');
+for (const route of luminaRoutes) {
+  test(`renders Lumina route: ${route.label}`, async () => {
+    await navigateToRoute(route);
   });
+}
 
-  test('redirect button navigates to settings', async () => {
-    const redirectBtn = page.locator('button:has-text("打开桌面设置")');
-    if (await redirectBtn.count() > 0) {
-      await redirectBtn.click();
-      await page.waitForTimeout(500);
-      await expect(page.locator('text=桌面设置')).toBeVisible({ timeout: 5000 });
-      console.log('✓ Skills redirect button works');
-    } else {
-      console.log('✓ Skills redirect button not found (may be rendered differently)');
-    }
+for (const route of managementRoutes) {
+  test(`renders management route: ${route.label}`, async () => {
+    await navigateToRoute(route);
   });
-});
+}
 
-// ── End-to-End Navigation Flow ────────────────────────────────────────────────
+test('settings overview loads app info without missing IPC errors', async () => {
+  const targetPage = currentPage();
 
-test.describe('Full Navigation Flow', () => {
-  test('complete route cycle: chat → dashboard → settings → chat', async () => {
-    // Start at chat
-    await clickSidebarButton(page, '聊天');
-    await page.waitForTimeout(400);
-    await expect(page.locator('text=聊天').or(page.locator('textarea'))).toBeVisible({ timeout: 5000 });
-
-    // Navigate to dashboard
-    await clickSidebarButton(page, '控制台');
-    await page.waitForTimeout(600);
-    await expect(page.locator('text=控制台').or(page.locator('text=Dashboard'))).toBeVisible({ timeout: 5000 });
-
-    // Navigate to settings
-    await clickSidebarButton(page, '系统设置');
-    await page.waitForTimeout(600);
-    await expect(page.locator('text=桌面设置')).toBeVisible({ timeout: 5000 });
-
-    // Back to chat
-    await clickSidebarButton(page, '聊天');
-    await page.waitForTimeout(400);
-    await expect(page.locator('text=聊天').or(page.locator('textarea'))).toBeVisible({ timeout: 5000 });
-
-    console.log('✓ Full navigation cycle completed');
-  });
+  await navigateToRoute({ label: '系统设置', expectedText: '桌面设置' });
+  await expect(targetPage.locator('body')).toContainText('概览');
+  await expect(targetPage.locator('body')).toContainText('配对码');
+  await expect(targetPage.locator('body')).toContainText('Gateway');
+  await expect(targetPage.locator('body')).toContainText('Electron');
+  await expect(targetPage.locator('body')).not.toContainText("No handler registered for 'app:info'");
 });

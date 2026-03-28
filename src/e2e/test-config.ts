@@ -32,6 +32,14 @@ export async function waitForI18n(page: Page) {
  * 注意：注册后需要邮箱确认才能登录
  */
 export async function loginWithSupabase(page: Page) {
+  if (process.env.PLAYWRIGHT_USE_REAL_SUPABASE !== '1') {
+    console.log('Using mocked Supabase authentication...');
+    await waitForI18n(page);
+    await mockSession(page, 'test-user-123', TEST_USER.email);
+    await page.waitForTimeout(100);
+    return;
+  }
+
   console.log('Using REAL Supabase authentication...');
   console.log('Test user:', TEST_USER.email);
 

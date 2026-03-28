@@ -46,20 +46,6 @@ interface PomodoroState {
 
 // ── Demo fallback data ────────────────────────────────────────────────────────
 
-const DEMO_TODOS: TodoItem[] = [
-  { id: 'demo-1', text: '完成 TRIX 原型设计稿', completed: false, priority: 'high', deadline: '今日' },
-  { id: 'demo-2', text: '阅读量子计算第三章', completed: true, priority: 'medium' },
-  { id: 'demo-3', text: '复习微积分重点公式', completed: false, priority: 'medium', deadline: '明日' },
-  { id: 'demo-4', text: '整理学习笔记卡片', completed: false, priority: 'low' },
-  { id: 'demo-5', text: '完成英语单词记忆计划', completed: false, priority: 'high', deadline: '今日' },
-];
-
-const ACHIEVEMENTS = [
-  { label: '连续7天学习', icon: '🏆', color: '#f59e0b' },
-  { label: '完成100个番茄钟', icon: '🍅', color: '#ef4444' },
-  { label: '累计学习100小时', icon: '📚', color: '#3b82f6' },
-];
-
 // ── Utilities ──────────────────────────────────────────────────────────────
 
 const MODE_DURATIONS: Record<PomodoroMode, number> = {
@@ -799,88 +785,23 @@ const SecurityCTA = () => (
 
 // ── Courses Tab Content ──────────────────────────────────────────────────────
 
-interface CourseItem {
-  id: string;
-  title: string;
-  teacher: string;
-  progress: number;
-  totalLessons: number;
-  completedLessons: number;
-  nextAction: string;
-  coverColor: string;
-}
-
-const DEMO_COURSES: CourseItem[] = [
-  { id: 'c1', title: '高等数学精讲', teacher: '李明教授', progress: 72, totalLessons: 40, completedLessons: 29, nextAction: '继续学习', coverColor: '#630ed4' },
-  { id: 'c2', title: '线性代数基础', teacher: '王芳讲师', progress: 45, totalLessons: 30, completedLessons: 14, nextAction: '完成作业', coverColor: '#7c3aed' },
-  { id: 'c3', title: '量子计算入门', teacher: '张强博士', progress: 88, totalLessons: 25, completedLessons: 22, nextAction: '复习冲刺', coverColor: '#6a4fa0' },
-  { id: 'c4', title: '机器学习实战', teacher: '陈薇教授', progress: 20, totalLessons: 60, completedLessons: 12, nextAction: '观看视频', coverColor: '#0369a1' },
-];
-
 const CoursesTabContent: React.FC = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-    {DEMO_COURSES.map((course) => (
-      <div
-        key={course.id}
-        style={{
-          background: C.surfaceLowest,
-          borderRadius: 12,
-          border: `1px solid ${C.outlineVariant}40`,
-          padding: '18px 20px',
-          display: 'flex',
-          gap: 16,
-          boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
-          cursor: 'pointer',
-          transition: 'all 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          const el = e.currentTarget as HTMLDivElement;
-          el.style.borderColor = `${C.primary}40`;
-          el.style.boxShadow = `0 4px 16px ${C.primary}12`;
-        }}
-        onMouseLeave={(e) => {
-          const el = e.currentTarget as HTMLDivElement;
-          el.style.borderColor = `${C.outlineVariant}40`;
-          el.style.boxShadow = '0 1px 4px rgba(25,28,30,0.05)';
-        }}
-      >
-        <div style={{
-          width: 6,
-          borderRadius: 4,
-          background: course.coverColor,
-          flexShrink: 0,
-          alignSelf: 'stretch',
-        }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.onSurface, marginBottom: 2 }}>{course.title}</div>
-              <div style={{ fontSize: 11, color: C.onSurfaceVariant }}>{course.teacher} · {course.completedLessons}/{course.totalLessons} 课时</div>
-            </div>
-            <button
-              style={{
-                padding: '5px 14px',
-                borderRadius: 8,
-                background: course.coverColor,
-                color: '#fff',
-                border: 'none',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-              }}
-            >
-              {course.nextAction}
-            </button>
-          </div>
-          <ProgressBar value={course.progress} color={course.coverColor} animated height={5} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-            <span style={{ fontSize: 10, color: C.onSurfaceVariant }}>{course.progress}% 完成</span>
-            <span style={{ fontSize: 10, color: C.onSurfaceVariant }}>{course.totalLessons - course.completedLessons} 课时待学</span>
-          </div>
-        </div>
-      </div>
-    ))}
+  <div
+    style={{
+      background: C.surfaceLowest,
+      borderRadius: 12,
+      border: `1px solid ${C.outlineVariant}40`,
+      padding: '28px 24px',
+      boxShadow: '0 1px 4px rgba(25,28,30,0.05)',
+    }}
+  >
+    <div style={{ fontSize: 14, fontWeight: 700, color: C.onSurface, marginBottom: 8 }}>
+      暂无课程资料
+    </div>
+    <div style={{ fontSize: 12, color: C.onSurfaceVariant, lineHeight: 1.7 }}>
+      当前桌面端还没有接入真实课程数据源，所以这里不会再展示演示课程卡片。
+      等课程服务接入后，这里会直接展示真实课程、进度和课时信息。
+    </div>
   </div>
 );
 
@@ -933,8 +854,6 @@ const formatMins = (mins: number): string => {
 };
 
 const StatsTabContent: React.FC<StatsTabContentProps> = ({ studyStats, loading }) => {
-  const totalHours = Math.round(studyStats.totalMinutes / 60);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {loading ? (
@@ -944,9 +863,9 @@ const StatsTabContent: React.FC<StatsTabContentProps> = ({ studyStats, loading }
       ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <StatCardItem icon={<Clock size={16} />} label="累计学习时长" value={formatMins(studyStats.totalMinutes)} color={C.primary} bg={`${C.primary}10`} />
-        <StatCardItem icon={<CheckCircle size={16} />} label="完成任务数" value={`${Math.floor(studyStats.sessionCount * 0.4)} 个`} color="#16a34a" bg="#16a34a10" />
-        <StatCardItem icon={<Activity size={16} />} label="连续学习天数" value={`${totalHours} 天`} color="#0369a1" bg="#0369a115" />
-        <StatCardItem icon={<Zap size={16} />} label="完成番茄钟" value={`${studyStats.sessionCount} 个`} color="#d97706" bg="#d9770610" />
+        <StatCardItem icon={<CheckCircle size={16} />} label="学习会话数" value={`${studyStats.sessionCount} 个`} color="#16a34a" bg="#16a34a10" />
+        <StatCardItem icon={<Activity size={16} />} label="今日学习时长" value={formatMins(studyStats.todayMinutes)} color="#0369a1" bg="#0369a115" />
+        <StatCardItem icon={<Zap size={16} />} label="本周学习时长" value={formatMins(studyStats.weekMinutes)} color="#d97706" bg="#d9770610" />
       </div>
       )}
 
@@ -1623,13 +1542,14 @@ export default function StudyPage() {
     }).catch(() => {});
   }, [api]);
 
-  // Load todos from IPC (Supabase via main process)
-  useEffect(() => {
-    if (!api) {
-      setTodos(DEMO_TODOS);
+  const loadTodos = useCallback(async () => {
+    if (!api?.listTodos) {
+      setTodos([]);
       return;
     }
-    api.listTodos().then((result) => {
+
+    try {
+      const result = await api.listTodos();
       if (result.success && Array.isArray(result.data) && result.data.length > 0) {
         setTodos(result.data.map((t) => {
           const raw = t as { id: string; text?: string; title?: string; completed: boolean; priority?: string; deadline?: string };
@@ -1642,14 +1562,19 @@ export default function StudyPage() {
             deadline: raw.deadline,
           };
         }));
-      } else {
-        setTodos(DEMO_TODOS);
+        return;
       }
-    }).catch(() => {
-      setTodos(DEMO_TODOS);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+      setTodos([]);
+    } catch {
+      setTodos([]);
+    }
+  }, [api]);
+
+  // Load todos from IPC (Supabase via main process)
+  useEffect(() => {
+    void loadTodos();
+  }, [loadTodos]);
 
   // Load study stats from IPC (Supabase via main process)
   useEffect(() => {
@@ -1673,13 +1598,30 @@ export default function StudyPage() {
       prev.map((t) => t.id === id ? { ...t, completed: !t.completed } : t)
     );
     // Persist via API (fire-and-forget, graceful failure)
-    if (api && !id.startsWith('demo-')) {
+    if (api?.toggleTodo) {
       const todo = todos.find((t) => t.id === id);
       if (todo) {
         api.toggleTodo(id, !todo.completed).catch(() => {});
       }
     }
   }, [api, todos]);
+
+  const handleCreateTodo = useCallback(async () => {
+    if (!api?.createTodo) return;
+
+    const title = window.prompt('输入一个新的待办事项');
+    const trimmedTitle = title?.trim();
+    if (!trimmedTitle) return;
+
+    try {
+      const result = await api.createTodo(trimmedTitle, 'medium');
+      if (result.success) {
+        await loadTodos();
+      }
+    } catch {
+      // Ignore prompt-driven create failures and keep the current list intact.
+    }
+  }, [api, loadTodos]);
 
   // Format minutes to hours and minutes
   const formatMinutes = (minutes: number): string => {
@@ -1965,7 +1907,7 @@ export default function StudyPage() {
             />
           </div>
 
-          {/* Achievement Badges */}
+          {/* Study Overview */}
           <div
             style={{
               background: C.surfaceLowest,
@@ -1976,12 +1918,16 @@ export default function StudyPage() {
             }}
           >
             <div style={{ fontSize: 11, fontWeight: 700, color: C.onSurfaceVariant, marginBottom: 10, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.6 }}>
-              成就徽章
+              学习概览
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              {ACHIEVEMENTS.map((a) => (
+              {[
+                { label: '今日时长', value: formatMinutes(studyStats.todayMinutes), color: C.primary },
+                { label: '本周时长', value: formatMinutes(studyStats.weekMinutes), color: '#16a34a' },
+                { label: '会话数', value: `${studyStats.sessionCount} 个`, color: '#0369a1' },
+              ].map((item) => (
                 <div
-                  key={a.label}
+                  key={item.label}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -1990,22 +1936,32 @@ export default function StudyPage() {
                     flex: 1,
                     padding: '10px 8px',
                     borderRadius: 10,
-                    background: `${a.color}10`,
-                    border: `1px solid ${a.color}25`,
+                    background: `${item.color}10`,
+                    border: `1px solid ${item.color}25`,
                     cursor: 'default',
                   }}
                 >
-                  <span style={{ fontSize: 22 }}>{a.icon}</span>
                   <span
                     style={{
-                      fontSize: 10,
-                      color: a.color,
+                      fontSize: 11,
+                      color: C.onSurfaceVariant,
                       fontWeight: 600,
                       textAlign: 'center',
                       lineHeight: 1.3,
                     }}
                   >
-                    {a.label}
+                    {item.label}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 15,
+                      color: item.color,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {item.value}
                   </span>
                 </div>
               ))}
@@ -2032,6 +1988,19 @@ export default function StudyPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {todos.length === 0 && (
+                <div
+                  style={{
+                    padding: '12px 10px',
+                    borderRadius: 8,
+                    background: C.surfaceLow,
+                    fontSize: 12,
+                    color: C.onSurfaceVariant,
+                  }}
+                >
+                  暂无真实待办数据
+                </div>
+              )}
               {todos.map((todo) => (
                 <div
                   key={todo.id}
@@ -2116,6 +2085,7 @@ export default function StudyPage() {
 
             {/* Add task button */}
             <button
+              onClick={() => { void handleCreateTodo(); }}
               style={{
                 width: '100%',
                 marginTop: 10,
@@ -2197,7 +2167,7 @@ export default function StudyPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <QuickStat label="专注总时长" value={formatMinutes(studyStats.weekMinutes)} icon={<Clock size={12} />} />
               <QuickStat label="完成番茄钟" value={`${studyStats.sessionCount} 个`} icon={<CheckCircle size={12} />} />
-              <QuickStat label="学习天数" value={`累计 ${Math.floor(studyStats.totalMinutes / 60)} 天`} icon={<Activity size={12} />} />
+              <QuickStat label="累计学习" value={formatMinutes(studyStats.totalMinutes)} icon={<Activity size={12} />} />
             </div>
           </div>
         </div>

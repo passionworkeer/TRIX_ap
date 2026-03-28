@@ -151,68 +151,40 @@ export default function DashboardPage() {
     if (!api) return;
     setLoading(true);
     try {
-      const [gw, oc, _info, sys, disk, pkgs] = await Promise.all([
+      const [gw, oc] = await Promise.all([
         api.getGatewayStatus(),
         api.checkOpenClaw(),
-        api.getAppInfo(),
-        api.getSystemInfo(),
-        api.getDiskInfo(),
-        api.checkPackages(),
       ]);
       setGatewayStatus(gw);
       setOpenClawStatus(oc);
-      if (sys.success && sys.data) setSystemInfo(sys.data);
-      if (disk.success && disk.data) setDiskInfo(disk.data);
-      if (pkgs.success && pkgs.data) setPackages(pkgs.data);
+      setLoading(false);
+
+      void api.getSystemInfo()
+        .then((sys) => {
+          if (sys.success && sys.data) setSystemInfo(sys.data);
+        })
+        .catch(() => {});
+
+      void api.getDiskInfo()
+        .then((disk) => {
+          if (disk.success && disk.data) setDiskInfo(disk.data);
+        })
+        .catch(() => {});
+
+      void api.checkPackages()
+        .then((pkgs) => {
+          if (pkgs.success && pkgs.data) setPackages(pkgs.data);
+        })
+        .catch(() => {});
 
       // ── WebSocket RPC: fetch real agents, sessions, health ─────────────────
       if (gw?.running) {
-        // Connect WS channel first
-        api.gatewayConnect?.();
-        const [healthResult, logsResult] = await Promise.all([
-          api.gatewayHealthRpc?.(),
-          api.gatewayLogsWs?.(80),
-        ]);
-
-        // Extract channel status from health RPC
-        if (healthResult?.success && healthResult.data) {
-          const h = healthResult.data as { channels?: Record<string, { running?: boolean; configured?: boolean; accountId?: string }> };
-          if (h?.channels) {
-            const chans: Record<string, { running: boolean; configured: boolean; accountId?: string }> = {};
-            for (const [key, val] of Object.entries(h.channels)) {
-              if (val && typeof val === 'object') {
-                chans[key] = { running: !!val.running, configured: !!val.configured, accountId: val.accountId };
-              }
-            }
-            setChannelStatus(chans);
-          }
-          // Agent count from health snapshot
-          const agents = (healthResult.data as { agents?: unknown[] })?.agents;
-          if (Array.isArray(agents)) setAgentCount(agents.length);
-          // Session count from health snapshot
-          const sessions = (healthResult.data as { sessions?: { count?: number } })?.sessions;
-          if (sessions) setSessionCount(sessions.count ?? 0);
-        }
-
-        // Auto-pull gateway logs via WS RPC
-        if (logsResult?.success && Array.isArray(logsResult.data) && logsResult.data.length > 0) {
-          setLogEntries((prev) => {
-            const existing = new Set(prev.map((e) => e.text));
-            const newEntries = (logsResult.data ?? [])
-              .filter((l: string) => l && !existing.has(l))
-              .slice(-80)
-              .map((l: string) => createLogEntry('output', l));
-            if (newEntries.length > 0) {
-              return [...prev.slice(-120), ...newEntries];
-            }
-            return prev;
-          });
-        }
+        setAgentCount(0);
+        setSessionCount(0);
+        setChannelStatus({});
       }
     } catch (err) {
       addLog(createLogEntry('error', `状态加载失败: ${String(err)}`));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -222,32 +194,7 @@ export default function DashboardPage() {
   }, [loadStatus]);
 
   // ── Real-time Gateway WS events ─────────────────────────────────────────────
-  useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onGatewayEvent) return;
-
-    const unsub = api.onGatewayEvent((event) => {
-      // Append real-time events to the log terminal
-      const eventType = String(event.type ?? '');
-      const msg = `[WS ${eventType}] ${JSON.stringify(event).slice(0, 120)}`;
-      addLog(createLogEntry('output', msg));
-
-      // Refresh agent/session counts on relevant events
-      if (['agent', 'presence', 'sessions.list'].includes(eventType)) {
-        api.gatewayAgents?.().then((r: { success?: boolean; data?: unknown[] }) => {
-          if (r?.success && Array.isArray(r.data)) setAgentCount(r.data.length);
-        });
-        api.gatewaySessions?.().then((r: { success?: boolean; data?: unknown[] }) => {
-          if (r?.success && Array.isArray(r.data)) setSessionCount(r.data.length);
-        });
-      }
-    });
-
-    // Kick off lazy WS connection
-    api.gatewayConnect?.();
-
-    return unsub;
-  }, []);
+  useEffect(() => undefined, []);
 
   const runCommand = async (cmd: string, label: string) => {
     const api = window.electronAPI;

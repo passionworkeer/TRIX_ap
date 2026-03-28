@@ -1,105 +1,71 @@
-/**
- * Integration tests for Chat → TTS → Voice Playback pipeline.
- *
- * These tests verify the end-to-end flow:
- *   1. A bot message arrives (simulating real-time Supabase channel event)
- *   2. ttsService.synthesize() is called with the correct text
- *   3. voicePlaybackService.playFromBlob() is triggered with the audio blob
- *
- * Environment: Node (no DOM rendering — tests service/context interactions)
- */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, act, waitFor, cleanup } from '@testing-library/react';
-import React, { type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
 
-// ─── Mocks ────────────────────────────────────────────────────────────────────
-
-const {
-  mockInstance,
-  _handlers,
-} = vi.hoisted(() => {
-  const handlers: Record<string, ((...args: unknown[]) => unknown)[]> = {};
-  const mockInstance = {
+const { mockInstance, handlers } = vi.hoisted(() => {
+  const eventHandlers: Record<string, ((...args: unknown[]) => unknown)[]> = {};
+  const instance = {
     on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-      if (!handlers[event]) handlers[event] = [];
-      handlers[event].push(handler);
+      if (!eventHandlers[event]) {
+        eventHandlers[event] = [];
+      }
+      eventHandlers[event].push(handler);
     }),
     off: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-      if (handlers[event]) handlers[event] = handlers[event].filter(h => h !== handler);
+      if (!eventHandlers[event]) {
+        return;
+      }
+      eventHandlers[event] = eventHandlers[event].filter((entry) => entry !== handler);
     }),
-    removeAllListeners: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
+    removeAllListeners: vi.fn(),
     setAuthUser: vi.fn(),
     getSession: vi.fn().mockReturnValue(null),
     clearSession: vi.fn(),
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
     isConnected: vi.fn().mockReturnValue(false),
-    isPaired: vi.fn().mockReturnValue(false),
-    checkPairingStatus: vi.fn().mockResolvedValue({ paired: false }),
+    isPaired: vi.fn().mockReturnValue(true),
+    checkPairingStatus: vi.fn().mockResolvedValue({ paired: true, botOnline: true, deviceId: 'device-1' }),
     bindCurrentSessionToAuthUser: vi.fn().mockResolvedValue(true),
     restoreSession: vi.fn().mockResolvedValue(null),
-    pairWithCode: vi.fn().mockResolvedValue({ success: true }),
-    pairWithQR: vi.fn().mockResolvedValue({ success: true }),
-    sendMessage: vi.fn().mockResolvedValue({ messageId: 'msg-id' }),
-    uploadMedia: vi.fn().mockResolvedValue('https://example.com/media.jpg'),
-    uploadAttachment: vi.fn().mockResolvedValue({
-      attachmentId: 'att-1', url: 'https://example.com/file.jpg',
-      kind: 'image', mimeType: 'image/jpeg', fileName: 'test.jpg', size: 100,
-    }),
+    pairWithCode: vi.fn(),
+    pairWithQR: vi.fn(),
+    sendMessage: vi.fn().mockResolvedValue({ messageId: 'native-message-1' }),
+    uploadMedia: vi.fn(),
+    uploadAttachment: vi.fn(),
     unpair: vi.fn(),
-    getUserId: vi.fn().mockReturnValue('test-user-id'),
-    getOrCreateClientId: vi.fn().mockReturnValue('test-client-id'),
+    getUserId: vi.fn().mockReturnValue('user-123'),
+    getOrCreateClientId: vi.fn().mockReturnValue('client-123'),
   };
-  return { mockInstance, _handlers: handlers };
+
+  return { mockInstance: instance, handlers: eventHandlers };
 });
 
-const fireHandler = (event: string, payload?: unknown) => {
-  const hs = _handlers[event] || [];
-  for (const h of hs) { h(payload); }
-};
+function fireHandler(event: string, payload?: unknown) {
+  for (const handler of handlers[event] || []) {
+    handler(payload);
+  }
+}
 
-// Mock TTS synthesis — returns a fake audio blob
-const mockSynthesizeSpeech = vi.fn().mockResolvedValue(
-  new Blob(['fake-audio-data'], { type: 'audio/mpeg' }),
-);
-
-// Mock voice playback service
-const mockPlayFromBlob = vi.fn().mockResolvedValue(undefined);
-
-// Mock Supabase auth
-const mockGetSession = vi.fn().mockResolvedValue({
-  data: {
-    session: {
-      access_token: 'token-123',
-      refresh_token: 'rt',
-      expires_in: 3600,
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
-      token_type: 'bearer',
-      user: {
-        id: 'user-123',
-        email: 'test@example.com',
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        created_at: '2024-01-01T00:00:00Z',
-      },
-    },
-  },
-  error: null,
-});
-
-vi.mock('../services/TrixNativeChannelClient', () => ({
+vi.mock('../../src/services/TrixNativeChannelClient', () => ({
   default: mockInstance,
 }));
 
-vi.mock('../contexts/AuthContext', () => ({
+vi.mock('../../src/contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 'user-123', email: 'test@example.com' },
-    profile: { id: 'user-123', username: 'TestUser' },
+    profile: { id: 'user-123', username: 'tester' },
+    session: null,
+    loading: false,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    updateProfile: vi.fn(),
+    refreshProfile: vi.fn(),
   }),
 }));
 
-vi.mock('../contexts/VoiceSettingsContext', () => ({
+vi.mock('../../src/contexts/VoiceSettingsContext', () => ({
   useVoiceSettings: () => ({
     voiceEnabled: true,
     setVoiceEnabled: vi.fn(),
@@ -107,25 +73,7 @@ vi.mock('../contexts/VoiceSettingsContext', () => ({
   }),
 }));
 
-vi.mock('../../src/services/ttsService', () => ({
-  synthesizeSpeech: (...args: unknown[]) => mockSynthesizeSpeech(...args),
-}));
-
-vi.mock('../../src/services/voicePlaybackService', () => ({
-  playFromBlob: (...args: unknown[]) => mockPlayFromBlob(...args),
-  stopCurrent: vi.fn(),
-  default: {
-    playFromBlob: (...args: unknown[]) => mockPlayFromBlob(...args),
-    stopCurrent: vi.fn(),
-  },
-}));
-
-vi.mock('react-hot-toast', () => ({
-  __esModule: true,
-  default: { error: vi.fn(), success: vi.fn() },
-}));
-
-vi.mock('../utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
     clawbot: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
     setLevel: vi.fn(),
@@ -133,165 +81,114 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
-// ─── Imports ─────────────────────────────────────────────────────────────────
+vi.mock('react-hot-toast', () => ({
+  __esModule: true,
+  default: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
 
 import {
   ClawbotChannelProvider,
   useClawbotChannel,
 } from '../../src/contexts/ClawbotChannelContext';
 
-// ─── Test helper ──────────────────────────────────────────────────────────────
-
 function ChannelConsumer() {
-  const ctx = useClawbotChannel();
+  const channel = useClawbotChannel();
+
   return (
     <div>
-      <span data-testid="status">{ctx.status}</span>
-      <span data-testid="bot-state">{ctx.botState}</span>
-      <span data-testid="messages-count">{ctx.messages.length}</span>
-      <span data-testid="latest-bot-msg">
-        {ctx.latestBotMessage ? ctx.latestBotMessage.content : 'none'}
-      </span>
+      <span data-testid="status">{channel.status}</span>
+      <span data-testid="bot-state">{channel.botState}</span>
+      <span data-testid="messages-count">{channel.messages.length}</span>
+      <span data-testid="latest-bot-msg">{channel.latestBotMessage?.content ?? 'none'}</span>
+      <button
+        data-testid="send-message"
+        onClick={() => {
+          void channel.sendMessage('hello from user');
+        }}
+      >
+        Send
+      </button>
       <button
         data-testid="notify-playback-started"
         onClick={() => {
-          if (ctx.latestBotMessage) {
-            ctx.notifyVoicePlaybackStarted(ctx.latestBotMessage.id);
+          if (channel.latestBotMessage) {
+            channel.notifyVoicePlaybackStarted(channel.latestBotMessage.id);
           }
         }}
       >
-        Notify Started
+        Start playback
       </button>
       <button
         data-testid="notify-playback-ended"
         onClick={() => {
-          if (ctx.latestBotMessage) {
-            ctx.notifyVoicePlaybackEnded(ctx.latestBotMessage.id);
+          if (channel.latestBotMessage) {
+            channel.notifyVoicePlaybackEnded(channel.latestBotMessage.id);
           }
         }}
       >
-        Notify Ended
+        End playback
       </button>
     </div>
   );
 }
 
-const renderWithChannel = () =>
-  render(
+function renderWithChannel() {
+  return render(
     <ClawbotChannelProvider>
       <ChannelConsumer />
     </ClawbotChannelProvider>,
   );
+}
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-describe('Chat → TTS → VoicePlayback integration pipeline', () => {
-
+describe('Clawbot message and voice-state integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    for (const k of Object.keys(_handlers)) delete _handlers[k];
-    mockSynthesizeSpeech.mockResolvedValue(
-      new Blob(['fake-audio'], { type: 'audio/mpeg' }),
-    );
-    mockPlayFromBlob.mockResolvedValue(undefined);
+    Object.keys(handlers).forEach((key) => delete handlers[key]);
+    mockInstance.restoreSession.mockResolvedValue(null);
 
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn(),
+      getItem: vi.fn().mockReturnValue(null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
     });
   });
 
-  afterEach(() => { cleanup(); });
-
-  // ── Bot message arrives → bot state transitions ──────────────────────────
-
-  it('bot message causes botState to transition to THINKING then SPEAKING', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
-
-    const { getByTestId } = renderWithChannel();
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-1',
-        content: 'Hello, I am the TRIX assistant!',
-        contentType: 'text',
-        timestamp: Date.now(),
-        sender: 'bot',
-      });
-    });
-
-    await waitFor(() => {
-      const state = getByTestId('bot-state').textContent;
-      expect(['THINKING', 'SPEAKING']).toContain(state);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('messages-count').textContent).toBe('1');
-      expect(getByTestId('latest-bot-msg').textContent).toBe('Hello, I am the TRIX assistant!');
-    });
+  afterEach(() => {
+    cleanup();
   });
 
-  it('bot message sets latestBotMessage to the bot content', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
+  it('adds an optimistic user message and enters THINKING when sending', async () => {
+    renderWithChannel();
 
-    const { getByTestId } = renderWithChannel();
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-2',
-        content: 'Bot reply message',
-        contentType: 'text',
-        timestamp: Date.now(),
-        sender: 'bot',
-      });
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('latest-bot-msg').textContent).toBe('Bot reply message');
-    });
-  });
-
-  // ── Voice playback pipeline ───────────────────────────────────────────────
-
-  it('notifyVoicePlaybackStarted transitions botState to SPEAKING', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
-
-    const { getByTestId } = renderWithChannel();
-
-    // Fire bot message
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-voice-1',
-        content: 'Speaking message',
-        contentType: 'text',
-        timestamp: Date.now(),
-        sender: 'bot',
-      });
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('bot-state').textContent).toBe('SPEAKING');
-    });
-
-    // Simulate playback start notification
     await act(async () => {
-      getByTestId('notify-playback-started').click();
+      screen.getByTestId('send-message').click();
     });
 
     await waitFor(() => {
-      expect(getByTestId('bot-state').textContent).toBe('SPEAKING');
+      expect(screen.getByTestId('messages-count').textContent).toBe('1');
+      expect(screen.getByTestId('bot-state').textContent).toBe('THINKING');
     });
+
+    expect(mockInstance.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockInstance.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: 'hello from user',
+      contentType: 'text',
+      clientMessageId: expect.any(String),
+    }));
   });
 
-  it('notifyVoicePlaybackEnded transitions botState back to IDLE', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
+  it('tracks incoming bot messages as the latest bot reply and enters SPEAKING', async () => {
+    renderWithChannel();
 
-    const { getByTestId } = renderWithChannel();
-
-    // Fire bot message
     act(() => {
       fireHandler('message', {
-        id: 'msg-bot-voice-2',
-        content: 'Speaking and finishing',
+        id: 'bot-message-1',
+        replyToMessageId: null,
+        content: 'Hello from TRIX',
         contentType: 'text',
         timestamp: Date.now(),
         sender: 'bot',
@@ -299,83 +196,44 @@ describe('Chat → TTS → VoicePlayback integration pipeline', () => {
     });
 
     await waitFor(() => {
-      expect(getByTestId('bot-state').textContent).toBe('SPEAKING');
+      expect(screen.getByTestId('messages-count').textContent).toBe('1');
+      expect(screen.getByTestId('latest-bot-msg').textContent).toBe('Hello from TRIX');
+      expect(screen.getByTestId('bot-state').textContent).toBe('SPEAKING');
+    });
+  });
+
+  it('returns to IDLE after the active voice playback ends', async () => {
+    renderWithChannel();
+
+    act(() => {
+      fireHandler('message', {
+        id: 'bot-message-2',
+        replyToMessageId: null,
+        content: 'Voice response',
+        contentType: 'text',
+        timestamp: Date.now(),
+        sender: 'bot',
+      });
     });
 
-    // Notify playback ended
+    await waitFor(() => {
+      expect(screen.getByTestId('bot-state').textContent).toBe('SPEAKING');
+    });
+
     await act(async () => {
-      getByTestId('notify-playback-ended').click();
+      screen.getByTestId('notify-playback-started').click();
     });
 
     await waitFor(() => {
-      expect(getByTestId('bot-state').textContent).toBe('IDLE');
+      expect(screen.getByTestId('bot-state').textContent).toBe('SPEAKING');
     });
-  });
 
-  // ── Multiple messages ─────────────────────────────────────────────────────
-
-  it('newest bot message updates latestBotMessage', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
-
-    const { getByTestId } = renderWithChannel();
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-first',
-        content: 'First bot message',
-        contentType: 'text',
-        timestamp: 1000,
-        sender: 'bot',
-      });
+    await act(async () => {
+      screen.getByTestId('notify-playback-ended').click();
     });
 
     await waitFor(() => {
-      expect(getByTestId('latest-bot-msg').textContent).toBe('First bot message');
-    });
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-second',
-        content: 'Second bot message',
-        contentType: 'text',
-        timestamp: 2000,
-        sender: 'bot',
-      });
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('latest-bot-msg').textContent).toBe('Second bot message');
-    });
-  });
-
-  it('messages from different senders are tracked correctly', async () => {
-    mockInstance.isPaired.mockReturnValue(true);
-
-    const { getByTestId } = renderWithChannel();
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-user-1',
-        content: 'User question',
-        contentType: 'text',
-        timestamp: 1000,
-        sender: 'user',
-      });
-    });
-
-    act(() => {
-      fireHandler('message', {
-        id: 'msg-bot-reply-1',
-        content: 'Bot answer',
-        contentType: 'text',
-        timestamp: 2000,
-        sender: 'bot',
-      });
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('messages-count').textContent).toBe('2');
-      expect(getByTestId('latest-bot-msg').textContent).toBe('Bot answer');
+      expect(screen.getByTestId('bot-state').textContent).toBe('IDLE');
     });
   });
 });

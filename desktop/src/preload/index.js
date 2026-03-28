@@ -103,6 +103,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listConversations: () => ipcRenderer.invoke('trixnative:conversations'),
   fetchMessages: (conversationId) => ipcRenderer.invoke('trixnative:messages', conversationId),
   sendMessage: (conversationId, content) => ipcRenderer.invoke('trixnative:send-message', conversationId, content),
+  sendImageMessage: (conversationId, payload) => ipcRenderer.invoke('trixnative:send-image-message', conversationId, payload),
+  sendAttachmentMessage: (conversationId, payload) => ipcRenderer.invoke('trixnative:send-attachment-message', conversationId, payload),
   sendReaction: (messageId, emoji) => ipcRenderer.invoke('trixnative:send-reaction', messageId, emoji),
 
   // === Event Listeners ===
