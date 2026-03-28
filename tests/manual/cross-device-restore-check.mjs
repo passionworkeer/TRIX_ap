@@ -31,13 +31,52 @@ async function createPairing() {
   return await response.json();
 }
 
+async function waitForAuthReady(page, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = await page.evaluate(() => {
+      const authKey = Object.keys(localStorage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
+      const authToken = authKey ? localStorage.getItem(authKey) : null;
+      const text = document.body?.innerText ?? '';
+      return {
+        hasAuthToken: Boolean(authToken),
+        hasLoginWarning: text.includes('请先登录以访问此页面'),
+      };
+    });
+    if (state.hasAuthToken && !state.hasLoginWarning) {
+      return;
+    }
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error('Timed out waiting for auth state to stabilize');
+}
+
 async function login(page) {
+  await page.goto(`${webBaseUrl}/#/login`, { waitUntil: 'domcontentloaded' });
+  const alreadyAuthenticated = await waitForAuthReady(page, 10000).then(() => true).catch(() => false);
+  if (!alreadyAuthenticated) {
+    await page.locator('#email-input:visible').first().fill(email);
+    await page.locator('#password-input:visible').first().fill(password);
+    await page.locator('button[type="button"]:visible').first().click();
+    await page.waitForFunction(() => window.location.hash !== '#/login', { timeout: 30000 }).catch(() => {});
+    await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+    await waitForAuthReady(page);
+    return;
+    await page.locator('button:visible').filter({ hasText: /鐧诲綍|login/i }).first().click();
+    await page.waitForFunction(() => window.location.hash !== '#/login', { timeout: 30000 }).catch(() => {});
+  }
+  await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+  await waitForAuthReady(page);
+  return;
+
   await page.goto(`${webBaseUrl}/#/login`, { waitUntil: 'domcontentloaded' });
   await page.locator('input[type="email"], #email-input').first().fill(email);
   await page.locator('input[type="password"], #password-input').first().fill(password);
   await page.getByRole('button', { name: /登录|login/i }).first().click();
   await page.waitForFunction(() => window.location.hash !== '#/login', { timeout: 30000 });
-  await page.waitForTimeout(3000);
+  await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+  await waitForAuthReady(page);
 }
 
 async function pairViaCode(page, pairingCode) {
@@ -98,6 +137,12 @@ async function readNativeSession(page) {
   });
 }
 
+async function clearNativeSession(page) {
+  await page.evaluate(() => {
+    localStorage.removeItem('trix_native_channel_sessions_v2');
+  });
+}
+
 async function waitForRestoredSession(page, expectedConversationId = null, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
 
@@ -139,10 +184,12 @@ try {
   const pairing = await createPairing();
 
   await login(desktopPage);
+  await clearNativeSession(desktopPage);
   const desktopCanvasBeforePairing = await desktopPage.evaluate(() => Boolean(document.querySelector('canvas')));
   const desktopSession = await ensureDesktopSession(desktopPage, pairing.code);
 
   await login(mobilePage);
+  await clearNativeSession(mobilePage);
   await mobilePage.goto(`${webBaseUrl}/#/chat/clawbot`, { waitUntil: 'domcontentloaded' });
   const mobileCanvas = await mobilePage.evaluate(() => Boolean(document.querySelector('canvas')));
   const restoredSession = await waitForRestoredSession(mobilePage, desktopSession.conversationId);

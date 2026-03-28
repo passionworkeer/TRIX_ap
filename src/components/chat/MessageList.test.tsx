@@ -17,7 +17,18 @@ describe('MessageList typing indicator', () => {
     onLoadMore: () => undefined,
   } as const;
 
-  it('keeps the loading bubble visible while the bot is speaking', () => {
+  it('shows the loading bubble while the bot is thinking', () => {
+    const { container } = render(
+      <MessageList
+        {...baseProps}
+        botState="THINKING"
+      />,
+    );
+
+    expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
+  });
+
+  it('hides the loading bubble once the bot is speaking', () => {
     const { container } = render(
       <MessageList
         {...baseProps}
@@ -25,7 +36,7 @@ describe('MessageList typing indicator', () => {
       />,
     );
 
-    expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
+    expect(container.querySelectorAll('.animate-bounce')).toHaveLength(0);
   });
 
   it('hides the loading bubble once the bot is idle', () => {

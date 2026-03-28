@@ -58,7 +58,80 @@ async function sendServiceReply(conversationId, message) {
   return await response.json();
 }
 
+async function waitForAuthReady(page, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = await page.evaluate(() => {
+      const authKey = Object.keys(localStorage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
+      const authToken = authKey ? localStorage.getItem(authKey) : null;
+      const text = document.body?.innerText ?? '';
+      return {
+        hasAuthToken: Boolean(authToken),
+        hasLoginWarning: text.includes('请先登录以访问此页面'),
+      };
+    });
+    if (state.hasAuthToken && !state.hasLoginWarning) {
+      return;
+    }
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error('Timed out waiting for auth state to stabilize');
+}
+
 async function login(page) {
+  {
+  await page.goto(`${webBaseUrl}/#/login`);
+  await page.waitForLoadState('domcontentloaded');
+
+  const alreadyAuthenticated = await waitForAuthReady(page, 10000).then(() => true).catch(() => false);
+  if (alreadyAuthenticated) {
+    await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+    await waitForAuthReady(page);
+    return;
+  }
+
+  await page.locator('#email-input:visible').first().fill(email);
+  await page.locator('#password-input:visible').first().fill(password);
+  await page.locator('button[type="button"]:visible').first().click();
+  await page.waitForTimeout(8000);
+  const loginCurrentUrl = page.url();
+  if (loginCurrentUrl.includes('/login') || loginCurrentUrl.includes('#/login')) {
+    await page.goto(`${webBaseUrl}/#/register`, { waitUntil: 'domcontentloaded' });
+    const registerUsernameInput = page.locator('input[type="text"]:visible').first();
+    if (await registerUsernameInput.count()) {
+      await registerUsernameInput.fill(username);
+    }
+    await page.locator('#email-input:visible').first().fill(email);
+    await page.locator('#password-input:visible').first().fill(password);
+    await page.locator('button[type="button"]:visible').first().click();
+    await page.waitForTimeout(8000);
+  }
+
+  await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+  await waitForAuthReady(page);
+  return;
+  await page.locator('button:visible').filter({ hasText: /鐧诲綍|Login/i }).first().click();
+  await page.waitForTimeout(8000);
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/login') || currentUrl.includes('#/login')) {
+    await page.goto(`${webBaseUrl}/#/register`, { waitUntil: 'domcontentloaded' });
+    const usernameInput = page.locator('input[type="text"]:visible').first();
+    if (await usernameInput.count()) {
+      await usernameInput.fill(username);
+    }
+    await page.locator('input[type="email"]:visible, #email-input:visible').first().fill(email);
+    await page.locator('input[type="password"]:visible, #password-input:visible').first().fill(password);
+    await page.locator('button:visible').filter({ hasText: /绔嬪嵆娉ㄥ唽|Register/i }).first().click();
+    await page.waitForTimeout(8000);
+  }
+
+  await page.goto(`${webBaseUrl}/#/`, { waitUntil: 'domcontentloaded' });
+  await waitForAuthReady(page);
+  return;
+  }
+
   await page.goto(`${webBaseUrl}/#/login`);
   await page.waitForLoadState('domcontentloaded');
   await page.locator('input[type="email"], input[placeholder*="Email" i], #email-input').first().fill(email);
@@ -81,8 +154,8 @@ async function login(page) {
   }
 
   await page.waitForLoadState('load');
-  await page.waitForTimeout(3000);
   await page.waitForURL(/#\/$/, { timeout: 20000 });
+  await waitForAuthReady(page);
 }
 
 async function openPairingPage(page) {
@@ -105,6 +178,32 @@ async function openPairingPage(page) {
   return codeInput;
 }
 
+async function readNativeSession(page) {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem('trix_native_channel_sessions_v2');
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    const activeAccountId = parsed.activeAccountId || 'default';
+    return parsed.sessions?.[activeAccountId] || null;
+  });
+}
+
+async function waitForUsableSession(page, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const session = await readNativeSession(page);
+    if (session?.conversationId && session?.clientToken) {
+      return session;
+    }
+    await page.waitForTimeout(1000);
+  }
+
+  throw new Error('Timed out waiting for native session persistence');
+}
+
 async function main() {
   const pairing = await createPairing();
   const pairingCode = pairing.code;
@@ -125,10 +224,7 @@ async function main() {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
-    const session = await page.evaluate(() => {
-      const raw = localStorage.getItem('trix_native_channel_session');
-      return raw ? JSON.parse(raw) : null;
-    });
+    const session = await waitForUsableSession(page);
     if (!session?.conversationId) {
       throw new Error('Web session was not persisted after pairing');
     }

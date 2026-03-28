@@ -50,7 +50,25 @@ export class JsonStateStore {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
     const tempPath = `${this.filePath}.tmp`;
     await fs.writeFile(tempPath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-    await fs.rename(tempPath, this.filePath);
+    await this.replaceStateFile(tempPath);
+  }
+
+  private async replaceStateFile(tempPath: string): Promise<void> {
+    const maxAttempts = 6;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await fs.rename(tempPath, this.filePath);
+        return;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException | undefined)?.code;
+        const shouldRetry = (code === 'EPERM' || code === 'EACCES') && attempt < maxAttempts;
+        if (!shouldRetry) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 25));
+      }
+    }
   }
 
   async update(mutator: (state: NativeChannelState) => NativeChannelState | Promise<NativeChannelState>): Promise<NativeChannelState> {

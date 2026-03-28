@@ -351,12 +351,44 @@ async function wait(ms: number): Promise<void> {
 
 class TrixNativeChannelClient {
   private socket: WebSocket | null = null;
+  private socketSessionKey: string | null = null;
   private readonly listeners = new Map<string, Set<EventCallback<unknown>>>();
   private reconnectTimer: number | null = null;
   private reconnectAttempts = 0;
   private manualDisconnect = false;
   private agentOnline = false;
   private currentAuthUserId: string | null = null;
+
+  private buildSocketSessionKey(session: StoredSession): string {
+    return [
+      session.websocketUrl,
+      session.conversationId,
+      session.clientId,
+      session.clientToken,
+    ].join('|');
+  }
+
+  private disposeSocket(socket: WebSocket | null = this.socket): void {
+    if (!socket) {
+      return;
+    }
+
+    socket.onopen = null;
+    socket.onmessage = null;
+    socket.onerror = null;
+    socket.onclose = null;
+
+    try {
+      socket.close();
+    } catch (error) {
+      logger.clawbot.debug('[TrixNative] failed to close stale socket', error);
+    }
+
+    if (this.socket === socket) {
+      this.socket = null;
+      this.socketSessionKey = null;
+    }
+  }
 
   on<TEvent extends NativeSocketEventName>(event: TEvent, callback: EventCallback<NativeSocketEventPayload<TEvent>>): void {
     if (!this.listeners.has(event)) {
@@ -388,11 +420,37 @@ class TrixNativeChannelClient {
     this.currentAuthUserId = userId?.trim() || null;
   }
 
-  private async getAuthAccessToken(): Promise<string | null> {
-    if (!this.currentAuthUserId) {
-      return null;
-    }
+  private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null } {
+    try {
+      const authKey = Object.keys(localStorage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
+      if (!authKey) {
+        return { accessToken: null, userId: null };
+      }
 
+      const raw = localStorage.getItem(authKey);
+      if (!raw) {
+        return { accessToken: null, userId: null };
+      }
+
+      const parsed = JSON.parse(raw) as {
+        access_token?: unknown;
+        user?: { id?: unknown };
+      };
+      return {
+        accessToken: typeof parsed.access_token === 'string' && parsed.access_token.trim()
+          ? parsed.access_token.trim()
+          : null,
+        userId: typeof parsed.user?.id === 'string' && parsed.user.id.trim()
+          ? parsed.user.id.trim()
+          : null,
+      };
+    } catch (error) {
+      logger.clawbot.debug('[TrixNative] failed to read auth token from local storage', error);
+      return { accessToken: null, userId: null };
+    }
+  }
+
+  private async getAuthAccessToken(): Promise<string | null> {
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -400,6 +458,11 @@ class TrixNativeChannelClient {
         return session.access_token;
       }
       await wait(250);
+    }
+
+    const fallbackToken = this.readAuthStateFromStorage().accessToken;
+    if (fallbackToken) {
+      return fallbackToken;
     }
 
     logger.clawbot.warn('[TrixNative] auth token unavailable for native session flow', {
@@ -650,12 +713,17 @@ class TrixNativeChannelClient {
   async connect(): Promise<void> {
     const session = this.getSession();
     if (!session) {
+      this.socketSessionKey = null;
       this.emit('disconnected', undefined);
       return;
     }
 
+    const nextSocketSessionKey = this.buildSocketSessionKey(session);
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-      return;
+      if (this.socketSessionKey === nextSocketSessionKey) {
+        return;
+      }
+      this.disposeSocket(this.socket);
     }
 
     this.manualDisconnect = false;
@@ -671,18 +739,29 @@ class TrixNativeChannelClient {
         `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
       );
       this.socket = socket;
+      this.socketSessionKey = nextSocketSessionKey;
 
       socket.onopen = () => {
+        if (this.socket !== socket) {
+          return;
+        }
         this.reconnectAttempts = 0;
         resolve();
       };
 
       socket.onerror = () => {
+        if (this.socket !== socket) {
+          return;
+        }
         reject(new Error('无法连接到 TRIX Native Channel 服务器'));
       };
 
       socket.onclose = () => {
+        if (this.socket !== socket) {
+          return;
+        }
         this.socket = null;
+        this.socketSessionKey = null;
         this.emit('disconnected', undefined);
         if (!this.manualDisconnect && this.getSession()) {
           this.reconnectAttempts += 1;
@@ -696,6 +775,9 @@ class TrixNativeChannelClient {
       };
 
       socket.onmessage = (event) => {
+        if (this.socket !== socket) {
+          return;
+        }
         this.handleSocketMessage(event.data);
       };
     });
@@ -716,8 +798,7 @@ class TrixNativeChannelClient {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    this.socket?.close();
-    this.socket = null;
+    this.disposeSocket(this.socket);
   }
 
   private async claimPairing(params: {
@@ -771,13 +852,14 @@ class TrixNativeChannelClient {
   }
 
   async bindCurrentSessionToAuthUser(): Promise<boolean> {
-    if (!this.currentAuthUserId) {
+    const authUserId = this.currentAuthUserId ?? this.readAuthStateFromStorage().userId;
+    if (!authUserId) {
       return false;
     }
 
     const session = this.getStoredSession();
-    if (!session || session.appUserId === this.currentAuthUserId) {
-      return Boolean(session?.appUserId === this.currentAuthUserId);
+    if (!session || session.appUserId === authUserId) {
+      return Boolean(session?.appUserId === authUserId);
     }
 
     const accessToken = await this.getAuthAccessToken();
@@ -807,13 +889,14 @@ class TrixNativeChannelClient {
 
     this.saveSession({
       ...session,
-      appUserId: this.currentAuthUserId,
+      appUserId: authUserId,
     });
     return true;
   }
 
   async restoreSession(accountId?: string, deviceName: string = defaultDeviceName()): Promise<StoredSession | null> {
-    if (!this.currentAuthUserId) {
+    const authUserId = this.currentAuthUserId ?? this.readAuthStateFromStorage().userId;
+    if (!authUserId) {
       return null;
     }
 
@@ -857,7 +940,7 @@ class TrixNativeChannelClient {
     const finalServerUrl = payload.serverUrl || serverUrl;
     const restored: StoredSession = {
       accountId: normalizeAccountId(payload.accountId ?? resolvedAccountId),
-      appUserId: this.currentAuthUserId,
+      appUserId: authUserId,
       serverUrl: finalServerUrl,
       websocketUrl: resolveWebSocketUrl(payload.websocketUrl || payload.wsUrl, finalServerUrl),
       conversationId: payload.conversationId,
@@ -900,6 +983,9 @@ class TrixNativeChannelClient {
       deviceName,
       pairingCode: claim.pairing.code,
     });
+    await this.bindCurrentSessionToAuthUser().catch((error) => {
+      logger.clawbot.warn('[TrixNative] failed to bind paired session to auth user', error);
+    });
     this.emit('pairing_success', { deviceId: clientId, deviceName });
     this.agentOnline = Boolean(claim.agentOnline);
     await this.connect();
@@ -933,6 +1019,9 @@ class TrixNativeChannelClient {
       clientId,
       deviceName,
       pairingCode: claim.pairing.code,
+    });
+    await this.bindCurrentSessionToAuthUser().catch((error) => {
+      logger.clawbot.warn('[TrixNative] failed to bind QR paired session to auth user', error);
     });
     this.emit('pairing_success', { deviceId: clientId, deviceName });
     this.agentOnline = Boolean(claim.agentOnline);

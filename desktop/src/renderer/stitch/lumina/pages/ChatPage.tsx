@@ -23,10 +23,11 @@ type ChatSession = {
   title: string;
   preview: string;
   updatedAt: Date;
+  canSend: boolean;
   messages: ChatMessage[];
 };
 
-type TrixConversation = { id: string; title: string; preview?: string; updatedAt?: string };
+type TrixConversation = { id: string; title: string; preview?: string; updatedAt?: string; canSend?: boolean };
 type TrixMessage = { id: string; content: string; direction: 'incoming' | 'outgoing'; timestamp: string; attachments?: Attachment[] };
 
 const C = {
@@ -83,8 +84,18 @@ function asSessions(result: { success: boolean; data?: TrixConversation[] }): Ch
     title: conversation.title || 'TRIX Native',
     preview: conversation.preview || '',
     updatedAt: conversation.updatedAt ? new Date(conversation.updatedAt) : new Date(),
+    canSend: conversation.canSend !== false,
     messages: [],
   }));
+}
+
+function resolvePreferredSessionId(sessions: ChatSession[], currentSessionId: string): string {
+  const existing = sessions.find((entry) => entry.id === currentSessionId);
+  if (existing) {
+    return existing.id;
+  }
+
+  return sessions.find((entry) => entry.canSend !== false)?.id ?? sessions[0]?.id ?? '';
 }
 
 function readBlob(blob: Blob): Promise<string> {
@@ -146,8 +157,11 @@ export default function ChatPage() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
 
-  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
-  const composerDisabled = !api || !activeSessionId;
+  const resolvedActiveSessionId = resolvePreferredSessionId(sessions, activeSessionId);
+  const activeSession = sessions.find((session) => session.id === resolvedActiveSessionId)
+    ?? sessions.find((session) => session.canSend !== false)
+    ?? sessions[0];
+  const composerDisabled = !api || !resolvedActiveSessionId || activeSession?.canSend === false;
   const interactionDisabled = composerDisabled || isSending;
   const canRecord = typeof navigator !== 'undefined' && typeof MediaRecorder !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
 
@@ -164,8 +178,11 @@ export default function ChatPage() {
     }
     try {
       const parsed = asSessions(await api.listConversations() as { success: boolean; data?: TrixConversation[] });
-      setSessions(parsed);
-      setActiveSessionId((current) => parsed.find((entry) => entry.id === current)?.id ?? parsed[0]?.id ?? '');
+      setSessions((current) => parsed.map((session) => {
+        const existing = current.find((entry) => entry.id === session.id);
+        return existing ? { ...session, messages: existing.messages } : session;
+      }));
+      setActiveSessionId((current) => resolvePreferredSessionId(parsed, current));
     } catch {
       setSessions([]);
       setActiveSessionId('');
@@ -184,7 +201,17 @@ export default function ChatPage() {
     setSessions((current) => current.map((session) => session.id === conversationId ? { ...session, messages: [...session.messages, message], preview: previewOf(message) || session.preview, updatedAt: message.timestamp } : session));
   }, []);
 
-  useEffect(() => { void loadConversations(); }, [loadConversations]);
+  useEffect(() => {
+    void loadConversations();
+    const id = window.setInterval(() => { void loadConversations(); }, 5000);
+    return () => window.clearInterval(id);
+  }, [loadConversations]);
+  useEffect(() => {
+    if (!resolvedActiveSessionId || resolvedActiveSessionId === activeSessionId) {
+      return;
+    }
+    setActiveSessionId(resolvedActiveSessionId);
+  }, [activeSessionId, resolvedActiveSessionId]);
   useEffect(() => {
     if (!activeSession?.id) return undefined;
     void loadMessages(activeSession.id);
@@ -198,39 +225,39 @@ export default function ChatPage() {
   }, []);
 
   const sendAttachment = useCallback(async (payload: { fileName: string; mimeType: string; contentBase64: string; kind: AttachmentType; text?: string }) => {
-    if (!api || !activeSessionId) return;
+    if (!api || !resolvedActiveSessionId) return;
     setIsSending(true);
     try {
-      const result = await api.sendAttachmentMessage(activeSessionId, payload) as { success: boolean; data?: TrixMessage };
+      const result = await api.sendAttachmentMessage(resolvedActiveSessionId, payload) as { success: boolean; data?: TrixMessage };
       if (result.success && result.data) {
         const message = asMessages({ success: true, data: [result.data] })[0];
-        if (message) appendMessage(activeSessionId, message);
+        if (message) appendMessage(resolvedActiveSessionId, message);
         if (payload.text?.trim()) clearComposer();
       } else {
-        await loadMessages(activeSessionId);
+        await loadMessages(resolvedActiveSessionId);
       }
     } catch {
-      await loadMessages(activeSessionId);
+      await loadMessages(resolvedActiveSessionId);
     } finally {
       setIsSending(false);
     }
-  }, [activeSessionId, api, appendMessage, clearComposer, loadMessages]);
+  }, [api, appendMessage, clearComposer, loadMessages, resolvedActiveSessionId]);
 
   const handleSend = async () => {
     const text = inputValue.trim();
-    if (!text || !api || !activeSessionId) return;
+    if (!text || !api || !resolvedActiveSessionId) return;
     setIsSending(true);
     try {
-      const result = await api.sendMessage(activeSessionId, text) as { success: boolean; data?: TrixMessage };
+      const result = await api.sendMessage(resolvedActiveSessionId, text) as { success: boolean; data?: TrixMessage };
       if (result.success && result.data) {
         const message = asMessages({ success: true, data: [result.data] })[0];
-        if (message) appendMessage(activeSessionId, message);
+        if (message) appendMessage(resolvedActiveSessionId, message);
         clearComposer();
       } else {
-        await loadMessages(activeSessionId);
+        await loadMessages(resolvedActiveSessionId);
       }
     } catch {
-      await loadMessages(activeSessionId);
+      await loadMessages(resolvedActiveSessionId);
     } finally {
       setIsSending(false);
     }
@@ -297,6 +324,9 @@ export default function ChatPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.title}</div>
                 <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>{session.updatedAt.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}</span>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11, color: session.canSend ? C.primary : '#b7791f' }}>
+                {session.canSend ? '可发送' : '待配对，只读'}
               </div>
               <div style={{ marginTop: 6, fontSize: 12, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.preview || '新对话'}</div>
             </button>

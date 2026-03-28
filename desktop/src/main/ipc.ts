@@ -1044,6 +1044,7 @@ export function setupIpcHandlers(): void {
         .map((conversation) => {
           const conversationId = String(conversation.id ?? '');
           const latestMessage = latestByConversation.get(conversationId);
+          const canSend = Boolean(getNativeConversationClientToken(config, conversationId));
           const updatedAt = typeof conversation.updatedAt === 'number'
             ? conversation.updatedAt
             : typeof latestMessage?.createdAt === 'number'
@@ -1056,10 +1057,16 @@ export function setupIpcHandlers(): void {
             title: buildConversationTitle(conversation),
             preview: typeof latestMessage?.text === 'string' ? latestMessage.text : '',
             updatedAt: toIsoString(updatedAt),
+            canSend,
           };
         })
         .filter((conversation) => conversation.id)
-        .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+        .sort((left, right) => {
+          if (left.canSend !== right.canSend) {
+            return left.canSend ? -1 : 1;
+          }
+          return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+        });
 
       return { success: true, data };
     } catch (err) {
