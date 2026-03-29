@@ -62,10 +62,9 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         'react-dom',
         'react-router-dom',
         '@supabase/supabase-js',
-        'framer-motion',
         'i18next',
       ],
-      exclude: ['html5-qrcode'],
+      exclude: ['html5-qrcode', 'framer-motion'],
     },
   };
 });
