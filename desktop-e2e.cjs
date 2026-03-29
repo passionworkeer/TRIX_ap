@@ -14,7 +14,7 @@ const { _electron } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const ELECTRON_EXE = 'C:/Users/wang/Desktop/TRIX Companion/win-unpacked/TRIX Companion.exe';
+const ELECTRON_EXE = '/e/desktop/TRIX-Setup-v3/win-unpacked/TRIX Companion.exe';
 
 let passed = 0;
 let failed = 0;
@@ -50,10 +50,10 @@ async function run() {
     launchSuccess = true;
     log('electron.launch() succeeded — CDP available');
   } catch(err) {
-    if (err.message !== 'timeout') {
-      log(`electron.launch() error: ${err.message}`, 'fail');
+    if (err.message === 'timeout') {
+      log('electron.launch() timed out — using fallback', 'info');
     } else {
-      log('electron.launch() timed out (packaged app DevTools disabled)', 'info');
+      log(`electron.launch() error: ${err.message} — using fallback`, 'info');
     }
     app = null;
   }
@@ -73,9 +73,12 @@ async function run() {
 // ── CDP Tests (via Playwright electron.launch()) ───────────────────────────────
 
 async function runCdpTests() {
+  // Wait for pages to load
+  await app.waitForEvent('window', { timeout: 15000 }).catch(() => {});
   const pages = app.context().pages();
-  const page = pages.find(w => w.url().includes('main.html')) || pages[0];
-  const floatPage = pages.find(w => w.url().includes('float.html')) || null;
+  log(`All pages (count=${pages.length}): ${JSON.stringify(pages.map(p => p.url()))}`);
+  const page = pages.find(w => w.url().includes('main.html')) || (pages.length > 0 ? pages[0] : null);
+  const floatPage = pages.length > 1 ? (pages.find(w => w.url().includes('float.html')) || null) : null;
 
   if (!page) {
     log('No main page found', 'fail');
@@ -87,6 +90,34 @@ async function runCdpTests() {
 
   await page.waitForLoadState('domcontentloaded').catch(() => {});
   await page.waitForTimeout(4000);
+
+  // Deep inspection of window.electronAPI keys
+  try {
+    const apiInfo = await page.evaluate(() => {
+      const api = window.electronAPI;
+      if (!api) return { exists: false };
+      const keys = Object.keys(api);
+      return {
+        exists: true,
+        type: typeof api,
+        keyCount: keys.length,
+        // Check all known TRIX keys
+        hasListConversations: 'listConversations' in api,
+        hasSendMessage: 'sendMessage' in api,
+        hasFetchMessages: 'fetchMessages' in api,
+        hasPlatform: 'platform' in api,
+        hasCheckOpenClaw: 'checkOpenClaw' in api,
+        hasGatewayConnect: 'gatewayConnect' in api,
+        // List first 20 keys
+        first20keys: keys.slice(0, 20),
+        // Check prototype
+        hasOwnProperty: Object.prototype.hasOwnProperty.call(api, 'listConversations'),
+      };
+    });
+    log(`electronAPI deep inspection: ${JSON.stringify(apiInfo, null, 2)}`);
+  } catch(e) {
+    log(`electronAPI inspection failed: ${e.message}`, 'fail');
+  }
 
   await test_app_launch(page);
   await test_titlebar_present(page);
@@ -473,6 +504,10 @@ process.on('uncaughtException', async (err) => {
   console.error('Uncaught exception:', err.message);
   await cleanup();
   process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  // Ignore — handled by try/catch in run()
 });
 
 run().catch(async (err) => {

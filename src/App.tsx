@@ -11,7 +11,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
 import { useNotification } from './hooks/useNotification';
 import { useImmersiveVoice } from './hooks/useImmersiveVoice';
-import { ResourcePreloader } from './hooks/useResourcePreloader';
+import { useResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
 import { useWebVitals, usePageLoadTiming } from './hooks/useWebVitals';
 
@@ -49,7 +49,7 @@ const RouteLoading: React.FC = () => (
 function AppContent() {
   console.log('[AppContent] rendering');
   // 资源预加载 - 提升首屏体验
-  ResourcePreloader();
+  useResourcePreloader();
 
   // 性能监控 - 首屏加载时间和 Web Vitals
   usePageLoadTiming();

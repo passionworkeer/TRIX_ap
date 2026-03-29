@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 
 /**
- * ResourcePreloader - 关键资源预加载组件
+ * useResourcePreloader - key resource preloader hook
  *
- * 在页面空闲时预加载关键资源，提升首屏体验
+ * Preloads critical resources during browser idle time
  */
-export function ResourcePreloader() {
+export function useResourcePreloader() {
   useEffect(() => {
     // 使用 requestIdleCallback 在浏览器空闲时预加载
     if ('requestIdleCallback' in window) {
