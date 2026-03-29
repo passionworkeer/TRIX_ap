@@ -122,6 +122,23 @@ ios/**/SPMPackages/
 scripts/
 !.agents/skills/**/scripts/
 
+# Local skill development directories
+.agents/skills/add-component/
+.agents/skills/build-feature/
+.agents/skills/explore-recipes/
+
+# Playwright CLI tool
+.playwright-cli/
+
+# Build/artifacts
+output/
+*.tar.gz
+!node_modules/**/*.tar.gz
+
+# Manual test scripts
+tests/manual/*.mjs
+tests/manual/
+
 # TRIX Native test temp
 packages/trix-openclaw-native/.tmp/
 packages/trix-openclaw-native/.trix-native-channel/
