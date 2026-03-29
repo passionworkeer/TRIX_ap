@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.2（2026-03-27 文档整理）
+> **版本**: v2.3（2026-03-29 文档整理：同步代码实际数据）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -66,7 +66,7 @@ docs/
 │   └── QUICK_START_GUIDE.md  # 快速开始
 │
 ├── 💻 Desktop 文档 (desktop/)
-│   └── DESKTOP_ARCHITECTURE.md  # Electron 架构（66 IPC + 71 preload API）
+│   └── DESKTOP_ARCHITECTURE.md  # Electron 架构（90 IPC + 80 preload API）
 │
 ├── 📖 操作指南 (guides/)
 │   ├── PAIRING.md         # ⭐ 三端配对指南
@@ -103,9 +103,9 @@ docs/
 
 | 端 | 架构文档 | 关键数据 |
 |----|---------|---------|
-| Web | `architecture/WEB_ARCHITECTURE.md` | 19 路由 · 27 服务 · 45 组件 · 12 hooks · 9 utils |
-| iOS | `ios/IOS_ARCHITECTURE.md` | 61 Swift 文件（40 服务实 + 21 协议）· SwiftUI + MVVM |
-| Desktop | `desktop/DESKTOP_ARCHITECTURE.md` | 86 IPC handlers · 71 preload API · LuminaLayout |
+| Web | `architecture/WEB_ARCHITECTURE.md` | 14 screens · 27 services · 38 components · 11 hooks · 10 utils |
+| iOS | `ios/IOS_ARCHITECTURE.md` | 231 Swift 文件（57 服务实 + 21 协议）· SwiftUI + MVVM |
+| Desktop | `desktop/DESKTOP_ARCHITECTURE.md` | 90 IPC handlers · 80 preload API · LuminaLayout |
 
 ### 安全
 
@@ -179,4 +179,4 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 ---
 
-**最后更新**: 2026-03-27（文档整理：v2.1 → v2.2；归档 3 份过时文档；INDEX 修正失效引用并重建 .archive 目录）
+**最后更新**: 2026-03-29（文档整理：v2.2 → v2.3；同步三端代码实际数据：Web 14 screens·27 services·38 components，iOS 231 Swift·57 services，Desktop 90 IPC·80 preload）

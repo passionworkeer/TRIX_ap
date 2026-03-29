@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 1.9
-> **最后更新**: 2026-03-26（源码扫描确认 IPC 86（75→86 新增 11 个），preload 71，Study Session 3 + Study Room 6）
+> **版本**: 2.0
+> **最后更新**: 2026-03-29（源码扫描确认 IPC 90，preload 80）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,7 +21,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (66 handlers)              │  │   │
+│  │  │                    IPC Handlers (90 handlers)              │  │   │
 │  │  │  pairing · gateway · openclaw · auth · study · system*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -61,7 +61,7 @@ Electron 应用的主入口，运行在 Node.js 环境中。
 
 通过 `contextBridge` 安全地将主进程 API 暴露给渲染进程。
 
-**暴露 API**（`desktop/src/preload/index.js`，共 **71 个**属性/方法，不含重复项）：
+**暴露 API**（`desktop/src/preload/index.js`，共 **80 个**属性/方法，不含重复项）：
 ```typescript
 window.electronAPI = {
   // === Platform ===
