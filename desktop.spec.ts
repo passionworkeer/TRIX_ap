@@ -1,5 +1,6 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
 import { _electron as electron } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { DESKTOP_TARGET, ELECTRON_ARGS, ELECTRON_PATH } from './playwright-desktop.config';
 
 type RouteExpectation = {
@@ -10,6 +11,10 @@ type RouteExpectation = {
 
 let app: ElectronApplication | undefined;
 let page: Page | undefined;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const luminaRoutes: RouteExpectation[] = [
   { label: '学习', expectedText: '学习工作台' },
@@ -82,22 +87,46 @@ async function forceQuitApp(electronApp?: ElectronApplication): Promise<void> {
 
   try {
     await electronApp.evaluate(({ app: electronMainApp }) => {
-      electronMainApp.exit(0);
+      electronMainApp.quit();
     });
   } catch {
     // Ignore failures here and fall back to process termination below.
   }
 
+  try {
+    await Promise.race([
+      electronApp.close(),
+      wait(5_000),
+    ]);
+  } catch {
+    // Ignore close errors and continue with process-level cleanup below.
+  }
+
   await Promise.race([
     exitPromise,
-    new Promise((resolve) => setTimeout(resolve, 5_000)),
+    wait(5_000),
   ]);
 
   if (child.exitCode === null && !child.killed) {
     child.kill('SIGTERM');
     await Promise.race([
       exitPromise,
-      new Promise((resolve) => setTimeout(resolve, 2_000)),
+      wait(3_000),
+    ]);
+  }
+
+  if (child.exitCode === null && process.platform === 'win32') {
+    try {
+      execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+        stdio: 'ignore',
+      });
+    } catch {
+      // Ignore taskkill failures - Playwright will surface the remaining issue if any.
+    }
+
+    await Promise.race([
+      exitPromise,
+      wait(3_000),
     ]);
   }
 }

@@ -1404,15 +1404,27 @@ export function setupIpcHandlers(): void {
     const pluginInstall = pluginInstalls?.['trix-native'];
     const openclawHome = path.dirname(params.openclawConfigPath);
 
+    const appPath = app.getAppPath();
+    const localWorkspaceRoots = new Set<string>([
+      appPath,
+      path.resolve(appPath, '..'),
+      path.resolve(appPath, '..', '..'),
+      path.resolve(__dirname, '..', '..', '..'),
+    ]);
+
     pushStorageDir(params.account.storageDir);
-    pushStorageDir(path.join(process.cwd(), 'packages', 'trix-openclaw-native', '.trix-native-channel'));
-    pushStorageDir(path.join(process.cwd(), '.trix-native-channel'));
+    for (const root of localWorkspaceRoots) {
+      pushStorageDir(path.join(root, 'packages', 'trix-openclaw-native', '.trix-native-channel'));
+      pushStorageDir(path.join(root, '.trix-native-channel'));
+    }
     pushStorageDir(path.join(openclawHome, '.trix-native-channel'));
     pushStorageDir(path.join(openclawHome, 'extensions', 'trix-native', '.trix-native-channel'));
     pushStorageDir(path.join(openclawHome, 'extensions', 'trix-native'));
     pushStorageDir(pluginInstall?.installPath);
     if (typeof pluginInstall?.sourcePath === 'string' && pluginInstall.sourcePath.trim()) {
-      pushStorageDir(path.dirname(pluginInstall.sourcePath));
+      const sourceRoot = path.dirname(pluginInstall.sourcePath);
+      pushStorageDir(sourceRoot);
+      pushStorageDir(path.join(sourceRoot, '.trix-native-channel'));
     }
 
     let fallback: { statePath: string; state: NativeChannelStateSnapshot } | null = null;

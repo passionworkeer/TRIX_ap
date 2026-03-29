@@ -1,6 +1,6 @@
 import { Tray, Menu, nativeImage, app, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
-import { getGatewayStatus } from './gateway';
+import { getGatewayStatus, restartGateway } from './gateway';
 import { runOpenClawCommand } from './openclaw';
 
 let tray: Tray | null = null;
@@ -98,7 +98,6 @@ export async function updateTrayMenu(): Promise<void> {
     {
       label: '重启 Gateway',
       click: async () => {
-        const { restartGateway } = await import('./gateway');
         await restartGateway();
         updateTrayMenu();
       },
