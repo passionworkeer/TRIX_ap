@@ -27,7 +27,6 @@ export default defineConfig(({ mode }: ConfigEnv) => {
           supabase: ['@supabase/supabase-js'],
           leaflet: ['leaflet', 'react-leaflet'],
           motion: ['framer-motion'],
-          qrcode: ['html5-qrcode'],
           utils: ['socket.io-client', 'i18next', 'i18next-browser-languagedetector'],
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
@@ -35,7 +34,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1200,
     sourcemap: false,
     cssCodeSplit: true,
     modulePreload: {

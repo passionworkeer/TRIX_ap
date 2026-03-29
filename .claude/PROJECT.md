@@ -1,5 +1,15 @@
 # PROJECT.md - Claude Code 项目上下文
 
+## Multi-Agent Execution Policy
+
+- For implementation or investigation tasks with independent slices, launch 2-6 specialist subagents before synthesis unless the task is tiny.
+- Use the strongest reliable multi-agent pattern available in non-interactive / print sessions. Do not avoid `Agent Teams` just because the run is headless.
+- When the work spans 3 or more roles, needs multiple coordination waves, or the user explicitly asks for team behavior, prefer `Agent Teams`. If team mode is unstable, immediately fall back to coordinated `Task(frontend-dev)`, `Task(backend-dev)`, `Task(project-manager)`, or `Explore` subagents instead of collapsing to one long-running agent.
+- Break long tasks into waves. After each wave, synthesize, trim context, and if needed spawn a fresh set of subagents instead of stretching the same agent too long.
+- Prioritize verified artifacts. Once the requested file, fix, or answer is complete and checked, stop further exploration unless the user asked for more.
+- If any subagent or team member returns empty or incomplete output, verify the slice directly or retry with a narrower prompt instead of ending early.
+- If the user mentions a workflow or skill and the slash command is missing, explicitly say the command/plugin is unavailable, then use the closest installed agent/skill and continue in natural language.
+
 > 本文件是 Claude Code 专用上下文，每次会话会自动加载。
 >
 > ⚠️ **注意**: 本文件是主要配置文件。根目录的 CLAUDE.md 是旧版本，已弃用。

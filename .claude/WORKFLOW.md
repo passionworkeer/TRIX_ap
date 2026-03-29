@@ -3,7 +3,7 @@
 ## 📋 当前已安装的能力
 
 ### 核心插件
-- **everything-claude-code**: 16个技能 + 4个agents + 9个命令
+- **全局 Claude skills/agents**: 以 `C:\Users\wang\.claude\skills` 和 `C:\Users\wang\.claude\agents` 中的实际内容为准
 - **32个独立skills**: API设计、测试、Docker、K8s、监控等
 
 ### 规则
@@ -22,15 +22,16 @@
 
 **我会自动：**
 - 使用 `brainstorming` skill 探索需求
-- 使用 `/plan` 命令制定计划
-- 使用 `tdd-workflow` skill 指导 TDD 开发
+- 使用内置 `Plan` agent 或 `project-manager` 做计划
+- 使用 `tdd-guide` skill 指导 TDD 开发
 
 ---
 
 ### 2️⃣ **TDD 开发流程**
 
+如果本地没有 `/tdd` slash command，直接说：
 ```
-/tdd [功能描述]
+用 TDD 实现 [功能描述]
 ```
 
 **或者直接说：**
@@ -54,11 +55,11 @@
 
 **或者：**
 ```
-/review
+请用 senior-dev 审查这段代码
 ```
 
 **我会使用：**
-- `security-review` skill
+- `api-security-best-practices` skill
 - `api-security-best-practices` skill
 
 ---
@@ -83,9 +84,9 @@
 ```
 
 **我会使用：**
-- `docker-expert` skill
+- `docker` skill
 - `devops-engineer` skill
-- `kubernetes-specialist` skill
+- `devops-engineer` skill
 
 ---
 
@@ -113,8 +114,9 @@
 ## 🎓 高级用法（可选）
 
 ### 端到端测试
+如果本地没有 `/e2e` slash command，直接说：
 ```
-/e2e
+做一次端到端测试
 ```
 
 ### 性能优化
@@ -147,11 +149,11 @@
 
 | 你想说 | 直接说 | 我会用什么 |
 |--------|--------|-----------|
-| "我想加个功能" | "我想实现用户登录" | brainstorming → tdd-workflow |
-| "帮我写测试" | "为这个函数写测试" | tdd-workflow, python/javascript-testing-patterns |
-| "检查代码安全" | "审查这段代码" | security-review |
+| "我想加个功能" | "我想实现用户登录" | brainstorming → tdd-guide |
+| "帮我写测试" | "为这个函数写测试" | tdd-guide, javascript-testing-patterns |
+| "检查代码安全" | "审查这段代码" | api-security-best-practices |
 | "优化性能" | "这个页面加载太慢" | performance skill |
-| "部署到服务器" | "帮我部署到生产环境" | docker-expert, devops-engineer |
+| "部署到服务器" | "帮我部署到生产环境" | docker, devops-engineer |
 
 ---
 

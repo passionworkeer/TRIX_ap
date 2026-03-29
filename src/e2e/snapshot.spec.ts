@@ -69,6 +69,27 @@ test.describe('Snapshot Page E2E Tests', () => {
     await expect(instructionText).toBeVisible();
   });
 
+  test('T4.1.2b: should keep upload button hit-testable and open the file chooser', async ({ page }) => {
+    await page.waitForTimeout(1000);
+
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login') || currentUrl.includes('#/login')) {
+      test.skip();
+      return;
+    }
+
+    const uploadButton = page.getByTestId('snapshot-upload-button');
+    await expect(uploadButton).toBeVisible({ timeout: 10000 });
+    await uploadButton.click({ trial: true });
+
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      uploadButton.click(),
+    ]);
+
+    expect(fileChooser.isMultiple()).toBe(false);
+  });
+
   test('T4.1.3: should display camera preview area', async ({ page }) => {
     // Wait for any redirect
     await page.waitForTimeout(1000);

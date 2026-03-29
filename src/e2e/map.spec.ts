@@ -531,6 +531,25 @@ test.describe('Map Page E2E Tests', () => {
     }
   });
 
+  test('T6.1.17b: should allow direct clicks on custom markers', async ({ page }) => {
+    const mapStatus = await checkMapLoaded(page);
+
+    if (mapStatus.loaded) {
+      await page.waitForTimeout(2000);
+
+      const marker = page.locator('.custom-snap-marker.leaflet-interactive').first();
+      await expect(marker).toBeVisible({ timeout: 10000 });
+      await marker.click({ trial: true });
+      await marker.click();
+
+      const detailCloseButton = page.locator('button').filter({ has: page.locator('svg.lucide-x') }).first();
+      await expect(detailCloseButton).toBeVisible({ timeout: 5000 });
+    } else {
+      console.log(`Map not loaded: ${mapStatus.reason}`);
+      test.skip();
+    }
+  });
+
   test('T6.1.18: should maintain state after interactions', async ({ page }) => {
     const mapStatus = await checkMapLoaded(page);
 

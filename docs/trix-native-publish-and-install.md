@@ -1,30 +1,136 @@
 # TRIX Native Plugin Publish And Install
 
-## Current compatibility result
+## Verified status as of 2026-03-29
 
-- Plugin package: `@wangjianjun0531/trix-native@0.1.0`
-- Local repo OpenClaw dependency checked: `2026.3.12`
-- Local global OpenClaw checked: `2026.3.24`
-- Result: compatible with current OpenClaw plugin runtime
+- Package name: `@wangjianjun0531/trix-native`
+- Package version: `0.1.0`
+- Local fallback tarball:
+  `E:\desktop\trix-3d-companion\packages\trix-openclaw-native\wangjianjun0531-trix-native-0.1.0.tgz`
+- Latest packaged desktop app:
+  `E:\desktop\TRIX-Setup-v3\win-unpacked\TRIX Companion.exe`
 
-Verified locally:
+Verified locally on the current codebase:
 
-- `npm pack` succeeds
-- package tests pass
-- plugin entry can register a channel with:
-  - `setup`
-  - `gateway.loginWithQrStart`
-  - `gateway.loginWithQrWait`
-- `openclaw plugins install <local .tgz>` can load the plugin on OpenClaw `2026.3.24`
+- `npm run build` passes
+- `npm run build:desktop` passes
+- `npm run test` passes
+- `npm pack` passes for the plugin package
+- `npm publish --dry-run --access public` passes
+- real Electron Playwright desktop tests pass
+- packaged desktop app can do real conversation listing plus text/image/file/audio send
+- real Web accounts can complete:
+  - login
+  - friend messaging both ways
+  - image messaging
+  - study room create/join/start
+  - map page check
+  - achievements page
+  - points mall
 
-What was not fully exercised in this check:
+## Current publish blocker
 
-- a live end-to-end pairing against a real TRIX service
-- the full web UI flow on a fresh machine
+The package is not published to npm yet.
 
-## Before publish
+Real publish was attempted from:
 
-If you want to publish under your own npm scope, update these two fields in `packages/trix-openclaw-native/package.json` first:
+```powershell
+E:\desktop\trix-3d-companion\packages\trix-openclaw-native
+```
+
+Result:
+
+- `npm whoami` returned `E401 Unauthorized`
+- `npm publish --access public` ran tests and packing successfully, then failed at the registry step with:
+  - `404 Not Found - PUT https://registry.npmjs.org/@wangjianjun0531%2ftrix-native`
+
+This indicates the package contents are fine, but the current terminal session is not accepted by npm for publishing.
+
+## Fastest path on a new OpenClaw machine
+
+If you just want the plugin working on a new machine, do not wait for npm publish.
+Use the local `.tgz` directly.
+
+### 1. Install the plugin from the tarball
+
+```powershell
+openclaw plugins install E:\desktop\trix-3d-companion\packages\trix-openclaw-native\wangjianjun0531-trix-native-0.1.0.tgz
+```
+
+### 2. Configure the channel
+
+Replace `YOUR_SERVICE_TOKEN` with your real token:
+
+```powershell
+openclaw config set channels.trix-native.enabled true --strict-json
+openclaw config set channels.trix-native.defaultAccount default
+openclaw config set channels.trix-native.accounts.default.name "TRIX Native"
+openclaw config set channels.trix-native.accounts.default.serviceUrl "http://127.0.0.1:8788"
+openclaw config set channels.trix-native.accounts.default.serviceToken "YOUR_SERVICE_TOKEN"
+openclaw config set channels.trix-native.accounts.default.transport ws
+```
+
+### 3. Restart OpenClaw gateway
+
+```powershell
+openclaw gateway restart
+```
+
+### 4. Confirm the plugin is loaded
+
+```powershell
+openclaw plugins inspect trix-native
+openclaw channels status --deep
+```
+
+### 5. Start login or pairing
+
+```powershell
+openclaw channels login --channel trix-native --verbose
+```
+
+The plugin exposes:
+
+- pairing code
+- QR login start
+- QR login wait
+
+### 6. Use the verified desktop app
+
+```powershell
+E:\desktop\TRIX-Setup-v3\win-unpacked\TRIX Companion.exe
+```
+
+## Publish to npm after auth is fixed
+
+Run these commands in the plugin package directory:
+
+```powershell
+cd E:\desktop\trix-3d-companion\packages\trix-openclaw-native
+npm login
+npm whoami
+```
+
+Do not continue until `npm whoami` returns:
+
+```text
+wangjianjun0531
+```
+
+Then publish:
+
+```powershell
+npm publish --access public
+```
+
+Verify:
+
+```powershell
+npm view @wangjianjun0531/trix-native version
+```
+
+## If you want to publish under another scope later
+
+Update these fields in `packages/trix-openclaw-native/package.json`:
 
 - `name`
 - `openclaw.install.npmSpec`
@@ -42,95 +148,15 @@ Example:
 }
 ```
 
-## Publish commands
+Then run the same publish flow again.
 
-Run in:
+## Important note about multimodal behavior
 
-```powershell
-cd E:\desktop\trix-3d-companion\packages\trix-openclaw-native
-```
+The transport and native channel path are verified for:
 
-Check login:
+- text
+- image
+- file
+- audio
 
-```powershell
-npm whoami
-```
-
-Publish:
-
-```powershell
-npm publish --access public --otp <6-digit-code>
-```
-
-Verify:
-
-```powershell
-npm view @your-scope/trix-native version
-```
-
-## New machine install
-
-Install plugin:
-
-```powershell
-openclaw plugins install @your-scope/trix-native
-```
-
-Restart gateway:
-
-```powershell
-openclaw gateway restart
-```
-
-Confirm plugin is loaded:
-
-```powershell
-openclaw plugins inspect trix-native
-```
-
-## New machine config
-
-Minimal channel config:
-
-```powershell
-openclaw config set channels.trix-native.enabled true --strict-json
-openclaw config set channels.trix-native.defaultAccount default
-openclaw config set channels.trix-native.accounts.default.name "TRIX Native"
-openclaw config set channels.trix-native.accounts.default.serviceUrl "http://127.0.0.1:8788"
-openclaw config set channels.trix-native.accounts.default.serviceToken "YOUR_SERVICE_TOKEN"
-openclaw config set channels.trix-native.accounts.default.transport ws
-```
-
-Then restart gateway again:
-
-```powershell
-openclaw gateway restart
-```
-
-Check channel/plugin state:
-
-```powershell
-openclaw plugins inspect trix-native
-openclaw channels status --deep
-```
-
-## Pairing
-
-After the channel config is present, the plugin code exposes:
-
-- pairing code output
-- QR login start
-- QR login wait
-
-CLI login entry:
-
-```powershell
-openclaw channels login --channel trix-native --verbose
-```
-
-If your OpenClaw web UI already surfaces plugin-provided channel login, it should use the same login hooks.
-
-## Notes
-
-- OpenClaw currently still loads this plugin successfully even though `package.json` contains `openclaw.setupEntry`; the main channel plugin already exposes `setup`, so current versions still work.
-- On a fresh machine, the fastest path is: publish -> install plugin -> set `serviceUrl` and `serviceToken` -> restart gateway -> run channel login.
+If OpenClaw still cannot understand some image content after the message arrives successfully, that is very likely an OpenClaw-side interpretation issue rather than a TRIX Web or native transport issue.
