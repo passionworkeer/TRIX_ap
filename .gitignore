@@ -120,6 +120,8 @@ ios/**/SPMPackages/
 
 # Local scripts
 scripts/
+!skills/trix-canvas-skill/scripts/
+!skills/trix-canvas-skill/scripts/adapters/
 !.agents/skills/**/scripts/
 
 # Codex/Claude Code log files
@@ -144,6 +146,12 @@ output/
 # Manual test scripts
 tests/manual/*.mjs
 tests/manual/
+
+# TRIX Canvas Skill data (runtime-generated)
+skills/trix-canvas-skill/canvas/data_8791/
+skills/trix-canvas-skill/canvas/__pycache__/
+skills/trix-canvas-skill/scripts/__pycache__/
+skills/trix-canvas-skill/scripts/adapters/__pycache__/
 
 # TRIX Native test temp
 packages/trix-openclaw-native/.tmp/
