@@ -148,3 +148,4 @@ tests/manual/
 # TRIX Native test temp
 packages/trix-openclaw-native/.tmp/
 packages/trix-openclaw-native/.trix-native-channel/
+packages/skills/
