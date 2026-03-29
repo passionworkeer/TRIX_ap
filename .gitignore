@@ -122,7 +122,13 @@ ios/**/SPMPackages/
 scripts/
 !.agents/skills/**/scripts/
 
-# Local skill development directories
+# Codex/Claude Code log files
+.codex-*.log
+.codex-*.out.log
+.codex-*.err.log
+.codex-web-preview.log
+tmp-*.log
+.tmp/
 .agents/skills/add-component/
 .agents/skills/build-feature/
 .agents/skills/explore-recipes/
