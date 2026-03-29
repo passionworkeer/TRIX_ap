@@ -111,11 +111,13 @@ def create_project(name: str, script_text: str = "") -> dict:
 
 
 def get_project(project_id: int) -> dict:
-    return _canvas_get(f"/api/projects/{project_id}")
+    resp = _canvas_get(f"/api/projects/{project_id}")
+    return resp.get("data") if isinstance(resp, dict) else resp
 
 
 def list_projects() -> list:
-    return _canvas_get("/api/projects")
+    resp = _canvas_get("/api/projects")
+    return resp.get("data", []) if isinstance(resp, dict) else resp
 
 
 def upload_file(
@@ -249,8 +251,8 @@ def get_file_path(rel_path: str) -> str:
 
 
 def list_project_files(project_id: int) -> list:
-    """获取项目的文件列表"""
-    return _canvas_get(f"/api/projects/{project_id}/files")
+    resp = _canvas_get(f"/api/projects/{project_id}/files")
+    return resp.get("data", []) if isinstance(resp, dict) else resp
 
 
 # ---------- 媒体下载 ----------
@@ -272,7 +274,8 @@ def download_media(rel_path: str, timeout: int = 120) -> bytes:
         pass
 
     # 网络下载兜底（加文件大小限制防止内存耗尽）
-    url = f"{CANVAS_BASE.rstrip('/')}/media/{rel_path}"
+    # 服务器端点: GET /media/files/:filename
+    url = f"{CANVAS_BASE.rstrip('/')}/media/files/{rel_path}"
     req = urllib.request.Request(url, headers={"User-Agent": "TRIX-Canvas-Skill/1.0"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         # 分块读取，超限抛异常
