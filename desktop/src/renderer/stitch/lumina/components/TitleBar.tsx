@@ -33,9 +33,17 @@ export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
         paddingRight: 0,
         flexShrink: 0,
         userSelect: 'none',
+        WebkitAppRegion: 'drag',
+        zIndex: 100,
+        position: 'relative',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#191c1e', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 13, fontWeight: 600, color: '#191c1e',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        pointerEvents: 'none',
+      }}>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect width="18" height="18" rx="4" fill="#630ed4" />
           <path d="M9 3L14 13H4L9 3Z" fill="white" fillOpacity="0.9" />
@@ -44,9 +52,20 @@ export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
         <span>TRIX Companion</span>
       </div>
 
-      {children && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{children}</div>}
+      {children && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          {children}
+        </div>
+      )}
 
-      <div className="app-no-drag" style={{ display: 'flex', alignItems: 'stretch', marginLeft: 'auto', height: '100%' }}>
+      <div
+        className="app-no-drag"
+        style={{
+          display: 'flex', alignItems: 'stretch',
+          marginLeft: 'auto', height: '100%',
+          WebkitAppRegion: 'no-drag',
+        }}
+      >
         <WinBtn title="最小化" onClick={() => window.electronAPI?.windowMinimize()}>
           <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor" /></svg>
         </WinBtn>
@@ -72,15 +91,30 @@ export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
   );
 };
 
-function WinBtn({ title, danger, onClick, children }: { title: string; danger?: boolean; onClick: () => void; children: React.ReactNode }) {
+function WinBtn({ title, danger, onClick, children }: {
+  title: string; danger?: boolean; onClick: () => void; children: React.ReactNode;
+}) {
   return (
-    <button onClick={onClick} title={title} style={{
-      width: 46, height: '100%', border: 'none', background: 'transparent',
-      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#4a4455', padding: 0, transition: 'background .1s',
-    }}
-      onMouseEnter={e => { const el = e.currentTarget; el.style.background = danger ? '#e81123' : '#e6e8ea'; if (danger) el.style.color = '#fff'; }}
-      onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'transparent'; el.style.color = '#4a4455'; }}
-    >{children}</button>
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width: 46, height: '100%', border: 'none', background: 'transparent',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#4a4455', padding: 0, transition: 'background 0.12s ease, color 0.12s ease',
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.background = danger ? '#e81123' : '#e9e9eb';
+        if (danger) el.style.color = '#fff';
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.background = 'transparent';
+        el.style.color = '#4a4455';
+      }}
+    >
+      {children}
+    </button>
   );
 }

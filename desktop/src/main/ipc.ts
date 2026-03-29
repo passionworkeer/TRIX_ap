@@ -869,15 +869,15 @@ export function setupIpcHandlers(): void {
           name: typeof attachment.fileName === 'string' && attachment.fileName.trim()
             ? attachment.fileName
             : 'attachment',
-          mimeType: mimeType || undefined,
+          mimeType,
         };
       })
-      .filter((attachment): attachment is {
+      .filter(Boolean) as Array<{
         type: 'image' | 'audio' | 'video' | 'file';
         url: string;
         name: string;
-        mimeType?: string;
-      } => Boolean(attachment));
+        mimeType: string;
+      }>;
   }
 
   function normalizeDesktopMessage(entry: Record<string, unknown>, serverUrl: string) {

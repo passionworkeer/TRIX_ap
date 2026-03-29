@@ -77,7 +77,6 @@ function FloatApp() {
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragState = useRef<{ startX: number; startY: number; winX: number; winY: number; dragging: boolean } | null>(null);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Bot state subscription ────────────────────────────────────────────────
   useEffect(() => {
@@ -130,26 +129,18 @@ function FloatApp() {
     setMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  // ── Click: visual feedback + double-click to open chat ────────────────
+  // ── Click: single-click opens chat, with visual feedback ────────────
   const handlePetClick = useCallback(() => {
-    // Double-click detection
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-      // Double-click: open main window chat
-      window.electronAPI?.showMainWindow();
-      return;
-    }
-    clickTimerRef.current = setTimeout(() => {
-      clickTimerRef.current = null;
-      // Single click: flash + squish
-      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-      setIsFlashing(true);
-      flashTimeoutRef.current = setTimeout(() => setIsFlashing(false), 600);
-      setIsTapping(true);
-      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
-      tapTimeoutRef.current = setTimeout(() => setIsTapping(false), 400);
-    }, 250);
+    if (dragState.current?.dragging) return; // ignore click after drag
+    // Flash + squish feedback
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    setIsFlashing(true);
+    flashTimeoutRef.current = setTimeout(() => setIsFlashing(false), 600);
+    setIsTapping(true);
+    if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+    tapTimeoutRef.current = setTimeout(() => setIsTapping(false), 400);
+    // Open main window
+    window.electronAPI?.showMainWindow();
   }, []);
 
   // ── Drag to move ──────────────────────────────────────────────────────
@@ -178,18 +169,12 @@ function FloatApp() {
     dragState.current = null;
   }, []);
 
-  const handleOpenMain = useCallback(() => {
-    window.electronAPI?.showMainWindow();
-  }, []);
-
-  const handleOpenChat = useCallback(() => {
-    window.electronAPI?.showMainWindow();
-  }, []);
+  const openMain = useCallback(() => window.electronAPI?.showMainWindow(), []);
 
   const menuItems: MenuItem[] = [
-    { label: '💬  打开对话', action: handleOpenChat },
-    { label: '🏠  打开主窗口', action: handleOpenMain },
-    { label: '📱  扫码配对', action: handleOpenMain },
+    { label: '💬  打开对话', action: openMain },
+    { label: '🏠  打开主窗口', action: openMain },
+    { label: '📱  扫码配对', action: openMain },
     { label: '─', action: () => {} },
     { label: '🚪  最小化到托盘', action: () => window.electronAPI?.minimizeToTray(), danger: true },
   ];

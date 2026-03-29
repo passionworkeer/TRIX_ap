@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react';
 
 const EDGE = 6;
-type Edge = 'n'|'s'|'e'|'w'|'nw'|'ne'|'sw'|'se'|null;
+type Edge = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se' | null;
 
 function hitEdge(x: number, y: number): Edge {
   const w = window.innerWidth, h = window.innerHeight;
@@ -12,9 +12,9 @@ function hitEdge(x: number, y: number): Edge {
   return null;
 }
 
-const CURSORS: Record<string,string> = {
-  n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',
-  nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',
+const CURSORS: Record<string, string> = {
+  n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
+  nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize',
 };
 
 /** Wraps the app: provides edge resize via JS + cursor feedback */
@@ -32,7 +32,7 @@ export function WindowChrome({ children }: { children: React.ReactNode }) {
     if (!edge) return;
     e.preventDefault();
     const api = window.electronAPI;
-    if (!api?.windowGetBounds || !api?.windowResize) return;
+    if (!api?.windowGetBounds || !api?.windowSetBounds) return;
     resizing.current = true;
     const sx = e.screenX, sy = e.screenY;
     api.windowGetBounds().then((sb) => {
@@ -56,8 +56,11 @@ export function WindowChrome({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div onMouseMove={onMouseMove} onMouseDown={onMouseDown}
-      style={{ width:'100%', height:'100%', position:'relative' }}>
+    <div
+      onMouseMove={onMouseMove}
+      onMouseDown={onMouseDown}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+    >
       {children}
     </div>
   );
@@ -90,5 +93,9 @@ export function useTitleBarDrag() {
     });
   }, []);
 
-  return { onMouseDown };
+  const onDoubleClick = useCallback(() => {
+    window.electronAPI?.windowMaximize();
+  }, []);
+
+  return { onMouseDown, onDoubleClick };
 }
