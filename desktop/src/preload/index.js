@@ -35,6 +35,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showMainWindow: () => ipcRenderer.invoke('window:show-main'),
   hideMainWindow: () => ipcRenderer.invoke('window:hide-main'),
   minimizeToTray: () => ipcRenderer.invoke('window:minimize-to-tray'),
+  windowResize: (opts) => ipcRenderer.invoke('window:resize', opts),
+  windowMove: (x, y) => ipcRenderer.invoke('window:move', x, y),
+  windowSetBounds: (bounds) => ipcRenderer.invoke('window:set-bounds', bounds),
+  windowGetBounds: () => ipcRenderer.invoke('window:get-bounds'),
+  windowMinimize: () => ipcRenderer.invoke('window:minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window:maximize'),
+  windowIsMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+
+  // === Float Window Drag ===
+  floatMove: (x, y) => ipcRenderer.invoke('float:move', x, y),
+  floatGetPosition: () => ipcRenderer.invoke('float:get-position'),
 
   // === Bot State ===
   pushBotState: (state) => ipcRenderer.invoke('bot-state:push', state),

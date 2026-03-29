@@ -1,6 +1,7 @@
 import React, { Component, useState, useCallback, Suspense, lazy } from 'react';
 import { LuminaTitleBar } from '../lumina/components/TitleBar';
 import { LuminaSidebar, type SidebarRoute } from '../lumina/components/Sidebar';
+import { WindowChrome } from './WindowChrome';
 
 // Noir pages (stitch/noir/pages/) — dark themed
 const NoirDashboard = lazy(() =>
@@ -310,30 +311,32 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Title Bar */}
-      <LuminaTitleBar />
+    <WindowChrome>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Title Bar */}
+        <LuminaTitleBar />
 
-      {/* Main: sidebar + content */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left sidebar — always Lumina light */}
-        <LuminaSidebar
-          activeRoute={activeRoute as SidebarRoute}
-          onNavigate={handleNavigate}
-        />
+        {/* Main: sidebar + content */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {/* Left sidebar — always Lumina light */}
+          <LuminaSidebar
+            activeRoute={activeRoute as SidebarRoute}
+            onNavigate={handleNavigate}
+          />
 
-        {/* Content area */}
-        <div style={contentStyle}>
-          {renderContent()}
+          {/* Content area */}
+          <div style={contentStyle}>
+            {renderContent()}
+          </div>
         </div>
       </div>
-    </div>
+    </WindowChrome>
   );
 }

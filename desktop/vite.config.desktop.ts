@@ -31,6 +31,7 @@ const desktopPlugins = [
           rollupOptions: {
             external: ['electron', 'electron-store', 'dotenv'],
             output: {
+              format: 'cjs',
               entryFileNames: 'index.cjs',
             },
           },
@@ -75,7 +76,7 @@ export default defineConfig(async () => {
     },
     plugins: desktopPlugins,
     build: {
-      outDir: 'desktop/dist-desktop/renderer',
+      outDir: path.resolve(__dirname, 'dist-desktop/renderer'),
       emptyOutDir: true,
       rollupOptions: {
         input: {
@@ -92,6 +93,8 @@ export default defineConfig(async () => {
       // Prevent react-i18next from being pre-bundled with its own React copy
       // This avoids React's multiple-instances detection breaking hooks in the float window
       exclude: ['react-i18next'],
+      // Force pre-bundle to fix CJS/ESM interop issues
+      include: ['html-parse-stringify', 'void-elements', 'use-sync-external-store'],
     },
   } as any;
 });

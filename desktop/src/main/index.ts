@@ -80,6 +80,11 @@ export function createMainWindow(): void {
 
   mainWindow.webContents.on('did-finish-load', () => {
     log.info('Main window did-finish-load');
+    // Inject drag region CSS (frameless window requires this)
+    mainWindow.webContents.insertCSS(`
+      .app-drag-region { -webkit-app-region: drag; }
+      .app-drag-region button, .app-no-drag { -webkit-app-region: no-drag; }
+    `).catch((err) => log.error('Failed to inject drag CSS:', err));
   });
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {

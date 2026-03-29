@@ -1,25 +1,19 @@
 import { BrowserWindow, app } from 'electron';
+import path from 'path';
 
 let _mainWindow: BrowserWindow | null = null;
 let _floatWindow: BrowserWindow | null = null;
 
 function getPreloadPath(): string {
-  // app.getAppPath() = project root in dev, app root in prod
-  // dist-desktop is at: desktop/dist-desktop/ (dev) or appRoot/dist-desktop/ (prod)
-  return `${app.getAppPath()}/dist-desktop/preload/index.cjs`;
+  return path.join(app.getAppPath(), 'dist-desktop', 'preload', 'index.cjs');
 }
 
 function getMainUrl(): string {
-  // Built HTML is at: desktop/dist-desktop/renderer/desktop/src/renderer/main.html
-  // In dev: app.getAppPath() = desktop dir
-  // In prod (asar): app.getAppPath() = path/to/app.asar — use app.getPath('exe') to get unpacked dir
-  const htmlPath = `${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/main.html`;
-  return htmlPath;
+  return path.join(app.getAppPath(), 'dist-desktop', 'renderer', 'desktop', 'src', 'renderer', 'main.html');
 }
 
 function getFloatUrl(): string {
-  const htmlPath = `${app.getAppPath()}/dist-desktop/renderer/desktop/src/renderer/float.html`;
-  return htmlPath;
+  return path.join(app.getAppPath(), 'dist-desktop', 'renderer', 'desktop', 'src', 'renderer', 'float.html');
 }
 
 export { getPreloadPath, getMainUrl, getFloatUrl };

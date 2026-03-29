@@ -113,6 +113,95 @@ export function setupIpcHandlers(): void {
     return true;
   });
 
+  // === Main Window Resize ===
+  ipcMain.handle('window:resize', (_event, opts: { width?: number; height?: number }) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      const [w, h] = win.getSize();
+      win.setSize(
+        Math.max(opts.width ?? w, 800),
+        Math.max(opts.height ?? h, 600),
+      );
+    }
+    return true;
+  });
+
+  ipcMain.handle('window:move', (_event, x: number, y: number) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.setPosition(Math.round(x), Math.round(y));
+    }
+    return true;
+  });
+
+  ipcMain.handle('window:set-bounds', (_event, bounds: { x?: number; y?: number; width?: number; height?: number }) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      if (typeof bounds?.x === 'number' || typeof bounds?.y === 'number') {
+        const [cx, cy] = win.getPosition();
+        win.setPosition(Math.round(bounds.x ?? cx), Math.round(bounds.y ?? cy));
+      }
+      if (typeof bounds?.width === 'number' || typeof bounds?.height === 'number') {
+        const [cw, ch] = win.getSize();
+        win.setSize(
+          Math.max(Math.round(bounds.width ?? cw), 800),
+          Math.max(Math.round(bounds.height ?? ch), 600),
+        );
+      }
+    }
+    return true;
+  });
+
+  ipcMain.handle('window:get-bounds', () => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      return win.getBounds();
+    }
+    return { x: 0, y: 0, width: 1200, height: 800 };
+  });
+
+  ipcMain.handle('window:minimize', () => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.minimize();
+    }
+    return true;
+  });
+
+  ipcMain.handle('window:maximize', () => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      if (win.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win.maximize();
+      }
+    }
+    return true;
+  });
+
+  ipcMain.handle('window:is-maximized', () => {
+    const win = getMainWindow();
+    return win && !win.isDestroyed() ? win.isMaximized() : false;
+  });
+
+  // === Float Window Drag ===
+  ipcMain.handle('float:move', (_event, x: number, y: number) => {
+    const win = getFloatWindow();
+    if (win && !win.isDestroyed()) {
+      win.setPosition(Math.round(x), Math.round(y));
+    }
+    return true;
+  });
+
+  ipcMain.handle('float:get-position', () => {
+    const win = getFloatWindow();
+    if (win && !win.isDestroyed()) {
+      return win.getPosition();
+    }
+    return [0, 0];
+  });
+
   // === BotState Push (from main window to float window) ===
   ipcMain.handle('bot-state:push', (_event, state) => {
     const validated = isValidBotState(state);

@@ -245,6 +245,17 @@ export interface ElectronAPI {
   showMainWindow: () => Promise<boolean>;
   hideMainWindow: () => Promise<boolean>;
   minimizeToTray: () => Promise<boolean>;
+  windowResize: (opts: { width?: number; height?: number }) => Promise<boolean>;
+  windowMove: (x: number, y: number) => Promise<boolean>;
+  windowSetBounds: (bounds: { x?: number; y?: number; width?: number; height?: number }) => Promise<boolean>;
+  windowGetBounds: () => Promise<{ x: number; y: number; width: number; height: number }>;
+  windowMinimize: () => Promise<boolean>;
+  windowMaximize: () => Promise<boolean>;
+  windowIsMaximized: () => Promise<boolean>;
+
+  // Float Window Drag
+  floatMove: (x: number, y: number) => Promise<boolean>;
+  floatGetPosition: () => Promise<[number, number]>;
 
   // Bot State
   pushBotState: (state: BotState) => Promise<boolean>;
