@@ -807,3 +807,7 @@ For issues with push notification testing:
 - **Technical Issues**: Contact backend team
 - **Certificate Issues**: Contact DevOps team
 - **Apple Support**: [Contact Apple Developer Support](https://developer.apple.com/support/)
+
+---
+
+**最后更新**: 2026-03-29

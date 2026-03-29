@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 数据库架�?
 > 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server�?
-> **最后更�?*: 2026-03-24
+> **最后更�?*: 2026-03-29
 
 ---
 
@@ -883,4 +883,4 @@ interface MessageRecord {
 
 ---
 
-**最后更�?*: 2026-03-24
+**最后更�?*: 2026-03-29

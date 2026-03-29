@@ -1,5 +1,7 @@
 # Design System Document
 
+> **最后更新**: 2026-03-29
+
 ## 1. Overview & Creative North Star: "The Digital Architect"
 
 This design system is not a collection of templates; it is a framework for precision and authority. Our Creative North Star is **"The Digital Architect."** It embodies the clarity of a blueprint and the prestige of a high-end gallery. 

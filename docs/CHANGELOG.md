@@ -4,6 +4,30 @@
 
 ---
 
+## 📅 2026-03-28 - 稳定化三端实时配对与 Gateway 状态
+
+### 完成内容
+
+1. **实时流稳定性修复** (`96995c5`):
+   - 修复 native web 和 desktop 实时消息流中的竞争条件
+   - 统一三端（TRIX Native Channel）配对状态机的超时和重连逻辑
+
+2. **配对流程加固** (`053f852`):
+   - 修复 Desktop 端配对 IPC handlers 的路径问题（`app.getPath('userData')`）
+   - 完善 Float Window 配对 UI 轮询逻辑
+   - Web 端 `TrixNativeChannelClient` 配对状态同步
+
+3. **文档归档清理** (`99860fe`, `45e8b58`):
+   - 归档 3 个过时文档，移入 `docs/.archive/`
+   - 修复 `docs/INDEX.md` 中的引用路径
+
+4. **Gateway Channel Status 面板** (`9fdec8c`):
+   - Desktop 新增 Gateway 通道状态面板
+   - 通过 OpenClaw `healthRPC` 获取通道健康状态
+   - 支持 TRIX Native 和 Feishu 双通道显示
+
+---
+
 ## 📅 2026-03-24 - 全面文档扫描与同步
 
 ### 完成内容
@@ -989,4 +1013,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-23
+**最后更新**: 2026-03-28

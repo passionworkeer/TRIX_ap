@@ -2,22 +2,25 @@
 
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
-> **Last Updated**: 2026-03-26
-> **Version**: 1.3（目录结构准确性修复）
+> **Last Updated**: 2026-03-29
+> **Version**: 1.4（准确性修复：AnalyticsService、UIRenderingOptimizer、InputValidator 均已存在；总 Swift 文件数修正为 231；新增 Core/Design、Core/Video、Features/Data 目录）
 
 ---
 
-## Accuracy Notes (as of 2026-03-26)
+## Accuracy Notes (as of 2026-03-29)
 
 **Known discrepancies:**
 - `AppDelegate.swift` does not exist — lifecycle managed by `TRIX3DCompanionApp.swift`
 - `PairingService.swift` does not exist — pairing implemented in `ClawbotChannelService`
 - `WebSocketManager` does not exist — real-time uses `ClawbotChannelService` (TRIX Native Channel protocol)
-- `InputValidator.swift` does not exist in Core/Utilities/（整个目录无 Swift 文件）
-- `UIRenderingOptimizer.swift` does not exist in Core/Performance/
-- `AnalyticsService.swift` does not exist in Core/Analytics/
-- Core/Utils/, Core/Config/ have no Swift files（整个目录无 Swift 文件）
-- Core/Services/ has 40 implementations + 21 protocols = **61 Swift files**
+- Core/Utils/, Core/Config/ have no Swift files (entire directory has no Swift files)
+- Core/Services has 40 implementations + 21 protocols = **61 Swift files**
+- Total Swift files (excluding tests): **231**
+
+**Previously corrected (v1.3 → v1.4):**
+- `AnalyticsService.swift` exists at `Core/Analytics/`
+- `UIRenderingOptimizer.swift` exists at `Core/Performance/`
+- `InputValidator.swift` exists at `Core/Utilities/`
 
 ---
 
@@ -79,6 +82,9 @@ ios/TRIX3DCompanion/
 |   +- UITestAccessibilityIdentifiers.swift
 |
 +- Core/
+|   +- Design/
+|   |   +- DesignSystem.swift          # Lumina design token system
+|   |
 |   +- Network/
 |   |   +- APIClient.swift              # HTTP client (Alamofire)
 |   |   +- APIEndpoints.swift            # REST endpoint enum
@@ -115,7 +121,11 @@ ios/TRIX3DCompanion/
 |   |   +- ImageCacheManager.swift          # Image caching (Kingfisher)
 |   |
 |   +- Utilities/
-|   |   +- SecureLogger.swift               # Auto-sanitizing logger
+|   |   +- InputValidator.swift         # Input validation utilities
+|   |   +- SecureLogger.swift         # Auto-sanitizing logger
+|   |
+|   +- Video/
+|   |   +- VideoPlayerView.swift       # Video playback
 |   |
 |   +- Utils/
 |       # 整个目录无 Swift 文件
@@ -185,9 +195,12 @@ ios/TRIX3DCompanion/
 |   |               PrivacySettingsViewModel, PointsHistoryViewModel
 |   |
 |   +- Diagnostic/
-|       +- Views/  DiagnosticView, DiagnosticAdvancedView
-|       +- ViewModels/  DiagnosticViewModel
-|       +- Models/  DiagnosticModels
+|   |   +- Views/  DiagnosticView, DiagnosticAdvancedView
+|   |   +- ViewModels/  DiagnosticViewModel
+|   |   +- Models/  DiagnosticModels
+|
+|   +- Data/
+|   |   +- PersistenceIntegrationExample.swift
 |
 +- Shared/
 |   +- Components/
@@ -203,10 +216,6 @@ ios/TRIX3DCompanion/
 |   |               Localizable, AVAudioPlayer+Extensions
 |   +- Models/  User, ChatMessage, ChatRoom, StudyRoom,
 |               Location, Snapshot, Device, BotState
-|
-+- Video/
-|   +- VideoPlayerView.swift
-|
 +- Tests/
     +- TRIX3DCompanionTests/
         +- Auth/, Chat/, Home/, Diagnostic/, Map/, Profile/,
@@ -388,9 +397,10 @@ dependencies: [
 | 1.0 | 2026-02 | Initial version |
 | 1.1 | 2026-03 | Performance optimization |
 | 1.2 | 2026-03-25 | Accuracy update: added missing services (17), removed non-existent files |
-| 1.3 | 2026-03-26 | Directory structure cleanup: Core/Network (3 files removed), Core/Storage (2 removed), Core/Analytics/Utilities/Utils/Config corrected, Core/Services count: 61 files (40 impl + 21 protocols), total Swift: 293 |
+| 1.3 | 2026-03-26 | Directory structure cleanup: Core/Network (3 files removed), Core/Storage (2 removed), Core/Services count: 61 files (40 impl + 21 protocols), total Swift: 293 |
+| 1.4 | 2026-03-29 | Accuracy fix: AnalyticsService, UIRenderingOptimizer, InputValidator all exist; total Swift corrected to 231; added Core/Design, Core/Video, Features/Data to directory structure; removed duplicate Video/ entry |
 
 ---
 
-**Last Updated**: 2026-03-26
-**Version**: 1.3
+**Last Updated**: 2026-03-29
+**Version**: 1.4

@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-26（代码扫描同步：修正 hooks 11→12（补 useBotStateMachine.ts），utils 9→10（补 coordinateUtils.ts））
+> **最后更新**: 2026-03-29（代码扫描同步：E2E spec 17→22（新增 a11y、chat-detail、login-test、profile-user、register、study-timer 等），utils 9→10（coordinateUtils.ts 存在），services 27 和 hooks 12 确认正确）
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -61,33 +61,33 @@ React App
 
 | 文件 | 描述 | 行数 |
 |------|------|------|
-| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1347 行 | 1347 |
+| `achievementService.ts` | 成就系统 | — |
+| `baiduMapService.ts` | 百度地图 | — |
 | `chatService.ts` | 聊天功能 | — |
-| `friendService.ts` | 好友管理 | — |
-| `uploadService.ts` | 文件上传 | — |
-| `serverOssUploadService.ts` | 服务端 OSS 上传 | — |
-| `OSSService.ts` | 阿里云 OSS | — |
-| `sessionService.ts` | 会话管理 | — |
-| `StorageService.ts` | 本地存储抽象 | — |
+| `clawbotHistoryService.ts` | 聊天历史 | — |
 | `ConnectionManager.ts` | 连接状态管理 | — |
 | `databaseService.ts` | 数据库操作 | — |
-| `studySessionService.ts` | 学习记录 | — |
-| `studyHistoryService.ts` | 学习历史 | — |
-| `scheduleService.ts` | 日程管理 | — |
-| `todoService.ts` | 待办事项 | — |
-| `achievementService.ts` | 成就系统 | — |
-| `pointsService.ts` | 积分系统 | — |
-| `mallService.ts` | 商城功能 | — |
-| `wardrobeService.ts` | 衣柜/装扮 | — |
+| `friendService.ts` | 好友管理 | — |
 | `locationService.ts` | 位置服务 | — |
-| `baiduMapService.ts` | 百度地图 | — |
-| `placeService.ts` | 地点数据 | — |
-| `projectService.ts` | 项目管理 | — |
-| `voicePlaybackService.ts` | 语音播放 | — |
-| `ttsService.ts` | TTS 语音合成 | — |
+| `mallService.ts` | 商城功能 | — |
 | `notificationService.ts` | 通知管理 | — |
+| `OSSService.ts` | 阿里云 OSS | — |
+| `placeService.ts` | 地点数据 | — |
+| `pointsService.ts` | 积分系统 | — |
+| `projectService.ts` | 项目管理 | — |
+| `scheduleService.ts` | 日程管理 | — |
+| `serverOssUploadService.ts` | 服务端 OSS 上传 | — |
+| `sessionService.ts` | 会话管理 | — |
+| `StorageService.ts` | 本地存储抽象 | — |
+| `studyHistoryService.ts` | 学习历史 | — |
+| `studySessionService.ts` | 学习记录 | — |
+| `todoService.ts` | 待办事项 | — |
+| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1347 行 | 1347 |
+| `ttsService.ts` | TTS 语音合成 | — |
+| `uploadService.ts` | 文件上传 | — |
 | `userStatsService.ts` | 用户统计 | — |
-| `clawbotHistoryService.ts` | 聊天历史 | — |
+| `voicePlaybackService.ts` | 语音播放 | — |
+| `wardrobeService.ts` | 衣柜/装扮 | — |
 
 共 **27 个** 服务文件。
 
@@ -145,7 +145,7 @@ React App
 
 ### 3.7 E2E 测试 (`src/e2e/`)
 
-17 个 Playwright 测试文件覆盖：Auth、Chat、Diagnostic、Home、Login、Map、Pairing、PointsMall、Profile、QR Pairing、Snapshot、Social、StudyRoom、Wardrobe。
+22 个 Playwright 测试文件（不含 `helpers.ts` + `visual-regression.spec.ts-snapshots/` 目录）覆盖：a11y、Auth、chat-detail、Diagnostic、home、login-test、Map、Pairing、PointsMall、Profile、profile-user、QR Pairing、register、Snapshot、Social、study-room、study-timer、visual-regression、Wardrobe。
 
 ### 3.8 类型定义 (`src/types/`)
 
@@ -306,13 +306,13 @@ src/
 │   └── todo/            # 待办功能（含 store）
 ├── lib/                 # 错误处理系统（errors, validation, boundary）
 ├── types/               # 8 个类型定义文件
-├── utils/               # 9 个工具文件
+├── utils/               # 10 个工具文件
 ├── i18n/                # 4 语言国际化
 ├── three/               # Three.js 3D 组件（Zustand store）
-├── e2e/                 # 17 个 Playwright 测试
+├── e2e/                 # 22 个 Playwright 测试（含 helpers.ts）
 └── index.html
 ```
 
 ---
 
-**最后更新**: 2026-03-26（代码扫描同步：版本栈确认 React 19.2.4 + TS 5.8.2 + Vite 6.2 + Tailwind 4.2.0 + Supabase 2.94.0，utils 9→10（coordinateUtils.ts））
+**最后更新**: 2026-03-29（代码扫描同步：E2E spec 17→22（新增 a11y、chat-detail、login-test、profile-user、register、study-timer 等），utils 9→10（coordinateUtils.ts 存在），services 27 确认正确，hooks 12 确认正确）

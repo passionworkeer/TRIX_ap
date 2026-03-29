@@ -1,6 +1,6 @@
 # 配对指南
 
-> **最后更新**: 2026-03-24
+> **最后更新**: 2026-03-29
 
 ## 现在只保留的正式方式
 
@@ -51,4 +51,4 @@ openclaw channels login --channel trix-native --account default --verbose
 
 ---
 
-**最后更新**: 2026-03-22
+**最后更新**: 2026-03-29

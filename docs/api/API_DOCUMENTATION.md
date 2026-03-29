@@ -1,7 +1,7 @@
 # TRIX3D åç«¯ API ææ¡£
 
 > çæ¬: 1.4.0
-> **æåæ´æ?*: 2026-03-24ï¼åå®¹å·²å®¡éï¼ç²¾ç® TRIX Native Server APIï¼å®æ´ææ¡£è§ `../TRIX_NATIVE_CHANNEL.md`ï¼?
+> **æåæ´æ?*: 2026-03-29ï¼åå®¹å·²å®¡éï¼ç²¾ç® TRIX Native Server APIï¼å®æ´ææ¡£è§ `../TRIX_NATIVE_CHANNEL.md`ï¼?
 
 ---
 
@@ -581,7 +581,7 @@ const socket = new WebSocket('https://trix.love/ws?role=user&conversationId=...&
 
 ## æ´æ°æ¥å¿
 
-### 2026-03-24
+### 2026-03-29
 
 - æ´æ°çæ¬å·è³ 1.4.0
 - åæ­¥æåæ´æ°æ¥æ?

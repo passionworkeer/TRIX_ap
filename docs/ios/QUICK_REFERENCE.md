@@ -381,3 +381,7 @@ curl -v \
 - [APNs Documentation](https://developer.apple.com/documentation/usernotifications)
 - [Payload Reference](https://developer.apple.com/documentation/usernotifications/generating_a_remote_notification)
 - [Error Codes](https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/handling_notification_responses_from_apns)
+
+---
+
+**最后更新**: 2026-03-29

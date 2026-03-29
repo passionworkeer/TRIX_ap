@@ -1,5 +1,6 @@
 # Lumina Design System — Desktop UI
 
+> **最后更新**: 2026-03-29
 > **Theme**: Light / Social-facing pages (Chat, Study, Snapshot, Profile)
 > **Background**: `#f7f9fb` (content), `#f2f4f6` (sidebar/frame)
 > **Creative North Star**: "Warm Precision" — soft, approachable, human-first
