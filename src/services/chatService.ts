@@ -79,30 +79,38 @@ export async function getChatHistory(
     const limit = options?.limit ?? 50;
     const beforeTimestamp = options?.beforeTimestamp;
 
-    let query = supabase
+    let countQuery = supabase
       .from('chat_messages')
-      .select('*', { count: 'exact' })
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId);
+
+    let dataQuery = supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', conversationId);
 
     // 如果有 beforeTimestamp，加载该时间之前的消息
     if (beforeTimestamp) {
-      query = query.lt('created_at', beforeTimestamp);
+      countQuery = countQuery.lt('created_at', beforeTimestamp);
+      dataQuery = dataQuery.lt('created_at', beforeTimestamp);
     }
 
     // 获取总数以判断是否还有更多
-    const { count } = await query;
+    const [{ count }, { data, error }] = await Promise.all([
+      countQuery,
+      dataQuery
+        .order('created_at', { ascending: false })
+        .limit(limit),
+    ]);
 
     // 再应用 limit 限制
-    const { data, error } = await query
-      .limit(limit);
 
     if (error) {
       handleGlobalError(error, '获取聊天记录失败');
       return { messages: [], hasMore: false };
     }
 
-    const dbMessages = data || [];
+    const dbMessages = [...(data || [])].reverse();
     // 判断是否还有更多消息
     const totalCount = count ?? dbMessages.length;
     const hasMore = beforeTimestamp

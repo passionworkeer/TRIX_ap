@@ -22,12 +22,17 @@ vi.mock('import.meta.env', () => ({
 }));
 
 // Mock react-hot-toast
-vi.mock('react-hot-toast', () => ({
-  toast: {
+vi.mock('react-hot-toast', () => {
+  const toast = {
     error: vi.fn(),
     success: vi.fn(),
-  },
-}));
+  };
+
+  return {
+    default: toast,
+    toast,
+  };
+});
 
 // Mock useNotification hook
 vi.mock('../hooks/useNotification', () => ({

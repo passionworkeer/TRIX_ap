@@ -169,8 +169,8 @@ describe('useSpeechToText', () => {
       });
 
       // Simulate recognition result
-      if (mockInstance.onresult) {
-        mockInstance.onresult({
+      act(() => {
+        mockInstance.onresult?.({
           results: [
             {
               isFinal: true,
@@ -179,7 +179,7 @@ describe('useSpeechToText', () => {
           ],
           resultIndex: 0,
         });
-      }
+      });
 
       await waitFor(() => {
         expect(onResult).toHaveBeenCalledWith('Hello world');
@@ -204,9 +204,9 @@ describe('useSpeechToText', () => {
       });
 
       // Manually trigger onstart since mock.start() doesn't call it
-      if (mockInstance.onstart) {
-        mockInstance.onstart({} as Event);
-      }
+      act(() => {
+        mockInstance.onstart?.({} as Event);
+      });
 
       expect(onStatusChange).toHaveBeenCalledWith('listening');
 
@@ -215,9 +215,9 @@ describe('useSpeechToText', () => {
       });
 
       // Manually trigger onend
-      if (mockInstance.onend) {
-        mockInstance.onend({} as Event);
-      }
+      act(() => {
+        mockInstance.onend?.({} as Event);
+      });
 
       expect(onStatusChange).toHaveBeenCalledWith('idle');
     });
@@ -240,9 +240,9 @@ describe('useSpeechToText', () => {
       });
 
       // Simulate error
-      if (mockInstance.onerror) {
-        mockInstance.onerror({ error: 'no-speech', message: '' });
-      }
+      act(() => {
+        mockInstance.onerror?.({ error: 'no-speech', message: '' });
+      });
 
       await waitFor(() => {
         expect(onError).toHaveBeenCalledWith('未检测到语音');
@@ -297,19 +297,17 @@ describe('useSpeechToText', () => {
       });
 
       // Simulate multiple final results
-      if (mockInstance.onresult) {
-        mockInstance.onresult({
+      act(() => {
+        mockInstance.onresult?.({
           results: [{ isFinal: true, 0: { transcript: 'Hello ' } }],
           resultIndex: 0,
         });
-      }
 
-      if (mockInstance.onresult) {
-        mockInstance.onresult({
+        mockInstance.onresult?.({
           results: [{ isFinal: true, 0: { transcript: 'world' } }],
           resultIndex: 0,
         });
-      }
+      });
 
       await waitFor(() => {
         expect(result.current.transcript).toContain('Hello ');
@@ -329,12 +327,12 @@ describe('useSpeechToText', () => {
       });
 
       // Simulate interim result
-      if (mockInstance.onresult) {
-        mockInstance.onresult({
+      act(() => {
+        mockInstance.onresult?.({
           results: [{ isFinal: false, 0: { transcript: 'Thinking...' } }],
           resultIndex: 0,
         });
-      }
+      });
 
       await waitFor(() => {
         expect(result.current.interimTranscript).toBe('Thinking...');

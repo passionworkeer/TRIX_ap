@@ -12,6 +12,7 @@
  */
 
 import { useNotification } from '../hooks/useNotification';
+import toast from 'react-hot-toast';
 import { logger } from './logger';
 import {
   ErrorCode,
@@ -198,16 +199,13 @@ export function handleGlobalError(error: unknown, customMessage?: string): void 
   // 全局错误处理：可以显示 toast、alert 等
   // 注意：需要确保已经初始化了 toast 容器
   if (typeof window !== 'undefined') {
-    // 动态导入 toast
-    import('react-hot-toast').then(({ toast }) => {
-      toast.error(appError.message || '操作失败，请稍后重试', {
-        duration: 4000,
-        style: {
-          background: '#fef2f2',
-          color: '#991b1b',
-          border: '1px solid #fecaca',
-        },
-      });
+    toast.error(appError.message || '操作失败，请稍后重试', {
+      duration: 4000,
+      style: {
+        background: '#fef2f2',
+        color: '#991b1b',
+        border: '1px solid #fecaca',
+      },
     });
   }
 }

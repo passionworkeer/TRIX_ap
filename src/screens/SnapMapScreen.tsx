@@ -52,12 +52,12 @@ const mockFriends: FriendLatestMessage[] = [
 
 const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
   const offsets = [
-    { lat: 0.0018, lng: 0.0022 },
-    { lat: -0.0015, lng: 0.0035 },
-    { lat: 0.0025, lng: -0.0028 },
-    { lat: -0.0022, lng: -0.0032 },
-    { lat: 0.0035, lng: 0.0012 },
-    { lat: -0.0038, lng: 0.0015 }
+    { lat: -0.0014, lng: -0.0042 },
+    { lat: -0.0034, lng: -0.0014 },
+    { lat: -0.0032, lng: 0.0020 },
+    { lat: -0.0016, lng: 0.0046 },
+    { lat: 0.0006, lng: 0.0034 },
+    { lat: 0.0008, lng: -0.0028 }
   ];
   const offset = offsets[index % offsets.length];
   return { lat: baseLat + (offset?.lat ?? 0), lng: baseLng + (offset?.lng ?? 0) };
@@ -65,21 +65,21 @@ const getOffsetPosition = (baseLat: number, baseLng: number, index: number) => {
 
 const mockPlaces: Place[] = [
   // 学习场所
-  { id: 'place-study-1', name: '24H 沉浸自习室', category: 'study', emoji: '📚', description: '提供绝对安静的学习环境，配备人体工学椅与护眼灯，适合考研党凌晨冲刺。', openHours: '全天开放', latitude: 31.2304 + 0.0015, longitude: 121.4737 - 0.0015 },
-  { id: 'place-study-2', name: '中心区市立图书馆', category: 'study', emoji: '📖', description: '全市最大的综合性图书馆，藏书丰富，顶层有绝佳的观景阅读区。', openHours: '09:00 - 21:00', latitude: 31.2304 - 0.0018, longitude: 121.4737 - 0.0026 },
-  { id: 'place-study-3', name: 'TRIX 青年创客空间', category: 'study', emoji: '💻', description: '独立开发者的聚集地，网速极快，咖啡免费续杯。', openHours: '08:00 - 23:00', latitude: 31.2304 + 0.0028, longitude: 121.4737 + 0.0022 },
+  { id: 'place-study-1', name: '24H 沉浸自习室', category: 'study', emoji: '📚', description: '提供绝对安静的学习环境，配备人体工学椅与护眼灯，适合考研党凌晨冲刺。', openHours: '全天开放', latitude: 31.2304 - 0.0012, longitude: 121.4737 - 0.0054 },
+  { id: 'place-study-2', name: '中心区市立图书馆', category: 'study', emoji: '📖', description: '全市最大的综合性图书馆，藏书丰富，顶层有绝佳的观景阅读区。', openHours: '09:00 - 21:00', latitude: 31.2304 - 0.0034, longitude: 121.4737 - 0.0034 },
+  { id: 'place-study-3', name: 'TRIX 青年创客空间', category: 'study', emoji: '💻', description: '独立开发者的聚集地，网速极快，咖啡免费续杯。', openHours: '08:00 - 23:00', latitude: 31.2304 - 0.0040, longitude: 121.4737 + 0.0006 },
   
   // 餐饮场所
-  { id: 'place-dining-1', name: 'Blue Bottle 蓝瓶咖啡', category: 'dining', emoji: '☕', description: '在简约静谧的工业风空间里，享受一杯顶级的单品手冲咖啡。', openHours: '08:00 - 19:00', latitude: 31.2304 + 0.0006, longitude: 121.4737 + 0.0012 },
-  { id: 'place-dining-2', name: 'Fumin Bagel', category: 'dining', emoji: '🥯', description: '现烤健康贝果与特调拿铁，排队人数经常爆满的网红店！', openHours: '08:00 - 20:00', latitude: 31.2304 - 0.0012, longitude: 121.4737 + 0.0018 },
-  { id: 'place-dining-3', name: 'Giglio La Pizza', category: 'dining', emoji: '🍕', description: '柴火窑烤的正宗那不勒斯披萨，满口都是芝士与麦香。', openHours: '11:00 - 22:00', latitude: 31.2304 + 0.0022, longitude: 121.4737 + 0.0036 },
-  { id: 'place-dining-4', name: '深夜食堂·和风居居酒屋', category: 'dining', emoji: '🍣', description: '温暖疲惫灵魂的寿司与烧鸟，学习完来这里抚慰一下肠胃吧。', openHours: '18:00 - 02:00', latitude: 31.2304 - 0.0016, longitude: 121.4737 + 0.0028 },
+  { id: 'place-dining-1', name: 'Blue Bottle 蓝瓶咖啡', category: 'dining', emoji: '☕', description: '在简约静谧的工业风空间里，享受一杯顶级的单品手冲咖啡。', openHours: '08:00 - 19:00', latitude: 31.2304 - 0.0030, longitude: 121.4737 + 0.0034 },
+  { id: 'place-dining-2', name: 'Fumin Bagel', category: 'dining', emoji: '🥯', description: '现烤健康贝果与特调拿铁，排队人数经常爆满的网红店！', openHours: '08:00 - 20:00', latitude: 31.2304 - 0.0012, longitude: 121.4737 + 0.0056 },
+  { id: 'place-dining-3', name: 'Giglio La Pizza', category: 'dining', emoji: '🍕', description: '柴火窑烤的正宗那不勒斯披萨，满口都是芝士与麦香。', openHours: '11:00 - 22:00', latitude: 31.2304 + 0.0006, longitude: 121.4737 + 0.0044 },
+  { id: 'place-dining-4', name: '深夜食堂·和风居居酒屋', category: 'dining', emoji: '🍣', description: '温暖疲惫灵魂的寿司与烧鸟，学习完来这里抚慰一下肠胃吧。', openHours: '18:00 - 02:00', latitude: 31.2304 + 0.0012, longitude: 121.4737 + 0.0018 },
   
   // 娱乐和公园场所
-  { id: 'place-ent-1', name: '光年 Livehouse 星光 KTV', category: 'entertainment', emoji: '🎤', description: '百万级音响设备，周末放松解压、跟好友尽情嗨唱的绝佳去处！', openHours: '12:00 - 02:00', latitude: 31.2304 - 0.0028, longitude: 121.4737 + 0.0008 },
-  { id: 'place-ent-2', name: 'VR 零界探索·超空间', category: 'entertainment', emoji: '🥽', description: '全沉浸式的虚拟现实体验馆，带你穿越到赛博朋克异世界。', openHours: '10:00 - 22:00', latitude: 31.2304 + 0.0032, longitude: 121.4737 - 0.0012 },
-  { id: 'place-park-1', name: '城市绿洲极客公园', category: 'park', emoji: '🌳', description: '繁华都市中的自然氧吧，林荫大道与慢跑径，适合傍晚散步放松。', openHours: '全天开放', latitude: 31.2304 - 0.0008, longitude: 121.4737 - 0.0032 },
-  { id: 'place-park-2', name: '滨江现代艺术展览中心', category: 'park', emoji: '🎨', description: '依水而建的现代艺术展览馆，近期正在举办《未来科技与艺术》特展。', openHours: '10:00 - 18:00', latitude: 31.2304 + 0.0042, longitude: 121.4737 - 0.0028 },
+  { id: 'place-ent-1', name: '光年 Livehouse 星光 KTV', category: 'entertainment', emoji: '🎤', description: '百万级音响设备，周末放松解压、跟好友尽情嗨唱的绝佳去处！', openHours: '12:00 - 02:00', latitude: 31.2304 + 0.0010, longitude: 121.4737 - 0.0016 },
+  { id: 'place-ent-2', name: 'VR 零界探索·超空间', category: 'entertainment', emoji: '🥽', description: '全沉浸式的虚拟现实体验馆，带你穿越到赛博朋克异世界。', openHours: '10:00 - 22:00', latitude: 31.2304 - 0.0004, longitude: 121.4737 - 0.0046 },
+  { id: 'place-park-1', name: '城市绿洲极客公园', category: 'park', emoji: '🌳', description: '繁华都市中的自然氧吧，林荫大道与慢跑径，适合傍晚散步放松。', openHours: '全天开放', latitude: 31.2304 - 0.0022, longitude: 121.4737 + 0.0018 },
+  { id: 'place-park-2', name: '滨江现代艺术展览中心', category: 'park', emoji: '🎨', description: '依水而建的现代艺术展览馆，近期正在举办《未来科技与艺术》特展。', openHours: '10:00 - 18:00', latitude: 31.2304 + 0.0002, longitude: 121.4737 - 0.0030 },
 ];
 
 const heatZones: Array<{ position: [number, number]; color: string; size: number }> = [
@@ -97,6 +97,7 @@ const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.D
   root.style.flexDirection = 'column';
   root.style.alignItems = 'center';
   root.style.justifyContent = 'flex-end';
+  root.style.pointerEvents = 'none';
 
   const shadow = document.createElement('div');
   shadow.style.position = 'absolute';
@@ -106,6 +107,7 @@ const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.D
   shadow.style.background = 'rgba(59, 130, 246, 0.5)';
   shadow.style.borderRadius = '50%';
   shadow.style.filter = 'blur(4px)';
+  shadow.style.pointerEvents = 'none';
 
   const img = document.createElement('img');
   img.src = HERO_3D_IMAGE;
@@ -115,6 +117,7 @@ const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.D
   img.style.objectFit = 'contain';
   img.style.position = 'relative';
   img.style.zIndex = '2';
+  img.style.pointerEvents = 'none';
 
   const label = document.createElement('div');
   label.style.position = 'absolute';
@@ -131,6 +134,7 @@ const createSnapAvatarIcon = (friend: FriendLatestMessage, isDark: boolean): L.D
   label.style.zIndex = '3';
   label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
   label.textContent = friend.name || 'Friend';
+  label.style.pointerEvents = 'none';
 
   root.append(shadow, img, label);
 
@@ -151,6 +155,7 @@ const createSnapPlaceIcon = (place: Place, isDark: boolean): L.DivIcon => {
   root.style.flexDirection = 'column';
   root.style.alignItems = 'center';
   root.style.justifyContent = 'flex-end';
+  root.style.pointerEvents = 'none';
 
   const emojiDiv = document.createElement('div');
   emojiDiv.style.position = 'relative';
@@ -167,6 +172,7 @@ const createSnapPlaceIcon = (place: Place, isDark: boolean): L.DivIcon => {
   emojiDiv.style.fontSize = '20px';
   emojiDiv.style.marginBottom = '2px';
   emojiDiv.style.zIndex = '2';
+  emojiDiv.style.pointerEvents = 'none';
   emojiDiv.textContent = place.emoji || '📍';
 
   const label = document.createElement('div');
@@ -183,6 +189,7 @@ const createSnapPlaceIcon = (place: Place, isDark: boolean): L.DivIcon => {
   label.style.border = isDark ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(239,68,68,0.2)';
   label.style.zIndex = '3';
   label.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+  label.style.pointerEvents = 'none';
   label.textContent = place.name;
 
   root.append(emojiDiv, label);
@@ -233,6 +240,85 @@ type FriendWithLocation = {
   unread_count?: number;
   last_message?: string | null;
   last_message_time?: string | null;
+};
+
+type SpreadPlaceMarker = {
+  key: string;
+  type: 'place';
+  lat: number;
+  lng: number;
+  place: Place;
+};
+
+type SpreadFriendMarker = {
+  key: string;
+  type: 'friend';
+  lat: number;
+  lng: number;
+  friend: FriendWithLocation;
+};
+
+type SpreadMarker = SpreadPlaceMarker | SpreadFriendMarker;
+
+const MIN_MARKER_SEPARATION = 0.0036;
+
+const spreadMarkerPositions = <T extends { lat: number; lng: number }>(items: T[]): T[] => {
+  const placed: Array<{ lat: number; lng: number }> = [];
+
+  return items.map((item, index) => {
+    const baseLat = item.lat;
+    const baseLng = item.lng;
+    let lat = baseLat;
+    let lng = baseLng;
+    let attempt = 0;
+
+    while (
+      placed.some((candidate) => {
+        const lngFactor = Math.cos(((candidate.lat + lat) / 2) * Math.PI / 180);
+        const latDelta = candidate.lat - lat;
+        const lngDelta = (candidate.lng - lng) * lngFactor;
+        return Math.hypot(latDelta, lngDelta) < MIN_MARKER_SEPARATION;
+      }) &&
+      attempt < 12
+    ) {
+      const angle = (index * 0.85 + attempt) * Math.PI * 0.9;
+      const radius = 0.001 + attempt * 0.00045;
+      lat = baseLat - Math.abs(Math.sin(angle)) * radius;
+      lng = baseLng + Math.cos(angle) * radius * 1.15;
+      attempt += 1;
+    }
+
+    placed.push({ lat, lng });
+    return { ...item, lat, lng };
+  });
+};
+
+const arrangeDemoMarkers = <T extends { lat: number; lng: number }>(items: T[], center: [number, number]): T[] => {
+  if (items.length === 0) {
+    return items;
+  }
+
+  const innerCount = items.length > 10 ? Math.ceil(items.length / 2) : items.length;
+  const ringSizes = [innerCount, Math.max(items.length - innerCount, 0)].filter((size) => size > 0);
+  let cursor = 0;
+
+  return ringSizes.flatMap((ringSize, ringIndex) => {
+    const ringItems = items.slice(cursor, cursor + ringSize);
+    cursor += ringSize;
+
+    const radiusLat = 0.0032 + ringIndex * 0.0019;
+    const radiusLng = 0.0048 + ringIndex * 0.0021;
+    const angleOffset = ringIndex * 0.18;
+
+    return ringItems.map((item, index) => {
+      const angle = (-Math.PI / 2) + angleOffset + (Math.PI * 2 * index) / ringSize;
+      return {
+        ...item,
+        lat: center[0] + Math.sin(angle) * radiusLat,
+        lng: center[1] + Math.cos(angle) * radiusLng,
+      };
+    });
+  });
 };
 
 const SnapMapScreen: React.FC = () => {
@@ -441,27 +527,57 @@ const SnapMapScreen: React.FC = () => {
     return list.filter((friend) => friend.name?.toLowerCase().includes(normalizedQuery));
   }, [center, friendLocations, friends, normalizedQuery]);
 
+  const spreadMarkers = useMemo(() => {
+    const baseMarkers: SpreadMarker[] = [
+      ...filteredPlaces.map((place) => ({
+        key: `place-${place.id}`,
+        type: 'place' as const,
+        lat: place.latitude,
+        lng: place.longitude,
+        place,
+      })),
+      ...visibleFriends.map((friend) => ({
+        key: `friend-${friend.friend_id}`,
+        type: 'friend' as const,
+        lat: friend.lat,
+        lng: friend.lng,
+        friend,
+      })),
+    ];
+
+    if (friendLocations.length === 0) {
+      return arrangeDemoMarkers<SpreadMarker>(baseMarkers, center);
+    }
+
+    // Spread dense pins so real-world clusters remain individually clickable.
+    return spreadMarkerPositions<SpreadMarker>(baseMarkers);
+  }, [center, filteredPlaces, friendLocations.length, visibleFriends]);
+
   const friendMarkers = useMemo(() => {
-    return visibleFriends.map((friend) => (
+    return spreadMarkers
+      .filter((item): item is SpreadFriendMarker => item.type === 'friend')
+      .map((item) => (
       <Marker
-        key={friend.friend_id}
-        position={[friend.lat, friend.lng]}
-        icon={createSnapAvatarIcon(friend as FriendLatestMessage, isDark)}
-        eventHandlers={{ click: () => setSelectedItem({ ...friend, type: 'friend' }) }}
+        key={item.key}
+        position={[item.lat, item.lng]}
+        icon={createSnapAvatarIcon(item.friend as FriendLatestMessage, isDark)}
+        eventHandlers={{ click: () => setSelectedItem({ ...item.friend, type: 'friend' }) }}
       />
     ));
-  }, [isDark, visibleFriends]);
+  }, [isDark, spreadMarkers]);
 
   const placeMarkers = useMemo(() => {
-    return filteredPlaces.map((place) => (
+    return spreadMarkers
+      .filter((item): item is SpreadPlaceMarker => item.type === 'place')
+      .map((item) => (
       <Marker
-        key={place.id}
-        position={[place.latitude, place.longitude]}
-        icon={createSnapPlaceIcon(place, isDark)}
-        eventHandlers={{ click: () => setSelectedItem({ ...place, type: 'place' }) }}
+        key={item.key}
+        position={[item.lat, item.lng]}
+        icon={createSnapPlaceIcon(item.place, isDark)}
+        eventHandlers={{ click: () => setSelectedItem({ ...item.place, type: 'place' }) }}
       />
     ));
-  }, [filteredPlaces, isDark]);
+  }, [isDark, spreadMarkers]);
 
   const heatMarkers = useMemo(() => {
     return heatZones.map((zone, index) => (
@@ -485,6 +601,8 @@ const SnapMapScreen: React.FC = () => {
         .leaflet-marker-icon { background: transparent !important; border: none !important; pointer-events: auto !important; outline: none !important; }
         .leaflet-interactive { cursor: pointer !important; pointer-events: auto !important; }
         .custom-snap-marker { pointer-events: auto !important; }
+        .custom-snap-marker > *, .custom-snap-marker > * * { pointer-events: none !important; }
+        .leaflet-marker-icon.heat-zone-marker, .leaflet-marker-icon.heat-zone-marker * { pointer-events: none !important; }
         .leaflet-control-attribution { background: rgba(0,0,0,0.5) !important; color: #888 !important; }
         .leaflet-control-attribution a { color: #aaa !important; }
       `}</style>

@@ -40,6 +40,7 @@ interface UIMessage {
   sender: 'user' | 'bot' | 'friend';
   text: string;
   timestamp: string;
+  createdAt: string;
   messageType?: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice';
   mediaUri?: string;
   mediaType?: string;
@@ -247,13 +248,26 @@ const ChatDetail: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [conversationId, setConversationId] = useState<string>('');
 
+  const mergeMessages = (existingMessages: UIMessage[], incomingMessages: UIMessage[]) => {
+    const messageMap = new Map<string | number, UIMessage>();
+
+    [...existingMessages, ...incomingMessages].forEach((message) => {
+      messageMap.set(message.id, message);
+    });
+
+    return Array.from(messageMap.values()).sort((left, right) =>
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    );
+  };
+
   // 将数据库消息转换为 UI 消息。
   const convertDbMessageToUI = (dbMsg: ChatMessage): UIMessage => {
     const uiMessage: UIMessage = {
       id: dbMsg.id,
       sender: dbMsg.sender,
       text: typeof dbMsg.text === 'string' ? dbMsg.text : '',
-      timestamp: formatTime(dbMsg.created_at)
+      timestamp: formatTime(dbMsg.created_at),
+      createdAt: dbMsg.created_at,
     };
 
     // Add media fields if present
@@ -319,21 +333,21 @@ const ChatDetail: React.FC = () => {
 
     // 获取最早消息的时间戳
     const earliestMessage = messages[0];
-    if (!earliestMessage?.timestamp) {
+    if (!earliestMessage?.createdAt) {
       return;
     }
 
     setIsLoadingMore(true);
     try {
       const result = await getChatHistory(friendId, {
-        beforeTimestamp: earliestMessage.timestamp,
+        beforeTimestamp: earliestMessage.createdAt,
         limit: 50,
       });
 
       if (result.messages.length > 0) {
         const uiMessages = result.messages.map(convertDbMessageToUI);
         // 将新消息添加到列表开头
-        setMessages((prev) => [...uiMessages, ...prev]);
+        setMessages((prev) => mergeMessages(prev, uiMessages));
         setHasMoreMessages(result.hasMore);
       } else {
         setHasMoreMessages(false);
@@ -355,6 +369,7 @@ const ChatDetail: React.FC = () => {
       sender: msg.sender,
       text: typeof msg.content === 'string' ? msg.content : '',
       timestamp: formatTime(new Date(msg.timestamp)),
+      createdAt: new Date(msg.timestamp).toISOString(),
       messageType: msg.contentType || 'text',
       mediaUri: msg.mediaUrl,
       mediaType: msg.mediaMimeType,
@@ -386,12 +401,35 @@ const ChatDetail: React.FC = () => {
     }
 
     // 1) 创建频道。
-    const channel = supabase.channel(`chat:${conversationId}`, {
-      config: {
-        broadcast: { self: false }
+    const syncLatestMessages = async () => {
+      try {
+        const result = await getChatHistory(friendId);
+        const uiMessages = result.messages.map(convertDbMessageToUI);
+        setMessages((prev) => mergeMessages(prev, uiMessages));
+        setHasMoreMessages(result.hasMore);
+      } catch (error) {
+        handleError(error, '同步最新聊天记录失败');
       }
-    });
+    };
+
+    const channel = supabase.channel(`chat:${conversationId}`);
     channelRef.current = channel;
+    const fallbackSyncInterval = window.setInterval(() => {
+      void syncLatestMessages();
+    }, 5000);
+
+    const handleFocus = () => {
+      void syncLatestMessages();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void syncLatestMessages();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // 2) 绑定事件。
     channel
@@ -400,7 +438,8 @@ const ChatDetail: React.FC = () => {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages'
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
           const newMessage = payload.new as any;
@@ -423,7 +462,8 @@ const ChatDetail: React.FC = () => {
                 id: newMessage.id,
                 sender: 'friend',
                 text: newMessage.text || '',
-                timestamp: formatTime(newMessage.created_at)
+                timestamp: formatTime(newMessage.created_at),
+                createdAt: newMessage.created_at,
               };
 
               // 处理媒体消息类型（包括语音）
@@ -435,13 +475,14 @@ const ChatDetail: React.FC = () => {
                 uiMessage.mediaMetadata = newMessage.media_metadata;
               }
 
-              return [...prev, uiMessage];
+              return mergeMessages(prev, [uiMessage]);
             });
           }
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
+          void syncLatestMessages();
           // WebSocket 订阅成功
         } else if (status === 'CHANNEL_ERROR') {
           // 频道错误
@@ -454,12 +495,15 @@ const ChatDetail: React.FC = () => {
 
     // 3. conversationId 变化或组件卸载时清理订阅
     return () => {
+      clearInterval(fallbackSyncInterval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, friendId]);
 
   const isFirstScrollRef = useRef(true);
 
@@ -589,6 +633,7 @@ const ChatDetail: React.FC = () => {
       sender: 'user',
       text: messageText,
       timestamp: timeString,
+      createdAt: new Date().toISOString(),
       messageType,
       mediaUri: mediaData?.uri,
       mediaType: mediaData?.type,
@@ -596,7 +641,7 @@ const ChatDetail: React.FC = () => {
       mediaMetadata: mediaData?.metadata,
     };
 
-    setMessages(prev => [...prev, tempUserMessage]);
+    setMessages(prev => mergeMessages(prev, [tempUserMessage]));
 
     // 保存用户消息到数据库
     try {
@@ -683,13 +728,14 @@ const ChatDetail: React.FC = () => {
         sender: 'user',
         text: '',
         timestamp: timeString,
+        createdAt: new Date().toISOString(),
         messageType: 'voice',
         mediaUri: result.uri,
         mediaType: result.type,
         mediaMetadata: { duration },
       };
 
-      setMessages(prev => [...prev, tempUserMessage]);
+      setMessages(prev => mergeMessages(prev, [tempUserMessage]));
 
       const messageId = await sendMessageWithMedia(
         friendId,

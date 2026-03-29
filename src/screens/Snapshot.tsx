@@ -157,7 +157,7 @@ const Snapshot: React.FC = () => {
     setPromptText(selected.prompt);
   };
 
-    const handleSendToClawbot = async () => {
+  const handleSendToClawbot = async () => {
     if (!isConnected || !isPaired) {
       toast.error(PAIRING_REQUIRED_TOAST_MESSAGE, PAIRING_REQUIRED_TOAST_OPTIONS);
       navigate(AppRoutes.PAIRING);
@@ -417,7 +417,7 @@ const Snapshot: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-center items-center w-full mb-8 relative">
+        <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-4 mb-8 px-4">
           <input
             type="file"
             ref={fileInputRef}
@@ -425,32 +425,44 @@ const Snapshot: React.FC = () => {
             accept="image/*"
             className="hidden"
           />
-          
-          <button
-            type="button"
-            onClick={triggerFileUpload}
-            disabled={!!capturedPhoto}
-            className="ios-pressable ios-secondary-button absolute left-8 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white disabled:cursor-not-allowed disabled:opacity-50"
-            title={t('snapshot.uploadImage')}
-          >
-            <ImageIcon size={22} />
-          </button>
 
-          <button
-            type="button"
-            onClick={capturedPhoto ? undefined : handleCapture}
-            disabled={!!capturedPhoto}
-            className="ios-pressable relative group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="absolute inset-0 rounded-full bg-cyan-500 blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
-            <div className="relative w-20 h-20 rounded-full bg-white/20 backdrop-blur-md border-4 border-white/60 flex items-center justify-center">
-              {capturedPhoto ? (
-                <Check className="w-10 h-10 text-green-400" />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-400 to-cyan-200" />
-              )}
-            </div>
-          </button>
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={triggerFileUpload}
+              disabled={!!capturedPhoto}
+              className="ios-pressable ios-secondary-button flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-white disabled:cursor-not-allowed disabled:opacity-50"
+              title={t('snapshot.uploadImage')}
+              aria-label={t('snapshot.uploadImage')}
+              data-testid="snapshot-upload-button"
+            >
+              <ImageIcon size={22} />
+            </button>
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={capturedPhoto ? undefined : handleCapture}
+              disabled={!!capturedPhoto}
+              className="ios-pressable relative group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label={capturedPhoto ? t('snapshot.photoReady') : t('snapshot.takePhoto')}
+              data-testid="snapshot-capture-button"
+            >
+              <div className="absolute inset-0 rounded-full bg-cyan-500 blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
+              <div className="relative w-20 h-20 rounded-full bg-white/20 backdrop-blur-md border-4 border-white/60 flex items-center justify-center">
+                {capturedPhoto ? (
+                  <Check className="w-10 h-10 text-green-400" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-400 to-cyan-200" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          <div className="flex justify-end">
+            <div className="h-12 w-12" aria-hidden="true" />
+          </div>
         </div>
       </div>
     </div>

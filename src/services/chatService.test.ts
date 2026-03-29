@@ -115,15 +115,6 @@ describe('chatService', () => {
 
       const mockMessages = [
         {
-          id: 'msg-1',
-          conversation_id: 'user-123_friend-456',
-          sender_id: 'user-123',
-          receiver_id: 'friend-456',
-          text: 'Hello',
-          is_read: false,
-          created_at: '2024-01-01T00:00:00Z'
-        },
-        {
           id: 'msg-2',
           conversation_id: 'user-123_friend-456',
           sender_id: 'friend-456',
@@ -131,6 +122,15 @@ describe('chatService', () => {
           text: 'Hi there',
           is_read: false,
           created_at: '2024-01-01T01:00:00Z'
+        },
+        {
+          id: 'msg-1',
+          conversation_id: 'user-123_friend-456',
+          sender_id: 'user-123',
+          receiver_id: 'friend-456',
+          text: 'Hello',
+          is_read: false,
+          created_at: '2024-01-01T00:00:00Z'
         }
       ];
 
@@ -151,6 +151,56 @@ describe('chatService', () => {
       expect(result.messages[0].text).toBe('Hello');
       expect(result.messages[1].sender).toBe('friend');
       expect(result.messages[1].text).toBe('Hi there');
+    });
+
+    it('should return the latest messages in ascending order for the UI', async () => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null
+      });
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 60 })
+          })
+        } as any)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'msg-3',
+                      conversation_id: 'user-123_friend-456',
+                      sender_id: 'friend-456',
+                      receiver_id: 'user-123',
+                      text: 'Newest',
+                      is_read: false,
+                      created_at: '2024-01-01T03:00:00Z'
+                    },
+                    {
+                      id: 'msg-2',
+                      conversation_id: 'user-123_friend-456',
+                      sender_id: 'user-123',
+                      receiver_id: 'friend-456',
+                      text: 'Middle',
+                      is_read: false,
+                      created_at: '2024-01-01T02:00:00Z'
+                    }
+                  ],
+                  error: null
+                })
+              })
+            })
+          })
+        } as any);
+
+      const result = await getChatHistory('friend-456', { limit: 2 });
+
+      expect(result.messages.map((message) => message.text)).toEqual(['Middle', 'Newest']);
+      expect(result.hasMore).toBe(true);
     });
 
     it('should return empty array on error', async () => {

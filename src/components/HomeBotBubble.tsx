@@ -221,6 +221,7 @@ const HomeBotBubble: React.FC<HomeBotBubbleProps> = () => {
             exit={{ opacity: 0, scale: 0.8, x: 20 }}
             transition={iosQuickSpring}
             className="ios-glass-surface w-[280px] sm:w-[320px] rounded-2xl border border-white/20 shadow-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* 头部：关闭按钮 + 语音开关 */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">

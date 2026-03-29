@@ -243,6 +243,27 @@ const renderWithRouter = (component: React.ReactElement) => {
   );
 };
 
+async function renderStudyScreen() {
+  const Study = (await import('./Study')).default;
+  let view: ReturnType<typeof renderWithRouter> | undefined;
+
+  await act(async () => {
+    view = renderWithRouter(<Study />);
+  });
+
+  await waitFor(() => {
+    expect(screen.getByTestId('study-header')).toBeDefined();
+  });
+
+  return view!;
+}
+
+async function clickStudy(testId: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByTestId(testId));
+  });
+}
+
 describe('Study Screen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -261,8 +282,7 @@ describe('Study Screen', () => {
 
   describe('1. Study Room List Rendering', () => {
     it('should render study screen with header and components', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Check header is rendered
       expect(screen.getByTestId('study-header')).toBeDefined();
@@ -279,8 +299,7 @@ describe('Study Screen', () => {
     });
 
     it('should render duration preset buttons correctly', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       expect(screen.getByTestId('duration-25')).toBeDefined();
       expect(screen.getByTestId('duration-45')).toBeDefined();
@@ -288,8 +307,7 @@ describe('Study Screen', () => {
     });
 
     it('should show total study time from profile', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       await waitFor(() => {
         expect(screen.getByTestId('total-study-time')).toBeDefined();
@@ -299,36 +317,33 @@ describe('Study Screen', () => {
 
   describe('2. Join Study Room', () => {
     it('should open study room modal when buddy list button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Click buddy list button to open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Check modal is rendered
       expect(screen.getByTestId('study-room-modal')).toBeDefined();
     });
 
     it('should have join room button in study room modal', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Check join button exists
       expect(screen.getByTestId('join-room-btn')).toBeDefined();
     });
 
     it('should call joinStudyRoom when join button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Click join button
-      fireEvent.click(screen.getByTestId('join-room-btn'));
+      await clickStudy('join-room-btn');
 
       await waitFor(() => {
         expect(mocks.joinStudyRoom).toHaveBeenCalled();
@@ -336,26 +351,24 @@ describe('Study Screen', () => {
     });
 
     it('should close study room modal when close button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
       expect(screen.getByTestId('study-room-modal')).toBeDefined();
 
       // Close modal
-      fireEvent.click(screen.getByTestId('close-room-btn'));
+      await clickStudy('close-room-btn');
       expect(screen.queryByTestId('study-room-modal')).toBeNull();
     });
   });
 
   describe('3. Create Study Room', () => {
     it('should have create room button in study room modal', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Check create button exists
       expect(screen.getByTestId('create-room-btn')).toBeDefined();
@@ -374,14 +387,13 @@ describe('Study Screen', () => {
         timer: null
       });
 
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Click create button
-      fireEvent.click(screen.getByTestId('create-room-btn'));
+      await clickStudy('create-room-btn');
 
       await waitFor(() => {
         expect(mocks.createStudyRoom).toHaveBeenCalled();
@@ -391,14 +403,13 @@ describe('Study Screen', () => {
     it('should call joinStudyRoom when join button is clicked', async () => {
       mocks.joinStudyRoom.mockResolvedValueOnce({ success: true });
 
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open modal
-      fireEvent.click(screen.getByTestId('open-buddy-list-btn'));
+      await clickStudy('open-buddy-list-btn');
 
       // Click join button
-      fireEvent.click(screen.getByTestId('join-room-btn'));
+      await clickStudy('join-room-btn');
 
       await waitFor(() => {
         expect(mocks.joinStudyRoom).toHaveBeenCalled();
@@ -408,11 +419,10 @@ describe('Study Screen', () => {
 
   describe('4. State Updates', () => {
     it('should update selected duration when duration button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      const { container } = renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Click 45 minutes duration
-      fireEvent.click(screen.getByTestId('duration-45'));
+      await clickStudy('duration-45');
 
       // Verify the button was clicked (state changed internally)
       // The component should now be ready to start focus with 45 minutes
@@ -420,11 +430,10 @@ describe('Study Screen', () => {
     });
 
     it('should start focus when start focus button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Click start focus button
-      fireEvent.click(screen.getByTestId('start-focus-btn'));
+      await clickStudy('start-focus-btn');
 
       // The component should navigate or update state
       // Verify that supabase update was called to mark user as studying
@@ -434,8 +443,7 @@ describe('Study Screen', () => {
     });
 
     it('should update total study time after focus completes', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // The component fetches total study time on mount
       await waitFor(() => {
@@ -444,8 +452,7 @@ describe('Study Screen', () => {
     });
 
     it('should call initializeUserPoints on mount', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       await waitFor(() => {
         expect(mocks.initializeUserPoints).toHaveBeenCalledWith('user-1');
@@ -453,11 +460,10 @@ describe('Study Screen', () => {
     });
 
     it('should open points modal when points button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Click points button
-      fireEvent.click(screen.getByTestId('open-points-btn'));
+      await clickStudy('open-points-btn');
 
       // Check points modal is rendered
       expect(screen.getByTestId('points-modal')).toBeDefined();
@@ -465,15 +471,14 @@ describe('Study Screen', () => {
     });
 
     it('should close points modal when close button is clicked', async () => {
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Open points modal
-      fireEvent.click(screen.getByTestId('open-points-btn'));
+      await clickStudy('open-points-btn');
       expect(screen.getByTestId('points-modal')).toBeDefined();
 
       // Close points modal
-      fireEvent.click(screen.getByTestId('points-close-btn'));
+      await clickStudy('points-close-btn');
       expect(screen.queryByTestId('points-modal')).toBeNull();
     });
   });
@@ -492,8 +497,7 @@ describe('Study Screen', () => {
         })
       });
 
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Component should still render even with error
       expect(screen.getByTestId('study-header')).toBeDefined();
@@ -502,8 +506,7 @@ describe('Study Screen', () => {
     it('should handle error when rewardStudyCompletion fails', async () => {
       // This test verifies that the component gracefully handles errors
       // from the rewardStudyCompletion function
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Component should render even if rewardStudyCompletion fails later
       expect(screen.getByTestId('study-header')).toBeDefined();
@@ -512,8 +515,7 @@ describe('Study Screen', () => {
     it('should handle error when initializeUserPoints fails', async () => {
       // This test verifies that the component gracefully handles errors
       // from the initializeUserPoints function
-      const Study = (await import('./Study')).default;
-      renderWithRouter(<Study />);
+      await renderStudyScreen();
 
       // Component should render even if initializeUserPoints fails
       expect(screen.getByTestId('study-header')).toBeDefined();

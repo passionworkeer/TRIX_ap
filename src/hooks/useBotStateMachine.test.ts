@@ -361,10 +361,14 @@ describe('useBotStateMachine', () => {
       expect(result.current.botState).toBe('SPEAKING');
 
       // Now disable voice - should remain speaking
-      rerender({ voiceEnabled: false, latestBotMessage: latestMessage });
+      act(() => {
+        rerender({ voiceEnabled: false, latestBotMessage: latestMessage });
+      });
 
       // Wait for the effect to run
-      vi.runAllTimers();
+      act(() => {
+        vi.runAllTimers();
+      });
 
       // The state should now be speaking or idle depending on timing
       // At minimum, it should have attempted to enter speaking
@@ -383,10 +387,14 @@ describe('useBotStateMachine', () => {
         result.current.enterThinking();
       });
 
-      unmount();
+      act(() => {
+        unmount();
+      });
 
       // Fast forward time - should not cause errors
-      vi.advanceTimersByTime(30000);
+      act(() => {
+        vi.advanceTimersByTime(30000);
+      });
 
       // No expectations needed - just verify no errors thrown
 

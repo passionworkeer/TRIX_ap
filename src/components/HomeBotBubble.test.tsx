@@ -1,20 +1,28 @@
 /**
- * Component tests for HomeBotBubble
- *
- * Tests the bot bubble UI component that displays bot messages
- * and typing indicators on the home screen.
+ * Component tests for HomeBotBubble.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 
-// Mock dependencies
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
-        'home.greeting': '你好',
-        'home.whatToLearn': '今天想学什么？',
+        'home.greeting': 'Hello',
+        'home.whatToLearn': 'what do you want to learn today?',
+        'homeBotBubble.voiceOff': 'Voice off',
+        'homeBotBubble.voiceOn': 'Voice on',
+        'homeBotBubble.voiceBroadcastOn': 'Voice playback on',
+        'homeBotBubble.voiceBroadcastOff': 'Voice playback off',
+        'homeBotBubble.closeConversation': 'Close conversation',
+        'homeBotBubble.startConversation': 'Start conversation',
+        'homeBotBubble.listening': 'Listening',
+        'homeBotBubble.sendMessage': 'Send a message',
+        'homeBotBubble.stopRecording': 'Stop recording',
+        'homeBotBubble.voiceInput': 'Voice input',
+        'homeBotBubble.sendMessageAria': 'Send message',
+        'homeBotBubble.openTrixBot': 'Open TRIX bot',
       };
       return translations[key] || key;
     },
@@ -48,8 +56,40 @@ vi.mock('../contexts/VoiceSettingsContext', () => ({
   }),
 }));
 
+vi.mock('../hooks/useNotification', () => ({
+  useNotification: () => ({
+    showError: vi.fn(),
+  }),
+}));
+
+vi.mock('../hooks/useSpeechToText', () => ({
+  useSpeechToText: () => ({
+    isListening: false,
+    transcript: '',
+    interimTranscript: '',
+    startListening: vi.fn(),
+    stopListening: vi.fn(),
+    isSupported: true,
+  }),
+}));
+
+vi.mock('../services/voicePlaybackService', () => ({
+  audioContextUnlock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../utils/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+  },
+}));
+
 vi.mock('lucide-react', () => ({
   Sparkles: () => React.createElement('span', { 'data-testid': 'sparkles-icon' }, 'Sparkles'),
+  Send: () => React.createElement('span', { 'data-testid': 'send-icon' }, 'Send'),
+  Mic: () => React.createElement('span', { 'data-testid': 'mic-icon' }, 'Mic'),
+  X: () => React.createElement('span', { 'data-testid': 'close-icon' }, 'Close'),
+  Volume2: () => React.createElement('span', { 'data-testid': 'volume-on-icon' }, 'VolumeOn'),
+  VolumeX: () => React.createElement('span', { 'data-testid': 'volume-off-icon' }, 'VolumeOff'),
 }));
 
 describe('HomeBotBubble', () => {
@@ -67,7 +107,6 @@ describe('HomeBotBubble', () => {
 
     const { container } = render(React.createElement(HomeBotBubble));
 
-    // Component should render something
     expect(container.firstChild).not.toBeNull();
   });
 
@@ -76,7 +115,24 @@ describe('HomeBotBubble', () => {
 
     const { container } = render(React.createElement(HomeBotBubble));
 
-    // Should have the bubble element
     expect(container.querySelector('button')).not.toBeNull();
+  });
+
+  it('should stop propagation for clicks inside the expanded bubble', async () => {
+    const HomeBotBubble = (await import('../components/HomeBotBubble')).default;
+    const outerClick = vi.fn();
+
+    render(
+      <div onClick={outerClick}>
+        <HomeBotBubble />
+      </div>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open TRIX bot' }));
+
+    const voiceToggleButton = await screen.findByRole('button', { name: 'Voice off' });
+    fireEvent.click(voiceToggleButton);
+
+    expect(outerClick).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,31 @@ import type {
   MallFilterOptions,
 } from '../types/mall';
 
+type UserPointsRecord = {
+  user_id: string;
+  total_points?: number | null;
+  balance?: number | null;
+  total_earned?: number | null;
+  total_spent?: number | null;
+  updated_at: string;
+};
+
+function getPointsField(record: UserPointsRecord): 'total_points' | 'balance' {
+  return typeof record.total_points === 'number' ? 'total_points' : 'balance';
+}
+
+function getCurrentBalance(record: UserPointsRecord): number {
+  if (typeof record.total_points === 'number') {
+    return record.total_points;
+  }
+
+  if (typeof record.balance === 'number') {
+    return record.balance;
+  }
+
+  return 0;
+}
+
 /**
  * 获取商城商品列表
  * @param filter - 筛选选项
@@ -142,7 +167,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     // 获取用户积分余额
     const { data: pointsData, error: pointsError } = await supabase
       .from('user_points')
-      .select('balance, total_spent')
+      .select('*')
       .eq('user_id', user.id)
       .single();
 
@@ -154,8 +179,9 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       };
     }
 
-    const currentBalance = pointsData.balance;
+    const currentBalance = getCurrentBalance(pointsData as UserPointsRecord);
     const currentTotalSpent = pointsData.total_spent || 0;
+    const pointsField = getPointsField(pointsData as UserPointsRecord);
 
     // 检查积分是否足够
     if (currentBalance < item.price) {
@@ -189,7 +215,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
     const { error: deductError } = await supabase
       .from('user_points')
       .update({
-        balance: currentBalance - item.price,
+        [pointsField]: currentBalance - item.price,
         total_spent: currentTotalSpent + item.price,
       })
       .eq('user_id', user.id);
@@ -219,7 +245,7 @@ export async function purchaseItem(request: MallPurchaseRequest): Promise<MallPu
       await supabase
         .from('user_points')
         .update({
-          balance: currentBalance,
+          [pointsField]: currentBalance,
         })
         .eq('user_id', user.id);
 
@@ -291,7 +317,7 @@ export async function getUserPointsBalance(): Promise<PointsBalance | null> {
 
     return {
       userId: data.user_id,
-      balance: data.balance,
+      balance: getCurrentBalance(data as UserPointsRecord),
       totalEarned: data.total_earned || 0,
       totalSpent: data.total_spent || 0,
       updatedAt: data.updated_at,

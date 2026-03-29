@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   connect: vi.fn(async () => {}),
+  navigate: vi.fn(),
   showError: vi.fn(),
   showInfo: vi.fn(),
   showSuccess: vi.fn(),
@@ -11,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   isConnected: vi.fn(() => true),
   on: vi.fn(),
   off: vi.fn(),
+  getSession: vi.fn(async () => ({
+    data: { session: { user: { id: 'user-1' } } },
+  })),
+  friendsRows: [] as Array<{ friend_id: string }>,
+  profileRows: [] as Array<{ id: string; username: string; avatar_url: string | null; is_studying: boolean }>,
   getStudyRoomState: vi.fn(async () => {
     throw new Error('NOT_IN_ROOM');
   }),
@@ -25,32 +31,37 @@ const mocks = vi.hoisted(() => ({
         avatarUrl: null,
         joinedAt: Date.now(),
         lastActiveAt: Date.now(),
-        status: 'online'
-      }
+        status: 'online',
+      },
     ],
     maxMembers: 5,
     version: 1,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    timer: null
+    timer: null,
   })),
   joinStudyRoom: vi.fn(),
   leaveStudyRoom: vi.fn(),
   hostActionStudyRoom: vi.fn(),
-  lookupStudyRoomsByUsers: vi.fn(async () => ({ users: [] }))
+  lookupStudyRoomsByUsers: vi.fn(async () => ({ users: [] })),
+}));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mocks.navigate,
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 'user-1', email: 'tester@example.com' },
-    profile: { username: 'tester', avatar_url: null }
-  })
+    profile: { username: 'tester', avatar_url: null },
+  }),
 }));
 
 vi.mock('../contexts/ClawbotChannelContext', () => ({
   useClawbotChannel: () => ({
-    connect: mocks.connect
-  })
+    connect: mocks.connect,
+    isPaired: true,
+  }),
 }));
 
 vi.mock('../hooks/useNotification', () => ({
@@ -58,9 +69,51 @@ vi.mock('../hooks/useNotification', () => ({
     showError: mocks.showError,
     showInfo: mocks.showInfo,
     showSuccess: mocks.showSuccess,
-    showWarning: mocks.showWarning
-  })
+    showWarning: mocks.showWarning,
+  }),
 }));
+
+vi.mock('../config/clawbotEndpoints', () => ({
+  getClawbotEndpoints: () => ({
+    nativeServerUrl: 'http://127.0.0.1:8788',
+    nativePublicUrl: 'http://127.0.0.1:8788',
+  }),
+}));
+
+vi.mock('../config/supabase', () => {
+  const createBuilder = (table: string) => {
+    const resolveResult = () => {
+      if (table === 'friends') {
+        return { data: mocks.friendsRows, error: null };
+      }
+
+      if (table === 'profiles') {
+        return { data: mocks.profileRows, error: null };
+      }
+
+      return { data: [], error: null };
+    };
+
+    const builder: any = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      in: vi.fn(() => builder),
+      then: (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve(resolveResult()).then(onFulfilled, onRejected),
+    };
+
+    return builder;
+  };
+
+  return {
+    supabase: {
+      auth: {
+        getSession: mocks.getSession,
+      },
+      from: vi.fn((table: string) => createBuilder(table)),
+    },
+  };
+});
 
 vi.mock('../services/TrixNativeChannelClient', () => ({
   default: {
@@ -73,8 +126,8 @@ vi.mock('../services/TrixNativeChannelClient', () => ({
     joinStudyRoom: mocks.joinStudyRoom,
     leaveStudyRoom: mocks.leaveStudyRoom,
     hostActionStudyRoom: mocks.hostActionStudyRoom,
-    lookupStudyRoomsByUsers: mocks.lookupStudyRoomsByUsers
-  }
+    lookupStudyRoomsByUsers: mocks.lookupStudyRoomsByUsers,
+  },
 }));
 
 const NOW = Date.now();
@@ -91,41 +144,62 @@ function makeRoom(overrides = {}) {
         avatarUrl: null,
         joinedAt: NOW,
         lastActiveAt: NOW,
-        status: 'online'
-      }
+        status: 'online',
+      },
     ],
     maxMembers: 5,
     version: 1,
     createdAt: NOW,
     updatedAt: NOW,
     timer: null,
-    ...overrides
+    ...overrides,
   };
+}
+
+async function renderStudyRoom() {
+  const StudyRoom = (await import('./StudyRoom')).default;
+  render(<StudyRoom isOpen={true} onClose={() => {}} />);
+}
+
+async function openRoomCodeMode() {
+  fireEvent.click((await screen.findAllByRole('button', { name: /房间号加入/ }))[0]);
+}
+
+async function openFriendMode() {
+  fireEvent.click(await screen.findByRole('button', { name: /加入好友/ }));
+}
+
+function getRoomCodeInput() {
+  return screen.getByPlaceholderText(/A1B2C3/) as HTMLInputElement;
 }
 
 describe('StudyRoom', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isConnected.mockReturnValue(true);
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-1' } } },
+    });
+    mocks.friendsRows = [];
+    mocks.profileRows = [];
     mocks.getStudyRoomState.mockRejectedValue(new Error('NOT_IN_ROOM'));
+    mocks.lookupStudyRoomsByUsers.mockResolvedValue({ users: [] });
   });
 
   it('renders three entry modes when no active room', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    expect(await screen.findByText('自己自习')).toBeDefined();
-    expect(screen.getByText('加入好友')).toBeDefined();
-    expect(screen.getByText('房间号加入')).toBeDefined();
+    expect(await screen.findByRole('button', { name: /^自己自习$/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /加入好友/ })).toBeDefined();
+    expect(screen.getAllByRole('button', { name: /房间号加入/ }).length).toBeGreaterThan(0);
     expect(mocks.on).toHaveBeenCalledWith('study_room_state', expect.any(Function));
   });
 
   it('calls createStudyRoom when create button is clicked in room-code mode', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    fireEvent.click(await screen.findByText('房间号加入'));
-    fireEvent.click(await screen.findByText('创建'));
+    await openRoomCodeMode();
+    fireEvent.click(await screen.findByRole('button', { name: /^创建$/ }));
 
     await waitFor(() => {
       expect(mocks.createStudyRoom).toHaveBeenCalled();
@@ -135,19 +209,17 @@ describe('StudyRoom', () => {
   it('renders host controls when current user is room host', async () => {
     mocks.getStudyRoomState.mockResolvedValue(makeRoom());
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    expect(await screen.findByText('开始')).toBeDefined();
-    expect(screen.getByText('暂停')).toBeDefined();
-    expect(screen.getByText('结束')).toBeDefined();
+    expect(await screen.findByRole('button', { name: /^开始$/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^暂停$/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^结束$/ })).toBeDefined();
   });
 
   it('renders room code in header when in room', async () => {
     mocks.getStudyRoomState.mockResolvedValue(makeRoom({ roomCode: 'XYZ789' }));
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
     expect(await screen.findByText('XYZ789')).toBeDefined();
   });
@@ -158,31 +230,28 @@ describe('StudyRoom', () => {
         members: [
           { userId: 'user-1', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
           { userId: 'user-2', displayName: 'Bob', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
-          { userId: 'user-3', displayName: 'Charlie', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' }
-        ]
-      })
+          { userId: 'user-3', displayName: 'Charlie', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
+        ],
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
     expect(await screen.findByText('3 / 5')).toBeDefined();
   });
 
   it('displays member status badges when focusing', async () => {
-    // Set mock BEFORE render so the async getStudyRoomState uses the correct mock
     mocks.getStudyRoomState.mockResolvedValue(
       makeRoom({
         sessionState: 'focusing',
         members: [
           { userId: 'user-1', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'focusing' },
-          { userId: 'user-2', displayName: 'Bob', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'focusing' }
-        ]
-      })
+          { userId: 'user-2', displayName: 'Bob', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'focusing' },
+        ],
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
     expect(await screen.findByText('Alice')).toBeDefined();
     expect(screen.getByText('Bob')).toBeDefined();
@@ -196,15 +265,13 @@ describe('StudyRoom', () => {
           durationSeconds: 1500,
           startedAt: NOW,
           endsAt: NOW + 1500000,
-          remainingSeconds: 1200
-        }
-      })
+          remainingSeconds: 1200,
+        },
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Timer shows "20:00" for 1200 remaining seconds (resting state uses timer.remainingSeconds directly)
     expect(await screen.findByText('20:00')).toBeDefined();
   });
 
@@ -212,11 +279,10 @@ describe('StudyRoom', () => {
     mocks.getStudyRoomState.mockResolvedValue(makeRoom());
     mocks.leaveStudyRoom.mockResolvedValue(undefined);
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    expect(await screen.findByText('离开房间')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: '离开房间' }));
+    expect(await screen.findByRole('button', { name: /离开房间/ })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /离开房间/ }));
 
     await waitFor(() => {
       expect(mocks.leaveStudyRoom).toHaveBeenCalledWith('ROOM01', 'user-1');
@@ -226,13 +292,14 @@ describe('StudyRoom', () => {
   it('calls hostActionStudyRoom when start button is clicked', async () => {
     mocks.getStudyRoomState.mockResolvedValue(makeRoom({ sessionState: 'idle' }));
     mocks.hostActionStudyRoom.mockResolvedValue(
-      makeRoom({ sessionState: 'focusing', timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1500 } })
+      makeRoom({
+        sessionState: 'focusing',
+        timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1500 },
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
-
-    fireEvent.click(await screen.findByText('开始'));
+    await renderStudyRoom();
+    fireEvent.click(await screen.findByRole('button', { name: /^开始$/ }));
 
     await waitFor(() => {
       expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
@@ -247,17 +314,13 @@ describe('StudyRoom', () => {
     mocks.getStudyRoomState.mockResolvedValue(
       makeRoom({
         sessionState: 'focusing',
-        timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1200 }
-      })
+        timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1200 },
+      }),
     );
-    mocks.hostActionStudyRoom.mockResolvedValue(
-      makeRoom({ sessionState: 'resting' })
-    );
+    mocks.hostActionStudyRoom.mockResolvedValue(makeRoom({ sessionState: 'resting' }));
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
-
-    fireEvent.click(await screen.findByText('暂停'));
+    await renderStudyRoom();
+    fireEvent.click(await screen.findByRole('button', { name: /^暂停$/ }));
 
     await waitFor(() => {
       expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
@@ -270,14 +333,15 @@ describe('StudyRoom', () => {
 
   it('calls hostActionStudyRoom when end button is clicked', async () => {
     mocks.getStudyRoomState.mockResolvedValue(
-      makeRoom({ sessionState: 'focusing', timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1000 } })
+      makeRoom({
+        sessionState: 'focusing',
+        timer: { durationSeconds: 1500, startedAt: NOW, endsAt: NOW + 1500000, remainingSeconds: 1000 },
+      }),
     );
     mocks.hostActionStudyRoom.mockResolvedValue(makeRoom({ sessionState: 'idle', timer: null }));
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
-
-    fireEvent.click(await screen.findByText('结束'));
+    await renderStudyRoom();
+    fireEvent.click(await screen.findByRole('button', { name: /^结束$/ }));
 
     await waitFor(() => {
       expect(mocks.hostActionStudyRoom).toHaveBeenCalledWith('ROOM01', {
@@ -289,28 +353,21 @@ describe('StudyRoom', () => {
   });
 
   it('shows "自己自习" entry mode with duration presets', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    expect(screen.getByText('选择本次专注时长')).toBeDefined();
+    expect(screen.getByText(/选择本次专注时长/)).toBeDefined();
     expect(screen.getByText('25 分钟')).toBeDefined();
     expect(screen.getByText('45 分钟')).toBeDefined();
     expect(screen.getByText('60 分钟')).toBeDefined();
   });
 
   it('calls joinStudyRoom when room code is entered and join clicked', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Switch to room-code mode
-    fireEvent.click(screen.getByRole('button', { name: '房间号加入' }));
-
-    // Enter room code
-    const input = screen.getByPlaceholderText('输入房间号（如 A1B2C3）');
+    await openRoomCodeMode();
+    const input = getRoomCodeInput();
     fireEvent.change(input, { target: { value: 'XYZ123' } });
-
-    // Click join
-    fireEvent.click(screen.getByRole('button', { name: '加入' }));
+    fireEvent.click(screen.getByRole('button', { name: /^加入$/ }));
 
     await waitFor(() => {
       expect(mocks.joinStudyRoom).toHaveBeenCalledWith('XYZ123', {
@@ -322,14 +379,12 @@ describe('StudyRoom', () => {
   });
 
   it('rejects room codes shorter than 4 characters', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    fireEvent.click(screen.getByRole('button', { name: '房间号加入' }));
-
-    const input = screen.getByPlaceholderText('输入房间号（如 A1B2C3）');
+    await openRoomCodeMode();
+    const input = getRoomCodeInput();
     fireEvent.change(input, { target: { value: 'AB' } });
-    fireEvent.click(screen.getByRole('button', { name: '加入' }));
+    fireEvent.click(screen.getByRole('button', { name: /^加入$/ }));
 
     await waitFor(() => {
       expect(mocks.joinStudyRoom).not.toHaveBeenCalled();
@@ -338,8 +393,8 @@ describe('StudyRoom', () => {
 
   it('subscribes to study_room_state event on open', async () => {
     mocks.getStudyRoomState.mockResolvedValue(null);
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+
+    await renderStudyRoom();
 
     expect(mocks.on).toHaveBeenCalledWith('study_room_state', expect.any(Function));
   });
@@ -355,16 +410,13 @@ describe('StudyRoom', () => {
   });
 
   it('normalizes room code to uppercase', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    fireEvent.click(screen.getByRole('button', { name: '房间号加入' }));
-
-    const input = screen.getByPlaceholderText('输入房间号（如 A1B2C3）');
+    await openRoomCodeMode();
+    const input = getRoomCodeInput();
     fireEvent.change(input, { target: { value: 'abc123' } });
 
-    // The input value should be normalized to uppercase
-    expect((input as HTMLInputElement).value).toBe('ABC123');
+    expect(input.value).toBe('ABC123');
   });
 
   it('hides host controls when user is not host', async () => {
@@ -373,40 +425,35 @@ describe('StudyRoom', () => {
         hostUserId: 'other-user',
         members: [
           { userId: 'other-user', displayName: 'Host', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
-          { userId: 'user-1', displayName: 'tester', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' }
-        ]
-      })
+          { userId: 'user-1', displayName: 'tester', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
+        ],
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Non-host should not see start/pause/end buttons
-    expect(screen.queryByRole('button', { name: '开始' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^开始$/ })).toBeNull();
   });
 
   it('shows friend list entry mode', async () => {
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    fireEvent.click(screen.getByRole('button', { name: '加入好友' }));
+    await openFriendMode();
 
     await waitFor(() => {
-      expect(screen.getByText('好友房间')).toBeDefined();
+      expect(screen.getByText(/好友房间/)).toBeDefined();
     });
   });
 
   it('handles room not found error when joining', async () => {
     mocks.joinStudyRoom.mockRejectedValue(new Error('Room not found'));
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    fireEvent.click(screen.getByRole('button', { name: '房间号加入' }));
-
-    const input = screen.getByPlaceholderText('输入房间号（如 A1B2C3）');
+    await openRoomCodeMode();
+    const input = getRoomCodeInput();
     fireEvent.change(input, { target: { value: 'NOTFND' } });
-    fireEvent.click(screen.getByRole('button', { name: '加入' }));
+    fireEvent.click(screen.getByRole('button', { name: /^加入$/ }));
 
     await waitFor(() => {
       expect(mocks.showError).toHaveBeenCalledWith('Room not found');
@@ -416,29 +463,23 @@ describe('StudyRoom', () => {
   it('updates room state when study_room_state event fires', async () => {
     mocks.getStudyRoomState.mockResolvedValue(null);
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Find the handler registered for study_room_state
-    const eventHandler = mocks.on.mock.calls.find(
-      (call) => call[0] === 'study_room_state'
-    )?.[1];
-
+    const eventHandler = mocks.on.mock.calls.find((call) => call[0] === 'study_room_state')?.[1];
     expect(eventHandler).toBeDefined();
 
-    // Simulate WebSocket event with new room state (wrapped in act for React state batching)
     act(() => {
-      eventHandler!({
+      eventHandler({
         roomCode: 'REALTIME',
         reason: 'member_joined',
         room: makeRoom({
           roomCode: 'REALTIME',
           members: [
             { userId: 'user-1', displayName: 'tester', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
-            { userId: 'user-2', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' }
-          ]
+            { userId: 'user-2', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
+          ],
         }),
-        serverTs: NOW
+        serverTs: NOW,
       });
     });
 
@@ -451,33 +492,30 @@ describe('StudyRoom', () => {
     mocks.getStudyRoomState.mockResolvedValue(
       makeRoom({
         members: [
-          { userId: 'user-1', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' }
-        ]
-      })
+          { userId: 'user-1', displayName: 'Alice', avatarUrl: null, joinedAt: NOW, lastActiveAt: NOW, status: 'online' },
+        ],
+      }),
     );
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Should show empty slots (seat count = maxMembers = 5, 1 filled + 4 empty)
     await waitFor(() => {
-      expect(screen.getAllByText('空位').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/空位/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
   it('calls lookupStudyRoomsByUsers when friend mode is selected', async () => {
-    mocks.getStudyRoomState.mockResolvedValue(null);
+    mocks.friendsRows = [{ friend_id: 'friend-1' }];
+    mocks.profileRows = [{ id: 'friend-1', username: 'buddy', avatar_url: null, is_studying: true }];
+    mocks.lookupStudyRoomsByUsers.mockResolvedValue({
+      users: [{ userId: 'friend-1', inRoom: false }],
+    });
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
+    await openFriendMode();
 
-    fireEvent.click(screen.getByRole('button', { name: '加入好友' }));
-
-    // Should call lookupStudyRoomsByUsers (requires mock setup to return friends)
     await waitFor(() => {
-      // lookupStudyRoomsByUsers is called during friend mode load
-      // The mock returns empty users by default
-      expect(screen.getByText('暂无可用好友')).toBeDefined();
+      expect(mocks.lookupStudyRoomsByUsers).toHaveBeenCalledWith(['friend-1']);
     });
   });
 
@@ -485,15 +523,13 @@ describe('StudyRoom', () => {
     vi.useFakeTimers();
     mocks.getStudyRoomState.mockResolvedValue(null);
 
-    const StudyRoom = (await import('./StudyRoom')).default;
-    render(<StudyRoom isOpen={true} onClose={() => {}} />);
+    await renderStudyRoom();
 
-    // Advance timers to trigger polling
-    vi.advanceTimersByTime(6000);
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
 
-    // Should have been called multiple times
     expect(mocks.getStudyRoomState.mock.calls.length).toBeGreaterThan(0);
-
     vi.useRealTimers();
   });
 });

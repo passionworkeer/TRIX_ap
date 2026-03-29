@@ -8,6 +8,7 @@
  * - 错误日志记录
  */
 
+import toast from 'react-hot-toast';
 import { parseError, AppError, ErrorCode } from './errors';
 import { isDev } from '../utils/env';
 
@@ -131,10 +132,9 @@ function handleGlobalError(event: ErrorEvent): void {
  * 显示错误通知
  */
 function showErrorNotification(error: AppError): void {
-  // 动态导入 toast 组件
   if (typeof window === 'undefined') return;
 
-  import('react-hot-toast').then(({ toast }) => {
+  try {
     toast.error(error.message, {
       duration: 4000,
       style: {
@@ -143,9 +143,9 @@ function showErrorNotification(error: AppError): void {
         border: '1px solid #fecaca',
       },
     });
-  }).catch(() => {
-    // 如果导入失败，不显示任何通知（silent fail）
-  });
+  } catch {
+    // 如果 toast 运行时不可用，不显示任何通知（silent fail）
+  }
 }
 
 /**

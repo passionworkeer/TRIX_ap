@@ -335,6 +335,66 @@ describe('mallService', () => {
       // Verify that owned items are checked (third call)
       expect(supabase.from).toHaveBeenNthCalledWith(3, 'user_purchased_items');
     });
+
+    it('should deduct total_points when balance column is unavailable', async () => {
+      vi.mocked(supabase.auth.getUser).mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null
+      });
+
+      const mockItem = { id: 'item-1', name: 'Hat', description: 'Hat', image_url: 'hat.png', price: 100, category: 'clothing' };
+      const mockPoints = { total_points: 200, total_spent: 10 };
+      const update = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null })
+      });
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: mockItem, error: null })
+            })
+          })
+        })
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: mockPoints, error: null })
+          })
+        })
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: null })
+            })
+          })
+        })
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        update
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        insert: vi.fn().mockResolvedValue({ error: null })
+      } as any);
+
+      await purchaseItem({ itemId: 'item-1' });
+
+      expect(update).toHaveBeenCalledWith({
+        total_points: 100,
+        total_spent: 110,
+      });
+    });
   });
 
   // ============================================
@@ -372,6 +432,29 @@ describe('mallService', () => {
       await getUserPointsBalance();
 
       expect(supabase.from).toHaveBeenCalledWith('user_points');
+    });
+
+    it('should map total_points to balance for newer schemas', async () => {
+      vi.mocked(supabase.auth.getUser).mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null
+      });
+
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { user_id: 'user-123', total_points: 320, total_earned: 500, total_spent: 180, updated_at: '2024-01-01' },
+              error: null
+            })
+          })
+        })
+      } as any);
+
+      const result = await getUserPointsBalance();
+
+      expect(result?.balance).toBe(320);
+      expect(result?.totalSpent).toBe(180);
     });
   });
 
