@@ -18,6 +18,8 @@ const scenarioConfig = {
   pollIntervalMs: Number(process.env.TRIX_PRESSURE_POLL_INTERVAL_MS || 1500),
 };
 
+const runTag = process.env.TRIX_PRESSURE_RUN_TAG || randomId('run');
+
 function now() {
   return Date.now();
 }
@@ -232,18 +234,19 @@ async function waitForOutboundMessages(conversationId, baselineOutboundCount, ex
 }
 
 function buildForwardedIp(seed) {
-  const hash = crypto.createHash('sha1').update(seed).digest();
+  const hash = crypto.createHash('sha1').update(`${runTag}:${seed}`).digest();
   return `198.51.${hash[0] ?? 1}.${hash[1] ?? 1}`;
 }
 
 async function provisionConversation(label) {
+  const scopedLabel = `${runTag}-${label}`;
   const forwardedIp = buildForwardedIp(label);
-  const pairing = await createPairing(label, forwardedIp);
-  const claim = await claimPairing(pairing.code, randomId('client'), label, forwardedIp);
+  const pairing = await createPairing(scopedLabel, forwardedIp);
+  const claim = await claimPairing(pairing.code, randomId('client'), scopedLabel, forwardedIp);
   const snapshot = await fetchServiceConversation(claim.conversationId);
   const baselineOutboundCount = snapshot.messages.filter((message) => message.direction === 'outbound').length;
   return {
-    label,
+    label: scopedLabel,
     forwardedIp,
     pairing,
     claim,
@@ -313,9 +316,9 @@ async function runBurstSameConversationScenario() {
       (sendUserMessage({
         conversationId: session.claim.conversationId,
         clientToken: session.claim.clientToken,
-        text: `/status burst-${index + 1}`,
+        text: '/status',
       }))
-        .then((result) => ({ ok: result.ok, status: result.status, elapsedMs: result.elapsedMs, text: result.text }))
+        .then((result) => ({ ok: result.ok, status: result.status, elapsedMs: result.elapsedMs, text: result.text, ordinal: index + 1 }))
         .catch((error) => ({ ok: false, status: 0, elapsedMs: 0, text: String(error) })),
     ),
   );
@@ -332,6 +335,7 @@ async function runBurstSameConversationScenario() {
 
   return {
     scenario: 'burst_same_conversation_status',
+    runTag,
     totalRequests: scenarioConfig.burstCount,
     sendSuccess: sends.filter((entry) => entry.ok).length,
     sendFailure: sends.filter((entry) => !entry.ok).length,
@@ -440,7 +444,7 @@ async function runServiceIdempotencyScenario() {
 async function runRateLimitScenario() {
   const fakeConversationId = 'conv_rate_limit_probe';
   const fakeClientToken = 'invalid-client-token';
-  const forwardedIp = '198.51.100.77';
+  const forwardedIp = buildForwardedIp('rate-limit-probe');
   const results = await Promise.all(
     Array.from({ length: scenarioConfig.rateLimitRequests }, (_, index) =>
       sendUserMessage({
@@ -472,6 +476,7 @@ async function runRateLimitScenario() {
 
   return {
     scenario: 'rate_limit_user_messages',
+    runTag,
     requests: scenarioConfig.rateLimitRequests,
     byStatus,
     latency: summarizeDurations(results.map((entry) => entry.elapsedMs).filter(Boolean)),
@@ -503,6 +508,7 @@ async function main() {
 
   const finalState = await collectStateSummary();
   const report = {
+    runTag,
     startedAt,
     finishedAt: new Date().toISOString(),
     serviceUrl,
