@@ -27,6 +27,7 @@ struct WhatsNewViewControllerRepresentable: UIViewControllerRepresentable {
 
 @main
 struct TRIX3DCompanionApp: App {
+    @UIApplicationDelegateAdaptor(TRIXApplicationDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
     @StateObject private var chatService = ChatService.shared
     @StateObject private var clawbotChannel = ClawbotChannelViewModel.shared
@@ -35,6 +36,7 @@ struct TRIX3DCompanionApp: App {
 
     // Performance tracking
     private let launchOptimizer = AppLaunchOptimizer.shared
+    private let launchArguments = ProcessInfo.processInfo.arguments
 
     // WhatsNewKit version store for tracking shown version
     private let whatsNewVersionStore = KeyValueWhatsNewVersionStore()
@@ -74,6 +76,7 @@ struct TRIX3DCompanionApp: App {
     init() {
         // Start tracking services initialization phase
         launchOptimizer.startPhase(.services)
+        SupabaseConfig.validateConfiguration()
         configureKingfisher()
     }
 
@@ -89,6 +92,11 @@ struct TRIX3DCompanionApp: App {
         // Downloader configuration
         let downloader = ImageDownloader.default
         downloader.downloadTimeout = 15
+    }
+
+    private var shouldSuppressWhatsNewForAutomation: Bool {
+        launchArguments.contains("--skip-onboarding") ||
+        launchArguments.contains("--debug-show-login-loading")
     }
 
     var body: some Scene {
@@ -108,12 +116,24 @@ struct TRIX3DCompanionApp: App {
                     )
                     .ignoresSafeArea()
                 }
+                .onOpenURL { url in
+                    _ = OAuthManager.shared.handleOpenURL(url)
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+                    guard let url = userActivity.webpageURL else {
+                        return
+                    }
+
+                    _ = OAuthManager.shared.handleOpenURL(url)
+                }
                 .task {
                     // Execute deferred initialization tasks
                     await DeferredInitializationManager.shared.executeDeferredTasks()
 
                     // Start observing system theme changes for "follow system" mode
                     themeManager.observeSystemThemeChanges()
+
+                    guard !shouldSuppressWhatsNewForAutomation else { return }
 
                     // Check if we should show WhatsNew (first launch after update)
                     // WhatsNewViewController returns nil if version has already been seen

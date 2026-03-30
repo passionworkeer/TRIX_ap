@@ -18,6 +18,8 @@ private func L(_ key: String, _ args: CVarArg...) -> String {
     String(format: NSLocalizedString(key, comment: ""), args)
 }
 
+typealias DiagnosticEndpointLatencyMeasurer = @Sendable (DiagnosticAPIEndpoint) async throws -> Double
+
 // MARK: - Diagnostic ViewModel
 
 /// Main ViewModel for diagnostic functionality
@@ -54,18 +56,24 @@ final class DiagnosticViewModel: ObservableObject {
 
     private let networkMonitor: NetworkMonitorProtocol
     private let cacheService: OfflineCacheServiceProtocol
+    private let endpointLatencyMeasurer: DiagnosticEndpointLatencyMeasurer
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         networkMonitor: NetworkMonitorProtocol? = nil,
-        cacheService: OfflineCacheServiceProtocol? = nil
+        cacheService: OfflineCacheServiceProtocol? = nil,
+        endpointLatencyMeasurer: @escaping DiagnosticEndpointLatencyMeasurer = { endpoint in
+            try await DiagnosticViewModel.liveEndpointLatency(for: endpoint)
+        }
     ) {
         self.networkMonitor = networkMonitor ?? NetworkMonitor.shared
         self.cacheService = cacheService ?? OfflineCacheService.shared
+        self.endpointLatencyMeasurer = endpointLatencyMeasurer
 
         setupBindings()
+        self.networkMonitor.startMonitoring()
     }
 
     deinit {
@@ -112,7 +120,7 @@ final class DiagnosticViewModel: ObservableObject {
     /// Test a single API endpoint
     private func testEndpoint(_ endpoint: DiagnosticAPIEndpoint) async -> NetworkDiagnosticResult {
         do {
-            let latency = try await measureLatency(for: endpoint)
+            let latency = try await endpointLatencyMeasurer(endpoint)
 
             if latency < 0 {
                 return NetworkDiagnosticResult(
@@ -137,7 +145,7 @@ final class DiagnosticViewModel: ObservableObject {
     }
 
     /// Measure latency for an endpoint
-    private func measureLatency(for endpoint: DiagnosticAPIEndpoint) async throws -> Double {
+    private static func liveEndpointLatency(for endpoint: DiagnosticAPIEndpoint) async throws -> Double {
         // Use API base URL from configuration
         let baseURL = APIBaseURL.production
         guard let url = URL(string: baseURL + endpoint.url) else {
@@ -244,10 +252,17 @@ final class DiagnosticViewModel: ObservableObject {
 
     /// Calculate cache size
     private func calculateCacheSize() async -> Int64 {
-        let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-        guard let url = cachesURL else { return 0 }
+        var totalSize: Int64 = 0
 
-        return calculateDirectorySize(at: url)
+        for type in CacheType.allCases {
+            do {
+                totalSize += try await cacheService.getCurrentSize(type: type)
+            } catch {
+                SecureLogger.shared.error("Failed to read cache size for \(type.rawValue): \(error)")
+            }
+        }
+
+        return totalSize
     }
 
     /// Calculate directory size recursively
@@ -276,43 +291,25 @@ final class DiagnosticViewModel: ObservableObject {
     /// Load cache information
     private func loadCacheInfo() async {
         var info: [CacheInfo] = []
+        let mappings: [(DiagnosticCacheType, CacheType)] = [
+            (.images, .images),
+            (.data, .userProfile),
+            (.sessions, .studyRecords),
+            (.temporary, .messages)
+        ]
 
-        // Images cache
-        let imagesSize = await calculateCacheSize()
-        info.append(CacheInfo(
-            id: UUID(),
-            type: .images,
-            sizeBytes: imagesSize / 4,
-            entryCount: 0,
-            lastCleared: nil
-        ))
+        for (diagnosticType, cacheType) in mappings {
+            let sizeBytes = (try? await cacheService.getCurrentSize(type: cacheType)) ?? 0
+            let statistics = try? await cacheService.getStatistics(type: cacheType)
 
-        // Data cache
-        info.append(CacheInfo(
-            id: UUID(),
-            type: .data,
-            sizeBytes: imagesSize / 4,
-            entryCount: 0,
-            lastCleared: nil
-        ))
-
-        // Sessions cache
-        info.append(CacheInfo(
-            id: UUID(),
-            type: .sessions,
-            sizeBytes: imagesSize / 4,
-            entryCount: 0,
-            lastCleared: nil
-        ))
-
-        // Temporary cache
-        info.append(CacheInfo(
-            id: UUID(),
-            type: .temporary,
-            sizeBytes: imagesSize / 4,
-            entryCount: 0,
-            lastCleared: nil
-        ))
+            info.append(CacheInfo(
+                id: UUID(),
+                type: diagnosticType,
+                sizeBytes: sizeBytes,
+                entryCount: statistics?.totalEntries ?? 0,
+                lastCleared: nil
+            ))
+        }
 
         cacheInfo = info
     }

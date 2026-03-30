@@ -45,6 +45,24 @@ final class TodoViewModelTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - Helpers
+
+    private func waitForAsyncStateChange() async {
+        try? await Task.sleep(nanoseconds: 250_000_000)
+    }
+
+    private func waitForInitialLoadToSettle() async {
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        mockTodoService.resetCallTracking()
+    }
+
+    private func loadMockTodos(_ todos: [Todo]) async {
+        await waitForInitialLoadToSettle()
+        mockTodoService.setTodos(todos)
+        sut.loadTodos()
+        await waitForAsyncStateChange()
+    }
+
     // MARK: - Initial State Tests
 
     func testInitialState_EmptyTodos() {
@@ -81,35 +99,33 @@ final class TodoViewModelTests: XCTestCase {
 
     // MARK: - Computed Properties Tests
 
-    func testActiveCount_ReturnsCorrectCount() {
+    func testActiveCount_ReturnsCorrectCount() async {
         // Given
         let todos = [
             Todo(title: "Active 1", completed: false),
             Todo(title: "Active 2", completed: false),
             Todo(title: "Completed", completed: true)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // Then
         XCTAssertEqual(sut.activeCount, 2)
     }
 
-    func testCompletedCount_ReturnsCorrectCount() {
+    func testCompletedCount_ReturnsCorrectCount() async {
         // Given
         let todos = [
             Todo(title: "Active", completed: false),
             Todo(title: "Completed 1", completed: true),
             Todo(title: "Completed 2", completed: true)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // Then
         XCTAssertEqual(sut.completedCount, 2)
     }
 
-    func testHighPriorityCount_ReturnsCorrectCount() {
+    func testHighPriorityCount_ReturnsCorrectCount() async {
         // Given
         let todos = [
             Todo(title: "High Priority", completed: false, priority: .high),
@@ -117,14 +133,13 @@ final class TodoViewModelTests: XCTestCase {
             Todo(title: "High Completed", completed: true, priority: .high),
             Todo(title: "High Active", completed: false, priority: .high)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // Then
         XCTAssertEqual(sut.highPriorityCount, 2) // Only incomplete high priority
     }
 
-    func testOverdueCount_ReturnsCorrectCount() {
+    func testOverdueCount_ReturnsCorrectCount() async {
         // Given
         let todos = [
             Todo(title: "Overdue 1", completed: false, dueDate: Date().addingTimeInterval(-3600)),
@@ -132,21 +147,19 @@ final class TodoViewModelTests: XCTestCase {
             Todo(title: "Future Due", completed: false, dueDate: Date().addingTimeInterval(3600)),
             Todo(title: "Completed Overdue", completed: true, dueDate: Date().addingTimeInterval(-3600)) // Completed should not count
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // Then
         XCTAssertEqual(sut.overdueCount, 2)
     }
 
-    func testFilteredTodos_AllFilter() {
+    func testFilteredTodos_AllFilter() async {
         // Given
         let todos = [
             Todo(title: "Active", completed: false),
             Todo(title: "Completed", completed: true)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setFilter(.all)
@@ -155,15 +168,14 @@ final class TodoViewModelTests: XCTestCase {
         XCTAssertEqual(sut.filteredTodos.count, 2)
     }
 
-    func testFilteredTodos_ActiveFilter() {
+    func testFilteredTodos_ActiveFilter() async {
         // Given
         let todos = [
             Todo(title: "Active 1", completed: false),
             Todo(title: "Active 2", completed: false),
             Todo(title: "Completed", completed: true)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setFilter(.active)
@@ -173,15 +185,14 @@ final class TodoViewModelTests: XCTestCase {
         XCTAssertTrue(sut.filteredTodos.allSatisfy { !$0.completed })
     }
 
-    func testFilteredTodos_CompletedFilter() {
+    func testFilteredTodos_CompletedFilter() async {
         // Given
         let todos = [
             Todo(title: "Active", completed: false),
             Todo(title: "Completed 1", completed: true),
             Todo(title: "Completed 2", completed: true)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setFilter(.completed)
@@ -193,15 +204,14 @@ final class TodoViewModelTests: XCTestCase {
 
     // MARK: - Sorting Tests
 
-    func testSortTodos_ByPriority() {
+    func testSortTodos_ByPriority() async {
         // Given
         let todos = [
             Todo(title: "Low", priority: .low),
             Todo(title: "High", priority: .high),
             Todo(title: "Medium", priority: .medium)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setSort(.priority)
@@ -213,15 +223,14 @@ final class TodoViewModelTests: XCTestCase {
         XCTAssertEqual(sorted[2].priority, .low)
     }
 
-    func testSortTodos_ByTitle() {
+    func testSortTodos_ByTitle() async {
         // Given
         let todos = [
             Todo(title: "Zebra"),
             Todo(title: "Apple"),
             Todo(title: "Mango")
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setSort(.title)
@@ -233,7 +242,7 @@ final class TodoViewModelTests: XCTestCase {
         XCTAssertEqual(sorted[2].title, "Zebra")
     }
 
-    func testSortTodos_ByDueDate() {
+    func testSortTodos_ByDueDate() async {
         // Given
         let now = Date()
         let todos = [
@@ -241,8 +250,7 @@ final class TodoViewModelTests: XCTestCase {
             Todo(title: "Soon", dueDate: now.addingTimeInterval(86400)),
             Todo(title: "No Due Date", dueDate: nil)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setSort(.dueDate)
@@ -254,7 +262,7 @@ final class TodoViewModelTests: XCTestCase {
         // No due date items come last
     }
 
-    func testSortTodos_ByCreatedAt() {
+    func testSortTodos_ByCreatedAt() async {
         // Given
         let now = Date()
         let todos = [
@@ -262,8 +270,7 @@ final class TodoViewModelTests: XCTestCase {
             Todo(title: "Oldest", createdAt: now.addingTimeInterval(-86400 * 2)),
             Todo(title: "Middle", createdAt: now.addingTimeInterval(-86400))
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setSort(.createdAt)
@@ -278,6 +285,8 @@ final class TodoViewModelTests: XCTestCase {
     // MARK: - CRUD Operations Tests
 
     func testAddTodo_Success() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let todo = Todo(
             title: "New Task",
@@ -290,7 +299,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.addTodo(todo)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.createTodoCalled)
@@ -300,6 +309,8 @@ final class TodoViewModelTests: XCTestCase {
     }
 
     func testAddTodo_ServiceFailure() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockTodoService.shouldFailCreate = true
         mockTodoService.mockError = TodoServiceError.createFailed(underlying: NSError(domain: "Test", code: 500))
@@ -310,7 +321,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.addTodo(todo)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -325,8 +336,7 @@ final class TodoViewModelTests: XCTestCase {
             priority: .medium,
             syncStatus: .synced
         )
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         let updated = Todo(
@@ -343,7 +353,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.updateTodo(updated)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.updateTodoCalled)
@@ -356,14 +366,13 @@ final class TodoViewModelTests: XCTestCase {
         mockTodoService.mockError = TodoServiceError.updateFailed(underlying: NSError(domain: "Test", code: 500))
 
         let todo = Todo(id: UUID(), title: "Test")
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         sut.updateTodo(todo)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -373,14 +382,13 @@ final class TodoViewModelTests: XCTestCase {
         // Given
         let todoId = UUID()
         let todo = Todo(id: todoId, title: "To Delete")
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         sut.deleteTodo(todoId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.deleteTodoCalled)
@@ -395,14 +403,13 @@ final class TodoViewModelTests: XCTestCase {
 
         let todoId = UUID()
         let todo = Todo(id: todoId, title: "Test")
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         sut.deleteTodo(todoId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -413,14 +420,13 @@ final class TodoViewModelTests: XCTestCase {
         // Given
         let todoId = UUID()
         let todo = Todo(id: todoId, title: "Toggle Me", completed: false)
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         sut.toggleComplete(todoId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.toggleTodoCalled)
@@ -433,14 +439,13 @@ final class TodoViewModelTests: XCTestCase {
 
         let todoId = UUID()
         let todo = Todo(id: todoId, title: "Test", completed: false)
-        mockTodoService.setTodos([todo])
-        sut.loadSampleTodos()
+        await loadMockTodos([todo])
 
         // When
         sut.toggleComplete(todoId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -459,14 +464,13 @@ final class TodoViewModelTests: XCTestCase {
             Todo(id: completedId2, title: "Completed 2", completed: true),
             Todo(id: activeId, title: "Active", completed: false)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.deleteCompletedTodos()
 
         // Wait for async operations
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        try? await Task.sleep(nanoseconds: 600_000_000)
 
         // Then
         XCTAssertEqual(sut.todos.count, 1)
@@ -480,14 +484,13 @@ final class TodoViewModelTests: XCTestCase {
             Todo(title: "Active 1", completed: false),
             Todo(title: "Active 2", completed: false)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.deleteCompletedTodos()
 
         // Wait for async operations
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        try? await Task.sleep(nanoseconds: 600_000_000)
 
         // Then
         XCTAssertEqual(sut.todos.count, 2) // All still present
@@ -607,6 +610,8 @@ final class TodoViewModelTests: XCTestCase {
     // MARK: - Load and Refresh Tests
 
     func testLoadTodos_Success() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let todos = [
             Todo(title: "Todo 1"),
@@ -618,7 +623,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.loadTodos()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.fetchTodosCalled)
@@ -626,6 +631,8 @@ final class TodoViewModelTests: XCTestCase {
     }
 
     func testLoadTodos_Failure() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockTodoService.shouldFailFetch = true
         mockTodoService.mockError = TodoServiceError.fetchFailed(underlying: NSError(domain: "Test", code: 500))
@@ -634,7 +641,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.loadTodos()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -649,6 +656,8 @@ final class TodoViewModelTests: XCTestCase {
     }
 
     func testRefresh_CallsLoadTodos() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockTodoService.setTodos([Todo(title: "Test")])
 
@@ -656,7 +665,7 @@ final class TodoViewModelTests: XCTestCase {
         sut.refresh()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockTodoService.fetchTodosCalled)
@@ -665,6 +674,8 @@ final class TodoViewModelTests: XCTestCase {
     // MARK: - Loading State Tests
 
     func testLoadingState_ChangesDuringOperation() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let expectation = expectation(description: "Loading state changes")
         var loadingStates: [Bool] = []
@@ -673,7 +684,7 @@ final class TodoViewModelTests: XCTestCase {
             .dropFirst()
             .sink { isLoading in
                 loadingStates.append(isLoading)
-                if loadingStates.count >= 2 {
+                if loadingStates.suffix(2) == [true, false] {
                     expectation.fulfill()
                 }
             }
@@ -684,21 +695,19 @@ final class TodoViewModelTests: XCTestCase {
 
         // Then
         await fulfillment(of: [expectation], timeout: 2.0)
-        XCTAssertTrue(loadingStates.first == true)
-        XCTAssertTrue(loadingStates.last == false)
+        XCTAssertEqual(Array(loadingStates.suffix(2)), [true, false])
     }
 
     // MARK: - Filtered Todos Combined with Sort Tests
 
-    func testFilteredTodos_SortAndFilterWorkTogether() {
+    func testFilteredTodos_SortAndFilterWorkTogether() async {
         // Given
         let todos = [
             Todo(title: "High Active", completed: false, priority: .high),
             Todo(title: "Low Completed", completed: true, priority: .low),
             Todo(title: "Medium Active", completed: false, priority: .medium)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When - Active filter with priority sort
         sut.setFilter(.active)
@@ -712,13 +721,12 @@ final class TodoViewModelTests: XCTestCase {
         XCTAssertEqual(filtered.last?.priority, .medium)
     }
 
-    func testFilteredTodos_EmptyAfterFilter() {
+    func testFilteredTodos_EmptyAfterFilter() async {
         // Given
         let todos = [
             Todo(title: "Active", completed: false)
         ]
-        mockTodoService.setTodos(todos)
-        sut.loadSampleTodos()
+        await loadMockTodos(todos)
 
         // When
         sut.setFilter(.completed)

@@ -85,21 +85,30 @@ final class VisualPolishFlowTests: XCTestCase {
         app.launchArguments = baseLaunchArguments() + ["--debug-show-login-loading"]
         app.launch()
 
+        XCTAssertTrue(element(withIdentifier: VisualUIIdentifiers.loginScene).waitForExistence(timeout: 8))
         XCTAssertTrue(element(withIdentifier: VisualUIIdentifiers.loginLoadingOverlay).waitForExistence(timeout: 5))
         saveScreenshot(named: "02-login-loading")
     }
 
     func test_captureAuthenticatedChatScreen() throws {
         try launchAndAuthenticate(initialTab: "chat", expectedIdentifier: VisualUIIdentifiers.chatScreen)
-        _ = element(withIdentifier: VisualUIIdentifiers.chatScreen).waitForExistence(timeout: 5)
-        sleep(1)
+        XCTAssertTrue(
+            waitForAnyIdentifier(
+                [VisualUIIdentifiers.chatSearchField, VisualUIIdentifiers.chatScreen],
+                timeout: 8
+            )
+        )
         saveScreenshot(named: "03-chat-screen")
     }
 
     func test_captureAuthenticatedMapScreen() throws {
         try launchAndAuthenticate(initialTab: "map", expectedIdentifier: VisualUIIdentifiers.mapScreen)
-        _ = element(withIdentifier: VisualUIIdentifiers.mapScreen).waitForExistence(timeout: 5)
-        sleep(1)
+        XCTAssertTrue(
+            waitForAnyIdentifier(
+                [VisualUIIdentifiers.mapSearchField, VisualUIIdentifiers.mapScreen],
+                timeout: 8
+            )
+        )
         saveScreenshot(named: "04-map-screen")
     }
 
@@ -150,6 +159,19 @@ final class VisualPolishFlowTests: XCTestCase {
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func waitForAnyIdentifier(_ identifiers: [String], timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if identifiers.contains(where: { element(withIdentifier: $0).exists }) {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return identifiers.contains(where: { element(withIdentifier: $0).exists })
     }
 
     private func saveScreenshot(named name: String) {

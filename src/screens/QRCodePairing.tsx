@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { generatePath, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft, CheckCircle, Keyboard, Loader, Scan } from 'lucide-react';
@@ -56,7 +56,15 @@ const QRCodePairing: React.FC = () => {
     }
   };
 
-  const handleScanSuccess = async (decodedText: string) => {
+  const handleScannerClose = useCallback(() => {
+    setShowScanner(false);
+  }, []);
+
+  const handleScanError = useCallback((message: string) => {
+    showError(message);
+  }, [showError]);
+
+  const handleScanSuccess = useCallback(async (decodedText: string) => {
     try {
       setLoading(true);
       const success = await pairWithQR(decodedText);
@@ -69,7 +77,7 @@ const QRCodePairing: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pairWithQR, showError]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
@@ -173,11 +181,9 @@ const QRCodePairing: React.FC = () => {
 
       <QRScanner
         isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScanSuccess={(decodedText) => {
-          void handleScanSuccess(decodedText);
-        }}
-        onScanError={(message) => showError(message)}
+        onClose={handleScannerClose}
+        onScanSuccess={handleScanSuccess}
+        onScanError={handleScanError}
       />
     </div>
   );

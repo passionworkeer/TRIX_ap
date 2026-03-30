@@ -6,15 +6,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
+import { createFramerMotionMock } from '../../test/framerMotionMock';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock i18next
 vi.mock('react-i18next', () => ({
@@ -125,7 +119,56 @@ describe('MessageInput', () => {
     const sendButton = screen.getByRole('button', { name: /send/i });
     fireEvent.click(sendButton);
 
-    expect(defaultProps.onSend).toHaveBeenCalled();
+    expect(defaultProps.onSend).toHaveBeenCalledWith('Hello');
+  });
+
+  it('should call onSend when Enter is pressed', async () => {
+    const MessageInput = (await import('./MessageInput')).default;
+
+    render(<MessageInput {...defaultProps} input="Hello" />);
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    expect(defaultProps.onSend).toHaveBeenCalledWith('Hello');
+  });
+
+  it('should enable send button and pass transcript while listening', async () => {
+    const MessageInput = (await import('./MessageInput')).default;
+
+    render(
+      <MessageInput
+        {...defaultProps}
+        input=""
+        isListening
+        transcript="语音识别内容"
+      />,
+    );
+
+    const sendButton = screen.getByRole('button', { name: /send/i });
+    expect(sendButton).not.toBeDisabled();
+
+    fireEvent.click(sendButton);
+
+    expect(defaultProps.onSend).toHaveBeenCalledWith('语音识别内容');
+  });
+
+  it('should send transcript when Enter is pressed while listening', async () => {
+    const MessageInput = (await import('./MessageInput')).default;
+
+    render(
+      <MessageInput
+        {...defaultProps}
+        input=""
+        isListening
+        transcript="语音识别内容"
+      />,
+    );
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    expect(defaultProps.onSend).toHaveBeenCalledWith('语音识别内容');
   });
 
   it('should render attachment button', async () => {
@@ -152,7 +195,7 @@ describe('MessageInput', () => {
     expect(voiceButton).toBeInTheDocument();
   });
 
-  it('should not show voice recorder button when isBotConversation is false', async () => {
+  it('should show voice recorder button when isBotConversation is false', async () => {
     const MessageInput = (await import('./MessageInput')).default;
 
     render(
@@ -162,10 +205,9 @@ describe('MessageInput', () => {
       />
     );
 
-    // Voice recorder button should not be present for non-bot conversation
-    // (different from speech recognition button)
-    const voiceRecorderButtons = screen.queryAllByRole('button');
-    expect(voiceRecorderButtons.length).toBeGreaterThan(0);
+    const voiceRecorderButton = screen.getByRole('button', { name: /recordVoiceMessage/i });
+    expect(voiceRecorderButton).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /startVoiceInput/i })).not.toBeInTheDocument();
   });
 
   it('should call onInputFocus when textarea is focused', async () => {

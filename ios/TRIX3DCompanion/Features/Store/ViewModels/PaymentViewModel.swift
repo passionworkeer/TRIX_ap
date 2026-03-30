@@ -208,7 +208,7 @@ final class PaymentViewModel: ObservableObject {
 
     /// Retry failed payment
     func retryPayment() async {
-        guard let product = selectedProduct else { return }
+        guard selectedProduct != nil else { return }
 
         // Reset state and retry
         paymentState = .idle
@@ -410,7 +410,17 @@ extension PaymentViewModel {
     /// Create preview view model
     static var preview: PaymentViewModel {
         let vm = PaymentViewModel()
-        vm.selectedProduct = ProductViewModel.mockPointsProduct()
+        vm.selectedProduct = StoreProduct(
+            id: StoreProductConfiguration.points500,
+            name: "580 Points Pack",
+            description: "Best value for regular users",
+            price: "¥28.00",
+            priceLocale: Locale(identifier: "zh_CN"),
+            type: .points,
+            points: 580,
+            subscriptionPeriod: nil,
+            product: nil
+        )
         return vm
     }
 

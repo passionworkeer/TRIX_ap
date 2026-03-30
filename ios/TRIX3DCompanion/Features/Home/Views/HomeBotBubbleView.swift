@@ -178,6 +178,7 @@ struct HomeBotBubbleView: View {
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
+        .uiTestIdentifier(HomeAccessibilityIdentifiers.botExpandedCard)
     }
 
     private var headerBar: some View {
@@ -253,21 +254,24 @@ struct HomeBotBubbleView: View {
     private var inputArea: some View {
         HStack(spacing: 8) {
             // Text input
-            TextField("Message TRIX...", text: $inputText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(.white)
-                .lineLimit(1...3)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
-                .submitLabel(.send)
-                .onSubmit { handleSend() }
+            ZStack {
+                TextField("Message TRIX...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .lineLimit(1...3)
+                    .accessibilityIdentifier(HomeAccessibilityIdentifiers.botInputField)
+                    .submitLabel(.send)
+                    .onSubmit { handleSend() }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
 
             // Send button
             Button(action: handleSend) {
@@ -295,6 +299,7 @@ struct HomeBotBubbleView: View {
             .frame(width: 36, height: 36)
             .buttonStyle(.plain)
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+            .accessibilityIdentifier(HomeAccessibilityIdentifiers.botSendButton)
         }
     }
 

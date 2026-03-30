@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import type { AnimationAction } from 'three';
+import type { AnimationAction, AnimationMixer } from 'three';
 import type { CharacterBotState } from '../store/threeStore';
 
 type AnimationActions = Record<string, AnimationAction | null>;
+type AnimationMixerState = AnimationMixer & { _action?: AnimationAction | null };
 
 /** Maps bot state to the corresponding animation clip name in the GLTF. */
 function botStateToAnim(state: CharacterBotState): string {
@@ -22,8 +23,7 @@ export function useAnimationState(
   actions: AnimationActions,
   botState: CharacterBotState,
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mixerRef = useRef<any>(null);
+  const mixerRef = useRef<AnimationMixerState | null>(null);
 
   useEffect(() => {
     const targetName = botStateToAnim(botState);
@@ -32,7 +32,7 @@ export function useAnimationState(
     if (!next) return;
 
     if (!mixerRef.current && next.getMixer()) {
-      mixerRef.current = next.getMixer();
+      mixerRef.current = next.getMixer() as AnimationMixerState;
     }
 
     if (!mixerRef.current) return;

@@ -373,17 +373,18 @@ final class NetworkMonitorTests: XCTestCase {
 
     func testNetworkStatus_Equality() {
         // Given
+        let timestamp = Date()
         let status1 = NetworkStatus(
             isConnected: true,
             connectionType: .wifi,
             quality: .excellent,
-            timestamp: Date()
+            timestamp: timestamp
         )
         let status2 = NetworkStatus(
             isConnected: true,
             connectionType: .wifi,
             quality: .excellent,
-            timestamp: Date()
+            timestamp: timestamp
         )
 
         // Then
@@ -450,11 +451,11 @@ final class NetworkMonitorTests: XCTestCase {
 
     func testConnectionType_DisplayName() {
         // Then
-        XCTAssertEqual(ConnectionType.wifi.displayName, "Wi-Fi")
-        XCTAssertEqual(ConnectionType.cellular.displayName, "Cellular")
-        XCTAssertEqual(ConnectionType.ethernet.displayName, "Ethernet")
-        XCTAssertEqual(ConnectionType.other.displayName, "Other")
-        XCTAssertEqual(ConnectionType.none.displayName, "No Connection")
+        XCTAssertEqual(ConnectionType.wifi.displayName, "network.connection.wifi".localized)
+        XCTAssertEqual(ConnectionType.cellular.displayName, "network.connection.cellular".localized)
+        XCTAssertEqual(ConnectionType.ethernet.displayName, "network.connection.ethernet".localized)
+        XCTAssertEqual(ConnectionType.other.displayName, "network.connection.other".localized)
+        XCTAssertEqual(ConnectionType.none.displayName, "network.connection.none".localized)
     }
 
     func testConnectionType_AllCases() {
@@ -471,11 +472,11 @@ final class NetworkMonitorTests: XCTestCase {
 
     func testConnectionQuality_DisplayName() {
         // Then
-        XCTAssertEqual(ConnectionQuality.excellent.displayName, "Excellent")
-        XCTAssertEqual(ConnectionQuality.good.displayName, "Good")
-        XCTAssertEqual(ConnectionQuality.fair.displayName, "Fair")
-        XCTAssertEqual(ConnectionQuality.poor.displayName, "Poor")
-        XCTAssertEqual(ConnectionQuality.unknown.displayName, "Unknown")
+        XCTAssertEqual(ConnectionQuality.excellent.displayName, "network.quality.excellent".localized)
+        XCTAssertEqual(ConnectionQuality.good.displayName, "network.quality.good".localized)
+        XCTAssertEqual(ConnectionQuality.fair.displayName, "network.quality.fair".localized)
+        XCTAssertEqual(ConnectionQuality.poor.displayName, "network.quality.poor".localized)
+        XCTAssertEqual(ConnectionQuality.unknown.displayName, "network.quality.unknown".localized)
     }
 
     func testConnectionQuality_Color() {
@@ -593,7 +594,7 @@ final class NetworkMonitorTests: XCTestCase {
         let expectation = expectation(description: "Connection type changes")
 
         mockMonitor.connectionTypePublisher
-            .dropFirst()
+            .first(where: { $0 == .cellular })
             .sink { type in
                 XCTAssertEqual(type, .cellular)
                 expectation.fulfill()
@@ -627,7 +628,7 @@ final class NetworkMonitorTests: XCTestCase {
         let expectation = expectation(description: "Connection state changes")
 
         mockMonitor.isConnectedPublisher
-            .dropFirst()
+            .first(where: { !$0 })
             .sink { isConnected in
                 XCTAssertFalse(isConnected)
                 expectation.fulfill()

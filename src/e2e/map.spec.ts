@@ -506,7 +506,12 @@ test.describe('Map Page E2E Tests', () => {
     }
   });
 
-  test('T6.1.17: should work with touch gestures if applicable', async ({ page }) => {
+  test('T6.1.17: should work with touch gestures if applicable', async ({ page, browserName }, testInfo) => {
+    test.skip(
+      browserName === 'webkit' && testInfo.project.name === 'Mobile Safari',
+      'Mouse wheel gestures are not supported in mobile WebKit.',
+    );
+
     const mapStatus = await checkMapLoaded(page);
 
     if (mapStatus.loaded) {

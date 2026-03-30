@@ -28,7 +28,7 @@ test.describe('Accessibility - Keyboard Navigation', () => {
   });
 
   test('form inputs have associated labels', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/#/login');
 
     const inputs = await page.locator('input').all();
     for (const input of inputs) {

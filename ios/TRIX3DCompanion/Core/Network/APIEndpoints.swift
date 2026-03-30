@@ -28,7 +28,7 @@ enum APISecurityConfig {
 enum APIBaseURL {
     // MARK: - Production (Always HTTPS - Security Requirement)
     /// Production API base URL - MUST use HTTPS
-    static let production = "https://api.trix3d.com"
+    static let production = "https://trix.love"
 
     // MARK: - Development
     /// Development API base URL - uses HTTPS when security is enabled
@@ -55,12 +55,12 @@ enum APIBaseURL {
 enum WebSocketURL {
     // MARK: - Production (Always WSS - Security Requirement)
     /// Production WebSocket URL - MUST use WSS (WebSocket Secure)
-    static let production = "wss://api.trix3d.com"
+    static let production = "wss://trix.love"
 
     // MARK: - Development
     /// Development WebSocket URL - uses WSS when security is enabled
     static let development: String = {
-        // DEBUG mode: always use IP address to avoid SSL/cert issues with api.trix3d.com
+        // DEBUG mode: use direct server access to avoid production-domain TLS/caching interference
         // This is for development/testing only
         return "ws://TRIX_SERVER_HOST:8765"
     }()
@@ -80,7 +80,7 @@ enum WebSocketURL {
 /// TRIX Native Server URL for OpenClaw pairing
 enum TrixNativeServerURL {
     // MARK: - Production
-    static let production = "https://api.trix3d.com"
+    static let production = "https://trix.love"
 
     // MARK: - Development
     static let development: String = {

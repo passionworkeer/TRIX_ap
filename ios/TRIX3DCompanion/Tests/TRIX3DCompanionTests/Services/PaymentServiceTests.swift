@@ -182,6 +182,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
         }
 
         mockOrders.removeValue(forKey: orderId)
+        syncPublishedOrders()
         return .success(())
     }
 
@@ -255,6 +256,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
             updatedAt: Date()
         )
         mockOrders[order.id] = order
+        syncPublishedOrders()
         return order
     }
 
@@ -274,6 +276,7 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
             updatedAt: Date()
         )
         mockOrders[order.id] = order
+        syncPublishedOrders()
         return order
     }
 
@@ -283,6 +286,12 @@ final class MockPaymentService: PaymentServiceProtocol, ObservableObject {
                receipt.contains("modified") ||
                receipt.isEmpty ||
                receipt.count < 10
+    }
+
+    private func syncPublishedOrders() {
+        let orders = mockOrders.values.sorted { $0.createdAt > $1.createdAt }
+        pendingOrders = orders.filter { $0.isPending }
+        completedOrders = orders.filter { $0.isCompleted }
     }
 }
 

@@ -15,7 +15,7 @@ import UIKit
 // MARK: - Native WebSocket Client Adapter
 
 /// 原生 WebSocket 客户端适配器 - 替代 Socket.IO
-private final class NativeWebSocketClient: @unchecked Sendable {
+private final class NativeWebSocketClient: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
 
     // MARK: - Types
 
@@ -28,18 +28,20 @@ private final class NativeWebSocketClient: @unchecked Sendable {
     // MARK: - Properties
 
     private var webSocketTask: URLSessionWebSocketTask?
-    private let session: URLSession
     private let queue: DispatchQueue
     private var isReceiving = false
     private var messageHandler: ((Event) -> Void)?
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
 
     // MARK: - Initialization
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.waitsForConnectivity = true
-        self.session = URLSession(configuration: config)
+    override init() {
         self.queue = DispatchQueue(label: "com.trix3d.websocket", qos: .userInitiated)
+        super.init()
     }
 
     // MARK: - Connection
@@ -135,6 +137,30 @@ private final class NativeWebSocketClient: @unchecked Sendable {
                     self.messageHandler?(.disconnected(error))
                 }
             }
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol `protocol`: String?
+    ) {
+        guard webSocketTask == self.webSocketTask else { return }
+        queue.async {
+            self.messageHandler?(.connected(Data()))
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+        reason: Data?
+    ) {
+        guard webSocketTask == self.webSocketTask else { return }
+        isReceiving = false
+        queue.async {
+            self.messageHandler?(.disconnected(nil))
         }
     }
 }
@@ -312,11 +338,39 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         }
     }
 
+    func fetchConversationMessages(
+        conversationId: String,
+        clientToken: String,
+        completion: @escaping (Result<ConversationMessagesResponse, Error>) -> Void
+    ) {
+        get(
+            "/api/conversations/\(conversationId)/messages",
+            headers: ["x-trix-client-token": clientToken]
+        ) { result in
+            switch result {
+            case .success(let data):
+                do {
+                    let response = try JSONDecoder().decode(ConversationMessagesResponse.self, from: data)
+                    completion(.success(response))
+                } catch {
+                    completion(.failure(error))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
     // MARK: - Private
 
     private var baseURL: String {
         if let overrideBaseURL, !overrideBaseURL.isEmpty {
             return normalizeBaseURL(overrideBaseURL)
+        }
+        let environment = ProcessInfo.processInfo.environment
+        if let injectedURL = environment["TRIX_NATIVE_SERVICE_URL"] ?? environment["TRIX_TEST_SERVICE_URL"],
+           !injectedURL.isEmpty {
+            return normalizeBaseURL(injectedURL)
         }
         #if DEBUG
         let raw = UserDefaults.standard.string(forKey: "clawbot.channel.url") ?? ""
@@ -354,6 +408,35 @@ private final class ChannelHTTPClient: @unchecked Sendable {
         } catch {
             completion(.failure(error))
             return
+        }
+
+        queue.async { [weak self] in
+            self?.session.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+                    completion(.failure(ClawbotError.messageFailed("HTTP \(httpResponse.statusCode)")))
+                } else if let data = data {
+                    completion(.success(data))
+                } else {
+                    completion(.failure(ClawbotError.invalidResponse))
+                }
+            }.resume()
+        }
+    }
+
+    private func get(_ path: String, headers: [String: String] = [:], completion: @escaping (Result<Data, Error>) -> Void) {
+        guard let url = URL(string: baseURL + path) else {
+            completion(.failure(ClawbotError.invalidResponse))
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
         }
 
         queue.async { [weak self] in
@@ -591,6 +674,28 @@ struct MessageResponse: Codable {
     }
 }
 
+struct ConversationMessagesResponse: Codable {
+    struct MessageAttachment: Codable {
+        let id: String?
+        let publicUrl: String?
+        let url: String?
+        let mimeType: String?
+    }
+
+    struct MessageItem: Codable {
+        let id: String
+        let direction: String?
+        let text: String?
+        let attachments: [MessageAttachment]?
+        let senderId: String?
+        let createdAt: Int?
+        let replyToMessageId: String?
+    }
+
+    let messages: [MessageItem]
+    let agentOnline: Bool?
+}
+
 // MARK: - Study Room API Response Models
 
 /// 学习房间响应
@@ -700,6 +805,7 @@ protocol ClawbotChannelServiceProtocol: ObservableObject {
     var botConnectionState: BotConnectionState { get }
     var botBehaviorState: BotBehaviorState { get }
     var botState: BotBehaviorState { get }
+    var messages: [ClawbotMessage] { get }
     var lastMessage: ClawbotMessage? { get }
     var deviceId: String? { get }
 
@@ -764,6 +870,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
     @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
     @Published private(set) var isPaired: Bool = false
+    @Published private(set) var messages: [ClawbotMessage] = []
     @Published private(set) var lastMessage: ClawbotMessage?
     @Published private(set) var botBehaviorState: BotBehaviorState = .idle
     @Published private(set) var botConnectionState: BotConnectionState = .unknown
@@ -915,6 +1022,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             accountId = "default"
             await MainActor.run {
                 self.isPaired = false
+                self.messages.removeAll()
+                self.lastMessage = nil
             }
             clearPersistedPairingState()
         }
@@ -925,6 +1034,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         // 如果已经有配对信息，直接连接 WebSocket
         if let convId = conversationId, let token = clientToken, let wsUrl = websocketUrl {
+            await refreshConversationHistory(conversationId: convId, clientToken: token)
             await connectWebSocket(wsUrl: wsUrl, conversationId: convId, token: token)
         } else {
             let restored = await restorePairingSessionIfNeeded(for: resolvedUserId)
@@ -1148,6 +1258,8 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         DispatchQueue.main.async {
             self.isPaired = false
+            self.messages.removeAll()
+            self.lastMessage = nil
             self.clearPersistedPairingState()
             self.conversationId = nil
             self.clientToken = nil
@@ -1213,6 +1325,17 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                         if let serverMessageId = response.messageId {
                             self?.attachPendingReplyAlias(alias: serverMessageId, canonicalKey: localMessageId)
                         }
+                        self?.upsertMessage(
+                            ClawbotMessage(
+                                id: response.messageId ?? localMessageId,
+                                content: content,
+                                contentType: uploadedAttachmentIds.isEmpty ? .text : contentType,
+                                mediaUrl: mediaUrl,
+                                mediaMimeType: mediaMimeType,
+                                timestamp: Date(),
+                                sender: .user
+                            )
+                        )
                     }
                     continuation.resume()
                 case .failure(let error):
@@ -1272,6 +1395,17 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                 case .success(let response):
                 DispatchQueue.main.async {
                     self?.pendingMessages[localMessageId] = .sent
+                    self?.upsertMessage(
+                        ClawbotMessage(
+                            id: response.messageId ?? localMessageId,
+                            content: content,
+                            contentType: uploadedAttachmentIds.isEmpty ? .text : contentType,
+                            mediaUrl: mediaUrl,
+                            mediaMimeType: mediaMimeType,
+                            timestamp: Date(),
+                            sender: .user
+                        )
+                    )
                     if let msgId = response.messageId {
                         self?.attachPendingReplyAlias(alias: msgId, canonicalKey: localMessageId)
                         self?.pendingMessageCompletions.removeValue(forKey: localMessageId)?(.success(msgId))
@@ -1421,6 +1555,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         // 连接 WebSocket
         Task {
             let wsUrl = response.resolvedWebSocketURL.isEmpty ? self.wsURL : response.resolvedWebSocketURL
+            await self.refreshConversationHistory(conversationId: response.conversationId, clientToken: response.clientToken)
             await self.connectWebSocket(wsUrl: wsUrl, conversationId: response.conversationId, token: response.clientToken)
         }
     }
@@ -1573,13 +1708,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         let messagePayload = payload["message"] as? [String: Any] ?? payload
         let messageId = messagePayload["id"] as? String ?? generateMessageId()
         let content = messagePayload["text"] as? String ?? messagePayload["content"] as? String ?? ""
+        let direction = (messagePayload["direction"] as? String)?.lowercased()
         let senderRaw = messagePayload["sender"] as? String ?? messagePayload["senderId"] as? String ?? ""
         let replyToMessageId = messagePayload["replyToMessageId"] as? String
         let timestampMs = messagePayload["createdAt"] as? Int ?? messagePayload["timestamp"] as? Int
         let timestamp = timestampMs.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) } ?? Date()
 
         // 判断发送者 - 来自 agent/bot 的消息
-        let isFromBot = senderRaw.lowercased() == "agent" ||
+        let isFromBot = direction == "outbound" ||
+                       senderRaw.lowercased() == "agent" ||
                        senderRaw.lowercased() == "bot" ||
                        senderRaw.lowercased().hasPrefix("openclaw:") ||
                        senderRaw != (userId ?? "")
@@ -1612,6 +1749,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
 
         DispatchQueue.main.async {
             self.clearPendingReplyKey(replyToMessageId)
+            self.upsertMessage(message)
             self.lastMessage = message
             self.syncBotBehaviorState()
             NSLog("[TRIX-UI] ws accepted bot message id=%{public}@ replyTo=%{public}@",
@@ -1757,6 +1895,69 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     private func setBotBehaviorState(_ state: BotBehaviorState) {
         botBehaviorState = state
         botState = state
+    }
+
+    private func refreshConversationHistory(conversationId: String, clientToken: String) async {
+        await withCheckedContinuation { continuation in
+            httpClient.fetchConversationMessages(conversationId: conversationId, clientToken: clientToken) { [weak self] result in
+                switch result {
+                case .success(let response):
+                    let history = response.messages.compactMap { [weak self] item -> ClawbotMessage? in
+                        self?.makeMessage(from: item)
+                    }
+                    DispatchQueue.main.async {
+                        self?.replaceMessages(history)
+                        if let agentOnline = response.agentOnline {
+                            self?.isBotOnline = agentOnline
+                            self?.botConnectionState = agentOnline ? .online : .offline
+                        }
+                        continuation.resume()
+                    }
+                case .failure(let error):
+                    NSLog("[TRIX-UI] history fetch failed conv=%{public}@ error=%{public}@", conversationId, error.localizedDescription)
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    private func makeMessage(from item: ConversationMessagesResponse.MessageItem) -> ClawbotMessage {
+        let attachment = item.attachments?.first
+        let hasAttachment = (item.attachments?.isEmpty == false)
+        let timestamp = item.createdAt.map {
+            Date(timeIntervalSince1970: TimeInterval($0) / 1000)
+        } ?? Date()
+        let sender: ClawbotMessage.MessageSender =
+            (item.direction?.lowercased() == "outbound") ? .bot : .user
+
+        return ClawbotMessage(
+            id: item.id,
+            content: item.text ?? "",
+            contentType: hasAttachment ? .mixed : .text,
+            mediaUrl: attachment?.publicUrl ?? attachment?.url,
+            mediaMimeType: attachment?.mimeType,
+            timestamp: timestamp,
+            sender: sender
+        )
+    }
+
+    private func upsertMessage(_ message: ClawbotMessage) {
+        var next = messages
+        if let existingIndex = next.firstIndex(where: { $0.id == message.id }) {
+            next[existingIndex] = message
+        } else {
+            next.append(message)
+        }
+        next.sort { $0.timestamp < $1.timestamp }
+        messages = next
+    }
+
+    private func replaceMessages(_ incoming: [ClawbotMessage]) {
+        var deduped: [String: ClawbotMessage] = [:]
+        for message in incoming {
+            deduped[message.id] = message
+        }
+        messages = deduped.values.sorted { $0.timestamp < $1.timestamp }
     }
 
     private func beginConnectIfNeeded() -> Bool {
@@ -1999,11 +2200,6 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         defaults.set(clientToken, forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
         defaults.set(websocketUrl, forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
         defaults.set(serverUrl, forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
-        defaults.set(userId, forKey: "clawbot_app_user_id")
-        defaults.set(conversationId, forKey: "clawbot_conversation_id")
-        defaults.set(clientToken, forKey: "clawbot_client_token")
-        defaults.set(websocketUrl, forKey: "clawbot_websocket_url")
-        defaults.set(serverUrl, forKey: "clawbot_server_url")
     }
 
     private func loadPersistedState() {

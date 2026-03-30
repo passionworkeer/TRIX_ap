@@ -62,11 +62,12 @@ enum SupabaseConfig {
     /// Validate configuration and log warning if not properly configured
     static func validateConfiguration() {
         if !isConfigured {
-            SecureLogger.shared.warning(
+            let message =
                 "SupabaseConfig: Supabase is not configured. " +
                 "Please set SUPABASE_URL and SUPABASE_ANON_KEY in Info.plist " +
                 "or as environment variables."
-            )
+            SecureLogger.shared.error(message)
+            preconditionFailure(message)
         }
     }
 

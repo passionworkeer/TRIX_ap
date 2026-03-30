@@ -156,13 +156,19 @@ final class TodoViewModel: ObservableObject {
     /// Delete a todo
     /// - Parameter id: Todo ID to delete
     func deleteTodo(_ id: UUID) {
+        deleteTodo(id, showSuccessMessage: true)
+    }
+
+    private func deleteTodo(_ id: UUID, showSuccessMessage: Bool) {
         Task {
             do {
                 isLoading = true
                 try await todoService.deleteTodo(id: id.uuidString)
                 todos.removeAll { $0.id == id }
                 isLoading = false
-                successMessage = L("todo.delete.success")
+                if showSuccessMessage {
+                    successMessage = L("todo.delete.success")
+                }
             } catch {
                 isLoading = false
                 errorMessage = error.localizedDescription
@@ -189,7 +195,7 @@ final class TodoViewModel: ObservableObject {
     func deleteCompletedTodos() {
         let completedIds = todos.filter { $0.completed }.map { $0.id }
         for id in completedIds {
-            deleteTodo(id)
+            deleteTodo(id, showSuccessMessage: false)
         }
         successMessage = L("todo.completed.cleared")
     }

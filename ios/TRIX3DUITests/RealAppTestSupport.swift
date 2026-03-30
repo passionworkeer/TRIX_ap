@@ -74,6 +74,9 @@ enum AppUIIdentifiers {
     static let selectedProfileTab = "nav.selected.profile"
     static let homeScreen = "home.screen"
     static let homeBotBubble = "home.bot.bubble"
+    static let homeBotExpandedCard = "home.bot.expanded"
+    static let homeBotInputField = "home.bot.input"
+    static let homeBotSendButton = "home.bot.send"
     static let workbenchOverlay = "home.workbench.overlay"
     static let workbenchSnapshotCard = "home.workbench.snapshot.card"
     static let workbenchLocationCard = "home.workbench.location.card"
@@ -110,6 +113,8 @@ enum AppUIIdentifiers {
     static let trixBotSendButton = "trixbot.send.button"
     static let trixBotCloseButton = "trixbot.close.button"
     static let trixBotAttachmentPreview = "trixbot.attachment.preview"
+    static let trixBotBotMessagePrefix = "trixbot.message.bot"
+    static let trixBotUserMessagePrefix = "trixbot.message.user"
 }
 
 class RealAppUITestCase: XCTestCase {
@@ -136,7 +141,14 @@ class RealAppUITestCase: XCTestCase {
         expectedIdentifier: String,
         extraArguments: [String] = []
     ) throws {
-        app.launchArguments = baseLaunchArguments(forceLoggedOut: true, initialTab: initialTab) + extraArguments
+        let shouldUseAutoLogin = (config.email?.isEmpty == false) && (config.password?.isEmpty == false)
+        var launchArguments = baseLaunchArguments(forceLoggedOut: true, initialTab: initialTab) + extraArguments
+
+        if shouldUseAutoLogin && !launchArguments.contains("--ui-auto-login") {
+            launchArguments.append("--ui-auto-login")
+        }
+
+        app.launchArguments = launchArguments
         app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
 
@@ -144,7 +156,7 @@ class RealAppUITestCase: XCTestCase {
             return
         }
 
-        if extraArguments.contains("--ui-auto-login"),
+        if launchArguments.contains("--ui-auto-login"),
            element(withIdentifier: expectedIdentifier).waitForExistence(timeout: 20) {
             return
         }
@@ -318,6 +330,68 @@ class RealAppUITestCase: XCTestCase {
 
     func tapCenterOfApp() {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
+    func elements(withIdentifierPrefix prefix: String) -> XCUIElementQuery {
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix))
+    }
+
+    func waitForElementCountToExceed(
+        _ minimumCount: Int,
+        query: XCUIElementQuery,
+        timeout: TimeInterval = 10
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if query.count > minimumCount {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+
+        return query.count > minimumCount
+    }
+
+    func uniqueElementIdentifiers(matchingPrefix prefix: String) -> Set<String> {
+        Set(
+            elements(withIdentifierPrefix: prefix)
+                .allElementsBoundByIndex
+                .compactMap { element in
+                    let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return identifier.isEmpty ? nil : identifier
+                }
+        )
+    }
+
+    func waitForNewElementIdentifiers(
+        after existingIdentifiers: Set<String>,
+        matchingPrefix prefix: String,
+        timeout: TimeInterval = 10
+    ) -> Set<String> {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            let newIdentifiers = uniqueElementIdentifiers(matchingPrefix: prefix).subtracting(existingIdentifiers)
+            if !newIdentifiers.isEmpty {
+                return newIdentifiers
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+
+        return uniqueElementIdentifiers(matchingPrefix: prefix).subtracting(existingIdentifiers)
+    }
+
+    func scrollToInteractiveElement(_ element: XCUIElement, maxSwipes: Int = 6) {
+        scrollToElement(element, maxSwipes: maxSwipes)
+
+        var remainingSwipes = maxSwipes
+        while element.exists && element.frame.maxY > app.frame.maxY - 180 && remainingSwipes > 0 {
+            app.swipeUp()
+            remainingSwipes -= 1
+        }
     }
 
     func waitForKeyboard(timeout: TimeInterval = 5) -> Bool {

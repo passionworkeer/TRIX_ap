@@ -117,7 +117,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('window:resize', (_event, opts: { width?: number; height?: number }) => {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
-      const [w, h] = win.getSize();
+      const [w = 1200, h = 800] = win.getSize();
       win.setSize(
         Math.max(opts.width ?? w, 800),
         Math.max(opts.height ?? h, 600),
@@ -138,11 +138,11 @@ export function setupIpcHandlers(): void {
     const win = getMainWindow();
     if (win && !win.isDestroyed()) {
       if (typeof bounds?.x === 'number' || typeof bounds?.y === 'number') {
-        const [cx, cy] = win.getPosition();
+        const [cx = 0, cy = 0] = win.getPosition();
         win.setPosition(Math.round(bounds.x ?? cx), Math.round(bounds.y ?? cy));
       }
       if (typeof bounds?.width === 'number' || typeof bounds?.height === 'number') {
-        const [cw, ch] = win.getSize();
+        const [cw = 1200, ch = 800] = win.getSize();
         win.setSize(
           Math.max(Math.round(bounds.width ?? cw), 800),
           Math.max(Math.round(bounds.height ?? ch), 600),

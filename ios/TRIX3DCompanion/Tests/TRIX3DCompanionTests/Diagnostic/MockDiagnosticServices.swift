@@ -13,7 +13,7 @@ import Combine
 
 /// Mock implementation of NetworkMonitor for testing
 @MainActor
-final class MockDiagnosticNetworkMonitor: NetworkMonitor {
+final class MockDiagnosticNetworkMonitor: NetworkMonitorProtocol {
 
     // MARK: - Call Tracking
 
@@ -21,27 +21,49 @@ final class MockDiagnosticNetworkMonitor: NetworkMonitor {
     var stopMonitoringCalled = false
     var getCurrentStatusCalled = false
 
+    // MARK: - State
+
+    private let statusSubject: CurrentValueSubject<NetworkStatus, Never>
+
+    var currentStatus: NetworkStatus {
+        statusSubject.value
+    }
+
+    var statusPublisher: AnyPublisher<NetworkStatus, Never> {
+        statusSubject.eraseToAnyPublisher()
+    }
+
+    var connectionTypePublisher: AnyPublisher<ConnectionType, Never> {
+        statusSubject
+            .map(\.connectionType)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    var isConnectedPublisher: AnyPublisher<Bool, Never> {
+        statusSubject
+            .map(\.isConnected)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
     // MARK: - Initialization
 
-    override init() {
-        super.init()
+    init(initialStatus: NetworkStatus = .disconnected) {
+        self.statusSubject = CurrentValueSubject(initialStatus)
     }
 
     // MARK: - Protocol Methods
 
-    override func startMonitoring() {
+    func startMonitoring() {
         startMonitoringCalled = true
-        super.startMonitoring()
     }
 
-    override func stopMonitoring() {
-        Task { @MainActor in
-            stopMonitoringCalled = true
-        }
-        super.stopMonitoring()
+    func stopMonitoring() {
+        stopMonitoringCalled = true
     }
 
-    override func getCurrentStatus() async -> NetworkStatus {
+    func getCurrentStatus() async -> NetworkStatus {
         getCurrentStatusCalled = true
         return currentStatus
     }
@@ -49,7 +71,7 @@ final class MockDiagnosticNetworkMonitor: NetworkMonitor {
     // MARK: - Helper Methods
 
     func updateStatus(_ status: NetworkStatus) {
-        currentStatus = status
+        statusSubject.send(status)
     }
 
     func setConnected(_ connected: Bool, type: ConnectionType = .wifi, quality: ConnectionQuality = .good) {
@@ -178,7 +200,9 @@ final class MockOfflineCacheService: OfflineCacheServiceProtocol, ObservableObje
     }
 
     func clear(type: CacheType) async throws {
-        clearType = nil  // DiagnosticCacheType set via setOriginalClearType
+        if clearType == nil {
+            clearType = Self.mapToDiagnosticCacheType(type)
+        }
 
         if shouldFailClear {
             throw mockError
@@ -270,6 +294,15 @@ final class MockOfflineCacheService: OfflineCacheServiceProtocol, ObservableObje
         case .data: return .userProfile
         case .sessions: return .studyRecords
         case .temporary: return .messages
+        }
+    }
+
+    private static func mapToDiagnosticCacheType(_ type: CacheType) -> DiagnosticCacheType {
+        switch type {
+        case .images: return .images
+        case .userProfile: return .data
+        case .studyRecords: return .sessions
+        case .messages: return .temporary
         }
     }
 

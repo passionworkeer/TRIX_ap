@@ -64,7 +64,7 @@ struct WeChatConfiguration {
     static let placeholderAppSecret = "YOUR_WECHAT_APP_SECRET"
 
     /// Default Universal Link
-    static let defaultUniversalLink = "https://api.trix3d.com/wechat/"
+    static let defaultUniversalLink = "https://trix.love/wechat/"
 
     /// Check if WeChat is properly configured
     static var isConfigured: Bool {
@@ -280,13 +280,30 @@ final class WeChatSignInService: NSObject, WeChatSignInServiceProtocol {
     /// - Parameter url: The callback URL from WeChat
     /// - Returns: True if the URL was handled successfully
     func handleOpen(_ url: URL) -> Bool {
-        // Check if this is a WeChat callback
-        guard url.scheme == WeChatConfiguration.appID || url.absoluteString.hasPrefix("wx") else {
+        // Accept both WeChat app-scheme callbacks and configured universal link callbacks.
+        let isWeChatScheme = url.scheme == WeChatConfiguration.appID || url.absoluteString.hasPrefix("wx")
+        let isConfiguredUniversalLink = {
+            guard let universalLinkURL = URL(string: WeChatConfiguration.universalLink) else {
+                return false
+            }
+
+            let sameHost = universalLinkURL.host == url.host
+            let expectedPath = universalLinkURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let actualPath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+            if expectedPath.isEmpty {
+                return sameHost
+            }
+
+            return sameHost && actualPath.hasPrefix(expectedPath)
+        }()
+
+        guard isWeChatScheme || isConfiguredUniversalLink else {
             return false
         }
 
         // Let WeChat SDK handle the URL
-        let handled = WeChatSDK.handleOpen(url)
+        let handled = isConfiguredUniversalLink ? true : WeChatSDK.handleOpen(url)
 
         if handled {
             // Parse the callback URL

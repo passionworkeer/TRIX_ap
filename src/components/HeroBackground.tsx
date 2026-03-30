@@ -84,9 +84,10 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
   const videoRefs = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)] as const;
   const [activeLayer, setActiveLayer] = useState<LayerIndex>(0);
   const [isLowBattery, setIsLowBattery] = useState(false);
+  const initialSource = getVideoSrc('IDLE');
   const [layerSources, setLayerSources] = useState<[string, string]>([
-    getVideoSrc('IDLE'),
-    getVideoSrc('IDLE'),
+    initialSource,
+    '',
   ]);
 
   useEffect(() => {
@@ -210,6 +211,9 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
     if (!onActiveVideoSourceChange) {
       return;
     }
+    if (!layerSources[activeLayer]) {
+      return;
+    }
     onActiveVideoSourceChange(layerSources[activeLayer]);
   }, [activeLayer, layerSources, onActiveVideoSourceChange]);
 
@@ -278,14 +282,14 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
               <video
                 key={layer}
                 ref={videoRefs[layer]}
-                src={layerSources[layer]}
+                src={layerSources[layer] || undefined}
                 data-hero-video-layer={layer}
                 data-active={activeLayer === layer ? 'true' : 'false'}
                 autoPlay
                 loop
                 muted
                 playsInline
-                preload="auto"
+                preload={layerSources[layer] ? 'auto' : 'none'}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -299,7 +303,11 @@ export default function HeroBackground({ botState, onActiveVideoSourceChange, fo
                   transition: 'opacity 300ms ease-in-out',
                   zIndex: 1,
                 }}
-                onError={() => logger.error('HeroBackground', '视频加载失败:', layerSources[layer])}
+                onError={() => {
+                  if (layerSources[layer]) {
+                    logger.error('HeroBackground', '视频加载失败:', layerSources[layer]);
+                  }
+                }}
               />
             );
           })}

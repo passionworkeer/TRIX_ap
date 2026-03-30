@@ -175,6 +175,7 @@ final class HomeViewModel {
     func clearPendingSnapshotSelection() {
         pendingSnapshotImage = nil
         pendingSnapshotImageURL = nil
+        showTrixBotFromSnapshot = false
     }
 
     /// Handle workbench presented state change

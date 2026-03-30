@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /** 启动带有效性检查的心跳（幂等：调用前先清掉旧 interval） */
-  const startHeartbeat = () => {
+  const startHeartbeat = (userId: string) => {
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
@@ -130,13 +130,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         heartbeatCheckCounterRef.current = 0;
         const validity = await checkSessionValidity();
         if (!validity.isValid) {
-          if (validity.reason === 'network_error' || validity.reason === 'not_found') {
+          if (validity.reason === 'network_error') {
             logger.auth.warn('[auth] skipped forced logout during heartbeat validity check', {
               reason: validity.reason,
               localSessionId: getLocalSessionId(),
             });
             return;
           }
+
+          if (validity.reason === 'not_found') {
+            const restoredSession = await upsertSession(userId);
+            if (restoredSession) {
+              logger.auth.info('[auth] restored missing session during heartbeat', {
+                userId,
+                sessionId: restoredSession.id,
+              });
+              return;
+            }
+          }
+
           forceLogout(validity.reason, getLocalSessionId());
         }
       }
@@ -166,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
         // 启动带有效性检查的心跳（幂等）
-        startHeartbeat();
+        startHeartbeat(session.user.id);
       }
       setLoading(false);
     });
@@ -185,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (event === 'INITIAL_SESSION') {
           // Supabase 从 storage 恢复 session，upsertSession 已在 getSession() 分支处理
           // 这里只需启动/保活心跳
-          startHeartbeat();
+          startHeartbeat(session.user.id);
         } else if (event === 'SIGNED_IN') {
           const hasLocalSession = Boolean(getLocalSessionId());
           if (interactiveSignInPendingRef.current || !hasLocalSession) {
@@ -200,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localSessionId: getLocalSessionId(),
             });
           }
-          startHeartbeat();
+          startHeartbeat(session.user.id);
         } else if (event === 'TOKEN_REFRESHED') {
           // Token 刷新：session 仍然有效，无需 upsertSession，也无需重启心跳
           updateLastActive().catch(err => logger.error('Auth', '心跳更新失败:', err));

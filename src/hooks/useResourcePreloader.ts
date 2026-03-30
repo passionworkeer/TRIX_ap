@@ -1,5 +1,16 @@
 import { useEffect } from 'react';
 
+type NetworkInformationLike = {
+  effectiveType?: string;
+  saveData?: boolean;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: NetworkInformationLike;
+  mozConnection?: NetworkInformationLike;
+  webkitConnection?: NetworkInformationLike;
+};
+
 /**
  * useResourcePreloader - key resource preloader hook
  *
@@ -7,15 +18,38 @@ import { useEffect } from 'react';
  */
 export function useResourcePreloader() {
   useEffect(() => {
+    if (!shouldPreloadNonCriticalResources()) {
+      return;
+    }
+
+    const windowWithIdleCallbacks = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let timeoutId: number | null = null;
+    let idleCallbackId: number | null = null;
+
+    const runPreload = () => {
+      preloadCriticalResources();
+    };
+
     // 使用 requestIdleCallback 在浏览器空闲时预加载
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(() => {
-        preloadCriticalResources();
-      }, { timeout: 3000 });
+    if (typeof windowWithIdleCallbacks.requestIdleCallback === 'function') {
+      idleCallbackId = windowWithIdleCallbacks.requestIdleCallback(runPreload, { timeout: 3000 });
     } else {
       // 降级处理：延迟 2 秒后预加载
-      setTimeout(preloadCriticalResources, 2000);
+      timeoutId = window.setTimeout(runPreload, 2000);
     }
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+
+      if (idleCallbackId !== null && typeof windowWithIdleCallbacks.cancelIdleCallback === 'function') {
+        windowWithIdleCallbacks.cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, []);
 
   return null;
@@ -29,6 +63,10 @@ function preloadCriticalResources() {
   ];
 
   criticalImages.forEach((src) => {
+    if (document.head.querySelector(`link[rel="preload"][href="${src}"]`)) {
+      return;
+    }
+
     const link = document.createElement('link');
     link.rel = 'preload';
     link.as = 'image';
@@ -37,11 +75,37 @@ function preloadCriticalResources() {
   });
 }
 
+function shouldPreloadNonCriticalResources() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const navigatorWithConnection = navigator as NavigatorWithConnection;
+  const connection =
+    navigatorWithConnection.connection ??
+    navigatorWithConnection.mozConnection ??
+    navigatorWithConnection.webkitConnection;
+
+  if (!connection) {
+    return true;
+  }
+
+  if (connection.saveData) {
+    return false;
+  }
+
+  return connection.effectiveType !== 'slow-2g' && connection.effectiveType !== '2g';
+}
+
 /**
  * 预加载指定资源
  */
 export function preloadResource(href: string, as: 'image' | 'script' | 'style' | 'fetch' = 'fetch') {
   if (typeof window === 'undefined') return;
+
+  if (document.head.querySelector(`link[rel="preload"][href="${href}"]`)) {
+    return;
+  }
 
   const link = document.createElement('link');
   link.rel = 'preload';

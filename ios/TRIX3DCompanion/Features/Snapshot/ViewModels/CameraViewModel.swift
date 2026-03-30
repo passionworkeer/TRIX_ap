@@ -257,25 +257,6 @@ final class CameraViewModel: ObservableObject {
     }
 }
 
-// MARK: - Camera Service Publisher Extensions
-
-extension CameraServiceProtocol {
-    /// Flash mode publisher
-    var flashModePublisher: AnyPublisher<AVCaptureDevice.FlashMode, Never> {
-        return Just(flashMode).eraseToAnyPublisher()
-    }
-
-    /// Camera position publisher
-    var cameraPositionPublisher: AnyPublisher<AVCaptureDevice.Position, Never> {
-        return Just(cameraPosition).eraseToAnyPublisher()
-    }
-
-    /// Session running publisher
-    var isSessionRunningPublisher: AnyPublisher<Bool, Never> {
-        return Just(isSessionRunning).eraseToAnyPublisher()
-    }
-}
-
 // MARK: - Flash Mode Extensions
 
 extension AVCaptureDevice.FlashMode {

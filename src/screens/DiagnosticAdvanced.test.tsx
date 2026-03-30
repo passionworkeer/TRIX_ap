@@ -6,6 +6,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
 // Mock TrixNativeChannelClient
 vi.mock('../services/TrixNativeChannelClient', () => ({
@@ -44,14 +45,7 @@ const mockWsInstance = {
 
 vi.stubGlobal('WebSocket', vi.fn(() => mockWsInstance));
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({

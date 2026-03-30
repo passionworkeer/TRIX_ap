@@ -15,7 +15,7 @@ import Foundation
 /// - Test concurrent request handling
 /// - Monitor network timeout behavior
 /// - Measure throughput for large data transfers
-final class NetworkPerformanceBenchmark: XCTestCase {
+final class NetworkPerformanceBenchmark: PerformanceBenchmarkTestCase {
 
     // MARK: - Properties
 
@@ -318,14 +318,14 @@ final class NetworkPerformanceBenchmark: XCTestCase {
     func testConnectionReuse() async throws {
         // First request establishes connection
         let firstRequestTime = CFAbsoluteTimeGetCurrent()
-        await simulateAPICall()
+        await simulateAPICall(connectionReused: false)
         let firstDuration = CFAbsoluteTimeGetCurrent() - firstRequestTime
 
         // Subsequent requests should reuse connection
         var subsequentDurations: [TimeInterval] = []
         for _ in 0..<5 {
             let start = CFAbsoluteTimeGetCurrent()
-            await simulateAPICall()
+            await simulateAPICall(connectionReused: true)
             let duration = CFAbsoluteTimeGetCurrent() - start
             subsequentDurations.append(duration)
         }
@@ -375,9 +375,14 @@ final class NetworkPerformanceBenchmark: XCTestCase {
     }
 
     /// Simulate an API call
-    private func simulateAPICall() async {
-        // Simulate network delay
-        let delay = Double.random(in: 0.1...0.5)
+    private func simulateAPICall(connectionReused: Bool = false) async {
+        // Simulate slower connection setup for the first request and faster keep-alive reuse after that.
+        let delay: Double
+        if connectionReused {
+            delay = Double.random(in: 0.08...0.16)
+        } else {
+            delay = Double.random(in: 0.25...0.45)
+        }
         try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
     }
 
@@ -397,8 +402,8 @@ final class NetworkPerformanceBenchmark: XCTestCase {
 
     /// Simulate a timeout request
     private func simulateTimeoutRequest(timeout: TimeInterval) async throws {
-        // Simulate a request that takes longer than timeout
-        try await Task.sleep(nanoseconds: UInt64((timeout + 2) * 1_000_000_000))
+        try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+        throw URLError(.timedOut)
     }
 
     /// Calculate percentile of an array

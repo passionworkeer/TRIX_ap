@@ -170,7 +170,10 @@ final class VoicePlayerViewModel: ObservableObject {
     /// Seek to specific progress position
     /// - Parameter progress: Progress value (0.0 - 1.0)
     func seekToProgress(_ progress: Double) async {
-        let time = totalDuration * progress
+        guard totalDuration > 0 else { return }
+
+        let clampedProgress = max(0, min(1, progress))
+        let time = totalDuration * clampedProgress
         await seek(to: time)
     }
 

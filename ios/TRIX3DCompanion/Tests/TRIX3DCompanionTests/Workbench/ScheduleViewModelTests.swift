@@ -49,6 +49,24 @@ final class ScheduleViewModelTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - Helpers
+
+    private func waitForAsyncStateChange() async {
+        try? await Task.sleep(nanoseconds: 250_000_000)
+    }
+
+    private func waitForInitialLoadToSettle() async {
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        mockScheduleService.resetCallTracking()
+    }
+
+    private func loadSchedules(_ schedules: [Schedule]) async {
+        await waitForInitialLoadToSettle()
+        mockScheduleService.setSchedules(schedules)
+        sut.loadSchedules()
+        await waitForAsyncStateChange()
+    }
+
     // MARK: - Initial State Tests
 
     func testInitialState_EmptySchedules() {
@@ -81,7 +99,7 @@ final class ScheduleViewModelTests: XCTestCase {
 
     // MARK: - Computed Properties Tests
 
-    func testFilteredSchedules_AllFilter() {
+    func testFilteredSchedules_AllFilter() async {
         // Given
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
@@ -89,8 +107,7 @@ final class ScheduleViewModelTests: XCTestCase {
             Schedule(title: "Future", startTime: tomorrow),
             Schedule(title: "Past", startTime: yesterday)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // When
         sut.setFilter(.all)
@@ -99,7 +116,7 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertEqual(sut.filteredSchedules.count, 2)
     }
 
-    func testFilteredSchedules_UpcomingFilter() {
+    func testFilteredSchedules_UpcomingFilter() async {
         // Given
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
@@ -107,8 +124,7 @@ final class ScheduleViewModelTests: XCTestCase {
             Schedule(title: "Future", startTime: tomorrow),
             Schedule(title: "Past", startTime: yesterday)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // When
         sut.setFilter(.upcoming)
@@ -118,15 +134,14 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertTrue(filtered.allSatisfy { !$0.isPast })
     }
 
-    func testFilteredSchedules_TodayFilter() {
+    func testFilteredSchedules_TodayFilter() async {
         // Given
         let now = Date()
         let schedules = [
             Schedule(title: "Today", startTime: now),
             Schedule(title: "Tomorrow", startTime: Calendar.current.date(byAdding: .day, value: 1, to: now)!)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // When
         sut.setFilter(.today)
@@ -136,15 +151,14 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertTrue(filtered.allSatisfy { $0.isToday })
     }
 
-    func testFilteredSchedules_PastFilter() {
+    func testFilteredSchedules_PastFilter() async {
         // Given
         let now = Date()
         let schedules = [
             Schedule(title: "Past", startTime: Calendar.current.date(byAdding: .day, value: -1, to: now)!),
             Schedule(title: "Future", startTime: Calendar.current.date(byAdding: .day, value: 1, to: now)!)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // When
         sut.setFilter(.past)
@@ -154,7 +168,7 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertTrue(filtered.allSatisfy { $0.isPast })
     }
 
-    func testTodaySchedules_OnlyTodayAndNotPast() {
+    func testTodaySchedules_OnlyTodayAndNotPast() async {
         // Given
         let now = Date()
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: now)!
@@ -165,15 +179,14 @@ final class ScheduleViewModelTests: XCTestCase {
             Schedule(title: "Tomorrow", startTime: tomorrow),
             Schedule(title: "Yesterday", startTime: yesterday)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // Then
         let todaySchedules = sut.todaySchedules
         XCTAssertTrue(todaySchedules.allSatisfy { $0.isToday && !$0.isPast })
     }
 
-    func testUpcomingSchedules_Next7Days() {
+    func testUpcomingSchedules_Next7Days() async {
         // Given
         let now = Date()
         let nextWeek = Calendar.current.date(byAdding: .day, value: 7, to: now)!
@@ -184,8 +197,7 @@ final class ScheduleViewModelTests: XCTestCase {
             Schedule(title: "NextWeek", startTime: nextWeek),
             Schedule(title: "NextMonth", startTime: nextMonth)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // Then
         let upcoming = sut.upcomingSchedules
@@ -193,31 +205,30 @@ final class ScheduleViewModelTests: XCTestCase {
         XCTAssertTrue(upcoming.allSatisfy { !$0.isPast && $0.startTime <= nextWeek })
     }
 
-    func testTodayCount_ReturnsCorrectCount() {
+    func testTodayCount_ReturnsCorrectCount() async {
         // Given
         let now = Date()
+        let laterToday = Calendar.current.date(byAdding: .minute, value: 10, to: now)!
         let schedules = [
-            Schedule(title: "Today 1", startTime: now),
-            Schedule(title: "Today 2", startTime: now),
+            Schedule(title: "Today 1", startTime: laterToday),
+            Schedule(title: "Today 2", startTime: Calendar.current.date(byAdding: .minute, value: 20, to: now)!),
             Schedule(title: "Tomorrow", startTime: Calendar.current.date(byAdding: .day, value: 1, to: now)!)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // Then
         XCTAssertEqual(sut.todayCount, 2)
     }
 
-    func testUpcomingCount_ReturnsCorrectCount() {
+    func testUpcomingCount_ReturnsCorrectCount() async {
         // Given
         let now = Date()
         let schedules = [
-            Schedule(title: "Soon", startTime: now),
+            Schedule(title: "Soon", startTime: Calendar.current.date(byAdding: .minute, value: 10, to: now)!),
             Schedule(title: "Later", startTime: Calendar.current.date(byAdding: .day, value: 3, to: now)!),
             Schedule(title: "Past", startTime: Calendar.current.date(byAdding: .day, value: -1, to: now)!)
         ]
-        mockScheduleService.setSchedules(schedules)
-        sut.loadSampleSchedules()
+        await loadSchedules(schedules)
 
         // Then
         XCTAssertEqual(sut.upcomingCount, 2)
@@ -226,6 +237,8 @@ final class ScheduleViewModelTests: XCTestCase {
     // MARK: - CRUD Operations Tests
 
     func testAddSchedule_Success() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let schedule = Schedule(
             title: "New Meeting",
@@ -240,7 +253,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.addSchedule(schedule)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.createScheduleCalled)
@@ -250,6 +263,8 @@ final class ScheduleViewModelTests: XCTestCase {
     }
 
     func testAddSchedule_WithReminder_SchedulesNotification() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let futureDate = Date().addingTimeInterval(3600 * 2) // 2 hours from now
         let schedule = Schedule(
@@ -262,7 +277,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.addSchedule(schedule)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.createScheduleCalled)
@@ -270,6 +285,8 @@ final class ScheduleViewModelTests: XCTestCase {
     }
 
     func testAddSchedule_ServiceFailure() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockScheduleService.shouldFailCreate = true
         mockScheduleService.mockError = ScheduleServiceError.createFailed(underlying: NSError(domain: "Test", code: 500))
@@ -280,7 +297,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.addSchedule(schedule)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -295,8 +312,7 @@ final class ScheduleViewModelTests: XCTestCase {
             startTime: Date(),
             syncStatus: .synced
         )
-        mockScheduleService.setSchedules([schedule])
-        sut.loadSampleSchedules()
+        await loadSchedules([schedule])
 
         // When
         let updated = Schedule(
@@ -314,7 +330,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.updateSchedule(updated)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.updateScheduleCalled)
@@ -327,14 +343,13 @@ final class ScheduleViewModelTests: XCTestCase {
         mockScheduleService.mockError = ScheduleServiceError.updateFailed(underlying: NSError(domain: "Test", code: 500))
 
         let schedule = Schedule(id: UUID(), title: "Test", startTime: Date())
-        mockScheduleService.setSchedules([schedule])
-        sut.loadSampleSchedules()
+        await loadSchedules([schedule])
 
         // When
         sut.updateSchedule(schedule)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -344,14 +359,13 @@ final class ScheduleViewModelTests: XCTestCase {
         // Given
         let scheduleId = UUID()
         let schedule = Schedule(id: scheduleId, title: "To Delete", startTime: Date())
-        mockScheduleService.setSchedules([schedule])
-        sut.loadSampleSchedules()
+        await loadSchedules([schedule])
 
         // When
         sut.deleteSchedule(scheduleId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.deleteScheduleCalled)
@@ -363,14 +377,13 @@ final class ScheduleViewModelTests: XCTestCase {
         // Given
         let scheduleId = UUID()
         let schedule = Schedule(id: scheduleId, title: "To Delete", startTime: Date())
-        mockScheduleService.setSchedules([schedule])
-        sut.loadSampleSchedules()
+        await loadSchedules([schedule])
 
         // When
         sut.deleteSchedule(scheduleId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockNotificationService.cancelNotificationCalled)
@@ -383,14 +396,13 @@ final class ScheduleViewModelTests: XCTestCase {
 
         let scheduleId = UUID()
         let schedule = Schedule(id: scheduleId, title: "Test", startTime: Date())
-        mockScheduleService.setSchedules([schedule])
-        sut.loadSampleSchedules()
+        await loadSchedules([schedule])
 
         // When
         sut.deleteSchedule(scheduleId)
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -493,6 +505,8 @@ final class ScheduleViewModelTests: XCTestCase {
     // MARK: - Load and Refresh Tests
 
     func testLoadSchedules_Success() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let schedules = [
             Schedule(title: "Schedule 1", startTime: Date()),
@@ -504,7 +518,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.loadSchedules()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.fetchSchedulesCalled)
@@ -512,6 +526,8 @@ final class ScheduleViewModelTests: XCTestCase {
     }
 
     func testLoadSchedules_Failure() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockScheduleService.shouldFailFetch = true
         mockScheduleService.mockError = ScheduleServiceError.fetchFailed(underlying: NSError(domain: "Test", code: 500))
@@ -520,7 +536,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.loadSchedules()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
@@ -536,6 +552,8 @@ final class ScheduleViewModelTests: XCTestCase {
     }
 
     func testRefresh_CallsLoadSchedules() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         mockScheduleService.setSchedules([Schedule(title: "Test", startTime: Date())])
 
@@ -543,7 +561,7 @@ final class ScheduleViewModelTests: XCTestCase {
         sut.refresh()
 
         // Wait for async operation
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitForAsyncStateChange()
 
         // Then
         XCTAssertTrue(mockScheduleService.fetchSchedulesCalled)
@@ -552,6 +570,8 @@ final class ScheduleViewModelTests: XCTestCase {
     // MARK: - Loading State Tests
 
     func testLoadingState_ChangesDuringOperation() async {
+        await waitForInitialLoadToSettle()
+
         // Given
         let expectation = expectation(description: "Loading state changes")
         var loadingStates: [Bool] = []
@@ -560,7 +580,7 @@ final class ScheduleViewModelTests: XCTestCase {
             .dropFirst()
             .sink { isLoading in
                 loadingStates.append(isLoading)
-                if loadingStates.count >= 2 {
+                if loadingStates.suffix(2) == [true, false] {
                     expectation.fulfill()
                 }
             }
@@ -571,8 +591,7 @@ final class ScheduleViewModelTests: XCTestCase {
 
         // Then
         await fulfillment(of: [expectation], timeout: 2.0)
-        XCTAssertTrue(loadingStates.first == true) // Started loading
-        XCTAssertTrue(loadingStates.last == false) // Finished loading
+        XCTAssertEqual(Array(loadingStates.suffix(2)), [true, false])
     }
 
     // MARK: - Notification Scheduling Tests

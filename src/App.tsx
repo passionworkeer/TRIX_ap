@@ -1,15 +1,11 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation, Navigate, matchPath } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
-import GlassDock from './components/GlassDock';
-import HeroBackground from './components/HeroBackground';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AppRoutes } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
-import { useNotification } from './hooks/useNotification';
 import { useImmersiveVoice } from './hooks/useImmersiveVoice';
 import { useResourcePreloader } from './hooks/useResourcePreloader';
 import { audioContextUnlock } from './services/voicePlaybackService';
@@ -33,6 +29,8 @@ const PointsMall = lazy(() => import('./screens/PointsMall'));
 const Wardrobe = lazy(() => import('./screens/Wardrobe'));
 const Login = lazy(async () => ({ default: (await import('./screens/Auth')).Login }));
 const Register = lazy(async () => ({ default: (await import('./screens/Auth')).Register }));
+const HeroBackground = lazy(() => import('./components/HeroBackground'));
+const GlassDock = lazy(() => import('./components/GlassDock'));
 
 const RouteLoading: React.FC = () => (
   <div
@@ -47,7 +45,6 @@ const RouteLoading: React.FC = () => (
 );
 
 function AppContent() {
-  console.log('[AppContent] rendering');
   // 资源预加载 - 提升首屏体验
   useResourcePreloader();
 
@@ -113,11 +110,13 @@ function AppContent() {
       onTouchStartCapture={handleFirstGestureUnlock}
     >
       {isHomePage && !isElectron && (
-        <HeroBackground
-          botState={botState}
-          onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
-          force3D={false}
-        />
+        <Suspense fallback={null}>
+          <HeroBackground
+            botState={botState}
+            onActiveVideoSourceChange={isDev ? setDevActiveVideoSource : undefined}
+            force3D={false}
+          />
+        </Suspense>
       )}
 
       <div
@@ -179,11 +178,11 @@ function AppContent() {
         )}
       </div>
 
-      <AnimatePresence mode="wait">
-        {user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isTimerPage && !isAuthPage && (
-          <GlassDock key="dock" />
-        )}
-      </AnimatePresence>
+      {user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isTimerPage && !isAuthPage && (
+        <Suspense fallback={null}>
+          <GlassDock />
+        </Suspense>
+      )}
 
       <Toaster
         position="top-center"
@@ -216,7 +215,6 @@ const AppRouter: React.FC<{ children: React.ReactElement }> = ({ children }) => 
 };
 
 const App: React.FC = () => {
-  console.log('[App] rendering');
   return (
     <ErrorBoundary>
       <AuthProvider>

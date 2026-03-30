@@ -600,6 +600,7 @@ export function setCenter(map: BMapGL, lat: number, lon: number, zoom?: number):
 // These are minimal type definitions for the Baidu Maps GL SDK
 // The actual SDK is loaded via script tag
 
+/* eslint-disable no-redeclare */
 declare class BMapGL {
   constructor(container: string | HTMLElement, opts?: Record<string, unknown>);
   centerAndZoom(point: BMapGL.Point, zoom: number): void;
@@ -746,6 +747,7 @@ declare namespace BMapGL {
 
 // Export BMapGL type for external use
 export type { BMapGL };
+/* eslint-enable no-redeclare */
 
 declare class BMap {
   constructor(container: string | HTMLElement);

@@ -8,13 +8,55 @@
 import XCTest
 import UIKit
 
+@MainActor
+class PerformanceBenchmarkTestCase: XCTestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+
+        guard Self.isPerformanceBenchmarksEnabled() else {
+            throw XCTSkip(
+                "Performance benchmarks are opt-in. Set TRIX_RUN_PERFORMANCE_BENCHMARKS=1 or pass --performance-benchmarks to enable."
+            )
+        }
+    }
+
+    class func isPerformanceBenchmarksEnabled() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment["TRIX_RUN_PERFORMANCE_BENCHMARKS"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() {
+            return ["1", "true", "yes", "on"].contains(value)
+        }
+
+        return ProcessInfo.processInfo.arguments.contains("--performance-benchmarks")
+    }
+
+    func requireUILaunchBenchmarkEnabled() throws {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment["TRIX_RUN_UI_LAUNCH_BENCHMARK"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+           ["1", "true", "yes", "on"].contains(value) {
+            return
+        }
+
+        if ProcessInfo.processInfo.arguments.contains("--ui-launch-benchmark") {
+            return
+        }
+
+        throw XCTSkip(
+            "UI launch metric benchmark requires explicit opt-in. Set TRIX_RUN_UI_LAUNCH_BENCHMARK=1 or pass --ui-launch-benchmark to enable."
+        )
+    }
+}
+
 /// Performance benchmarks for measuring battery consumption
 ///
 /// This test class provides tools to:
 /// - Measure location service battery drain
 /// - Monitor network request battery impact
 /// - Test background task battery consumption
-final class BatteryPerformanceBenchmark: XCTestCase {
+final class BatteryPerformanceBenchmark: PerformanceBenchmarkTestCase {
 
     // MARK: - Properties
 
@@ -260,7 +302,10 @@ final class BatteryPerformanceBenchmark: XCTestCase {
             expectation.fulfill()
         }
 
-        // batteryState is read-only on UIDevice; notification cannot be triggered in tests
+        NotificationCenter.default.post(
+            name: UIDevice.batteryStateDidChangeNotification,
+            object: UIDevice.current
+        )
 
         waitForExpectations(timeout: 1.0)
 
@@ -268,10 +313,7 @@ final class BatteryPerformanceBenchmark: XCTestCase {
 
         print("Battery state change notification test: \(notificationReceived ? "Received" : "Not received")")
 
-        // In unit tests, actual battery state changes may not trigger
-        // This tests the notification mechanism exists
-        XCTAssertTrue(notificationReceived || !notificationReceived,
-            "Battery state notification handling should exist")
+        XCTAssertTrue(notificationReceived, "Battery state change notification should be observed")
     }
 
     // MARK: - Power Saving Mode Tests

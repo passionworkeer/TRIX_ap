@@ -36,11 +36,6 @@ final class PointsServiceTests: XCTestCase {
         // Note: In production, proper dependency injection would be used
         sut = PointsService.shared
         cancellables = Set<AnyCancellable>()
-
-        // Reset to known state for testing
-        Task {
-            await refreshToKnownState()
-        }
     }
 
     override func tearDown() {
@@ -51,8 +46,23 @@ final class PointsServiceTests: XCTestCase {
 
     // MARK: - Helper Methods
 
-    private func refreshToKnownState() async {
-        _ = await sut.refreshPoints()
+    private func isLivePointsServiceEnabled() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment["TRIX_RUN_LIVE_POINTS_SERVICE"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() {
+            return ["1", "true", "yes", "on"].contains(value)
+        }
+
+        return ProcessInfo.processInfo.arguments.contains("--live-points-service")
+    }
+
+    private func requireLivePointsService() throws {
+        guard isLivePointsServiceEnabled() else {
+            throw XCTSkip(
+                "PointsService live tests are opt-in. Set TRIX_RUN_LIVE_POINTS_SERVICE=1 or pass --live-points-service to enable."
+            )
+        }
     }
 
     private func createPointsBalance(
@@ -352,9 +362,13 @@ final class PointsServiceTests: XCTestCase {
 
     func testPointsService_ClearError() {
         // Given - Trigger an error state
+        let invalidAmountTask = expectation(description: "Invalid points request completes")
         Task {
-            _ = await sut.refreshPoints()
+            _ = await sut.addPoints(-1, description: "Test", metadata: nil)
+            invalidAmountTask.fulfill()
         }
+        wait(for: [invalidAmountTask], timeout: 1.0)
+        XCTAssertNotNil(sut.lastError)
 
         // When
         sut.clearError()
@@ -365,7 +379,9 @@ final class PointsServiceTests: XCTestCase {
 
     // MARK: - Integration Tests (API dependent - may fail without network)
 
-    func testRefreshPoints_ReturnsResult() async {
+    func testRefreshPoints_ReturnsResult() async throws {
+        try requireLivePointsService()
+
         // Given - Service initialized
 
         // When
@@ -382,7 +398,9 @@ final class PointsServiceTests: XCTestCase {
         }
     }
 
-    func testGetBalance_ReturnsValue() async {
+    func testGetBalance_ReturnsValue() async throws {
+        try requireLivePointsService()
+
         // When
         let balance = await sut.getBalance()
 
@@ -392,7 +410,9 @@ final class PointsServiceTests: XCTestCase {
         }
     }
 
-    func testLoadHistory_ReturnsResult() async {
+    func testLoadHistory_ReturnsResult() async throws {
+        try requireLivePointsService()
+
         // When
         let result = await sut.loadHistory()
 
@@ -406,7 +426,9 @@ final class PointsServiceTests: XCTestCase {
         }
     }
 
-    func testLoadHistory_WithFilter() async {
+    func testLoadHistory_WithFilter() async throws {
+        try requireLivePointsService()
+
         // Given
         let filter = PointsHistoryFilter(limit: 10, offset: 0)
 
@@ -424,16 +446,19 @@ final class PointsServiceTests: XCTestCase {
 
     // MARK: - Loading State Tests
 
-    func testLoadingState_PublishedOnRefresh() async {
+    func testLoadingState_PublishedOnRefresh() async throws {
+        try requireLivePointsService()
+
         // Given
         let expectation = expectation(description: "Loading state changes")
 
         var loadingStates: [Bool] = []
 
         sut.$isLoading
+            .dropFirst()
             .sink { isLoading in
                 loadingStates.append(isLoading)
-                if loadingStates.count >= 2 {
+                if loadingStates.suffix(2) == [true, false] {
                     expectation.fulfill()
                 }
             }
@@ -444,10 +469,7 @@ final class PointsServiceTests: XCTestCase {
 
         // Then
         await fulfillment(of: [expectation], timeout: 10.0)
-        if loadingStates.count >= 2 {
-            XCTAssertEqual(loadingStates.first, true)
-            XCTAssertEqual(loadingStates.last, false)
-        }
+        XCTAssertEqual(Array(loadingStates.suffix(2)), [true, false])
     }
 
     // MARK: - PointsOperation Validation Tests

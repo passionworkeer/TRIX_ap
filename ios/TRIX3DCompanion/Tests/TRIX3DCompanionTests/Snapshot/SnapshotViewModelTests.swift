@@ -53,6 +53,25 @@ final class CameraViewModelTests: XCTestCase {
         cancellables = nil
         try await super.tearDown()
     }
+
+    private func waitUntil(
+        timeout: TimeInterval = 1.0,
+        pollIntervalNanoseconds: UInt64 = 10_000_000,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: @escaping @MainActor () -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if condition() {
+                return
+            }
+            try? await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+        }
+
+        XCTFail("Condition not met within \(timeout) seconds", file: file, line: line)
+    }
 }
 
 // MARK: - Camera Permission Tests
@@ -101,9 +120,11 @@ extension CameraViewModelTests {
     func testStartCameraSuccess() async {
         // Given
         mockCameraService.shouldFailStart = false
+        sut.cameraPermission = .authorized
 
         // When
         await sut.startCamera()
+        await waitUntil { self.sut.isSessionActive }
 
         // Then
         XCTAssertEqual(mockCameraService.startCameraSessionCallCount, 1)
@@ -114,11 +135,13 @@ extension CameraViewModelTests {
     func testStartCameraFailure() async {
         // Given
         mockCameraService.shouldFailStart = true
+        sut.cameraPermission = .authorized
 
         // When
         await sut.startCamera()
 
         // Then
+        XCTAssertEqual(mockCameraService.startCameraSessionCallCount, 1)
         XCTAssertNotNil(sut.errorMessage)
     }
 
@@ -173,6 +196,17 @@ extension CameraViewModelTests {
     func testCapturePhotoSetsCapturingState() async {
         // Given
         mockCameraService.mockCapturedImage = UIImage(systemName: "photo")!
+        mockCameraService.simulatedCaptureDelayNanoseconds = 100_000_000
+        let expectation = expectation(description: "Capture enters capturing state")
+
+        sut.$isCapturing
+            .dropFirst()
+            .sink { isCapturing in
+                if isCapturing {
+                    expectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
 
         // When
         let task = Task {
@@ -180,6 +214,7 @@ extension CameraViewModelTests {
         }
 
         // Then
+        await fulfillment(of: [expectation], timeout: 1.0)
         XCTAssertTrue(sut.isCapturing)
 
         await task.value
@@ -203,12 +238,13 @@ extension CameraViewModelTests {
 
 extension CameraViewModelTests {
 
-    func testToggleFlashCyclesThroughModes() {
+    func testToggleFlashCyclesThroughModes() async {
         // Given
         XCTAssertEqual(sut.flashMode, .off)
 
         // When - First toggle
         sut.toggleFlash()
+        await waitUntil { self.sut.flashMode == .on }
 
         // Then
         XCTAssertEqual(sut.flashMode, .on)
@@ -216,12 +252,14 @@ extension CameraViewModelTests {
 
         // When - Second toggle
         sut.toggleFlash()
+        await waitUntil { self.sut.flashMode == .auto }
 
         // Then
         XCTAssertEqual(sut.flashMode, .auto)
 
         // When - Third toggle
         sut.toggleFlash()
+        await waitUntil { self.sut.flashMode == .off }
 
         // Then - Cycles back to off
         XCTAssertEqual(sut.flashMode, .off)
@@ -240,12 +278,13 @@ extension CameraViewModelTests {
         XCTAssertEqual(sut.cameraPosition, .back)
     }
 
-    func testSwitchCameraTogglesPosition() {
+    func testSwitchCameraTogglesPosition() async {
         // Given
         XCTAssertEqual(sut.cameraPosition, .back)
 
         // When
         sut.switchCamera()
+        await waitUntil { self.sut.cameraPosition == .front }
 
         // Then
         XCTAssertEqual(sut.cameraPosition, .front)
@@ -253,6 +292,7 @@ extension CameraViewModelTests {
 
         // When
         sut.switchCamera()
+        await waitUntil { self.sut.cameraPosition == .back }
 
         // Then
         XCTAssertEqual(sut.cameraPosition, .back)
@@ -316,8 +356,10 @@ extension CameraViewModelTests {
         // Then
         XCTAssertEqual(mockImageUploadService.uploadCallCount, 0)
         XCTAssertNil(url)
-        XCTAssertNotNil(sut.errorMessage)
-        XCTAssertTrue(sut.errorMessage?.contains("no image") ?? false)
+        XCTAssertEqual(
+            sut.errorMessage,
+            NSLocalizedString("error.camera.no.image.upload", comment: "")
+        )
     }
 
     func testUploadFailure() async {

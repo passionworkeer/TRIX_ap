@@ -19,8 +19,9 @@ DEMO_PASSWORD = demo123
 // Example: xcodebuild -scheme TRIX3DCompanion DEMO_EMAIL=custom@example.com
 
 // Network Configuration (Development)
-API_BASE_URL = http://localhost:3000
-WEBSOCKET_URL = ws://localhost:3000
+SLASH = /
+API_BASE_URL = http:$(SLASH)$(SLASH)localhost:3000
+WEBSOCKET_URL = ws:$(SLASH)$(SLASH)localhost:3000
 
 // Logging
 ENABLE_VERBOSE_LOGGING = YES

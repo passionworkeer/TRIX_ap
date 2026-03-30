@@ -139,7 +139,6 @@ const sendToRemote = async (entry: LogEntry): Promise<void> => {
   } catch (error) {
     // Avoid infinite loop by using native console
     if (typeof window !== 'undefined') {
-      // eslint-disable-next-line no-console
       console.error('[Logger] Failed to send log to remote:', error);
     }
   }
@@ -177,11 +176,9 @@ const log = (
     // Browser environment with colors
     const prefix = formatPrefix(context, level);
     const styles = getLogStyles(level);
-    // eslint-disable-next-line no-console
     console[level](...prefix, ...styles, message, ...data);
   } else {
     // Node.js environment
-    // eslint-disable-next-line no-console
     console[level](`[${getTimestamp()}] [${context}] [${level.toUpperCase()}]`, message, ...data);
   }
 

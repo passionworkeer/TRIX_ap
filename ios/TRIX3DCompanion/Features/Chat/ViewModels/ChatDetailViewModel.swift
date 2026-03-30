@@ -50,6 +50,28 @@ struct MediaAttachment: Identifiable, Equatable {
         case audio
         case file(mimeType: String)
     }
+
+    static func == (lhs: MediaAttachment, rhs: MediaAttachment) -> Bool {
+        lhs.type == rhs.type &&
+        lhs.url == rhs.url &&
+        lhs.fileSize == rhs.fileSize &&
+        lhs.duration == rhs.duration &&
+        thumbnailsMatch(lhs.thumbnail, rhs.thumbnail)
+    }
+
+    private static func thumbnailsMatch(_ lhs: UIImage?, _ rhs: UIImage?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case let (left?, right?):
+            if let leftData = left.pngData(), let rightData = right.pngData() {
+                return leftData == rightData
+            }
+            return left === right
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Chat UI State

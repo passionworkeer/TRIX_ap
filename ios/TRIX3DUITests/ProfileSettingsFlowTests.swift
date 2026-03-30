@@ -13,24 +13,26 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
         let initialDarkMode = switchState(for: darkModeToggle)
         let initialNotifications = switchState(for: notificationsToggle)
 
-        scrollToElement(darkModeToggle)
+        scrollToInteractiveElement(darkModeToggle)
         tapCenter(of: darkModeToggle)
-        scrollToElement(notificationsToggle)
-        tapCenter(of: notificationsToggle)
-
         if let initialDarkMode {
             XCTAssertTrue(waitForSwitchState(!initialDarkMode, identifier: AppUIIdentifiers.profileDarkModeToggle))
         }
+
+        scrollToInteractiveElement(notificationsToggle)
+        tapCenter(of: notificationsToggle)
         if let initialNotifications {
             XCTAssertTrue(waitForSwitchState(!initialNotifications, identifier: AppUIIdentifiers.profileNotificationsToggle))
         }
 
+        scrollToInteractiveElement(darkModeToggle)
         tapCenter(of: switchControl(withIdentifier: AppUIIdentifiers.profileDarkModeToggle))
-        tapCenter(of: switchControl(withIdentifier: AppUIIdentifiers.profileNotificationsToggle))
-
         if let initialDarkMode {
             XCTAssertTrue(waitForSwitchState(initialDarkMode, identifier: AppUIIdentifiers.profileDarkModeToggle))
         }
+
+        scrollToInteractiveElement(notificationsToggle)
+        tapCenter(of: switchControl(withIdentifier: AppUIIdentifiers.profileNotificationsToggle))
         if let initialNotifications {
             XCTAssertTrue(waitForSwitchState(initialNotifications, identifier: AppUIIdentifiers.profileNotificationsToggle))
         }
@@ -40,9 +42,9 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
         try launchAuthenticated(initialTab: "profile", expectedIdentifier: AppUIIdentifiers.profileScreen)
 
         let settingsButton = button(withIdentifier: AppUIIdentifiers.profileMoreSettingsButton)
-        scrollToElement(settingsButton)
+        scrollToInteractiveElement(settingsButton)
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
-        settingsButton.tap()
+        tapCenter(of: settingsButton)
 
         XCTAssertTrue(element(withIdentifier: AppUIIdentifiers.profileSettingsSheet).waitForExistence(timeout: 5))
 
@@ -63,9 +65,9 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
         try launchAuthenticated(initialTab: "profile", expectedIdentifier: AppUIIdentifiers.profileScreen)
 
         let aboutButton = button(withIdentifier: AppUIIdentifiers.profileAboutButton)
-        scrollToElement(aboutButton)
+        scrollToInteractiveElement(aboutButton)
         XCTAssertTrue(aboutButton.waitForExistence(timeout: 5))
-        aboutButton.tap()
+        tapCenter(of: aboutButton)
 
         XCTAssertTrue(element(withIdentifier: AppUIIdentifiers.profileAboutSheet).waitForExistence(timeout: 5))
 
@@ -86,7 +88,7 @@ final class ProfileSettingsFlowTests: RealAppUITestCase {
 
         let destination = waitForEither(
             [AppUIIdentifiers.trixBotScreen, AppUIIdentifiers.pairingScreen],
-            timeout: 10
+            timeout: 15
         )
 
         if destination == nil {

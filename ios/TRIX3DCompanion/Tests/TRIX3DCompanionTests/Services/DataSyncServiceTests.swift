@@ -128,6 +128,14 @@ final class MockAPIClientForSync: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockUser: User?
+    var mockPointsResponse = PointsResponse(
+        totalPoints: 100,
+        level: 1,
+        todayEarned: 0,
+        weekEarned: 0,
+        totalTransactions: 0
+    )
+    var mockPointsHistory: [PointsTransaction] = []
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
@@ -150,7 +158,25 @@ final class MockAPIClientForSync: APIClientProtocol {
             throw mockError ?? NetworkError.unauthorized
         }
 
-        // Return empty response for sync endpoints
+        if T.self == StudySession.self {
+            return StudySession(
+                id: UUID().uuidString,
+                userId: mockUser?.id ?? "mock-user",
+                duration: 30,
+                startedAt: Date(),
+                endedAt: Date(),
+                earnedPoints: 0,
+                isCompleted: true,
+                subject: nil,
+                notes: nil,
+                createdAt: Date()
+            ) as! T
+        }
+
+        if T.self == PointsResponse.self {
+            return mockPointsResponse as! T
+        }
+
         if T.self == EmptyResponse.self {
             return EmptyResponse() as! T
         }
@@ -178,6 +204,20 @@ final class MockAPIClientForSync: APIClientProtocol {
 
     func download(from url: String) async throws -> Data {
         throw NetworkError.custom(message: "Not implemented")
+    }
+
+    func getPoints() async throws -> PointsResponse {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+        return mockPointsResponse
+    }
+
+    func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+        return Array(mockPointsHistory.dropFirst(max((page - 1) * limit, 0)).prefix(limit))
     }
 }
 

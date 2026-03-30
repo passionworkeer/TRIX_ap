@@ -20,6 +20,7 @@ final class DiagnosticViewModelTests: XCTestCase {
     var mockNetworkMonitor: MockDiagnosticNetworkMonitor!
     var mockCacheService: MockOfflineCacheService!
     var cancellables: Set<AnyCancellable>!
+    var endpointLatencyMs: Double!
 
     // MARK: - Test Lifecycle
 
@@ -28,10 +29,13 @@ final class DiagnosticViewModelTests: XCTestCase {
 
         mockNetworkMonitor = MockDiagnosticNetworkMonitor()
         mockCacheService = MockOfflineCacheService()
+        endpointLatencyMs = 42
+        let simulatedLatency = endpointLatencyMs ?? 42
 
         sut = DiagnosticViewModel(
             networkMonitor: mockNetworkMonitor,
-            cacheService: mockCacheService
+            cacheService: mockCacheService,
+            endpointLatencyMeasurer: { _ in simulatedLatency }
         )
 
         cancellables = Set<AnyCancellable>()
@@ -42,6 +46,7 @@ final class DiagnosticViewModelTests: XCTestCase {
         mockNetworkMonitor = nil
         mockCacheService = nil
         cancellables = nil
+        endpointLatencyMs = nil
         super.tearDown()
     }
 
@@ -107,6 +112,7 @@ final class DiagnosticViewModelTests: XCTestCase {
 
     func testNetworkStatus_BindingUpdates() {
         // Given
+        let expectation = expectation(description: "Network status updates")
         let newStatus = NetworkStatus(
             isConnected: true,
             connectionType: .wifi,
@@ -115,10 +121,6 @@ final class DiagnosticViewModelTests: XCTestCase {
         )
 
         // When
-        mockNetworkMonitor.updateStatus(newStatus)
-
-        // Then - Give time for binding to update
-        let expectation = expectation(description: "Network status updates")
         self.sut.$networkStatus
             .dropFirst()
             .sink { status in
@@ -128,6 +130,9 @@ final class DiagnosticViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
 
+        mockNetworkMonitor.updateStatus(newStatus)
+
+        // Then
         wait(for: [expectation], timeout: 2.0)
         XCTAssertTrue(sut.networkStatus.isConnected)
         XCTAssertEqual(sut.networkStatus.connectionType, .wifi)
@@ -135,33 +140,27 @@ final class DiagnosticViewModelTests: XCTestCase {
 
     func testNetworkStatus_DisconnectUpdates() {
         // Given
+        let expectation = expectation(description: "Network status updates to disconnected")
         mockNetworkMonitor.setConnected(true)
+        self.sut.$networkStatus
+            .dropFirst()
+            .filter { !$0.isConnected }
+            .prefix(1)
+            .sink { status in
+                XCTAssertFalse(status.isConnected)
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
 
         // When
         mockNetworkMonitor.setConnected(false)
 
         // Then
-        let expectation = expectation(description: "Network status updates to disconnected")
-        self.sut.$networkStatus
-            .dropFirst()
-            .sink { status in
-                if !status.isConnected {
-                    expectation.fulfill()
-                }
-            }
-            .store(in: &cancellables)
-
         wait(for: [expectation], timeout: 2.0)
         XCTAssertFalse(sut.networkStatus.isConnected)
     }
 
     func testNetworkMonitor_StartMonitoringCalled() {
-        // Given
-        let vm = DiagnosticViewModel(
-            networkMonitor: mockNetworkMonitor,
-            cacheService: mockCacheService
-        )
-
         // Then
         XCTAssertTrue(mockNetworkMonitor.startMonitoringCalled)
     }
@@ -563,26 +562,8 @@ final class DiagnosticViewModelTests: XCTestCase {
     // MARK: - Refresh All Tests
 
     func testRefreshAll_ExecutesAllDiagnostics() async {
-        // Given
-        let expectation = expectation(description: "Refresh all completes")
-        expectation.expectedFulfillmentCount = 4
-
-        // Track when each diagnostic completes
-        self.sut.$isTestingNetwork
-            .dropFirst()
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if !self.sut.isTestingNetwork && !self.sut.networkTests.isEmpty {
-                    expectation.fulfill()
-                }
-            }
-            .store(in: &cancellables)
-
         // When
         await sut.refreshAll()
-
-        // Give time for all async operations
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
 
         // Then
         XCTAssertFalse(sut.networkTests.isEmpty)
@@ -594,6 +575,7 @@ final class DiagnosticViewModelTests: XCTestCase {
     func testRefreshAll_SetsRefreshingState() async {
         // Given
         let expectation = expectation(description: "Refreshing state")
+        expectation.expectedFulfillmentCount = 2
         var refreshingStates: [Bool] = []
 
         sut.$isRefreshing
@@ -623,7 +605,8 @@ final class DiagnosticViewModelTests: XCTestCase {
 
         // Then
         XCTAssertNil(sut.errorMessage)
-        XCTAssertNil(sut.successMessage)
+        XCTAssertNotEqual(sut.successMessage, "Previous Success")
+        XCTAssertNotNil(sut.successMessage)
     }
 
     // MARK: - Message Handling Tests

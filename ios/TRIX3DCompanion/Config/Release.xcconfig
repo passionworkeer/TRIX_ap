@@ -15,8 +15,9 @@ DEMO_EMAIL =
 DEMO_PASSWORD =
 
 // Network Configuration (Production)
-API_BASE_URL = https://api.trix3d.com
-WEBSOCKET_URL = wss://api.trix3d.com
+SLASH = /
+API_BASE_URL = https:$(SLASH)$(SLASH)trix.love
+WEBSOCKET_URL = wss:$(SLASH)$(SLASH)trix.love
 
 // Logging
 ENABLE_VERBOSE_LOGGING = NO

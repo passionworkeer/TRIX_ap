@@ -6,7 +6,14 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import * as LucideIcons from 'lucide-react';
+import {
+  Calendar,
+  Camera,
+  CheckSquare,
+  MapPin,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react';
 import { iosPressableMotion } from '../utils/iosMotion';
 
 interface WorkbenchCardProps {
@@ -23,15 +30,17 @@ interface WorkbenchCardProps {
 }
 
 /**
- * Dynamically get Lucide icon component by name
+ * Keep the icon set explicit so the workbench chunk does not pull the whole lucide bundle.
  */
-const getIconComponent = (iconName: string): React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }> => {
-  const IconComponent = (LucideIcons as Record<string, unknown>)[iconName];
-  if (typeof IconComponent === 'function') {
-    return IconComponent as React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-  }
-  // Fallback to a default icon if not found
-  return LucideIcons.Sparkles;
+const ICON_COMPONENTS: Record<string, LucideIcon> = {
+  Camera,
+  MapPin,
+  Calendar,
+  CheckSquare,
+};
+
+const getIconComponent = (iconName: string): LucideIcon => {
+  return ICON_COMPONENTS[iconName] ?? Sparkles;
 };
 
 const WorkbenchCard: React.FC<WorkbenchCardProps> = ({

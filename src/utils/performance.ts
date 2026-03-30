@@ -299,7 +299,6 @@ export function usePerformanceTracking(componentName: string): void {
   // because by the time the effect runs, the render has already completed.
   // Use React.Profiler on parent component instead.
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
     logger.ui.warn(
       `[Performance] usePerformanceTracking('${componentName}') is deprecated. ` +
       'Use React.Profiler or perfMonitor.createRenderProfilerCallback() instead.'

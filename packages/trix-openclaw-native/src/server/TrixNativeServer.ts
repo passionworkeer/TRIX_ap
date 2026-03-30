@@ -1372,20 +1372,6 @@ export class TrixNativeServer {
     };
   }
 
-  private async findServiceMessageByIdempotencyKey(params: {
-    accountId: string;
-    conversationId: string;
-    idempotencyKey: string;
-  }): Promise<MessageRecord | undefined> {
-    const state = await this.stateStore.read();
-    return state.messages.find((entry) =>
-      entry.accountId === params.accountId
-      && entry.conversationId === params.conversationId
-      && entry.senderId === `openclaw:${params.accountId}`
-      && entry.metadata?.idempotencyKey === params.idempotencyKey,
-    );
-  }
-
   private safeCompare(left: string, right: string): boolean {
     const leftBuffer = Buffer.from(left);
     const rightBuffer = Buffer.from(right);

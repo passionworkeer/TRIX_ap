@@ -43,6 +43,24 @@ final class AuthViewModelTests: XCTestCase {
         mockOAuthManager = nil
         try await super.tearDown()
     }
+
+    private func waitUntil(
+        timeout: TimeInterval = 1.0,
+        condition: @escaping @MainActor () -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if condition() {
+                return true
+            }
+
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        return condition()
+    }
 }
 
 // MARK: - Login Validation Tests
@@ -375,7 +393,7 @@ extension AuthViewModelTests {
             XCTAssertEqual(error, .validationError(message: sut.loginValidationError ?? ""))
         }
 
-        XCTAssertEqual(sut.loginValidationError, "Email is required")
+        XCTAssertEqual(sut.loginValidationError, AuthValidationError.emailRequired.localizedDescription)
         XCTAssertEqual(mockAuthService.loginCallCount, 0, "Service should not be called with validation error")
     }
 
@@ -398,6 +416,7 @@ extension AuthViewModelTests {
         // Given
         sut.loginEmail = "test@example.com"
         sut.loginPassword = "password123"
+        mockAuthService.simulatedDelayNanoseconds = 200_000_000
 
         // When
         let loadingTask = Task {
@@ -405,7 +424,8 @@ extension AuthViewModelTests {
         }
 
         // Then
-        XCTAssertTrue(sut.isLoginLoading, "Loading state should be true during login")
+        let didEnterLoadingState = await waitUntil { self.sut.isLoginLoading }
+        XCTAssertTrue(didEnterLoadingState, "Loading state should be true during login")
 
         await loadingTask.value
         XCTAssertFalse(sut.isLoginLoading, "Loading state should be false after login completes")
@@ -500,7 +520,7 @@ extension AuthViewModelTests {
         case .success:
             XCTFail("Registration should fail with validation error")
         case .failure:
-            XCTAssertEqual(sut.registerValidationError, "Username is required")
+            XCTAssertEqual(sut.registerValidationError, AuthValidationError.usernameRequired.localizedDescription)
         }
 
         XCTAssertEqual(mockAuthService.registerCallCount, 0, "Service should not be called with validation error")
@@ -521,7 +541,7 @@ extension AuthViewModelTests {
         case .success:
             XCTFail("Registration should fail with validation error")
         case .failure:
-            XCTAssertEqual(sut.registerValidationError, "Passwords do not match")
+            XCTAssertEqual(sut.registerValidationError, AuthValidationError.passwordMismatch.localizedDescription)
         }
     }
 
@@ -541,7 +561,7 @@ extension AuthViewModelTests {
         // Then
         XCTAssertNil(sut.registerValidationError)
         XCTAssertNil(sut.registerApiError)
-        XCTAssertFalse(sut.isRegisterSuccess)
+        XCTAssertTrue(sut.isRegisterSuccess)
     }
 }
 
@@ -644,6 +664,7 @@ extension AuthViewModelTests {
         // Given
         let window = UIWindow()
         mockOAuthManager.shouldFailSignIn = false
+        mockOAuthManager.simulatedDelayNanoseconds = 200_000_000
         sut.loginEmail = "test@example.com"
         sut.loginPassword = "password123"
 
@@ -651,7 +672,8 @@ extension AuthViewModelTests {
         let task1 = Task {
             await sut.signInWithApple(presentationAnchor: window)
         }
-        XCTAssertTrue(sut.isOAuthLoading)
+        let appleDidEnterLoadingState = await waitUntil { self.sut.isOAuthLoading }
+        XCTAssertTrue(appleDidEnterLoadingState)
 
         await task1.value
 
@@ -659,7 +681,8 @@ extension AuthViewModelTests {
         let task2 = Task {
             await sut.signInWithWeChat()
         }
-        XCTAssertTrue(sut.isOAuthLoading)
+        let weChatDidEnterLoadingState = await waitUntil { self.sut.isOAuthLoading }
+        XCTAssertTrue(weChatDidEnterLoadingState)
 
         await task2.value
         XCTAssertFalse(sut.isOAuthLoading)

@@ -68,7 +68,6 @@ export function getOrCreateDeviceId(): string {
 
 /**
  * 将 session ID（user_sessions 表主键）存储到 localStorage
- * 用于心跳时对比 DB 中的 active_session_id
  */
 export function storeLocalSessionId(sessionId: string): void {
   localStorage.setItem(LOCAL_SESSION_ID_KEY, sessionId);
@@ -97,9 +96,13 @@ export function clearLocalSessionId(): void {
  * 防御 XSS 和恶意输入
  */
 function sanitizeDeviceName(name: string): string {
-  return name
-    .replace(/[\x00-\x1F\x7F]/g, '') // 去除控制字符
-    .slice(0, 200);                   // 最大 200 字符
+  return Array.from(name)
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return code >= 0x20 && code !== 0x7f;
+    })
+    .join('')
+    .slice(0, 200);
 }
 
 /**
@@ -125,15 +128,15 @@ function getBrowserName(ua: string): string {
 }
 
 /**
- * 原子性 upsert：同一平台只保留最新一条会话
- * - 先标记旧会话 is_active=false
- * - 再插入新会话
- * - 最后更新 profiles.active_session_id
+ * 原子性 upsert：同一平台只保留一条会话记录
+ * - user_sessions 对 (user_id, platform) 有唯一约束
+ * - 因此这里直接 upsert，同步刷新设备信息、过期时间和活跃时间
+ * - profiles.active_session_id 仅做兼容写入，不再作为同平台踢线判断依据
  *
  * @param userId - 用户 ID
  * @param deviceName - 设备名称（可选，自动检测）
- * @param forceCreateNew - 强制插入新会话（忽略已有活跃会话检查）
- * @returns 新创建的会话记录，失败返回 null
+ * @param forceCreateNew - 保留兼容签名；当前表结构下会复用同一平台记录
+ * @returns 最新会话记录，失败返回 null
  */
 export async function upsertSession(
   userId: string,
@@ -142,6 +145,7 @@ export async function upsertSession(
 ): Promise<UserSession | null> {
   const deviceId = getOrCreateDeviceId();
   const name = deviceName ?? getDeviceName();
+  const now = new Date().toISOString();
   const expiresAt = new Date(
     Date.now() + SESSION_EXPIRY_HOURS.web * 60 * 60 * 1000,
   ).toISOString();
@@ -149,41 +153,28 @@ export async function upsertSession(
   logger.auth.info('[session] upsert start', { userId, forceCreateNew });
 
   try {
-    // 1. 先标记当前用户的同平台旧会话为 inactive（无条件标记）
-    const { error: markError } = await supabase
+    const { data: newSession, error: upsertError } = await supabase
       .from('user_sessions')
-      .update({ is_active: false })
-      .eq('user_id', userId)
-      .eq('platform', PLATFORM)
-      .eq('is_active', true);
-
-    if (markError) {
-      logger.auth.error('[session] mark old sessions failed', { error: markError });
-      // 继续尝试插入，不因标记失败而终止
-    } else {
-      logger.auth.debug('[session] marked old sessions inactive', { userId });
-    }
-
-    // 2. 插入新会话
-    const { data: newSession, error: insertError } = await supabase
-      .from('user_sessions')
-      .insert({
+      .upsert({
         user_id: userId,
         platform: PLATFORM,
         device_id: deviceId,
         device_name: name,
         is_active: true,
+        last_active_at: now,
         expires_at: expiresAt,
+      }, {
+        onConflict: 'user_id,platform',
       })
       .select()
       .single();
 
-    if (insertError) {
-      logger.auth.error('[session] insert failed', { error: insertError });
+    if (upsertError) {
+      logger.auth.error('[session] upsert row failed', { error: upsertError });
       return null;
     }
 
-    // 3. 更新 profiles.active_session_id（使用刚插入返回的 session ID，消除 race 窗口）
+    // 更新 profiles.active_session_id（使用 upsert 返回的 session ID，消除 race 窗口）
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ active_session_id: newSession.id })
@@ -194,7 +185,6 @@ export async function upsertSession(
       // 会话已创建，session ID 仍返回给调用方
     }
 
-    // 4. 存储到 localStorage
     storeLocalSessionId(newSession.id);
 
     logger.auth.info('[session] upsert complete', {
@@ -215,12 +205,13 @@ export async function upsertSession(
 export async function revokeSession(): Promise<void> {
   const localId = getLocalSessionId();
   if (!localId) return;
+  const deviceId = getOrCreateDeviceId();
 
   try {
     const { error } = await supabase
       .from('user_sessions')
       .update({ is_active: false })
-      .eq('id', localId);
+      .match({ id: localId, device_id: deviceId });
 
     if (error) {
       logger.auth.error('撤销会话失败:', error);
@@ -239,13 +230,13 @@ export async function revokeSession(): Promise<void> {
 export async function touchSession(): Promise<void> {
   const localId = getLocalSessionId();
   if (!localId) return;
+  const deviceId = getOrCreateDeviceId();
 
   try {
     const { error } = await supabase
       .from('user_sessions')
       .update({ last_active_at: new Date().toISOString() })
-      .eq('id', localId)
-      .eq('is_active', true);
+      .match({ id: localId, device_id: deviceId, is_active: true });
 
     if (error) {
       logger.auth.error('touchSession 失败:', error);
@@ -256,11 +247,11 @@ export async function touchSession(): Promise<void> {
 }
 
 /**
- * 检查会话有效性：对比本地 session_id 与 DB active_session_id
+ * 检查会话有效性：校验当前平台 session row 是否仍属于本设备
  *
  * 返回值：
  * - valid: session 有效，无需处理
- * - mismatch: session ID 不匹配，说明被新会话挤掉了 → 强制登出
+ * - mismatch: 当前平台会话已被其他设备接管 → 强制登出
  * - expired: 会话已过期 → 强制登出
  * - revoked: 会话被标记为 inactive → 强制登出
  * - not_found: 本地无 session → 强制登出
@@ -271,12 +262,13 @@ export async function checkSessionValidity(): Promise<SessionValidityResult> {
   if (!localId) {
     return { isValid: false, reason: 'not_found' };
   }
+  const localDeviceId = getOrCreateDeviceId();
 
   try {
-    // 1. 检查本地 session 是否仍然 active
+    // 同平台唯一 row 会在新设备登录时被 upsert 覆盖，因此要同时核对 device_id。
     const { data: session, error: sessionError } = await supabase
       .from('user_sessions')
-      .select('id, is_active, expires_at')
+      .select('id, is_active, expires_at, device_id')
       .eq('id', localId)
       .single();
 
@@ -292,27 +284,12 @@ export async function checkSessionValidity(): Promise<SessionValidityResult> {
       return { isValid: false, reason: 'expired' };
     }
 
-    // 2. 对比 profiles.active_session_id 是否匹配本地 ID
-    const { data: { session: authSession } } = await supabase.auth.getSession();
-    const user = authSession?.user;
-    if (!user) {
-      return { isValid: false, reason: 'not_found' };
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('active_session_id')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return { isValid: false, reason: 'not_found' };
-    }
-
-    // active_session_id 为 null 表示初始状态（还没记录过），视为有效
-    // 只有明确记录了另一个 session ID 时才判定为 mismatch（被挤掉了）
-    if (profile.active_session_id !== null && profile.active_session_id !== localId) {
-      logger.auth.warn('[session] mismatch detected', { localId, profileActiveId: profile.active_session_id });
+    if (session.device_id !== localDeviceId) {
+      logger.auth.warn('[session] mismatch detected', {
+        localId,
+        localDeviceId,
+        sessionDeviceId: session.device_id,
+      });
       return { isValid: false, reason: 'mismatch' };
     }
 

@@ -1,22 +1,53 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppRoutes } from '../types';
 import { useClawbotChannel } from '../contexts/ClawbotChannelContext';
 import { useNotification } from '../hooks/useNotification';
 import { logger } from '../utils/logger';
-import MailPanel from '../components/MailPanel';
-import NotificationPanel from '../components/NotificationPanel';
-import StudyRoom from '../components/StudyRoom';
 import HomeBotBubble from '../components/HomeBotBubble';
-import WorkbenchModal from '../components/WorkbenchModal';
-import { TodoList, TodoProvider } from '../features/todo';
-import { ScheduleList, ScheduleProvider } from '../features/schedule';
-import { LocationPicker } from '../features/location';
 import {
   PAIRING_REQUIRED_TOAST_ID,
   PAIRING_REQUIRED_TOAST_MESSAGE,
   PAIRING_REQUIRED_TOAST_OPTIONS,
 } from '../utils/pairingToast';
+
+const MailPanel = lazy(() => import('../components/MailPanel'));
+const NotificationPanel = lazy(() => import('../components/NotificationPanel'));
+const StudyRoom = lazy(() => import('../components/StudyRoom'));
+const WorkbenchModal = lazy(() => import('../components/WorkbenchModal'));
+const LocationPicker = lazy(() =>
+  import('../features/location').then((module) => ({ default: module.LocationPicker }))
+);
+const TodoModalContent = lazy(() =>
+  import('../features/todo').then((module) => ({
+    default: function TodoModalContent({ onClose }: { onClose: () => void }) {
+      return (
+        <module.TodoProvider>
+          <module.TodoList onClose={onClose} />
+        </module.TodoProvider>
+      );
+    },
+  }))
+);
+const ScheduleModalContent = lazy(() =>
+  import('../features/schedule').then((module) => ({
+    default: function ScheduleModalContent({ onClose }: { onClose: () => void }) {
+      return (
+        <module.ScheduleProvider>
+          <module.ScheduleList onClose={onClose} />
+        </module.ScheduleProvider>
+      );
+    },
+  }))
+);
+
+const DeferredOverlayFallback: React.FC = () => (
+  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/25 backdrop-blur-sm">
+    <div className="rounded-full border border-white/10 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 shadow-lg">
+      加载中...
+    </div>
+  </div>
+);
 
 interface HomeProps {
   isUIVisible?: boolean;
@@ -76,15 +107,33 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
     >
       <HomeBotBubble />
 
-      <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />
-      <NotificationPanel isOpen={showNotificationPanel} onClose={() => setShowNotificationPanel(false)} />
-      <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />
+      {showMailPanel && (
+        <Suspense fallback={<DeferredOverlayFallback />}>
+          <MailPanel isOpen={showMailPanel} onClose={() => setShowMailPanel(false)} />
+        </Suspense>
+      )}
 
-      <WorkbenchModal
-        isOpen={!!isUIVisible}
-        onClose={() => onToggleUI?.()}
-        onCardClick={handleWorkbenchCardClick}
-      />
+      {showNotificationPanel && (
+        <Suspense fallback={<DeferredOverlayFallback />}>
+          <NotificationPanel isOpen={showNotificationPanel} onClose={() => setShowNotificationPanel(false)} />
+        </Suspense>
+      )}
+
+      {showStudyRoom && (
+        <Suspense fallback={<DeferredOverlayFallback />}>
+          <StudyRoom isOpen={showStudyRoom} onClose={() => setShowStudyRoom(false)} />
+        </Suspense>
+      )}
+
+      {!!isUIVisible && (
+        <Suspense fallback={<DeferredOverlayFallback />}>
+          <WorkbenchModal
+            isOpen={!!isUIVisible}
+            onClose={() => onToggleUI?.()}
+            onCardClick={handleWorkbenchCardClick}
+          />
+        </Suspense>
+      )}
 
       {/* Todo Panel */}
       {showTodo && (
@@ -96,10 +145,9 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
           }}
         >
           <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
-            
-            <TodoProvider>
-              <TodoList onClose={() => setShowTodo(false)} />
-            </TodoProvider>
+            <Suspense fallback={<DeferredOverlayFallback />}>
+              <TodoModalContent onClose={() => setShowTodo(false)} />
+            </Suspense>
           </div>
         </div>
       )}
@@ -114,39 +162,41 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
           }}
         >
           <div className="relative w-full max-w-md max-h-[75vh] overflow-hidden rounded-[24px] bg-slate-900/80 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col backdrop-blur-xl">
-            
-            <ScheduleProvider>
-              <ScheduleList onClose={() => setShowSchedule(false)} />
-            </ScheduleProvider>
+            <Suspense fallback={<DeferredOverlayFallback />}>
+              <ScheduleModalContent onClose={() => setShowSchedule(false)} />
+            </Suspense>
           </div>
         </div>
       )}
 
       {/* Location Picker - Already a full modal */}
-      <LocationPicker
-        isOpen={showLocation}
-        onClose={() => setShowLocation(false)}
-        onLocationSelected={(location) => {
-          logger.ui.debug('Selected location:', location);
-          
-          if (!isClawbotConnected || !isClawbotPaired) {
-             showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
-             return;
-          }
-          
-          try {
-            sendMessage(`📍 分享位置: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
-            showSuccess('位置消息已发送');
-            setShowLocation(false);
-          } catch (error) {
-            showWarning('发送位置消息失败，请稍后重试');
-            logger.ui.error('Failed to send location message:', error);
-          }
-        }}
-      />
+      {showLocation && (
+        <Suspense fallback={<DeferredOverlayFallback />}>
+          <LocationPicker
+            isOpen={showLocation}
+            onClose={() => setShowLocation(false)}
+            onLocationSelected={(location) => {
+              logger.ui.debug('Selected location:', location);
+
+              if (!isClawbotConnected || !isClawbotPaired) {
+                showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
+                return;
+              }
+
+              try {
+                sendMessage(`📍 分享位置: ${location.name}\n纬度: ${location.latitude}, 经度: ${location.longitude}`, 'text');
+                showSuccess('位置消息已发送');
+                setShowLocation(false);
+              } catch (error) {
+                showWarning('发送位置消息失败，请稍后重试');
+                logger.ui.error('Failed to send location message:', error);
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
 
 export default Home;
-

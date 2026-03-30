@@ -4,17 +4,11 @@
  * Tests QR scanner component (camera, scan button)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock browser QR scanner
 const mockScannerInstance = {
@@ -29,9 +23,11 @@ vi.mock('../utils/browserQrScanner', () => ({
 }));
 
 // Mock i18next
+const mockT = (key: string) => key;
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: mockT,
   }),
 }));
 
@@ -69,6 +65,16 @@ describe('QRScanner', () => {
     });
   });
 
+  async function renderOpenScanner() {
+    const QRScanner = (await import('./QRScanner')).default;
+
+    render(<QRScanner {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(mockScannerInstance.start).toHaveBeenCalledTimes(1);
+    });
+  }
+
   it('should render nothing when isOpen is false', async () => {
     const QRScanner = (await import('./QRScanner')).default;
 
@@ -78,18 +84,14 @@ describe('QRScanner', () => {
   });
 
   it('should render QR scanner modal when isOpen is true', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
-
-    render(<QRScanner {...defaultProps} />);
+    await renderOpenScanner();
 
     // Should show QR scanner title
     expect(screen.getByText('qrScanner.title')).toBeInTheDocument();
   });
 
   it('should render close button', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
-
-    render(<QRScanner {...defaultProps} />);
+    await renderOpenScanner();
 
     // Should have a close button
     const closeButton = document.querySelector('button');
@@ -97,39 +99,34 @@ describe('QRScanner', () => {
   });
 
   it('should render qr-reader div for camera', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
-
-    render(<QRScanner {...defaultProps} />);
+    await renderOpenScanner();
 
     const qrReader = document.getElementById('qr-reader');
     expect(qrReader).toBeTruthy();
   });
 
   it('should call onClose when backdrop is clicked', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
+    await renderOpenScanner();
 
-    render(<QRScanner {...defaultProps} />);
-
-    // Find and click the backdrop
     const backdrop = document.querySelector('.fixed.inset-0.z-50');
-    if (backdrop) {
-      // Note: The actual backdrop click might not fire due to event propagation
-    }
+    expect(backdrop).toBeTruthy();
+
+    fireEvent.click(backdrop as Element);
+
+    await waitFor(() => {
+      expect(defaultProps.onClose).toHaveBeenCalled();
+    });
   });
 
   it('should render camera icon', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
-
-    render(<QRScanner {...defaultProps} />);
+    await renderOpenScanner();
 
     const cameraIcons = document.querySelectorAll('svg');
     expect(cameraIcons.length).toBeGreaterThan(0);
   });
 
   it('should render scan instructions', async () => {
-    const QRScanner = (await import('./QRScanner')).default;
-
-    render(<QRScanner {...defaultProps} />);
+    await renderOpenScanner();
 
     expect(screen.getByText('qrScanner.alignQRCode')).toBeInTheDocument();
   });

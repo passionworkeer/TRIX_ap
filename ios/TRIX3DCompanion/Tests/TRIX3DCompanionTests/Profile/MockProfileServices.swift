@@ -126,6 +126,86 @@ final class MockAPIClientForProfileTests: APIClientProtocol {
         updateUserProfileCallCount = 0
         lastUpdateProfile = nil
     }
+
+    func getUserProfile() async throws -> User {
+        getUserProfileCallCount += 1
+
+        if shouldFailRequests {
+            throw mockError
+        }
+
+        guard let mockUser else {
+            throw NetworkError.custom(message: "No mock data for User")
+        }
+
+        return mockUser
+    }
+
+    func getUserStats() async throws -> UserStats {
+        getUserStatsCallCount += 1
+
+        if shouldFailRequests {
+            throw mockError
+        }
+
+        guard let mockUserStats else {
+            throw NetworkError.custom(message: "No mock data for UserStats")
+        }
+
+        return mockUserStats
+    }
+
+    func getPoints() async throws -> PointsResponse {
+        getPointsCallCount += 1
+
+        if shouldFailRequests {
+            throw mockError
+        }
+
+        guard let mockPointsResponse else {
+            throw NetworkError.custom(message: "No mock data for PointsResponse")
+        }
+
+        return mockPointsResponse
+    }
+
+    func updateUserProfile(_ update: ProfileUpdate) async throws -> User {
+        updateUserProfileCallCount += 1
+        lastUpdateProfile = update
+
+        if shouldFailRequests {
+            throw mockError
+        }
+
+        let baseUser = mockUser ?? Self.createMockUser()
+        let updatedUser = User(
+            id: baseUser.id,
+            username: update.username ?? baseUser.username,
+            email: baseUser.email,
+            avatarUrl: update.avatarUrl ?? baseUser.avatarUrl,
+            avatarConfig: baseUser.avatarConfig,
+            fullName: update.fullName ?? baseUser.fullName,
+            displayName: update.displayName ?? baseUser.displayName,
+            bio: update.bio,
+            website: baseUser.website,
+            points: baseUser.points,
+            isStudying: baseUser.isStudying,
+            companionId: baseUser.companionId,
+            totalStudyTime: baseUser.totalStudyTime,
+            lastActiveAt: baseUser.lastActiveAt,
+            currentStreak: baseUser.currentStreak,
+            daysActive: baseUser.daysActive,
+            interactionCount: baseUser.interactionCount,
+            showOnlineStatus: baseUser.showOnlineStatus,
+            school: update.school ?? baseUser.school,
+            grade: update.grade ?? baseUser.grade,
+            createdAt: baseUser.createdAt,
+            updatedAt: Date()
+        )
+
+        mockUser = updatedUser
+        return updatedUser
+    }
 }
 
 // MARK: - Mock Image Upload Service for Profile Tests
@@ -198,7 +278,7 @@ final class MockOfflineCacheServiceForProfile: OfflineCacheServiceProtocol {
         clearAllCallCount += 1
 
         if shouldFailClearAll {
-            throw CacheError.clearFailed(underlying: nil)
+            throw CacheError.storageError(underlying: NSError(domain: "MockOfflineCacheServiceForProfile", code: -1))
         }
 
         totalCacheSizeValue = 0
@@ -240,7 +320,7 @@ final class MockDataExportService: DataExportServiceProtocol {
         lastExportFormat = format
 
         if shouldFailExport {
-            throw ExportError.exportFailed(underlying: nil)
+            throw ExportError.unknown(underlying: NSError(domain: "MockDataExportService", code: -1))
         }
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("export.\(format.fileExtension)")
@@ -260,7 +340,7 @@ final class MockDataExportService: DataExportServiceProtocol {
         lastExportFormat = format
 
         if shouldFailExport {
-            throw ExportError.exportFailed(underlying: nil)
+            throw ExportError.unknown(underlying: NSError(domain: "MockDataExportService", code: -1))
         }
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("export.\(format.fileExtension)")
@@ -284,22 +364,6 @@ final class MockDataExportService: DataExportServiceProtocol {
         exportCallCount = 0
         lastExportFormat = nil
         currentProgressValue = nil
-    }
-}
-
-// MARK: - Cache Error Extension for Mock
-
-extension CacheError {
-    static func clearFailed(underlying: Error?) -> CacheError {
-        return .clearFailed(underlying: underlying)
-    }
-}
-
-// MARK: - Export Error Extension for Mock
-
-extension ExportError {
-    static func exportFailed(underlying: Error?) -> ExportError {
-        return .exportFailed(underlying: underlying)
     }
 }
 

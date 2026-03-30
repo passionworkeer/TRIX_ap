@@ -37,6 +37,15 @@ final class TTSViewModelTests: XCTestCase {
         try await super.tearDown()
     }
 
+    private func waitForAsyncEffects(until condition: () -> Bool) async {
+        for _ in 0..<20 {
+            if condition() {
+                return
+            }
+            await Task.yield()
+        }
+    }
+
     // MARK: - Initialization Tests
 
     func testInit_LoadsAvailableLanguages() {
@@ -449,6 +458,9 @@ final class TTSViewModelTests: XCTestCase {
 
         // When - disable
         sut.isEnabled = false
+        await waitForAsyncEffects {
+            self.mockTTSService.stopCallCount == 1 && self.sut.isSpeakingText == false
+        }
 
         // Then - should stop
         XCTAssertEqual(mockTTSService.stopCallCount, 1)
@@ -506,6 +518,16 @@ final class VoicePlayerViewModelTests: XCTestCase {
         mockPlaybackService = nil
         cancellables = []
         try await super.tearDown()
+    }
+
+    private func waitForBindingPropagation() async {
+        await Task.yield()
+        await Task.yield()
+    }
+
+    private func publishPlaybackState(_ state: PlaybackState) async {
+        mockPlaybackService.emitState(state)
+        await waitForBindingPropagation()
     }
 
     // MARK: - Initialization Tests
@@ -823,75 +845,82 @@ final class VoicePlayerViewModelTests: XCTestCase {
     }
 
     func testBindings_ReceiveProgressUpdates() async {
-        // Given - capture progress changes
-        var receivedProgress: [PlaybackProgress] = []
-        mockPlaybackService._progressSubject
-            .sink { progress in
-                receivedProgress.append(progress)
-            }
-            .store(in: &cancellables)
+        // Given
+        mockPlaybackService.duration = 60.0
 
         // When - emit progress
         mockPlaybackService.simulateProgressUpdate(currentTime: 10.0)
         mockPlaybackService.simulateProgressUpdate(currentTime: 20.0)
+        await waitForBindingPropagation()
 
         // Then
-        XCTAssertEqual(receivedProgress.count, 2)
+        XCTAssertEqual(sut.currentTime, 20.0)
+        XCTAssertEqual(sut.totalDuration, 60.0)
+        XCTAssertEqual(sut.progress, 20.0 / 60.0, accuracy: 0.0001)
     }
 
-    // MARK: - Playback State Transitions
+    // MARK: - Playback State Binding Transitions
 
-    func testUpdatePlayingState_FromPlaying_SetsIsPlayingTrue() {
+    func testUpdatePlayingState_FromPlaying_SetsIsPlayingTrue() async {
         // When
-        sut.playbackState = .playing
+        await publishPlaybackState(.playing)
 
         // Then
+        XCTAssertEqual(sut.playbackState, .playing)
         XCTAssertTrue(sut.isPlaying)
         XCTAssertNil(sut.errorMessage)
     }
 
-    func testUpdatePlayingState_FromPaused_SetsIsPlayingFalse() {
+    func testUpdatePlayingState_FromPaused_SetsIsPlayingFalse() async {
         // Given
-        sut.isPlaying = true
+        await publishPlaybackState(.playing)
+        XCTAssertTrue(sut.isPlaying)
 
         // When
-        sut.playbackState = .paused
+        await publishPlaybackState(.paused)
 
         // Then
+        XCTAssertEqual(sut.playbackState, .paused)
         XCTAssertFalse(sut.isPlaying)
     }
 
-    func testUpdatePlayingState_FromIdle_SetsIsPlayingFalse() {
+    func testUpdatePlayingState_FromIdle_SetsIsPlayingFalse() async {
         // Given
-        sut.isPlaying = true
+        await publishPlaybackState(.playing)
+        XCTAssertTrue(sut.isPlaying)
 
         // When
-        sut.playbackState = .idle
+        await publishPlaybackState(.idle)
 
         // Then
+        XCTAssertEqual(sut.playbackState, .idle)
         XCTAssertFalse(sut.isPlaying)
     }
 
-    func testUpdatePlayingState_FromFinished_SetsIsPlayingFalse() {
+    func testUpdatePlayingState_FromFinished_SetsIsPlayingFalse() async {
         // Given
-        sut.isPlaying = true
+        await publishPlaybackState(.playing)
+        XCTAssertTrue(sut.isPlaying)
 
         // When
-        sut.playbackState = .finished
+        await publishPlaybackState(.finished)
 
         // Then
+        XCTAssertEqual(sut.playbackState, .finished)
         XCTAssertFalse(sut.isPlaying)
     }
 
-    func testUpdatePlayingState_FromError_SetsIsPlayingFalseAndError() {
+    func testUpdatePlayingState_FromError_SetsIsPlayingFalseAndError() async {
         // Given
-        sut.isPlaying = true
+        await publishPlaybackState(.playing)
+        XCTAssertTrue(sut.isPlaying)
         let errorMsg = "Playback failed"
 
         // When
-        sut.playbackState = .error(errorMsg)
+        await publishPlaybackState(.error(errorMsg))
 
         // Then
+        XCTAssertEqual(sut.playbackState, .error(errorMsg))
         XCTAssertFalse(sut.isPlaying)
         XCTAssertEqual(sut.errorMessage, errorMsg)
     }

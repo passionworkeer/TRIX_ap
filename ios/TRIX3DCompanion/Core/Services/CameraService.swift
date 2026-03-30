@@ -35,6 +35,20 @@ final class CameraService: NSObject, ObservableObject, CameraServiceProtocol {
     /// 最后的错误
     @Published private(set) var lastError: CameraError?
 
+    // MARK: - Protocol Publishers
+
+    var flashModePublisher: AnyPublisher<AVCaptureDevice.FlashMode, Never> {
+        $flashMode.eraseToAnyPublisher()
+    }
+
+    var cameraPositionPublisher: AnyPublisher<AVCaptureDevice.Position, Never> {
+        $cameraPosition.eraseToAnyPublisher()
+    }
+
+    var isSessionRunningPublisher: AnyPublisher<Bool, Never> {
+        $isSessionRunning.eraseToAnyPublisher()
+    }
+
     // MARK: - Private Properties
 
     /// AVCaptureSession 实例

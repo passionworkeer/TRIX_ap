@@ -24,8 +24,7 @@ function withConfigProvider(
   return (api: OpenClawPluginApi) => {
     setTrixPluginConfigProvider(() => api.config);
     if (register) {
-      void register(api);
-      return;
+      return register(api);
     }
     if (options.registerChannel !== false) {
       api.registerChannel({ plugin });

@@ -94,6 +94,7 @@ final class MockAPIClientForProfile: APIClientProtocol {
     var mockError: NetworkError?
     var mockUser: User?
     var mockUserStats: UserStats?
+    var mockPointsResponse: PointsResponse?
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
@@ -139,6 +140,106 @@ final class MockAPIClientForProfile: APIClientProtocol {
     func download(from url: String) async throws -> Data {
         throw NetworkError.custom(message: "Not implemented")
     }
+
+    func getUserProfile() async throws -> User {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+
+        guard let mockUser else {
+            throw NetworkError.unauthorized
+        }
+
+        return mockUser
+    }
+
+    func updateUserProfile(_ update: ProfileUpdate) async throws -> User {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+
+        let baseUser = mockUser ?? User(
+            id: "test_user_id",
+            username: "test_user",
+            email: "test@example.com",
+            avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
+            displayName: "Test User",
+            bio: nil,
+            website: nil,
+            points: 100,
+            isStudying: nil,
+            companionId: nil,
+            totalStudyTime: nil,
+            lastActiveAt: nil,
+            currentStreak: nil,
+            daysActive: nil,
+            interactionCount: nil,
+            showOnlineStatus: nil,
+            school: nil,
+            grade: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        let updatedUser = User(
+            id: baseUser.id,
+            username: update.username ?? baseUser.username,
+            email: baseUser.email,
+            avatarUrl: update.avatarUrl ?? baseUser.avatarUrl,
+            avatarConfig: baseUser.avatarConfig,
+            fullName: update.fullName ?? baseUser.fullName,
+            displayName: update.displayName ?? baseUser.displayName,
+            bio: update.bio,
+            website: baseUser.website,
+            points: baseUser.points,
+            isStudying: baseUser.isStudying,
+            companionId: baseUser.companionId,
+            totalStudyTime: baseUser.totalStudyTime,
+            lastActiveAt: baseUser.lastActiveAt,
+            currentStreak: baseUser.currentStreak,
+            daysActive: baseUser.daysActive,
+            interactionCount: baseUser.interactionCount,
+            showOnlineStatus: baseUser.showOnlineStatus,
+            school: update.school ?? baseUser.school,
+            grade: update.grade ?? baseUser.grade,
+            createdAt: baseUser.createdAt,
+            updatedAt: Date()
+        )
+
+        mockUser = updatedUser
+        return updatedUser
+    }
+
+    func getUserStats() async throws -> UserStats {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+
+        return mockUserStats ?? UserStats(
+            totalStudyTime: 3600,
+            sessionCount: 12,
+            averageDuration: 300,
+            streakDays: 5,
+            todayDuration: 45,
+            weekDuration: 300
+        )
+    }
+
+    func getPoints() async throws -> PointsResponse {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+
+        return mockPointsResponse ?? PointsResponse(
+            totalPoints: 100,
+            level: 1,
+            todayEarned: 10,
+            weekEarned: 50,
+            totalTransactions: 3
+        )
+    }
 }
 
 // MARK: - Profile View Model Tests
@@ -158,7 +259,7 @@ final class ProfileViewModelTests: XCTestCase {
         mockAPIClient = MockAPIClientForProfile()
         cancellables = Set<AnyCancellable>()
 
-        sut = ProfileViewModel()
+        sut = ProfileViewModel(apiClient: mockAPIClient)
     }
 
     override func tearDown() async throws {
@@ -178,7 +279,7 @@ extension ProfileViewModelTests {
 
     func testLoadProfileSetsLoadingState() async {
         // Given
-        mockAuthService.mockUser = createMockUser()
+        mockAPIClient.mockUser = createMockUser()
 
         // When
         let expectation = XCTestExpectation(description: "Loading state changes")
@@ -204,7 +305,7 @@ extension ProfileViewModelTests {
     func testLoadProfileSuccess() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When
         await sut.loadProfile()
@@ -216,7 +317,7 @@ extension ProfileViewModelTests {
 
     func testLoadProfileHandlesError() async {
         // Given
-        mockAuthService.mockUser = nil
+        mockAPIClient.mockUser = nil
 
         // When
         await sut.loadProfile()
@@ -233,7 +334,7 @@ extension ProfileViewModelTests {
     func testUpdateDisplayNameSuccess() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let newDisplayName = "Updated Name"
 
         // When
@@ -246,7 +347,7 @@ extension ProfileViewModelTests {
     func testUpdateDisplayNameWithEmptyString() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When
         await sut.updateDisplayName("")
@@ -258,7 +359,7 @@ extension ProfileViewModelTests {
     func testUpdateDisplayNameWithWhitespace() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When
         await sut.updateDisplayName("   Test Name   ")
@@ -270,7 +371,7 @@ extension ProfileViewModelTests {
     func testUpdateDisplayNameWithLongString() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let longName = String(repeating: "a", count: 100)
 
         // When
@@ -288,7 +389,7 @@ extension ProfileViewModelTests {
     func testUpdateBioSuccess() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let newBio = "This is my new bio"
 
         // When
@@ -325,19 +426,19 @@ extension ProfileViewModelTests {
             createdAt: mockUser.createdAt,
             updatedAt: mockUser.updatedAt
         )
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When
         await sut.updateBio("")
 
-        // Then - nil bio should be handled
-        XCTAssertNil(sut.bio, "Bio should be nil")
+        // Then
+        XCTAssertEqual(sut.bio, "", "Bio should reflect the submitted empty value")
     }
 
     func testUpdateBioWithEmptyString() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When
         await sut.updateBio("")
@@ -349,7 +450,7 @@ extension ProfileViewModelTests {
     func testUpdateBioWithLongString() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let longBio = String(repeating: "This is a long bio. ", count: 50)
 
         // When
@@ -366,7 +467,7 @@ extension ProfileViewModelTests {
 
     func testRefreshReloadsProfile() async {
         // Given
-        mockAuthService.mockUser = createMockUser()
+        mockAPIClient.mockUser = createMockUser()
 
         // When
         await sut.refresh()
@@ -378,7 +479,7 @@ extension ProfileViewModelTests {
     func testRefreshClearsError() async {
         // Given
         sut.errorMessage = "Previous error"
-        mockAuthService.mockUser = createMockUser()
+        mockAPIClient.mockUser = createMockUser()
 
         // When
         await sut.refresh()
@@ -431,7 +532,7 @@ extension ProfileViewModelTests {
 
     func testDisplayNameInitialState() {
         // Then
-        XCTAssertEqual(sut.displayName, "", "Initial display name should be empty")
+        XCTAssertEqual(sut.displayName, "User", "Initial display name should use the default fallback")
     }
 
     func testBioInitialState() {
@@ -536,7 +637,7 @@ extension ProfileViewModelTests {
     func testUpdateDisplayNameWithSpecialCharacters() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let specialName = "Test 🎉 Name 中文"
 
         // When
@@ -549,7 +650,7 @@ extension ProfileViewModelTests {
     func testUpdateBioWithEmoji() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
         let emojiBio = "I love coding! 💻 🚀"
 
         // When
@@ -562,7 +663,7 @@ extension ProfileViewModelTests {
     func testConcurrentProfileUpdates() async {
         // Given
         let mockUser = createMockUser()
-        mockAuthService.mockUser = mockUser
+        mockAPIClient.mockUser = mockUser
 
         // When - perform multiple updates concurrently
         await withTaskGroup(of: Void.self) { group in

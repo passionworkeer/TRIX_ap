@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
 // Track mock state for context
 let mockChannelState = {
@@ -25,6 +26,19 @@ let mockChannelState = {
   status: 'disconnected' as const,
   botOnline: false,
   lastError: null as string | null,
+};
+
+const qrScannerRenderHistory: Array<{
+  isOpen: boolean;
+  onClose: () => void;
+  onScanSuccess: (text: string) => void;
+  onScanError: (message: string) => void;
+}> = [];
+
+const mockNotification = {
+  showWarning: vi.fn(),
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
 };
 
 // Mock ClawbotChannelContext
@@ -45,32 +59,32 @@ vi.mock('../components/QRScanner', () => ({
     onScanSuccess: (text: string) => void;
     onScanError: (message: string) => void;
   }) =>
-    isOpen ? (
-      <div data-testid="qr-scanner">
-        <button data-testid="scanner-close" onClick={onClose}>Close Scanner</button>
-        <button
-          data-testid="scanner-success"
-          onClick={() => onScanSuccess('http://localhost/pair?code=ABC123&secret=xyz')}
-        >
-          Simulate Scan Success
-        </button>
-        <button
-          data-testid="scanner-error"
-          onClick={() => onScanError('Camera not found')}
-        >
-          Simulate Scan Error
-        </button>
-      </div>
-    ) : null,
+    (() => {
+      qrScannerRenderHistory.push({ isOpen, onClose, onScanSuccess, onScanError });
+
+      return isOpen ? (
+        <div data-testid="qr-scanner">
+          <button data-testid="scanner-close" onClick={onClose}>Close Scanner</button>
+          <button
+            data-testid="scanner-success"
+            onClick={() => onScanSuccess('http://localhost/pair?code=ABC123&secret=xyz')}
+          >
+            Simulate Scan Success
+          </button>
+          <button
+            data-testid="scanner-error"
+            onClick={() => onScanError('Camera not found')}
+          >
+            Simulate Scan Error
+          </button>
+        </div>
+      ) : null;
+    })(),
 }));
 
 // Mock hooks
 vi.mock('../hooks/useNotification', () => ({
-  useNotification: () => ({
-    showWarning: vi.fn(),
-    showSuccess: vi.fn(),
-    showError: vi.fn(),
-  }),
+  useNotification: () => mockNotification,
 }));
 
 // Mock react-hot-toast
@@ -82,14 +96,7 @@ vi.mock('react-hot-toast', () => ({
   }),
 }));
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
@@ -117,6 +124,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 describe('QRCodePairing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    qrScannerRenderHistory.length = 0;
     // Reset mock channel state
     mockChannelState = {
       isConnected: false,
@@ -239,5 +247,33 @@ describe('QRCodePairing', () => {
     await waitFor(() => {
       expect(screen.getByText(/已配对/i)).toBeInTheDocument();
     });
+  });
+
+  it('keeps QRScanner callback props stable across parent re-renders', async () => {
+    const { default: QRCodePairing } = await import('./QRCodePairing');
+    render(
+      <TestWrapper>
+        <QRCodePairing />
+      </TestWrapper>
+    );
+
+    const openScannerButton = screen.getByRole('button', { name: /扫描二维码/i });
+    fireEvent.click(openScannerButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
+    });
+
+    const firstOpenRender = qrScannerRenderHistory[qrScannerRenderHistory.length - 1];
+    expect(firstOpenRender?.isOpen).toBe(true);
+
+    const input = screen.getByPlaceholderText('AB12CD') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'ABC123' } });
+
+    const secondOpenRender = qrScannerRenderHistory[qrScannerRenderHistory.length - 1];
+    expect(secondOpenRender?.isOpen).toBe(true);
+    expect(secondOpenRender?.onClose).toBe(firstOpenRender?.onClose);
+    expect(secondOpenRender?.onScanSuccess).toBe(firstOpenRender?.onScanSuccess);
+    expect(secondOpenRender?.onScanError).toBe(firstOpenRender?.onScanError);
   });
 });

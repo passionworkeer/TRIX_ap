@@ -59,6 +59,9 @@ enum MainNavigationAccessibilityIdentifiers {
 enum HomeAccessibilityIdentifiers {
     static let screen = "home.screen"
     static let botBubble = "home.bot.bubble"
+    static let botExpandedCard = "home.bot.expanded"
+    static let botInputField = "home.bot.input"
+    static let botSendButton = "home.bot.send"
     static let workbenchOverlay = "home.workbench.overlay"
     static let workbenchSnapshotCard = "home.workbench.snapshot.card"
     static let workbenchLocationCard = "home.workbench.location.card"
@@ -81,6 +84,8 @@ enum ProfileAccessibilityIdentifiers {
     static let aboutSheet = "profile.about.sheet"
     static let settingsSyncButton = "profile.settings.sync.button"
     static let settingsSyncMessage = "profile.settings.sync.message"
+    static let settingsDeleteAccountButton = "profile.settings.delete-account.button"
+    static let settingsDeleteAccountError = "profile.settings.delete-account.error"
     static let settingsDoneButton = "profile.settings.done.button"
     static let aboutDoneButton = "profile.about.done.button"
 }
@@ -91,6 +96,7 @@ enum PairingAccessibilityIdentifiers {
     static let manualInputButton = "pairing.manual.button"
     static let codeField = "pairing.code.field"
     static let verifyButton = "pairing.verify.button"
+    static let startChatButton = "pairing.start-chat.button"
 }
 
 enum TrixBotAccessibilityIdentifiers {
@@ -101,6 +107,8 @@ enum TrixBotAccessibilityIdentifiers {
     static let sendButton = "trixbot.send.button"
     static let closeButton = "trixbot.close.button"
     static let attachmentPreview = "trixbot.attachment.preview"
+    static let botMessagePrefix = "trixbot.message.bot"
+    static let userMessagePrefix = "trixbot.message.user"
 }
 
 extension View {

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { DarkCard } from './DarkCard';
 
@@ -132,7 +131,7 @@ describe('DarkCard', () => {
       expect(styleAttr).not.toContain('0 8px 40px');
 
       // Simulate mouse enter
-      await userEvent.hover(card);
+      fireEvent.mouseEnter(card);
 
       // Should not change without hoverable prop - check that it doesn't get hover styles
       const afterHoverStyle = card.getAttribute('style') || '';
@@ -143,7 +142,7 @@ describe('DarkCard', () => {
       const { container } = render(<DarkCard hoverable>Hoverable</DarkCard>);
       const card = container.firstChild as HTMLDivElement;
 
-      await userEvent.hover(card);
+      fireEvent.mouseEnter(card);
 
       expect(card).toHaveStyle({ transform: 'translateY(-1px)' });
       expect(card).toHaveStyle({ boxShadow: '0 8px 40px rgba(0,0,0,0.4)' });
@@ -153,10 +152,10 @@ describe('DarkCard', () => {
       const { container } = render(<DarkCard hoverable>Hover Then Leave</DarkCard>);
       const card = container.firstChild as HTMLDivElement;
 
-      await userEvent.hover(card);
+      fireEvent.mouseEnter(card);
       expect(card).toHaveStyle({ transform: 'translateY(-1px)' });
 
-      await userEvent.unhover(card);
+      fireEvent.mouseLeave(card);
       expect(card).toHaveStyle({ transform: 'translateY(0)' });
       expect(card).toHaveStyle({ boxShadow: '0 4px 30px rgba(0,0,0,0.3)' });
     });
@@ -172,7 +171,7 @@ describe('DarkCard', () => {
       const handleClick = vi.fn();
       render(<DarkCard onClick={handleClick}>Clickable</DarkCard>);
       const card = screen.getByText('Clickable');
-      await userEvent.click(card);
+      fireEvent.click(card);
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
 
@@ -190,7 +189,7 @@ describe('DarkCard', () => {
       const { container } = render(<DarkCard onClick={() => {}}>Clickable</DarkCard>);
       const card = container.firstChild as HTMLDivElement;
 
-      await userEvent.hover(card);
+      fireEvent.mouseEnter(card);
 
       expect(card).toHaveStyle({ transform: 'translateY(-1px)' });
       expect(card).toHaveStyle({ boxShadow: '0 8px 40px rgba(0,0,0,0.4)' });
@@ -204,7 +203,7 @@ describe('DarkCard', () => {
         </DarkCard>
       );
       const card = screen.getByText('Click');
-      await userEvent.click(card);
+      fireEvent.click(card);
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
   });
@@ -330,7 +329,7 @@ describe('DarkCard', () => {
       expect(card).toHaveStyle({ backdropFilter: 'blur(20px)' });
 
       // Hover should still work
-      await userEvent.hover(card);
+      fireEvent.mouseEnter(card);
       expect(card).toHaveStyle({ transform: 'translateY(-1px)' });
     });
 

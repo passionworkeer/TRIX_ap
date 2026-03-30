@@ -965,6 +965,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
     @State private var isSyncing = false
+    @State private var isDeletingAccount = false
+    @State private var showingDeleteConfirmation = false
+    @State private var deleteAccountError: String?
     @State private var syncMessage: String?
 
     var body: some View {
@@ -1023,10 +1026,46 @@ struct SettingsView: View {
                             .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSyncMessage)
                     }
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            if isDeletingAccount {
+                                ProgressView()
+                            }
+                            Text(L("profile.privacy.delete.account"))
+                        }
+                    }
+                    .disabled(isDeletingAccount)
+                    .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsDeleteAccountButton)
+
+                    if let deleteAccountError {
+                        Text(deleteAccountError)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsDeleteAccountError)
+                    }
+                }
             }
             .accessibilityIdentifier(ProfileAccessibilityIdentifiers.settingsSheet)
             .navigationTitle(L("settings.title"))
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog(
+                L("profile.privacy.delete.confirm.title"),
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button(L("profile.privacy.delete.account"), role: .destructive) {
+                    Task {
+                        await handleDeleteAccount()
+                    }
+                }
+                Button(L("action.cancel"), role: .cancel) {}
+            } message: {
+                Text(L("profile.privacy.delete.confirm.message"))
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(L("action.done")) {
@@ -1048,6 +1087,20 @@ struct SettingsView: View {
             syncMessage = L("settings.sync.success").replacingOccurrences(of: "%d", with: "\(result.syncedItems)")
         } catch {
             syncMessage = L("settings.sync.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
+        }
+    }
+
+    private func handleDeleteAccount() async {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        deleteAccountError = nil
+        defer { isDeletingAccount = false }
+
+        switch await appState.deleteAccount() {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            deleteAccountError = error.errorDescription ?? L("error.unknown")
         }
     }
 }

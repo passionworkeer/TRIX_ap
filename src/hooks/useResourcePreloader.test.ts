@@ -1,14 +1,12 @@
 /**
  * Unit tests for useResourcePreloader Hook (and related utilities)
  */
+import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ResourcePreloader, preloadResource, lazyLoadImages } from './useResourcePreloader';
+import { useResourcePreloader, preloadResource, lazyLoadImages } from './useResourcePreloader';
 
 // Mock requestIdleCallback
-const mockRequestIdleCallback = vi.fn((callback: Function) => {
-  callback({ didTimeout: false });
-  return 1;
-});
+const mockRequestIdleCallback = vi.fn(() => 1);
 
 const mockCancelIdleCallback = vi.fn();
 
@@ -27,7 +25,7 @@ function createMockElement(tag: string) {
   return el as unknown as HTMLElement;
 }
 
-describe('ResourcePreloader', () => {
+describe('useResourcePreloader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -37,40 +35,38 @@ describe('ResourcePreloader', () => {
       writable: true,
       configurable: true,
     });
-
-    // Mock document.createElement to return mock elements
-    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      return createMockElement(tag);
+    Object.defineProperty(window, 'cancelIdleCallback', {
+      value: mockCancelIdleCallback,
+      writable: true,
+      configurable: true,
     });
-
-    vi.spyOn(document.head, 'appendChild').mockImplementation(() => null as unknown as Node);
+    Object.defineProperty(window.navigator, 'connection', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('ResourcePreloader component', () => {
-    it('should be defined as a function', () => {
-      // ResourcePreloader is a React component function
-      expect(typeof ResourcePreloader).toBe('function');
-    });
-
-    it('should have proper component structure', () => {
-      // Verify the component exists and is callable
-      expect(ResourcePreloader).toBeDefined();
-    });
-
+  describe('hook behavior', () => {
     it('should call requestIdleCallback on mount when available', async () => {
       mockRequestIdleCallback.mockClear();
 
-      // Simulate component mount behavior
-      // The component uses useEffect which would call requestIdleCallback
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => {}, { timeout: 3000 });
-      }
+      const { result } = renderHook(() => useResourcePreloader());
 
+      expect(result.current).toBeNull();
       expect(mockRequestIdleCallback).toHaveBeenCalled();
+    });
+
+    it('should cancel idle callback on unmount', () => {
+      const { unmount } = renderHook(() => useResourcePreloader());
+
+      unmount();
+
+      expect(mockCancelIdleCallback).toHaveBeenCalled();
     });
 
     it('should use setTimeout fallback when requestIdleCallback is not available', async () => {
@@ -81,17 +77,27 @@ describe('ResourcePreloader', () => {
 
       const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
-      // Simulate what the component does
-      if (!('requestIdleCallback' in window)) {
-        setTimeout(() => {}, 2000);
-      }
+      const { result } = renderHook(() => useResourcePreloader());
 
       // Check that setTimeout was called instead
+      expect(result.current).toBeNull();
       expect(setTimeoutSpy).toHaveBeenCalled();
 
       // Restore
       (window as any).requestIdleCallback = original;
       setTimeoutSpy.mockRestore();
+    });
+
+    it('should skip scheduling on save-data connections', () => {
+      Object.defineProperty(window.navigator, 'connection', {
+        value: { saveData: true, effectiveType: '4g' },
+        writable: true,
+        configurable: true,
+      });
+
+      renderHook(() => useResourcePreloader());
+
+      expect(mockRequestIdleCallback).not.toHaveBeenCalled();
     });
   });
 
@@ -170,6 +176,15 @@ describe('ResourcePreloader', () => {
       preloadResource('/test-resource.png', 'image');
 
       expect(document.head.appendChild).toHaveBeenCalledWith(mockLink);
+    });
+
+    it('should not append duplicate preload links', () => {
+      vi.spyOn(document.head, 'querySelector').mockReturnValue({} as Element);
+
+      preloadResource('/test-resource.png', 'image');
+
+      expect(document.createElement).not.toHaveBeenCalled();
+      expect(document.head.appendChild).not.toHaveBeenCalled();
     });
   });
 

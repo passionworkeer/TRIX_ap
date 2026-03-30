@@ -411,14 +411,14 @@ extension DatabaseManagerTests {
         XCTAssertFalse(firstPage.isEmpty, "First page should not be empty")
         XCTAssertEqual(firstPage.count, 3, "First page should have 3 messages")
         
-        // Get oldest message from first page
-        guard let lastMessage = firstPage.last else {
+        // Use the oldest message in the first page as the pagination cursor.
+        guard let cursorMessage = firstPage.first else {
             XCTFail("First page should have messages")
             return
         }
         
         // Get second page (messages before the oldest in first page)
-        let secondPage = try sut.getMessages(roomId: uniqueRoomId, limit: 3, before: lastMessage.createdAt)
+        let secondPage = try sut.getMessages(roomId: uniqueRoomId, limit: 3, before: cursorMessage.createdAt)
 
         // Then
         XCTAssertGreaterThanOrEqual(secondPage.count, 1, "Second page should have at least 1 message")

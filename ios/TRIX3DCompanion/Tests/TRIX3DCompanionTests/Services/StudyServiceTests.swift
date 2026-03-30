@@ -31,6 +31,7 @@ final class MockClawbotChannelServiceForStudy: ObservableObject, ClawbotChannelS
 
     @Published private(set) var connectionState: ClawbotConnectionState = .disconnected
     @Published private(set) var isPaired: Bool = false
+    @Published private(set) var messages: [ClawbotMessage] = []
     @Published private(set) var isBotOnline: Bool = false
     @Published private(set) var botConnectionState: BotConnectionState = .unknown
     @Published private(set) var botBehaviorState: BotBehaviorState = .idle
@@ -305,6 +306,8 @@ final class MockAuthServiceForStudy: AuthServiceProtocol {
 @MainActor
 final class StudyServiceTests: XCTestCase {
 
+    private let offlineSessionsKey = "study_offline_sessions"
+
     var sut: StudyService!
     var mockAPIClient: MockAPIClientForStudy!
     var mockClawbotChannel: MockClawbotChannelServiceForStudy!
@@ -313,6 +316,7 @@ final class StudyServiceTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        UserDefaults.standard.removeObject(forKey: offlineSessionsKey)
 
         mockSupabase = MockStudySupabaseService()
         mockAPIClient = MockAPIClientForStudy()
@@ -336,6 +340,7 @@ final class StudyServiceTests: XCTestCase {
         mockAPIClient = nil
         mockClawbotChannel = nil
         mockAuthService = nil
+        UserDefaults.standard.removeObject(forKey: offlineSessionsKey)
         try await super.tearDown()
     }
 }
@@ -738,6 +743,7 @@ extension StudyServiceTests {
         case .failure(let error):
             // Should fail but still clear local state
             XCTAssertFalse(sut.isActiveSession, "Should clear active session even on API error")
+            XCTAssertEqual(sut.pendingOfflineSessions, 1, "Should persist the failed session for later sync")
             XCTAssertEqual(error, .networkError(underlying: mockSupabase.mockError))
         case .success:
             XCTFail("Should fail when network error occurs")

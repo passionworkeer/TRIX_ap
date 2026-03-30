@@ -178,7 +178,7 @@ final class NetworkPerformanceBenchmark: XCTestCase {
     // MARK: - Helper Methods
 
     private func measureLatency(path: String, method: HTTPMethod) async throws -> TimeInterval {
-        let url = URL(string: "https://api.trix3d.com")!.appendingPathComponent(path)
+        let url = URL(string: "https://trix.love")!.appendingPathComponent(path)
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
 

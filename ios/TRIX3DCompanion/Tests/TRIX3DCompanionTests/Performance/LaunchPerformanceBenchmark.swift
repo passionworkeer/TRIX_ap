@@ -14,7 +14,7 @@ import UIKit
 /// This test class measures both cold and hot launch performance:
 /// - Cold launch: First app launch after device restart or force quit
 /// - Hot launch: Subsequent launches when app is already in memory
-final class LaunchPerformanceBenchmark: XCTestCase {
+final class LaunchPerformanceBenchmark: PerformanceBenchmarkTestCase {
 
     // MARK: - Properties
 
@@ -165,6 +165,8 @@ final class LaunchPerformanceBenchmark: XCTestCase {
     /// Use this in XCUITest targets for accurate launch timing
     @available(iOS 13.0, *)
     func testUILaunchMeasurement() throws {
+        try requireUILaunchBenchmarkEnabled()
+
         // This test is designed to be used with XCUITest
         // It uses the measurement APIs for precise timing
 

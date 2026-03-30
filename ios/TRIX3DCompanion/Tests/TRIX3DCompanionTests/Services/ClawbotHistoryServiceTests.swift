@@ -37,16 +37,20 @@ final class MockAPIClientForClawbotHistory: ObservableObject, APIClientProtocol 
         return messages
     }
 
-    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]?) async throws -> T where T: Decodable {
+    func get<T>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T where T: Decodable {
         lastRequestedRoomId = endpoint.path.replacingOccurrences(of: "/clawbot/history/", with: "")
-        lastRequestedLimit = parameters?["limit"] as? Int
-        lastRequestedOffset = parameters?["offset"] as? Int
+        lastRequestedLimit = parameters["limit"] as? Int
+        lastRequestedOffset = parameters["offset"] as? Int
 
         if shouldFailRequests {
             throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
-        guard let messages = mockMessages as? T else {
+        let offset = lastRequestedOffset ?? 0
+        let limit = lastRequestedLimit ?? mockMessages.count
+        let pagedMessages = Array(mockMessages.dropFirst(offset).prefix(limit))
+
+        guard let messages = pagedMessages as? T else {
             throw NetworkError.custom(message: "Invalid mock data")
         }
 

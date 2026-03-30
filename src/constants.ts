@@ -3,7 +3,7 @@ import avatarHead from './assets/roles/role1/AvatarHead.png';
 import heroRenderImg from './assets/roles/role1/hero_render.png';
 
 // 公用资源
-import studyRoomBg from './assets/StudyRoomBG.png';
+import studyRoomBg from './assets/StudyRoomBG.jpg';
 import backgroundImg from './assets/background.jpg';
 
 export const IMAGES = {

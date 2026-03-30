@@ -111,7 +111,6 @@ final class ClawbotChannelViewModel: ObservableObject {
         mediaData: Data? = nil,
         mediaFileName: String? = nil
     ) async -> Bool {
-        // No pairing gate here — when unpaired, messages flow via cloud service (same as web).
         isSending = true
         lastError = nil
 
@@ -120,10 +119,6 @@ final class ClawbotChannelViewModel: ObservableObject {
         }
 
         do {
-            NSLog("[TRIX-UI] viewModel send begin text=%{public}@ type=%{public}@ media=%{public}@",
-                  content,
-                  contentType.rawValue,
-                  String(mediaData != nil || mediaUrl != nil))
             try await service.sendMessage(
                 content,
                 contentType: contentType,
@@ -132,17 +127,6 @@ final class ClawbotChannelViewModel: ObservableObject {
                 mediaData: mediaData,
                 mediaFileName: mediaFileName
             )
-            let userMessage = ClawbotMessage(
-                id: generateMessageId(),
-                content: content,
-                contentType: contentType,
-                mediaUrl: mediaUrl,
-                mediaMimeType: mediaMimeType,
-                timestamp: Date(),
-                sender: .user
-            )
-            messages.append(userMessage)
-            NSLog("[TRIX-UI] viewModel send appended local user message id=%{public}@", userMessage.id)
             return true
         } catch {
             NSLog("[TRIX-UI] viewModel send failed text=%{public}@ error=%{public}@",
@@ -170,16 +154,9 @@ final class ClawbotChannelViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$isPaired)
 
-        service.$lastMessage
+        service.$messages
             .receive(on: DispatchQueue.main)
-            .compactMap { $0 }
-            .sink { [weak self] message in
-                NSLog("[TRIX-UI] viewModel received bot message id=%{public}@ text=%{public}@",
-                      message.id,
-                      String(message.content.prefix(80)))
-                self?.messages.append(message)
-            }
-            .store(in: &cancellables)
+            .assign(to: &$messages)
 
         service.$botState
             .receive(on: DispatchQueue.main)
@@ -191,9 +168,5 @@ final class ClawbotChannelViewModel: ObservableObject {
                 }
             }
             .assign(to: &$botState)
-    }
-
-    private func generateMessageId() -> String {
-        "\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100000...999999))"
     }
 }

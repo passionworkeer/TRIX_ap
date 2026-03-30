@@ -36,6 +36,23 @@ async function retireLegacyPwaShell() {
   await Promise.allSettled(cleanupTasks);
 }
 
+function scheduleLegacyPwaRetirement() {
+  const cleanup = () => {
+    void retireLegacyPwaShell();
+  };
+
+  const windowWithIdleCallback = window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+  };
+
+  if (typeof windowWithIdleCallback.requestIdleCallback === 'function') {
+    windowWithIdleCallback.requestIdleCallback(cleanup, { timeout: 5000 });
+    return;
+  }
+
+  window.setTimeout(cleanup, 0);
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -43,9 +60,7 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 
-async function bootstrap() {
-  await retireLegacyPwaShell();
-
+function bootstrap() {
   root.render(
     <React.StrictMode>
       <ThemeProvider>
@@ -55,6 +70,8 @@ async function bootstrap() {
       </ThemeProvider>
     </React.StrictMode>
   );
+
+  scheduleLegacyPwaRetirement();
 }
 
-void bootstrap();
+bootstrap();

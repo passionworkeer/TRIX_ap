@@ -9,6 +9,7 @@ import Foundation
 import CoreLocation
 import UIKit
 import AVFoundation
+import Combine
 @testable import TRIX3DCompanion
 
 // MARK: - Mock Location Service for Map Tests
@@ -97,7 +98,7 @@ final class MockLocationServiceForMap: LocationServiceProtocol {
     }
 
     func reset() {
-        currentLocationValue = CLLocation(latitude: 31.2304, longitude: 121.4737)
+        currentLocationValue = nil
         authorizationStatusValue = .authorizedWhenInUse
         isLocationUpdatingValue = false
         shouldFailFetchNearby = false
@@ -237,13 +238,15 @@ final class MockMapSearchService: MapSearchServiceProtocol {
 final class MockCameraServiceForSnapshot: CameraServiceProtocol {
     // MARK: - State
 
-    var isSessionRunningValue: Bool = false
-    var flashModeValue: AVCaptureDevice.FlashMode = .off
-    var cameraPositionValue: AVCaptureDevice.Position = .back
+    @Published var isSessionRunningValue: Bool = false
+    @Published var flashModeValue: AVCaptureDevice.FlashMode = .off
+    @Published var cameraPositionValue: AVCaptureDevice.Position = .back
     var lastErrorValue: CameraError?
     var shouldFailCapture: Bool = false
     var shouldFailStart: Bool = false
     var mockCapturedImage: UIImage?
+    var simulatedCaptureDelayNanoseconds: UInt64 = 0
+    var simulatedStartDelayNanoseconds: UInt64 = 0
 
     // MARK: - Call Tracking
 
@@ -263,6 +266,10 @@ final class MockCameraServiceForSnapshot: CameraServiceProtocol {
 
     func capturePhoto() async -> Result<UIImage, CameraError> {
         capturePhotoCallCount += 1
+
+        if simulatedCaptureDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedCaptureDelayNanoseconds)
+        }
 
         if shouldFailCapture {
             lastErrorValue = .captureFailed(NSError(domain: "Test", code: -1))
@@ -290,6 +297,10 @@ final class MockCameraServiceForSnapshot: CameraServiceProtocol {
 
     func startCameraSession() async -> Result<Void, CameraError> {
         startCameraSessionCallCount += 1
+
+        if simulatedStartDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedStartDelayNanoseconds)
+        }
 
         if shouldFailStart {
             lastErrorValue = .sessionNotRunning
@@ -321,6 +332,18 @@ final class MockCameraServiceForSnapshot: CameraServiceProtocol {
         return lastErrorValue
     }
 
+    var flashModePublisher: AnyPublisher<AVCaptureDevice.FlashMode, Never> {
+        $flashModeValue.eraseToAnyPublisher()
+    }
+
+    var cameraPositionPublisher: AnyPublisher<AVCaptureDevice.Position, Never> {
+        $cameraPositionValue.eraseToAnyPublisher()
+    }
+
+    var isSessionRunningPublisher: AnyPublisher<Bool, Never> {
+        $isSessionRunningValue.eraseToAnyPublisher()
+    }
+
     func reset() {
         isSessionRunningValue = false
         flashModeValue = .off
@@ -329,6 +352,8 @@ final class MockCameraServiceForSnapshot: CameraServiceProtocol {
         shouldFailCapture = false
         shouldFailStart = false
         mockCapturedImage = nil
+        simulatedCaptureDelayNanoseconds = 0
+        simulatedStartDelayNanoseconds = 0
         requestPermissionCallCount = 0
         capturePhotoCallCount = 0
         switchCameraCallCount = 0

@@ -23,6 +23,7 @@ final class MockAuthService: AuthServiceProtocol {
     var shouldFailRegister: Bool = false
     var shouldFailLogout: Bool = false
     var shouldFailRefresh: Bool = false
+    var simulatedDelayNanoseconds: UInt64 = 0
 
     // MARK: - Call Tracking
 
@@ -56,6 +57,10 @@ final class MockAuthService: AuthServiceProtocol {
         lastLoginPassword = password
         loginCallCount += 1
         isLoadingValue = true
+
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
 
         if shouldFailLogin {
             isLoadingValue = false
@@ -100,6 +105,10 @@ final class MockAuthService: AuthServiceProtocol {
         registerCallCount += 1
         isLoadingValue = true
 
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
+
         if shouldFailRegister {
             isLoadingValue = false
             return .failure(.emailAlreadyExists)
@@ -140,6 +149,10 @@ final class MockAuthService: AuthServiceProtocol {
         logoutCallCount += 1
         isLoadingValue = true
 
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
+
         if shouldFailLogout {
             isLoadingValue = false
             return .failure(.unknown(underlying: nil))
@@ -155,6 +168,10 @@ final class MockAuthService: AuthServiceProtocol {
         refreshTokenCallCount += 1
         isLoadingValue = true
 
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
+
         if shouldFailRefresh {
             isLoadingValue = false
             return .failure(.tokenExpired)
@@ -166,6 +183,10 @@ final class MockAuthService: AuthServiceProtocol {
 
     func fetchCurrentUser() async -> AuthResult<User> {
         fetchCurrentUserCallCount += 1
+
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
 
         if let user = currentUserValue {
             return .success(user)
@@ -199,6 +220,7 @@ final class MockAuthService: AuthServiceProtocol {
         shouldFailRegister = false
         shouldFailLogout = false
         shouldFailRefresh = false
+        simulatedDelayNanoseconds = 0
         lastLoginEmail = nil
         lastLoginPassword = nil
         lastRegisterUsername = nil
@@ -224,6 +246,7 @@ final class MockOAuthManager: OAuthManagerProtocol {
     var shouldFailSignIn: Bool = false
     var shouldFailLinkAccount: Bool = false
     var shouldFailUnlinkAccount: Bool = false
+    var simulatedDelayNanoseconds: UInt64 = 0
 
     // MARK: - Call Tracking
 
@@ -252,6 +275,10 @@ final class MockOAuthManager: OAuthManagerProtocol {
     func signIn(with provider: OAuthProvider, presentationAnchor: ASPresentationAnchor?) async -> AuthResult<User> {
         lastSignInProvider = provider
         signInCallCount += 1
+
+        if simulatedDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
 
         if shouldFailSignIn {
             return .failure(.unknown(underlying: nil))

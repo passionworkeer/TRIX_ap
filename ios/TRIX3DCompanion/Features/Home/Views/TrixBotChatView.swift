@@ -676,6 +676,9 @@ private struct TrixDisplayMessageBubble: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
+        .accessibilityIdentifier(
+            "\(message.isFromUser ? TrixBotAccessibilityIdentifiers.userMessagePrefix : TrixBotAccessibilityIdentifiers.botMessagePrefix).\(message.id)"
+        )
     }
 
     // MARK: - Avatar View

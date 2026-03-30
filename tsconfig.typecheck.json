@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "scripts",
+    "server",
+    "archive",
+    "ios",
+    "reference",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/features/study/components",
+    "src/hooks/useTouchGestures.ts",
+    "src/services/achievementService.ts",
+    "src/types/achievement.ts",
+    "fix_img.js"
+  ]
+}

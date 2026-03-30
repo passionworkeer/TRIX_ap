@@ -77,6 +77,9 @@ final class KeychainManagerTests: XCTestCase {
 
     // MARK: - Properties
 
+    private let legacyPairedKey = "clawbot_paired"
+    private let legacyDeviceIdKey = "clawbot_device_id"
+
     var sut: KeychainManager!
     var testKeychain: MockKeychainManager!
 
@@ -91,13 +94,20 @@ final class KeychainManagerTests: XCTestCase {
         #if DEBUG
         try? sut.clearAll()
         #endif
+        clearLegacyPairingDefaults()
     }
 
     override func tearDown() {
+        clearLegacyPairingDefaults()
         #if DEBUG
         try? sut.clearAll()
         #endif
         super.tearDown()
+    }
+
+    private func clearLegacyPairingDefaults() {
+        UserDefaults.standard.removeObject(forKey: legacyPairedKey)
+        UserDefaults.standard.removeObject(forKey: legacyDeviceIdKey)
     }
 }
 
@@ -330,6 +340,8 @@ extension KeychainManagerTests {
         XCTAssertEqual(sut.getAccessToken(), "access_token", "Access token should be saved")
         XCTAssertEqual(sut.getRefreshToken(), "refresh_token", "Refresh token should be saved")
         XCTAssertEqual(sut.getUserId(), "user_id", "User ID should be saved")
+        let savedExpiration = try XCTUnwrap(sut.getTokenExpirationDate(), "Token expiration should be saved")
+        XCTAssertEqual(savedExpiration.timeIntervalSince1970, session.expiresAt.timeIntervalSince1970, accuracy: 1.0)
     }
 
     func testClearSession() throws {
@@ -350,6 +362,7 @@ extension KeychainManagerTests {
         XCTAssertNil(sut.getAccessToken(), "Access token should be cleared")
         XCTAssertNil(sut.getRefreshToken(), "Refresh token should be cleared")
         XCTAssertNil(sut.getUserId(), "User ID should be cleared")
+        XCTAssertNil(sut.getTokenExpirationDate(), "Token expiration should be cleared")
     }
 
     func testHasValidSessionWhenAllTokensPresent() throws {
@@ -486,13 +499,16 @@ extension KeychainManagerTests {
 
     func testMigratePairingDataFromUserDefaultsWithData() throws {
         // Given - simulate old UserDefaults data
-        let oldPairedKey = "clawbot_paired"
-        let oldDeviceIdKey = "clawbot_device_id"
-        UserDefaults.standard.set(true, forKey: oldPairedKey)
-        UserDefaults.standard.set("old_device_id", forKey: oldDeviceIdKey)
+        UserDefaults.standard.set(true, forKey: legacyPairedKey)
+        UserDefaults.standard.set("old_device_id", forKey: legacyDeviceIdKey)
 
         // Clear any existing pairing
         try? sut.removePairedDevice()
+
+        defer {
+            clearLegacyPairingDefaults()
+            try? sut.removePairedDevice()
+        }
 
         // When
         let migrated = sut.migratePairingDataFromUserDefaults()
@@ -500,11 +516,6 @@ extension KeychainManagerTests {
         // Then
         XCTAssertTrue(migrated, "Migration should succeed when data exists")
         XCTAssertEqual(sut.getPairedDeviceId(), "old_device_id", "Device ID should be migrated")
-
-        // Cleanup
-        UserDefaults.standard.removeObject(forKey: oldPairedKey)
-        UserDefaults.standard.removeObject(forKey: oldDeviceIdKey)
-        try? sut.removePairedDevice()
     }
 
     func testMigratePairingDataSkipsWhenAlreadyPaired() throws {
@@ -512,10 +523,12 @@ extension KeychainManagerTests {
         try sut.savePairedDevice(deviceId: "existing_paired", deviceName: "Existing Device")
 
         // And - old UserDefaults data exists
-        let oldPairedKey = "clawbot_paired"
-        let oldDeviceIdKey = "clawbot_device_id"
-        UserDefaults.standard.set(true, forKey: oldPairedKey)
-        UserDefaults.standard.set("old_device_id", forKey: oldDeviceIdKey)
+        UserDefaults.standard.set(true, forKey: legacyPairedKey)
+        UserDefaults.standard.set("old_device_id", forKey: legacyDeviceIdKey)
+
+        defer {
+            clearLegacyPairingDefaults()
+        }
 
         // When
         let migrated = sut.migratePairingDataFromUserDefaults()
@@ -523,10 +536,6 @@ extension KeychainManagerTests {
         // Then
         XCTAssertFalse(migrated, "Migration should be skipped when already paired")
         XCTAssertEqual(sut.getPairedDeviceId(), "existing_paired", "Existing pairing should be preserved")
-
-        // Cleanup
-        UserDefaults.standard.removeObject(forKey: oldPairedKey)
-        UserDefaults.standard.removeObject(forKey: oldDeviceIdKey)
     }
 }
 
@@ -922,6 +931,7 @@ extension KeychainManagerTests {
 
     func testTokenRefreshFlow() throws {
         // Given - initial tokens
+        try sut.saveUserId("user_456")
         try sut.saveAccessToken("old_access_token")
         try sut.saveRefreshToken("old_refresh_token")
 

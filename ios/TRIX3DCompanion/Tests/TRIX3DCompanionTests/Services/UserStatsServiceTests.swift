@@ -46,9 +46,9 @@ final class MockAPIClientForUserStats: ObservableObject, APIClientProtocol {
         }
     }
 
-    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]?) async throws -> T {
-        lastRequestedUserId = parameters?["userId"] as? String
-        lastRequestedPeriod = parameters?["period"] as? String
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T {
+        lastRequestedUserId = parameters["userId"] as? String
+        lastRequestedPeriod = parameters["period"] as? String
 
         if shouldFailRequests {
             throw mockError ?? NetworkError.custom(message: "Request failed")

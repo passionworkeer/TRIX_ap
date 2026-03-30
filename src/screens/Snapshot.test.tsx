@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
 // Mock react-i18next to return static Chinese strings synchronously
 const mockT = (key: string): string => {
@@ -110,14 +111,7 @@ vi.mock('../constants', () => ({
   },
 }));
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({

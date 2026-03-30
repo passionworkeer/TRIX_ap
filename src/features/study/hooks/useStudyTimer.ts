@@ -63,7 +63,6 @@ export function useStudyTimer(options: UseStudyTimerOptions): UseStudyTimerRetur
     } else {
       setIsActive(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTimerPage]);
 
   // 倒计时逻辑

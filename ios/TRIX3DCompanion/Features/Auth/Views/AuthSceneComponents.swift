@@ -277,8 +277,12 @@ struct AuthLoadingOverlay: View {
                     .stroke(Color.white.opacity(0.96), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
-            .accessibilityIdentifier(accessibilityIdentifier)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(accessibilityIdentifier)
+        .accessibilityLabel(title)
+        .accessibilityValue(subtitle)
+        .uiTestMarker(accessibilityIdentifier)
         .onAppear {
             guard !isAnimating else { return }
             isAnimating = true

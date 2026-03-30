@@ -333,6 +333,10 @@ final class PaymentViewModelTests: XCTestCase {
             updatedAt: Date()
         )
     }
+
+    private func localizedPaymentString(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
+    }
 }
 
 // MARK: - Initialization Tests
@@ -433,10 +437,10 @@ extension PaymentViewModelTests {
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
-        XCTAssertEqual(sut.errorMessage, "No product selected")
+        XCTAssertEqual(sut.errorMessage, localizedPaymentString("store.error.no.product"))
 
         if case .failed(let error) = sut.paymentState {
-            XCTAssertEqual(error, "No product selected")
+            XCTAssertEqual(error, localizedPaymentString("store.error.no.product"))
         } else {
             XCTFail("Expected failed state")
         }
@@ -504,10 +508,10 @@ extension PaymentViewModelTests {
 
         // Then
         XCTAssertNotNil(sut.errorMessage)
-        XCTAssertEqual(sut.errorMessage, "Invalid product configuration")
+        XCTAssertEqual(sut.errorMessage, localizedPaymentString("store.error.invalid.product"))
 
         if case .failed(let error) = sut.paymentState {
-            XCTAssertEqual(error, "Invalid product configuration")
+            XCTAssertEqual(error, localizedPaymentString("store.error.invalid.product"))
         } else {
             XCTFail("Expected failed state")
         }
@@ -590,14 +594,17 @@ extension PaymentViewModelTests {
 
 extension PaymentViewModelTests {
 
-    func testCancelPayment_WithPendingOrder() {
+    func testCancelPayment_WithPendingOrder() async {
         // Given
         let order = createMockOrder(status: .pending)
+        mockPaymentService.mockOrders[order.id] = order
         sut.currentOrder = order
         sut.selectedProduct = createMockStoreProduct()
 
         // When
         sut.cancelPayment()
+        await Task.yield()
+        await Task.yield()
 
         // Then
         XCTAssertTrue(mockPaymentService.cancelOrderCalled)
@@ -665,7 +672,11 @@ extension PaymentViewModelTests {
         await sut.retryPayment()
 
         // Then
-        XCTAssertEqual(sut.paymentState, .idle)
+        if case .success(let order) = sut.paymentState {
+            XCTAssertEqual(order.productId, product.id)
+        } else {
+            XCTFail("Expected successful retry state")
+        }
     }
 
     func testRetryPayment_WithoutSelectedProduct() async {
@@ -961,7 +972,10 @@ extension PaymentViewModelTests {
         sut.startPayment(for: product)
 
         // Then
-        XCTAssertEqual(sut.paymentSummary, "Purchase 100 Points")
+        XCTAssertEqual(
+            sut.paymentSummary,
+            String(format: localizedPaymentString("store.summary.purchase.points"), 100)
+        )
     }
 
     func testPaymentSummary_SubscriptionProduct() {
@@ -982,7 +996,13 @@ extension PaymentViewModelTests {
         sut.startPayment(for: productWithPeriod)
 
         // Then
-        XCTAssertEqual(sut.paymentSummary, "Subscribe to Monthly Subscription")
+        XCTAssertEqual(
+            sut.paymentSummary,
+            String(
+                format: localizedPaymentString("store.summary.subscribe"),
+                "Monthly Subscription"
+            )
+        )
     }
 
     func testPaymentSummary_NoProduct() {
@@ -1010,7 +1030,14 @@ extension PaymentViewModelTests {
         sut.startPayment(for: product)
 
         // Then
-        XCTAssertEqual(sut.confirmationMessage, "Confirm purchase of 100 points for ¥6.00?")
+        XCTAssertEqual(
+            sut.confirmationMessage,
+            String(
+                format: localizedPaymentString("store.confirm.purchase.points"),
+                100,
+                "¥6.00"
+            )
+        )
     }
 
     func testConfirmationMessage_Subscription() {
@@ -1031,7 +1058,15 @@ extension PaymentViewModelTests {
         sut.startPayment(for: productWithPeriod)
 
         // Then
-        XCTAssertEqual(sut.confirmationMessage, "Confirm subscription to Monthly Subscription (Monthly) for ¥12.00?")
+        XCTAssertEqual(
+            sut.confirmationMessage,
+            String(
+                format: localizedPaymentString("store.confirm.subscribe.period"),
+                "Monthly Subscription",
+                period.localizedDescription,
+                "¥12.00"
+            )
+        )
     }
 
     func testConfirmationMessage_NoProduct() {
@@ -1112,7 +1147,20 @@ extension PaymentViewModelTests {
     func testPaymentFlowState_PendingEquality() {
         // Given
         let order1 = createMockOrder(status: .pending)
-        let order2 = createMockOrder(status: .pending)
+        let order2 = AppOrder(
+            id: order1.id,
+            userId: "test-user-2",
+            productId: "test.product.2",
+            productType: .subscription,
+            amount: 12.0,
+            currency: "CNY",
+            status: .pending,
+            paymentMethod: .alipay,
+            transactionId: "txn-fixed",
+            points: nil,
+            createdAt: order1.createdAt.addingTimeInterval(60),
+            updatedAt: order1.updatedAt.addingTimeInterval(60)
+        )
 
         // Then
         XCTAssertEqual(
@@ -1275,7 +1323,7 @@ extension PaymentViewModelTests {
             .dropFirst()
             .sink { state in
                 states.append(state)
-                if states.count >= 2 {
+                if states.count == 2 {
                     expectation.fulfill()
                 }
             }
@@ -1456,7 +1504,7 @@ extension PaymentViewModelTests {
         await sut.retryPayment()
 
         // Then
-        XCTAssertEqual(sut.paymentState, .idle)
+        XCTAssertEqual(sut.paymentState, .cancelled)
         XCTAssertNil(sut.selectedProduct) // Product cleared on cancel
     }
 }

@@ -220,6 +220,17 @@ extension AppleSignInService: ASAuthorizationControllerPresentationContextProvid
     }
 }
 
+#if DEBUG
+extension AppleSignInService {
+
+    /// Test-only hook to validate presentation anchor plumbing without triggering
+    /// the interactive Apple authorization flow, which hangs in simulator tests.
+    func setPresentationAnchorForTesting(_ anchor: ASPresentationAnchor?) {
+        currentPresentationAnchor = anchor
+    }
+}
+#endif
+
 // MARK: - Credential State Monitoring
 
 extension AppleSignInService {

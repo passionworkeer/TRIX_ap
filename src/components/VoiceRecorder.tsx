@@ -173,7 +173,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         cancelRecording();
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle escape key
   useEffect(() => {

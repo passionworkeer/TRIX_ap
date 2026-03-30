@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 import path from 'node:path';
 import { TrixNativeServer } from './server/TrixNativeServer.js';
 import { JsonStateStore } from './storage/JsonStateStore.js';
@@ -8,10 +9,10 @@ function parseArgs(argv: string[]): Map<string, string | boolean> {
   const result = new Map<string, string | boolean>();
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (!value?.startsWith('--')) {
+    if (typeof value !== 'string' || !value.startsWith('--')) {
       continue;
     }
-    const key = (value ?? '').slice(2);
+    const key = value.slice(2);
     const next = argv[index + 1];
     if (!next || next.startsWith('--')) {
       result.set(key, true);
@@ -23,7 +24,56 @@ function parseArgs(argv: string[]): Map<string, string | boolean> {
   return result;
 }
 
+function parseEnvValue(rawValue: string): string {
+  const trimmed = rawValue.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function loadDotEnvFiles(cwd: string): void {
+  const preservedKeys = new Set(Object.keys(process.env));
+  const envFiles = ['.env', '.env.local'];
+
+  for (const fileName of envFiles) {
+    const filePath = path.join(cwd, fileName);
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) {
+        continue;
+      }
+
+      const matched = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+      if (!matched) {
+        continue;
+      }
+
+      const key = matched[1];
+      const rawValue = matched[2];
+      if (key === undefined || rawValue === undefined) {
+        continue;
+      }
+      if (preservedKeys.has(key) && process.env[key] != null) {
+        continue;
+      }
+
+      process.env[key] = parseEnvValue(rawValue);
+    }
+  }
+}
+
 async function main(): Promise<void> {
+  loadDotEnvFiles(process.cwd());
+
   const [command, subcommand, ...rest] = process.argv.slice(2);
   const flags = parseArgs(rest);
   const storageDir = typeof flags.get('storage-dir') === 'string'
@@ -42,6 +92,12 @@ async function main(): Promise<void> {
       attachmentSigningSecret: typeof flags.get('attachment-signing-secret') === 'string'
         ? String(flags.get('attachment-signing-secret'))
         : process.env.TRIX_NATIVE_ATTACHMENT_SIGNING_SECRET,
+      supabaseUrl: typeof flags.get('supabase-url') === 'string'
+        ? String(flags.get('supabase-url'))
+        : process.env.TRIX_NATIVE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL,
+      supabaseAnonKey: typeof flags.get('supabase-anon-key') === 'string'
+        ? String(flags.get('supabase-anon-key'))
+        : process.env.TRIX_NATIVE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY,
       serviceAllowlist: typeof flags.get('service-allowlist') === 'string'
         ? String(flags.get('service-allowlist')).split(',').map((entry) => entry.trim()).filter(Boolean)
         : undefined,

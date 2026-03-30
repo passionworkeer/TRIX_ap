@@ -9,7 +9,7 @@
  * - Loading skeleton states
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, Video, X } from 'lucide-react';
 import { logger } from '../utils/logger';
 
@@ -22,6 +22,68 @@ interface MediaMessageProps {
   thumbnail?: string;  // Optional thumbnail URI
 }
 
+function useVideoBlobFallback(uri: string, onFailure: () => void, logLabel: string) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setBlobUrl(null);
+  }, [uri]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [blobUrl]);
+
+  const handleVideoError = async () => {
+    if (blobUrl || abortControllerRef.current) {
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const response = await fetch(uri, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error('Fetch failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      if (controller.signal.aborted) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      setBlobUrl(url);
+      logger.media.debug(`[${logLabel}] Video loaded via fetch + blob URL`);
+    } catch (fetchError) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      logger.media.error(`[${logLabel}] Video fetch fallback failed:`, fetchError);
+      onFailure();
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+    }
+  };
+
+  return { blobUrl, handleVideoError };
+}
+
 export const MediaMessage: React.FC<MediaMessageProps> = ({
   uri,
   type,
@@ -32,6 +94,15 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const { blobUrl, handleVideoError } = useVideoBlobFallback(
+    uri,
+    () => {
+      setIsLoading(false);
+      setError(true);
+    },
+    'MediaMessage',
+  );
 
   // Performance monitoring
   const loadStart = React.useRef<number>(0);
@@ -54,6 +125,11 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
   };
 
   const sizeClass = sizeClasses[maxSize];
+
+  useEffect(() => {
+    setIsLoading(true);
+    setError(false);
+  }, [uri, type]);
 
   // Error state
   if (error) {
@@ -95,9 +171,9 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
             setIsLoading(false);
             setError(true);
           }}
-          loading="eager"
+          loading="lazy"
           decoding="async"
-          fetchPriority="high"
+          fetchPriority="auto"
           onLoadStart={() => {
             loadStart.current = performance.now();
           }}
@@ -109,30 +185,6 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
 
   // Video rendering
   if (type === 'video') {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
-    // 尝试加载视频，失败则尝试 fetch + blob
-    const handleVideoError = async () => {
-      if (blobUrl) return; // 已经尝试过了
-
-      try {
-        const response = await fetch(uri);
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          setBlobUrl(url);
-          logger.media.debug('[MediaMessage] Video loaded via fetch + blob URL');
-        } else {
-          throw new Error('Fetch failed');
-        }
-      } catch (fetchError) {
-        logger.media.error('[MediaMessage] Video fetch fallback failed:', fetchError);
-        setIsLoading(false);
-        setError(true);
-      }
-    };
-
     return (
       <div className={`relative ${className} ${sizeClass}`}>
         {/* Loading skeleton */}
@@ -147,6 +199,7 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
           ref={videoRef}
           src={blobUrl || uri}
           controls
+          poster={thumbnail}
           className={`w-full h-auto rounded-lg shadow-sm transition-opacity duration-300 ${
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
@@ -184,6 +237,21 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const loadStart = React.useRef<number>(0);
+  const inlineVideoRef = useRef<HTMLVideoElement>(null);
+  const { blobUrl, handleVideoError } = useVideoBlobFallback(
+    uri,
+    () => {
+      logger.debug('MediaMessage', 'Failed to load media');
+      setIsLoading(false);
+      setError(true);
+    },
+    'MediaMessageInline',
+  );
+
+  useEffect(() => {
+    setIsLoading(true);
+    setError(false);
+  }, [uri, type]);
 
   if (error) {
     return (
@@ -220,7 +288,7 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
               setIsLoading(false);
               setError(true);
             }}
-            loading="eager"
+            loading="lazy"
             decoding="async"
             onLoadStart={() => {
               loadStart.current = performance.now();
@@ -247,29 +315,6 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
   }
 
   if (type === 'video') {
-    const inlineVideoRef = useRef<HTMLVideoElement>(null);
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
-    // 尝试加载视频，失败则尝试 fetch + blob
-    const handleVideoError = async () => {
-      if (blobUrl) return;
-
-      try {
-        const response = await fetch(uri);
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          setBlobUrl(url);
-        } else {
-          throw new Error('Fetch failed');
-        }
-      } catch (error) {
-        logger.debug('MediaMessage', 'Failed to load media:', error);
-        setIsLoading(false);
-        setError(true);
-      }
-    };
-
     return (
       <div className="relative w-[80px] h-[80px] flex-shrink-0">
         {isLoading && (
@@ -309,4 +354,3 @@ export const MediaMessageInline: React.FC<MediaMessageInlineProps> = ({
 };
 
 export default MediaMessage;
-

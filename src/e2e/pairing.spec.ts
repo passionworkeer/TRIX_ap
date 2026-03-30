@@ -153,11 +153,13 @@ test.describe('Pairing Page E2E Tests', () => {
     const warningBox = page.locator('.bg-orange-500').first();
     const authError = page.getByText('Authenticated app user required').first();
     const codeInput = page.getByPlaceholder('AB12CD');
+    const qrReader = page.locator('#qr-reader');
 
     const warningVisible = await warningBox.isVisible().catch(() => false);
     const authErrorVisible = await authError.isVisible().catch(() => false);
     const codeInputVisible = await codeInput.isVisible().catch(() => false);
+    const qrReaderVisible = await qrReader.isVisible().catch(() => false);
 
-    expect(warningVisible || authErrorVisible || codeInputVisible).toBe(true);
+    expect(warningVisible || authErrorVisible || codeInputVisible || qrReaderVisible).toBe(true);
   });
 });

@@ -773,8 +773,24 @@ final class DatabaseIntegrationTests: XCTestCase {
             let txMessage = createMockMessage(id: "tx_msg", roomId: "tx_room")
             try mockDb.insertMessage(txMessage)
 
-            // Attempt to insert duplicate (should fail due to constraint)
-            try mockDb.insertMessage(createMockMessage(id: "tx_msg", roomId: "tx_room_dup"))
+            // Attempt to insert duplicate without conflict resolution so SQLite raises a constraint error.
+            let duplicateMessage = createMockMessage(id: "tx_msg", roomId: "tx_room_dup")
+            try mockDb.performWrite {
+                try mockDb.db?.run(mockDb.messagesTable.insert(
+                    mockDb.messageId <- duplicateMessage.id,
+                    mockDb.messageRoomId <- duplicateMessage.roomId,
+                    mockDb.messageSenderId <- duplicateMessage.senderId,
+                    mockDb.messageSenderType <- duplicateMessage.sender.rawValue,
+                    mockDb.messageContent <- duplicateMessage.content,
+                    mockDb.messageType <- duplicateMessage.messageType.rawValue,
+                    mockDb.messageMediaUrl <- duplicateMessage.mediaUrl,
+                    mockDb.messageMediaMimeType <- duplicateMessage.mediaMimeType,
+                    mockDb.messageMediaDuration <- duplicateMessage.mediaDuration,
+                    mockDb.messageIsRead <- duplicateMessage.isRead,
+                    mockDb.messageCreatedAt <- duplicateMessage.createdAt,
+                    mockDb.messageSyncedAt <- nil
+                ))
+            }
 
             try mockDb.commitTransaction()
             XCTFail("Transaction should have failed")

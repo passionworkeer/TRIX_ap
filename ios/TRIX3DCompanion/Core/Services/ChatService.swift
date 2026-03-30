@@ -447,8 +447,12 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             return .failure(error)
         }
 
-        // Validate content
-        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedMediaUrl = mediaUrl ?? ((type == .image || type == .video || type == .voice || type == .file) ? trimmedContent : nil)
+        let hasMediaPayload = !(resolvedMediaUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+
+        // Allow media-only messages without a text caption.
+        guard !trimmedContent.isEmpty || (type != .text && hasMediaPayload) else {
             let error = ChatError.invalidMessageContent
             lastError = error
             return .failure(error)
@@ -495,7 +499,6 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
             contentType = .file
         }
 
-        let resolvedMediaUrl = mediaUrl ?? ((type == .image || type == .video || type == .file) ? content : nil)
         let resolvedMediaMimeType = mediaMimeType ?? ((type == .image) ? "image/jpeg" : nil)
 
         // Send via ClawbotChannelService for bot messages (if paired)

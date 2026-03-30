@@ -253,7 +253,7 @@ function parseSkillsJson(raw: string): SkillInfo[] {
       const installed = !!(!bundled && (s.source === 'openclaw-managed' || s.source === 'openclaw-workspace' || s.source === 'agents-skills-personal'));
       return {
         name: s.name,
-        description: (s.description ?? '').split('\n')[0],
+        description: (s.description ?? '').split('\n')[0] ?? '',
         source: s.source ?? 'unknown',
         bundled,
         installed,

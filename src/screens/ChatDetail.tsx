@@ -962,7 +962,6 @@ const ChatDetail: React.FC = () => {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     for (const file of files) {
-      // eslint-disable-next-line no-await-in-loop
       await handleFileUpload(file);
     }
     e.target.value = '';
@@ -1045,7 +1044,7 @@ const ChatDetail: React.FC = () => {
         onInputChange={setInput}
         onInputFocus={() => setIsInputFocused(true)}
         onInputBlur={() => setIsInputFocused(false)}
-        onSend={() => handleSend()}
+        onSend={handleSend}
         onFileSelect={handleFileSelect}
         onStartListening={startListening}
         onStopListening={stopListening}

@@ -853,6 +853,16 @@ extension AuthServiceTests {
 
 extension AuthServiceTests {
 
+    private func makeExpiringSession(accessToken: String = "expiring_access_token") -> UserSession {
+        UserSession(
+            id: "expiring_session_id",
+            userId: "test_user_id",
+            accessToken: accessToken,
+            refreshToken: mockKeychainManager.storedRefreshToken ?? "test_refresh_token",
+            expiresAt: Date().addingTimeInterval(60)
+        )
+    }
+
     func testRefreshTokenWhenNotLoggedIn() async {
         // Given - not logged in
 
@@ -888,6 +898,7 @@ extension AuthServiceTests {
     func testRefreshTokenSuccess() async {
         // Given - logged in with expired token
         _ = await sut.login(email: "test@example.com", password: "password123")
+        try? sut.saveSession(makeExpiringSession())
 
         // Mock a new auth response for refresh
         let newAuthResponse = AuthResponse(
@@ -922,6 +933,7 @@ extension AuthServiceTests {
     func testRefreshTokenFailure() async {
         // Given - logged in
         _ = await sut.login(email: "test@example.com", password: "password123")
+        try? sut.saveSession(makeExpiringSession())
         mockAuthAPI.shouldFailRequests = true
         mockAuthAPI.mockError = .unauthorized
 

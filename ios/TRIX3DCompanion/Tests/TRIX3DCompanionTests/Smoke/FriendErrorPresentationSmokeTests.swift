@@ -6,10 +6,16 @@ import XCTest
 // Stub to allow compilation — type not implemented in codebase
 enum FriendErrorPresentation {
     static func inlineLoadMessage(for error: Error) -> String {
-        "chat.friends.unavailable"
+        if case FriendServiceError.fetchFailed(let underlying) = error,
+           let networkError = underlying as? NetworkError,
+           case .timeout = networkError {
+            return "chat.friends.network.issue".localized
+        }
+
+        return "chat.friends.unavailable".localized
     }
     static func alertMessage(for error: Error) -> String {
-        "chat.friend.action.not.available"
+        "chat.friend.action.not.available".localized
     }
 }
 

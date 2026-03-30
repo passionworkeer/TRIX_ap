@@ -259,10 +259,9 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
             currentUser = response.user
             isLoggedIn = true
 
-            // Create session record and start heartbeat
-            Task {
-                await self.upsertAndStartHeartbeat(userId: response.user.id)
-            }
+            // Create session record before returning so single-session semantics
+            // and heartbeat are not silently skipped on transient failures.
+            await upsertAndStartHeartbeat(userId: response.user.id)
 
             isLoading = false
 
@@ -481,29 +480,27 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         let hasValidSession = keychainManager.hasValidSession()
 
         if hasValidSession {
-            // Check if token is expired
-            if shouldRefreshToken() {
-                // Token needs refresh - try to refresh asynchronously
-                Task {
-                    _ = await refreshTokenIfNeeded()
-                    // After refresh, start heartbeat if still logged in
-                    await MainActor.run {
-                        if self.isLoggedIn {
-                            self.startSessionHeartbeat()
-                        }
+            tokenExpirationDate = keychainManager.getTokenExpirationDate()
+
+            // Cold launch only has Keychain state; mark the session as active before
+            // deciding whether refresh is needed so refreshTokenIfNeeded() can run.
+            isLoggedIn = true
+
+            Task { [weak self] in
+                guard let self else { return }
+
+                if self.shouldRefreshToken() {
+                    let refreshResult = await self.refreshTokenIfNeeded()
+                    if case .failure = refreshResult {
+                        return
                     }
                 }
-            } else {
-                isLoggedIn = true
 
-                // Check DB session validity
-                Task {
-                    await self.checkAndHandleSessionValidity()
-                    // Start heartbeat if still valid
-                    await MainActor.run {
-                        if self.isLoggedIn {
-                            self.startSessionHeartbeat()
-                        }
+                await self.checkAndHandleSessionValidity()
+
+                await MainActor.run {
+                    if self.isLoggedIn {
+                        self.startSessionHeartbeat()
                     }
                 }
             }
@@ -574,11 +571,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
     /// Create a DB session record and start heartbeat.
     private func upsertAndStartHeartbeat(userId: String) async {
+        defer {
+            self.startSessionHeartbeat()
+        }
+
         do {
             _ = try await SessionService.shared.upsertSession(userId: userId)
-            await MainActor.run {
-                self.startSessionHeartbeat()
-            }
         } catch {
             SecureLogger.shared.error("[AuthService] upsertSession failed: \(error.localizedDescription)")
         }
@@ -594,7 +592,22 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         case .networkError:
             // Network error — skip, don't kick self
             break
-        case .mismatch, .expired, .revoked, .notFound:
+        case .notFound:
+            guard let userId = keychainManager.getUserId() else {
+                SecureLogger.shared.warning("[安全事件] 会话缺失且无用户信息，强制登出")
+                await MainActor.run {
+                    self.handleForcedLogout()
+                }
+                return
+            }
+
+            do {
+                _ = try await SessionService.shared.upsertSession(userId: userId)
+                SecureLogger.shared.info("[AuthService] recreated missing DB session for user \(userId)")
+            } catch {
+                SecureLogger.shared.warning("[AuthService] failed to recreate missing DB session: \(error.localizedDescription)")
+            }
+        case .mismatch, .expired, .revoked:
             SecureLogger.shared.warning("[安全事件] 会话失效（\(validity)），强制登出")
             await MainActor.run {
                 self.handleForcedLogout()
@@ -611,9 +624,7 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         Task {
             await SessionService.shared.clearLocalOnly()
         }
-        try? keychainManager.clearSession()
-        currentUser = nil
-        isLoggedIn = false
+        clearSession()
         lastError = .tokenExpired
     }
 

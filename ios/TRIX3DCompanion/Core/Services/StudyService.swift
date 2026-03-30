@@ -813,27 +813,26 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
             return []
         }
 
-        // Use JSONSerialization instead of JSONDecoder for [String: Any]
         guard let sessions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return []
         }
 
-        // Convert to proper format
         return sessions.compactMap { dict -> [String: Any]? in
-            var result: [String: Any] = [:]
+            guard let id = dict["id"] as? String,
+                  let duration = dict["duration"] as? Int else {
+                return nil
+            }
 
-            if let id = dict["id"] as? String {
-                result["id"] = id
-            }
-            if let duration = dict["duration"] as? Int {
-                result["duration"] = duration
-            }
-            if let startedAtString = dict["startedAt"] as? String,
-               let startedAt = ISO8601DateFormatter().date(from: startedAtString) {
+            var result: [String: Any] = [
+                "id": id,
+                "duration": duration
+            ]
+
+            if let startedAt = dict["startedAt"] as? String {
                 result["startedAt"] = startedAt
             }
 
-            return result.isEmpty ? nil : result
+            return result
         }
     }
 
@@ -851,11 +850,12 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
     /// Save a session offline for later sync
     private func saveOfflineSession(session: StudySession, duration: Int) {
         var sessions = getOfflineSessions()
+        let formatter = ISO8601DateFormatter()
 
         let sessionData: [String: Any] = [
             "id": session.id,
             "duration": duration,
-            "startedAt": session.startedAt
+            "startedAt": formatter.string(from: session.startedAt)
         ]
 
         sessions.append(sessionData)

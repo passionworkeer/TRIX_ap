@@ -3,18 +3,8 @@ import XCTest
 final class MainAppFlowTests: RealAppUITestCase {
     func test_homeWorkbench_showsCurrentQuickActions() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
-
-        let homeTab = button(withIdentifier: AppUIIdentifiers.homeTab)
-        XCTAssertTrue(homeTab.waitForExistence(timeout: 5))
-
-        var openedWorkbench = false
-        for _ in 0..<3 where !openedWorkbench {
-            _ = tapReliably(homeTab)
-            openedWorkbench = waitForElement(withIdentifier: AppUIIdentifiers.workbenchOverlay, timeout: 3) != nil
-        }
-
-        XCTAssertTrue(openedWorkbench, "Expected workbench overlay to appear after tapping Home/Core tab.")
+        waitForHomeSurface()
+        openHomeWorkbench()
 
         XCTAssertNotNil(waitForElement(withIdentifier: AppUIIdentifiers.workbenchOverlay, timeout: 8))
         XCTAssertNotNil(waitForElement(withIdentifier: AppUIIdentifiers.workbenchSnapshotCard, timeout: 5))
@@ -25,7 +15,8 @@ final class MainAppFlowTests: RealAppUITestCase {
 
     func test_chatTab_loadsRealScreen() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
+        waitForHomeSurface()
+        openHomeWorkbench()
 
         let chatTab = button(withIdentifier: AppUIIdentifiers.chatTab)
         XCTAssertTrue(chatTab.waitForExistence(timeout: 5))
@@ -54,7 +45,8 @@ final class MainAppFlowTests: RealAppUITestCase {
 
     func test_mapTab_loadsRealScreen() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
+        waitForHomeSurface()
+        openHomeWorkbench()
 
         let mapTab = button(withIdentifier: AppUIIdentifiers.mapTab)
         XCTAssertTrue(mapTab.waitForExistence(timeout: 5))
@@ -82,7 +74,8 @@ final class MainAppFlowTests: RealAppUITestCase {
 
     func test_studyTab_loadsRealScreen() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
+        waitForHomeSurface()
+        openHomeWorkbench()
 
         let studyTab = button(withIdentifier: AppUIIdentifiers.studyTab)
         XCTAssertTrue(studyTab.waitForExistence(timeout: 5))
@@ -102,7 +95,8 @@ final class MainAppFlowTests: RealAppUITestCase {
 
     func test_profileTab_loadsRealScreen() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
+        waitForHomeSurface()
+        openHomeWorkbench()
 
         let profileTab = button(withIdentifier: AppUIIdentifiers.profileTab)
         XCTAssertTrue(profileTab.waitForExistence(timeout: 5))
@@ -120,43 +114,39 @@ final class MainAppFlowTests: RealAppUITestCase {
         XCTAssertNotNil(waitForElement(withIdentifier: AppUIIdentifiers.profileScreen, timeout: 8))
     }
 
-    func test_homeBotBubble_opensTrixBotChat() throws {
+    func test_homeBotBubble_opensInlineAssistantComposer() throws {
         try launchAuthenticated(initialTab: "home", expectedIdentifier: AppUIIdentifiers.homeScreen)
-        XCTAssertTrue(waitForMainNavigationReady(selectedTabIdentifier: AppUIIdentifiers.selectedHomeTab))
+        waitForHomeSurface()
 
         guard let bubble = waitForElement(withIdentifier: AppUIIdentifiers.homeBotBubble, timeout: 8) else {
             return XCTFail("Expected TRIX bot bubble to appear on the home screen.")
         }
         _ = tapReliably(bubble)
 
-        let destination = waitForEither(
-            [
-                AppUIIdentifiers.trixBotScreen,
-                AppUIIdentifiers.pairingScreen,
-                AppUIIdentifiers.selectedChatTab
-            ],
-            timeout: 10
-        )
-
-        if destination == nil {
+        if waitForElement(withIdentifier: AppUIIdentifiers.homeBotExpandedCard, timeout: 8) == nil {
             attachDebugHierarchy(named: "home-bot-after-tap")
-            XCTFail("Expected Home bot bubble to open chat, pairing, or TRIX Bot flow.")
+            XCTFail("Expected Home bot bubble to expand into the inline assistant composer.")
         }
 
-        let finalDestination = waitForEither(
-            [AppUIIdentifiers.trixBotScreen, AppUIIdentifiers.pairingScreen],
-            timeout: 10
-        )
+    }
 
-        if finalDestination == nil {
-            attachDebugHierarchy(named: "home-bot-after-tap")
-            XCTFail("Expected Home bot bubble to present pairing or TRIX Bot screen.")
+    private func waitForHomeSurface() {
+        XCTAssertNotNil(waitForElement(withIdentifier: AppUIIdentifiers.homeScreen, timeout: 8))
+        XCTAssertNotNil(waitForElement(withIdentifier: AppUIIdentifiers.selectedHomeTab, timeout: 8))
+    }
+
+    private func openHomeWorkbench() {
+        if waitForElement(withIdentifier: AppUIIdentifiers.workbenchOverlay, timeout: 1) != nil {
+            return
         }
 
-        if element(withIdentifier: AppUIIdentifiers.trixBotScreen).exists,
-           waitForElement(withIdentifier: AppUIIdentifiers.trixBotSendButton, timeout: 5) == nil {
-            attachDebugHierarchy(named: "home-bot-missing-send")
-            XCTFail("Expected TRIX Bot send button to appear.")
+        var openedWorkbench = false
+        for _ in 0..<3 where !openedWorkbench {
+            tapCenterOfApp()
+            openedWorkbench = waitForElement(withIdentifier: AppUIIdentifiers.workbenchOverlay, timeout: 3) != nil
         }
+
+        XCTAssertTrue(openedWorkbench, "Expected workbench overlay to appear after tapping the home surface.")
+        XCTAssertTrue(waitForHittable(button(withIdentifier: AppUIIdentifiers.chatTab), timeout: 5))
     }
 }

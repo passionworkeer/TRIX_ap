@@ -694,9 +694,28 @@ struct StudyRoomView: View {
 
     private var backgroundGradient: some View {
         ZStack {
-            Image("StudyRoomBG")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.08, blue: 0.20),
+                    Color.brandPurple.opacity(0.9),
+                    Color.brandPink.opacity(0.7),
+                    Color(red: 0.05, green: 0.09, blue: 0.18)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 280, height: 280)
+                .blur(radius: 40)
+                .offset(x: -120, y: -220)
+
+            Circle()
+                .fill(Color.brandPink.opacity(0.20))
+                .frame(width: 220, height: 220)
+                .blur(radius: 35)
+                .offset(x: 130, y: 240)
 
             LinearGradient(
                 colors: [

@@ -7,6 +7,40 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+function createMockTable({
+  selectData = null,
+  selectError = null,
+  updateError = null,
+  upsertData = null,
+  upsertError = null,
+}: {
+  selectData?: unknown;
+  selectError?: unknown;
+  updateError?: unknown;
+  upsertData?: unknown;
+  upsertError?: unknown;
+} = {}) {
+  const updateResult = Promise.resolve({ error: updateError });
+
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        single: vi.fn(() => Promise.resolve({ data: selectData, error: selectError })),
+      })),
+    })),
+    update: vi.fn(() => ({
+      match: vi.fn(() => updateResult),
+      eq: vi.fn(() => updateResult),
+    })),
+    upsert: vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(() => Promise.resolve({ data: upsertData, error: upsertError })),
+      })),
+    })),
+    delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
+  };
+}
+
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(),
@@ -33,14 +67,7 @@ vi.mock('../config/supabase', () => ({
     auth: {
       getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
     },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-      })),
-      update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-      delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-    })),
+    from: vi.fn(() => createMockTable()),
   },
 }));
 
@@ -49,6 +76,7 @@ vi.mock('../utils/logger', () => ({
   logger: {
     auth: {
       info: vi.fn(),
+      debug: vi.fn(),
       error: vi.fn(),
       warn: vi.fn(),
     },
@@ -83,14 +111,7 @@ describe('sessionService', () => {
     vi.mocked(supabase.auth.getSession).mockReset();
 
     // Set default return for supabase.from that returns null data
-    vi.mocked(supabase.from).mockImplementation(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-      })),
-      update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-      delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-    }));
+    vi.mocked(supabase.from).mockImplementation(() => createMockTable());
 
     // Default auth mock
     vi.mocked(supabase.auth.getSession).mockResolvedValue({ data: { session: null }, error: null });
@@ -192,28 +213,78 @@ describe('sessionService', () => {
   // upsertSession Tests
   // ============================================
   describe('upsertSession', () => {
-    it('should return null when insert fails', async () => {
+    it('should return null when upsert fails', async () => {
       mockLocalStorage.getItem.mockReturnValue('web-device-1');
 
-      // Override insert to fail
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
-        return {
-          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-          insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: { message: 'Insert failed' } })) })) })),
-          delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        };
-      });
+      // Override upsert to fail
+      vi.mocked(supabase.from).mockImplementation(() =>
+        createMockTable({ upsertError: { message: 'Upsert failed' } }),
+      );
 
       const result = await upsertSession('user-123');
 
       expect(result).toBeNull();
     });
 
-    // Skipped: Complex mocking of Supabase query chain required
     it('should store session ID to localStorage on success', async () => {
-      // This test requires complex mocking of chained Supabase methods
-      // Skipped due to vi.mock limitations with method chains
+      mockLocalStorage.getItem.mockImplementation((key: string) => {
+        if (key === 'trix_device_id') return 'web-device-1';
+        return null;
+      });
+
+      const upsertedSession = {
+        id: 'session-123',
+        user_id: 'user-123',
+        platform: 'web',
+        device_id: 'web-device-1',
+        device_name: 'Chrome on Win32',
+        is_active: true,
+        created_at: '2026-03-31T00:00:00.000Z',
+        last_active_at: '2026-03-31T00:00:00.000Z',
+        expires_at: '2026-04-01T00:00:00.000Z',
+      } satisfies UserSession;
+
+      const userSessionsUpsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: upsertedSession, error: null })),
+        })),
+      }));
+      const profilesEq = vi.fn(() => Promise.resolve({ error: null }));
+      const profilesUpdate = vi.fn(() => ({ eq: profilesEq }));
+
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'user_sessions') {
+          return {
+            upsert: userSessionsUpsert,
+          } as any;
+        }
+
+        if (table === 'profiles') {
+          return {
+            update: profilesUpdate,
+          } as any;
+        }
+
+        return createMockTable() as any;
+      });
+
+      const result = await upsertSession('user-123');
+
+      expect(result).toEqual(upsertedSession);
+      expect(userSessionsUpsert).toHaveBeenCalledWith({
+        user_id: 'user-123',
+        platform: 'web',
+        device_id: 'web-device-1',
+        device_name: 'Chrome on Win32',
+        is_active: true,
+        last_active_at: expect.any(String),
+        expires_at: expect.any(String),
+      }, {
+        onConflict: 'user_id,platform',
+      });
+      expect(profilesUpdate).toHaveBeenCalledWith({ active_session_id: 'session-123' });
+      expect(profilesEq).toHaveBeenCalledWith('id', 'user-123');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('trix_session_id', 'session-123');
     });
   });
 
@@ -230,33 +301,34 @@ describe('sessionService', () => {
     });
 
     it('should clear local session ID when session exists', async () => {
-      mockLocalStorage.getItem.mockReturnValue('session-to-revoke');
+      mockLocalStorage.getItem.mockImplementation((key: string) => {
+        if (key === 'trix_session_id') return 'session-to-revoke';
+        if (key === 'trix_device_id') return 'web-test-uuid-1234-5678-9012';
+        return null;
+      });
+      const match = vi.fn(() => Promise.resolve({ error: null }));
+      const update = vi.fn(() => ({ match }));
 
       vi.mocked(supabase.from).mockReturnValueOnce({
-        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-        })),
-        insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-        delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      });
+        update,
+      } as any);
 
       await revokeSession();
 
+      expect(update).toHaveBeenCalledWith({ is_active: false });
+      expect(match).toHaveBeenCalledWith({
+        id: 'session-to-revoke',
+        device_id: 'web-test-uuid-1234-5678-9012',
+      });
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('trix_session_id');
     });
 
     it('should handle database errors gracefully', async () => {
       mockLocalStorage.getItem.mockReturnValue('session-with-error');
 
-      vi.mocked(supabase.from).mockReturnValueOnce({
-        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: new Error('DB Error') })) })),
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-        })),
-        insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-        delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      });
+      vi.mocked(supabase.from).mockReturnValueOnce(
+        createMockTable({ updateError: new Error('DB Error') }),
+      );
 
       // Should not throw
       await expect(revokeSession()).resolves.not.toThrow();
@@ -279,34 +351,36 @@ describe('sessionService', () => {
     });
 
     it('should call supabase.from when session exists', async () => {
-      mockLocalStorage.getItem.mockReturnValue('active-session');
+      mockLocalStorage.getItem.mockImplementation((key: string) => {
+        if (key === 'trix_session_id') return 'active-session';
+        if (key === 'trix_device_id') return 'web-test-uuid-1234-5678-9012';
+        return null;
+      });
+      const match = vi.fn(() => Promise.resolve({ error: null }));
+      const update = vi.fn(() => ({ match }));
 
       vi.mocked(supabase.from).mockReturnValueOnce({
-        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-        })),
-        insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-        delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      });
+        update,
+      } as any);
 
       await touchSession();
 
       expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('user_sessions');
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(match).toHaveBeenCalledWith({
+        id: 'active-session',
+        device_id: 'web-test-uuid-1234-5678-9012',
+        is_active: true,
+      });
       expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
     });
 
     it('should handle database errors gracefully', async () => {
       mockLocalStorage.getItem.mockReturnValue('session-with-error');
 
-      vi.mocked(supabase.from).mockReturnValueOnce({
-        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: new Error('DB Error') })) })),
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-        })),
-        insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-        delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-      });
+      vi.mocked(supabase.from).mockReturnValueOnce(
+        createMockTable({ updateError: new Error('DB Error') }),
+      );
 
       // Should not throw
       await expect(touchSession()).resolves.not.toThrow();
@@ -331,14 +405,7 @@ describe('sessionService', () => {
         mockLocalStorage.getItem.mockReturnValue('non-existent-session');
 
         // Return null data to simulate session not found
-        vi.mocked(supabase.from).mockReturnValueOnce({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })),
-          })),
-          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-          insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-          delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        });
+        vi.mocked(supabase.from).mockReturnValueOnce(createMockTable());
 
         const result = await checkSessionValidity();
 
@@ -346,29 +413,28 @@ describe('sessionService', () => {
         expect(result.reason).toBe('not_found');
       });
 
-      it('should return not_found when user not authenticated', async () => {
-        mockLocalStorage.getItem.mockReturnValue('some-session');
-
-        // Session found
-        vi.mocked(supabase.from).mockReturnValueOnce({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 'some-session', is_active: true, expires_at: '2099-01-01T00:00:00Z' }, error: null })) })),
-          })),
-          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-          insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-          delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
+      it('should return mismatch when session row belongs to another device', async () => {
+        mockLocalStorage.getItem.mockImplementation((key: string) => {
+          if (key === 'trix_session_id') return 'some-session';
+          if (key === 'trix_device_id') return 'web-local-device';
+          return null;
         });
 
-        // User not authenticated
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: null },
-          error: null,
-        });
+        vi.mocked(supabase.from).mockReturnValueOnce(
+          createMockTable({
+            selectData: {
+              id: 'some-session',
+              is_active: true,
+              expires_at: '2099-01-01T00:00:00Z',
+              device_id: 'web-other-device',
+            },
+          }),
+        );
 
         const result = await checkSessionValidity();
 
         expect(result.isValid).toBe(false);
-        expect(result.reason).toBe('not_found');
+        expect(result.reason).toBe('mismatch');
       });
     });
 
@@ -376,14 +442,16 @@ describe('sessionService', () => {
       it('should return expired when session has passed expires_at', async () => {
         mockLocalStorage.getItem.mockReturnValue('expired-session');
 
-        vi.mocked(supabase.from).mockReturnValueOnce({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 'expired-session', is_active: true, expires_at: '2020-01-01T00:00:00Z' }, error: null })) })),
-          })),
-          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-          insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-          delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        });
+        vi.mocked(supabase.from).mockReturnValueOnce(
+          createMockTable({
+            selectData: {
+              id: 'expired-session',
+              is_active: true,
+              expires_at: '2020-01-01T00:00:00Z',
+              device_id: 'web-test-uuid-1234-5678-9012',
+            },
+          }),
+        );
 
         const result = await checkSessionValidity();
 
@@ -396,14 +464,16 @@ describe('sessionService', () => {
       it('should return revoked when session is_active is false', async () => {
         mockLocalStorage.getItem.mockReturnValue('revoked-session');
 
-        vi.mocked(supabase.from).mockReturnValueOnce({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 'revoked-session', is_active: false, expires_at: '2099-01-01T00:00:00Z' }, error: null })) })),
-          })),
-          update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-          insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })),
-          delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) })),
-        });
+        vi.mocked(supabase.from).mockReturnValueOnce(
+          createMockTable({
+            selectData: {
+              id: 'revoked-session',
+              is_active: false,
+              expires_at: '2099-01-01T00:00:00Z',
+              device_id: 'web-test-uuid-1234-5678-9012',
+            },
+          }),
+        );
 
         const result = await checkSessionValidity();
 
@@ -412,19 +482,55 @@ describe('sessionService', () => {
       });
     });
 
-    // Skipped: Complex mocking of Supabase query chain required
     describe('mismatch scenario', () => {
-      it('should return mismatch when local ID does not match profile active_session_id', async () => {
-        // This test requires complex mocking of chained Supabase methods
-        // Skipped due to vi.mock limitations with method chains
+      it('should return mismatch when session row device_id does not match local device id', async () => {
+        mockLocalStorage.getItem.mockImplementation((key: string) => {
+          if (key === 'trix_session_id') return 'mismatch-session';
+          if (key === 'trix_device_id') return 'web-local-device';
+          return null;
+        });
+
+        vi.mocked(supabase.from).mockReturnValueOnce(
+          createMockTable({
+            selectData: {
+              id: 'mismatch-session',
+              is_active: true,
+              expires_at: '2099-01-01T00:00:00Z',
+              device_id: 'web-replaced-device',
+            },
+          }),
+        );
+
+        const result = await checkSessionValidity();
+
+        expect(result.isValid).toBe(false);
+        expect(result.reason).toBe('mismatch');
       });
     });
 
-    // Skipped: Complex mocking of Supabase query chain required
     describe('valid scenario', () => {
       it('should return valid when all checks pass', async () => {
-        // This test requires complex mocking of chained Supabase methods
-        // Skipped due to vi.mock limitations with method chains
+        mockLocalStorage.getItem.mockImplementation((key: string) => {
+          if (key === 'trix_session_id') return 'valid-session';
+          if (key === 'trix_device_id') return 'web-valid-device';
+          return null;
+        });
+
+        vi.mocked(supabase.from).mockReturnValueOnce(
+          createMockTable({
+            selectData: {
+              id: 'valid-session',
+              is_active: true,
+              expires_at: '2099-01-01T00:00:00Z',
+              device_id: 'web-valid-device',
+            },
+          }),
+        );
+
+        const result = await checkSessionValidity();
+
+        expect(result.isValid).toBe(true);
+        expect(result.reason).toBe('valid');
       });
     });
 

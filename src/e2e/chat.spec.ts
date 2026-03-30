@@ -19,7 +19,7 @@ test.describe('Chat Page E2E Tests', () => {
     await loginWithSupabase(page);
 
     // Navigate to chat page
-    await page.goto('/chat');
+    await page.goto('/#/chat');
 
     // Wait for page to load - use more robust waiting
     await page.waitForLoadState('domcontentloaded');
@@ -333,7 +333,7 @@ test.describe('Chat Page E2E Tests', () => {
 
   test('T2.1.9: should display loading state while fetching friends', async ({ page }) => {
     // Navigate to chat page
-    await page.goto('/chat');
+    await page.goto('/#/chat');
 
     // Wait for initial load
     await page.waitForLoadState('domcontentloaded');

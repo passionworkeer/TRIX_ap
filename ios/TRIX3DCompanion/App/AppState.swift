@@ -279,6 +279,7 @@ final class AppState: ObservableObject {
     private func setupDeferredServices() async {
         setupNetworkMonitoring()
         setupAuthObservers()
+        setupThemeObservers()
         loadUserPreferences()
     }
 
@@ -315,6 +316,15 @@ final class AppState: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] user in
                 self?.currentUser = user
+            }
+            .store(in: &cancellables)
+    }
+
+    private func setupThemeObservers() {
+        ThemeManager.shared.$currentTheme
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
             .store(in: &cancellables)
     }
@@ -426,6 +436,26 @@ final class AppState: ObservableObject {
         loadingMessage = nil
 
         SecureLogger.shared.authEvent("User logged out successfully")
+    }
+
+    /// Delete current user account
+    @discardableResult
+    func deleteAccount() async -> AuthResult<Void> {
+        isLoading = true
+        loadingMessage = NSLocalizedString("profile.privacy.delete.account", comment: "")
+
+        let result = await authService.deleteAccount()
+
+        if case .success = result {
+            currentUser = nil
+            isLoggedIn = false
+            selectedTab = .home
+            SecureLogger.shared.authEvent("User deleted account successfully")
+        }
+
+        isLoading = false
+        loadingMessage = nil
+        return result
     }
 
     // MARK: - Public Methods - User Preferences

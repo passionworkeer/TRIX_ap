@@ -13,18 +13,26 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
                 "--ui-open-trixbot",
                 "--ui-trixbot-prefill=/status",
                 "--ui-trixbot-auto-send",
-                "--ui-trixbot-auto-send-delay-ms=1200",
+                "--ui-trixbot-auto-send-delay-ms=35000",
             ]
         )
 
-        let pairedBanner = element(withIdentifier: AppUIIdentifiers.trixBotPairedBanner)
         XCTAssertTrue(
-            pairedBanner.waitForExistence(timeout: 15),
-            "Expected paired banner to appear for the restored native session."
+            waitForPairedChatReady(timeout: 15),
+            "Expected restored native session to reopen an interactive TRIX Bot chat."
         )
 
-        let reply = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", "OpenClaw")).firstMatch
-        XCTAssertTrue(reply.waitForExistence(timeout: 90), "Expected /status to receive an OpenClaw status reply.")
+        let initialBotMessageIdentifiers = uniqueElementIdentifiers(
+            matchingPrefix: AppUIIdentifiers.trixBotBotMessagePrefix
+        )
+
+        let statusReply = waitForNewMessage(
+            after: initialBotMessageIdentifiers,
+            matchingPrefix: AppUIIdentifiers.trixBotBotMessagePrefix,
+            containing: "OpenClaw",
+            timeout: 120
+        )
+        XCTAssertNotNil(statusReply, "Expected /status to receive a new bot reply mentioning OpenClaw.")
     }
 
     func test_sameAccountRestoresNativePairingAndSendsImageMessage() throws {
@@ -46,7 +54,6 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
         )
 
         let trixBotScreen = element(withIdentifier: AppUIIdentifiers.trixBotScreen)
-        let pairedBanner = element(withIdentifier: AppUIIdentifiers.trixBotPairedBanner)
         let attachmentPreview = element(withIdentifier: AppUIIdentifiers.trixBotAttachmentPreview)
         let sendButton = button(withIdentifier: AppUIIdentifiers.trixBotSendButton)
 
@@ -55,8 +62,8 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
             "Expected TRIX Bot screen to open for image send validation."
         )
         XCTAssertTrue(
-            pairedBanner.waitForExistence(timeout: 15),
-            "Expected paired banner to appear for restored image send validation."
+            waitForPairedChatReady(timeout: 15),
+            "Expected restored image-send session to reopen an interactive TRIX Bot chat."
         )
         XCTAssertTrue(
             attachmentPreview.waitForExistence(timeout: 8),
@@ -64,11 +71,16 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
         )
         XCTAssertTrue(waitForHittable(sendButton, timeout: 8), "Expected send button to become hittable for image send.")
 
-        let reply = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", token)).firstMatch
-        XCTAssertTrue(
-            reply.waitForExistence(timeout: 120),
-            "Expected image-backed prompt to receive tokenized reply."
+        let initialBotMessageIdentifiers = uniqueElementIdentifiers(
+            matchingPrefix: AppUIIdentifiers.trixBotBotMessagePrefix
         )
+        let reply = waitForNewMessage(
+            after: initialBotMessageIdentifiers,
+            matchingPrefix: AppUIIdentifiers.trixBotBotMessagePrefix,
+            containing: token,
+            timeout: 120
+        )
+        XCTAssertNotNil(reply, "Expected image-backed prompt to receive a tokenized bot reply.")
     }
 
     private func ensureNativePairingRestored() throws {
@@ -102,8 +114,8 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
             "Same account should restore native pairing instead of showing the pairing screen."
         )
         XCTAssertTrue(
-            element(withIdentifier: AppUIIdentifiers.trixBotPairedBanner).waitForExistence(timeout: 10),
-            "Expected paired banner to appear for the restored native session."
+            waitForPairedChatReady(timeout: 12),
+            "Expected restored native session to reopen an interactive TRIX Bot chat."
         )
     }
 
@@ -163,6 +175,32 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
         return .unknown
     }
 
+    private func waitForPairedChatReady(timeout: TimeInterval) -> Bool {
+        let trixBotScreen = element(withIdentifier: AppUIIdentifiers.trixBotScreen)
+        let pairingScreen = element(withIdentifier: AppUIIdentifiers.pairingScreen)
+        let unpairedBanner = element(withIdentifier: AppUIIdentifiers.trixBotUnpairedBanner)
+        let inputField = textInput(withIdentifier: AppUIIdentifiers.trixBotInputField)
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if trixBotScreen.exists &&
+                !pairingScreen.exists &&
+                inputField.exists &&
+                inputField.isEnabled &&
+                !unpairedBanner.exists {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+
+        return trixBotScreen.exists &&
+            !pairingScreen.exists &&
+            inputField.exists &&
+            inputField.isEnabled &&
+            !unpairedBanner.exists
+    }
+
     private func launchChatList(extraArguments: [String] = []) throws {
         try launchAuthenticated(
             initialTab: "chat",
@@ -207,16 +245,50 @@ final class TrixBotNativeFlowTests: RealAppUITestCase {
         }
     }
 
-    private func createPairingCode(accountId: String = "default") throws -> String {
+    private func waitForNewMessage(
+        after existingIdentifiers: Set<String>,
+        matchingPrefix prefix: String,
+        containing text: String,
+        timeout: TimeInterval
+    ) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            let candidates = elements(withIdentifierPrefix: prefix)
+                .allElementsBoundByIndex
+                .filter { element in
+                    element.exists &&
+                    !existingIdentifiers.contains(element.identifier) &&
+                    element.label.localizedCaseInsensitiveContains(text)
+                }
+
+            if let candidate = candidates.first {
+                return candidate
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+
+        return elements(withIdentifierPrefix: prefix)
+            .allElementsBoundByIndex
+            .first { element in
+                element.exists &&
+                !existingIdentifiers.contains(element.identifier) &&
+                element.label.localizedCaseInsensitiveContains(text)
+            }
+    }
+
+    private func createPairingCode(accountId: String? = nil) throws -> String {
         let config = try resolvePairingBootstrapConfig()
         let url = config.serviceURL.appendingPathComponent("api/pairings")
+        let resolvedAccountId = accountId ?? "ios-ui-\(UUID().uuidString.lowercased())"
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(config.serviceToken)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "accountId": accountId,
+            "accountId": resolvedAccountId,
             "label": "iOS UI Test"
         ])
 

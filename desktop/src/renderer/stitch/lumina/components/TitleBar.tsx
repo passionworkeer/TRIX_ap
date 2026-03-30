@@ -36,7 +36,7 @@ export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
         WebkitAppRegion: 'drag',
         zIndex: 100,
         position: 'relative',
-      }}
+      } as React.CSSProperties & { WebkitAppRegion?: 'drag' }}
     >
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
@@ -64,7 +64,7 @@ export const LuminaTitleBar = ({ children }: LuminaTitleBarProps) => {
           display: 'flex', alignItems: 'stretch',
           marginLeft: 'auto', height: '100%',
           WebkitAppRegion: 'no-drag',
-        }}
+        } as React.CSSProperties & { WebkitAppRegion?: 'no-drag' }}
       >
         <WinBtn title="最小化" onClick={() => window.electronAPI?.windowMinimize()}>
           <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor" /></svg>

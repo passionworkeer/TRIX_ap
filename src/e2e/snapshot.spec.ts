@@ -376,6 +376,12 @@ test.describe('Snapshot Page E2E Tests', () => {
       return;
     }
 
+    // Seed browser history so the back action has a deterministic target.
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(500);
+    await page.goto('/#/snapshot');
+
     // Wait for page to fully load
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);

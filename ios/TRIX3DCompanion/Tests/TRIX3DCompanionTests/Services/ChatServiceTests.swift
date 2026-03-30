@@ -120,6 +120,7 @@ final class MockWebSocketManagerForChat: ClawbotChannelServiceProtocol {
     var mockError: Error?
     @Published var connectionState: ClawbotConnectionState = .disconnected
     @Published var isPaired: Bool = false
+    @Published var messages: [ClawbotMessage] = []
     @Published var lastMessage: ClawbotMessage?
     @Published var botBehaviorState: BotBehaviorState = .idle
     @Published var botConnectionState: BotConnectionState = .unknown

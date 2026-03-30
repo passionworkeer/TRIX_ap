@@ -400,6 +400,7 @@ struct PairingView: View {
             }
             .frame(maxWidth: 280)
             .padding(.top, 16)
+            .accessibilityIdentifier(PairingAccessibilityIdentifiers.startChatButton)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 28)

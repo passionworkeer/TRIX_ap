@@ -36,6 +36,16 @@ struct LiveBackendTestConfig: Decodable {
 class LiveBackendSmokeTestCase: XCTestCase {
     let config = LiveBackendTestConfig.load()
 
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+
+        guard isLiveBackendSmokeEnabled() else {
+            throw XCTSkip(
+                "Live backend smoke tests are opt-in. Set TRIX_RUN_LIVE_SMOKE=1 or pass --live-backend-smoke to enable."
+            )
+        }
+    }
+
     func requireCredentials() throws -> (email: String, password: String) {
         let environment = ProcessInfo.processInfo.environment
 
@@ -92,5 +102,14 @@ class LiveBackendSmokeTestCase: XCTestCase {
             return nil
         }
         return infoValue
+    }
+
+    private func isLiveBackendSmokeEnabled() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment["TRIX_RUN_LIVE_SMOKE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            return ["1", "true", "yes", "on"].contains(value)
+        }
+
+        return ProcessInfo.processInfo.arguments.contains("--live-backend-smoke")
     }
 }

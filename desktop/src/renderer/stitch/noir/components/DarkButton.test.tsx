@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { DarkButton } from './DarkButton';
 
 describe('DarkButton', () => {
@@ -106,7 +105,7 @@ describe('DarkButton', () => {
       const handleClick = vi.fn();
       render(<DarkButton label="Disabled" disabled onClick={handleClick} />);
       const button = screen.getByRole('button', { name: /disabled/i });
-      await userEvent.click(button);
+      fireEvent.click(button);
       expect(handleClick).not.toHaveBeenCalled();
     });
 
@@ -114,7 +113,7 @@ describe('DarkButton', () => {
       const handleClick = vi.fn();
       render(<DarkButton label="Loading" loading onClick={handleClick} />);
       const button = screen.getByRole('button', { name: /loading/i });
-      await userEvent.click(button);
+      fireEvent.click(button);
       expect(handleClick).not.toHaveBeenCalled();
     });
   });
@@ -124,7 +123,7 @@ describe('DarkButton', () => {
       const handleClick = vi.fn();
       render(<DarkButton label="Click Me" onClick={handleClick} />);
       const button = screen.getByRole('button', { name: /click me/i });
-      await userEvent.click(button);
+      fireEvent.click(button);
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
 

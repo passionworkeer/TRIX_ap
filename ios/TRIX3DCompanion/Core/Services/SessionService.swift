@@ -40,7 +40,7 @@ struct UserSessionRow: Codable, Sendable {
 /// Result of session validity check
 enum SessionValidity: Sendable {
     case valid
-    case mismatch          // session ID does not match DB
+    case mismatch          // session row no longer belongs to this device
     case expired           // session has expired
     case revoked           // marked inactive
     case notFound          // no local session
@@ -76,13 +76,14 @@ private struct ProfileSessionUpdate: Encodable {
     }
 }
 
-/// Payload for inserting a new user session
-private struct SessionInsertPayload: Encodable {
+/// Payload for upserting the per-platform user session row
+private struct SessionUpsertPayload: Encodable {
     let userId: String
     let platform: String
     let deviceId: String
     let deviceName: String
     let isActive: Bool
+    let lastActiveAt: String
     let expiresAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -91,6 +92,7 @@ private struct SessionInsertPayload: Encodable {
         case deviceId = "device_id"
         case deviceName = "device_name"
         case isActive = "is_active"
+        case lastActiveAt = "last_active_at"
         case expiresAt = "expires_at"
     }
 }
@@ -174,48 +176,41 @@ actor SessionService {
 
     // MARK: - Public API
 
-    /// Upsert a new session for the current user. Marks any existing session for this platform as inactive.
+    /// Upsert the per-platform session row for the current user.
     /// - Parameter userId: The authenticated user's ID
-    /// - Returns: The newly created session row
+    /// - Returns: The current session row for this device/platform
     @discardableResult
     func upsertSession(userId: String) async throws -> UserSessionRow {
         let deviceId = keychain.getOrCreateDeviceId()
         let deviceName = getDeviceName()
+        let now = ISO8601DateFormatter().string(from: Date())
         let expiresAt = ISO8601DateFormatter().string(
             from: Date().addingTimeInterval(TimeInterval(Self.sessionExpiryHours * 3600))
         )
 
-        // 1. Mark old sessions as inactive
-        let inactiveUpdate = SessionActiveUpdate(isActive: false)
-        let _: [UserSessionRow]? = try? await authenticatedRequest { client in
-            try await client.from("user_sessions")
-                .update(inactiveUpdate, returning: .representation)
-                .eq("user_id", value: userId)
-                .eq("platform", value: Self.platform)
-                .eq("is_active", value: true)
-                .execute()
-                .value
-        }
-
-        // 2. Insert new session
-        let insertPayload = SessionInsertPayload(
+        let upsertPayload = SessionUpsertPayload(
             userId: userId,
             platform: Self.platform,
             deviceId: deviceId,
             deviceName: deviceName,
             isActive: true,
+            lastActiveAt: now,
             expiresAt: expiresAt
         )
         let newSession: UserSessionRow = try await authenticatedRequest { client in
             try await client.from("user_sessions")
-                .insert(insertPayload, returning: .representation)
+                .upsert(
+                    upsertPayload,
+                    onConflict: "user_id,platform",
+                    returning: .representation
+                )
                 .select()
                 .single()
                 .execute()
                 .value
         }
 
-        // 3. Update profiles.active_session_id
+        // 2. Update profiles.active_session_id for backwards compatibility.
         let profileUpdate = ProfileSessionUpdate(activeSessionId: newSession.id)
         let _: [ProfileRow]? = try? await authenticatedRequest { client in
             try await client.from("profiles")
@@ -225,7 +220,7 @@ actor SessionService {
                 .value
         }
 
-        // 4. Persist locally
+        // 3. Persist locally
         storeLocalSessionId(newSession.id)
 
         SecureLogger.shared.info("[SessionService] Session upserted: \(newSession.id)")
@@ -235,6 +230,7 @@ actor SessionService {
     /// Revoke the current session on logout.
     func revokeSession() async {
         guard let sessionId = getLocalSessionId() else { return }
+        let deviceId = keychain.getOrCreateDeviceId()
 
         do {
             let userId = try getCurrentUserId()
@@ -243,6 +239,7 @@ actor SessionService {
                 try await client.from("user_sessions")
                     .update(inactiveUpdate, returning: .representation)
                     .eq("id", value: sessionId.uuidString)
+                    .eq("device_id", value: deviceId)
                     .execute()
                     .value
             }
@@ -264,6 +261,7 @@ actor SessionService {
     /// Touch the current session to update last_active_at.
     func touchSession() async {
         guard let sessionId = getLocalSessionId() else { return }
+        let deviceId = keychain.getOrCreateDeviceId()
 
         let touchUpdate = SessionTouchUpdate(
             lastActiveAt: ISO8601DateFormatter().string(from: Date())
@@ -272,21 +270,23 @@ actor SessionService {
             try await client.from("user_sessions")
                 .update(touchUpdate, returning: .representation)
                 .eq("id", value: sessionId.uuidString)
+                .eq("device_id", value: deviceId)
                 .eq("is_active", value: true)
                 .execute()
                 .value
         }
     }
 
-    /// Check if the local session is still valid by comparing against the DB.
+    /// Check if the local session is still valid by comparing against the current platform row.
     /// - Returns: SessionValidity indicating the result
     func checkSessionValidity() async -> SessionValidity {
         guard let localId = getLocalSessionId() else {
             return .notFound
         }
+        let localDeviceId = keychain.getOrCreateDeviceId()
 
         do {
-            // 1. Check if the session row still exists and is active
+            // The current platform row is replaced via upsert, so device_id must still match.
             let sessions: [UserSessionRow] = try await authenticatedRequest { req in
                 try await req.from("user_sessions")
                     .select("*")
@@ -309,24 +309,10 @@ actor SessionService {
                 return .expired
             }
 
-            // 2. Compare with profiles.active_session_id
-            let userId = try getCurrentUserId()
-            let profiles: [ProfileRow] = try await authenticatedRequest { client in
-                try await client.from("profiles")
-                    .select("active_session_id")
-                    .eq("id", value: userId)
-                    .limit(1)
-                    .execute()
-                    .value
-            }
-
-            guard let profile = profiles.first,
-                  let dbSessionId = profile.activeSessionId else {
-                return .notFound
-            }
-
-            if dbSessionId != localId {
-                SecureLogger.shared.warning("[SessionService] Session mismatch: local=\(localId), db=\(dbSessionId)")
+            if session.deviceId != localDeviceId {
+                SecureLogger.shared.warning(
+                    "[SessionService] Session mismatch: local=\(localId), localDevice=\(localDeviceId), dbDevice=\(session.deviceId)"
+                )
                 return .mismatch
             }
 

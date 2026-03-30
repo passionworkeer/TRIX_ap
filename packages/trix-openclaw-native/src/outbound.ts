@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { AttachmentStore } from './attachments/AttachmentStore.js';
 import { parseTrixTarget } from './bindings.js';
 import { resolveTrixAccount } from './account.js';
+import { fetchWithTimeout } from './http.js';
 import type { OutboundReplyPayloadLike, ResolvedPluginAccount } from './types.js';
+
+const SERVICE_POST_MAX_ATTEMPTS = 3;
+const SERVICE_POST_RETRY_BASE_DELAY_MS = 400;
 
 function buildResult(channel: string, ok: boolean, messageId?: string, error?: unknown) {
   return {
@@ -11,6 +15,32 @@ function buildResult(channel: string, ok: boolean, messageId?: string, error?: u
     messageId: messageId ?? '',
     error: error instanceof Error ? error : error ? new Error(String(error)) : undefined,
   };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientServicePostError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const networkCode = (error as Error & { cause?: { code?: string }; code?: string }).cause?.code
+    ?? (error as Error & { code?: string }).code;
+  if (typeof networkCode === 'string' && [
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'EPIPE',
+    'ETIMEDOUT',
+    'UND_ERR_CONNECT_TIMEOUT',
+    'UND_ERR_HEADERS_TIMEOUT',
+    'UND_ERR_SOCKET',
+  ].includes(networkCode)) {
+    return true;
+  }
+
+  return /fetch failed|timed out|network/i.test(error.message);
 }
 
 async function resolveConversationId(params: {
@@ -34,13 +64,14 @@ async function resolveConversationId(params: {
     return target.conversationId;
   }
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${params.account.serviceUrl.replace(/\/$/, '')}/api/service/conversations/by-peer/${encodeURIComponent(target.peerId)}?accountId=${encodeURIComponent(params.account.accountId)}`,
     {
       headers: {
         authorization: `Bearer ${params.account.serviceToken ?? ''}`,
       },
     },
+    8_000,
   );
   if (!response.ok) {
     throw new Error(`Failed to resolve conversation for ${target.peerId}: ${response.status}`);
@@ -65,29 +96,49 @@ async function postServiceMessage(params: {
   }>;
   idempotencyKey?: string;
 }) {
-  const response = await fetch(`${params.account.serviceUrl.replace(/\/$/, '')}/api/service/messages`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${params.account.serviceToken ?? ''}`,
-    },
-    body: JSON.stringify({
-      accountId: params.account.accountId,
-      conversationId: params.conversationId,
-      message: {
-        idempotencyKey: params.idempotencyKey ?? randomUUID(),
-        text: params.text ?? '',
-        replyToMessageId: params.replyToMessageId ?? null,
-        attachments: params.attachments ?? [],
-      },
-    }),
-  });
+  const idempotencyKey = params.idempotencyKey ?? randomUUID();
+  let lastError: unknown;
 
-  if (!response.ok) {
-    throw new Error(`Service request failed: ${response.status} ${response.statusText}`);
+  for (let attempt = 1; attempt <= SERVICE_POST_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(`${params.account.serviceUrl.replace(/\/$/, '')}/api/service/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${params.account.serviceToken ?? ''}`,
+        },
+        body: JSON.stringify({
+          accountId: params.account.accountId,
+          conversationId: params.conversationId,
+          message: {
+            idempotencyKey,
+            text: params.text ?? '',
+            replyToMessageId: params.replyToMessageId ?? null,
+            attachments: params.attachments ?? [],
+          },
+        }),
+      }, 15_000);
+
+      if (!response.ok) {
+        if (attempt < SERVICE_POST_MAX_ATTEMPTS && response.status >= 500) {
+          lastError = new Error(`Service request failed: ${response.status} ${response.statusText}`);
+          await sleep(SERVICE_POST_RETRY_BASE_DELAY_MS * attempt);
+          continue;
+        }
+        throw new Error(`Service request failed: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json() as { message: { id: string } };
+    } catch (error) {
+      lastError = error;
+      if (attempt >= SERVICE_POST_MAX_ATTEMPTS || !isTransientServicePostError(error)) {
+        throw error;
+      }
+      await sleep(SERVICE_POST_RETRY_BASE_DELAY_MS * attempt);
+    }
   }
 
-  return await response.json() as { message: { id: string } };
+  throw lastError instanceof Error ? lastError : new Error('Service request failed');
 }
 
 async function resolvePayloadAttachments(params: {
@@ -214,4 +265,3 @@ export const trixOutbound = {
     }
   },
 };
-

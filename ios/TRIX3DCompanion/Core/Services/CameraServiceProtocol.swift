@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import UIKit
+import Combine
 
 // MARK: - Camera Error
 
@@ -95,6 +96,15 @@ protocol CameraServiceProtocol {
 
     /// 最后的错误
     var lastError: CameraError? { get }
+
+    /// 当前闪光灯模式发布器
+    var flashModePublisher: AnyPublisher<AVCaptureDevice.FlashMode, Never> { get }
+
+    /// 当前摄像头位置发布器
+    var cameraPositionPublisher: AnyPublisher<AVCaptureDevice.Position, Never> { get }
+
+    /// 当前会话状态发布器
+    var isSessionRunningPublisher: AnyPublisher<Bool, Never> { get }
 }
 
 // MARK: - Camera Position Extension

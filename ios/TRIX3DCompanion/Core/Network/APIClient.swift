@@ -13,15 +13,45 @@ import Alamofire
 /// Protocol for API Client operations to enable testing with mocks
 protocol APIClientProtocol {
     func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T
     func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T
     func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T
     func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T
     func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T
     func download(from url: String) async throws -> Data
+
+    func getCurrentUser() async throws -> User
+    func getUserProfile() async throws -> User
+    func updateUserProfile(_ update: ProfileUpdate) async throws -> User
+    func getUserStats() async throws -> UserStats
+    func getChatRooms() async throws -> [ChatRoom]
+    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage]
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage]
+    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage
+    func markMessageAsRead(roomId: String, messageId: String) async throws
+    func getPoints() async throws -> PointsResponse
+    func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction]
+    func deleteSnapshot(id: String) async throws
 }
 
 /// Chat-specific API methods for testing
 extension APIClientProtocol {
+    func getCurrentUser() async throws -> User {
+        try await get(.authMe)
+    }
+
+    func getUserProfile() async throws -> User {
+        try await get(.userProfile)
+    }
+
+    func updateUserProfile(_ update: ProfileUpdate) async throws -> User {
+        try await put(.userUpdateProfile, body: update)
+    }
+
+    func getUserStats() async throws -> UserStats {
+        try await get(.userStats)
+    }
+
     func getChatRooms() async throws -> [ChatRoom] { [] }
     func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] { [] }
     func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] { [] }
@@ -29,12 +59,13 @@ extension APIClientProtocol {
         throw NetworkError.custom(message: "Not implemented")
     }
     func markMessageAsRead(roomId: String, messageId: String) async throws { }
+    func deleteSnapshot(id: String) async throws {
+        let _: EmptyResponse = try await delete(.snapshot(id: id))
+    }
 }
 
 /// Stats-specific API methods
 extension APIClientProtocol {
-    func getUserStats() async throws -> UserStats { throw NetworkError.custom(message: "Not implemented") }
-    func getStudyStats(period: String) async throws -> StudyStats { throw NetworkError.custom(message: "Not implemented") }
     func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T {
         throw NetworkError.custom(message: "Not implemented")
     }
@@ -42,14 +73,8 @@ extension APIClientProtocol {
 
 /// Profile-specific API methods
 extension APIClientProtocol {
-    func getUserProfile() async throws -> User { throw NetworkError.custom(message: "Not implemented") }
-    func updateUserProfile(_ update: ProfileUpdate) async throws -> User { throw NetworkError.custom(message: "Not implemented") }
     func getPoints() async throws -> PointsResponse { throw NetworkError.custom(message: "Not implemented") }
     func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] { throw NetworkError.custom(message: "Not implemented") }
-    func getSnapshots() async throws -> [Snapshot] { throw NetworkError.custom(message: "Not implemented") }
-    func getSnapshot(id: String) async throws -> Snapshot { throw NetworkError.custom(message: "Not implemented") }
-    func createSnapshot(_ snapshot: CreateSnapshotRequest) async throws -> Snapshot { throw NetworkError.custom(message: "Not implemented") }
-    func deleteSnapshot(id: String) async throws { throw NetworkError.custom(message: "Not implemented") }
 }
 
 /// API Client for making HTTP requests

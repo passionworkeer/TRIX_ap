@@ -7,9 +7,7 @@ import renderer from 'vite-plugin-electron-renderer';
 
 const projectRoot = path.resolve(__dirname, '..');
 
-// Module-level const typed as `any` breaks the Plugin type recursion in TypeScript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// @ts-expect-error Plugin type recursion between vite and vite-plugin-electron
+// Keep plugins at module scope so the desktop renderer/main/preload builds share one config shape.
 const desktopPlugins = [
   react(),
   tailwindcss(),

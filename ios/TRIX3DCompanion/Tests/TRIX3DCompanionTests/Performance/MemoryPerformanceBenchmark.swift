@@ -14,7 +14,7 @@ import UIKit
 /// - Measure peak memory usage
 /// - Detect memory leaks through reference tracking
 /// - Monitor memory warnings and app behavior
-final class MemoryPerformanceBenchmark: XCTestCase {
+final class MemoryPerformanceBenchmark: PerformanceBenchmarkTestCase {
 
     // MARK: - Properties
 

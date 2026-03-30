@@ -79,6 +79,9 @@ const Pairing: React.FC = () => {
       logger.pairing.error('Start scanner failed:', normalizedError);
       setScannerError(normalizedError.message);
       setScannerActive(false);
+      if (normalizedError.code === 'unsupported' || normalizedError.code === 'no_camera') {
+        setMode('input');
+      }
       toast.error(normalizedError.message);
     }
   };

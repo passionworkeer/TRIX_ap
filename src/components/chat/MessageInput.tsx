@@ -37,7 +37,7 @@ interface MessageInputProps {
   onInputChange: (value: string) => void;
   onInputFocus: () => void;
   onInputBlur: () => void;
-  onSend: () => void;
+  onSend: (overrideText?: string) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onStartListening: () => void;
   onStopListening: () => void;
@@ -73,10 +73,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
   isUploadingVoice = false,
 }) => {
   const { t } = useTranslation();
+  const draftInput = isListening ? transcript : input;
+  const hasDraftText = draftInput.trim().length > 0;
+  const isExpanded = isInputFocused || hasDraftText || attachmentPreviews.length > 0;
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      onSend();
+      onSend(draftInput);
     }
   };
 
@@ -134,9 +138,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
           )}
         </AnimatePresence>
 
-        <div className={`ios-glass-surface flex flex-col gap-2 rounded-[1.75rem] p-2 transition-all duration-300 ${isInputFocused || input.trim().length > 0 ? "shadow-md" : ""}`}>
+        <div className={`ios-glass-surface flex flex-col gap-2 rounded-[1.75rem] p-2 transition-all duration-300 ${isExpanded ? 'shadow-md' : ''}`}>
           <AnimatePresence>
-            {(isInputFocused || input.trim().length > 0 || attachmentPreviews.length > 0) && (
+            {isExpanded && (
               <motion.div
                 initial={{ opacity: 0, height: 0, marginTop: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
@@ -176,7 +180,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             </motion.button>
 
             <textarea
-              value={isListening ? transcript : input}
+              value={draftInput}
               onChange={(event) => onInputChange(event.target.value)}
               onFocus={onInputFocus}
               onBlur={() => {
@@ -184,10 +188,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
               }}
               onKeyDown={handleKeyDown}
               placeholder={isListening ? t('homeBotBubble.listening') : t('messageInput.inputMessage')}
-              rows={isInputFocused || input.trim().length > 0 ? 4 : 1}
+              rows={isExpanded ? 4 : 1}
               className="flex-1 resize-none rounded-xl border-0 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-500 transition-all dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               style={{
-                minHeight: isInputFocused || input.trim().length > 0 ? '96px' : '32px',
+                minHeight: isExpanded ? '96px' : '32px',
                 maxHeight: '160px'
               }}
             />
@@ -237,15 +241,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
             <motion.button
               type="button"
-              onClick={onSend}
+              onClick={() => onSend(draftInput)}
               disabled={
-                (!input.trim() && attachmentPreviews.length === 0) ||
+                (!hasDraftText && attachmentPreviews.length === 0) ||
                 (isBotConversation && !isPaired) ||
                 uploadingFile
               }
               {...iosIconButtonMotion}
               className={`ios-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                input.trim() || attachmentPreviews.length > 0
+                hasDraftText || attachmentPreviews.length > 0
                   ? 'ios-primary-button text-white'
                   : 'border border-slate-300 bg-slate-300 text-slate-400 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500'
               }`}
@@ -254,7 +258,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               {uploadingFile ? (
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
               ) : (
-                <Send size={14} className={input.trim() ? '-rotate-45 transition-transform' : 'transition-transform'} />
+                <Send size={14} className={hasDraftText ? '-rotate-45 transition-transform' : 'transition-transform'} />
               )}
             </motion.button>
           </div>

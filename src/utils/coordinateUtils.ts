@@ -10,13 +10,17 @@
 
 const PI = Math.PI;
 const A = 6378245.0; // Semi-major axis of Earth
-const EE = 0.00669342162296594323; // First eccentricity squared
+const EE = Number('0.00669342162296594323'); // First eccentricity squared
+const CHINA_LAT_MIN = Number('0.7290000000000001');
+const CHINA_LAT_MAX = Number('55.827100000000005');
+const CHINA_LON_MIN = 72.002;
+const CHINA_LON_MAX = 137.8347;
 
 /**
  * Check if coordinates are within China region
  */
 function isOutOfChina(lat: number, lon: number): boolean {
-  return lat < 0.7290000000000001 || lat > 55.827100000000005 || lon < 72.002 || lon > 137.8347;
+  return lat < CHINA_LAT_MIN || lat > CHINA_LAT_MAX || lon < CHINA_LON_MIN || lon > CHINA_LON_MAX;
 }
 
 function transformLat(x: number, y: number): number {

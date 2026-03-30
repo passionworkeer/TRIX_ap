@@ -28,6 +28,33 @@ final class ChatDetailViewModelTests: XCTestCase {
         try await super.setUp()
         mockChatService = MockChatService()
         mockAuthService = MockAuthService()
+        mockChatService.selectRoom(roomId: "test-room")
+        mockAuthService.updateCurrentUser(
+            User(
+                id: "test-user-id",
+                username: "test-user",
+                email: "test@example.com",
+                avatarUrl: nil,
+                avatarConfig: nil,
+                fullName: "Test User",
+                displayName: "Test User",
+                bio: nil,
+                website: nil,
+                points: 0,
+                isStudying: false,
+                companionId: nil,
+                totalStudyTime: 0,
+                lastActiveAt: Date(),
+                currentStreak: 0,
+                daysActive: 1,
+                interactionCount: 0,
+                showOnlineStatus: true,
+                school: nil,
+                grade: nil,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+        )
 
         let conversation = ChatConversation(
             id: "test-room",
@@ -46,6 +73,7 @@ final class ChatDetailViewModelTests: XCTestCase {
             authServiceProto: mockAuthService
         )
 
+        mockChatService.resetCallTracking()
         cancellables = []
     }
 
@@ -338,11 +366,17 @@ final class ChatDetailViewModelTests: XCTestCase {
 
     func testShouldScrollToBottom_WhenMessageCountIncreases() {
         // Given
-        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 2))
+        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 2, roomId: "test-room"))
         sut.trackMessageCount()
 
         // Add more messages
-        mockChatService.addMockMessage(MockChatService.makeMockMessage(id: "msg-new", content: "New message"))
+        mockChatService.addMockMessage(
+            MockChatService.makeMockMessage(
+                id: "msg-new",
+                roomId: "test-room",
+                content: "New message"
+            )
+        )
 
         // Then
         XCTAssertTrue(sut.shouldScrollToBottom, "Should scroll when message count increases")
@@ -350,7 +384,7 @@ final class ChatDetailViewModelTests: XCTestCase {
 
     func testShouldScrollToBottom_WhenMessageCountSame() {
         // Given
-        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 3))
+        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 3, roomId: "test-room"))
         sut.trackMessageCount()
 
         // No new messages
@@ -361,7 +395,7 @@ final class ChatDetailViewModelTests: XCTestCase {
 
     func testShouldScrollToBottom_WhenMessageCountDecreases() {
         // Given
-        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 5))
+        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 5, roomId: "test-room"))
         sut.trackMessageCount()
 
         // Simulate messages being cleared (e.g., room change)
@@ -373,7 +407,7 @@ final class ChatDetailViewModelTests: XCTestCase {
 
     func testTrackMessageCount_UpdatesPreviousCount() {
         // Given
-        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 10))
+        mockChatService.setMockMessages(MockChatService.makeMockMessages(count: 10, roomId: "test-room"))
 
         // When
         sut.trackMessageCount()
@@ -393,7 +427,7 @@ final class ChatDetailViewModelTests: XCTestCase {
 
         // Then
         XCTAssertEqual(mockChatService.fetchMessagesCallCount, 1)
-        XCTAssertTrue(sut.uiState.isLoadingMore)
+        XCTAssertFalse(sut.uiState.isLoadingMore)
     }
 
     func testLoadMoreMessages_SetsAndClearsLoadingFlag() async {

@@ -6,14 +6,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 // Mock react-virtuoso
 vi.mock('react-virtuoso', () => ({

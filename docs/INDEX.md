@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.4（2026-03-30 文档整理：Desktop 窗口管理 + Canvas Skill + 新增架构/指南子索引）
+> **版本**: v2.5（2026-03-31 新增上线前本地修复与验证总结）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -20,7 +20,8 @@ docs/
 │   └── DESKTOP_PRD.md       # Desktop 产品需求文档
 │
 ├── 📊 项目报告 (project-reports/)
-│   └── PROJECT.md            # 项目总览
+│   ├── PROJECT.md            # 项目总览
+│   └── LAUNCH_READINESS_SUMMARY_20260331.md  # 上线前本地修复与验证总结
 │
 ├── 🔧 开发文档 (development/)
 │   ├── TESTING.md           # 测试指南（命令 + 覆盖率）
@@ -153,7 +154,7 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 |------|--------|
 | 根目录 | 4（含 CLAUDE.md / README.md） |
 | 需求规格 (requirements/) | 2 |
-| 项目报告 (project-reports/) | 1 |
+| 项目报告 (project-reports/) | 2 |
 | 开发文档 (development/) | 2 |
 | UI 文档 (ui/) | 3 |
 | 架构文档 (architecture/) | 3（含 INDEX.md） |
@@ -167,9 +168,9 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 问题追踪 (issues/) | 1 |
 | 归档 (.archive/) | 3 |
 
-**活跃文档总计**: 46 个（不含 .archive/）
+**活跃文档总计**: 47 个（不含 .archive/）
 
-**较上次清理**: 新增 Canvas Skill 文档（SKILL.md + 13 个 Python 脚本）；新增 `architecture/INDEX.md` + `guides/INDEX.md` 子索引；Desktop 窗口管理功能上线
+**较上次清理**: 新增上线前本地修复与验证总结；保留此前 Canvas Skill 文档、架构/指南子索引与 Desktop 窗口管理更新
 
 ---
 
@@ -187,4 +188,4 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 ---
 
-**最后更新**: 2026-03-30（文档整理：v2.3 → v2.4；新增架构/指南子索引、Canvas Skill 文档；Desktop 窗口管理上线）
+**最后更新**: 2026-03-31（文档索引 v2.4 → v2.5；新增上线前本地修复与验证总结）

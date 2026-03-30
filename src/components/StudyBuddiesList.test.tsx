@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import { createFramerMotionMock } from '../test/framerMotionMock';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -15,13 +16,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button>,
-  },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => createFramerMotionMock());
 
 vi.mock('./Avatar', () => ({
   default: ({ name }: { name: string }) => <div data-testid="mock-avatar">{name}</div>,

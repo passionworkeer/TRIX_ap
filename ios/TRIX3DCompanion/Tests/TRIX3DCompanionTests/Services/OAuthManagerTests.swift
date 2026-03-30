@@ -194,10 +194,14 @@ final class MockAPIClientForOAuth: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockUser: User?
+    var mockLinkedAccounts: [OAuthAccount] = []
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
+        }
+        if T.self == [OAuthAccount].self {
+            return mockLinkedAccounts as! T
         }
         if let user = mockUser as? T {
             return user
@@ -397,7 +401,7 @@ extension OAuthManagerTests {
         switch result {
         case .failure(let error):
             XCTAssertEqual(
-                error as? AuthError,
+                error,
                 .validationError(message: "Presentation anchor required for Apple Sign In"),
                 "Should fail without presentation anchor"
             )
@@ -485,13 +489,19 @@ extension OAuthManagerTests {
         mockAPIClient.mockUser = createMockUser()
 
         // When
-        // Note: This test requires a presentation anchor and actual Apple Sign In
-        // In test environment, we can only verify the structure
-        let result = await sut.linkAccount(provider: .apple, presentationAnchor: ASPresentationAnchor())
+        let result = await sut.linkAccount(provider: .apple)
 
         // Then
-        // Result will depend on actual Apple Sign In
-        // We verify the method structure is correct
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(
+                error,
+                .validationError(message: "Presentation anchor required for Apple Sign In"),
+                "Interactive Apple account linking should not start without an anchor"
+            )
+        case .success:
+            XCTFail("Linking should fail without a presentation anchor in unit tests")
+        }
         XCTAssertTrue(mockAuthService.isLoggedIn, "User should be logged in")
     }
 
@@ -585,9 +595,8 @@ extension OAuthManagerTests {
             lastUsedAt: Date()
         )
 
-        // Manually add to linked accounts for testing
-        // Note: In actual implementation, this would be fetched from server
-        // For testing, we verify the logic exists
+        mockAPIClient.mockLinkedAccounts = [primaryAccount]
+        _ = await sut.fetchLinkedAccounts()
 
         // When
         let result = await sut.unlinkAccount(accountID: primaryAccount.id)
@@ -732,6 +741,7 @@ extension OAuthManagerTests {
 
         // When
         delegate.oauthManager(sut, didSignInUser: mockUser)
+        await drainDelegateQueue()
 
         // Then
         XCTAssertTrue(delegate.didSignInUserCalled, "Delegate should receive signIn callback")
@@ -745,6 +755,7 @@ extension OAuthManagerTests {
 
         // When
         delegate.oauthManager(sut, didFailSignIn: mockError)
+        await drainDelegateQueue()
 
         // Then
         XCTAssertTrue(delegate.didFailSignInCalled, "Delegate should receive failure callback")
@@ -768,6 +779,7 @@ extension OAuthManagerTests {
 
         // When
         delegate.oauthManager(sut, didLinkAccount: mockAccount)
+        await drainDelegateQueue()
 
         // Then
         XCTAssertTrue(delegate.didLinkAccountCalled, "Delegate should receive link callback")
@@ -785,6 +797,7 @@ extension OAuthManagerTests {
 
         // When
         delegate.oauthManager(sut, didUnlinkAccount: accountID)
+        await drainDelegateQueue()
 
         // Then
         XCTAssertTrue(delegate.didUnlinkAccountCalled, "Delegate should receive unlink callback")
@@ -910,15 +923,22 @@ extension OAuthManagerTests {
     func testFullSignInFlowWithApple() async {
         // Given
         mockAuthService.isLoggedIn = false
-        let presentationAnchor = ASPresentationAnchor()
 
         // When
-        let result = await sut.signIn(with: .apple, presentationAnchor: presentationAnchor)
+        let result = await sut.signIn(with: .apple, presentationAnchor: nil)
 
         // Then
-        // In test environment, this will require actual user interaction
-        // We verify the structure is correct
-        XCTAssertNotNil(presentationAnchor, "Anchor should be provided")
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(
+                error,
+                .validationError(message: "Presentation anchor required for Apple Sign In"),
+                "Unit tests should validate the non-interactive Apple sign-in precondition"
+            )
+        case .success:
+            XCTFail("Apple sign in should not proceed without a presentation anchor in unit tests")
+        }
+        XCTAssertFalse(mockAuthService.isLoggedIn, "User should remain logged out when sign in cannot start")
     }
 
     func testFullSignInFlowWithWeChat() async {
@@ -949,10 +969,19 @@ extension OAuthManagerTests {
         mockAuthService.currentUser = createMockUser()
 
         // When
-        let result = await sut.linkAccount(provider: .apple, presentationAnchor: ASPresentationAnchor())
+        let result = await sut.linkAccount(provider: .apple)
 
         // Then
-        // Verify structure is correct
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(
+                error,
+                .validationError(message: "Presentation anchor required for Apple Sign In"),
+                "Account linking should stop before starting interactive Apple UI in unit tests"
+            )
+        case .success:
+            XCTFail("Account linking should fail without a presentation anchor in unit tests")
+        }
         XCTAssertTrue(mockAuthService.isLoggedIn, "User should remain logged in")
     }
 }
@@ -960,6 +989,11 @@ extension OAuthManagerTests {
 // MARK: - Helper Methods
 
 extension OAuthManagerTests {
+
+    private func drainDelegateQueue() async {
+        await Task.yield()
+        await Task.yield()
+    }
 
     private func createMockUser() -> User {
         User(
@@ -1023,16 +1057,19 @@ extension OAuthManagerTests {
     func testLinkedAccountsIsPublished() async {
         // Given
         let expectation = XCTestExpectation(description: "Linked accounts published")
+        mockAuthService.isLoggedIn = true
+        mockAuthService.currentUser = createMockUser()
+        mockAPIClient.mockLinkedAccounts = createMockLinkedAccounts()
 
         // When
         let cancellable = sut.$linkedAccounts
             .dropFirst()
             .sink { accounts in
+                XCTAssertEqual(accounts.count, self.mockAPIClient.mockLinkedAccounts.count)
                 expectation.fulfill()
             }
 
-        // Modify linked accounts (simulated)
-        // In actual implementation, this would be done through fetchLinkedAccounts
+        _ = await sut.fetchLinkedAccounts()
 
         // Then
         await fulfillment(of: [expectation], timeout: 1.0)
@@ -1042,6 +1079,9 @@ extension OAuthManagerTests {
     func testHasLinkedAccountsIsPublished() async {
         // Given
         let expectation = XCTestExpectation(description: "Has linked accounts published")
+        mockAuthService.isLoggedIn = true
+        mockAuthService.currentUser = createMockUser()
+        mockAPIClient.mockLinkedAccounts = createMockLinkedAccounts()
 
         // When
         let cancellable = sut.$linkedAccounts
@@ -1049,8 +1089,11 @@ extension OAuthManagerTests {
             .removeDuplicates()
             .dropFirst()
             .sink { hasAccounts in
+                XCTAssertTrue(hasAccounts)
                 expectation.fulfill()
             }
+
+        _ = await sut.fetchLinkedAccounts()
 
         // Then
         await fulfillment(of: [expectation], timeout: 1.0)
@@ -1078,7 +1121,7 @@ extension OAuthManagerTests {
 
     func testHandleOpenURLWithNilURL() {
         // Given
-        let invalidURL = URL(string: "")!
+        let invalidURL = URL(fileURLWithPath: "/tmp/trix-invalid-oauth-url")
 
         // When
         let handled = sut.handleOpenURL(invalidURL)

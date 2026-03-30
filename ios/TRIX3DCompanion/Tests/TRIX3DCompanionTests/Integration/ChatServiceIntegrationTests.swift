@@ -31,6 +31,7 @@ final class MockWebSocketManagerForIntegration: ClawbotChannelServiceProtocol {
 
     @Published var connectionState: ClawbotConnectionState = .disconnected
     @Published var isPaired: Bool = false
+    @Published var messages: [ClawbotMessage] = []
     @Published var lastMessage: ClawbotMessage?
     @Published var botBehaviorState: BotBehaviorState = .idle
     @Published var botConnectionState: BotConnectionState = .unknown
@@ -65,7 +66,7 @@ final class MockWebSocketManagerForIntegration: ClawbotChannelServiceProtocol {
         sentMessages.removeAll()
     }
 
-    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) {
+    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) async throws {
         sentMessages.append((content: content, contentType: contentType, mediaUrl: mediaUrl, mediaMimeType: mediaMimeType))
     }
 
@@ -113,6 +114,9 @@ final class MockWebSocketManagerForIntegration: ClawbotChannelServiceProtocol {
             timestamp: message.createdAt,
             sender: .user
         )
+        if let lastMessage {
+            messages.append(lastMessage)
+        }
     }
 
     func simulateTypingIndicator(userId: String, isTyping: Bool) {
@@ -203,18 +207,31 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
     // MARK: - Chat-specific methods
 
     func getChatRooms() async throws -> [ChatRoom] {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
         return mockChatRooms
     }
 
     func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
         return mockMessages
     }
 
     func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
         return mockMessages.filter { $0.createdAt > since }
     }
 
     func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.timeout
+        }
+
         let message = ChatMessage(
             id: UUID().uuidString,
             roomId: roomId,
@@ -238,7 +255,11 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
         return message
     }
 
-    func markMessageAsRead(roomId: String, messageId: String) async throws { }
+    func markMessageAsRead(roomId: String, messageId: String) async throws {
+        if shouldFailRequests {
+            throw mockError ?? NetworkError.unauthorized
+        }
+    }
 
     // MARK: - Test Helpers
 
@@ -399,7 +420,7 @@ final class ChatServiceIntegrationTests: XCTestCase {
         mockAPIClient.shouldFailRequests = true
         mockAPIClient.mockError = .timeout
 
-        let result = await sut.sendMessage(roomId: "local:room", content: "test")
+        let result = await sut.sendMessage(roomId: "remote_network_room", content: "test")
 
         switch result {
         case .success:
@@ -581,7 +602,7 @@ final class ChatServiceIntegrationTests: XCTestCase {
         mockAPIClient.mockError = .timeout
 
         let result = await sut.sendMessage(
-            roomId: "local:room",
+            roomId: "remote_image_room",
             content: "",
             type: .image,
             mediaUrl: "image.png",
@@ -647,7 +668,7 @@ final class ChatServiceIntegrationTests: XCTestCase {
         mockAPIClient.mockError = .timeout
 
         let result = await sut.sendMessage(
-            roomId: "local:room",
+            roomId: "remote_voice_room",
             content: "",
             type: .voice,
             mediaUrl: "voice.m4a",
@@ -777,7 +798,7 @@ final class ChatServiceIntegrationTests: XCTestCase {
             voiceTranscript: nil,
             voiceMimeType: nil,
             isRead: false,
-            createdAt: Date()
+            createdAt: createdAt
         )
     }
 

@@ -145,7 +145,7 @@ struct ChatListView: View {
             guard let route else { return }
             switch route {
             case .trixBot:
-                isShowingTrixBotChat = true
+                openTrixBotRoute()
             case .pairing:
                 activeCompanionRoute = .pairing
             }
@@ -156,7 +156,7 @@ struct ChatListView: View {
                ProcessInfo.processInfo.arguments.contains("--ui-open-trixbot") {
                 didAutoOpenTrixBotForUITest = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    isShowingTrixBotChat = true
+                    openTrixBotRoute()
                 }
             }
             Task {
@@ -316,11 +316,13 @@ struct ChatListView: View {
     // MARK: - TRIX Bot Entry
 
     private var trixBotEntry: some View {
-        trixBotCardContent
-        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .onTapGesture {
-            isShowingTrixBotChat = true
+        Button(action: {
+            openTrixBotRoute()
+        }) {
+            trixBotCardContent
         }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier(ChatAccessibilityIdentifiers.trixBotCard)
@@ -402,6 +404,16 @@ struct ChatListView: View {
                 .stroke(Color.textPrimary.opacity(0.8), lineWidth: 1)
         )
         .shadow(color: .overlay.opacity(0.05), radius: 12, x: 0, y: 8)
+    }
+
+    private func openTrixBotRoute() {
+        if clawbotChannel.isPaired {
+            activeCompanionRoute = nil
+            isShowingTrixBotChat = true
+        } else {
+            isShowingTrixBotChat = false
+            activeCompanionRoute = .pairing
+        }
     }
 
     // MARK: - Quick Add Section - Redesigned to match list style

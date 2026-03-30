@@ -71,6 +71,7 @@ final class KeychainManager: KeychainManagerProtocol {
         static let refreshToken = "com.trix3d.refreshToken"
         static let sessionToken = "com.trix3d.sessionToken"
         static let userId = "com.trix3d.userId"
+        static let tokenExpirationDate = "com.trix3d.tokenExpirationDate"
         static let deviceId = "com.trix3d.deviceId"
         static let biometricEnabled = "com.trix3d.biometricEnabled"
 
@@ -323,6 +324,28 @@ final class KeychainManager: KeychainManagerProtocol {
         (try? keychain.get(Key.biometricEnabled)) == "true"
     }
 
+    // MARK: - Token Expiration
+
+    /// Persist the access token expiration date in ISO8601 format.
+    func saveTokenExpirationDate(_ date: Date) throws {
+        try safeSave(ISO8601DateFormatter().string(from: date), key: Key.tokenExpirationDate)
+    }
+
+    /// Read the persisted access token expiration date.
+    func getTokenExpirationDate() -> Date? {
+        guard let value = try? keychain.get(Key.tokenExpirationDate) else {
+            return nil
+        }
+        return ISO8601DateFormatter().date(from: value)
+    }
+
+    /// Delete the persisted access token expiration date.
+    func deleteTokenExpirationDate() throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
+        try keychain.remove(Key.tokenExpirationDate)
+    }
+
     // MARK: - Generic Methods
 
     /// 保存任意数据
@@ -440,6 +463,7 @@ final class KeychainManager: KeychainManagerProtocol {
         try saveAccessToken(session.accessToken)
         try saveRefreshToken(session.refreshToken)
         try saveUserId(session.userId)
+        try saveTokenExpirationDate(session.expiresAt)
     }
 
     /// 清除所有会话数据（登出时调用）
@@ -448,6 +472,8 @@ final class KeychainManager: KeychainManagerProtocol {
         try deleteRefreshToken()
         try deleteSessionToken()
         try deleteUserId()
+        try? deleteTokenExpirationDate()
+        try? saveBiometricEnabled(false)
         // 同时清除会话 ID（由 SessionService 管理，但这里统一清理）
         try? deleteSessionId()
     }

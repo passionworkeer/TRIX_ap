@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Dispatch
 import Combine
 import Network
 
@@ -220,8 +221,8 @@ class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
     /// Stop monitoring network status
     nonisolated func stopMonitoring() {
         pathMonitor.cancel()
-        // Note: isMonitoring flag will be reset on next MainActor context
-        // This is safe because the pathMonitor is cancelled immediately
+        pathMonitor.pathUpdateHandler = nil
+        updateMonitoringState(to: false, logMessage: "Network monitoring stopped")
     }
 
     /// Get current network status
@@ -263,8 +264,29 @@ class NetworkMonitor: ObservableObject, NetworkMonitorProtocol {
         updateQuality()
     }
 
+    @MainActor
+    private func applyMonitoringState(_ value: Bool, logMessage: String) {
+        isMonitoring = value
+        SecureLogger.shared.info(logMessage)
+    }
+
+    nonisolated private func updateMonitoringState(to value: Bool, logMessage: String) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { [weak self] in
+                self?.applyMonitoringState(value, logMessage: logMessage)
+            }
+            return
+        }
+
+        DispatchQueue.main.sync { [weak self] in
+            MainActor.assumeIsolated {
+                self?.applyMonitoringState(value, logMessage: logMessage)
+            }
+        }
+    }
+
     /// Measure latency to a host
-    func measureLatency(to host: String = "api.trix3d.com") async throws -> TimeInterval {
+    func measureLatency(to host: String = "trix.love") async throws -> TimeInterval {
         let start = Date()
 
         // Simple HTTP HEAD request to measure latency

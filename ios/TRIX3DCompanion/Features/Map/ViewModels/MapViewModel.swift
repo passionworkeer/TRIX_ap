@@ -124,6 +124,9 @@ final class MapViewModel: ObservableObject {
         // Check location permission
         checkLocationPermission()
 
+        // Preload demo friend markers so the first render has stable data.
+        loadMockFriends()
+
         // Load data from API (falls back to mock for demo)
         Task {
             await loadLocationsFromAPI()

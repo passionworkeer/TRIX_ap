@@ -24,7 +24,7 @@ export function WindowChrome({ children }: { children: React.ReactNode }) {
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (resizing.current) return;
     const edge = hitEdge(e.clientX, e.clientY);
-    (e.currentTarget as HTMLDivElement).style.cursor = edge ? CURSORS[edge] : '';
+    (e.currentTarget as HTMLDivElement).style.cursor = edge ? (CURSORS[edge] ?? '') : '';
   }, []);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {

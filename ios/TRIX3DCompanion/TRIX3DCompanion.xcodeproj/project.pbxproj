@@ -151,6 +151,7 @@
 		7718A5864325247BF0F141B7 /* MailPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E990AAC2F7362CEED4B544 /* MailPanelView.swift */; };
 		7758187BF4FD4C41CB56768D /* InputValidatorSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56886B73B4BCA992C7BEC5A9 /* InputValidatorSmokeTests.swift */; };
 		77ADF03C7FB03F849D40A10A /* Localizable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548F3FFB312DA57B1B1F9B18 /* Localizable.swift */; };
+		77DC6DBAF0C5FB380FF55621 /* TRIXApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA9640A9C6EA87AFA518D54 /* TRIXApplicationDelegate.swift */; };
 		788C9FA0916978168A195277 /* ScheduleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56C5D3899552DBACBCE4BF3F /* ScheduleListView.swift */; };
 		790129EFE19388A4E9F7995C /* DatabaseIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B0BB8376696826735FC53D5 /* DatabaseIntegrationTests.swift */; };
 		7A8435115582AE056A2719C3 /* LocalNotificationServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE4AC082D290877D66E6662D /* LocalNotificationServiceProtocol.swift */; };
@@ -200,6 +201,7 @@
 		9F0F07610625A990C74FCAAA /* SnapshotListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 157589058AA33A9B67748FEB /* SnapshotListViewModel.swift */; };
 		9F71D88A7F9A4EAF184D90E4 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA174D6F4BFDDF8784E7B301 /* MainTabView.swift */; };
 		A266A11FFBC03E7D57F8FBF3 /* MapViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE6256884BC368B95461C07E /* MapViewModelTests.swift */; };
+		A292D9C95B1E2F16CAEF6773 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8221DD025E0565EF00C0B1D1 /* PrivacyInfo.xcprivacy */; };
 		A4DE7E3BF371C35F7122707D /* MessageCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455A2EA572AA68D40A9155F3 /* MessageCell.swift */; };
 		A4E07A88BD347BC9C95703D1 /* PointsServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF81BB56B24F5A2F71CD178 /* PointsServiceProtocol.swift */; };
 		A64BAEBE0DBF3E8F18C36A01 /* ProductDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E41D35C6E0D71D948E8F2C /* ProductDetailView.swift */; };
@@ -264,6 +266,7 @@
 		C69B0795F84EEAC01EEDF123 /* TTSControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2124A850F6E4E0DC4F2C9A9 /* TTSControlView.swift */; };
 		C7FC52F178F97EA492D8391D /* WhatsNewKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F48DEBEAFB66633419D8732 /* WhatsNewKit */; };
 		C80EB135E0987A6B6420AB13 /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038D1C693B37B3E7E588D940 /* TTSService.swift */; };
+		C8A4FC07693F8DCB7B73C3CD /* WeChatSignInServiceRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E9A235A8CF41EB8446C507 /* WeChatSignInServiceRegressionTests.swift */; };
 		C93D745E0C346A42DA748164 /* ProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB449762903BCCAAAE9BF246 /* ProfileScreen.swift */; };
 		C99F4A8EC09FE32FBA138B59 /* TTSServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63DE9EDB9E59B7050D9BBF05 /* TTSServiceProtocol.swift */; };
 		C9EAB329FDD1F7AD7CF45378 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58BB627090B12D5E024C94BD /* Theme.swift */; };
@@ -399,6 +402,7 @@
 		230D9DF7CED04D4BB7DDA753 /* ImageUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageUploadService.swift; sourceTree = "<group>"; };
 		23AD6A722841A95DD5C5C7BA /* NetworkRequestCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRequestCache.swift; sourceTree = "<group>"; };
 		23EA02B2AED40EFA03ED56FC /* ScheduleFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleFormView.swift; sourceTree = "<group>"; };
+		2406FEB33C0456D14C0DC43A /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		2449E59306ACD5BF0FE66BCE /* DataSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSyncService.swift; sourceTree = "<group>"; };
 		24A0B23E33226F6B429DA2DF /* MallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MallService.swift; sourceTree = "<group>"; };
 		24D4C728C1B895AA44E341F1 /* ChatServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatServiceTests.swift; sourceTree = "<group>"; };
@@ -410,6 +414,7 @@
 		2A01CB31FF2BEFAB3F230338 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		2A4FE7F5AB325E34C1F9A9F1 /* StudyTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyTimerView.swift; sourceTree = "<group>"; };
 		2AB7C0C91667E7B903EFBAB5 /* AuthFormPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthFormPaletteTests.swift; sourceTree = "<group>"; };
+		2BB01272846F7FEAF873B9E7 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		2E353AD6E7225070D79D0712 /* VoiceRecordingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingButton.swift; sourceTree = "<group>"; };
 		2EF88DCF5939FD2C33BAE502 /* StudyRoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyRoom.swift; sourceTree = "<group>"; };
 		309D5779B85E2AA0BA5BF26F /* NotificationManagerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManagerProtocol.swift; sourceTree = "<group>"; };
@@ -435,6 +440,7 @@
 		45025029E6B3412847D1114C /* PaymentServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentServiceTests.swift; sourceTree = "<group>"; };
 		455A2EA572AA68D40A9155F3 /* MessageCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCell.swift; sourceTree = "<group>"; };
 		4671ECB430B367281FF2886F /* Todo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Todo.swift; sourceTree = "<group>"; };
+		47E9A235A8CF41EB8446C507 /* WeChatSignInServiceRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSignInServiceRegressionTests.swift; sourceTree = "<group>"; };
 		495BFB391CA424F7B8C384F3 /* AuthInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthInterceptor.swift; sourceTree = "<group>"; };
 		498735BDEA2ABCED4B86B998 /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
 		4A4067511CFFD28D495378F5 /* MusicButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicButton.swift; sourceTree = "<group>"; };
@@ -470,6 +476,7 @@
 		5DE2EFB649721500728744C0 /* DataSyncServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSyncServiceTests.swift; sourceTree = "<group>"; };
 		5F577EB9F0F5DBA246C0D3F9 /* VoicePlaybackServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePlaybackServiceProtocol.swift; sourceTree = "<group>"; };
 		5F9A0885C6A3FD8EEA15A045 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		5FA9640A9C6EA87AFA518D54 /* TRIXApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TRIXApplicationDelegate.swift; sourceTree = "<group>"; };
 		614550AEB63FC96F579EC1F0 /* JailbreakDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JailbreakDetector.swift; sourceTree = "<group>"; };
 		61562858985BAB8B39A52F53 /* AvatarHead.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AvatarHead.png; sourceTree = "<group>"; };
 		6183C6252E3EDD8B6D218140 /* OnlineStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineStatusIndicator.swift; sourceTree = "<group>"; };
@@ -508,6 +515,7 @@
 		7FE7589890B1034BBBAD5202 /* 05_SUBMISSION_CHECKLIST.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = 05_SUBMISSION_CHECKLIST.md; sourceTree = "<group>"; };
 		8002630FACB8C1E427B6C64F /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		80529362FDCAD50185AA7ED6 /* PointsPurchaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsPurchaseView.swift; sourceTree = "<group>"; };
+		8221DD025E0565EF00C0B1D1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		82F633E388510A7A3298A5E5 /* UserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserService.swift; sourceTree = "<group>"; };
 		8322C04544641981D969D41D /* boring.mp4 */ = {isa = PBXFileReference; path = boring.mp4; sourceTree = "<group>"; };
 		84B39717025400C1E5F4BCFB /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
@@ -788,6 +796,7 @@
 				79F8337A1F791BFBA2F7F62D /* App */,
 				164283C61248001151160BC7 /* Auth */,
 				325EA716FACAD4CDF0D7FEDC /* Chat */,
+				BB16FEE4FA7123B569F34B51 /* Config */,
 				09EDF0F13CEFB449EB235075 /* Core */,
 				8EA141A9FC3FE216AEAA0C67 /* Diagnostic */,
 				0B887379B67E633BC34E953F /* Features */,
@@ -1022,6 +1031,7 @@
 				419F67E21D4C3477F2F653BA /* StoreKitServiceTests.swift */,
 				C4938C7D527894CA1B54940A /* StudyServiceTests.swift */,
 				A878D25D66554657AB630FD6 /* UserStatsServiceTests.swift */,
+				47E9A235A8CF41EB8446C507 /* WeChatSignInServiceRegressionTests.swift */,
 				F2AD5A9297A6F6A0D39E3011 /* WeChatSignInServiceTests.swift */,
 			);
 			name = Services;
@@ -1305,6 +1315,7 @@
 				C40AA82CE9008B7D7CA82E73 /* ClawbotChannelViewModel.swift */,
 				EE235710AA3353A19C8BEEBA /* ContentView.swift */,
 				C21EF53920BB8D545F1146DD /* TRIX3DCompanionApp.swift */,
+				5FA9640A9C6EA87AFA518D54 /* TRIXApplicationDelegate.swift */,
 				CCD7A67D170A9DD69F115FA7 /* UITestAccessibilityIdentifiers.swift */,
 			);
 			path = App;
@@ -1523,6 +1534,15 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		BB16FEE4FA7123B569F34B51 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				2BB01272846F7FEAF873B9E7 /* Debug.xcconfig */,
+				2406FEB33C0456D14C0DC43A /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		C2F7340D8E370083842A1768 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
@@ -1704,6 +1724,7 @@
 				20C16CA4F0C2FA8B2F378D75 /* Assets.xcassets */,
 				6537F20DC9F0A7CEF8900FE4 /* Info.plist */,
 				190AADF9BA58497E0EBDC4E0 /* Localizable.strings */,
+				8221DD025E0565EF00C0B1D1 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -1873,6 +1894,7 @@
 				EA58351997B8ED2284223DF3 /* FEATURE_SUMMARY.md in Resources */,
 				522F08BC1F26CE74ACE4358C /* INTEGRATION_GUIDE.md in Resources */,
 				B921DE11E60C4EE3350B4B0A /* Localizable.strings in Resources */,
+				A292D9C95B1E2F16CAEF6773 /* PrivacyInfo.xcprivacy in Resources */,
 				9C1772838A9B6104157EAF0C /* StudyRoomBG.png in Resources */,
 				43FC08B0FFD575A12A93F7E9 /* background.jpg in Resources */,
 				D947CCE86418CBB99FDCE188 /* boring.mp4 in Resources */,
@@ -1951,6 +1973,7 @@
 				F676F7AE06C4C17D01231ED0 /* TypingIndicatorViewTests.swift in Sources */,
 				FF66F1554FD9CB5389F6E0EE /* UserStatsServiceTests.swift in Sources */,
 				F7E9817BBDCCAEA0E6E69EA6 /* VoiceComprehensiveTests.swift in Sources */,
+				C8A4FC07693F8DCB7B73C3CD /* WeChatSignInServiceRegressionTests.swift in Sources */,
 				2B6FF3DA293F6FAA02DF2F29 /* WeChatSignInServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2158,6 +2181,7 @@
 				B4A487221065CFA29395089D /* SupabaseConfig.swift in Sources */,
 				A8AA03C19BE837094C00407A /* SupabaseService.swift in Sources */,
 				D5D0C82CEFA9EC2BA595E53F /* TRIX3DCompanionApp.swift in Sources */,
+				77DC6DBAF0C5FB380FF55621 /* TRIXApplicationDelegate.swift in Sources */,
 				C69B0795F84EEAC01EEDF123 /* TTSControlView.swift in Sources */,
 				C80EB135E0987A6B6420AB13 /* TTSService.swift in Sources */,
 				C99F4A8EC09FE32FBA138B59 /* TTSServiceProtocol.swift in Sources */,
@@ -2400,9 +2424,11 @@
 		};
 		B094AD076D15B304FBA10BD4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 2406FEB33C0456D14C0DC43A /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TRIX3DCompanion.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
@@ -2420,9 +2446,11 @@
 		};
 		B7AC38280CDFA927CD317C7B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 2BB01272846F7FEAF873B9E7 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TRIX3DCompanion.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";

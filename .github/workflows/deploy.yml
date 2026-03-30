@@ -1,5 +1,8 @@
 name: 自动部署到服务器
 
+env:
+  DEPLOY_PORT: 22222
+
 on:
   push:
     branches:
@@ -12,20 +15,23 @@ on:
       - 'supabase/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
-      - '.github/workflows/deploy.yml'
-  push:
-    branches:
-      - main
-    paths:
       - 'packages/trix-canvas-service/**'
       - 'skills/trix-gen-skill/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 jobs:
   # ---------- Web 前端部署 ----------
   deploy-web:
     runs-on: ubuntu-latest
-    if: "contains(join(github.event.head_commit.modified, ''), 'src/') || contains(join(github.event.head_commit.modified, ''), 'desktop/') || contains(join(github.event.head_commit.modified, ''), 'package.json') || contains(join(github.event.head_commit.modified, ''), 'packages/trix-openclaw-native/src')"
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'src/') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'desktop/') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'package.json') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'pnpm-lock.yaml') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'packages/trix-openclaw-native/src/') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), '.github/workflows/deploy.yml')
 
     steps:
       - name: 检出代码
@@ -50,27 +56,6 @@ jobs:
           cd dist
           tar -czf ../trix-build.tar.gz .
 
-      - name: 部署到服务器
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script_stop: true
-          script: |
-            echo "=== 部署 Web 前端 ==="
-            if [ -d "/var/www/html" ] && [ "$(ls -A /var/www/html)" ]; then
-              rm -rf /var/www/html-backup
-              cp -r /var/www/html /var/www/html-backup
-            fi
-            rm -rf /var/www/html/*
-            tar -xzf /tmp/trix-build.tar.gz -C /var/www/html/
-            chown -R www-data:www-data /var/www/html/
-            chmod -R 755 /var/www/html/
-            nginx -t && systemctl reload nginx
-            echo "=== Web 前端部署完成 ==="
-
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
@@ -84,15 +69,40 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          port: ${{ env.DEPLOY_PORT }}
           source: "trix-build.tar.gz"
           target: "/tmp/"
+
+      - name: 部署到服务器
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ env.DEPLOY_PORT }}
+          script_stop: true
+          script: |
+            echo "=== 部署 Web 前端 ==="
+            if [ ! -f "/tmp/trix-build.tar.gz" ]; then
+              echo "缺少构建产物: /tmp/trix-build.tar.gz"
+              exit 1
+            fi
+            if [ -d "/var/www/html" ] && [ "$(ls -A /var/www/html)" ]; then
+              rm -rf /var/www/html-backup
+              cp -r /var/www/html /var/www/html-backup
+            fi
+            rm -rf /var/www/html/*
+            tar -xzf /tmp/trix-build.tar.gz -C /var/www/html/
+            chown -R www-data:www-data /var/www/html/
+            chmod -R 755 /var/www/html/
+            nginx -t && systemctl reload nginx
+            echo "=== Web 前端部署完成 ==="
 
       - name: 部署通知
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Web 前端部署成功！访问地址: http://TRIX_SERVER_HOST"
+            echo "✅ Web 前端部署成功！访问地址: https://trix.love"
           else
             echo "❌ Web 前端部署失败！"
           fi
@@ -100,6 +110,11 @@ jobs:
   # ---------- Canvas Service 部署 ----------
   deploy-canvas:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'packages/trix-canvas-service/') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), 'skills/trix-gen-skill/') ||
+      contains(format('{0} {1} {2}', join(github.event.commits.*.modified, ' '), join(github.event.commits.*.added, ' '), join(github.event.commits.*.removed, ' ')), '.github/workflows/deploy.yml')
 
     steps:
       - name: 检出代码
@@ -115,16 +130,38 @@ jobs:
           cd packages/trix-canvas-service
           tar -czf ../../trix-canvas.tar.gz .
 
+      - name: 上传 Canvas 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: trix-canvas-build
+          path: trix-canvas.tar.gz
+          retention-days: 1
+
+      - name: 复制 Canvas 到服务器
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ env.DEPLOY_PORT }}
+          source: "trix-canvas.tar.gz"
+          target: "/tmp/"
+
       - name: 部署 Canvas Service 到服务器
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          port: ${{ env.DEPLOY_PORT }}
           script_stop: true
           script: |
             echo "=== 部署 TRIX Canvas Service ==="
+
+            if [ ! -f "/tmp/trix-canvas.tar.gz" ]; then
+              echo "缺少构建产物: /tmp/trix-canvas.tar.gz"
+              exit 1
+            fi
 
             # 创建目录
             mkdir -p /var/www/canvas/data/sessions
@@ -172,26 +209,26 @@ jobs:
             # 更新 Nginx 配置（代理到 8789）
             echo "更新 Nginx 配置..."
             cat > /tmp/trix-canvas-nginx.conf << 'NGINX'
-server {
-    listen 8789;
-    server_name _;
-    root /var/www/canvas/public;
-    index canvas.html;
+            server {
+                listen 8789;
+                server_name _;
+                root /var/www/canvas/public;
+                index canvas.html;
 
-    # API 代理
-    location /api/ {
-        proxy_pass http://127.0.0.1:8789/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
+                # API 代理
+                location /api/ {
+                    proxy_pass http://127.0.0.1:8789/api/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                }
 
-    # 画布页面
-    location / {
-        try_files $uri $uri/ /canvas.html;
-    }
-}
-NGINX
+                # 画布页面
+                location / {
+                    try_files $uri $uri/ /canvas.html;
+                }
+            }
+            NGINX
             # 检查是否已配置，无则追加
             if ! grep -q "listen 8789" /etc/nginx/sites-enabled/trix-canvas 2>/dev/null; then
               echo "请手动将上述配置添加到 Nginx，或运行："
@@ -201,23 +238,6 @@ NGINX
 
             echo "=== Canvas Service 部署完成 ==="
             echo "   访问地址: http://TRIX_SERVER_HOST:8789/canvas"
-
-      - name: 上传 Canvas 构建产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: trix-canvas-build
-          path: packages/trix-canvas-service/trix-canvas.tar.gz
-          retention-days: 1
-
-      - name: 复制 Canvas 到服务器
-        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: "packages/trix-canvas-service/trix-canvas.tar.gz"
-          target: "/tmp/"
 
       - name: Canvas 部署通知
         if: always()
