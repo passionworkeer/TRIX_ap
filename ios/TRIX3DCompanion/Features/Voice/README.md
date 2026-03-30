@@ -1,5 +1,7 @@
 # Voice Feature Documentation
 
+> **Related docs**: [iOS Documentation Index](../../../../docs/ios/INDEX.md) | [iOS Architecture](../../../../docs/ios/IOS_ARCHITECTURE.md)
+
 ## Overview
 
 The Voice feature provides comprehensive audio playback and text-to-speech functionality for the TRIX 3D Companion app. It consists of two main components:

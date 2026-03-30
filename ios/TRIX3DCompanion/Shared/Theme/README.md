@@ -1,5 +1,7 @@
 # TRIX 3D Companion - Theme System
 
+> **相关文档**: [iOS 文档索引](../../../../docs/ios/INDEX.md) | [iOS 架构](../../../../docs/ios/IOS_ARCHITECTURE.md) | [集成指南](../../../../docs/ios/INTEGRATION_GUIDE.md)
+
 iOS 主题系统，提供完整的颜色、字体和主题管理功能。
 
 ## 文件结构

@@ -91,11 +91,13 @@ coverage/
 # Python temporary files
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Test scripts and screenshots
 desktop/check-float*.cjs
 desktop/cdp-listen.cjs
 *.png
+!docs/screenshots/*.png
 map-*.png
 home-*.png
 
@@ -132,9 +134,6 @@ scripts/
 .codex-web-preview.log
 tmp-*.log
 .tmp/
-.agents/skills/add-component/
-.agents/skills/build-feature/
-.agents/skills/explore-recipes/
 
 # Playwright CLI tool
 .playwright-cli/

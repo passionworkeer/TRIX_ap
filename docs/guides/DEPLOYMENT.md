@@ -474,8 +474,8 @@ curl https://trix.love/api/health
 
 - [TRIX Native 通道指南](../TRIX_NATIVE_CHANNEL.md)
 - [TRIX Native Channel 完整协议](../TRIX_NATIVE_CHANNEL.md)
-- [API 文档](./api/API_DOCUMENTATION.md)
-- [服务器操作指南](./guides/SERVER_GUIDE.md)
+- [API 文档](../api/API_DOCUMENTATION.md)
+- [服务器操作指南](./SERVER_GUIDE.md)
 
 ---
 

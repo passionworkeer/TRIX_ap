@@ -876,11 +876,13 @@ Level 5: 审计日志 - 完整操作记录
 
 ### 文档产出
 
-1. **[CLAWBOT_QUICK_START.md](./CLAWBOT_QUICK_START.md)** - 快速开始指南
-2. **[CLAWBOT_SIMPLE_IMPLEMENTATION.md](./CLAWBOT_SIMPLE_IMPLEMENTATION.md)** - 简化版实现
-3. **[CLAWBOT_INTEGRATION_GUIDE.md](./CLAWBOT_INTEGRATION_GUIDE.md)** - 完整版实现
-4. **[CLAWBOT_GATEWAY_INTEGRATION.md](./CLAWBOT_GATEWAY_INTEGRATION.md)** - 协议规范
-5. **[CLAWBOT_README.md](./CLAWBOT_README.md)** - 文档索引
+1. CLAWBOT_QUICK_START.md - 快速开始指南
+2. CLAWBOT_SIMPLE_IMPLEMENTATION.md - 简化版实现
+3. CLAWBOT_INTEGRATION_GUIDE.md - 完整版实现
+4. CLAWBOT_GATEWAY_INTEGRATION.md - 协议规范
+5. CLAWBOT_README.md - 文档索引
+
+> 注：以上文档已从仓库清理，历史记录仅供参考。
 
 ---
 
@@ -925,7 +927,7 @@ LEFT JOIN unread_counts uc ON f.user_id = uc.user_id AND f.friend_id = uc.friend
 ```
 
 ### 文档产出
-**[DATABASE-REQUIREMENTS.md](./DATABASE-REQUIREMENTS.md)** - 完整数据访问清单
+DATABASE-REQUIREMENTS.md - 完整数据访问清单（已从仓库清理）
 
 ---
 

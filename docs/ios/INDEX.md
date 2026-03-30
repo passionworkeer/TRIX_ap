@@ -35,4 +35,7 @@
 ## Related
 
 - [App Store Materials](../../ios/TRIX3DCompanion/Resources/AppStore/) — Icons, screenshots, descriptions
-- [Feature Docs](../../ios/TRIX3DCompanion/Features/) — Profile, Voice feature documentation
+- [Feature: Profile](../../ios/TRIX3DCompanion/Features/Profile/README.md) — Profile feature (MVVM, glassmorphism)
+- [Feature: Voice](../../ios/TRIX3DCompanion/Features/Voice/README.md) — Audio playback, TTS
+- [Theme System](../../ios/TRIX3DCompanion/Shared/Theme/README.md) — Colors, typography, theme manager
+- [Detox E2E](../../ios/detox/README.md) — E2E testing setup with Detox + Jest
