@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.3（2026-03-29 文档整理：同步代码实际数据）
+> **版本**: v2.4（2026-03-30 文档整理：Desktop 窗口管理 + Canvas Skill + 新增架构/指南子索引）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -32,6 +32,7 @@ docs/
 │   └── DESIGN.md            # Monolith Noir 暗色主题
 │
 ├── 🌐 架构文档 (architecture/)
+│   ├── INDEX.md            # 架构文档索引（⭐ 新增）
 │   ├── WEB_ARCHITECTURE.md  # Web 端架构（19 路由 + 12 hooks + 27 服务 + 9 utils）
 │   └── BACKEND_ARCHITECTURE.md  # 后端架构
 │
@@ -69,6 +70,7 @@ docs/
 │   └── DESKTOP_ARCHITECTURE.md  # Electron 架构（90 IPC + 80 preload API）
 │
 ├── 📖 操作指南 (guides/)
+│   ├── INDEX.md         # 操作指南索引（⭐ 新增）
 │   ├── PAIRING.md         # ⭐ 三端配对指南
 │   ├── DEPLOYMENT.md      # 生产部署指南
 │   ├── SERVER_GUIDE.md    # 服务器运维
@@ -77,6 +79,11 @@ docs/
 │
 ├── 🗂️ 问题追踪 (issues/)
 │   └── DESKTOP_TEST_REPORT.md  # Desktop 测试状态报告
+│
+├── 🎯 Canvas Skill (skills/)
+│   └── trix-canvas-skill/
+│       ├── SKILL.md           # Canvas Skill manifest（⭐ 新增）
+│       └── scripts/           # Python 工作流脚本（⭐ 新增：13 个脚本）
 │
 └── 🗂️ 归档 (.archive/)                  # 仅供参考，不含源码树
     ├── INSTALLATION_GUIDE.md                # trix-openclaw-native 安装（旧版，已被 SETUP.md 覆盖）
@@ -149,19 +156,20 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 | 项目报告 (project-reports/) | 1 |
 | 开发文档 (development/) | 2 |
 | UI 文档 (ui/) | 3 |
-| 架构文档 (architecture/) | 2 |
+| 架构文档 (architecture/) | 3（含 INDEX.md） |
 | 数据库 (database/) | 3 |
 | API 文档 (api/) | 2 |
 | iOS 文档 (ios/) | 13 |
 | 入门指南 (getting-started/) | 2 |
 | Desktop 文档 (desktop/) | 1 |
-| 操作指南 (guides/) | 5 |
+| 操作指南 (guides/) | 6（含 INDEX.md） |
+| Canvas Skill (skills/) | 1（含 SKILL.md + 13 脚本） |
 | 问题追踪 (issues/) | 1 |
 | 归档 (.archive/) | 3 |
 
-**活跃文档总计**: 40 个（不含 .archive/）
+**活跃文档总计**: 46 个（不含 .archive/）
 
-**较上次清理**: 归档 3 份过时文档（INSTALLATION_GUIDE → SETUP 覆盖、PROJECT_TASKS → 任务全部完成、DESKTOP_PHASE2_PLAN → 执行状态待确认）；INDEX 修正失效引用并重建 .archive 目录
+**较上次清理**: 新增 Canvas Skill 文档（SKILL.md + 13 个 Python 脚本）；新增 `architecture/INDEX.md` + `guides/INDEX.md` 子索引；Desktop 窗口管理功能上线
 
 ---
 
@@ -179,4 +187,4 @@ requirements/DESKTOP_PRD.md → desktop/DESKTOP_ARCHITECTURE.md
 
 ---
 
-**最后更新**: 2026-03-29（文档整理：v2.2 → v2.3；同步三端代码实际数据：Web 14 screens·27 services·38 components，iOS 231 Swift·57 services，Desktop 90 IPC·80 preload）
+**最后更新**: 2026-03-30（文档整理：v2.3 → v2.4；新增架构/指南子索引、Canvas Skill 文档；Desktop 窗口管理上线）

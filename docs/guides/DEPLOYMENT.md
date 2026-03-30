@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-29（生产域名已迁移至 trix.love；TRIX_NATIVE_PUBLIC_BASE_URL 更新为 https://trix.love）
+> **最后更新**: 2026-03-30（生产域名已迁移至 trix.love；TRIX_NATIVE_PUBLIC_BASE_URL 更新为 https://trix.love）
 
 ---
 
@@ -479,4 +479,4 @@ curl https://trix.love/api/health
 
 ---
 
-**最后更新**: 2026-03-29（生产域名迁移至 trix.love；Nginx server_name、certbot、健康检查全部更新）
+**最后更新**: 2026-03-30（生产域名迁移至 trix.love；Nginx server_name、certbot、健康检查全部更新）

@@ -4,6 +4,87 @@
 
 ---
 
+## 📅 2026-03-30 — Desktop 窗口管理 + Canvas Skill + Vite 性能修复
+
+### 完成内容
+
+1. **Desktop 窗口管理完整实现** (`cab254f`, `9df44ab`):
+   - 新增 `WindowChrome` 组件（JS 边缘拖拽 + 拖拽栏双击）
+   - 新增 `TitleBar` 组件（最小化 / 最大化 / 关闭按钮，Windows 风格）
+   - 新增 IPC handlers: `windowMove`, `windowResize`, `windowSetBounds`, `windowMinimize`, `windowMaximize`, `windowIsMaximized`
+   - Float Window 单击打开主窗口（从双击改为单击）
+   - 注入 `-webkit-app-region: drag` CSS via `webContents.insertCSS`
+   - 修复 Electron 构建管道（CJS 输出格式、Vite 绝对路径、ws 模块兼容性）
+   - 78/78 Desktop 压力测试通过
+
+2. **Vite 开发性能修复** (`ffe59da`):
+   - 从 `optimizeDeps.include` 移除 `framer-motion`
+   - 解决 Vite pre-bundle 导致开发环境 duplicate-React hook 错误
+
+3. **Canvas Skill API 完善** (`dcfbcc4`, `694867d`, `02e1495`):
+   - 添加 `SKILL.md` manifest（使 skills 系统发现该 skill）
+   - 新增完整 Python 脚本工作流（workflow.py · parse_script.py · generate.py 等 13 个脚本）
+   - 新增 Canvas Service API endpoints（projects CRUD · nodes/edges · file upload/download · media serving）
+   - 修复 API 响应解包（`.data` envelope）、media 下载路径（`/media/files/:filename`）
+
+4. **E2E 测试扩展** (`90222c5`, `eba35a5`, `a72a352`, `6d7c6c6`):
+   - 新增 `tests/comprehensive_audit.py`（458 行，Playwright 全面审计：Landing/Auth/Settings/Achievements/响应式）
+   - 新增 `src/e2e/map.spec.ts`（Snap Map Screen E2E）
+   - 新增 `src/e2e/snapshot.spec.ts`（Snapshot E2E）
+   - 扩展 chatService / mallService / StudyRoom / ChatDetail / SnapMapScreen 测试覆盖
+   - 修复 Desktop 托盘生命周期 + IPC 状态路径一致性
+
+5. **文档全面同步** (`457279d`, `11a990f`):
+   - Web: E2E 17→22 specs, utils 9→10
+   - iOS: Swift 293→231 文件, 修正 3 处过时文件引用
+   - PRD: iOS Swift 328→45
+   - 新增 `architecture/INDEX.md` + `guides/INDEX.md`
+   - CHANGELOG 更新至 2026-03-29
+
+6. **清理孤立文件** (`f3509ec`, `cb84dae`, `236bb9e`):
+   - 删除 orphaned canvas/ 目录（537 行 Python + 800 行前端代码）
+   - 删除 5 个过时手动测试脚本（manual/ 目录）
+   - 更新 `.gitignore` 忽略 local skills / playwright-cli / output / tmp
+
+7. **Desktop 重建** (`6235365`):
+   - 修复 `ResourcePreloader` → `useResourcePreloader` hook（React 规则）
+   - E2E runner 更新新打包路径（TRIX-Setup-v3）
+   - 添加 `unhandledRejection` handler 防止静默崩溃
+
+---
+
+## 📅 2026-03-28 - Desktop 配对流加固 + TRIX Native 实时流稳定
+
+### 完成内容
+
+1. **配对流程全面加固** (`053f852`):
+   - 重写 Desktop IPC pairing handlers（837 行，完整配对状态机）
+   - 重写 ChatPage / ProfilePage / SnapshotPage / StudyPage（1411 行 diff）
+   - 新增 `browserQrScanner.ts` 工具模块
+   - 新增 `docs/trix-native-publish-and-install.md`
+   - E2E pairing.spec 精简至 365 行
+   - Desktop integration tests 全面重写
+
+2. **实时消息流稳定** (`96995c5`):
+   - 修复 native web 和 desktop 实时消息流中的竞争条件
+   - 新增 `TrixNativeChannelClient.session-switch.test.ts`（208 行）
+   - 更新手动测试脚本（native-burst / native-ui-binding / openclaw-live / web-live）
+
+3. **Gateway 实时连接** (`81f03b9`, `925cda8`, `bceec63`, `799aa7a`):
+   - Desktop 新增 OpenClaw Gateway WebSocket RPC 客户端
+   - DashboardPage 接入 WebSocket RPC + 实时事件
+   - 实时显示 Gateway agents/sessions 状态
+
+4. **Gateway 通道状态面板** (`9fdec8c`):
+   - Desktop 新增 Gateway Channel Status 面板
+   - 通过 `healthRPC` 获取通道健康状态
+   - 支持 TRIX Native 和 Feishu 双通道显示
+
+5. **文档归档** (`99860fe`, `45e8b58`):
+   - 归档 3 个过时文档，移入 `docs/.archive/`
+
+---
+
 ## 📅 2026-03-28 - 稳定化三端实时配对与 Gateway 状态
 
 ### 完成内容
@@ -1013,4 +1094,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-28
+**最后更新**: 2026-03-30
