@@ -21,6 +21,7 @@ import { formatTime } from '../utils/dateFormat';
 import ChatHeader from '../components/chat/ChatHeader';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
+import type { NativeMessageAttachmentInput } from '../services/TrixNativeChannelClient';
 
 // UI Message interface
 interface UIAttachment {
@@ -71,6 +72,56 @@ interface AttachmentPreview {
     originalName?: string;
     size?: number;
   };
+}
+
+function previewToNativeAttachment(preview: AttachmentPreview): NativeMessageAttachmentInput {
+  return {
+    uploadId: preview.uploadId,
+    kind: preview.category,
+    url: preview.uri,
+    mimeType: preview.type,
+    fileName: preview.metadata?.originalName,
+    size: preview.size,
+    width: preview.metadata?.width,
+    height: preview.metadata?.height,
+    duration: preview.metadata?.duration,
+  };
+}
+
+function nativeAttachmentToPreview(attachment: NativeMessageAttachmentInput): AttachmentPreview {
+  return {
+    uri: attachment.url || '',
+    type: attachment.mimeType || 'application/octet-stream',
+    size: attachment.size,
+    category: attachment.kind || 'file',
+    uploadId: attachment.uploadId,
+    metadata: {
+      width: attachment.width,
+      height: attachment.height,
+      duration: attachment.duration,
+      originalName: attachment.fileName,
+      size: attachment.size,
+    },
+  };
+}
+
+const CLAWBOT_DRAFT_ATTACHMENTS_KEY = 'trix_clawbot_draft_attachments_v1';
+
+function loadPersistedQueuedAttachments(): NativeMessageAttachmentInput[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 const ChatDetail: React.FC = () => {
@@ -150,6 +201,10 @@ const ChatDetail: React.FC = () => {
   };
 
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
+  const [queuedNativeAttachments, setQueuedNativeAttachments] = useState<NativeMessageAttachmentInput[]>(loadPersistedQueuedAttachments);
+  const effectiveAttachmentPreviews = attachmentPreviews.length > 0
+    ? attachmentPreviews
+    : queuedNativeAttachments.map(nativeAttachmentToPreview);
 
   // Clawbot Channel connection
   const {
@@ -195,7 +250,30 @@ const ChatDetail: React.FC = () => {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [selectedAIAction, setSelectedAIAction] = useState<AIActionId>('chat');
   const [loading, setLoading] = useState(true);
-  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingFileCount, setUploadingFileCount] = useState(0);
+  const uploadingFile = uploadingFileCount > 0;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!isBotConversation) {
+      window.sessionStorage.removeItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+      return;
+    }
+
+    if (queuedNativeAttachments.length === 0) {
+      window.sessionStorage.removeItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      CLAWBOT_DRAFT_ATTACHMENTS_KEY,
+      JSON.stringify(queuedNativeAttachments),
+    );
+  }, [isBotConversation, queuedNativeAttachments]);
+
   // 分页加载状态
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -559,7 +637,7 @@ const ChatDetail: React.FC = () => {
   const handleSend = async (overrideText?: string) => {
     // 检查是否有媒体或文本
     const draftText = String(overrideText ?? input ?? '');
-    const hasMedia = attachmentPreviews.length > 0;
+    const hasMedia = effectiveAttachmentPreviews.length > 0;
     const hasText = draftText.trim().length > 0;
 
     if (!hasMedia && !hasText) return;
@@ -567,21 +645,14 @@ const ChatDetail: React.FC = () => {
     const messageText = draftText.trim();
 
     // 从 attachmentPreviews 获取媒体数据（使用第一个）
-    const mediaData = hasMedia ? attachmentPreviews[0] : null;
+    const mediaData = hasMedia ? effectiveAttachmentPreviews[0] : null;
 
     // 特殊处理：机器人会话直接发送到新原生通道，不保存到 Supabase
     if (isBotConversation) {
-      const nativeAttachments = attachmentPreviews.map((preview) => ({
-        uploadId: preview.uploadId,
-        kind: preview.category,
-        url: preview.uri,
-        mimeType: preview.type,
-        fileName: preview.metadata?.originalName,
-        size: preview.size,
-        width: preview.metadata?.width,
-        height: preview.metadata?.height,
-        duration: preview.metadata?.duration,
-      }));
+      const nativeAttachments = queuedNativeAttachments.length > 0
+        ? queuedNativeAttachments
+        : effectiveAttachmentPreviews.map(previewToNativeAttachment);
+      const previewsToRestore = effectiveAttachmentPreviews;
 
       const botContentType: 'text' | 'image' | 'video' | 'file' | 'mixed' | 'voice' = hasMedia
         ? nativeAttachments.length === 1 && nativeAttachments[0]?.kind === 'audio' && !hasText
@@ -598,6 +669,12 @@ const ChatDetail: React.FC = () => {
       try {
         setInput('');
         setAttachmentPreviews([]);
+        setQueuedNativeAttachments(() => {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+          }
+          return [];
+        });
         await clawbotSendMessage(
           messageText,
           botContentType,
@@ -607,6 +684,14 @@ const ChatDetail: React.FC = () => {
           nativeAttachments,
         );
       } catch (error) {
+        setInput(messageText);
+        setAttachmentPreviews(previewsToRestore);
+        setQueuedNativeAttachments(() => {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY, JSON.stringify(nativeAttachments));
+          }
+          return nativeAttachments;
+        });
         showError('发送失败，请重试');
       }
       return;
@@ -772,18 +857,18 @@ const ChatDetail: React.FC = () => {
     if (!autoSendPrompt || autoSendTriggeredRef.current) return;
     if (!isBotConversation || !isPaired) return;
 
-    const mediaReady = !photoUri || attachmentPreviews.some(preview => preview.uri === photoUri);
+    const mediaReady = !photoUri || effectiveAttachmentPreviews.some(preview => preview.uri === photoUri);
     if (!mediaReady) return;
 
     autoSendTriggeredRef.current = true;
     void handleSend(autoSendPrompt);
-  }, [autoSendPrompt, isBotConversation, isPaired, attachmentPreviews, photoUri]);
+  }, [autoSendPrompt, isBotConversation, isPaired, effectiveAttachmentPreviews, photoUri]);
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
-    try {
-      setUploadingFile(true);
+    setUploadingFileCount((count) => count + 1);
 
+    try {
       const uploadCategory = resolveFileCategory(file);
       if (!uploadCategory) {
         throw new Error('不支持的文件类型');
@@ -806,6 +891,24 @@ const ChatDetail: React.FC = () => {
         const uploaded = await uploadAttachment(fileToUpload, {
           fileName: file.name,
           kind: previewCategory === 'audio' ? 'audio' : previewCategory,
+        });
+        const queuedAttachment: NativeMessageAttachmentInput = {
+          uploadId: uploaded.attachmentId,
+          kind: uploaded.kind,
+          url: uploaded.url,
+          mimeType: uploaded.mimeType,
+          fileName: uploaded.fileName,
+          size: uploaded.size,
+          width: uploaded.width,
+          height: uploaded.height,
+          duration: uploaded.duration,
+        };
+        setQueuedNativeAttachments((prev) => {
+          const next = [...prev, queuedAttachment];
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY, JSON.stringify(next));
+          }
+          return next;
         });
         setAttachmentPreviews(prev => [...prev, {
           uri: uploaded.url,
@@ -841,11 +944,17 @@ const ChatDetail: React.FC = () => {
     } catch (error) {
       handleError(error, '文件上传失败，请重试');
       setAttachmentPreviews([]);
+      setQueuedNativeAttachments(() => {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+        }
+        return [];
+      });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     } finally {
-      setUploadingFile(false);
+      setUploadingFileCount((count) => Math.max(0, count - 1));
     }
   };
 
@@ -861,6 +970,17 @@ const ChatDetail: React.FC = () => {
 
   const handleRemoveAttachment = (index: number) => {
     setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
+    setQueuedNativeAttachments((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (typeof window !== 'undefined') {
+        if (next.length === 0) {
+          window.sessionStorage.removeItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY);
+        } else {
+          window.sessionStorage.setItem(CLAWBOT_DRAFT_ATTACHMENTS_KEY, JSON.stringify(next));
+        }
+      }
+      return next;
+    });
   };
 
   const handleAIActionSelect = (action: AIActionId) => {
@@ -920,7 +1040,7 @@ const ChatDetail: React.FC = () => {
         isBotConversation={isBotConversation}
         isPaired={isPaired}
         uploadingFile={uploadingFile}
-        attachmentPreviews={attachmentPreviews}
+        attachmentPreviews={effectiveAttachmentPreviews}
         selectedAIAction={selectedAIAction}
         onInputChange={setInput}
         onInputFocus={() => setIsInputFocused(true)}
