@@ -11,6 +11,8 @@ const INBOUND_ACK_TTL_MS = 30 * 60 * 1000;
 const MAX_TRACKED_INBOUND_MESSAGES = 2048;
 const DEFAULT_INBOUND_DEBOUNCE_MS = 900;
 const MAX_DEBOUNCED_BATCH_SIZE = 8;
+const DEFAULT_PARALLEL_SLASH_COMMAND_PREFIXES = ['/status'];
+const MAX_PARALLEL_SLASH_COMMANDS_PER_SESSION = 8;
 const TRIX_AGENT_TURN_PREAMBLE = [
   'TRIX live chat turn.',
   'Treat this as a normal end-user conversation on the trix-native channel.',
@@ -176,6 +178,43 @@ function resolveInboundDebounceMs(config: Record<string, unknown>): number {
   return resolved;
 }
 
+function normalizeSlashCommandPrefix(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+function resolveParallelSlashCommandPrefixes(config: Record<string, unknown>): string[] {
+  const inbound = (config as {
+    messages?: {
+      inbound?: {
+        parallelSlashCommands?: string[] | { byChannel?: Record<string, string[]> };
+      };
+    };
+  }).messages?.inbound;
+
+  const rawValue = inbound?.parallelSlashCommands;
+  const rawPrefixes = Array.isArray(rawValue)
+    ? rawValue
+    : rawValue?.byChannel?.['trix-native'] ?? DEFAULT_PARALLEL_SLASH_COMMAND_PREFIXES;
+
+  return [...new Set(
+    rawPrefixes
+      .map((entry) => normalizeSlashCommandPrefix(String(entry)))
+      .filter(Boolean),
+  )];
+}
+
+function isSlashCommandWithPrefix(text: string, prefixes: string[]): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('/')) {
+    return false;
+  }
+  return prefixes.some((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
+}
+
 function buildAgentFacingBody(content: string): string {
   const trimmed = content.trim();
   if (!trimmed) {
@@ -247,6 +286,9 @@ export async function monitorTrixProvider(opts: {
   const inboundDeliveryState = new Map<string, { status: 'processing' | 'done'; updatedAt: number }>();
   const sessionProcessingQueue = new Map<string, Promise<void>>();
   const inboundDebounceMs = resolveInboundDebounceMs(opts.config);
+  const parallelSlashCommandPrefixes = resolveParallelSlashCommandPrefixes(opts.config);
+  const parallelSlashInFlightBySession = new Map<string, number>();
+  const parallelSlashDrainWaitersBySession = new Map<string, Array<() => void>>();
   const bufferedInboundBySession = new Map<string, {
     timer: ReturnType<typeof setTimeout>;
     items: Array<{ normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>; inboundMessageKey: string }>;
@@ -307,6 +349,38 @@ export async function monitorTrixProvider(opts: {
     `${account.accountId}:${normalized.chatType}:${normalized.conversationId}:${normalized.peerId}`
   );
 
+  const isParallelSlashCommand = (text: string) => isSlashCommandWithPrefix(text, parallelSlashCommandPrefixes);
+
+  const waitForParallelSlashDrain = (sessionKey: string) => {
+    if ((parallelSlashInFlightBySession.get(sessionKey) ?? 0) <= 0) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      const waiters = parallelSlashDrainWaitersBySession.get(sessionKey) ?? [];
+      waiters.push(resolve);
+      parallelSlashDrainWaitersBySession.set(sessionKey, waiters);
+    });
+  };
+
+  const startParallelSlashWork = (sessionKey: string) => {
+    parallelSlashInFlightBySession.set(sessionKey, (parallelSlashInFlightBySession.get(sessionKey) ?? 0) + 1);
+  };
+
+  const finishParallelSlashWork = (sessionKey: string) => {
+    const remaining = (parallelSlashInFlightBySession.get(sessionKey) ?? 1) - 1;
+    if (remaining > 0) {
+      parallelSlashInFlightBySession.set(sessionKey, remaining);
+      return;
+    }
+
+    parallelSlashInFlightBySession.delete(sessionKey);
+    const waiters = parallelSlashDrainWaitersBySession.get(sessionKey) ?? [];
+    parallelSlashDrainWaitersBySession.delete(sessionKey);
+    for (const resolve of waiters) {
+      resolve();
+    }
+  };
+
   const shouldDebounceInbound = (normalized: NonNullable<ReturnType<typeof normalizeInboundEvent>>) => {
     if (inboundDebounceMs <= 0) {
       return false;
@@ -358,7 +432,10 @@ export async function monitorTrixProvider(opts: {
     const previous = sessionProcessingQueue.get(sessionKey) ?? Promise.resolve();
     const next = previous
       .catch(() => undefined)
-      .then(work);
+      .then(async () => {
+        await waitForParallelSlashDrain(sessionKey);
+        await work();
+      });
     const settled = next.then(() => undefined, () => undefined);
     sessionProcessingQueue.set(sessionKey, settled);
     void settled.finally(() => {
@@ -380,6 +457,7 @@ export async function monitorTrixProvider(opts: {
     const normalized = merged.normalized;
     const normalizedMessageId = normalized.message.id;
     const isSlashCommand = normalized.message.text.startsWith('/');
+    const isNonBlockingSlashCommand = isParallelSlashCommand(normalized.message.text);
     const rawText = normalized.message.text ?? '';
     const messageIdsToAck = merged.messageIds;
     const messageKeysToAck = merged.messageKeys;
@@ -404,11 +482,6 @@ export async function monitorTrixProvider(opts: {
       if (!route) {
         return;
       }
-
-      const storePath = runtime.session.resolveStorePath(
-        (opts.config as { session?: { store?: string } }).session?.store,
-        { agentId: route.agentId as string | undefined },
-      );
 
       const commandAuthorized = await resolveCommandAuthorized({
         config: opts.config,
@@ -512,18 +585,25 @@ export async function monitorTrixProvider(opts: {
         TrixMessageIds: messageIdsToAck,
       });
 
-      await runtime.session.recordInboundSession({
-        storePath,
-        sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
-        ctx: ctxPayload,
-        updateLastRoute: {
-          sessionKey: route.sessionKey,
-          channel: 'trix-native',
-          to: `conv:${normalized.conversationId}`,
-          accountId: account.accountId,
-        },
-        onRecordError: () => undefined,
-      });
+      if (!isNonBlockingSlashCommand) {
+        const storePath = runtime.session.resolveStorePath(
+          (opts.config as { session?: { store?: string } }).session?.store,
+          { agentId: route.agentId as string | undefined },
+        );
+
+        await runtime.session.recordInboundSession({
+          storePath,
+          sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+          ctx: ctxPayload,
+          updateLastRoute: {
+            sessionKey: route.sessionKey,
+            channel: 'trix-native',
+            to: `conv:${normalized.conversationId}`,
+            accountId: account.accountId,
+          },
+          onRecordError: () => undefined,
+        });
+      }
 
       let inboundReplyAcknowledged = false;
 
@@ -723,6 +803,19 @@ export async function monitorTrixProvider(opts: {
         }
 
         flushBufferedSession(sessionKey);
+        if (isParallelSlashCommand(normalized.message.text) && !sessionProcessingQueue.has(sessionKey)) {
+          const inFlight = parallelSlashInFlightBySession.get(sessionKey) ?? 0;
+          if (inFlight < MAX_PARALLEL_SLASH_COMMANDS_PER_SESSION) {
+            startParallelSlashWork(sessionKey);
+            void processInboundItems([item])
+              .catch(() => undefined)
+              .finally(() => {
+                finishParallelSlashWork(sessionKey);
+              });
+            return;
+          }
+        }
+
         void enqueueSessionWork(sessionKey, async () => {
           await processInboundItems([item]);
         }).catch(() => undefined);

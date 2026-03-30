@@ -993,34 +993,56 @@ export class TrixNativeServer {
     }
 
     const idempotencyKey = input.message.idempotencyKey?.trim();
-    if (idempotencyKey) {
-      const existing = await this.findServiceMessageByIdempotencyKey({
+    let message: MessageRecord | undefined;
+    let reusedExisting = false;
+    const now = Date.now();
+
+    await this.stateStore.update(async (state) => {
+      const currentConversation = state.conversations.find((entry) => entry.id === input.conversationId);
+      if (!currentConversation) {
+        throw new HttpError(404, `Conversation not found: ${input.conversationId}`);
+      }
+
+      if (idempotencyKey) {
+        const existing = state.messages.find((entry) =>
+          entry.accountId === input.accountId
+          && entry.conversationId === input.conversationId
+          && entry.senderId === `openclaw:${input.accountId}`
+          && entry.metadata?.idempotencyKey === idempotencyKey,
+        );
+        if (existing) {
+          message = existing;
+          reusedExisting = true;
+          return state;
+        }
+      }
+
+      const inlineAttachments = input.message.attachments ?? [];
+      const persistedInlineAttachments = await Promise.all(
+        inlineAttachments.map((attachment) =>
+          this.attachmentStore.saveFromInput({
+            ...attachment,
+            accountId: input.accountId,
+            conversationId: input.conversationId,
+          })),
+      );
+
+      message = {
+        id: randomId('msg', 8),
         accountId: input.accountId,
         conversationId: input.conversationId,
-        idempotencyKey,
-      });
-      if (existing) {
-        return existing;
-      }
-    }
+        direction: 'outbound',
+        text: input.message.text ?? '',
+        attachments: persistedInlineAttachments,
+        senderId: `openclaw:${input.accountId}`,
+        senderName: 'OpenClaw',
+        createdAt: now,
+        replyToMessageId: input.message.replyToMessageId ?? null,
+        metadata: idempotencyKey ? { idempotencyKey } : undefined,
+      };
 
-    const message = await this.createMessage({
-      accountId: input.accountId,
-      conversationId: input.conversationId,
-      direction: 'outbound',
-      senderId: `openclaw:${input.accountId}`,
-      senderName: 'OpenClaw',
-      text: input.message.text ?? '',
-      replyToMessageId: input.message.replyToMessageId ?? null,
-      attachments: input.message.attachments,
-      metadata: idempotencyKey ? { idempotencyKey } : undefined,
-    });
-    const state = await this.stateStore.read();
-    await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
-    if (input.message.replyToMessageId) {
-      await this.stateStore.update((currentState) => ({
-        ...currentState,
-        messages: currentState.messages.map((entry) => {
+      const nextMessages = [
+        ...state.messages.map((entry) => {
           if (
             entry.id !== input.message.replyToMessageId
             || entry.direction !== 'inbound'
@@ -1035,11 +1057,34 @@ export class TrixNativeServer {
             metadata: {
               ...(entry.metadata ?? {}),
               serviceDispatchPending: false,
-              serviceDeliveredAt: Date.now(),
+              serviceDeliveredAt: now,
             },
           };
         }),
-      }));
+        message,
+      ];
+
+      return {
+        ...state,
+        messages: nextMessages,
+        conversations: state.conversations.map((entry) =>
+          entry.id === input.conversationId
+            ? {
+                ...entry,
+                updatedAt: now,
+              }
+            : entry,
+        ),
+      };
+    });
+
+    if (!message) {
+      throw new Error('Failed to create service message');
+    }
+
+    const state = await this.stateStore.read();
+    if (!reusedExisting) {
+      await this.broadcast(this.buildUserMessageEnvelope(state, conversation, message), { role: 'user', conversationId: message.conversationId });
     }
     console.info('[trix-native-server] service message created', {
       conversationId: message.conversationId,
@@ -1047,6 +1092,7 @@ export class TrixNativeServer {
       hasAttachments: (input.message.attachments?.length ?? 0) > 0,
       textLength: (input.message.text ?? '').length,
       messageId: message.id,
+      reusedExisting,
     });
     return message;
   }

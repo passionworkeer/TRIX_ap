@@ -724,6 +724,70 @@ describe('TrixNativeServer', () => {
     expect(typeof deliveredInbound?.metadata?.serviceDeliveredAt).toBe('number');
   });
 
+  it('deduplicates concurrent service replies with the same idempotency key', async () => {
+    const server = createTestServer(8814);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8814/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${state.serviceTokens.default}`,
+      },
+      body: JSON.stringify({ accountId: 'default', label: 'Concurrent Reply Browser' }),
+    }).then((response) => response.json()) as { code: string };
+
+    const claim = await fetch(`http://127.0.0.1:8814/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientId: 'browser-concurrent-reply-1',
+        deviceName: 'Concurrent Reply Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        fetch('http://127.0.0.1:8814/api/service/messages', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${state.serviceTokens.default}`,
+          },
+          body: JSON.stringify({
+            accountId: 'default',
+            conversationId: claim.conversationId,
+            message: {
+              idempotencyKey: 'reply-concurrent-1',
+              text: 'hello from bot once',
+            },
+          }),
+        }),
+      ),
+    );
+
+    expect(responses.every((response) => response.status === 201)).toBe(true);
+
+    const payloads = await Promise.all(
+      responses.map((response) => response.json()),
+    ) as Array<{ message: { id: string; text: string } }>;
+
+    expect(new Set(payloads.map((payload) => payload.message.id)).size).toBe(1);
+    expect(new Set(payloads.map((payload) => payload.message.text))).toEqual(new Set(['hello from bot once']));
+
+    const finalState = await server.stateStore.read();
+    const matchingOutbound = finalState.messages.filter((message) =>
+      message.accountId === 'default'
+      && message.conversationId === claim.conversationId
+      && message.senderId === 'openclaw:default'
+      && message.metadata?.idempotencyKey === 'reply-concurrent-1',
+    );
+
+    expect(matchingOutbound).toHaveLength(1);
+  });
+
   it('filters pairing inspection by account and strips sensitive claim state', async () => {
     const server = createTestServer(8803);
     servers.push(server);

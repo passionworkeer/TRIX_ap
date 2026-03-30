@@ -733,6 +733,274 @@ describe('monitorTrixProvider', () => {
     await testServer.close();
   }, 15_000);
 
+  it('runs configured slash status commands concurrently when the session is otherwise idle', async () => {
+    const testServer = await createTestServer();
+    let releaseDispatches: (() => void) | null = null;
+    const dispatchGate = new Promise<void>((resolve) => {
+      releaseDispatches = resolve;
+    });
+
+    const connectionReady = new Promise<void>((resolve) => {
+      testServer.wss.once('connection', (socket) => {
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_parallel_status',
+            chatType: 'direct',
+            peer: { id: 'user_parallel_status', displayName: 'Alice' },
+            message: {
+              id: 'msg_parallel_status_1',
+              text: '/status first',
+              attachments: [],
+              timestamp: Date.now(),
+            },
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_parallel_status',
+            chatType: 'direct',
+            peer: { id: 'user_parallel_status', displayName: 'Alice' },
+            message: {
+              id: 'msg_parallel_status_2',
+              text: '/status second',
+              attachments: [],
+              timestamp: Date.now() + 1,
+            },
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_parallel_status',
+            chatType: 'direct',
+            peer: { id: 'user_parallel_status', displayName: 'Alice' },
+            message: {
+              id: 'msg_parallel_status_3',
+              text: '/status third',
+              attachments: [],
+              timestamp: Date.now() + 2,
+            },
+          },
+        }));
+        resolve();
+      });
+    });
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async ({ ctx, dispatcherOptions }: {
+      ctx: Record<string, unknown>;
+      dispatcherOptions: { deliver: (payload: Record<string, unknown>) => Promise<void> };
+    }) => {
+      await dispatchGate;
+      await dispatcherOptions.deliver({
+        text: `reply:${ctx.MessageSid as string}`,
+        replyToId: ctx.MessageSid,
+      });
+    });
+    const recordInboundSession = vi.fn(async () => undefined);
+    const abortController = new AbortController();
+
+    const monitorPromise = monitorTrixProvider({
+      config: {
+        messages: {
+          inbound: {
+            debounceMs: 0,
+            parallelSlashCommands: ['/status'],
+          },
+        },
+        channels: {
+          'trix-native': {
+            accounts: {
+              default: {
+                enabled: true,
+                serviceUrl: `http://127.0.0.1:${testServer.port}`,
+                serviceToken: 'service-token',
+                transport: 'ws',
+              },
+            },
+          },
+        },
+      },
+      abortSignal: abortController.signal,
+      channelRuntime: {
+        reply: {
+          dispatchReplyWithBufferedBlockDispatcher,
+          finalizeInboundContext: (ctx) => ctx,
+        },
+        routing: {
+          resolveAgentRoute: () => ({ sessionKey: 'session_parallel_status', accountId: 'default', agentId: 'agent_parallel_status' }),
+        },
+        session: {
+          resolveStorePath: () => '/tmp/session-store',
+          recordInboundSession,
+        },
+        pairing: {
+          readAllowFromStore: vi.fn(async () => []),
+        },
+        commands: {
+          shouldComputeCommandAuthorized: vi.fn((text: string) => text.startsWith('/')),
+          resolveCommandAuthorizedFromAuthorizers: vi.fn(() => true),
+        },
+        media: {
+          fetchRemoteMedia: vi.fn(),
+          saveMediaBuffer: vi.fn(),
+        },
+      },
+      runtime: {},
+      statusSink: () => undefined,
+    });
+
+    await connectionReady;
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(3);
+    }, { timeout: 10_000 });
+    expect(recordInboundSession).not.toHaveBeenCalled();
+
+    releaseDispatches?.();
+
+    abortController.abort();
+    await monitorPromise;
+    await testServer.close();
+  }, 15_000);
+
+  it('waits for in-flight slash status commands before processing a normal turn in the same session', async () => {
+    const testServer = await createTestServer();
+    let releaseStatusDispatch: (() => void) | null = null;
+    const statusDispatchGate = new Promise<void>((resolve) => {
+      releaseStatusDispatch = resolve;
+    });
+
+    const connectionReady = new Promise<void>((resolve) => {
+      testServer.wss.once('connection', (socket) => {
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_parallel_then_normal',
+            chatType: 'direct',
+            peer: { id: 'user_parallel_then_normal', displayName: 'Alice' },
+            message: {
+              id: 'msg_parallel_then_normal_1',
+              text: '/status',
+              attachments: [],
+              timestamp: Date.now(),
+            },
+          },
+        }));
+        setTimeout(() => {
+          socket.send(JSON.stringify({
+            type: 'message.created',
+            payload: {
+              accountId: 'default',
+              conversationId: 'conv_parallel_then_normal',
+              chatType: 'direct',
+              peer: { id: 'user_parallel_then_normal', displayName: 'Alice' },
+              message: {
+                id: 'msg_parallel_then_normal_2',
+                text: 'normal follow-up',
+                attachments: [],
+                timestamp: Date.now() + 10,
+              },
+            },
+          }));
+        }, 5);
+        resolve();
+      });
+    });
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async ({ ctx, dispatcherOptions }: {
+      ctx: Record<string, unknown>;
+      dispatcherOptions: { deliver: (payload: Record<string, unknown>) => Promise<void> };
+    }) => {
+      if (ctx.MessageSid === 'msg_parallel_then_normal_1') {
+        await statusDispatchGate;
+      }
+      await dispatcherOptions.deliver({
+        text: `reply:${ctx.MessageSid as string}`,
+        replyToId: ctx.MessageSid,
+      });
+    });
+    const recordInboundSession = vi.fn(async () => undefined);
+    const abortController = new AbortController();
+
+    const monitorPromise = monitorTrixProvider({
+      config: {
+        messages: {
+          inbound: {
+            debounceMs: 0,
+            parallelSlashCommands: ['/status'],
+          },
+        },
+        channels: {
+          'trix-native': {
+            accounts: {
+              default: {
+                enabled: true,
+                serviceUrl: `http://127.0.0.1:${testServer.port}`,
+                serviceToken: 'service-token',
+                transport: 'ws',
+              },
+            },
+          },
+        },
+      },
+      abortSignal: abortController.signal,
+      channelRuntime: {
+        reply: {
+          dispatchReplyWithBufferedBlockDispatcher,
+          finalizeInboundContext: (ctx) => ctx,
+        },
+        routing: {
+          resolveAgentRoute: () => ({ sessionKey: 'session_parallel_then_normal', accountId: 'default', agentId: 'agent_parallel_then_normal' }),
+        },
+        session: {
+          resolveStorePath: () => '/tmp/session-store',
+          recordInboundSession,
+        },
+        pairing: {
+          readAllowFromStore: vi.fn(async () => []),
+        },
+        commands: {
+          shouldComputeCommandAuthorized: vi.fn((text: string) => text.startsWith('/')),
+          resolveCommandAuthorizedFromAuthorizers: vi.fn(() => true),
+        },
+        media: {
+          fetchRemoteMedia: vi.fn(),
+          saveMediaBuffer: vi.fn(),
+        },
+      },
+      runtime: {},
+      statusSink: () => undefined,
+    });
+
+    await connectionReady;
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    }, { timeout: 10_000 });
+    expect((dispatchReplyWithBufferedBlockDispatcher.mock.calls[0]?.[0] as { ctx: Record<string, unknown> }).ctx.MessageSid).toBe('msg_parallel_then_normal_1');
+    expect(recordInboundSession).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    }, { timeout: 100 });
+
+    releaseStatusDispatch?.();
+
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(2);
+    }, { timeout: 10_000 });
+    expect((dispatchReplyWithBufferedBlockDispatcher.mock.calls[1]?.[0] as { ctx: Record<string, unknown> }).ctx.MessageSid).toBe('msg_parallel_then_normal_2');
+    expect(recordInboundSession).toHaveBeenCalledTimes(1);
+
+    abortController.abort();
+    await monitorPromise;
+    await testServer.close();
+  }, 15_000);
+
   it('hardens normal inbound turns against heartbeat contamination', async () => {
     const testServer = await createTestServer();
     const connectionReady = new Promise<void>((resolve) => {
