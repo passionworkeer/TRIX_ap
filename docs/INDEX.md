@@ -14,6 +14,7 @@ docs/
 ├── CLAUDE.md                  # 项目规范（位于根目录）
 ├── README.md                  # 项目总览（位于根目录）
 ├── TRIX_NATIVE_CHANNEL.md    # ⭐ Native Channel 唯一权威文档
+├── trix-native-publish-and-install.md  # Native 插件发布安装指南
 │
 ├── 📋 需求规格 (requirements/)
 │   ├── PRD.md                # 产品需求文档（三端合一）
@@ -89,6 +90,8 @@ docs/
     ├── DESKTOP_PHASE2_PLAN.md               # Desktop Phase 2 计划
     └── TEST_COMPILE_ISSUES_20260324.md      # iOS 编译问题报告（2026-03-24，⭐ 新归档）
 ```
+
+> 注：`screenshots/` 目录包含 9 个 Desktop/Gateway 截图文件（PNG），用于文档配图。
 
 ---
 
