@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocketServer } from 'ws';
 import { monitorTrixProvider } from '../src/monitor.js';
 
+const EXPECTED_AGENT_PREAMBLE = 'TRIX live chat turn.';
+
 async function createTestServer(
   onAttachmentRequest?: (request: http.IncomingMessage, response: http.ServerResponse) => void,
   onServiceMessageRequest?: (request: http.IncomingMessage, body: string) => void,
@@ -283,10 +285,101 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.RawBody).toBe('请看图片');
     expect(call.ctx.CommandBody).toBe('请看图片');
     expect(call.ctx.BodyForCommands).toBe('请看图片');
+    expect(call.ctx.BodyForAgent).toContain(EXPECTED_AGENT_PREAMBLE);
+    expect(call.ctx.BodyForAgent).toContain('User content:\n请看图片');
     expect(call.ctx.MediaPath).toBe('/tmp/inbound/photo.png');
     expect(call.ctx.MediaType).toBe('image/png');
     expect(call.ctx.CommandAuthorized).toBeUndefined();
     expect(readAllowFromStore).not.toHaveBeenCalled();
+
+    abortController.abort();
+    await monitorPromise;
+    await testServer.close();
+  }, 15_000);
+
+  it('authorizes slash commands under pairing policy via the Trix service plane', async () => {
+    const testServer = await createTestServer();
+    const connectionReady = new Promise<void>((resolve) => {
+      testServer.wss.once('connection', (socket) => {
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_pairing_cmd',
+            chatType: 'direct',
+            peer: { id: 'user_pairing', displayName: 'Alice' },
+            message: {
+              id: 'msg_pairing_cmd',
+              text: '/status',
+              attachments: [],
+              timestamp: Date.now(),
+            },
+          },
+        }));
+        resolve();
+      });
+    });
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
+    const readAllowFromStore = vi.fn(async () => []);
+    const shouldComputeCommandAuthorized = vi.fn(() => true);
+    const resolveCommandAuthorizedFromAuthorizers = vi.fn(() => false);
+    const abortController = new AbortController();
+
+    const monitorPromise = monitorTrixProvider({
+      config: {
+        channels: {
+          'trix-native': {
+            dmPolicy: 'pairing',
+            accounts: {
+              default: {
+                enabled: true,
+                serviceUrl: `http://127.0.0.1:${testServer.port}`,
+                serviceToken: 'service-token',
+                transport: 'ws',
+              },
+            },
+          },
+        },
+      },
+      abortSignal: abortController.signal,
+      channelRuntime: {
+        reply: {
+          dispatchReplyWithBufferedBlockDispatcher,
+          finalizeInboundContext: (ctx) => ctx,
+        },
+        routing: {
+          resolveAgentRoute: () => ({ sessionKey: 'session_pairing_cmd', accountId: 'default', agentId: 'agent_pairing_cmd' }),
+        },
+        session: {
+          resolveStorePath: () => '/tmp/session-store',
+          recordInboundSession: vi.fn(async () => undefined),
+        },
+        pairing: {
+          readAllowFromStore,
+        },
+        commands: {
+          shouldComputeCommandAuthorized,
+          resolveCommandAuthorizedFromAuthorizers,
+        },
+        media: {
+          fetchRemoteMedia: vi.fn(),
+          saveMediaBuffer: vi.fn(),
+        },
+      },
+      runtime: {},
+      statusSink: () => undefined,
+    });
+
+    await connectionReady;
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    }, { timeout: 10_000 });
+
+    const call = dispatchReplyWithBufferedBlockDispatcher.mock.calls[0]?.[0] as { ctx: Record<string, unknown> };
+    expect(call.ctx.CommandAuthorized).toBe(true);
+    expect(readAllowFromStore).not.toHaveBeenCalled();
+    expect(resolveCommandAuthorizedFromAuthorizers).not.toHaveBeenCalled();
 
     abortController.abort();
     await monitorPromise;
@@ -484,7 +577,8 @@ describe('monitorTrixProvider', () => {
     }, { timeout: 10_000 });
 
     const call = dispatchReplyWithBufferedBlockDispatcher.mock.calls[0]?.[0] as { ctx: Record<string, unknown> };
-    expect(call.ctx.BodyForAgent).toBe('第一句\n第二句');
+    expect(call.ctx.BodyForAgent).toContain(EXPECTED_AGENT_PREAMBLE);
+    expect(call.ctx.BodyForAgent).toContain('User content:\n第一句\n第二句');
     expect(call.ctx.TrixMessageIds).toEqual(['msg_batch_1', 'msg_batch_2']);
 
     await vi.waitFor(() => {
@@ -633,6 +727,92 @@ describe('monitorTrixProvider', () => {
       expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(2);
     }, { timeout: 10_000 });
     expect((dispatchReplyWithBufferedBlockDispatcher.mock.calls[1]?.[0] as { ctx: Record<string, unknown> }).ctx.MessageSid).toBe('msg_serial_2');
+
+    abortController.abort();
+    await monitorPromise;
+    await testServer.close();
+  }, 15_000);
+
+  it('hardens normal inbound turns against heartbeat contamination', async () => {
+    const testServer = await createTestServer();
+    const connectionReady = new Promise<void>((resolve) => {
+      testServer.wss.once('connection', (socket) => {
+        socket.send(JSON.stringify({
+          type: 'message.created',
+          payload: {
+            accountId: 'default',
+            conversationId: 'conv_guard',
+            chatType: 'direct',
+            peer: { id: 'user_guard', displayName: 'Alice' },
+            message: {
+              id: 'msg_guard',
+              text: 'just a normal user message',
+              attachments: [],
+              timestamp: Date.now(),
+            },
+          },
+        }));
+        resolve();
+      });
+    });
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn(async () => undefined);
+    const abortController = new AbortController();
+
+    const monitorPromise = monitorTrixProvider({
+      config: {
+        channels: {
+          'trix-native': {
+            accounts: {
+              default: {
+                enabled: true,
+                serviceUrl: `http://127.0.0.1:${testServer.port}`,
+                serviceToken: 'service-token',
+                transport: 'ws',
+              },
+            },
+          },
+        },
+      },
+      abortSignal: abortController.signal,
+      channelRuntime: {
+        reply: {
+          dispatchReplyWithBufferedBlockDispatcher,
+          finalizeInboundContext: (ctx) => ctx,
+        },
+        routing: {
+          resolveAgentRoute: () => ({ sessionKey: 'session_guard', accountId: 'default', agentId: 'agent_guard' }),
+        },
+        session: {
+          resolveStorePath: () => '/tmp/session-store',
+          recordInboundSession: vi.fn(async () => undefined),
+        },
+        pairing: {
+          readAllowFromStore: vi.fn(async () => []),
+        },
+        commands: {
+          shouldComputeCommandAuthorized: vi.fn(() => false),
+          resolveCommandAuthorizedFromAuthorizers: vi.fn(() => false),
+        },
+        media: {
+          fetchRemoteMedia: vi.fn(),
+          saveMediaBuffer: vi.fn(),
+        },
+      },
+      runtime: {},
+      statusSink: () => undefined,
+    });
+
+    await connectionReady;
+    await vi.waitFor(() => {
+      expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    }, { timeout: 10_000 });
+
+    const call = dispatchReplyWithBufferedBlockDispatcher.mock.calls[0]?.[0] as { ctx: Record<string, unknown> };
+    expect(call.ctx.BodyForAgent).toContain(EXPECTED_AGENT_PREAMBLE);
+    expect(call.ctx.BodyForAgent).toContain('Never reply with HEARTBEAT_OK unless the user explicitly asked for that exact text.');
+    expect(call.ctx.BodyForAgent).toContain('User content:\njust a normal user message');
+    expect(call.ctx.RawBody).toBe('just a normal user message');
 
     abortController.abort();
     await monitorPromise;

@@ -4,25 +4,40 @@ struct LiveUITestConfig: Decodable {
     let email: String?
     let password: String?
     let screenshotDirectory: String?
+    let serviceUrl: String?
+    let serviceToken: String?
 
     static let defaultPath = "/tmp/trix-ui-config.json"
 
     static func load() -> LiveUITestConfig {
         let environment = ProcessInfo.processInfo.environment
+        let envConfig = LiveUITestConfig(
+            email: environment["TRIX_TEST_EMAIL"],
+            password: environment["TRIX_TEST_PASSWORD"],
+            screenshotDirectory: environment["TRIX_UI_SCREENSHOT_DIR"],
+            serviceUrl: environment["TRIX_NATIVE_SERVICE_URL"] ?? environment["TRIX_TEST_SERVICE_URL"],
+            serviceToken: environment["TRIX_NATIVE_SERVICE_TOKEN"]
+        )
 
         if let configPath = environment["TRIX_UI_CONFIG_PATH"] ?? environment["UITEST_CONFIG_PATH"],
            let config = load(from: configPath) {
-            return config
+            return config.merging(envConfig)
         }
 
         if let config = load(from: defaultPath) {
-            return config
+            return config.merging(envConfig)
         }
 
-        return LiveUITestConfig(
-            email: environment["TRIX_TEST_EMAIL"],
-            password: environment["TRIX_TEST_PASSWORD"],
-            screenshotDirectory: environment["TRIX_UI_SCREENSHOT_DIR"]
+        return envConfig
+    }
+
+    private func merging(_ overlay: LiveUITestConfig) -> LiveUITestConfig {
+        LiveUITestConfig(
+            email: overlay.email ?? email,
+            password: overlay.password ?? password,
+            screenshotDirectory: overlay.screenshotDirectory ?? screenshotDirectory,
+            serviceUrl: overlay.serviceUrl ?? serviceUrl,
+            serviceToken: overlay.serviceToken ?? serviceToken
         )
     }
 
@@ -87,6 +102,7 @@ enum AppUIIdentifiers {
     static let pairingManualButton = "pairing.manual.button"
     static let pairingCodeField = "pairing.code.field"
     static let pairingVerifyButton = "pairing.verify.button"
+    static let pairingStartChatButton = "pairing.start-chat.button"
     static let trixBotScreen = "trixbot.screen"
     static let trixBotPairedBanner = "trixbot.banner.paired"
     static let trixBotUnpairedBanner = "trixbot.banner.unpaired"
@@ -190,6 +206,20 @@ class RealAppUITestCase: XCTestCase {
         app.textFields[identifier]
     }
 
+    func textInput(withIdentifier identifier: String) -> XCUIElement {
+        let textView = app.textViews[identifier]
+        if textView.exists {
+            return textView
+        }
+
+        let textField = app.textFields[identifier]
+        if textField.exists {
+            return textField
+        }
+
+        return app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
     func secureTextField(withIdentifier identifier: String) -> XCUIElement {
         app.secureTextFields[identifier]
     }
@@ -290,6 +320,46 @@ class RealAppUITestCase: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
+    func waitForKeyboard(timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if app.keyboards.count > 0 {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return app.keyboards.count > 0
+    }
+
+    @discardableResult
+    func focusAndTypeText(
+        _ text: String,
+        into element: XCUIElement,
+        timeout: TimeInterval = 8,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> Bool {
+        XCTAssertTrue(
+            element.waitForExistence(timeout: timeout),
+            "Expected input element to exist before typing.",
+            file: file,
+            line: line
+        )
+
+        _ = tapReliably(element, timeout: timeout)
+
+        if !waitForKeyboard(timeout: 1.5) {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+        _ = waitForKeyboard(timeout: timeout)
+
+        app.typeText(text)
+        return true
+    }
+
     func scrollToElement(_ element: XCUIElement, maxSwipes: Int = 5) {
         var remainingSwipes = maxSwipes
 
@@ -304,6 +374,14 @@ class RealAppUITestCase: XCTestCase {
         hierarchy.name = "\(name)-hierarchy"
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
+
+        guard app.exists else {
+            let note = XCTAttachment(string: "Screenshot skipped because app no longer exists.")
+            note.name = "\(name)-screenshot-skipped"
+            note.lifetime = .keepAlways
+            add(note)
+            return
+        }
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "\(name)-screenshot"
@@ -404,6 +482,14 @@ class RealAppUITestCase: XCTestCase {
 
         if let screenshotDirectory = config.screenshotDirectory, !screenshotDirectory.isEmpty {
             environment["TRIX_UI_SCREENSHOT_DIR"] = screenshotDirectory
+        }
+
+        if let serviceUrl = config.serviceUrl, !serviceUrl.isEmpty {
+            environment["TRIX_NATIVE_SERVICE_URL"] = serviceUrl
+        }
+
+        if let serviceToken = config.serviceToken, !serviceToken.isEmpty {
+            environment["TRIX_NATIVE_SERVICE_TOKEN"] = serviceToken
         }
 
         return environment

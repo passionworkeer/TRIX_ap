@@ -2,6 +2,7 @@ import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
 import qrcode from 'qrcode-terminal';
 import { applyTrixAccountConfig, inspectTrixAccount, listTrixAccountIds, resolveDefaultTrixAccountId, resolveRegisteredTrixAccount, resolveTrixAccount } from './account.js';
 import { looksLikeTrixTarget, normalizeTrixTarget } from './bindings.js';
+import { fetchWithTimeout } from './http.js';
 import { monitorTrixProvider } from './monitor.js';
 import { trixOutbound } from './outbound.js';
 import { probeTrix } from './probe.js';
@@ -10,6 +11,28 @@ import { trixSetupAdapter } from './setup.js';
 const pendingPairingCodeByAccount = new Map<string, string>();
 const PAIRING_STATUS_POLL_INTERVAL_MS = 7_000;
 const DEFAULT_PAIRING_WAIT_TIMEOUT_MS = 5 * 60_000;
+
+type TrixDmPolicy = 'open' | 'pairing' | 'allowlist' | 'disabled';
+
+function resolveSecurityPolicy(cfg: Record<string, unknown>, accountId: string) {
+  const channel = ((cfg.channels as Record<string, unknown> | undefined)?.['trix-native'] as Record<string, unknown> | undefined) ?? {};
+  const accounts = (channel.accounts as Record<string, Record<string, unknown>> | undefined) ?? {};
+  const rawAccount = accounts[accountId] ?? {};
+
+  const policy = ((rawAccount.dmPolicy as string | undefined) ?? (channel.dmPolicy as string | undefined) ?? 'open') as TrixDmPolicy;
+  const allowFrom = [
+    ...(((channel.allowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+    ...(((rawAccount.allowFrom as unknown[]) ?? []).map((entry) => String(entry).trim()).filter(Boolean)),
+  ];
+
+  return {
+    policy,
+    allowFrom: [...new Set(allowFrom)],
+    policyPath: rawAccount.dmPolicy ? `channels.trix-native.accounts.${accountId}.dmPolicy` : 'channels.trix-native.dmPolicy',
+    allowFromPath: rawAccount.allowFrom ? `channels.trix-native.accounts.${accountId}.allowFrom` : 'channels.trix-native.allowFrom',
+  };
+}
+
 type RuntimeSnapshot = {
   running?: boolean;
   connected?: boolean;
@@ -39,7 +62,7 @@ function renderClaimQr(claimUrl: string, log?: (message: string) => void) {
 
 async function createServicePairing(accountId?: string | null) {
   const account = resolveRegisteredTrixAccount(accountId);
-  const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings`, {
+  const response = await fetchWithTimeout(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -49,7 +72,7 @@ async function createServicePairing(accountId?: string | null) {
       accountId: account.accountId,
       label: account.name,
     }),
-  });
+  }, 10_000);
   if (!response.ok) {
     throw new Error(`Failed to create pairing QR: ${response.status} ${response.statusText}`);
   }
@@ -69,11 +92,11 @@ async function waitForServicePairing(accountId?: string | null, timeoutMs?: numb
   const effectiveTimeoutMs = timeoutMs ?? DEFAULT_PAIRING_WAIT_TIMEOUT_MS;
   while (Date.now() - startedAt < effectiveTimeoutMs) {
     try {
-      const response = await fetch(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
+      const response = await fetchWithTimeout(`${account.serviceUrl.replace(/\/$/, '')}/api/pairings/${encodeURIComponent(pairingCode)}`, {
         headers: {
           authorization: `Bearer ${account.serviceToken ?? ''}`,
         },
-      });
+      }, Math.min(PAIRING_STATUS_POLL_INTERVAL_MS - 1_000, 6_000));
       if (!response.ok) {
         if (response.status >= 500 && response.status < 600) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -131,6 +154,14 @@ export const trixPlugin: ChannelPlugin = {
         enabled: { type: 'boolean' },
         defaultAccount: { type: 'string' },
         dmPolicy: { type: 'string', enum: ['open', 'pairing', 'allowlist', 'disabled'] },
+        allowFrom: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        groupAllowFrom: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         accounts: {
           type: 'object',
           additionalProperties: {
@@ -139,11 +170,20 @@ export const trixPlugin: ChannelPlugin = {
             properties: {
               enabled: { type: 'boolean' },
               name: { type: 'string' },
-              serviceUrl: { type: 'string', format: 'uri' },
-              publicBaseUrl: { type: 'string', format: 'uri' },
+              serviceUrl: { type: 'string' },
+              publicBaseUrl: { type: 'string' },
               serviceToken: { type: 'string' },
               transport: { type: 'string', enum: ['ws', 'http'] },
               storageDir: { type: 'string' },
+              dmPolicy: { type: 'string', enum: ['open', 'pairing', 'allowlist', 'disabled'] },
+              allowFrom: {
+                type: 'array',
+                items: { type: 'string' },
+              },
+              groupAllowFrom: {
+                type: 'array',
+                items: { type: 'string' },
+              },
             },
             required: ['serviceUrl', 'serviceToken'],
           },
@@ -187,12 +227,20 @@ export const trixPlugin: ChannelPlugin = {
   },
   setup: trixSetupAdapter,
   security: {
-    resolveDmPolicy: () => ({
-      policy: 'open',
-      allowFrom: ['*'],
-      allowFromPath: 'channels.trix-native.allowFrom',
-      approveHint: 'TRIX service claim controls user access',
-    }),
+    resolveDmPolicy: ({ cfg, accountId, account }) => {
+      const resolvedAccountId = accountId ?? (account as { accountId?: string } | undefined)?.accountId ?? 'default';
+      const policy = resolveSecurityPolicy(cfg as Record<string, unknown>, resolvedAccountId);
+
+      return {
+        policy: policy.policy,
+        allowFrom: policy.allowFrom,
+        policyPath: policy.policyPath,
+        allowFromPath: policy.allowFromPath,
+        approveHint: policy.policy === 'pairing'
+          ? 'Pairing is enforced by the Trix Service claim flow.'
+          : 'TRIX service claim controls user access.',
+      };
+    },
   },
   auth: {
     login: async ({ accountId, runtime, verbose }) => {
@@ -225,6 +273,8 @@ export const trixPlugin: ChannelPlugin = {
     messageToolHints: () => [
       '- TRIX Native replies route through the Trix Service service plane.',
       '- Prefer implicit replies in the current session or explicit `conv:<conversationId>` targets.',
+      '- Treat trix-native inbound turns as live end-user chat, not workspace heartbeat or maintenance polls.',
+      '- Never output `HEARTBEAT_OK` unless the user explicitly requested that exact text.',
     ],
   },
   outbound: trixOutbound,

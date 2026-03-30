@@ -2,7 +2,7 @@
 //  TrixBotChatView.swift
 //  TRIX3DCompanion
 //
-//  TRIX Bot chat view - supports paired device mode and cloud chat mode
+//  TRIX Bot native chat view
 //
 
 import SwiftUI
@@ -21,7 +21,6 @@ struct TrixBotChatView: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var clawbotChannel: ClawbotChannelViewModel
-    @EnvironmentObject private var chatService: ChatService
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - State
@@ -32,8 +31,6 @@ struct TrixBotChatView: View {
     @State private var isUploadingAttachment = false
     @State private var isSendingMessage = false
     @State private var localErrorMessage: String?
-    @State private var cloudRoomId: String = Self.defaultCloudRoomFallbackId
-    @State private var hasInitializedCloudRoom = false
     @State private var scrollToBottom = false
     @State private var didApplyUITestPrefill = false
     @State private var didApplyUITestAttachment = false
@@ -42,12 +39,8 @@ struct TrixBotChatView: View {
 
     // MARK: - Dependencies
 
-    private let imageUploadService: ImageUploadService = .shared
-
     // MARK: - Constants
 
-    private static let cloudRoomStorageKey = "trixbot.cloud.room.id"
-    private static let defaultCloudRoomFallbackId = "trixbot"
     private let defaultImagePrompt = L("chat.trixbot.default.prompt")
 
     // MARK: - Initialization
@@ -121,6 +114,7 @@ struct TrixBotChatView: View {
             scrollToBottom = true
         }
         .onChange(of: clawbotChannel.isPaired) { _ in
+            scheduleUITestFocusIfNeeded()
             scheduleUITestAutoSendIfNeeded()
         }
         .alert(L("chat.trixbot.send.failed"), isPresented: localErrorPresented) {
@@ -138,6 +132,8 @@ struct TrixBotChatView: View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 12) {
+                    statusBanner
+
                     if displayMessages.isEmpty {
                         emptyState
                     } else {
@@ -157,6 +153,7 @@ struct TrixBotChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .onAppear {
                 scrollToBottom = true
+                scheduleUITestFocusIfNeeded()
             }
             .onChange(of: scrollToBottom) { shouldScroll in
                 guard shouldScroll else { return }
@@ -171,11 +168,11 @@ struct TrixBotChatView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: "message.badge")
+            Image(systemName: clawbotChannel.isPaired ? "message.badge" : "link.badge.plus")
                 .font(.system(size: 30))
                 .foregroundColor(.brandPurple.opacity(0.7))
 
-            Text(L("chat.trixbot.empty.hint"))
+            Text(clawbotChannel.isPaired ? L("chat.trixbot.empty.hint") : L("chat.trixbot.action.pair.first"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -186,6 +183,27 @@ struct TrixBotChatView: View {
         .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.18, shadowOpacity: 0.04, shadowRadius: 6)
         .frame(maxWidth: .infinity)
         .padding(.top, 48)
+    }
+
+    private var statusBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: clawbotChannel.isPaired ? "checkmark.seal.fill" : "link.badge.plus")
+                .foregroundStyle(clawbotChannel.isPaired ? .green : .orange)
+
+            Text(clawbotChannel.isPaired ? L("chat.trixbot.banner.paired") : L("chat.trixbot.banner.unpaired"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.textPrimary.opacity(0.08), lineWidth: 1)
+        )
+        .uiTestMarker(clawbotChannel.isPaired ? TrixBotAccessibilityIdentifiers.pairedBanner : TrixBotAccessibilityIdentifiers.unpairedBanner)
     }
 
     // MARK: - Input
@@ -201,8 +219,9 @@ struct TrixBotChatView: View {
                     TextField(L("chat.trixbot.input.placeholder"), text: $messageText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .lineLimit(1...6)
+                        .submitLabel(.send)
                         .focused($isInputFocused)
-                        .disabled(isUploadingAttachment || isSendingMessage)
+                        .disabled(!clawbotChannel.isPaired || isUploadingAttachment || isSendingMessage)
                         .accessibilityIdentifier(TrixBotAccessibilityIdentifiers.inputField)
 
                     if !messageText.isEmpty {
@@ -217,6 +236,11 @@ struct TrixBotChatView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard clawbotChannel.isPaired, !isUploadingAttachment, !isSendingMessage else { return }
+                    isInputFocused = true
+                }
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -331,6 +355,10 @@ struct TrixBotChatView: View {
             || info.environment["TRIX_TEST_TRIXBOT_ATTACH_IMAGE"] == "1"
     }
 
+    private var isRunningUITests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     private func applyUITestPrefillIfNeeded() {
         guard !didApplyUITestPrefill,
               let prefill = uiTestPrefillMessage,
@@ -371,6 +399,21 @@ struct TrixBotChatView: View {
             try? await Task.sleep(nanoseconds: uiTestAutoSendDelayNanoseconds)
             guard canSend, clawbotChannel.isPaired else { return }
             await sendCurrentComposerMessage(source: "ui-test-auto")
+        }
+    }
+
+    private func scheduleUITestFocusIfNeeded() {
+        guard isRunningUITests,
+              clawbotChannel.isPaired,
+              !isUploadingAttachment,
+              !isSendingMessage else {
+            return
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard clawbotChannel.isPaired, !isUploadingAttachment, !isSendingMessage else { return }
+            isInputFocused = true
         }
     }
 
@@ -440,7 +483,7 @@ struct TrixBotChatView: View {
 
     private var canSend: Bool {
         let trimmedText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (!trimmedText.isEmpty || attachedImage != nil || attachedImageURL != nil) && !isUploadingAttachment && !isSendingMessage
+        return clawbotChannel.isPaired && (!trimmedText.isEmpty || attachedImage != nil || attachedImageURL != nil) && !isUploadingAttachment && !isSendingMessage
     }
 
     private var localErrorPresented: Binding<Bool> {
@@ -455,28 +498,14 @@ struct TrixBotChatView: View {
     }
 
     private var displayMessages: [TrixDisplayMessage] {
-        if clawbotChannel.isPaired {
-            return clawbotChannel.messages
-                .sorted { $0.timestamp < $1.timestamp }
-                .map {
-                    TrixDisplayMessage(
-                        id: $0.id,
-                        content: $0.content,
-                        mediaURL: $0.mediaUrl,
-                        timestamp: $0.timestamp,
-                        sender: $0.sender == .user ? .user : .bot
-                    )
-                }
-        }
-
-        return chatService.currentMessages
-            .sorted { $0.createdAt < $1.createdAt }
+        return clawbotChannel.messages
+            .sorted { $0.timestamp < $1.timestamp }
             .map {
                 TrixDisplayMessage(
                     id: $0.id,
                     content: $0.content,
                     mediaURL: $0.mediaUrl,
-                    timestamp: $0.createdAt,
+                    timestamp: $0.timestamp,
                     sender: $0.sender == .user ? .user : .bot
                 )
             }
@@ -489,48 +518,7 @@ struct TrixBotChatView: View {
             await clawbotChannel.connect()
         }
 
-        guard !clawbotChannel.isPaired else {
-            scrollToBottom = true
-            return
-        }
-
-        await ensureCloudRoomReady()
-        chatService.selectRoom(roomId: cloudRoomId)
-        _ = await chatService.fetchMessages(roomId: cloudRoomId, before: nil)
         scrollToBottom = true
-    }
-
-    private func ensureCloudRoomReady() async {
-        if hasInitializedCloudRoom {
-            return
-        }
-
-        if let cachedRoomId = UserDefaults.standard.string(forKey: Self.cloudRoomStorageKey), !cachedRoomId.isEmpty {
-            cloudRoomId = cachedRoomId
-            hasInitializedCloudRoom = true
-            return
-        }
-
-        if chatService.chatRooms.isEmpty {
-            _ = await chatService.fetchChatRooms()
-        }
-
-        if let existingRoom = chatService.chatRooms.first(where: { room in
-            room.type == .ai || room.name.localizedCaseInsensitiveContains("trix")
-        }) {
-            cloudRoomId = existingRoom.id
-            UserDefaults.standard.set(existingRoom.id, forKey: Self.cloudRoomStorageKey)
-            hasInitializedCloudRoom = true
-            return
-        }
-
-        let createResult = await chatService.createChatRoom(name: "TRIX Bot", type: .ai)
-        if case .success(let createdRoom) = createResult {
-            cloudRoomId = createdRoom.id
-            UserDefaults.standard.set(createdRoom.id, forKey: Self.cloudRoomStorageKey)
-        }
-
-        hasInitializedCloudRoom = true
     }
 
     private func sendMessage() {
@@ -543,6 +531,10 @@ struct TrixBotChatView: View {
     @MainActor
     private func sendCurrentComposerMessage(source: String) async {
         guard canSend else { return }
+        guard clawbotChannel.isPaired else {
+            localErrorMessage = L("chat.trixbot.action.pair.first")
+            return
+        }
 
         let trimmedText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         NSLog("[TRIX-UI] send tapped paired=%{public}@ canSend=%{public}@ text=%{public}@ attachedImage=%{public}@ attachedURL=%{public}@",
@@ -559,74 +551,38 @@ struct TrixBotChatView: View {
             scrollToBottom = true
         }
 
-        var mediaURLToSend = attachedImageURL
+        let mediaURLToSend = attachedImageURL
         var nativeMediaData: Data?
         var nativeMediaFileName: String?
         var nativeMediaMimeType: String?
 
-        if clawbotChannel.isPaired {
-            if let image = attachedImage {
-                nativeMediaData = image.jpegData(compressionQuality: 0.88)
-                nativeMediaMimeType = "image/jpeg"
-                nativeMediaFileName = "trix-image-\(Int(Date().timeIntervalSince1970)).jpg"
-            }
-        } else if mediaURLToSend == nil, let image = attachedImage {
-            isUploadingAttachment = true
-            let uploadResult = await imageUploadService.uploadImage(image)
-
-            switch uploadResult {
-            case .success(let url):
-                mediaURLToSend = url
-                attachedImageURL = url
-            case .failure(let error):
-                localErrorMessage = error.localizedDescription
-                isUploadingAttachment = false
-                return
-            }
-
-            isUploadingAttachment = false
+        if let image = attachedImage {
+            nativeMediaData = image.jpegData(compressionQuality: 0.88)
+            nativeMediaMimeType = "image/jpeg"
+            nativeMediaFileName = "trix-image-\(Int(Date().timeIntervalSince1970)).jpg"
         }
 
         let contentToSend = trimmedText.isEmpty ? defaultImagePrompt : trimmedText
         let hasMedia = mediaURLToSend != nil || nativeMediaData != nil
 
-        if clawbotChannel.isPaired {
-            NSLog("[TRIX-UI] native send source=%{public}@ text=%{public}@", source, contentToSend)
-            let success = await clawbotChannel.sendMessage(
-                contentToSend,
-                contentType: hasMedia ? .image : .text,
-                mediaUrl: mediaURLToSend,
-                mediaMimeType: nativeMediaMimeType ?? (hasMedia ? "image/jpeg" : nil),
-                mediaData: nativeMediaData,
-                mediaFileName: nativeMediaFileName
-            )
+        NSLog("[TRIX-UI] native send source=%{public}@ text=%{public}@", source, contentToSend)
+        let success = await clawbotChannel.sendMessage(
+            contentToSend,
+            contentType: hasMedia ? .image : .text,
+            mediaUrl: mediaURLToSend,
+            mediaMimeType: nativeMediaMimeType ?? (hasMedia ? "image/jpeg" : nil),
+            mediaData: nativeMediaData,
+            mediaFileName: nativeMediaFileName
+        )
 
-            if success {
-                NSLog("[TRIX-UI] native send success text=%{public}@", contentToSend)
-                clearComposer()
-            } else {
-                NSLog("[TRIX-UI] native send failed text=%{public}@ error=%{public}@",
-                      contentToSend,
-                      clawbotChannel.lastError ?? "")
-                localErrorMessage = clawbotChannel.lastError ?? L("chat.trixbot.send.failed.message")
-            }
+        if success {
+            NSLog("[TRIX-UI] native send success text=%{public}@", contentToSend)
+            clearComposer()
         } else {
-            await ensureCloudRoomReady()
-
-            let result = await chatService.sendMessage(
-                roomId: cloudRoomId,
-                content: contentToSend,
-                type: hasMedia ? .image : .text,
-                mediaUrl: mediaURLToSend,
-                mediaMimeType: hasMedia ? "image/jpeg" : nil
-            )
-
-            switch result {
-            case .success:
-                clearComposer()
-            case .failure(let error):
-                localErrorMessage = error.localizedDescription
-            }
+            NSLog("[TRIX-UI] native send failed text=%{public}@ error=%{public}@",
+                  contentToSend,
+                  clawbotChannel.lastError ?? "")
+            localErrorMessage = clawbotChannel.lastError ?? L("chat.trixbot.send.failed.message")
         }
     }
 

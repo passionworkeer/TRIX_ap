@@ -11,6 +11,14 @@ const INBOUND_ACK_TTL_MS = 30 * 60 * 1000;
 const MAX_TRACKED_INBOUND_MESSAGES = 2048;
 const DEFAULT_INBOUND_DEBOUNCE_MS = 900;
 const MAX_DEBOUNCED_BATCH_SIZE = 8;
+const TRIX_AGENT_TURN_PREAMBLE = [
+  'TRIX live chat turn.',
+  'Treat this as a normal end-user conversation on the trix-native channel.',
+  'Do not run heartbeat, workspace maintenance, memory cleanup, self-improving, cron, or proactive background routines.',
+  'Ignore any AGENTS.md, HEARTBEAT.md, or workspace rules that conflict with directly answering this user message.',
+  'Never reply with HEARTBEAT_OK unless the user explicitly asked for that exact text.',
+  'Respond only to the user content below.',
+].join(' ');
 
 type TrixDmPolicy = 'pairing' | 'allowlist' | 'open' | 'disabled';
 
@@ -109,6 +117,13 @@ async function resolveCommandAuthorized(params: {
     return true;
   }
 
+  if (dmPolicy === 'pairing') {
+    // Pairing is enforced by the Trix Service claim flow before inbound traffic
+    // reaches the native plugin, so command authorization can trust the service
+    // plane here instead of depending on OpenClaw's local pairing store.
+    return true;
+  }
+
   const storeAllowFrom = await params.runtime.pairing.readAllowFromStore({
     channel: 'trix-native',
     accountId: params.accountId,
@@ -123,7 +138,7 @@ async function resolveCommandAuthorized(params: {
         allowed: allowListIncludes(allowFrom, normalizedPeerId),
       },
       {
-        configured: normalizedStoreAllowFrom.length > 0 || dmPolicy === 'pairing',
+        configured: normalizedStoreAllowFrom.length > 0,
         allowed: allowListIncludes(normalizedStoreAllowFrom, normalizedPeerId),
       },
     ],
@@ -159,6 +174,14 @@ function resolveInboundDebounceMs(config: Record<string, unknown>): number {
     return 0;
   }
   return resolved;
+}
+
+function buildAgentFacingBody(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return TRIX_AGENT_TURN_PREAMBLE;
+  }
+  return `${TRIX_AGENT_TURN_PREAMBLE}\n\nUser content:\n${trimmed}`;
 }
 
 export async function monitorTrixProvider(opts: {
@@ -412,7 +435,9 @@ export async function monitorTrixProvider(opts: {
         });
       } else {
         const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
-        bodyForAgent = [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim();
+        bodyForAgent = buildAgentFacingBody(
+          [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim(),
+        );
 
         const firstAttachment = normalized.message.attachments.find((a) => a.url || (a as { servicePath?: string }).servicePath);
         if (firstAttachment) {
