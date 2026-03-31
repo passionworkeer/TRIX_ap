@@ -214,4 +214,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cronUpdate: (id, updates) => ipcRenderer.invoke('cron:update', id, updates),
   cronDelete: (id) => ipcRenderer.invoke('cron:delete', id),
   cronToggle: (id, enabled) => ipcRenderer.invoke('cron:toggle', id, enabled),
+
+  // === Preferences ===
+  preferencesGet: () => ipcRenderer.invoke('preferences:get'),
+  preferencesSet: (prefs) => ipcRenderer.invoke('preferences:set', prefs),
+
+  // === Friends ===
+  friendsList: () => ipcRenderer.invoke('friends:list'),
+  friendsAdd: (friendUserId) => ipcRenderer.invoke('friends:add', { friendUserId }),
+  friendsAccept: (friendId) => ipcRenderer.invoke('friends:accept', { friendId }),
+  friendsRemove: (friendId) => ipcRenderer.invoke('friends:remove', { friendId }),
+
+  // === Notifications ===
+  notificationsList: () => ipcRenderer.invoke('notifications:list'),
+  notificationsMarkRead: (notificationId) => ipcRenderer.invoke('notifications:mark-read', { notificationId }),
+  notificationsMarkAllRead: () => ipcRenderer.invoke('notifications:mark-all-read'),
 });

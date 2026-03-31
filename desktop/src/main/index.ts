@@ -4,6 +4,8 @@ import { config as dotenvConfig } from 'dotenv';
 import { setupIpcHandlers } from './ipc';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
+import Store from 'electron-store';
 
 // Load .env.local from desktop/ directory (dev + packaged fallback)
 dotenvConfig({ path: path.join(app.getAppPath(), 'desktop', '.env.local') });
@@ -55,9 +57,21 @@ let isQuitting = false;
 export function createMainWindow(): void {
   log.info('Creating main window...');
 
+  // ── Window bounds persistence ───────────────────────────────────────────────
+  const windowStateStore = new Store<Record<string, unknown>>({
+    name: 'window-state',
+    defaults: { width: 1200, height: 800 },
+  });
+  const savedX = windowStateStore.get('x') as number | undefined;
+  const savedY = windowStateStore.get('y') as number | undefined;
+  const savedWidth = windowStateStore.get('width') as number;
+  const savedHeight = windowStateStore.get('height') as number;
+
   const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    x: savedX,
+    y: savedY,
+    width: savedWidth,
+    height: savedHeight,
     minWidth: 800,
     minHeight: 600,
     frame: false,
@@ -70,6 +84,15 @@ export function createMainWindow(): void {
       sandbox: false,
     },
     show: false,
+  });
+
+  // Save window bounds on close
+  mainWindow.on('close', () => {
+    const bounds = mainWindow.getBounds();
+    windowStateStore.set('x', bounds.x);
+    windowStateStore.set('y', bounds.y);
+    windowStateStore.set('width', bounds.width);
+    windowStateStore.set('height', bounds.height);
   });
 
   mainWindow.loadFile(getMainUrl()).catch((err) => {

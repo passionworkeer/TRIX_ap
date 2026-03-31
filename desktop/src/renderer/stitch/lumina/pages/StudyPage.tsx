@@ -1258,6 +1258,20 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose, currentUserId, d
             {/* Friend Mode (placeholder) */}
             {entryMode === 'friend' && (
               <div style={{ textAlign: 'center', padding: 20, color: C.onSurfaceVariant }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: C.primaryContainer,
+                  color: C.onPrimaryContainer,
+                  borderRadius: 12,
+                  padding: '3px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginBottom: 10,
+                }}>
+                  即将推出
+                </div>
                 <p>好友列表功能开发中...</p>
               </div>
             )}

@@ -151,7 +151,7 @@ export function SettingsBrowser(_props: SettingsSharedState) {
             <input
               value={executablePath}
               onChange={e => setExecutablePath(e.target.value)}
-              placeholder="自动检测或手动指定路径"
+              placeholder=""
               style={{
                 width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: 8, padding: '7px 10px', color: '#e5e2e1', fontSize: 12,

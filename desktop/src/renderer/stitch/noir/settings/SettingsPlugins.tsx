@@ -165,7 +165,7 @@ export function SettingsPlugins(_props: SettingsSharedState) {
             value={newPath}
             onChange={e => setNewPath(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddPath()}
-            placeholder="例如 D:\openclaw\my-plugin"
+            placeholder="输入插件目录路径"
             style={{ flex: 1, background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: '#e5e2e1', fontSize: 12, outline: 'none' }}
           />
           <DarkButton label="添加" icon={<Plus size={11} />} onClick={handleAddPath} variant="outline" size="sm" disabled={!newPath.trim() || saving} />

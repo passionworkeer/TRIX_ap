@@ -374,6 +374,17 @@ export function setupIpcHandlers(): void {
 
   const authStore = new Store<{ session: unknown }>({ name: 'auth', defaults: { session: null } });
 
+  const preferencesStore = new Store<Record<string, unknown>>({
+    name: 'preferences',
+    defaults: {
+      theme: 'auto',
+      language: 'zh',
+      autoStart: false,
+      showFloatWindow: true,
+      notificationEnabled: true,
+    },
+  });
+
   function isSupabaseConfigured(): boolean {
     return Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY);
   }
@@ -1343,8 +1354,34 @@ export function setupIpcHandlers(): void {
   });
 
   /** Send a reaction emoji to a message */
-  ipcMain.handle('trixnative:send-reaction', async () => {
-    return { success: false, error: 'Message reactions are not supported by the current TRIX Native server' };
+  ipcMain.handle('trixnative:send-reaction', async (_event, messageId: string, emoji: string) => {
+    try {
+      const config = getTrixNativeServerConfig();
+      if (!config) {
+        return { success: false, error: 'TRIX Native channel not configured' };
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${config.adminToken}`,
+      };
+
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${config.serverUrl}/api/messages/${messageId}/reactions`,
+        headers,
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (res.statusCode !== 200 && res.statusCode !== 201) {
+        return { success: false, isSupported: false, error: `Server returned ${res.statusCode}: ${res.body}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, isSupported: false, error: String(err) };
+    }
   });
 
   // === Study Room (TrixNativeServer) ===
@@ -2642,12 +2679,21 @@ export function setupIpcHandlers(): void {
         const webhookUrl = cfg['webhookUrl'];
         if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
         startWebhookPoll(channelId as string, webhookUrl);
-        return { success: true, message: 'started (experimental, 30s polling)' };
+        return {
+          success: true,
+          message: 'started',
+          experimental: true,
+          pollingInterval: 30000,
+          statusNote: 'Experimental (30s polling)',
+        };
       }
 
       if (channelId === 'whatsapp') {
-        pushStatusToRenderer('whatsapp', 'connected', 'experimental: manual refresh only');
-        return { success: true, message: 'WhatsApp — paid API required for listening' };
+        return {
+          success: false,
+          error: 'WhatsApp Business API requires a paid Meta business account with Webhooks access. Free/standard WhatsApp does not support inbound message webhooks.',
+          code: 'WHATSAPP_PAID_REQUIRED',
+        };
       }
 
       return { success: false, error: 'Unsupported channel' };
@@ -3023,6 +3069,170 @@ export function setupIpcHandlers(): void {
       app.setLoginItemSettings({ openAtLogin: enabled });
       return { success: true };
     } catch (err: unknown) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Preferences ────────────────────────────────────────────────────────────
+
+  ipcMain.handle('preferences:get', () => ({
+    success: true,
+    data: {
+      theme: preferencesStore.get('theme'),
+      language: preferencesStore.get('language'),
+      autoStart: preferencesStore.get('autoStart'),
+      showFloatWindow: preferencesStore.get('showFloatWindow'),
+      notificationEnabled: preferencesStore.get('notificationEnabled'),
+    },
+  }));
+
+  ipcMain.handle('preferences:set', async (_event, prefs: Record<string, unknown>) => {
+    try {
+      Object.entries(prefs).forEach(([k, v]) => preferencesStore.set(k, v));
+      return { success: true, data: preferencesStore.store };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Friends ─────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('friends:list', async () => {
+    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/friends?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&select=*`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      const data = JSON.parse(res.body);
+      return { success: true, data: Array.isArray(data) ? data : [] };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('friends:add', async (_, { friendUserId }: { friendUserId: string }) => {
+    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${SUPABASE_URL}/rest/v1/friends`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({ user_id: session.user?.id, friend_user_id: friendUserId, status: 'pending' }),
+      });
+      const data = res.body ? JSON.parse(res.body) : null;
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('friends:accept', async (_, { friendId }: { friendId: string }) => {
+    const session = authStore.get('session') as { access_token?: string } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/friends?id=eq.${encodeURIComponent(friendId)}`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'accepted' }),
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('friends:remove', async (_, { friendId }: { friendId: string }) => {
+    const session = authStore.get('session') as { access_token?: string } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      await httpRequest({
+        method: 'DELETE',
+        url: `${SUPABASE_URL}/rest/v1/friends?id=eq.${encodeURIComponent(friendId)}`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  // ── Notifications ───────────────────────────────────────────────────────────
+
+  ipcMain.handle('notifications:list', async () => {
+    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'GET',
+        url: `${SUPABASE_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&order=created_at.desc&limit=50`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      const data = JSON.parse(res.body);
+      return { success: true, data: Array.isArray(data) ? data : [] };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('notifications:mark-read', async (_, { notificationId }: { notificationId: string }) => {
+    const session = authStore.get('session') as { access_token?: string } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/notifications?id=eq.${encodeURIComponent(notificationId)}`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read: true }),
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('notifications:mark-all-read', async () => {
+    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    try {
+      await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&read=eq.false`,
+        headers: {
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read: true }),
+      });
+      return { success: true };
+    } catch (err) {
       return { success: false, error: String(err) };
     }
   });

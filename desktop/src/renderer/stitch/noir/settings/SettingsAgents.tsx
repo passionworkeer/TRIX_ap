@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import os from 'node:os';
+import path from 'node:path';
 import { Bot, Save, ChevronDown, ChevronRight, RefreshCw, CheckCircle } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
@@ -196,7 +198,7 @@ export function SettingsAgents(_props: SettingsSharedState) {
           <input
             value={workspace}
             onChange={e => setWorkspace(e.target.value)}
-            placeholder="C:\Users\wang\.openclaw\workspace"
+            placeholder={`${os.homedir()}${path.sep}.openclaw${path.sep}workspace`}
             style={{
               width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: 8, padding: '7px 10px', color: '#e5e2e1', fontSize: 12,
