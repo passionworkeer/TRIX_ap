@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../../../src/contexts/AuthContext';
 
 /**
  * Syncs Supabase auth session from renderer to main process electron-store.

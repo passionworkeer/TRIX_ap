@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LogIn, LogOut, User, Shield, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../../../../src/contexts/AuthContext';
 import type { SettingsSharedState } from './SettingsContainer';
 
 export function SettingsAccount(_props: SettingsSharedState) {
@@ -33,7 +33,8 @@ export function SettingsAccount(_props: SettingsSharedState) {
           setAuthError(result.error.message || '登录失败');
         }
       } else {
-        const result = await signUp(authEmail.trim(), authPassword, authUsername.trim() || authEmail.trim().split('@')[0]);
+        const fallbackUsername = authEmail.trim().split('@')[0] ?? 'trix-user';
+        const result = await signUp(authEmail.trim(), authPassword, authUsername.trim() || fallbackUsername);
         if (!result.error) {
           setAuthSuccess('注册成功，请查收确认邮件');
           setAuthMode('signin');

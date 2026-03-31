@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './desktop.css';
 import '@/i18n';
 import { LuminaLayout } from './stitch/shared/LuminaLayout';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider } from '../../../src/contexts/AuthContext';
 import { AuthSync } from './stitch/shared/AuthSync';
 
 // Global error handlers — show errors inline in the app

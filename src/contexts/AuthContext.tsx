@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, Profile } from '@/lib/supabase';
+import { supabase, type Profile } from '../lib/supabase';
+import {
+  logger,
+  getLocalSessionId,
+  upsertSession,
+  touchSession,
+  updateLastActive,
+  checkSessionValidity,
+  forceLogout,
+  SESSION_VALIDITY_CHECK_MS,
+  VALIDITY_CHECK_INTERVAL_HEARTBEATS,
+} from '../lib/authUtils';
 
 // ── Re-export shared auth utilities from web ──────────────────────────────────
 export {
@@ -15,7 +26,7 @@ export {
   AuthLogger,
   SESSION_VALIDITY_CHECK_MS,
   VALIDITY_CHECK_INTERVAL_HEARTBEATS,
-} from '@/lib/authUtils';
+} from '../lib/authUtils';
 
 export enum AuthErrorType {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
@@ -128,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          forceLogout(validity.reason, getLocalSessionId());
+          forceLogout(validity.reason ?? 'unknown', getLocalSessionId());
         }
       }
     }, SESSION_VALIDITY_CHECK_MS);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../../../src/contexts/AuthContext';
 import { LuminaButton } from '../lumina/components/buttons';
 
 // Design tokens (Monolith Noir)

@@ -4,7 +4,6 @@ import { config as dotenvConfig } from 'dotenv';
 import { setupIpcHandlers } from './ipc';
 import path from 'path';
 import fs from 'fs';
-import os from 'os';
 import Store from 'electron-store';
 
 // ── Load .env.local ──────────────────────────────────────────────────────────
