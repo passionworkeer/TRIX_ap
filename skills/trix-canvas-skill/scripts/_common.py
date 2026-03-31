@@ -6,6 +6,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+from urllib.parse import urlencode
 
 # ---------- 配置 ----------
 CANVAS_BASE = os.environ.get("CANVAS_BASE_URL", "http://localhost:8789")
@@ -32,8 +33,10 @@ def _headers() -> dict:
     return h
 
 
-def _canvas_get(path: str) -> dict:
+def _canvas_get(path: str, params: dict | None = None) -> dict:
     url = f"{CANVAS_BASE.rstrip('/')}{path}"
+    if params:
+        url = f"{url}?{urlencode(params)}"
     req = urllib.request.Request(
         url, method="GET", headers={"Accept": "application/json"}
     )
@@ -254,6 +257,24 @@ def list_project_files(project_id: int) -> list:
     resp = _canvas_get(f"/api/projects/{project_id}/files")
     return resp.get("data", []) if isinstance(resp, dict) else resp
 
+def create_session(message: str, project_id: int | str | None = None, session_id: str | None = None) -> dict:
+    body = {"message": message}
+    if project_id is not None:
+        body["projectId"] = str(project_id)
+    if session_id:
+        body["sessionId"] = session_id
+    return _canvas_post("/api/session", body)
+
+
+def query_session(session_id: str, after_seq: int = 0) -> dict:
+    params = {"afterSeq": after_seq} if after_seq else None
+    resp = _canvas_get(f"/api/session/{session_id}", params=params)
+    return resp.get("data", resp) if isinstance(resp, dict) else resp
+
+
+def change_project() -> dict:
+    return _canvas_post("/api/session/change-project", {})
+
 
 # ---------- 媒体下载 ----------
 MAX_DOWNLOAD_SIZE = 500 * 1024 * 1024  # 500 MB，上限防护
@@ -292,4 +313,3 @@ def download_media(rel_path: str, timeout: int = 120) -> bytes:
                 )
             chunks.append(chunk)
         return b"".join(chunks)
-

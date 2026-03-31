@@ -84,7 +84,7 @@ docs/
 ├── 🎯 Canvas Skill (skills/)
 │   └── trix-canvas-skill/
 │       ├── SKILL.md           # Canvas Skill manifest（⭐ 新增）
-│       └── scripts/           # Python 工作流脚本（⭐ 新增：13 个脚本）
+│       └── scripts/           # Python 工作流脚本（⭐ 新增：17 个脚本，含会话/下载工具）
 │
 └── 🗂️ 归档 (.archive/)                  # 仅供参考，不含源码树
     ├── INSTALLATION_GUIDE.md                # trix-openclaw-native 安装（旧版，已被 SETUP.md 覆盖）

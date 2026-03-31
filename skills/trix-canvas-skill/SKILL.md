@@ -1,9 +1,9 @@
 ---
 name: trix-canvas-skill
 description: |
-  TRIX Canvas 工作流自动化技能。提供剧本解析、分镜生成、AI 生图/视频、
-  节点编排、边连线等完整脚本。Canvas 服务器须在 localhost:8789 运行。
-  触发：用户说"用 Canvas"、"生成视频分镜"、"TRIX Canvas 工作流"等。
+  OpenClaw 风格 Canvas 技能：提供会话控制、剧本解析、分镜节点编排和生成结果下载。
+  Canvas 服务默认在 localhost:8789，后端再调用你配置的任意生成 API（如 MiniMax/apivyi）。
+  触发：用户说"用 Canvas"、"生成短剧"、"TRIX Canvas 工作流"等。
 allowed-tools: Bash, Read, Glob
 ---
 
@@ -26,19 +26,23 @@ node server.js
 
 ## 脚本索引
 
-所有脚本在 `skills/trix-canvas-skill/scripts/`，Python 路径前缀 `D:/python/python.exe`。
+所有脚本在 `skills/trix-canvas-skill/scripts/`。
 
-| 脚本 | 用途 | 关键接口 |
-|------|------|---------|
-| `check_env.py` | 环境自检（端口/AI API）| 无参数 |
-| `parse_script.py` | 剧本 → JSON 分镜列表 | stdin / 参数 |
-| `workflow.py` | 端到端自动化 | `--script`, `--project`, `--concurrent` |
-| `generate.py` | AI 生图/视频 | `--project-id`, `--prompt`, `--media-type` |
-| `create_node.py` | 创建节点 | `--project-id`, `--prompt`, `--x`, `--y` |
-| `create_edge.py` | 创建边 | `--project-id`, `--src`, `--tgt` |
-| `export_subtitle.py` | 导出字幕 | `--project-id`, `--output` |
-| `export_video.py` | 导出视频 | `--project-id`, `--output` |
-| `upload_result.py` | 上传生成结果 | `--project-id`, `--file` |
+| 脚本 | 用途 | 关键参数 |
+|------|------|------------|
+| `create_session.py` | 向 Canvas session 发送消息 / 创建生成任务 | `--message`, `--project-id`, `--session-id` |
+| `query_session.py` | 轮询会话结果、获取 `resultUrls` | `session_id`, `--after-seq` |
+| `change_project.py` | 切换到一个新的项目 UUID | 无参数 |
+| `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
+| `download_results.py` | 批量下载项目的 `files` | `project_id`, `--dest`, `--media-types` |
+| `check_env.py` | 端口、ffmpeg、目录自检 | 无参数 |
+| `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
+| `workflow.py` | 一条命令自动完成解析、生成、节点/边矩阵 | `--script`, `--project`、`--concurrent` |
+| `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |
+| `create_node.py` | 将提示词/结果注册进 Canvas 节点 | `project_id`, `--prompt`, `--x`, `--y` |
+| `create_edge.py` | 建立节点之间的场景/转场关系 | `project_id`, `source_id`, `target_id` |
+| `export_subtitle.py` | 生成精确 .srt + 脚本说明 | `project_id`, `--output-dir` |
+| `export_video.py` | 调用 ffmpeg 拼各镜头视频 | `project_id`, `--aspect`, `--output` |
 
 ## Python API（`_common.py`）
 
@@ -95,7 +99,7 @@ python workflow.py --script "第一幕：女孩在草地跳舞" --project "我�
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `CANVAS_BASE_URL` | `http://localhost:8789` | Canvas API 地址 |
-| `AI_API_BASE` | `""` | AI 服务地址（如不配置走回退解析）|
-| `AI_API_KEY` | `""` | AI API Key |
-| `AI_EXTRA_HEADERS` | `""` | 额外 Header（每行 `Key: Value`）|
+| `CANVAS_BASE_URL` | `http://localhost:8789` | Canvas 服务地址（渲染 /session + /projects） |
+| `AI_API_BASE` | `""` | 生成服务地址（Canvas 后端会使用此 URL 调用第二跳生成接口） |
+| `AI_API_KEY` | `""` | 上游 AIGC 的 Bearer Token |
+| `AI_EXTRA_HEADERS` | `""` | 每行 `Key: Value`，用于补充上游 API 请求头 |
