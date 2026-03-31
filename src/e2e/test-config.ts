@@ -115,6 +115,12 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
   // Mock Supabase client in the browser before page loads
   // Note: Playwright's addInitScript passes arguments as an array
   await page.addInitScript(({ userId, email }) => {
+    const encodeJwtPart = (value: Record<string, unknown>) =>
+      btoa(JSON.stringify(value))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+
     // Create a mock session object
     const mockUser = {
       id: userId,
@@ -131,11 +137,21 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       user_metadata: {}
     };
 
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const accessToken = `${encodeJwtPart({ alg: 'HS256', typ: 'JWT' })}.${encodeJwtPart({
+      sub: userId,
+      email,
+      role: 'authenticated',
+      aud: 'authenticated',
+      iat: issuedAt,
+      exp: issuedAt + 3600,
+    })}.mock-signature`;
+
     const mockSession = {
-      access_token: 'mock_access_token_' + Date.now(),
+      access_token: accessToken,
       refresh_token: 'mock_refresh_token_' + Date.now(),
       expires_in: 3600,
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      expires_at: issuedAt + 3600,
       token_type: 'bearer',
       user: mockUser
     };
@@ -194,6 +210,21 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
           interaction_count: 42,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }
+        });
+      }
+
+      // Mock auth session table used by authUtils heartbeat/bootstrap logic
+      if (requestUrl.includes('/rest/v1/sessions') || requestUrl.includes('/rest/v1/user_sessions')) {
+        return new Response(JSON.stringify({
+          id: 'mock-local-session-id',
+          user_id: userId,
+          device_id: 'mock-device-id',
+          is_active: true,
+          last_active_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 3600_000).toISOString()
         }), {
           status: 200,
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import socket
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -17,7 +16,6 @@ from _paths import default_canvas_data_dir
 
 # ---------- 配置 ----------
 CANVAS_BASE = os.environ.get("CANVAS_BASE_URL", "http://localhost:8789").rstrip("/")
-CANVAS_ACCESS_TOKEN = os.environ.get("CANVAS_ACCESS_TOKEN", "").strip()
 AI_API_BASE = os.environ.get("AI_API_BASE", "")
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 ALLOW_PRIVATE_REMOTE_URLS = os.environ.get("CANVAS_ALLOW_PRIVATE_REMOTE_URLS", "").strip().lower() in {
@@ -30,6 +28,24 @@ _CANVAS_BASE_PARSED = urlparse(CANVAS_BASE)
 CANVAS_LOCAL_DIR = Path(
     os.environ.get("CANVAS_DATA_DIR", str(default_canvas_data_dir()))
 ).resolve()
+CANVAS_AUTH_TOKEN_FILE = Path(
+    os.environ.get("CANVAS_AUTH_TOKEN_FILE", str(CANVAS_LOCAL_DIR / ".canvas-access-token"))
+).resolve()
+
+
+def _load_canvas_access_token() -> str:
+    explicit = os.environ.get("CANVAS_ACCESS_TOKEN", "").strip()
+    if explicit:
+        return explicit
+    try:
+        if CANVAS_AUTH_TOKEN_FILE.exists():
+            return CANVAS_AUTH_TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return ""
+
+
+CANVAS_ACCESS_TOKEN = _load_canvas_access_token()
 
 SAFE_EXTS = {
     ".png",
@@ -47,6 +63,10 @@ SAFE_EXTS = {
 }
 MAX_DOWNLOAD_SIZE = 500 * 1024 * 1024  # 500 MB，上限防护
 _DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+class CanvasRequestError(RuntimeError):
+    """Raised when the canvas HTTP API returns an error or cannot be reached."""
 
 
 def _canvas_headers() -> dict:
@@ -71,11 +91,10 @@ def _request_json(method: str, path: str, body: dict | None = None, params: dict
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
         err_body = exc.read().decode("utf-8") if exc.fp else ""
-        print(f"Canvas API 错误 {exc.code}: {err_body}", file=sys.stderr)
-        sys.exit(1)
+        detail = f": {err_body}" if err_body else ""
+        raise CanvasRequestError(f"Canvas API 错误 {exc.code}{detail}") from exc
     except urllib.error.URLError as exc:
-        print(f"网络错误: {exc.reason}", file=sys.stderr)
-        sys.exit(1)
+        raise CanvasRequestError(f"网络错误: {exc.reason}") from exc
 
 
 def _canvas_get(path: str, params: dict | None = None) -> dict:

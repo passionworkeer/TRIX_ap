@@ -26,15 +26,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOST = (process.env.CANVAS_HOST || '127.0.0.1').trim() || '127.0.0.1';
 const PORT = Number(process.env.CANVAS_PORT || 8789);
 const APP_ORIGIN = process.env.CANVAS_BASE_URL || defaultBaseUrl(HOST, PORT);
-const CANVAS_REQUIRE_AUTH = /^(1|true|yes)$/i.test(process.env.CANVAS_REQUIRE_AUTH || '');
-const CANVAS_ACCESS_TOKEN = (
-  process.env.CANVAS_ACCESS_TOKEN
-  || (CANVAS_REQUIRE_AUTH ? randomBytes(24).toString('hex') : '')
-).trim();
-const CANVAS_AUTH_COOKIE = 'trix_canvas_auth';
-const CANVAS_ALLOWED_ORIGINS = parseOriginList(process.env.CANVAS_ALLOWED_ORIGINS || '');
 const DATA_ROOT = resolve(process.env.CANVAS_DATA_DIR || join(__dirname, 'data'));
 const EXPORT_ROOT = resolve(process.env.CANVAS_EXPORT_DIR || join(__dirname, 'exports'));
+const CANVAS_REQUIRE_AUTH = /^(1|true|yes)$/i.test(process.env.CANVAS_REQUIRE_AUTH || '');
+const CANVAS_ALLOW_INSECURE_PUBLIC = /^(1|true|yes)$/i.test(
+  process.env.CANVAS_ALLOW_INSECURE_PUBLIC || '',
+);
+const CANVAS_AUTH_TOKEN_FILE = resolve(
+  process.env.CANVAS_AUTH_TOKEN_FILE || join(DATA_ROOT, '.canvas-access-token'),
+);
+const CANVAS_AUTH_COOKIE = 'trix_canvas_auth';
+const CANVAS_ALLOWED_ORIGINS = parseOriginList(process.env.CANVAS_ALLOWED_ORIGINS || '');
+const CANVAS_AUTH_TOKEN_INFO = resolveCanvasAccessToken();
+const CANVAS_ACCESS_TOKEN = CANVAS_AUTH_TOKEN_INFO.value;
 
 const PROJECTS_DIR = join(DATA_ROOT, 'projects');
 const NODES_DIR = join(DATA_ROOT, 'nodes');
@@ -156,6 +160,14 @@ function defaultBaseUrl(host, port) {
   return `http://${formattedHost}:${port}`;
 }
 
+function isLoopbackHost(host) {
+  const normalized = String(host || '').trim().toLowerCase();
+  return normalized === '127.0.0.1'
+    || normalized === 'localhost'
+    || normalized === '::1'
+    || normalized === '[::1]';
+}
+
 function readPositiveNumber(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -180,6 +192,43 @@ function appendVaryHeader(res, value) {
   next.add(value);
   res.setHeader('Vary', Array.from(next).join(', '));
 }
+
+function resolveCanvasAccessToken() {
+  const explicit = (process.env.CANVAS_ACCESS_TOKEN || '').trim();
+  if (!CANVAS_REQUIRE_AUTH) {
+    return { value: explicit, source: explicit ? 'env' : 'disabled' };
+  }
+  if (explicit) {
+    return { value: explicit, source: 'env' };
+  }
+  try {
+    if (existsSync(CANVAS_AUTH_TOKEN_FILE)) {
+      const stored = readFileSync(CANVAS_AUTH_TOKEN_FILE, 'utf8').trim();
+      if (stored) {
+        return { value: stored, source: 'file' };
+      }
+    }
+    const generated = randomBytes(24).toString('hex');
+    mkdirSync(dirname(CANVAS_AUTH_TOKEN_FILE), { recursive: true });
+    writeFileSync(CANVAS_AUTH_TOKEN_FILE, `${generated}\n`, { mode: 0o600 });
+    return { value: generated, source: 'generated-file' };
+  } catch (error) {
+    throw new Error(
+      `Failed to provision CANVAS_ACCESS_TOKEN at ${CANVAS_AUTH_TOKEN_FILE}: ${error.message}`,
+    );
+  }
+}
+
+function assertSafeBindConfiguration() {
+  if (!isLoopbackHost(HOST) && !CANVAS_REQUIRE_AUTH && !CANVAS_ALLOW_INSECURE_PUBLIC) {
+    throw new Error(
+      'Refusing to expose Canvas on a non-loopback host without auth. '
+      + 'Set CANVAS_REQUIRE_AUTH=true or CANVAS_ALLOW_INSECURE_PUBLIC=true to override.',
+    );
+  }
+}
+
+assertSafeBindConfiguration();
 
 function isCanvasAuthExemptPath(pathname) {
   return pathname === '/health'
@@ -2028,6 +2077,18 @@ server.listen(PORT, HOST, () => {
   console.log(`  Data dir:  ${DATA_ROOT}`);
   console.log(`  Export dir:${EXPORT_ROOT}`);
   console.log(`  Auth:      ${CANVAS_REQUIRE_AUTH ? 'enabled' : 'disabled'}`);
+  if (CANVAS_REQUIRE_AUTH) {
+    console.log(`  Auth token source: ${CANVAS_AUTH_TOKEN_INFO.source}`);
+    if (CANVAS_AUTH_TOKEN_INFO.source !== 'env') {
+      console.log(`  Auth token file:   ${CANVAS_AUTH_TOKEN_FILE}`);
+    }
+  }
+  if (!isLoopbackHost(HOST) && !CANVAS_REQUIRE_AUTH) {
+    console.warn(
+      '⚠ Canvas is exposed on a non-loopback host without auth because '
+      + 'CANVAS_ALLOW_INSECURE_PUBLIC=true. Put it behind your own gateway.',
+    );
+  }
   if (!AI_API_BASE) {
     console.warn('⚠ AI_API_BASE 未配置，生成接口会返回错误状态');
   }

@@ -12,6 +12,33 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const OPENCLAW_CONFIG = join(process.env.HOME || '', '.openclaw', 'openclaw.json');
 const CANVAS_HOST = (process.env.CANVAS_HOST || '127.0.0.1').trim() || '127.0.0.1';
 const PROXY_HOST = (process.env.PROXY_HOST || '127.0.0.1').trim() || '127.0.0.1';
+const PASSTHROUGH_ENV_KEYS = new Set([
+  'HOME',
+  'PATH',
+  'USER',
+  'LOGNAME',
+  'LANG',
+  'SHELL',
+  'TERM',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'PWD',
+  'NODE_OPTIONS',
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'NO_PROXY',
+]);
+const PASSTHROUGH_ENV_PREFIXES = [
+  'LC_',
+  'CANVAS_',
+  'AI_',
+  'PROXY_',
+  'TRIX_CANVAS_',
+  'MINIMAX_',
+  'OPENAI_',
+  'ANTHROPIC_',
+];
 
 function isLoopbackHost(host) {
   return ['127.0.0.1', 'localhost', '::1'].includes(host);
@@ -34,6 +61,24 @@ function readOpenClawApiKey() {
   }
 }
 
+function shouldPassEnvKey(key) {
+  return PASSTHROUGH_ENV_KEYS.has(key)
+    || PASSTHROUGH_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+function buildChildEnv(overrides = {}) {
+  const env = {};
+  Object.entries(process.env).forEach(([key, value]) => {
+    if (value !== undefined && shouldPassEnvKey(key)) {
+      env[key] = value;
+    }
+  });
+  return {
+    ...env,
+    ...overrides,
+  };
+}
+
 const PORT = Number(process.env.CANVAS_PORT || 8789);
 const PXYPORT = Number(process.env.PROXY_PORT || 8790);
 const allowOpenClawFallback = /^(1|true|yes)$/i.test(process.env.TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG || '')
@@ -44,8 +89,7 @@ const proxyApiKey =
   || process.env.PROXY_UPSTREAM_KEY
   || (allowOpenClawFallback ? readOpenClawApiKey() : '');
 
-const proxyEnv = {
-  ...process.env,
+const proxyEnv = buildChildEnv({
   PROXY_PORT: String(PXYPORT),
   PROXY_HOST,
   AI_API_BASE:
@@ -61,17 +105,16 @@ const proxyEnv = {
     || process.env.AI_GENERATE_PATH
     || '/anthropic/v1/messages',
   AI_MODEL: process.env.PROXY_MODEL || process.env.AI_MODEL || 'MiniMax-M2.7',
-};
+});
 
-const serverEnv = {
-  ...process.env,
+const serverEnv = buildChildEnv({
   CANVAS_PORT: String(PORT),
   CANVAS_HOST,
   CANVAS_BASE_URL: process.env.CANVAS_BASE_URL || defaultBaseUrl(CANVAS_HOST, PORT),
   AI_API_BASE: `http://127.0.0.1:${PXYPORT}`,
   AI_GENERATE_PATH: '/generate',
   AI_TASK_PATH_TEMPLATE: '/tasks/:taskId',
-};
+});
 
 const children = [];
 

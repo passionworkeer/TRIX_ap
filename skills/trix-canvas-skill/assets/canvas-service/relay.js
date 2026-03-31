@@ -17,6 +17,7 @@ const MAX_BODY_BYTES = Number(process.env.RELAY_MAX_BODY_BYTES || 256 * 1024);
 const REQUEST_TIMEOUT_MS = Number(process.env.RELAY_REQUEST_TIMEOUT_MS || 120000);
 const TASK_TTL_MS = Number(process.env.RELAY_TASK_TTL_MS || 60 * 60 * 1000);
 const ALLOWED_ORIGINS = parseOriginList(process.env.RELAY_ALLOWED_ORIGINS || "");
+const RELAY_ALLOW_REMOTE = /^(1|true|yes)$/i.test(process.env.RELAY_ALLOW_REMOTE || "");
 
 const IMAGE_API_URL = process.env.IMAGE_API_URL || "";
 const IMAGE_API_METHOD = (process.env.IMAGE_API_METHOD || "POST").toUpperCase();
@@ -44,6 +45,24 @@ function parseOriginList(raw) {
       .filter(Boolean),
   );
 }
+
+function isLoopbackHost(host) {
+  const normalized = String(host || "").trim().toLowerCase();
+  return normalized === "127.0.0.1"
+    || normalized === "localhost"
+    || normalized === "::1"
+    || normalized === "[::1]";
+}
+
+function assertSafeRelayBind() {
+  if (!isLoopbackHost(RELAY_HOST) && !RELAY_ALLOW_REMOTE) {
+    throw new Error(
+      "Refusing to expose relay on a non-loopback host. Set RELAY_ALLOW_REMOTE=true to override.",
+    );
+  }
+}
+
+assertSafeRelayBind();
 
 function makeTaskId() {
   return "t_" + Math.random().toString(36).slice(2) + Date.now().toString(36);

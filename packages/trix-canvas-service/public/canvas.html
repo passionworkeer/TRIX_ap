@@ -1647,6 +1647,48 @@ function drawPort(x, y, fill) {
   ctx.stroke();
 }
 
+function normalizeCornerRadius(radius, width, height) {
+  const limit = Math.max(0, Math.min(width, height) / 2);
+  const values = Array.isArray(radius) ? radius : [radius];
+  const source = values.length ? values : [0];
+  const pick = (index) => {
+    const raw = Number(source[index]);
+    return Number.isFinite(raw)
+      ? Math.max(0, Math.min(raw, limit))
+      : 0;
+  };
+  if (source.length === 1) {
+    const value = pick(0);
+    return [value, value, value, value];
+  }
+  if (source.length === 2) {
+    return [pick(0), pick(1), pick(0), pick(1)];
+  }
+  if (source.length === 3) {
+    return [pick(0), pick(1), pick(2), pick(1)];
+  }
+  return [pick(0), pick(1), pick(2), pick(3)];
+}
+
+function roundRectPath(targetCtx, x, y, width, height, radius) {
+  const [topLeft, topRight, bottomRight, bottomLeft] = normalizeCornerRadius(radius, width, height);
+  targetCtx.beginPath();
+  if (typeof targetCtx.roundRect === 'function') {
+    targetCtx.roundRect(x, y, width, height, [topLeft, topRight, bottomRight, bottomLeft]);
+    return;
+  }
+  targetCtx.moveTo(x + topLeft, y);
+  targetCtx.lineTo(x + width - topRight, y);
+  targetCtx.quadraticCurveTo(x + width, y, x + width, y + topRight);
+  targetCtx.lineTo(x + width, y + height - bottomRight);
+  targetCtx.quadraticCurveTo(x + width, y + height, x + width - bottomRight, y + height);
+  targetCtx.lineTo(x + bottomLeft, y + height);
+  targetCtx.quadraticCurveTo(x, y + height, x, y + height - bottomLeft);
+  targetCtx.lineTo(x, y + topLeft);
+  targetCtx.quadraticCurveTo(x, y, x + topLeft, y);
+  targetCtx.closePath();
+}
+
 function drawEdge(edge, nodesById) {
   const source = nodesById.get(edge.source_node_id);
   const target = nodesById.get(edge.target_node_id);
@@ -1677,8 +1719,7 @@ function drawNode(node) {
   ctx.save();
   ctx.translate(node.x, node.y);
 
-  ctx.beginPath();
-  ctx.roundRect(0, 0, NODE_WIDTH, NODE_HEIGHT, 22);
+  roundRectPath(ctx, 0, 0, NODE_WIDTH, NODE_HEIGHT, 22);
   ctx.fillStyle = isUtilityNode
     ? 'rgba(20,30,38,.96)'
     : 'rgba(13,20,26,.97)';
@@ -1704,8 +1745,7 @@ function drawNode(node) {
     headerGradient.addColorStop(1, 'rgba(255,255,255,.03)');
   }
   ctx.fillStyle = headerGradient;
-  ctx.beginPath();
-  ctx.roundRect(0, 0, NODE_WIDTH, HEADER_HEIGHT, [22, 22, 0, 0]);
+  roundRectPath(ctx, 0, 0, NODE_WIDTH, HEADER_HEIGHT, [22, 22, 0, 0]);
   ctx.fill();
 
   ctx.fillStyle = '#eef6fa';
@@ -1736,8 +1776,7 @@ function drawNode(node) {
   const previewY = HEADER_HEIGHT;
   if (image) {
     ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(10, previewY + 10, NODE_WIDTH - 20, PREVIEW_HEIGHT - 20, 16);
+    roundRectPath(ctx, 10, previewY + 10, NODE_WIDTH - 20, PREVIEW_HEIGHT - 20, 16);
     ctx.clip();
     ctx.drawImage(image, 10, previewY + 10, NODE_WIDTH - 20, PREVIEW_HEIGHT - 20);
     ctx.restore();
@@ -1746,8 +1785,7 @@ function drawNode(node) {
     previewGradient.addColorStop(0, isUtilityNode ? 'rgba(127,198,255,.16)' : 'rgba(57,208,179,.15)');
     previewGradient.addColorStop(1, node.media_type === 'video' ? 'rgba(255,181,92,.18)' : 'rgba(255,255,255,.04)');
     ctx.fillStyle = previewGradient;
-    ctx.beginPath();
-    ctx.roundRect(10, previewY + 10, NODE_WIDTH - 20, PREVIEW_HEIGHT - 20, 16);
+    roundRectPath(ctx, 10, previewY + 10, NODE_WIDTH - 20, PREVIEW_HEIGHT - 20, 16);
     ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.78)';
     ctx.font = '700 34px "Avenir Next","PingFang SC",sans-serif';

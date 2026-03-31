@@ -15,7 +15,7 @@
  * 7. Pairing page
  * 8. Responsive layouts (mobile, tablet, desktop)
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, mockSession, waitForI18n } from './test-config';
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 812 },
@@ -35,11 +35,23 @@ async function stabilizePage(page: import('@playwright/test').Page) {
   await page.waitForTimeout(100);
 }
 
+async function gotoPublicPage(page: import('@playwright/test').Page, path: string) {
+  await waitForI18n(page);
+  await page.goto(path);
+  await stabilizePage(page);
+}
+
+async function gotoProtectedPage(page: import('@playwright/test').Page, path: string) {
+  await waitForI18n(page);
+  await mockSession(page);
+  await page.goto(path);
+  await stabilizePage(page);
+}
+
 test.describe('Visual Regression - Login', () => {
   test('login page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/login');
-    await stabilizePage(page);
+    await gotoPublicPage(page, '/#/login');
     await expect(page).toHaveScreenshot('login-mobile.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -49,8 +61,7 @@ test.describe('Visual Regression - Login', () => {
 test.describe('Visual Regression - Home', () => {
   test('home page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/');
     await expect(page).toHaveScreenshot('home-mobile.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -58,8 +69,7 @@ test.describe('Visual Regression - Home', () => {
 
   test('home page matches baseline @tablet', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.tablet);
-    await page.goto('/');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/');
     await expect(page).toHaveScreenshot('home-tablet.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -69,8 +79,7 @@ test.describe('Visual Regression - Home', () => {
 test.describe('Visual Regression - Chat', () => {
   test('chat page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/chat');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/#/chat');
     await expect(page).toHaveScreenshot('chat-mobile.png', {
       maxDiffPixelRatio: 0.02, // Allow 2% diff for dynamic content
     });
@@ -80,8 +89,7 @@ test.describe('Visual Regression - Chat', () => {
 test.describe('Visual Regression - Study', () => {
   test('study page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/study');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/#/study');
     await expect(page).toHaveScreenshot('study-mobile.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -91,8 +99,7 @@ test.describe('Visual Regression - Study', () => {
 test.describe('Visual Regression - Map', () => {
   test('map page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/map');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/#/map');
     await expect(page).toHaveScreenshot('map-mobile.png', {
       maxDiffPixelRatio: 0.03, // Map content varies
     });
@@ -102,8 +109,7 @@ test.describe('Visual Regression - Map', () => {
 test.describe('Visual Regression - Profile', () => {
   test('profile page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/profile');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/#/profile');
     await expect(page).toHaveScreenshot('profile-mobile.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -113,8 +119,7 @@ test.describe('Visual Regression - Profile', () => {
 test.describe('Visual Regression - Pairing', () => {
   test('pairing page matches baseline @mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
-    await page.goto('/#/pairing');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/#/pairing');
     await expect(page).toHaveScreenshot('pairing-mobile.png', {
       maxDiffPixelRatio: 0.01,
     });
@@ -124,8 +129,7 @@ test.describe('Visual Regression - Pairing', () => {
 test.describe('Visual Regression - Responsive', () => {
   test('home responsive @desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto('/');
-    await stabilizePage(page);
+    await gotoProtectedPage(page, '/');
     await expect(page).toHaveScreenshot('home-desktop.png', {
       maxDiffPixelRatio: 0.01,
     });

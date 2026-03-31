@@ -291,9 +291,10 @@ export async function getUsersLastActive(userIds: string[]): Promise<Record<stri
     }
 
     // 构建映射，缺失的用户的活跃时间设为 null
+    const profiles = Array.isArray(data) ? data : [];
     const result: Record<string, string | null> = {};
     for (const userId of uniqueUserIds) {
-      const profile = data?.find(p => p.id === userId);
+      const profile = profiles.find(p => p.id === userId);
       result[userId] = profile?.last_active_at ?? null;
     }
 

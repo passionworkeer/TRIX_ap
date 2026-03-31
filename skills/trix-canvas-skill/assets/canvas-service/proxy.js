@@ -25,6 +25,7 @@ const REQUEST_TIMEOUT_MS   = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 1200
 const TASK_TTL_MS          = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
 const SESSION_TTL_MS       = Number(process.env.PROXY_SESSION_TTL_MS || 60 * 60 * 1000);
 const ALLOWED_ORIGINS      = parseOriginList(process.env.PROXY_ALLOWED_ORIGINS || '');
+const PROXY_ALLOW_REMOTE   = /^(1|true|yes)$/i.test(process.env.PROXY_ALLOW_REMOTE || '');
 
 // In-memory stores for async polling
 // taskId -> { status, output, urls, error, createdAt }
@@ -40,6 +41,24 @@ function parseOriginList(raw) {
       .filter(Boolean),
   );
 }
+
+function isLoopbackHost(host) {
+  const normalized = String(host || '').trim().toLowerCase();
+  return normalized === '127.0.0.1'
+    || normalized === 'localhost'
+    || normalized === '::1'
+    || normalized === '[::1]';
+}
+
+function assertSafeProxyBind() {
+  if (!isLoopbackHost(HOST) && !PROXY_ALLOW_REMOTE) {
+    throw new Error(
+      'Refusing to expose proxy on a non-loopback host. Set PROXY_ALLOW_REMOTE=true to override.',
+    );
+  }
+}
+
+assertSafeProxyBind();
 
 function setCorsHeaders(req, res) {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
@@ -355,6 +374,9 @@ srv.listen(PORT, HOST, () => {
   console.log(`  Upstream: ${AI_API_BASE}${AI_GENERATE_PATH}`);
   console.log(`  Model:    ${AI_MODEL}`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);
+  if (!isLoopbackHost(HOST)) {
+    console.warn('⚠ Proxy remote exposure enabled via PROXY_ALLOW_REMOTE=true');
+  }
 });
 
 srv.on('error', err => { console.error(err); process.exit(1); });

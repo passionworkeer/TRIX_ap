@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 
 from _paths import SKILL_ROOT, ensure_canvas_node_runtime
@@ -22,9 +23,18 @@ def resolve_workspace(agent_id: str, explicit_workspace: str | None) -> Path:
     if config_path.exists():
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
-            for agent in config.get("agents", {}).get("list", []):
+            agents = config.get("agents", {}).get("list", [])
+            for agent in agents:
                 if agent.get("id") == agent_id and agent.get("workspace"):
                     return Path(agent["workspace"]).expanduser().resolve()
+            if agent_id and agents:
+                available = ", ".join(
+                    sorted(str(agent.get("id")) for agent in agents if agent.get("id"))
+                ) or "<none>"
+                raise FileNotFoundError(
+                    f"OpenClaw agent '{agent_id}' not found in {config_path}. "
+                    f"Available agents: {available}. Use --workspace to override."
+                )
             default_workspace = config.get("agents", {}).get("defaults", {}).get("workspace")
             if default_workspace:
                 return Path(default_workspace).expanduser().resolve()
@@ -47,7 +57,10 @@ def update_agents_md(workspace_dir: Path) -> None:
         if AGENTS_HINT_START in content and AGENTS_HINT_END in content:
             start = content.index(AGENTS_HINT_START)
             end = content.index(AGENTS_HINT_END) + len(AGENTS_HINT_END)
-            updated = content[:start].rstrip() + "\n\n" + hint
+            prefix = content[:start].rstrip()
+            suffix = content[end:].lstrip()
+            parts = [part for part in (prefix, hint.rstrip(), suffix) if part]
+            updated = "\n\n".join(parts)
         else:
             updated = content.rstrip() + "\n\n" + hint
     else:
@@ -94,22 +107,26 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    installed = install(
-        agent_id=args.agent_id,
-        workspace=args.workspace or None,
-        install_deps=args.install_deps,
-        update_agents_hint=args.update_agents_md,
-    )
-    print(
-        json.dumps(
-            {
-                "ok": True,
-                "installed_to": str(installed),
-                "start_command": (
-                    f"python3 {installed / 'scripts' / 'start_canvas.py'} --with-proxy --open"
-                ),
-            },
-            ensure_ascii=False,
-            indent=2,
+    try:
+        installed = install(
+            agent_id=args.agent_id,
+            workspace=args.workspace or None,
+            install_deps=args.install_deps,
+            update_agents_hint=args.update_agents_md,
         )
-    )
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "installed_to": str(installed),
+                    "start_command": (
+                        f"python3 {installed / 'scripts' / 'start_canvas.py'} --with-proxy --open"
+                    ),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+        sys.exit(1)
